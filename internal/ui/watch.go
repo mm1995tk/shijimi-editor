@@ -6,6 +6,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// gitDiffRefreshTicks is how many watch ticks pass between refreshes of the
+// CHANGES list in git-diff mode.
+const gitDiffRefreshTicks = 3
+
 // watchInterval is how often open files are compared with the disk.
 const watchInterval = time.Second
 
@@ -19,11 +23,11 @@ func watchTick() tea.Cmd {
 // open files. A clean buffer is reloaded; a buffer with unsaved edits is left
 // alone and the user decides: :reload takes the disk version, saving keeps
 // theirs.
-func (a *App) checkDiskChanges() {
+func (a *App) checkDiskChanges() (reloaded bool) {
 	if !a.cfg.Editor.WatchFiles {
-		return
+		return false
 	}
-	var reloaded, conflicts []*tab
+	var reloadedTabs, conflicts []*tab
 	for _, t := range a.tabs {
 		if t.kind != tabText {
 			continue
@@ -43,12 +47,13 @@ func (a *App) checkDiskChanges() {
 			a.fail(err)
 			continue
 		}
-		reloaded = append(reloaded, t)
+		reloadedTabs = append(reloadedTabs, t)
 	}
 	switch {
 	case len(conflicts) > 0:
 		a.msg, a.msgErr = "ディスク上で変更されました（未保存の編集あり）: "+a.rel(conflicts[0].buf.Path)+" — :reload でディスクの内容を読み込みます。保存すると上書きします", true
-	case len(reloaded) > 0:
-		a.info("外部の変更を反映しました: %s（Ctrl+G で差分をレビュー）", a.rel(reloaded[0].buf.Path))
+	case len(reloadedTabs) > 0:
+		a.info("外部の変更を反映しました: %s（Ctrl+G で差分モード）", a.rel(reloadedTabs[0].buf.Path))
 	}
+	return len(reloadedTabs) > 0
 }

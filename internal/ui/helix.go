@@ -379,7 +379,7 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	case "g":
 		return a.prPicker()
 	case "G":
-		return a.openLocalReview()
+		return a.toggleGitDiff()
 	case "y":
 		if t := a.cur(); t != nil && t.kind == tabText {
 			s, e := t.buf.SelectionOrChar()
