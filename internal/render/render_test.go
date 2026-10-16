@@ -76,3 +76,11 @@ echo "No usable sandbox!" >&2; exit 1`)
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestSandboxErrorNamespaceMessage(t *testing.T) {
+	bin := fakeChromium(t, `echo "Failed to move to new namespace: PID namespaces supported, Network namespace supported, but failed: errno = Operation not permitted" >&2; exit 1`)
+	_, err := Chromium{Path: bin}.Render(context.Background(), "http://x", Options{})
+	if !errors.Is(err, ErrSandbox) {
+		t.Fatalf("err = %v", err)
+	}
+}

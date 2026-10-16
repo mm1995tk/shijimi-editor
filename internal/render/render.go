@@ -32,7 +32,7 @@ var ErrNotFound = errors.New("Chromium が見つかりません。インスト�
 // ErrSandbox means Chromium could not start with its sandbox (root, some
 // containers). The sandbox is never disabled; the page can be opened in an
 // external browser instead.
-var ErrSandbox = errors.New("Chromium を sandbox 付きで起動できませんでした（root やコンテナでは使えないことがあります）。外部ブラウザで開くには :open-url を使ってください")
+var ErrSandbox = errors.New("sandbox 付きで Chromium を起動できません。:open-url で外部ブラウザで開いてください")
 
 var pngMagic = []byte("\x89PNG\r\n\x1a\n")
 
@@ -102,7 +102,7 @@ func (c Chromium) Render(ctx context.Context, url string, opts Options) ([]byte,
 			return nil, fmt.Errorf("描画がタイムアウトしました（%s）", opts.Timeout)
 		}
 		msg := strings.TrimSpace(lastLines(stderr.String(), 3))
-		if strings.Contains(strings.ToLower(stderr.String()), "sandbox") {
+		if low := strings.ToLower(stderr.String()); strings.Contains(low, "sandbox") || strings.Contains(low, "failed to move to new namespace") {
 			return nil, fmt.Errorf("%w: %s", ErrSandbox, msg)
 		}
 		return nil, fmt.Errorf("Chromium の実行に失敗しました: %w: %s", err, msg)
