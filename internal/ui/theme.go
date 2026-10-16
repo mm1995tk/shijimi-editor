@@ -246,7 +246,6 @@ func (a *App) setTheme(name string) bool {
 	styleInput(&a.findInput, cPaletteBg)
 	styleInput(&a.cmdInput, cEditorBg)
 	styleInput(&a.pal.input, cPaletteBg)
-	styleInput(&a.term.input, cEditorBg)
 	return true
 }
 
