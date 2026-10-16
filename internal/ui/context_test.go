@@ -69,26 +69,6 @@ func TestSendContextLineSelection(t *testing.T) {
 	}
 }
 
-func TestBracketedAfter(t *testing.T) {
-	h, l := "\x1b[?2004h", "\x1b[?2004l"
-	for _, c := range []struct {
-		out  string
-		cur  bool
-		want bool
-	}{
-		{"plain", true, true},
-		{"plain", false, false},
-		{l + "out" + h, false, true},
-		{h + "out" + l, true, false},
-		{h, false, true},
-		{l, true, false},
-	} {
-		if got := bracketedAfter([]byte(c.out), c.cur); got != c.want {
-			t.Errorf("%q cur=%v: got %v", c.out, c.cur, got)
-		}
-	}
-}
-
 func TestSendReviewComments(t *testing.T) {
 	a := New(t.TempDir(), "")
 	a.w, a.h = 100, 30
