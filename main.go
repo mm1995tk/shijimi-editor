@@ -18,7 +18,8 @@ func main() {
 		arg := os.Args[1]
 		if arg == "-h" || arg == "--help" {
 			fmt.Println("usage: gh-editor [ディレクトリ | ファイル]")
-			fmt.Println("       gh-editor open <path>[:行] | diff [path] | status | skill")
+			fmt.Println("       gh-editor open <path>[:行] | diff [path] | status")
+			fmt.Println("       gh-editor skill install [書き出し先]")
 			fmt.Println("サブコマンドは実行中の gh-editor へ $" + ctl.EnvSocket + " 経由で送ります。")
 			fmt.Println("同名のファイルを開くときは ./status のようにパスで書いてください。")
 			return

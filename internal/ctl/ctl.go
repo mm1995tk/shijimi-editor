@@ -196,8 +196,7 @@ func Run(args []string, stdout, stderr func(string)) int {
 	case "status":
 		req = Request{Cmd: "status"}
 	case "skill":
-		stderr("skill は未実装です (#31)")
-		return 1
+		return runSkill(args[1:], stdout, stderr)
 	default:
 		stderr("不明なサブコマンド: " + args[0])
 		return 2
