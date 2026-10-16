@@ -365,6 +365,8 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		return a.bufferPicker()
 	case "k":
 		return a.hover()
+	case "o":
+		a.openURL("")
 	case "r":
 		return a.rename()
 	case "d", "D":
