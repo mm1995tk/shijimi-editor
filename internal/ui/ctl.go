@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"path/filepath"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -29,21 +28,6 @@ func (a *App) handleCtl(m ctlMsg) tea.Cmd {
 	var cmd tea.Cmd
 	var resp ctl.Response
 	switch m.req.Cmd {
-	case "open":
-		if m.req.Path == "" {
-			resp = ctl.Response{Error: "path がありません"}
-			break
-		}
-		if !a.openFile(m.req.Path) {
-			resp = ctl.Response{Error: "開けませんでした: " + m.req.Path}
-			break
-		}
-		if t := a.curText(); t != nil && m.req.Line > 0 {
-			t.buf.GotoLine(m.req.Line)
-		}
-		a.follow = true
-		cmd = a.setFocus(focusEditor)
-		resp = ctl.Response{OK: true}
 	case "diff":
 		if !a.gd.on {
 			cmd = a.toggleGitDiff()
@@ -58,29 +42,11 @@ func (a *App) handleCtl(m ctlMsg) tea.Cmd {
 			}
 			cmd = tea.Batch(cmd, a.setFocus(focusEditor))
 		}
-	case "status":
-		resp = ctl.Response{OK: true, Status: a.ctlStatus()}
 	default:
 		resp = ctl.Response{Error: "不明なコマンド: " + m.req.Cmd}
 	}
 	m.reply <- resp
 	return cmd
-}
-
-func (a *App) ctlStatus() *ctl.Status {
-	st := &ctl.Status{Root: a.root, Branch: a.branch, Tabs: []string{}}
-	for _, t := range a.tabs {
-		if t.kind == tabText {
-			st.Tabs = append(st.Tabs, t.path())
-		} else {
-			st.Tabs = append(st.Tabs, fmt.Sprintf("(%s)", t.title()))
-		}
-	}
-	if t := a.curText(); t != nil {
-		st.Active = t.path()
-		st.Line = t.buf.Cur.Row + 1
-	}
-	return st
 }
 
 // reviewToRoot turns a repository-relative review path into one relative to

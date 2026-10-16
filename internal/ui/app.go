@@ -17,6 +17,7 @@ import (
 
 	"github.com/mm1995tk/gh-editor/internal/buffer"
 	"github.com/mm1995tk/gh-editor/internal/config"
+	"github.com/mm1995tk/gh-editor/internal/ide"
 	"github.com/mm1995tk/gh-editor/internal/lsp"
 	"github.com/mm1995tk/gh-editor/internal/proxy"
 )
@@ -77,6 +78,12 @@ type App struct {
 	hoverText   string
 	hoverScroll int
 	ctx         *ctxPreview
+
+	// Claude Code IDE integration (see ide.go)
+	ide     *ide.Server
+	props   []*proposal // agent changes waiting for the user's decision
+	lastSel *ideSelection
+	sentSel *ideSelection
 
 	clipboard    string
 	msg          string
@@ -580,11 +587,18 @@ func (a *App) pasteText() string {
 // ---- update ----
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m, ok := msg.(ctlMsg); ok {
+	switch m := msg.(type) {
+	case ctlMsg:
 		return a, a.handleCtl(m)
+	case ideMsg:
+		return a, a.handleIDE(m)
+	case ideCancelMsg:
+		a.cancelProposal(m.reply)
+		return a, nil
 	}
 	cmd := a.update(msg)
 	a.syncLSP()
+	a.notifySelection()
 	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview())
 }
 
@@ -766,6 +780,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	if a.pal.open {
 		return a.handlePaletteKey(msg)
+	}
+	if len(a.props) > 0 {
+		return a.handleProposalKey(msg)
 	}
 	if a.ctx != nil {
 		return a.handleContextKey(msg)
@@ -1617,6 +1634,9 @@ func (a *App) View() string {
 
 	if a.ctx != nil {
 		rows = a.renderContext(rows)
+	}
+	if len(a.props) > 0 {
+		rows = a.renderProposal(rows)
 	}
 
 	if a.cmdOpen {

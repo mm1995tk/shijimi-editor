@@ -61,6 +61,10 @@ hash = 'sha256-kd7GO+bExbWUNCZXtX/zwG4pn2ZYEYuEfIR2KfTHqMQ='
 version = 'v0.0.0-20211004153227-1c3628e74d0f'
 hash = 'sha256-OWSqN1+IoL73rWXWdbbcahZu8n2al90Y3eT5Z0vgHvU='
 
+[mod.'github.com/gorilla/websocket']
+version = 'v1.5.3'
+hash = 'sha256-vTIGEFMEi+30ZdO6ffMNJ/kId6pZs5bbyqov8xe9BM0='
+
 [mod.'github.com/lucasb-eyer/go-colorful']
 version = 'v1.4.1'
 hash = 'sha256-nY4QB5g4wsf/BNjtNBxzAbgE40kHDhYYYQMAQUHic60='
