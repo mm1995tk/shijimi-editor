@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
@@ -49,6 +50,14 @@ func newImageView(path string) *imageView {
 		v.size = st.Size()
 	}
 	v.img, v.format, v.err = image.Decode(f)
+	return v
+}
+
+// newImageViewFromData shows already-loaded image bytes (for example a
+// rendered web page) under the given display name.
+func newImageViewFromData(name string, data []byte) *imageView {
+	v := &imageView{path: name, size: int64(len(data))}
+	v.img, v.format, v.err = image.Decode(bytes.NewReader(data))
 	return v
 }
 
