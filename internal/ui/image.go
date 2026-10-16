@@ -33,6 +33,7 @@ type imageView struct {
 	err    error
 
 	cacheW, cacheH int
+	cacheGen       int // themeGen the cache was built for
 	cache          []string
 }
 
@@ -72,7 +73,7 @@ func humanSize(n int64) string {
 }
 
 func (v *imageView) render(w, h int) []string {
-	if v.cache != nil && v.cacheW == w && v.cacheH == h {
+	if v.cache != nil && v.cacheW == w && v.cacheH == h && v.cacheGen == themeGen {
 		return v.cache
 	}
 	out := make([]string, 0, h)
@@ -117,7 +118,7 @@ func (v *imageView) render(w, h int) []string {
 	for len(out) < h {
 		out = append(out, blank)
 	}
-	v.cacheW, v.cacheH, v.cache = w, h, out
+	v.cacheW, v.cacheH, v.cacheGen, v.cache = w, h, themeGen, out
 	return out
 }
 

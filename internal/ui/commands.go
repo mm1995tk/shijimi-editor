@@ -229,8 +229,13 @@ func (a *App) execCommand(line string) tea.Cmd {
 		a.lsp.cfg = a.cfg
 		a.explorer.icons = a.cfg.Editor.FileIcons
 		a.helix = a.cfg.Editor.Keymap != "vscode"
-		if a.cfg.Editor.Theme != "" {
-			a.setTheme(a.cfg.Editor.Theme)
+		// No theme (or an unknown one) falls back to dark-plus, as at startup.
+		if name := a.cfg.Editor.Theme; name == "" || !a.setTheme(name) {
+			a.setTheme(darkPlus.Name)
+			if name != "" {
+				a.fail(fmt.Errorf("不明なテーマ: %s（dark-plus を使います）", name))
+				return nil
+			}
 		}
 		a.info("設定を再読み込みしました: %s", strings.Join(a.cfg.Sources, ", "))
 	case "theme":
