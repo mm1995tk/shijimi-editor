@@ -64,6 +64,7 @@ func defaultCommands() []command {
 		{"ファイルツリー: 名前の変更", "r", func(a *App) tea.Cmd { return a.renameFile() }},
 		{"ファイルツリー: 削除", "d", func(a *App) tea.Cmd { return a.deleteFile() }},
 		{"編集: カーソル位置の URL を外部ブラウザで開く", "Space o / :open-url", func(a *App) tea.Cmd { return a.openURL("") }},
+		{"ブラウザ: ポート転送の一覧", ":browser list", func(a *App) tea.Cmd { return a.execCommand("browser list") }},
 		{"設定: テーマを切り替え", ":theme <名前>", func(a *App) tea.Cmd { return a.themePicker() }},
 		{"設定: キー操作を Helix / VS Code で切り替え", ":keymap", func(a *App) tea.Cmd { return a.execCommand("keymap") }},
 		{"設定: 設定ファイルを再読み込み", ":config-reload", func(a *App) tea.Cmd { return a.execCommand("config-reload") }},
@@ -226,6 +227,8 @@ func (a *App) execCommand(line string) tea.Cmd {
 			return a.openCmdline(":grep ")
 		}
 		return a.grep(arg)
+	case "browser":
+		return a.browser(arg)
 	case "replace", "rep":
 		return a.replace(arg)
 	case "lsp-restart":

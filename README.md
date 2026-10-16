@@ -55,13 +55,14 @@ gh-editor main.go    # ファイルを開く
 theme = "github_dark"
 ```
 
-### ブラウザ（Web ページの画像化）
+### ブラウザ（Web ページの画像化とポート転送）
 
-Web ページはヘッドレス Chromium で描画して PNG にします。`chromium` / `chromium-browser` / `google-chrome` を PATH から探します。実行ファイルのパスは次のように上書きできます。
+Web ページはヘッドレス Chromium で描画して PNG にします。`chromium` / `chromium-browser` / `google-chrome` を PATH から探します。実行ファイルのパスは次のように上書きできます。`:browser forward` の待ち受けアドレスも同じセクションで設定します。
 
 ```toml
 [browser]
 chromium = "/usr/bin/chromium"
+listen-host = "127.0.0.1"  # :browser forward の待ち受けアドレス
 ```
 
 `[browser]` は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` にのみ書いてください。`.helix/config.toml` に書くと、Helix が未知のセクションを拒否します（`[search]` と同じ）。
@@ -191,7 +192,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ### `:` コマンド
 
-`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:preview` `:lsp-restart` `:config-reload` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
+`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
 
 ### 全体
 
@@ -263,6 +264,20 @@ nix flake check        # 整形のチェック
 exclude = ["*.lock", "dist/**"]
 include = []
 ```
+
+### ポート転送（`:browser forward`）
+
+`:browser forward <対象ポート> [待ち受けポート]` は、gh-editor が `127.0.0.1` で待ち受け、`localhost:<対象ポート>` へ TCP で転送します（HTTP も WebSocket も通ります）。待ち受けポートを省略すると空いているポートが選ばれます。`:browser list` で一覧、`:browser stop <待ち受けポート>` で停止します。gh-editor を終了すると全て止まります。
+
+リモートの VM で gh-editor を動かしているときは、手元で次を実行すると、手元のブラウザから `http://localhost:8080` で開発サーバーを見られます。
+
+```sh
+ssh -L 8080:127.0.0.1:<待ち受けポート> vm
+```
+
+直接 `ssh -L` するのに比べて、待ち受けポートを固定できること、`0.0.0.0` や IPv6 のみで待ち受けるサーバーも `127.0.0.1` で受けられることが利点です。これらが不要なら `ssh -L` を直接使ってください。
+
+待ち受けアドレスは `[browser]` の `listen-host` で変えられます（設定は「ブラウザ」節）。既定では `0.0.0.0` にバインドしません。信頼できるネットワークでのみ変えてください。
 
 ## エージェント連携（制御用ソケット）
 

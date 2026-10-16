@@ -82,7 +82,10 @@ func TestBrowserConfigOnlyFromOwnDirs(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	t.Setenv("HOME", t.TempDir())
 	os.MkdirAll(filepath.Join(root, ".helix"), 0o755)
-	os.WriteFile(filepath.Join(root, ".helix", "config.toml"), []byte("[browser]\nchromium = \"/helix\"\n"), 0o644)
+	os.WriteFile(filepath.Join(root, ".helix", "config.toml"), []byte("[browser]\nchromium = \"/helix\"\nlisten-host = \"0.0.0.0\"\n"), 0o644)
+	if got := Load(root).Browser.ListenHost; got != "127.0.0.1" {
+		t.Fatalf(".helix listen-host must be ignored, got %q", got)
+	}
 	if got := Load(root).Browser.Chromium; got != "" {
 		t.Fatalf(".helix must be ignored, got %q", got)
 	}
@@ -92,7 +95,10 @@ func TestBrowserConfigOnlyFromOwnDirs(t *testing.T) {
 		t.Fatalf("user = %q", got)
 	}
 	os.MkdirAll(filepath.Join(root, ".gh-editor"), 0o755)
-	os.WriteFile(filepath.Join(root, ".gh-editor", "config.toml"), []byte("[browser]\nchromium = \"/proj\"\n"), 0o644)
+	os.WriteFile(filepath.Join(root, ".gh-editor", "config.toml"), []byte("[browser]\nchromium = \"/proj\"\nlisten-host = \"::1\"\n"), 0o644)
+	if got := Load(root).Browser.ListenHost; got != "::1" {
+		t.Fatalf("listen-host = %q", got)
+	}
 	if got := Load(root).Browser.Chromium; got != "/proj" {
 		t.Fatalf("project = %q", got)
 	}
