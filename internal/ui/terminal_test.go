@@ -88,11 +88,11 @@ func TestTerminalScrollback(t *testing.T) {
 	tm := newTerminal(t.TempDir())
 	tm.focus()
 	defer tm.closeAll()
-	tm.run("seq 1 100; echo done-マーカー")
+	tm.run("seq 1 100; echo マーカー-$((1+1))")
 
 	deadline := time.After(5 * time.Second)
 	for {
-		if strings.Contains(stripANSI(strings.Join(tm.render(40, 12, true), "\n")), "done-マーカー") {
+		if strings.Contains(stripANSI(strings.Join(tm.render(40, 12, true), "\n")), "マーカー-2") {
 			break
 		}
 		select {
