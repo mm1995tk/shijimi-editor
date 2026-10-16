@@ -5,38 +5,46 @@ import (
 	"strings"
 )
 
-// fileIcon is a Nerd Font glyph and its color.
+// fileIcon is a Nerd Font glyph and its color. kind names the icon so a theme
+// can override it (see Theme.Icons).
 type fileIcon struct {
+	kind  string
 	glyph string
 	color string
 }
 
+// iconOverride replaces parts of an icon in a theme. Empty fields keep the
+// default.
+type iconOverride struct {
+	Glyph, Color string
+}
+
 var (
-	iconFolder     = fileIcon{"", "#7aa2c8"}
-	iconFolderOpen = fileIcon{"", "#7aa2c8"}
-	iconDefault    = fileIcon{"", "#a0a0a0"}
+	iconFolder     = fileIcon{"folder", "", "#7aa2c8"}
+	iconFolderOpen = fileIcon{"folder-open", "", "#7aa2c8"}
+	iconDefault    = fileIcon{"default", "", "#a0a0a0"}
 )
 
 var (
-	icoGo       = fileIcon{"", "#00add8"}
-	icoNix      = fileIcon{"", "#7ebae4"}
-	icoMarkdown = fileIcon{"", "#519aba"}
-	icoImage    = fileIcon{"", "#a074c4"}
-	icoJSON     = fileIcon{"", "#cbcb41"}
-	icoConfig   = fileIcon{"", "#9aa5b1"}
-	icoShell    = fileIcon{"", "#89e051"}
-	icoLock     = fileIcon{"", "#9aa5b1"}
-	icoGit      = fileIcon{"", "#f1502f"}
-	icoJS       = fileIcon{"", "#cbcb41"}
-	icoTS       = fileIcon{"", "#519aba"}
-	icoPython   = fileIcon{"", "#ffbc03"}
-	icoRust     = fileIcon{"", "#dea584"}
-	icoHTML     = fileIcon{"", "#e44d26"}
-	icoCSS      = fileIcon{"", "#42a5f5"}
-	icoText     = fileIcon{"", "#a0a0a0"}
-	icoPDF      = fileIcon{"", "#e45649"}
-	icoArchive  = fileIcon{"", "#c9a26d"}
-	icoLicense  = fileIcon{"", "#d0bf41"}
+	icoGo       = fileIcon{"go", "", "#00add8"}
+	icoNix      = fileIcon{"nix", "", "#7ebae4"}
+	icoMarkdown = fileIcon{"markdown", "", "#519aba"}
+	icoImage    = fileIcon{"image", "", "#a074c4"}
+	icoJSON     = fileIcon{"json", "", "#cbcb41"}
+	icoConfig   = fileIcon{"config", "", "#9aa5b1"}
+	icoShell    = fileIcon{"shell", "", "#89e051"}
+	icoLock     = fileIcon{"lock", "", "#9aa5b1"}
+	icoGit      = fileIcon{"git", "", "#f1502f"}
+	icoJS       = fileIcon{"js", "", "#cbcb41"}
+	icoTS       = fileIcon{"ts", "", "#519aba"}
+	icoPython   = fileIcon{"python", "", "#ffbc03"}
+	icoRust     = fileIcon{"rust", "", "#dea584"}
+	icoHTML     = fileIcon{"html", "", "#e44d26"}
+	icoCSS      = fileIcon{"css", "", "#42a5f5"}
+	icoText     = fileIcon{"text", "", "#a0a0a0"}
+	icoPDF      = fileIcon{"pdf", "", "#e45649"}
+	icoArchive  = fileIcon{"archive", "", "#c9a26d"}
+	icoLicense  = fileIcon{"license", "", "#d0bf41"}
 )
 
 // iconByName matches whole file names (lower-case) and wins over extensions.
@@ -65,8 +73,29 @@ var iconByExt = map[string]fileIcon{
 	"zip": icoArchive, "tar": icoArchive, "gz": icoArchive,
 }
 
-// iconFor picks the icon for a tree node.
+// iconFor picks the icon for a tree node, with the active theme's override
+// applied.
 func iconFor(n *node) fileIcon {
+	return themedIcon(baseIconFor(n))
+}
+
+// themedIcon applies the active theme's override for ic, if it has one.
+func themedIcon(ic fileIcon) fileIcon {
+	o, ok := curTheme.Icons[ic.kind]
+	if !ok {
+		return ic
+	}
+	if o.Glyph != "" {
+		ic.glyph = o.Glyph
+	}
+	if o.Color != "" {
+		ic.color = o.Color
+	}
+	return ic
+}
+
+// baseIconFor picks the theme-independent icon for a tree node.
+func baseIconFor(n *node) fileIcon {
 	if n.isDir {
 		if n.expanded {
 			return iconFolderOpen
