@@ -38,6 +38,12 @@ type palette struct {
 	// prompt mode
 	prompt   string
 	onSubmit func(value string) tea.Cmd
+
+	// pick mode
+	picking   bool
+	pickTitle string
+	pickAll   []paletteItem
+	onPick    func(index int) tea.Cmd
 }
 
 func newPalette() *palette {
@@ -73,6 +79,7 @@ func indexFiles(root string) []string {
 // show opens the palette in quick-open/command mode with initial text.
 func (p *palette) show(root, initial string) tea.Cmd {
 	p.open = true
+	p.picking = false
 	p.prompt = ""
 	p.onSubmit = nil
 	p.files = indexFiles(root)
@@ -86,6 +93,7 @@ func (p *palette) show(root, initial string) tea.Cmd {
 // ask opens the palette as a single-line prompt.
 func (p *palette) ask(prompt, initial string, onSubmit func(string) tea.Cmd) tea.Cmd {
 	p.open = true
+	p.picking = false
 	p.prompt = prompt
 	p.onSubmit = onSubmit
 	p.items = nil
@@ -105,6 +113,21 @@ func (p *palette) filter(cmds []command) {
 	v := p.input.Value()
 	p.items = p.items[:0]
 	switch {
+	case p.picking:
+		q := strings.TrimSpace(v)
+		if q == "" {
+			p.items = append(p.items, p.pickAll...)
+			break
+		}
+		labels := make([]string, len(p.pickAll))
+		for i, it := range p.pickAll {
+			labels[i] = it.label
+		}
+		for _, m := range fuzzy.Find(q, labels) {
+			it := p.pickAll[m.Index]
+			it.matched = m.MatchedIndexes
+			p.items = append(p.items, it)
+		}
 	case p.prompt != "":
 		return
 	case strings.HasPrefix(v, ">"):
@@ -155,6 +178,8 @@ func (p *palette) render(w int) []string {
 	label := " > "
 	if p.prompt != "" {
 		label = " " + p.prompt + ": "
+	} else if p.picking {
+		label = " " + p.pickTitle + " > "
 	}
 	p.input.Width = max(1, w-ansi.StringWidth(label)-2)
 	out = append(out, stPaletteBox.Render(fit("", w)))
@@ -213,4 +238,21 @@ func renderItem(it paletteItem, w int, selected bool) string {
 		sb.WriteString(base.Render(strings.Repeat(" ", w-used)))
 	}
 	return sb.String()
+}
+
+// pick opens the palette as a fuzzy list; onPick receives the index into items.
+func (p *palette) pick(title string, items []paletteItem, onPick func(int) tea.Cmd) tea.Cmd {
+	p.open = true
+	p.picking = true
+	p.prompt = ""
+	p.pickTitle = title
+	for i := range items {
+		items[i].index = i
+	}
+	p.pickAll = items
+	p.onPick = onPick
+	p.input.Placeholder = "絞り込み"
+	p.input.SetValue("")
+	p.sel = 0
+	return p.input.Focus()
 }

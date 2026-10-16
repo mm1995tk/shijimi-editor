@@ -4,9 +4,7 @@ package ui
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -15,6 +13,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/gh-editor/internal/buffer"
+	"github.com/mm1995tk/gh-editor/internal/config"
+	"github.com/mm1995tk/gh-editor/internal/lsp"
 )
 
 type focus int
@@ -25,17 +25,14 @@ const (
 	focusTerminal
 )
 
-type command struct {
-	name string
-	key  string
-	run  func(a *App) tea.Cmd
-}
-
 type span struct{ x0, x1 int }
 
 // App is the root Bubble Tea model.
 type App struct {
 	root     string
+	gitTop   string
+	cfg      *config.Config
+	lsp      *lspManager
 	w, h     int
 	focus    focus
 	explorer *explorer
@@ -48,9 +45,27 @@ type App struct {
 	showSide bool
 	showTerm bool
 
+	// Helix modal state
+	helix          bool
+	mode           editMode
+	pending        string
+	count          int
+	lastSearch     string
+	searchBackward bool
+
+	// bottom command line (":" commands and "/" search)
+	cmdOpen  bool
+	cmdKind  string
+	cmdInput textinput.Model
+	cmdFrom  buffer.Pos
+
+	// VS Code-style find bar
 	findOpen   bool
 	findInput  textinput.Model
 	findOrigin buffer.Pos
+
+	comp      *completionPopup
+	hoverText string
 
 	clipboard    string
 	msg          string
@@ -68,30 +83,42 @@ type App struct {
 // New creates the app rooted at dir, optionally opening file.
 func New(dir, file string) *App {
 	abs, _ := filepath.Abs(dir)
-	fi := textinput.New()
-	fi.Prompt = ""
-	fi.Placeholder = "検索"
-	styleInput(&fi, cPaletteBg)
+	cfg := config.Load(abs)
 	a := &App{
-		root:      abs,
-		explorer:  newExplorer(abs),
-		term:      newTerminal(abs),
-		pal:       newPalette(),
-		showSide:  true,
-		findInput: fi,
-		focus:     focusExplorer,
+		root:     abs,
+		cfg:      cfg,
+		lsp:      newLSPManager(cfg, abs),
+		explorer: newExplorer(abs),
+		term:     newTerminal(abs),
+		pal:      newPalette(),
+		showSide: true,
+		focus:    focusExplorer,
+		helix:    cfg.Editor.Keymap != "vscode",
 	}
+	a.findInput = textinput.New()
+	a.findInput.Prompt = ""
+	a.findInput.Placeholder = "検索"
+	a.cmdInput = textinput.New()
+	a.cmdInput.Prompt = ""
+	styleInput(&a.findInput, cPaletteBg)
+	styleInput(&a.cmdInput, cEditorBg)
 	styleInput(&a.pal.input, cPaletteBg)
 	styleInput(&a.term.input, cEditorBg)
 	a.commands = defaultCommands()
-	if out, err := exec.Command("git", "-C", abs, "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+	if out, err := run(abs, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		a.branch = strings.TrimSpace(string(out))
+	}
+	if out, err := run(abs, nil, "git", "rev-parse", "--show-toplevel"); err == nil {
+		a.gitTop = strings.TrimSpace(string(out))
 	}
 	if file != "" && a.openFile(file) {
 		a.focus = focusEditor
 	}
 	return a
 }
+
+// Close stops language servers; call after the program exits.
+func (a *App) Close() { a.lsp.stopAll() }
 
 func styleInput(ti *textinput.Model, bg string) {
 	ti.TextStyle = bgfg(bg, cEditorFg)
@@ -101,34 +128,7 @@ func styleInput(ti *textinput.Model, bg string) {
 	ti.Cursor.TextStyle = bgfg(bg, cEditorFg)
 }
 
-func defaultCommands() []command {
-	return []command{
-		{"ファイル: 保存", "Ctrl+S", func(a *App) tea.Cmd { return a.save() }},
-		{"ファイル: 名前を付けて保存", "", func(a *App) tea.Cmd { return a.saveAs() }},
-		{"ファイル: すべて保存", "", func(a *App) tea.Cmd { return a.saveAll() }},
-		{"ファイル: 新しいファイル", "Ctrl+N", func(a *App) tea.Cmd { return a.newFile() }},
-		{"ファイル: ファイルを開く", "Ctrl+P", func(a *App) tea.Cmd { return a.pal.show(a.root, "") }},
-		{"表示: タブを閉じる", "Ctrl+W", func(a *App) tea.Cmd { a.closeTab(true); return nil }},
-		{"表示: サイドバーの表示切替", "Ctrl+B", func(a *App) tea.Cmd { a.toggleSide(); return nil }},
-		{"表示: ターミナルの表示切替", "Ctrl+J", func(a *App) tea.Cmd { return a.toggleTerm() }},
-		{"表示: エクスプローラーへ移動", "Ctrl+E", func(a *App) tea.Cmd { a.showSide = true; a.setFocus(focusExplorer); return nil }},
-		{"表示: 次のタブ", "Ctrl+PgDn", func(a *App) tea.Cmd { a.switchTab(1); return nil }},
-		{"表示: 前のタブ", "Ctrl+PgUp", func(a *App) tea.Cmd { a.switchTab(-1); return nil }},
-		{"編集: 検索", "Ctrl+F", func(a *App) tea.Cmd { return a.openFind() }},
-		{"編集: 行へ移動", "Ctrl+G", func(a *App) tea.Cmd { return a.pal.show(a.root, ":") }},
-		{"編集: 元に戻す", "Ctrl+Z", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Undo() }); return nil }},
-		{"編集: やり直し", "Ctrl+Y", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
-		{"編集: すべて選択", "Ctrl+A", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.SelectAll() }); return nil }},
-		{"編集: 行コメントの切替", "Ctrl+/", func(a *App) tea.Cmd { a.toggleComment(); return nil }},
-		{"エクスプローラー: 最新の情報に更新", "R", func(a *App) tea.Cmd { a.explorer.refresh(); return nil }},
-		{"エクスプローラー: 新しいファイル", "n", func(a *App) tea.Cmd { return a.newFileIn(a.explorer.targetDir()) }},
-		{"エクスプローラー: 新しいフォルダー", "N", func(a *App) tea.Cmd { return a.newFolder() }},
-		{"エクスプローラー: 名前の変更", "r", func(a *App) tea.Cmd { return a.rename() }},
-		{"終了", "Ctrl+Q", func(a *App) tea.Cmd { return a.quit() }},
-	}
-}
-
-func (a *App) Init() tea.Cmd { return nil }
+func (a *App) Init() tea.Cmd { return a.lsp.wait() }
 
 // ---- layout ----
 
@@ -136,7 +136,6 @@ type layout struct {
 	sideW          int
 	rightX, rightW int
 	editY, editH   int
-	findY          int
 	panelY, panelH int
 	statusY        int
 }
@@ -145,17 +144,12 @@ func (a *App) layout() layout {
 	var l layout
 	l.statusY = a.h - 1
 	if a.showSide {
-		l.sideW = clamp(a.w/4, 18, 36)
-		if l.sideW > a.w/2 {
-			l.sideW = a.w / 2
-		}
+		l.sideW = clamp(a.w/5, 18, 36)
 		l.rightX = l.sideW + 1
 	}
 	l.rightW = max(0, a.w-l.rightX)
 	l.editY = 1
-	l.findY = -1
 	if a.findOpen {
-		l.findY = 1
 		l.editY = 2
 	}
 	if a.showTerm {
@@ -175,8 +169,15 @@ func (a *App) cur() *tab {
 	return a.tabs[a.active]
 }
 
+func (a *App) curText() *tab {
+	if t := a.cur(); t != nil && t.kind == tabText {
+		return t
+	}
+	return nil
+}
+
 func (a *App) withBuf(f func(b *buffer.Buffer)) {
-	if t := a.cur(); t != nil {
+	if t := a.curText(); t != nil {
 		f(t.buf)
 		a.follow = true
 	}
@@ -199,50 +200,73 @@ func (a *App) setFocus(f focus) tea.Cmd {
 	return nil
 }
 
-func (a *App) rel(p string) string {
-	if r, err := filepath.Rel(a.root, p); err == nil && !strings.HasPrefix(r, "..") {
-		return r
-	}
-	return p
+func (a *App) rel(p string) string { return relTo(a.root, p) }
+
+func (a *App) addTab(t *tab) {
+	a.tabs = append(a.tabs, t)
+	a.active = len(a.tabs) - 1
+	a.follow = true
+	a.mode = modeNormal
 }
 
 func (a *App) openFile(path string) bool {
 	abs, _ := filepath.Abs(path)
 	for i, t := range a.tabs {
-		if t.buf.Path == abs {
+		if t.path() == abs {
 			a.active = i
 			a.explorer.reveal(abs)
 			return true
 		}
 	}
-	if st, err := os.Stat(abs); err == nil && st.Size() > 10<<20 {
-		a.fail(fmt.Errorf("ファイルが大きすぎます (10MB 超): %s", a.rel(abs)))
-		return false
+	if st, err := os.Stat(abs); err == nil {
+		if st.IsDir() {
+			a.explorer.reveal(abs)
+			return false
+		}
+		if isImage(abs) {
+			a.addTab(&tab{kind: tabImage, img: newImageView(abs)})
+			a.explorer.reveal(abs)
+			return true
+		}
+		if st.Size() > 10<<20 {
+			a.fail(fmt.Errorf("ファイルが大きすぎます (10MB 超): %s", a.rel(abs)))
+			return false
+		}
 	}
 	b, err := buffer.Open(abs)
 	if err != nil {
 		a.fail(err)
 		return false
 	}
-	a.tabs = append(a.tabs, newTab(b))
-	a.active = len(a.tabs) - 1
+	t := newTab(b)
+	a.addTab(t)
+	a.attachLSP(t)
 	a.explorer.reveal(abs)
-	a.follow = true
 	return true
 }
 
 func (a *App) save() tea.Cmd {
-	t := a.cur()
+	t := a.curText()
 	if t == nil {
 		return nil
 	}
 	if t.buf.Path == "" {
 		return a.saveAs()
 	}
+	return a.saveTab(t)
+}
+
+func (a *App) saveTab(t *tab) tea.Cmd {
 	if err := t.buf.Save(); err != nil {
 		a.fail(err)
 		return nil
 	}
+	cs, _ := a.lsp.clientsFor(t)
+	a.syncLSP()
+	for _, c := range cs {
+		c.DidSave(t.buf.Path)
+	}
+	a.explorer.loadGitStatus()
 	a.info("保存しました: %s", a.rel(t.buf.Path))
 	return nil
 }
@@ -250,9 +274,9 @@ func (a *App) save() tea.Cmd {
 func (a *App) saveAll() tea.Cmd {
 	n := 0
 	for _, t := range a.tabs {
-		if t.buf.Dirty && t.buf.Path != "" {
-			if err := t.buf.Save(); err != nil {
-				a.fail(err)
+		if t.dirty() && t.buf.Path != "" {
+			a.saveTab(t)
+			if a.msgErr {
 				return nil
 			}
 			n++
@@ -263,7 +287,7 @@ func (a *App) saveAll() tea.Cmd {
 }
 
 func (a *App) saveAs() tea.Cmd {
-	t := a.cur()
+	t := a.curText()
 	if t == nil {
 		return nil
 	}
@@ -272,29 +296,32 @@ func (a *App) saveAs() tea.Cmd {
 		initial = t.buf.Path
 	}
 	return a.pal.ask("保存先", initial, func(v string) tea.Cmd {
-		v = strings.TrimSpace(v)
-		if v == "" {
-			return nil
-		}
-		if !filepath.IsAbs(v) {
-			v = filepath.Join(a.root, v)
-		}
-		t.buf.Path = v
-		t.hl = newHighlighter(v)
-		if err := t.buf.Save(); err != nil {
-			a.fail(err)
-			return nil
-		}
-		a.explorer.refresh()
-		a.explorer.reveal(v)
-		a.info("保存しました: %s", a.rel(v))
-		return nil
+		return a.saveTo(t, v)
 	})
 }
 
+func (a *App) saveTo(t *tab, v string) tea.Cmd {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil
+	}
+	if !filepath.IsAbs(v) {
+		v = filepath.Join(a.root, v)
+	}
+	isNew := t.buf.Path != v
+	t.buf.Path = v
+	t.hl = newHighlighter(v)
+	cmd := a.saveTab(t)
+	if isNew {
+		a.attachLSP(t)
+	}
+	a.explorer.refresh()
+	a.explorer.reveal(v)
+	return cmd
+}
+
 func (a *App) newFile() tea.Cmd {
-	a.tabs = append(a.tabs, newTab(buffer.New()))
-	a.active = len(a.tabs) - 1
+	a.addTab(newTab(buffer.New()))
 	return a.setFocus(focusEditor)
 }
 
@@ -344,7 +371,7 @@ func (a *App) newFolder() tea.Cmd {
 	})
 }
 
-func (a *App) rename() tea.Cmd {
+func (a *App) renameFile() tea.Cmd {
 	n := a.explorer.selected()
 	if n == nil {
 		return nil
@@ -367,11 +394,14 @@ func (a *App) rename() tea.Cmd {
 			return nil
 		}
 		for _, t := range a.tabs {
-			if t.buf.Path == old {
+			switch {
+			case t.kind == tabText && t.buf.Path == old:
 				t.buf.Path = v
 				t.hl = newHighlighter(v)
-			} else if strings.HasPrefix(t.buf.Path, old+string(filepath.Separator)) {
+			case t.kind == tabText && strings.HasPrefix(t.buf.Path, old+string(filepath.Separator)):
 				t.buf.Path = v + t.buf.Path[len(old):]
+			case t.kind == tabImage && t.img.path == old:
+				t.img.path = v
 			}
 		}
 		a.explorer.refresh()
@@ -381,21 +411,46 @@ func (a *App) rename() tea.Cmd {
 	})
 }
 
-func (a *App) closeTab(confirm bool) {
+func (a *App) deleteFile() tea.Cmd {
+	n := a.explorer.selected()
+	if n == nil {
+		return nil
+	}
+	target := n.path
+	return a.pal.ask(fmt.Sprintf("%s を削除しますか？ y で削除", a.rel(target)), "", func(v string) tea.Cmd {
+		if strings.TrimSpace(strings.ToLower(v)) != "y" {
+			return nil
+		}
+		if err := os.RemoveAll(target); err != nil {
+			a.fail(err)
+			return nil
+		}
+		a.explorer.refresh()
+		a.info("削除しました: %s", a.rel(target))
+		return nil
+	})
+}
+
+func (a *App) closeTab(force bool) {
 	t := a.cur()
 	if t == nil {
 		return
 	}
-	if confirm && t.buf.Dirty && !a.confirmClose {
+	if !force && t.dirty() && !a.confirmClose {
 		a.confirmClose = true
-		a.msg, a.msgErr = "未保存の変更があります。もう一度 Ctrl+W で破棄して閉じます", true
+		a.msg, a.msgErr = "未保存の変更があります。もう一度 Ctrl+W（または :bc!）で破棄して閉じます", true
 		return
 	}
 	a.confirmClose = false
+	if t.kind == tabText && t.lang != nil {
+		a.detachLSP(t)
+	}
 	a.tabs = append(a.tabs[:a.active], a.tabs[a.active+1:]...)
 	if a.active >= len(a.tabs) {
 		a.active = len(a.tabs) - 1
 	}
+	a.comp = nil
+	a.mode = modeNormal
 	if len(a.tabs) == 0 && a.focus == focusEditor {
 		a.focus = focusExplorer
 	}
@@ -407,6 +462,8 @@ func (a *App) switchTab(d int) {
 	}
 	a.active = (a.active + d + len(a.tabs)) % len(a.tabs)
 	a.follow = true
+	a.mode = modeNormal
+	a.comp = nil
 }
 
 func (a *App) toggleSide() {
@@ -425,23 +482,27 @@ func (a *App) toggleTerm() tea.Cmd {
 	return a.setFocus(focusTerminal)
 }
 
-func (a *App) quit() tea.Cmd {
-	dirty := 0
+func (a *App) dirtyCount() int {
+	n := 0
 	for _, t := range a.tabs {
-		if t.buf.Dirty {
-			dirty++
+		if t.dirty() {
+			n++
 		}
 	}
-	if dirty > 0 && !a.confirmQuit {
+	return n
+}
+
+func (a *App) quit() tea.Cmd {
+	if d := a.dirtyCount(); d > 0 && !a.confirmQuit {
 		a.confirmQuit = true
-		a.msg, a.msgErr = fmt.Sprintf("未保存のファイルが %d 個あります。もう一度 Ctrl+Q で破棄して終了します", dirty), true
+		a.msg, a.msgErr = fmt.Sprintf("未保存のファイルが %d 個あります。もう一度 Ctrl+Q（または :q!）で破棄して終了します", d), true
 		return nil
 	}
 	return tea.Quit
 }
 
 func (a *App) openFind() tea.Cmd {
-	t := a.cur()
+	t := a.curText()
 	if t == nil {
 		return nil
 	}
@@ -461,7 +522,7 @@ func (a *App) closeFind() {
 }
 
 func (a *App) findNext(from buffer.Pos, backward bool) {
-	t := a.cur()
+	t := a.curText()
 	q := a.findInput.Value()
 	if t == nil || q == "" {
 		return
@@ -477,7 +538,7 @@ func (a *App) findNext(from buffer.Pos, backward bool) {
 }
 
 func (a *App) toggleComment() {
-	if t := a.cur(); t != nil {
+	if t := a.curText(); t != nil {
 		t.buf.ToggleComment(commentPrefix(t.buf.Path))
 		a.follow = true
 	}
@@ -498,19 +559,93 @@ func (a *App) pasteText() string {
 // ---- update ----
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	cmd := a.update(msg)
+	a.syncLSP()
+	return a, cmd
+}
+
+func (a *App) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
 		a.follow = true
-		return a, nil
 	case termOutputMsg, termDoneMsg:
-		return a, a.term.update(msg)
+		return a.term.update(msg)
+	case lspEventMsg:
+		a.handleLSPEvent(lsp.Event(msg))
+		return a.lsp.wait()
+	case hoverMsg:
+		if strings.TrimSpace(msg.text) == "" {
+			a.info("ホバー情報はありません")
+		} else {
+			a.hoverText = msg.text
+		}
+	case locationsMsg:
+		return a.showLocations(msg)
+	case completionMsg:
+		t := a.curText()
+		if t == nil || t != msg.tab || a.mode != modeInsert && a.helix || len(msg.items) == 0 {
+			return nil
+		}
+		a.comp = &completionPopup{tab: t, start: msg.start, all: msg.items}
+		a.comp.filter()
+		if len(a.comp.items) == 0 {
+			a.comp = nil
+		}
+	case workspaceEditMsg:
+		a.applyWorkspaceEdit(msg.edit)
+	case formatMsg:
+		if len(msg.edits) > 0 {
+			msg.tab.buf.ApplyEdits(toEdits(msg.tab.buf, msg.edits))
+		}
+		if msg.save {
+			return a.saveTab(msg.tab)
+		}
+		a.info("整形しました")
+	case lspErrMsg:
+		a.fail(msg.err)
+	case grepMsg:
+		return a.showGrep(msg)
+	case reviewLoadedMsg:
+		for _, t := range a.tabs {
+			if t.kind == tabReview && t.rev.id == msg.id {
+				t.rev.applyLoaded(msg)
+			}
+		}
+	case reviewSubmittedMsg:
+		return a.handleSubmitted(msg)
+	case prListMsg:
+		return a.showPRList(msg)
 	case tea.MouseMsg:
-		return a, a.handleMouse(msg)
+		return a.handleMouse(msg)
 	case tea.KeyMsg:
-		return a, a.handleKey(msg)
+		// Fast typing can deliver several runes in one message; Helix-style
+		// commands need them one at a time.
+		if msg.Type == tea.KeyRunes && len(msg.Runes) > 1 && !msg.Paste {
+			var cmds []tea.Cmd
+			for _, r := range msg.Runes {
+				cmds = append(cmds, a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}, Alt: msg.Alt}))
+			}
+			return tea.Batch(cmds...)
+		}
+		return a.handleKey(msg)
 	}
-	return a, nil
+	return nil
+}
+
+func (a *App) handleLSPEvent(e lsp.Event) {
+	switch {
+	case e.Err != nil:
+		a.fail(e.Err)
+	case e.Message != "":
+		a.info("[%s] %s", e.Server, firstLine(e.Message))
+	case e.URI != "":
+		p := lsp.Path(e.URI)
+		if a.lsp.diags[p] == nil {
+			a.lsp.diags[p] = map[string][]lsp.Diagnostic{}
+		}
+		a.lsp.diags[p][e.Server] = e.Diagnostics
+	}
 }
 
 func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
@@ -519,14 +654,29 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if key != "ctrl+q" {
 		a.confirmQuit = false
 	}
-	if key != "ctrl+w" {
+	if key != "ctrl+w" && key != "q" && key != "esc" {
 		a.confirmClose = false
 	}
 
 	if a.pal.open {
 		return a.handlePaletteKey(msg)
 	}
+	if a.cmdOpen {
+		return a.handleCmdlineKey(msg)
+	}
+	if a.hoverText != "" {
+		a.hoverText = ""
+		if key == "esc" {
+			return nil
+		}
+	}
+	if a.comp != nil {
+		if cmd, handled := a.handleCompletionKey(msg); handled {
+			return cmd
+		}
+	}
 
+	insert := a.helix && a.mode == modeInsert && a.focus == focusEditor
 	switch key {
 	case "ctrl+q":
 		return a.quit()
@@ -534,15 +684,21 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return a.save()
 	case "ctrl+p":
 		return a.pal.show(a.root, "")
-	case "f1", "ctrl+k":
+	case "f1":
 		return a.pal.show(a.root, ">")
-	case "ctrl+g":
-		return a.pal.show(a.root, ":")
+	case "ctrl+k":
+		if !insert {
+			return a.pal.show(a.root, ">")
+		}
 	case "ctrl+b":
 		a.toggleSide()
 		return nil
 	case "ctrl+j", "ctrl+@":
-		return a.toggleTerm()
+		if !insert || key == "ctrl+j" {
+			return a.toggleTerm()
+		}
+	case "ctrl+g":
+		return a.openLocalReview()
 	case "ctrl+e":
 		if a.focus == focusExplorer && len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
@@ -550,10 +706,14 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	case "ctrl+n":
-		return a.newFile()
+		if !insert {
+			return a.newFile()
+		}
 	case "ctrl+w":
-		a.closeTab(true)
-		return nil
+		if !insert {
+			a.closeTab(false)
+			return nil
+		}
 	case "ctrl+pgdown":
 		a.switchTab(1)
 		return nil
@@ -577,12 +737,63 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return a.setFocus(focusEditor)
 		}
 		return a.term.update(msg)
-	default:
-		if a.findOpen {
-			return a.handleFindKey(msg)
-		}
-		return a.handleEditorKey(msg)
 	}
+	t := a.cur()
+	if t == nil {
+		if key == "esc" || key == "tab" || key == " " {
+			a.showSide = true
+			return a.setFocus(focusExplorer)
+		}
+		if key == ":" {
+			return a.openCmdline(":")
+		}
+		return nil
+	}
+	switch t.kind {
+	case tabReview:
+		return a.handleReviewKey(t, msg)
+	case tabImage:
+		switch key {
+		case "q", "esc":
+			a.closeTab(true)
+		case ":":
+			return a.openCmdline(":")
+		case " ":
+			a.pending = " "
+		default:
+			if a.pending == " " {
+				a.pending = ""
+				return a.spaceMode(key)
+			}
+		}
+		return nil
+	}
+	if a.findOpen {
+		return a.handleFindKey(msg)
+	}
+	if a.helix {
+		return a.handleHelixKey(msg)
+	}
+	return a.handleEditorKey(msg)
+}
+
+func (a *App) handleCompletionKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+	c := a.comp
+	switch msg.String() {
+	case "up", "ctrl+p", "shift+tab":
+		c.sel = (c.sel - 1 + len(c.items)) % len(c.items)
+		return nil, true
+	case "down", "ctrl+n":
+		c.sel = (c.sel + 1) % len(c.items)
+		return nil, true
+	case "tab", "enter":
+		a.acceptCompletion()
+		return nil, true
+	case "esc":
+		a.comp = nil
+		return nil, !a.helix
+	}
+	return nil, false
 }
 
 func (a *App) handlePaletteKey(msg tea.KeyMsg) tea.Cmd {
@@ -591,12 +802,12 @@ func (a *App) handlePaletteKey(msg tea.KeyMsg) tea.Cmd {
 	case "esc", "ctrl+c":
 		p.close()
 		return nil
-	case "up", "ctrl+p":
+	case "up", "ctrl+p", "shift+tab":
 		if p.sel > 0 {
 			p.sel--
 		}
 		return nil
-	case "down", "ctrl+n":
+	case "down", "ctrl+n", "tab":
 		if p.sel < len(p.items)-1 {
 			p.sel++
 		}
@@ -615,6 +826,12 @@ func (a *App) submitPalette() tea.Cmd {
 	p := a.pal
 	v := p.input.Value()
 	p.close()
+	if p.picking {
+		if p.sel < len(p.items) && p.onPick != nil {
+			return p.onPick(p.items[p.sel].index)
+		}
+		return nil
+	}
 	if p.prompt != "" {
 		if p.onSubmit != nil {
 			return p.onSubmit(v)
@@ -623,11 +840,7 @@ func (a *App) submitPalette() tea.Cmd {
 	}
 	switch {
 	case strings.HasPrefix(v, ":"):
-		n, err := strconv.Atoi(strings.TrimSpace(v[1:]))
-		if err == nil {
-			a.withBuf(func(b *buffer.Buffer) { b.GotoLine(n) })
-			return a.setFocus(focusEditor)
-		}
+		return a.execCommand(strings.TrimSpace(v[1:]))
 	case strings.HasPrefix(v, ">"):
 		if p.sel < len(p.items) {
 			return a.commands[p.items[p.sel].index].run(a)
@@ -645,49 +858,56 @@ func (a *App) submitPalette() tea.Cmd {
 
 func (a *App) handleExplorerKey(msg tea.KeyMsg) tea.Cmd {
 	e := a.explorer
-	switch msg.String() {
+	key := msg.String()
+	if a.pending == " " {
+		a.pending = ""
+		return a.spaceMode(key)
+	}
+	switch key {
 	case "up", "k":
 		e.sel = max(0, e.sel-1)
 	case "down", "j":
 		e.sel = min(len(e.flat)-1, e.sel+1)
-	case "pgup":
-		e.sel = max(0, e.sel-(a.h-3))
-	case "pgdown":
-		e.sel = min(len(e.flat)-1, e.sel+(a.h-3))
+	case "pgup", "ctrl+u":
+		e.sel = max(0, e.sel-(a.h-3)/2)
+	case "pgdown", "ctrl+d":
+		e.sel = min(len(e.flat)-1, e.sel+(a.h-3)/2)
 	case "home", "g":
 		e.sel = 0
 	case "end", "G":
 		e.sel = len(e.flat) - 1
-	case "enter", "l", "right", " ":
+	case "enter", "l", "right", "o":
 		n := e.selected()
 		if n == nil {
 			return nil
 		}
 		if n.isDir {
-			if msg.String() == "right" || msg.String() == "l" {
-				if !n.expanded {
-					e.toggle(n)
-				}
-			} else {
+			if key == "enter" || key == "o" || !n.expanded {
 				e.toggle(n)
 			}
 			return nil
 		}
-		if a.openFile(n.path) && msg.String() == "enter" {
+		if a.openFile(n.path) && (key == "enter" || key == "o") {
 			return a.setFocus(focusEditor)
 		}
 	case "left", "h":
 		e.collapseOrParent()
-	case "n":
+	case "a", "n":
 		return a.newFileIn(e.targetDir())
-	case "N":
+	case "A", "N":
 		return a.newFolder()
 	case "r":
-		return a.rename()
+		return a.renameFile()
+	case "d", "delete":
+		return a.deleteFile()
 	case "R":
 		e.refresh()
-		a.info("エクスプローラーを更新しました")
-	case "esc":
+		a.info("ファイルツリーを更新しました")
+	case " ":
+		a.pending = " "
+	case ":":
+		return a.openCmdline(":")
+	case "esc", "q", "tab":
 		if len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
 		}
@@ -696,7 +916,7 @@ func (a *App) handleExplorerKey(msg tea.KeyMsg) tea.Cmd {
 }
 
 func (a *App) handleFindKey(msg tea.KeyMsg) tea.Cmd {
-	t := a.cur()
+	t := a.curText()
 	if t == nil {
 		a.closeFind()
 		return nil
@@ -727,19 +947,16 @@ func (a *App) handleFindKey(msg tea.KeyMsg) tea.Cmd {
 	return cmd
 }
 
+// handleEditorKey is the modeless (VS Code style) editing used by the
+// vscode keymap and by Helix insert mode.
 func (a *App) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
-	t := a.cur()
+	t := a.curText()
 	if t == nil {
-		if msg.String() == "esc" || msg.String() == "tab" {
-			a.showSide = true
-			return a.setFocus(focusExplorer)
-		}
 		return nil
 	}
 	b := t.buf
 	a.follow = true
-	l := a.layout()
-	page := max(1, l.editH-1)
+	page := a.pageSize()
 
 	if msg.Paste {
 		s := strings.ReplaceAll(string(msg.Runes), "\r\n", "\n")
@@ -750,6 +967,7 @@ func (a *App) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 	switch msg.String() {
 	case "esc":
 		b.ClearSelection()
+		a.comp = nil
 	case "left":
 		b.MoveCursor(buffer.Left, false)
 	case "right":
@@ -792,10 +1010,8 @@ func (a *App) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 		b.MoveCursor(buffer.DocEnd, true)
 	case "pgup":
 		b.MoveLines(-page, false)
-		b.ScrollRow = max(0, b.ScrollRow-page)
 	case "pgdown":
 		b.MoveLines(page, false)
-		b.ScrollRow = min(max(0, len(b.Lines)-1), b.ScrollRow+page)
 	case "shift+pgup":
 		b.MoveLines(-page, true)
 	case "shift+pgdown":
@@ -812,6 +1028,7 @@ func (a *App) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 		b.Outdent()
 	case "backspace", "ctrl+h":
 		b.Backspace()
+		return a.refreshCompletion()
 	case "delete":
 		b.Delete()
 	case "ctrl+z":
@@ -842,19 +1059,75 @@ func (a *App) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 		return a.openFind()
 	case "ctrl+_", "ctrl+/":
 		a.toggleComment()
+	case "ctrl+@", "ctrl+ ":
+		return a.completion()
+	case "f12":
+		return a.gotoDefinition()
+	case "shift+f12":
+		return a.references()
+	case "f2":
+		return a.rename()
 	case " ":
 		b.Insert(" ")
+		a.comp = nil
 	default:
 		if msg.Type == tea.KeyRunes && !msg.Alt {
-			b.Insert(autoPair(b, string(msg.Runes)))
+			s := string(msg.Runes)
+			b.Insert(s)
+			return a.afterTyping(t, msg.Runes)
 		}
 	}
 	return nil
 }
 
-// autoPair returns the text to insert; currently it passes text through and
-// is a hook for future bracket completion.
-func autoPair(_ *buffer.Buffer, s string) string { return s }
+// afterTyping opens or refreshes the completion popup.
+func (a *App) afterTyping(t *tab, typed []rune) tea.Cmd {
+	if len(typed) != 1 {
+		return nil
+	}
+	r := typed[0]
+	if a.comp != nil {
+		if isIdent(r) {
+			a.comp.filter()
+			if len(a.comp.items) == 0 {
+				a.comp = nil
+			}
+			return nil
+		}
+		a.comp = nil
+	}
+	cs, _ := a.lsp.clientsFor(t)
+	for _, c := range cs {
+		if c.IsCompletionTrigger(r) {
+			return a.completion()
+		}
+	}
+	if isIdent(r) {
+		ws := wordStart(t.buf)
+		if t.buf.Cur.Col-ws.Col == 2 {
+			return a.completion()
+		}
+	}
+	return nil
+}
+
+func (a *App) refreshCompletion() tea.Cmd {
+	if a.comp == nil {
+		return nil
+	}
+	b := a.comp.tab.buf
+	if b.Cur.Less(a.comp.start) || b.Cur.Row != a.comp.start.Row {
+		a.comp = nil
+		return nil
+	}
+	a.comp.filter()
+	if len(a.comp.items) == 0 {
+		a.comp = nil
+	}
+	return nil
+}
+
+// ---- mouse ----
 
 func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 	if a.pal.open {
@@ -863,6 +1136,7 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		}
 		return nil
 	}
+	a.hoverText = ""
 	l := a.layout()
 	x, y := msg.X, msg.Y
 	wheel := 0
@@ -877,13 +1151,17 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		case a.showSide && x < l.sideW:
 			e := a.explorer
 			e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(a.h-2)))
-			// keep selection inside the viewport so ensureVisible doesn't jump back
 			e.sel = clamp(e.sel, e.scroll, e.scroll+a.h-3)
 		case a.showTerm && y >= l.panelY && y < l.statusY:
 			a.term.scroll = clamp(a.term.scroll-wheel, 0, max(0, len(a.term.lines)-1))
 		default:
 			if t := a.cur(); t != nil {
-				t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
+				switch t.kind {
+				case tabText:
+					t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
+				case tabReview:
+					t.rev.moveCursor(wheel)
+				}
 			}
 		}
 		return nil
@@ -922,13 +1200,23 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			if x >= s.x0 && x < s.x1 {
 				a.active = i
 				a.follow = true
+				a.mode = modeNormal
 				return a.setFocus(focusEditor)
 			}
 		}
 	case a.showTerm && y >= l.panelY && y < l.statusY:
 		return a.setFocus(focusTerminal)
 	case y >= l.editY && y < l.editY+l.editH:
-		if a.cur() != nil {
+		t := a.cur()
+		if t == nil {
+			return nil
+		}
+		if t.kind == tabReview {
+			a.reviewClick(t.rev, l, x, y)
+			return a.setFocus(focusEditor)
+		}
+		if t.kind == tabText {
+			a.comp = nil
 			a.mouseToCursor(l, x, y, false)
 			a.dragging = true
 			return a.setFocus(focusEditor)
@@ -938,7 +1226,7 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 }
 
 func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
-	t := a.cur()
+	t := a.curText()
 	if t == nil {
 		return
 	}
@@ -964,11 +1252,11 @@ func (a *App) View() string {
 		return "ウィンドウが小さすぎます"
 	}
 	l := a.layout()
-	if t := a.cur(); t != nil && a.follow {
-		ensureCursorVisible(t.buf, l.rightW, l.editH)
-		a.follow = false
-	}
-	if t := a.cur(); t != nil {
+	if t := a.curText(); t != nil {
+		if a.follow {
+			ensureCursorVisible(t.buf, l.rightW, l.editH)
+			a.follow = false
+		}
 		t.buf.ScrollRow = clamp(t.buf.ScrollRow, 0, max(0, len(t.buf.Lines)-1))
 	}
 
@@ -977,14 +1265,17 @@ func (a *App) View() string {
 	if a.findOpen {
 		right = append(right, a.renderFind(l.rightW))
 	}
-	if t := a.cur(); t != nil {
-		q := ""
-		if a.findOpen {
-			q = a.findInput.Value()
-		}
-		right = append(right, renderEditor(t, l.rightW, l.editH, a.focus == focusEditor && !a.findOpen && !a.pal.open, q)...)
-	} else {
-		right = append(right, renderWelcome(l.rightW, l.editH)...)
+	editorFocused := a.focus == focusEditor && !a.pal.open
+	t := a.cur()
+	switch {
+	case t == nil:
+		right = append(right, renderWelcome(l.rightW, l.editH, a.helix)...)
+	case t.kind == tabImage:
+		right = append(right, t.img.render(l.rightW, l.editH)...)
+	case t.kind == tabReview:
+		right = append(right, t.rev.render(l.rightW, l.editH, editorFocused)...)
+	default:
+		right = append(right, renderEditor(t, l.rightW, l.editH, a.editorOpts(t, editorFocused))...)
 	}
 	if a.showTerm {
 		right = append(right, a.term.render(l.rightW, l.panelH, a.focus == focusTerminal && !a.pal.open)...)
@@ -993,8 +1284,8 @@ func (a *App) View() string {
 	rows := make([]string, a.h-1)
 	var side []string
 	activePath := ""
-	if t := a.cur(); t != nil {
-		activePath = t.buf.Path
+	if t != nil {
+		activePath = t.path()
 	}
 	if a.showSide {
 		side = a.explorer.render(l.sideW, a.h-1, a.focus == focusExplorer && !a.pal.open, activePath)
@@ -1011,15 +1302,78 @@ func (a *App) View() string {
 		rows[i] = sb.String()
 	}
 
+	// popups anchored at the cursor
+	if t := a.curText(); t != nil && (a.comp != nil || a.hoverText != "") {
+		b := t.buf
+		cx := l.rightX + gutterWidth(b) + buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col) - b.ScrollCol
+		cy := l.editY + b.Cur.Row - b.ScrollRow
+		var box []string
+		if a.comp != nil {
+			box = a.comp.render(max(3, l.editH/2))
+		} else {
+			box = hoverBox(a.hoverText, min(80, l.rightW-2), max(3, l.editH/2))
+		}
+		bw := 0
+		for _, s := range box {
+			bw = max(bw, ansi.StringWidth(s))
+		}
+		x := clamp(cx, l.rightX, max(l.rightX, a.w-bw))
+		y := cy + 1
+		if y+len(box) > l.editY+l.editH && cy-len(box) >= l.editY {
+			y = cy - len(box)
+		}
+		rows = overlay(rows, box, x, y)
+	}
+
 	if a.pal.open {
 		a.pal.filter(a.commands)
-		pw := clamp(a.w*3/5, 30, 90)
+		pw := clamp(a.w*3/5, 30, 100)
 		box := a.pal.render(pw)
 		rows = overlay(rows, box, (a.w-pw)/2, 1)
 	}
 
-	rows = append(rows, a.renderStatus())
+	if a.cmdOpen {
+		rows = append(rows, a.renderCmdline())
+	} else {
+		rows = append(rows, a.renderStatus())
+	}
 	return strings.Join(rows, "\n")
+}
+
+func (a *App) editorOpts(t *tab, focused bool) editorOpts {
+	o := editorOpts{
+		focused:     focused && !a.findOpen && !a.cmdOpen,
+		cursorColor: "#aeafad",
+		cursorAt:    t.buf.Cur,
+		relative:    a.cfg.Editor.LineNumber == "relative",
+		diags:       a.lsp.diagnostics(t.buf.Path),
+	}
+	if a.findOpen {
+		o.query = a.findInput.Value()
+	}
+	if a.cmdOpen && (a.cmdKind == "/" || a.cmdKind == "?") {
+		o.query = a.cmdInput.Value()
+	}
+	if a.helix {
+		switch a.mode {
+		case modeInsert:
+			o.cursorColor = "#73c991"
+		case modeSelect:
+			o.cursorColor = "#e2c08d"
+		}
+		// Helix draws the cursor on the last selected character
+		if a.mode != modeInsert && t.buf.Anchor != nil && t.buf.Anchor.Less(t.buf.Cur) {
+			c := t.buf.Cur
+			if c.Col > 0 {
+				c.Col--
+			} else if c.Row > 0 {
+				c.Row--
+				c.Col = len(t.buf.Lines[c.Row])
+			}
+			o.cursorAt = c
+		}
+	}
+	return o
 }
 
 func (a *App) renderTabs(w int) string {
@@ -1030,14 +1384,15 @@ func (a *App) renderTabs(w int) string {
 	pieces := make([]piece, len(a.tabs))
 	for i, t := range a.tabs {
 		mark := "  "
-		if t.buf.Dirty {
+		if t.dirty() {
 			mark = " ●"
 		}
+		name := t.title()
+		label := " " + name + mark + " "
 		var s string
-		label := " " + t.buf.Name() + mark + " "
 		switch {
-		case i == a.active && t.buf.Dirty:
-			s = stTabActive.Render(" "+t.buf.Name()) + stTabDirty.Render(mark) + stTabActive.Render(" ")
+		case i == a.active && t.dirty():
+			s = stTabActive.Render(" "+name) + stTabDirty.Render(mark) + stTabActive.Render(" ")
 		case i == a.active:
 			s = stTabActive.Render(label)
 		default:
@@ -1045,7 +1400,6 @@ func (a *App) renderTabs(w int) string {
 		}
 		pieces[i] = piece{s + stTabBar.Render(" "), ansi.StringWidth(label) + 1}
 	}
-	// scroll the tab strip so the active tab is visible
 	if a.active < a.tabOffset {
 		a.tabOffset = a.active
 	}
@@ -1062,12 +1416,13 @@ func (a *App) renderTabs(w int) string {
 	var sb strings.Builder
 	a.tabSpans = make([]span, len(a.tabs))
 	x := 0
+	rx := a.layout().rightX
 	for i := a.tabOffset; i < len(pieces); i++ {
 		if x+pieces[i].w > w {
 			break
 		}
 		sb.WriteString(pieces[i].text)
-		a.tabSpans[i] = span{x0: x + a.layout().rightX, x1: x + a.layout().rightX + pieces[i].w}
+		a.tabSpans[i] = span{x0: x + rx, x1: x + rx + pieces[i].w}
 		x += pieces[i].w
 	}
 	if x < w {
@@ -1084,30 +1439,68 @@ func (a *App) renderFind(w int) string {
 	return label + fitStyled(a.findInput.View(), iw, stFind) + hint
 }
 
+var modeStyles = map[editMode]lipgloss.Style{
+	modeNormal: bgfg("#569cd6", "#1e1e1e").Bold(true),
+	modeInsert: bgfg("#73c991", "#1e1e1e").Bold(true),
+	modeSelect: bgfg("#e2c08d", "#1e1e1e").Bold(true),
+}
+
 func (a *App) renderStatus() string {
+	var prefix string
+	prefixW := 0
+	if a.helix && a.focus == focusEditor && a.curText() != nil {
+		label := " " + a.mode.label() + " "
+		if a.pending != "" {
+			p := a.pending
+			if p == " " {
+				p = "space"
+			}
+			label = " " + a.mode.label() + " " + p + " "
+		}
+		prefix = modeStyles[a.mode].Render(label)
+		prefixW = ansi.StringWidth(label)
+	}
 	leftParts := []string{}
 	if a.branch != "" {
 		leftParts = append(leftParts, "⎇ "+a.branch)
 	}
 	switch a.focus {
 	case focusExplorer:
-		leftParts = append(leftParts, "エクスプローラー")
+		leftParts = append(leftParts, "ファイルツリー")
 	case focusTerminal:
 		leftParts = append(leftParts, "ターミナル")
 	}
+	if t := a.curText(); t != nil {
+		ds := a.lsp.diagnostics(t.buf.Path)
+		errs, warns := 0, 0
+		for _, d := range ds {
+			if sevRank(d.Severity) == 1 {
+				errs++
+			} else if d.Severity == 2 {
+				warns++
+			}
+		}
+		if errs+warns > 0 {
+			leftParts = append(leftParts, fmt.Sprintf("● %d  ▲ %d", errs, warns))
+		}
+	}
 	left := " " + strings.Join(leftParts, "  ")
 	right := ""
-	if t := a.cur(); t != nil {
+	if t := a.cur(); t != nil && t.kind == tabText {
 		b := t.buf
-		indent := "スペース: 4"
-		if b.UseTabs {
+		indent := fmt.Sprintf("スペース: %d", len(b.IndentUnit()))
+		if b.IndentUnit() == "\t" {
 			indent = "タブ"
 		}
-		pos := fmt.Sprintf("行 %d、列 %d", b.Cur.Row+1, buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col)+1)
+		pos := fmt.Sprintf("%d:%d", b.Cur.Row+1, buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col)+1)
 		if s := b.SelectedText(); s != "" {
 			pos += fmt.Sprintf(" (%d 文字選択)", len([]rune(s)))
 		}
-		right = fmt.Sprintf("%s   %s   UTF-8   %s ", pos, indent, t.hl.Language())
+		lang := t.hl.Language()
+		if st := a.lspStatus(); st != "" {
+			lang += " [" + st + "]"
+		}
+		right = fmt.Sprintf("%s   %s   %s ", pos, indent, lang)
 	}
 	st := stStatus
 	if a.msg != "" {
@@ -1116,6 +1509,6 @@ func (a *App) renderStatus() string {
 		}
 		left += "   " + a.msg
 	}
-	lw := a.w - ansi.StringWidth(right)
-	return st.Render(fit(left, lw) + right)
+	lw := a.w - prefixW - ansi.StringWidth(right)
+	return prefix + st.Render(fit(left, lw)+right)
 }

@@ -1,23 +1,25 @@
 # gh-editor
 
-VS Code のような操作感の、ターミナルで動く統合開発環境 (TUI) です。
+ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code、編集操作は Helix に合わせています。
 
 ## 機能
 
-- ファイルエクスプローラー（ツリー表示・新規ファイル/フォルダー・名前の変更）
-- タブで複数ファイルを開く
-- シンタックスハイライト（Dark+ 風の配色）
-- 選択・コピー・切り取り・貼り付け・元に戻す/やり直し
-- ファイル内検索
-- Quick Open（あいまい検索でファイルを開く）とコマンドパレット
-- 下部のターミナルパネル（シェルコマンドを実行して出力を表示）
-- マウス操作（クリック・ドラッグ選択・ホイールスクロール）
+- **Helix 風のモード編集**（ノーマル / 挿入 / 選択、`:` コマンド）。VS Code 風の操作にも切り替えられます
+- **ファイルツリー**（Git の変更状態を M / U / A で表示）
+- **LSP**：診断・補完・ホバー・定義へ移動・参照・名前の変更・整形
+- **LSP の設定は Helix と同じ `.helix/languages.toml`** をプロジェクトのルートから読み込みます
+- **プルリクエストのレビュー**（gh CLI を使用）：差分の表示・行へのコメント・承認・変更を要求
+- **ローカルの変更のレビュー**（hunk 風）：`git diff HEAD` と未追跡ファイルをハンク単位で確認し、コメントを Markdown でコピー
+- **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
+- タブ、シンタックスハイライト、Quick Open、プロジェクト全体の検索、ターミナルパネル、マウス操作
 
 ## インストール
 
 ```sh
 go install github.com/mm1995tk/gh-editor@latest
 ```
+
+PR レビューには [gh](https://cli.github.com/) と `gh auth login` が必要です。
 
 ## 使い方
 
@@ -27,62 +29,138 @@ gh-editor ./src      # ディレクトリを開く
 gh-editor main.go    # ファイルを開く
 ```
 
-## キー操作
+## 設定
+
+次の順に読み込み、後のものが優先されます（形式は Helix と同じです）。
+
+1. 組み込みの既定値（gopls / rust-analyzer / typescript-language-server など）
+2. `~/.config/helix/languages.toml`、`~/.config/helix/config.toml`
+3. `~/.config/gh-editor/languages.toml`、`~/.config/gh-editor/config.toml`
+4. **プロジェクトの `.helix/languages.toml`、`.helix/config.toml`**
+5. プロジェクトの `.gh-editor/languages.toml`、`.gh-editor/config.toml`
+
+### LSP の設定例（`.helix/languages.toml`）
+
+```toml
+[language-server.my-gopls]
+command = "gopls"
+args = ["serve"]
+config = { gofumpt = true }          # initializationOptions として送ります
+environment = { GOFLAGS = "-tags=integration" }
+
+[[language]]
+name = "go"
+language-servers = ["my-gopls"]
+roots = ["go.mod"]
+indent = { tab-width = 4, unit = "\t" }
+```
+
+対応しているキー：`[language-server.*]` の `command` `args` `config` `environment`、`[[language]]` の `name` `language-id` `file-types` `roots` `language-servers` `indent.unit`。
+
+### エディタの設定（`config.toml`）
+
+```toml
+keymap = "helix"          # "vscode" で VS Code 風の操作
+
+[editor]
+line-number = "relative"  # Helix と同じ
+```
+
+## キー操作（Helix モード）
+
+### ノーマルモード
+
+| キー | 動作 |
+| --- | --- |
+| `h j k l` | 移動（数字を前に付けると回数指定） |
+| `w` `b` `e` | 単語を選択しながら移動 |
+| `x` | 行を選択（続けて押すと広がる） |
+| `%` / `;` | すべて選択 / 選択解除 |
+| `v` | 選択モード |
+| `d` `c` `y` | 削除 / 変更 / ヤンク |
+| `p` `P` | 後ろ / 前に貼り付け |
+| `i` `a` `I` `A` `o` `O` | 挿入モードへ |
+| `u` `U` | 元に戻す / やり直し |
+| `f` `t` `F` `T` + 文字 | 行内で文字を探す |
+| `r` + 文字 | 置き換え |
+| `>` `<` | インデント |
+| `J` | 行を連結 |
+| `mm` | 対応する括弧へ |
+| `gg` `ge` `gh` `gl` `gs` / `数字g` | ジャンプ |
+| `gd` `gr` | 定義へ移動 / 参照 |
+| `]d` `[d` | 次 / 前の診断 |
+| `gn` `gp` | 次 / 前のタブ |
+| `/` `?` `n` `N` `*` | 検索 |
+| `Ctrl+C` | 行コメントの切替 |
+| `:` | コマンド（下の表） |
+
+### Space メニュー
+
+| キー | 動作 |
+| --- | --- |
+| `Space f` | ファイルを開く |
+| `Space b` | 開いているバッファ |
+| `Space e` | ファイルツリーへ移動 |
+| `Space k` | ホバー |
+| `Space r` | 名前の変更 |
+| `Space d` | 診断の一覧 |
+| `Space /` | プロジェクト全体を検索 |
+| `Space g` | プルリクエスト一覧 → レビュー |
+| `Space G` | ローカルの変更をレビュー |
+| `Space y` `Space p` | システムのクリップボードへコピー / 貼り付け |
+| `Space ?` | コマンドパレット |
+
+### 挿入モード
+
+`Esc` でノーマルモードへ戻ります。補完は `.` などの入力や 2 文字入力で自動的に出ます（`Ctrl+X` で手動）。`Tab` / `Enter` で確定します。
+
+### `:` コマンド
+
+`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep <文字列>` `:pr [番号]` `:review` `:lsp-restart` `:config-reload` `:keymap [helix|vscode]`
 
 ### 全体
 
 | キー | 動作 |
 | --- | --- |
-| `Ctrl+P` | ファイルを開く（Quick Open） |
+| `Ctrl+P` | ファイルを開く |
 | `F1` / `Ctrl+K` | コマンドパレット |
-| `Ctrl+G` | 行へ移動 |
-| `Ctrl+B` | サイドバーの表示切替 |
-| `Ctrl+E` | エクスプローラーとエディタのフォーカス切替 |
-| `Ctrl+J` / ``Ctrl+` `` | ターミナルの表示切替 |
-| `Ctrl+N` | 新しいファイル |
+| `Ctrl+B` | ファイルツリーの表示切替 |
+| `Ctrl+E` | ファイルツリーとエディタのフォーカス切替 |
+| `Ctrl+G` | ローカルの変更をレビュー |
+| `Ctrl+J` | ターミナルの表示切替 |
 | `Ctrl+S` | 保存 |
 | `Ctrl+W` | タブを閉じる |
-| `Ctrl+PgUp` / `Ctrl+PgDn` | 前/次のタブ |
-| `Alt+1`〜`Alt+9` | n 番目のタブ |
+| `Ctrl+PgUp` / `Ctrl+PgDn` / `Alt+1`〜`9` | タブの切替 |
 | `Ctrl+Q` | 終了 |
 
-### エディタ
+### ファイルツリー
+
+`j/k` 移動、`Enter` 開く、`h/l` 閉じる / 展開、`a` 新しいファイル、`A` 新しいフォルダー、`r` 名前の変更、`d` 削除、`R` 更新、`Esc` エディタへ。
+
+### レビュー画面
 
 | キー | 動作 |
 | --- | --- |
-| `Shift+矢印` / `Shift+Home/End` | 選択 |
-| `Ctrl+←/→` | 単語単位で移動 |
-| `Ctrl+A` | すべて選択 |
-| `Ctrl+C` / `Ctrl+X` / `Ctrl+V` | コピー / 切り取り / 貼り付け（選択なしなら行単位） |
-| `Ctrl+Z` / `Ctrl+Y` | 元に戻す / やり直し |
-| `Ctrl+F` | 検索（`Enter` で次、`↑` で前、`Esc` で閉じる） |
-| `Ctrl+/` | 行コメントの切替 |
-| `Alt+↑/↓` | 行を上下に移動 |
-| `Tab` / `Shift+Tab` | インデント / インデント解除 |
+| `j/k` | 移動 |
+| `]` `[` | 次 / 前のハンク |
+| `J` `K` | 次 / 前のファイル |
+| `Tab` / `h` `l` | ファイル一覧と差分の切替 |
+| `s` | 左右分割 / 1 列の切替 |
+| `v` | 確認済みにする |
+| `c` | この行にコメント（`\n` で改行） |
+| `d` | 未送信のコメントを削除 |
+| `y` | コメントを Markdown でコピー（エージェントに渡す用） |
+| `Enter` | ファイルをエディタで開く |
+| `A` / `R` / `S` | 承認 / 変更を要求 / コメントのみで送信（PR のみ） |
+| `C` | `gh pr checkout` |
+| `r` | 再読み込み |
+| `q` | 閉じる |
 
-### エクスプローラー
+## 制限
 
-| キー | 動作 |
-| --- | --- |
-| `↑/↓` または `j/k` | 移動 |
-| `Enter` | 開く（フォルダーは開閉） |
-| `Space` | フォーカスを移さずに開く |
-| `←` / `→` | 閉じる / 展開 |
-| `n` / `N` | 新しいファイル / 新しいフォルダー |
-| `r` | 名前の変更 |
-| `R` | 最新の情報に更新 |
-
-### ターミナル
-
-| キー | 動作 |
-| --- | --- |
-| `Enter` | コマンドを実行 |
-| `↑/↓` | 履歴 |
-| `Ctrl+C` | 実行中のコマンドを停止 |
-| `PgUp/PgDn` | スクロール |
-| `Esc` | エディタへ戻る |
-
-ターミナルパネルは 1 行ずつコマンドを実行して出力を表示します。`vim` や `top` のような全画面アプリは動きません。
+- ターミナルパネルは 1 行ずつコマンドを実行して出力を表示します。`vim` や `top` のような全画面アプリは動きません。
+- 画像は文字（▀）で表示します。細かい部分は粗くなります。
+- 複数カーソル（Helix の `C` `s`）は未対応です。
 
 ## 開発
 

@@ -53,9 +53,10 @@ type Buffer struct {
 	// Version increments on every content change (used by highlight caches).
 	Version int
 
-	UseTabs bool
-	crlf    bool
-	wantVis int // remembered screen column for vertical movement
+	UseTabs    bool
+	indentUnit string
+	crlf       bool
+	wantVis    int // remembered screen column for vertical movement
 
 	undo, redo []snapshot
 	lastEdit   editKind
@@ -334,6 +335,9 @@ func (b *Buffer) Newline() {
 
 // IndentUnit is the string inserted for one level of indentation.
 func (b *Buffer) IndentUnit() string {
+	if b.indentUnit != "" {
+		return b.indentUnit
+	}
 	if b.UseTabs {
 		return "\t"
 	}
@@ -345,12 +349,13 @@ func (b *Buffer) IndentUnit() string {
 func (b *Buffer) Indent() {
 	s, e, ok := b.Selection()
 	if !ok || s.Row == e.Row {
-		if b.UseTabs {
+		unit := b.IndentUnit()
+		if unit == "\t" {
 			b.Insert("\t")
 			return
 		}
 		vis := VisualCol(b.Lines[b.Cur.Row], b.Cur.Col)
-		b.Insert(strings.Repeat(" ", TabWidth-vis%TabWidth))
+		b.Insert(strings.Repeat(" ", len(unit)-vis%len(unit)))
 		return
 	}
 	b.begin(editOther)
@@ -841,4 +846,337 @@ func clampInt(v, lo, hi int) int {
 		return hi
 	}
 	return v
+}
+
+// ---- modal (Helix-style) helpers ----
+
+// Edit replaces the text between Start and End.
+type Edit struct {
+	Start, End Pos
+	Text       string
+}
+
+// ApplyEdits applies non-overlapping edits as one undo step.
+func (b *Buffer) ApplyEdits(edits []Edit) {
+	if len(edits) == 0 {
+		return
+	}
+	b.begin(editOther)
+	sorted := append([]Edit(nil), edits...)
+	// apply from the end so earlier positions stay valid
+	for i := 1; i < len(sorted); i++ {
+		for j := i; j > 0 && sorted[j-1].Start.Less(sorted[j].Start); j-- {
+			sorted[j-1], sorted[j] = sorted[j], sorted[j-1]
+		}
+	}
+	cur := b.Cur
+	for _, e := range sorted {
+		s, en := b.ClampPos(e.Start), b.ClampPos(e.End)
+		if en.Less(s) {
+			s, en = en, s
+		}
+		b.deleteRange(s, en)
+		b.insertRaw([]rune(e.Text))
+	}
+	b.Cur = cur
+	b.Anchor = nil
+	b.clamp()
+}
+
+// ClampPos returns p limited to valid buffer positions.
+func (b *Buffer) ClampPos(p Pos) Pos {
+	p.Row = clampInt(p.Row, 0, len(b.Lines)-1)
+	p.Col = clampInt(p.Col, 0, len(b.Lines[p.Row]))
+	return p
+}
+
+// WordEnd moves the cursor just past the end of the next word.
+func (b *Buffer) WordEnd(extend bool) {
+	b.startSelect(extend)
+	b.lastEdit = editOther
+	l := b.Lines[b.Cur.Row]
+	c := b.Cur.Col
+	if c >= len(l) && b.Cur.Row < len(b.Lines)-1 {
+		b.Cur = Pos{b.Cur.Row + 1, 0}
+		l, c = b.Lines[b.Cur.Row], 0
+	}
+	for c < len(l) && unicode.IsSpace(l[c]) {
+		c++
+	}
+	if c < len(l) && isWord(l[c]) {
+		for c < len(l) && isWord(l[c]) {
+			c++
+		}
+	} else {
+		for c < len(l) && !isWord(l[c]) && !unicode.IsSpace(l[c]) {
+			c++
+		}
+	}
+	b.Cur.Col = c
+	b.syncWant()
+}
+
+// SelectWord selects from the cursor to the start of the next word (Helix
+// "w") or to the start of the previous word (Helix "b").
+func (b *Buffer) SelectWord(forward, extend bool) {
+	if !extend {
+		b.Anchor = nil
+	}
+	if forward {
+		b.startSelect(true)
+		b.wordRight()
+		l := b.Lines[b.Cur.Row]
+		for b.Cur.Col < len(l) && unicode.IsSpace(l[b.Cur.Col]) {
+			b.Cur.Col++
+		}
+	} else {
+		b.startSelect(true)
+		b.wordLeft()
+	}
+	b.lastEdit = editOther
+	b.syncWant()
+}
+
+// SelectLine selects the current line (Helix "x"); repeated calls extend
+// the selection by one line.
+func (b *Buffer) SelectLine() {
+	s, e, ok := b.Selection()
+	if ok && s.Col == 0 && e.Col == 0 && e.Row > s.Row {
+		if e.Row < len(b.Lines) {
+			b.Anchor = &Pos{s.Row, 0}
+			b.Cur = b.lineEndPos(e.Row)
+		}
+	} else {
+		b.Anchor = &Pos{b.Cur.Row, 0}
+		b.Cur = b.lineEndPos(b.Cur.Row)
+	}
+	b.lastEdit = editOther
+	b.syncWant()
+}
+
+// lineEndPos returns the position just after row's newline (or its end
+// for the last line).
+func (b *Buffer) lineEndPos(row int) Pos {
+	if row+1 < len(b.Lines) {
+		return Pos{row + 1, 0}
+	}
+	return Pos{row, len(b.Lines[row])}
+}
+
+// SelectionOrChar returns the selection, or the single character under the
+// cursor when nothing is selected.
+func (b *Buffer) SelectionOrChar() (Pos, Pos) {
+	if s, e, ok := b.Selection(); ok {
+		return s, e
+	}
+	s := b.Cur
+	e := s
+	if e.Col < len(b.Lines[e.Row]) {
+		e.Col++
+	} else if e.Row+1 < len(b.Lines) {
+		e = Pos{e.Row + 1, 0}
+	}
+	return s, e
+}
+
+// DeleteRange deletes [s, e) as one undo step and returns the removed text.
+func (b *Buffer) DeleteRange(s, e Pos) string {
+	if !s.Less(e) {
+		return ""
+	}
+	text := b.textRange(s, e)
+	b.begin(editOther)
+	b.deleteRange(s, e)
+	return text
+}
+
+// TextRange returns the text in [s, e).
+func (b *Buffer) TextRange(s, e Pos) string { return b.textRange(s, e) }
+
+// InsertAt inserts text at p as one undo step, leaving the cursor after it.
+func (b *Buffer) InsertAt(p Pos, text string) {
+	b.Anchor = nil
+	b.Cur = b.ClampPos(p)
+	b.InsertBlock(text)
+}
+
+// OpenLine inserts an empty line below (or above) the cursor, keeping the
+// indentation, and moves the cursor onto it.
+func (b *Buffer) OpenLine(below bool) {
+	row := b.Cur.Row
+	indent := string(leadingSpace(b.Lines[row]))
+	b.Anchor = nil
+	if below {
+		b.Cur = Pos{row, len(b.Lines[row])}
+		b.InsertBlock("\n" + indent)
+	} else {
+		b.Cur = Pos{row, 0}
+		b.InsertBlock(indent + "\n")
+		b.Cur = Pos{row, len([]rune(indent))}
+	}
+	b.syncWant()
+}
+
+// ReplaceChars replaces every character of the selection (or the one under
+// the cursor) with r.
+func (b *Buffer) ReplaceChars(r rune) {
+	s, e := b.SelectionOrChar()
+	if !s.Less(e) {
+		return
+	}
+	old := []rune(b.textRange(s, e))
+	for i, c := range old {
+		if c != '\n' {
+			old[i] = r
+		}
+	}
+	anchor := b.Anchor
+	b.begin(editOther)
+	b.deleteRange(s, e)
+	b.insertRaw(old)
+	if anchor != nil {
+		b.Anchor = &s
+	} else {
+		b.Cur = s
+	}
+}
+
+// FindChar moves to the next/previous occurrence of r on the current line.
+// till stops one character before it. Returns false when not found.
+func (b *Buffer) FindChar(r rune, forward, till, extend bool) bool {
+	l := b.Lines[b.Cur.Row]
+	c := b.Cur.Col
+	if forward {
+		for i := c + 1; i < len(l); i++ {
+			if l[i] == r {
+				b.startSelect(extend)
+				if till {
+					b.Cur.Col = i
+				} else {
+					b.Cur.Col = i + 1
+				}
+				b.syncWant()
+				return true
+			}
+		}
+		return false
+	}
+	for i := c - 1; i >= 0; i-- {
+		if l[i] == r {
+			b.startSelect(extend)
+			if till {
+				b.Cur.Col = i + 1
+			} else {
+				b.Cur.Col = i
+			}
+			b.syncWant()
+			return true
+		}
+	}
+	return false
+}
+
+// MatchBracket jumps to the bracket matching the one under the cursor.
+func (b *Buffer) MatchBracket(extend bool) {
+	pairs := map[rune]rune{'(': ')', '[': ']', '{': '}', ')': '(', ']': '[', '}': '{'}
+	l := b.Lines[b.Cur.Row]
+	if b.Cur.Col >= len(l) {
+		return
+	}
+	open := l[b.Cur.Col]
+	close, ok := pairs[open]
+	if !ok {
+		return
+	}
+	forward := strings.ContainsRune("([{", open)
+	depth := 0
+	p := b.Cur
+	for {
+		if forward {
+			p.Col++
+			for p.Row < len(b.Lines) && p.Col >= len(b.Lines[p.Row]) {
+				p.Row++
+				p.Col = 0
+				if p.Row < len(b.Lines) && len(b.Lines[p.Row]) > 0 {
+					break
+				}
+			}
+			if p.Row >= len(b.Lines) {
+				return
+			}
+		} else {
+			p.Col--
+			for p.Col < 0 {
+				p.Row--
+				if p.Row < 0 {
+					return
+				}
+				p.Col = len(b.Lines[p.Row]) - 1
+			}
+		}
+		if p.Col >= len(b.Lines[p.Row]) {
+			continue
+		}
+		c := b.Lines[p.Row][p.Col]
+		if c == open {
+			depth++
+		} else if c == close {
+			if depth == 0 {
+				b.startSelect(extend)
+				b.Cur = p
+				b.syncWant()
+				return
+			}
+			depth--
+		}
+	}
+}
+
+// JoinLines joins the current line (or selected lines) with the next.
+func (b *Buffer) JoinLines() {
+	s, e, ok := b.Selection()
+	if !ok {
+		s, e = b.Cur, b.Cur
+	}
+	last := max(e.Row, s.Row+1)
+	if e.Col == 0 && e.Row > s.Row+1 {
+		last = e.Row - 1
+	}
+	if last >= len(b.Lines) {
+		return
+	}
+	b.begin(editOther)
+	joined := b.Lines[s.Row]
+	for r := s.Row + 1; r <= last; r++ {
+		next := []rune(strings.TrimLeft(string(b.Lines[r]), " \t"))
+		joined = concat([]rune(strings.TrimRight(string(joined), " \t")), []rune(" "), next)
+	}
+	lines := make([][]rune, 0, len(b.Lines))
+	lines = append(lines, b.Lines[:s.Row]...)
+	lines = append(lines, joined)
+	lines = append(lines, b.Lines[last+1:]...)
+	b.Lines = lines
+	b.Anchor = nil
+	b.clamp()
+}
+
+// SetIndentUnit overrides the indentation inserted by Tab.
+func (b *Buffer) SetIndentUnit(unit string) {
+	b.indentUnit = unit
+	b.UseTabs = unit == "\t"
+}
+
+// Reload re-reads the file from disk, discarding changes.
+func (b *Buffer) Reload() error {
+	nb, err := Open(b.Path)
+	if err != nil {
+		return err
+	}
+	b.begin(editOther)
+	b.Lines = nb.Lines
+	b.crlf = nb.crlf
+	b.Dirty = false
+	b.Anchor = nil
+	b.clamp()
+	return nil
 }

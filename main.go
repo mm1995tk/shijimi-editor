@@ -25,8 +25,11 @@ func main() {
 			dir, file = filepath.Dir(arg), arg
 		}
 	}
-	p := tea.NewProgram(ui.New(dir, file), tea.WithAltScreen(), tea.WithMouseCellMotion())
-	if _, err := p.Run(); err != nil {
+	app := ui.New(dir, file)
+	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	_, err := p.Run()
+	app.Close()
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

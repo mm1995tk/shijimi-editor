@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 type node struct {
@@ -24,12 +26,14 @@ type explorer struct {
 	flat   []*node
 	sel    int
 	scroll int
+	git    map[string]string
 }
 
 func newExplorer(root string) *explorer {
 	e := &explorer{root: &node{name: filepath.Base(root), path: root, isDir: true, expanded: true, depth: -1}}
 	e.load(e.root)
 	e.flatten()
+	e.loadGitStatus()
 	return e
 }
 
@@ -101,6 +105,7 @@ func (e *explorer) refresh() {
 	}
 	walk(e.root)
 	e.flatten()
+	e.loadGitStatus()
 }
 
 func (e *explorer) selected() *node {
@@ -236,7 +241,72 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 				st = stSideSel
 			}
 		}
-		lines = append(lines, st.Render(fit(label, w)))
+		letter := e.git[n.path]
+		if letter == "" {
+			lines = append(lines, st.Render(fit(label, w)))
+			continue
+		}
+		col := gitColor(letter)
+		if letter == "•" {
+			col = cDirty
+		}
+		lines = append(lines, st.Foreground(lipgloss.Color(col)).Render(fit(label, w-2)+" "+letter))
 	}
 	return lines
+}
+
+// loadGitStatus records git status letters for files under the root,
+// shown as VS Code-style decorations in the tree.
+func (e *explorer) loadGitStatus() {
+	e.git = map[string]string{}
+	top, err := run(e.root.path, nil, "git", "rev-parse", "--show-toplevel")
+	if err != nil {
+		return
+	}
+	topDir := strings.TrimSpace(string(top))
+	out, err := run(e.root.path, nil, "git", "status", "--porcelain", "--untracked-files=all", "-z")
+	if err != nil {
+		return
+	}
+	parts := strings.Split(string(out), "\x00")
+	for i := 0; i < len(parts); i++ {
+		p := parts[i]
+		if len(p) < 4 {
+			continue
+		}
+		xy, path := p[:2], p[3:]
+		if xy[0] == 'R' || xy[0] == 'C' {
+			i++ // the original path follows
+		}
+		letter := "M"
+		switch {
+		case xy == "??":
+			letter = "U"
+		case xy[0] == 'A':
+			letter = "A"
+		case xy[0] == 'D' || xy[1] == 'D':
+			letter = "D"
+		case xy[0] == 'R':
+			letter = "R"
+		}
+		abs := filepath.Join(topDir, path)
+		e.git[abs] = letter
+		for d := filepath.Dir(abs); len(d) >= len(topDir) && d != filepath.Dir(d); d = filepath.Dir(d) {
+			if _, ok := e.git[d]; !ok {
+				e.git[d] = "•"
+			}
+		}
+	}
+}
+
+func gitColor(letter string) string {
+	switch letter {
+	case "U", "A":
+		return "#73c991"
+	case "D":
+		return "#c74e39"
+	case "R":
+		return "#73c991"
+	}
+	return cDirty
 }
