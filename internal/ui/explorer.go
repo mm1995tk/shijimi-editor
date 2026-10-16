@@ -70,13 +70,19 @@ func (e *explorer) load(n *node) {
 		c.parent = n
 		n.children = append(n.children, c)
 	}
-	sort.SliceStable(n.children, func(i, j int) bool {
-		a, b := n.children[i], n.children[j]
-		if a.isDir != b.isDir {
-			return a.isDir
-		}
-		return strings.ToLower(a.name) < strings.ToLower(b.name)
-	})
+	sort.SliceStable(n.children, func(i, j int) bool { return nodeLess(n.children[i], n.children[j]) })
+}
+
+// nodeLess orders: normal dirs, normal files, dot dirs, dot files.
+func nodeLess(a, b *node) bool {
+	ad, bd := strings.HasPrefix(a.name, "."), strings.HasPrefix(b.name, ".")
+	if ad != bd {
+		return bd
+	}
+	if a.isDir != b.isDir {
+		return a.isDir
+	}
+	return strings.ToLower(a.name) < strings.ToLower(b.name)
 }
 
 func (e *explorer) flatten() {
