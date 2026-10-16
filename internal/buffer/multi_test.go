@@ -78,3 +78,23 @@ func TestSelectMatches(t *testing.T) {
 		t.Fatal("expected no-match error")
 	}
 }
+
+func TestBackwardRange(t *testing.T) {
+	r := Range{Anchor: Pos{0, 3}, HasAnchor: true, Cur: Pos{0, 0}}
+	if r.Start() != (Pos{0, 0}) || r.End() != (Pos{0, 3}) {
+		t.Fatalf("Start/End = %v %v", r.Start(), r.End())
+	}
+	b := New()
+	b.Insert("a1 b2")
+	b.Anchor, b.Cur = &Pos{0, 5}, Pos{0, 0}
+	if err := b.SelectMatches(regexp.MustCompile(`\d`)); err != nil || len(b.Extra()) != 1 {
+		t.Fatalf("err=%v cursors=%d", err, len(b.Extra())+1)
+	}
+	b.setRanges([]Range{
+		{Anchor: Pos{0, 4}, HasAnchor: true, Cur: Pos{0, 0}},
+		{Anchor: Pos{0, 5}, HasAnchor: true, Cur: Pos{0, 2}},
+	}, 0)
+	if b.HasExtra() {
+		t.Fatal("overlapping backward ranges should merge")
+	}
+}

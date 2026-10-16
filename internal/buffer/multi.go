@@ -30,6 +30,9 @@ func (r Range) End() Pos {
 	if r.HasAnchor && r.Anchor.Less(r.Cur) {
 		return r.Cur
 	}
+	if r.HasAnchor {
+		return r.Anchor
+	}
 	return r.Cur
 }
 
