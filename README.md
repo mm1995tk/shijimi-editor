@@ -119,7 +119,7 @@ file-icons = true         # ファイルツリーの Nerd Font アイコン。fa
 
 ### `:` コマンド
 
-`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep <文字列>` `:pr [番号]` `:review` `:lsp-restart` `:config-reload` `:keymap [helix|vscode]`
+`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:pr [番号]` `:review` `:lsp-restart` `:config-reload` `:keymap [helix|vscode]`
 
 ### 全体
 
@@ -179,3 +179,13 @@ nix flake check        # 整形のチェック
 ```
 
 `go.mod` を変えたら `gomod2nix` を実行して `gomod2nix.toml` を更新してください。
+
+### 全文検索の除外・包含
+
+`:grep -x '*.lock,dist/**' -i '*.go' foo` のように、カンマ区切りの glob で除外 (`-x` / `--exclude=`) と包含 (`-i` / `--include=`) を指定できます。常に効かせたい指定は `config.toml` に書きます。
+
+```toml
+[search]
+exclude = ["*.lock", "dist/**"]
+include = []
+```
