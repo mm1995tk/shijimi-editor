@@ -66,6 +66,7 @@ keymap = "helix"          # "vscode" で VS Code 風の操作
 
 [editor]
 line-number = "relative"  # Helix と同じ
+file-icons = true         # ファイルツリーの Nerd Font アイコン。false で ▸/▾ 表示
 ```
 
 ## キー操作（Helix モード）

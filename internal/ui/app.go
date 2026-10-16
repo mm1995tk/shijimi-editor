@@ -95,6 +95,7 @@ func New(dir, file string) *App {
 		focus:    focusExplorer,
 		helix:    cfg.Editor.Keymap != "vscode",
 	}
+	a.explorer.icons = cfg.Editor.FileIcons
 	a.findInput = textinput.New()
 	a.findInput.Prompt = ""
 	a.findInput.Placeholder = "検索"

@@ -225,6 +225,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 	case "config-reload":
 		a.cfg = config.Load(a.root)
 		a.lsp.cfg = a.cfg
+		a.explorer.icons = a.cfg.Editor.FileIcons
 		a.helix = a.cfg.Editor.Keymap != "vscode"
 		a.info("設定を再読み込みしました: %s", strings.Join(a.cfg.Sources, ", "))
 	case "keymap":
