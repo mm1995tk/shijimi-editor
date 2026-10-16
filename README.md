@@ -85,6 +85,38 @@ enable = true
 timeout = 1000            # ミリ秒
 ```
 
+### Nix で書く
+
+各ディレクトリの `config.toml` / `languages.toml` と同じ場所に `config.nix` / `languages.nix` を置くと、`nix eval --json --file` で評価して TOML と同じ構造として読みます（同じディレクトリでは TOML のあとに適用）。`nix` が無い、または評価に失敗したファイルは無視します。
+
+```nix
+# ~/.config/gh-editor/languages.nix
+{
+  language-server.nil.command = "nil";
+  language = [
+    { name = "nix"; language-servers = [ "nil" ]; }
+  ];
+}
+```
+
+### home-manager
+
+flake の `homeManagerModules.default` を読み込みます。`settings` が `config.toml`、`languages` が `languages.toml` として `~/.config/gh-editor/` に書き出されます。
+
+```nix
+{
+  imports = [ inputs.gh-editor.homeManagerModules.default ];
+  programs.gh-editor = {
+    enable = true;
+    settings = { keymap = "vscode"; editor.line-number = "relative"; };
+    languages = {
+      language-server.gopls.command = "gopls";
+      language = [ { name = "go"; language-servers = [ "gopls" ]; } ];
+    };
+  };
+}
+```
+
 ## キー操作（Helix モード）
 
 ### ノーマルモード

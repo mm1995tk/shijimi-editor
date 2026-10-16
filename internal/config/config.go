@@ -4,7 +4,10 @@
 package config
 
 import (
+	"context"
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -61,8 +64,13 @@ type Config struct {
 	Sources   []string // files that were loaded, for display
 }
 
+// nixEvalTimeout bounds one `nix eval`.
+const nixEvalTimeout = 15 * time.Second
+
 // Load merges built-in defaults, the user's Helix config, and the project's
-// `.helix/` and `.gh-editor/` directories (later ones win).
+// `.helix/` and `.gh-editor/` directories (later ones win). In each directory
+// `config.nix` / `languages.nix` are evaluated with `nix eval --json` and
+// applied after the TOML file of the same name.
 func Load(root string) *Config {
 	c := &Config{
 		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second},
@@ -81,11 +89,71 @@ func Load(root string) *Config {
 			c.mergeEditor(string(data))
 			c.Sources = append(c.Sources, filepath.Join(d, "config.toml"))
 		}
+		if raw, ok := evalNix(filepath.Join(d, "config.nix")); ok {
+			c.mergeEditorRaw(raw)
+			c.Sources = append(c.Sources, filepath.Join(d, "config.nix"))
+		}
 		if data, err := os.ReadFile(filepath.Join(d, "languages.toml")); err == nil {
 			c.mergeLanguages(string(data), filepath.Join(d, "languages.toml"))
 		}
+		if raw, ok := evalNix(filepath.Join(d, "languages.nix")); ok {
+			c.mergeLanguagesRaw(raw, filepath.Join(d, "languages.nix"))
+		}
 	}
 	return c
+}
+
+// evalNix evaluates a Nix file to JSON and returns it in the shape the TOML
+// decoder produces, so both formats share one merge path. ok is false when
+// the file is missing, nix is unavailable, or evaluation fails.
+func evalNix(path string) (map[string]any, bool) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), nixEvalTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "nix", "--extra-experimental-features", "nix-command",
+		"eval", "--json", "--file", path).Output()
+	if err != nil {
+		return nil, false
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(out, &raw); err != nil {
+		return nil, false
+	}
+	for k, v := range raw {
+		raw[k] = normalizeJSON(v)
+	}
+	// [[language]] is an array of tables in TOML.
+	if list, ok := raw["language"].([]any); ok {
+		tables := make([]map[string]any, 0, len(list))
+		for _, x := range list {
+			if m, ok := x.(map[string]any); ok {
+				tables = append(tables, m)
+			}
+		}
+		raw["language"] = tables
+	}
+	return raw, true
+}
+
+// normalizeJSON turns integral JSON numbers into int64, as the TOML decoder does.
+func normalizeJSON(v any) any {
+	switch v := v.(type) {
+	case map[string]any:
+		for k, x := range v {
+			v[k] = normalizeJSON(x)
+		}
+	case []any:
+		for i, x := range v {
+			v[i] = normalizeJSON(x)
+		}
+	case float64:
+		if v == float64(int64(v)) {
+			return int64(v)
+		}
+	}
+	return v
 }
 
 func (c *Config) mergeEditor(data string) {
@@ -93,6 +161,10 @@ func (c *Config) mergeEditor(data string) {
 	if _, err := toml.Decode(data, &raw); err != nil {
 		return
 	}
+	c.mergeEditorRaw(raw)
+}
+
+func (c *Config) mergeEditorRaw(raw map[string]any) {
 	if v, ok := raw["keymap"].(string); ok {
 		c.Editor.Keymap = v
 	}
@@ -148,6 +220,10 @@ func (c *Config) mergeLanguages(data, source string) {
 	if _, err := toml.Decode(data, &raw); err != nil {
 		return
 	}
+	c.mergeLanguagesRaw(raw, source)
+}
+
+func (c *Config) mergeLanguagesRaw(raw map[string]any, source string) {
 	if source != "" {
 		c.Sources = append(c.Sources, source)
 	}
