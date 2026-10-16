@@ -45,14 +45,19 @@ func (a *App) handleCtl(m ctlMsg) tea.Cmd {
 		cmd = a.setFocus(focusEditor)
 		resp = ctl.Response{OK: true}
 	case "diff":
-		cmd = a.openLocalReview()
-		if m.req.Path != "" {
-			if t := a.tabs[a.active]; t.kind == tabReview {
-				t.rev.want = a.reviewPath(m.req.Path)
-				t.rev.selectWanted()
-			}
+		if !a.gd.on {
+			cmd = a.toggleGitDiff()
+		} else {
+			cmd = a.reloadChanges()
 		}
 		resp = ctl.Response{OK: true}
+		if m.req.Path != "" {
+			if !a.openFile(m.req.Path) {
+				resp = ctl.Response{Error: "開けませんでした: " + m.req.Path}
+				break
+			}
+			cmd = tea.Batch(cmd, a.setFocus(focusEditor))
+		}
 	case "status":
 		resp = ctl.Response{OK: true, Status: a.ctlStatus()}
 	default:
@@ -60,19 +65,6 @@ func (a *App) handleCtl(m ctlMsg) tea.Cmd {
 	}
 	m.reply <- resp
 	return cmd
-}
-
-// reviewPath converts an absolute path to the repository-relative form used
-// by diff files.
-func (a *App) reviewPath(abs string) string {
-	base := a.gitTop
-	if base == "" {
-		base = a.root
-	}
-	if rel, err := filepath.Rel(base, abs); err == nil {
-		return filepath.ToSlash(rel)
-	}
-	return abs
 }
 
 func (a *App) ctlStatus() *ctl.Status {

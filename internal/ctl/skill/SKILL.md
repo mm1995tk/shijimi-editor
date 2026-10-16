@@ -11,7 +11,7 @@ gh-editor のターミナルパネルの中、または環境変数 `GH_EDITOR_S
 ## コマンド
 
 - `gh-editor open <path>[:行]`: ファイルを開く。`:行` を付けるとその行へ移動する。
-- `gh-editor diff [path]`: ローカルの変更のレビューを開く。`path` を付けるとそのファイルの差分を開く。
+- `gh-editor diff [path]`: git-diff モードにする。`path` を付けるとそのファイルを diff 表示で開く。
 - `gh-editor status`: ルート、ブランチ、アクティブなタブ、カーソル行、開いているタブを JSON で表示する。
 
 ## 使いどころ

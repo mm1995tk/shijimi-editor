@@ -54,7 +54,10 @@ func defaultCommands() []command {
 		{"LSP: 診断の一覧", "Space d", func(a *App) tea.Cmd { return a.diagnosticPicker() }},
 		{"LSP: 言語サーバーを再起動", ":lsp-restart", func(a *App) tea.Cmd { return a.execCommand("lsp-restart") }},
 		{"レビュー: プルリクエスト一覧", "Space g / :pr", func(a *App) tea.Cmd { return a.prPicker() }},
-		{"レビュー: ローカルの変更", "Ctrl+G / :review", func(a *App) tea.Cmd { return a.openLocalReview() }},
+		{"git-diff: モードの切替", "Ctrl+G / Space G / :gitdiff", func(a *App) tea.Cmd { return a.toggleGitDiff() }},
+		{"git-diff: 分割表示 / 統合表示の切替", ":gitdiff split|unified", func(a *App) tea.Cmd { a.toggleSplit(); return nil }},
+		{"git-diff: 比較元を HEAD / PR の base で切替", "b / :gitdiff base", func(a *App) tea.Cmd { return a.cycleGitDiffBase() }},
+		{"git-diff: 変更一覧へ移動", "", func(a *App) tea.Cmd { return a.focusChangesList() }},
 		{"ファイルツリー: 最新の情報に更新", "R", func(a *App) tea.Cmd { a.explorer.refresh(); return nil }},
 		{"ファイルツリー: 新しいファイル", "a", func(a *App) tea.Cmd { return a.newFileIn(a.explorer.targetDir()) }},
 		{"ファイルツリー: 新しいフォルダー", "A", func(a *App) tea.Cmd { return a.newFolder() }},
@@ -213,8 +216,8 @@ func (a *App) execCommand(line string) tea.Cmd {
 		return tea.Batch(cmd, a.term.run(arg))
 	case "preview", "md":
 		return a.togglePreview()
-	case "review":
-		return a.openLocalReview()
+	case "gitdiff", "gd", "review":
+		return a.gitDiffCommand(arg)
 	case "pr":
 		if n, err := strconv.Atoi(strings.TrimPrefix(arg, "#")); err == nil {
 			return a.openPR(n)
@@ -315,21 +318,6 @@ func parseGrepArgs(arg string, def config.Search) (q string, include, exclude []
 }
 
 // ---- review ----
-
-func (a *App) openLocalReview() tea.Cmd {
-	for i, t := range a.tabs {
-		if t.kind == tabReview && t.rev.prNumber == 0 {
-			a.active = i
-			t.rev.loading = true
-			a.focus = focusEditor
-			return t.rev.load()
-		}
-	}
-	r := newReview(a.root, 0)
-	a.addTab(&tab{kind: tabReview, rev: r})
-	a.focus = focusEditor
-	return r.load()
-}
 
 func (a *App) openPR(n int) tea.Cmd {
 	for i, t := range a.tabs {

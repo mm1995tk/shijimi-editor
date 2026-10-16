@@ -27,6 +27,7 @@ const (
 	focusEditor focus = iota
 	focusExplorer
 	focusTerminal
+	focusChanges // the CHANGES list in git-diff mode
 )
 
 type span struct{ x0, x1 int }
@@ -48,6 +49,7 @@ type App struct {
 	tabs     []*tab
 	active   int
 	branch   string
+	gd       gitDiff
 
 	showSide bool
 	showTerm bool
@@ -106,6 +108,7 @@ func New(dir, file string) *App {
 		showSide: true,
 		focus:    focusExplorer,
 		helix:    cfg.Editor.Keymap != "vscode",
+		gd:       gitDiff{split: true},
 	}
 	a.explorer.icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
@@ -284,7 +287,7 @@ func (a *App) saveTab(t *tab) tea.Cmd {
 	}
 	a.explorer.loadGitStatus()
 	a.info("保存しました: %s", a.rel(t.buf.Path))
-	return nil
+	return a.afterSave()
 }
 
 func (a *App) saveAll() tea.Cmd {
@@ -484,7 +487,7 @@ func (a *App) switchTab(d int) {
 
 func (a *App) toggleSide() {
 	a.showSide = !a.showSide
-	if !a.showSide && a.focus == focusExplorer {
+	if !a.showSide && (a.focus == focusExplorer || a.focus == focusChanges) {
 		a.focus = focusEditor
 	}
 }
@@ -625,7 +628,13 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case autoSaveMsg:
 		return a.handleAutoSave(msg)
 	case watchMsg:
-		a.checkDiskChanges()
+		reload := a.checkDiskChanges()
+		if a.gd.on {
+			a.gd.ticks++
+			if reload || a.gd.ticks%gitDiffRefreshTicks == 0 {
+				return tea.Batch(watchTick(), a.reloadChanges())
+			}
+		}
 		return watchTick()
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
@@ -694,6 +703,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		} else {
 			a.info("開きました: %s", msg.url)
 		}
+	case changesLoadedMsg:
+		a.applyChanges(msg)
 	case searchTickMsg:
 		return a.searchTick(msg)
 	case searchDoneMsg:
@@ -816,7 +827,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return a.toggleTerm()
 		}
 	case "ctrl+g":
-		return a.openLocalReview()
+		return a.toggleGitDiff()
 	case "ctrl+e":
 		if a.focus == focusExplorer && len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
@@ -852,6 +863,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch a.focus {
 	case focusExplorer:
 		return a.handleExplorerKey(msg)
+	case focusChanges:
+		return a.handleChangesKey(msg)
 	}
 	t := a.cur()
 	if t == nil {
@@ -1024,7 +1037,14 @@ func (a *App) handleExplorerKey(msg tea.KeyMsg) tea.Cmd {
 		a.pending = " "
 	case ":":
 		return a.openCmdline(":")
-	case "esc", "q", "tab":
+	case "tab":
+		if a.gd.on {
+			return a.setFocus(focusChanges)
+		}
+		if len(a.tabs) > 0 {
+			return a.setFocus(focusEditor)
+		}
+	case "esc", "q":
 		if len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
 		}
@@ -1330,8 +1350,16 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		switch {
 		case a.showSide && x < l.sideW:
 			e := a.explorer
-			e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(a.h-2)))
-			e.sel = clamp(e.sel, e.scroll, e.scroll+a.h-3)
+			if a.gd.on && y >= a.explorerH() {
+				g := &a.gd
+				body := a.h - 2 - a.explorerH()
+				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.files)-body))
+				g.sel = clamp(g.sel, g.scroll, g.scroll+body-1)
+			} else {
+				eh := a.explorerH()
+				e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(eh-1)))
+				e.sel = clamp(e.sel, e.scroll, e.scroll+eh-2)
+			}
 		case a.showTerm && y >= l.panelY && y < l.statusY:
 			a.term.wheel(msg, x-l.rightX, y-l.panelY-2, wheel)
 		default:
@@ -1370,6 +1398,13 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 
 	switch {
 	case a.showSide && x < l.sideW:
+		if a.gd.on && y >= a.explorerH() {
+			if i := y - 1 - a.explorerH() + a.gd.scroll; y > a.explorerH() && i < len(a.gd.files) {
+				a.gd.sel = i
+				return a.openChange(a.gd.files[i])
+			}
+			return a.setFocus(focusChanges)
+		}
 		row := y - 1 + a.explorer.scroll
 		if y >= 1 && row < len(a.explorer.flat) {
 			a.explorer.sel = row
@@ -1405,6 +1440,15 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			return a.setFocus(focusEditor)
 		}
 		if t.kind == tabText {
+			if a.diffFile(t) != nil {
+				if y == l.editY {
+					a.toggleSplit()
+					return nil
+				}
+				if x < a.dvGeom(l).rightX {
+					return nil // the base side is read-only
+				}
+			}
 			if t.preview && x >= l.rightX+a.editW(t, l) {
 				return nil // the preview pane is read-only
 			}
@@ -1420,6 +1464,10 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
 	t := a.curText()
 	if t == nil {
+		return
+	}
+	if dv := a.diffFor(t); dv != nil {
+		a.diffMouseToCursor(t, dv, l, x, y, extend)
 		return
 	}
 	x = min(x, l.rightX+a.editW(t, l)-1)
@@ -1439,6 +1487,9 @@ func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
 
 // editW is the width of the text editor, narrower while the Markdown preview is open.
 func (a *App) editW(t *tab, l layout) int {
+	if a.diffFile(t) != nil {
+		return a.dvGeom(l).rightW
+	}
 	if t.preview {
 		return (l.rightW - 1) / 2
 	}
@@ -1446,6 +1497,9 @@ func (a *App) editW(t *tab, l layout) int {
 }
 
 func (a *App) renderText(t *tab, l layout, focused bool) []string {
+	if dv := a.diffFor(t); dv != nil {
+		return a.renderDiffText(t, dv, l, focused)
+	}
 	ew := a.editW(t, l)
 	edit := renderEditor(t, ew, l.editH, a.editorOpts(t, focused))
 	if !t.preview {
@@ -1470,7 +1524,11 @@ func (a *App) View() string {
 	l := a.layout()
 	if t := a.curText(); t != nil {
 		if a.follow {
-			ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
+			if dv := a.diffFor(t); dv != nil {
+				a.ensureDiffVisible(t, dv, a.editW(t, l), a.dvGeom(l).h)
+			} else {
+				ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
+			}
 			a.follow = false
 		}
 		t.buf.ScrollRow = clamp(t.buf.ScrollRow, 0, max(0, len(t.buf.Lines)-1))
@@ -1506,7 +1564,10 @@ func (a *App) View() string {
 		activePath = t.path()
 	}
 	if a.showSide {
-		side = a.explorer.render(l.sideW, a.h-1, a.focus == focusExplorer && !a.overlayOpen(), activePath)
+		side = a.explorer.render(l.sideW, a.explorerH(), a.focus == focusExplorer && !a.overlayOpen(), activePath)
+		if a.gd.on {
+			side = append(side, a.renderChanges(l.sideW, a.h-1-a.explorerH(), a.focus == focusChanges && !a.overlayOpen())...)
+		}
 	}
 	for i := range rows {
 		var sb strings.Builder
@@ -1522,9 +1583,7 @@ func (a *App) View() string {
 
 	// popups anchored at the cursor
 	if t := a.curText(); t != nil && (a.comp != nil || a.hoverText != "") {
-		b := t.buf
-		cx := l.rightX + gutterWidth(b) + buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col) - b.ScrollCol
-		cy := l.editY + b.Cur.Row - b.ScrollRow
+		cx, cy := a.cursorScreen(t, l)
 		var box []string
 		if a.comp != nil {
 			box = a.comp.render(max(3, l.editH/2))
@@ -1695,6 +1754,8 @@ func (a *App) renderStatus() string {
 	switch a.focus {
 	case focusExplorer:
 		leftParts = append(leftParts, "ファイルツリー")
+	case focusChanges:
+		leftParts = append(leftParts, "変更一覧")
 	case focusTerminal:
 		leftParts = append(leftParts, "ターミナル")
 	}
@@ -1749,7 +1810,7 @@ func (a *App) renderStatus() string {
 func (a *App) hoverView(l layout) hoverView {
 	h := l.editH * 2 / 3
 	if t := a.curText(); t != nil {
-		cy := l.editY + t.buf.Cur.Row - t.buf.ScrollRow
+		_, cy := a.cursorScreen(t, l)
 		below := l.editY + l.editH - (cy + 1)
 		above := cy - l.editY
 		h = min(h, max(below, above))

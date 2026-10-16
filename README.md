@@ -10,7 +10,7 @@
 - **LSP**：診断・補完・ホバー・定義へ移動・参照・名前の変更・整形
 - **LSP の設定は Helix と同じ `.helix/languages.toml`** をプロジェクトのルートから読み込みます
 - **プルリクエストのレビュー**（gh CLI を使用）：差分の表示・行へのコメント・承認・変更を要求
-- **ローカルの変更のレビュー**（hunk 風）：`git diff HEAD` と未追跡ファイルをハンク単位で確認し、コメントを Markdown でコピー（`y`）、またはプレビューで確認してターミナルのエージェントへ送る（`a`）
+- **git-diff モード**（`Ctrl+G` / `:gitdiff`）：エディター全体を「通常モード」と「git-diff モード」で切り替えます。変更ファイルの一覧（CHANGES）を出し、変更のあるファイルは**ファイル全体**を左右分割（または統合）の diff で開きます。右側は編集できます。比較元は `HEAD` と「PR の base との merge-base」を切り替えられます（下記）
 - **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
 - **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。mermaid のコードブロックは図として表示します（下記）
 - **現在の文脈をエージェントへ送る**（`Space a` / `Alt+A` / コマンドパレット）：選択範囲（なければカーソル行）を `パス:行-行`・本文・該当行の診断に整形し、プレビューで確認してからターミナルパネルへ貼り付けます（Enter は押しません）
@@ -182,7 +182,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `Space /` | プロジェクト全体を検索・置換（フローティング窓。「全文検索」の節を参照） |
 | `Space g` | プルリクエスト一覧 → レビュー |
 | `Space m` | Markdown プレビューの切替 |
-| `Space G` | ローカルの変更をレビュー |
+| `Space G` | git-diff モードの切替 |
 | `Space y` `Space p` | システムのクリップボードへコピー / 貼り付け |
 | `Space ?` | コマンドパレット |
 
@@ -192,7 +192,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ### `:` コマンド
 
-`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop|<URL>|reload|back|next` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
+`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:gitdiff [on|off|split|unified|base [head|pr]]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop|<URL>|reload|back|next` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
 
 ### 全体
 
@@ -202,7 +202,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `F1` / `Ctrl+K` | コマンドパレット |
 | `Ctrl+B` | ファイルツリーの表示切替 |
 | `Ctrl+E` | ファイルツリーとエディタのフォーカス切替 |
-| `Ctrl+G` | ローカルの変更をレビュー |
+| `Ctrl+G` | git-diff モードの切替 |
 | `Ctrl+J` | ターミナルの表示切替 |
 | `Ctrl+S` | 保存 |
 | `Ctrl+W` | タブを閉じる |
@@ -213,7 +213,28 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 `j/k` 移動、`Enter` 開く、`h/l` 閉じる / 展開、`a` 新しいファイル、`A` 新しいフォルダー、`r` 名前の変更、`d` 削除、`R` 更新、`Esc` エディタへ。
 
-### レビュー画面
+### git-diff モード
+
+`Ctrl+G`（Helix では `Space G`）、`:gitdiff`、コマンドパレットで入り、もう一度押すと通常モードに戻ります。
+
+- サイドバーが上下 7:3 に分かれ、下の 3 に **CHANGES**（変更ファイルの一覧）が出ます。`Tab` でファイルツリーと行き来します。
+- 変更のないファイルは通常のエディターで開きます。変更のあるファイルは、ファイル全体を **Split**（左が比較元、右が今のファイル）で開きます。新規ファイル（未追跡を含む）は全行を追加行の色で表示します。
+- 右側（今のファイル）は通常どおり編集・保存できます。編集すると diff がすぐに更新されます。
+- **Unified** にも切り替えられます（`s`、`:gitdiff unified` / `split`、ヘッダーの `[分割 ⇄ 統合]` のクリック）。Unified でも編集できます。削除された行は読み取り専用の行として挟まります。
+- 比較元（base）は `b`（`:gitdiff base head|pr`）で切り替えます。初期値は `HEAD`（未追跡ファイルを含む）。今のブランチに PR があるときは、`git merge-base <PR の base> HEAD` と作業ツリーを比べます。GitHub の PR 画面の差分に、まだコミットしていない変更を足したものになり、base ブランチをマージしても差分には自分の変更だけが出ます（`gh` が必要）。
+- CHANGES の一覧は保存時、外部の変更の検知時、数秒ごとに更新されます。
+
+| キー（CHANGES にフォーカス中） | 動作 |
+| --- | --- |
+| `j/k` | 移動 |
+| `Enter` / `l` | ファイルを開く |
+| `s` | 分割 / 統合の切替 |
+| `b` | 比較元の切替（HEAD ⇄ PR の base） |
+| `r` | 一覧の更新 |
+| `Tab` | ファイルツリーへ |
+| `Esc` | エディタへ |
+
+### PR のレビュー画面
 
 | キー | 動作 |
 | --- | --- |
@@ -302,7 +323,7 @@ ssh -L 8080:127.0.0.1:<待ち受けポート> vm
 実行中の gh-editor は Unix ソケット（0600）を作り、環境変数 `GH_EDITOR_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。
 
 - `gh-editor open <path>[:行]`: ファイルを開く
-- `gh-editor diff [path]`: ローカルの変更のレビューを開く
+- `gh-editor diff [path]`: git-diff モードにする。`path` を付けるとそのファイルを diff 表示で開く
 - `gh-editor status`: 開いているタブとカーソル位置を JSON で表示する
 
 第 1 引数が `open` / `diff` / `status` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./status` のように書きます。

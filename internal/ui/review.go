@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -63,12 +62,11 @@ type reviewRow struct {
 	comment     *reviewComment
 }
 
-// review is a tab showing a diff for review: either a GitHub pull request
-// (via the gh CLI) or the local working tree (git diff HEAD).
+// review is a tab showing a GitHub pull request (via the gh CLI) for review.
 type review struct {
 	id         int
 	root       string
-	prNumber   int // 0 = local changes
+	prNumber   int
 	pr         *prInfo
 	files      []*diff.File
 	comments   []*reviewComment
@@ -97,10 +95,7 @@ func newReview(root string, prNumber int) *review {
 }
 
 func (r *review) tabTitle() string {
-	if r.prNumber > 0 {
-		return fmt.Sprintf("PR #%d", r.prNumber)
-	}
-	return "変更のレビュー"
+	return fmt.Sprintf("PR #%d", r.prNumber)
 }
 
 func (r *review) file() *diff.File {
@@ -174,36 +169,7 @@ func listPRs(root string) tea.Cmd {
 
 func (r *review) load() tea.Cmd {
 	id, root, num := r.id, r.root, r.prNumber
-	if num == 0 {
-		return func() tea.Msg { return loadLocal(id, root) }
-	}
 	return func() tea.Msg { return loadPR(id, root, num) }
-}
-
-func loadLocal(id int, root string) tea.Msg {
-	out, err := run(root, nil, "git", "diff", "HEAD", "--no-color", "--no-ext-diff", "-M")
-	if err != nil {
-		// no commits yet: show staged + unstaged against the empty tree
-		out, err = run(root, nil, "git", "diff", "--no-color", "--no-ext-diff")
-		if err != nil {
-			return reviewLoadedMsg{id: id, err: err}
-		}
-	}
-	files := diff.Parse(string(out))
-	top, _ := run(root, nil, "git", "rev-parse", "--show-toplevel")
-	topDir := strings.TrimSpace(string(top))
-	if untracked, err := run(root, nil, "git", "ls-files", "--others", "--exclude-standard", "--full-name", "-z", ":/"); err == nil {
-		for _, p := range strings.Split(string(untracked), "\x00") {
-			if p == "" {
-				continue
-			}
-			if f := untrackedFile(filepath.Join(topDir, p), p); f != nil {
-				files = append(files, f)
-			}
-		}
-	}
-	sort.SliceStable(files, func(i, j int) bool { return files[i].Path() < files[j].Path() })
-	return reviewLoadedMsg{id: id, files: files}
 }
 
 func untrackedFile(abs, rel string) *diff.File {
@@ -611,10 +577,8 @@ func (r *review) render(w, h int, focused bool) []string {
 			state = "DRAFT"
 		}
 		head = fmt.Sprintf(" #%d %s  [%s]  @%s  %s ← %s", r.pr.Number, r.pr.Title, state, r.pr.Author.Login, r.pr.BaseRefName, r.pr.HeadRefName)
-	case r.prNumber > 0:
-		head = fmt.Sprintf(" PR #%d", r.prNumber)
 	default:
-		head = " ローカルの変更 (git diff HEAD + 未追跡ファイル)"
+		head = fmt.Sprintf(" PR #%d", r.prNumber)
 	}
 	out = append(out, bgfg(cTabBarBg, curTheme.Strong).Bold(true).Render(fit(head, w)))
 	body := h - 2

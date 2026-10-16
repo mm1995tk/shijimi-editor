@@ -1,6 +1,10 @@
 package diff
 
-import "testing"
+import (
+	"reflect"
+	"strings"
+	"testing"
+)
 
 const sample = `diff --git a/main.go b/main.go
 index 1111111..2222222 100644
@@ -43,5 +47,48 @@ func TestParse(t *testing.T) {
 	}
 	if files[1].Status != "added" || files[1].Path() != "new.txt" {
 		t.Fatalf("file1 = %+v", files[1])
+	}
+}
+
+func TestLines(t *testing.T) {
+	split := func(s string) []string {
+		if s == "" {
+			return nil
+		}
+		return strings.Split(s, ",")
+	}
+	cases := []struct {
+		old, cur string
+		want     []Block
+	}{
+		{"a,b,c", "a,b,c", nil},
+		{"", "a,b", []Block{{0, 0, 0, 2}}},
+		{"a,b", "", []Block{{0, 2, 0, 0}}},
+		{"a,b,c", "a,x,c", []Block{{1, 2, 1, 2}}},
+		{"a,b,c,d,e", "a,c,d,x,y,e", []Block{{1, 2, 1, 1}, {4, 4, 3, 5}}},
+		{"a,b,c", "x,a,b,c,y", []Block{{0, 0, 0, 1}, {3, 3, 4, 5}}},
+		{"a,a,a", "a,a", []Block{{2, 3, 2, 2}}},
+	}
+	for _, c := range cases {
+		got := Lines(split(c.old), split(c.cur))
+		if !reflect.DeepEqual(got, c.want) {
+			t.Errorf("Lines(%q, %q) = %v, want %v", c.old, c.cur, got, c.want)
+		}
+	}
+}
+
+func TestLinesRebuilds(t *testing.T) {
+	old := strings.Split("a b c d e f g h i j", " ")
+	cur := strings.Split("a c d x y f g i j k", " ")
+	var out []string
+	pos := 0
+	for _, b := range Lines(old, cur) {
+		out = append(out, old[pos:b.OldStart]...)
+		out = append(out, cur[b.NewStart:b.NewEnd]...)
+		pos = b.OldEnd
+	}
+	out = append(out, old[pos:]...)
+	if !reflect.DeepEqual(out, cur) {
+		t.Errorf("rebuilt %v, want %v", out, cur)
 	}
 }
