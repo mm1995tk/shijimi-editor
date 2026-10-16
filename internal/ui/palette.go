@@ -228,7 +228,7 @@ func renderItem(it paletteItem, w int, selected bool) string {
 		if used+dw < w {
 			st := stPaletteDim
 			if selected {
-				st = bgfg(cListSel, "#bbbbbb")
+				st = bgfg(cListSel, curTheme.SubSel)
 			}
 			sb.WriteString(st.Render(d))
 			used += dw

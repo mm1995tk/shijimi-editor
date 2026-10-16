@@ -19,15 +19,8 @@ import (
 	"github.com/mm1995tk/gh-editor/internal/diff"
 )
 
-const (
-	cAddBg   = "#203a27"
-	cDelBg   = "#3d2125"
-	cAddSign = "#3fb950"
-	cDelSign = "#f85149"
-	cHunkFg  = "#79c0ff"
-	cHunkBg  = "#1d2733"
-	cNoteBg  = "#2b2b31"
-)
+// Review colors; set by applyTheme.
+var cAddBg, cDelBg, cAddSign, cDelSign, cHunkFg, cHunkBg, cNoteBg string
 
 type prInfo struct {
 	Number      int    `json:"number"`
@@ -606,7 +599,7 @@ func (r *review) render(w, h int, focused bool) []string {
 	default:
 		head = " ローカルの変更 (git diff HEAD + 未追跡ファイル)"
 	}
-	out = append(out, bgfg(cTabBarBg, "#ffffff").Bold(true).Render(fit(head, w)))
+	out = append(out, bgfg(cTabBarBg, curTheme.Strong).Bold(true).Render(fit(head, w)))
 	body := h - 2
 	if r.loading || r.err != "" || len(r.files) == 0 {
 		msg := "  読み込み中…"
@@ -650,7 +643,7 @@ func statusLetter(f *diff.File) (string, string) {
 	case "deleted":
 		return "D", cDelSign
 	case "renamed":
-		return "R", "#d2a8ff"
+		return "R", curTheme.Renamed
 	case "binary":
 		return "B", cLineNo
 	}
@@ -713,7 +706,7 @@ func (r *review) renderDiff(w, h int, focused bool) []string {
 	if f.Status == "renamed" {
 		title = " " + f.OldPath + " → " + f.NewPath
 	}
-	out = append(out, bgfg(cEditorBg, "#e7e7e7").Bold(true).Render(fit(title, w)))
+	out = append(out, bgfg(cEditorBg, curTheme.PanelTitle).Bold(true).Render(fit(title, w)))
 	body := h - 1
 	if r.cursor < r.scroll {
 		r.scroll = r.cursor
@@ -742,10 +735,10 @@ func (r *review) renderDiff(w, h int, focused bool) []string {
 		case rowComment:
 			st := bgfg(cNoteBg, cEditorFg)
 			if row.comment.Pending {
-				st = bgfg(cNoteBg, "#e2c08d")
+				st = bgfg(cNoteBg, cDirty)
 			}
 			if cur {
-				st = bgfg(cListSel, "#ffffff")
+				st = bgfg(cListSel, curTheme.Strong)
 			}
 			out = append(out, st.Render(fit("        "+row.text, w)))
 		case rowLine:
@@ -791,7 +784,7 @@ func renderUnifiedLine(l *diff.Line, lex chroma.Lexer, w int, cur bool) string {
 
 func renderSide(l *diff.Line, lex chroma.Lexer, w int, cur bool, isLeft bool) string {
 	if l == nil {
-		return bgfg("#252526", cLineNo).Render(fit("", w))
+		return bgfg(cSideBg, cLineNo).Render(fit("", w))
 	}
 	bg, sc := lineStyle(l.Kind)
 	n := l.NewNo
@@ -855,7 +848,7 @@ func highlightText(text string, lex chroma.Lexer, bg string, w int) string {
 	return sb.String()
 }
 
-var tokenColors = map[chroma.TokenType]string{}
+var tokenColors = map[chroma.TokenType]string{} // cleared by applyTheme
 
 func tokenColor(tt chroma.TokenType) string {
 	if c, ok := tokenColors[tt]; ok {

@@ -60,6 +60,7 @@ func defaultCommands() []command {
 		{"ファイルツリー: 新しいフォルダー", "A", func(a *App) tea.Cmd { return a.newFolder() }},
 		{"ファイルツリー: 名前の変更", "r", func(a *App) tea.Cmd { return a.renameFile() }},
 		{"ファイルツリー: 削除", "d", func(a *App) tea.Cmd { return a.deleteFile() }},
+		{"設定: テーマを切り替え", ":theme <名前>", func(a *App) tea.Cmd { return a.themePicker() }},
 		{"設定: キー操作を Helix / VS Code で切り替え", ":keymap", func(a *App) tea.Cmd { return a.execCommand("keymap") }},
 		{"設定: 設定ファイルを再読み込み", ":config-reload", func(a *App) tea.Cmd { return a.execCommand("config-reload") }},
 		{"終了", "Ctrl+Q / :q", func(a *App) tea.Cmd { return a.quit() }},
@@ -228,7 +229,19 @@ func (a *App) execCommand(line string) tea.Cmd {
 		a.lsp.cfg = a.cfg
 		a.explorer.icons = a.cfg.Editor.FileIcons
 		a.helix = a.cfg.Editor.Keymap != "vscode"
+		if a.cfg.Editor.Theme != "" {
+			a.setTheme(a.cfg.Editor.Theme)
+		}
 		a.info("設定を再読み込みしました: %s", strings.Join(a.cfg.Sources, ", "))
+	case "theme":
+		if arg == "" {
+			return a.themePicker()
+		}
+		if !a.setTheme(arg) {
+			a.fail(fmt.Errorf("不明なテーマ: %s（選べるテーマ: %s）", arg, strings.Join(themeNames(), ", ")))
+			return nil
+		}
+		a.info("テーマ: %s", curTheme.Name)
 	case "keymap":
 		switch arg {
 		case "helix":
