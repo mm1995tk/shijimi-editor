@@ -1,12 +1,15 @@
 package ui
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
 	"runtime"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 var urlRe = regexp.MustCompile(`https?://[^\s<>"'` + "`" + `]+`)
@@ -17,18 +20,23 @@ var openers = map[string][]string{
 	"darwin": {"open"},
 }
 
-// openExternal is replaced in tests.
+// openExternal runs the opener and waits for it, so a non-zero exit is
+// reported. It is replaced in tests.
 var openExternal = func(url string) error {
 	for _, name := range openers[runtime.GOOS] {
 		path, err := exec.LookPath(name)
 		if err != nil {
 			continue
 		}
+		var stderr bytes.Buffer
 		cmd := exec.Command(path, url)
-		if err := cmd.Start(); err != nil {
-			return err
+		cmd.Stderr = &stderr
+		if err := cmd.Run(); err != nil {
+			if msg := strings.TrimSpace(stderr.String()); msg != "" {
+				return fmt.Errorf("%s が失敗しました: %s", name, msg)
+			}
+			return fmt.Errorf("%s が失敗しました: %v", name, err)
 		}
-		go cmd.Wait()
 		return nil
 	}
 	if len(openers[runtime.GOOS]) == 0 {
@@ -50,30 +58,34 @@ func urlAt(line []rune, col int) (string, bool) {
 	return "", false
 }
 
+// openURLMsg reports the result of running the opener.
+type openURLMsg struct {
+	url string
+	err error
+}
+
+var urlFullRe = regexp.MustCompile(`^https?://\S+$`)
+
 // openURL opens arg, or the URL under the cursor when arg is empty.
-func (a *App) openURL(arg string) {
+func (a *App) openURL(arg string) tea.Cmd {
 	url := strings.TrimSpace(arg)
 	if url == "" {
 		t := a.curText()
 		if t == nil {
 			a.fail(errors.New("URL を指定してください"))
-			return
+			return nil
 		}
 		cur := t.buf.Cur
 		u, ok := urlAt(t.buf.Lines[cur.Row], cur.Col)
 		if !ok {
 			a.fail(errors.New("カーソル位置に URL がありません（:open-url <URL> で指定できます）"))
-			return
+			return nil
 		}
 		url = u
 	}
-	if !urlRe.MatchString(url) {
-		a.fail(fmt.Errorf("http:// または https:// で始まる URL を指定してください: %s", url))
-		return
+	if !urlFullRe.MatchString(url) {
+		a.fail(fmt.Errorf("http:// または https:// で始まる URL を 1 つだけ指定してください: %s", url))
+		return nil
 	}
-	if err := openExternal(url); err != nil {
-		a.fail(err)
-		return
-	}
-	a.info("開きました: %s", url)
+	return func() tea.Msg { return openURLMsg{url: url, err: openExternal(url)} }
 }
