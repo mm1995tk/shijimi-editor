@@ -14,7 +14,7 @@
 - **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
 - **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。mermaid のコードブロックは図として表示します（下記）
 - **現在の文脈をエージェントへ送る**（`Space a` / `Alt+A` / コマンドパレット）：選択範囲（なければカーソル行）を `パス:行-行`・本文・該当行の診断に整形し、プレビューで確認してからターミナルパネルへ貼り付けます（Enter は押しません）
-- **Claude Code の IDE 連携**：ターミナルパネルの Claude Code から、選択範囲・開いているファイル・診断を取得し、変更を差分で承認してから書き込めます（下記「エージェント連携」）
+- **Claude Code の IDE 連携**：ターミナルパネルの Claude Code から、選択範囲・開いているファイル・診断を取得し、変更を差分で承認できます（承認後に Claude Code が書き込みます。下記「エージェント連携」）
 - タブ、シンタックスハイライト、Quick Open、プロジェクト全体の検索、ターミナルパネル、マウス操作
 
 ## インストール
@@ -325,7 +325,7 @@ ssh -L 8080:127.0.0.1:<待ち受けポート> vm
 
 gh-editor は Claude Code の IDE 連携プロトコル（VS Code 拡張や claudecode.nvim と同じもの）に対応しています。起動すると 127.0.0.1 の空きポートで WebSocket の MCP サーバーを立て、ロックファイル `~/.claude/ide/<port>.lock`（0600、`CLAUDE_CONFIG_DIR` があればその下の `ide/`）に接続先と認証トークンを書きます。終了時に消します。
 
-gh-editor のターミナルパネルで `claude` を起動すると、環境変数 `CLAUDE_CODE_SSE_PORT` と `ENABLE_IDE_INTEGRATION=true` により自動で接続します。外のターミナルで動く Claude Code は、作業ディレクトリが gh-editor のルート配下なら `/ide` で選べます。
+gh-editor のターミナルパネルで `claude` を起動すると、環境変数 `CLAUDE_CODE_SSE_PORT` `ENABLE_IDE_INTEGRATION=true` `FORCE_CODE_TERMINAL=true` により自動で接続します。外のターミナルで動く Claude Code は、作業ディレクトリが gh-editor のルート配下なら `/ide` で選べます。
 
 エージェントが使える道具:
 
@@ -335,7 +335,7 @@ gh-editor のターミナルパネルで `claude` を起動すると、環境変
 | `getOpenEditors` / `getWorkspaceFolders` | 開いているファイル / ルート |
 | `getDiagnostics` | LSP の診断（URI 省略で全ファイル） |
 | `openFile` | ファイルを開く（`startText` / `endText` で範囲選択） |
-| `openDiff` | 変更を差分で表示。**Enter で適用（ファイルへ書き込み）、Esc で却下** |
+| `openDiff` | 変更を差分で表示。**Enter で承認、Esc で却下**。ファイルは承認後に Claude Code が書き込みます |
 | `closeAllDiffTabs` / `close_tab` | 待っている差分を却下して閉じる |
 | `checkDocumentDirty` / `saveDocument` | 未保存の確認 / 保存 |
 

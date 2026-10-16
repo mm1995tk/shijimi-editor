@@ -103,19 +103,13 @@ func TestIDEOpenDiffAccept(t *testing.T) {
 	if done || len(a.props) != 1 {
 		t.Fatalf("done=%v props=%d", done, len(a.props))
 	}
-	if b, _ := os.ReadFile(f); string(b) != "one\ntwo\nthree\n" {
-		t.Fatal("file written before approval")
-	}
 	a.update(tea.KeyMsg{Type: tea.KeyEnter})
 	r := <-ch
 	if len(r.content) != 2 || r.content[0].Text != "FILE_SAVED" || r.content[1].Text != "one\n2\nthree\n" {
 		t.Fatalf("reply = %+v", r)
 	}
-	if b, _ := os.ReadFile(f); string(b) != "one\n2\nthree\n" {
-		t.Errorf("file = %q", b)
-	}
-	if got := a.curText().buf.Text(); !strings.Contains(got, "\n2\n") {
-		t.Errorf("open buffer not reloaded: %q", got)
+	if b, _ := os.ReadFile(f); string(b) != "one\ntwo\nthree\n" {
+		t.Errorf("editor wrote the file; Claude Code does that: %q", b)
 	}
 	if len(a.props) != 0 {
 		t.Error("proposal remains")
@@ -134,15 +128,6 @@ func TestIDEOpenDiffRejectAndNewFile(t *testing.T) {
 	if b, _ := os.ReadFile(f); string(b) != "one\ntwo\nthree\n" {
 		t.Errorf("rejected diff wrote the file: %q", b)
 	}
-	nf := filepath.Join(filepath.Dir(f), "sub", "new.txt")
-	ch, _, _ = ideCallRaw(a, "openDiff", map[string]any{"old_file_path": nf, "new_file_path": nf, "new_file_contents": "hi\n", "tab_name": "new"})
-	a.update(tea.KeyMsg{Type: tea.KeyEnter})
-	if r := <-ch; r.content[0].Text != "FILE_SAVED" {
-		t.Fatalf("reply = %+v", r)
-	}
-	if b, _ := os.ReadFile(nf); string(b) != "hi\n" {
-		t.Errorf("new file = %q", b)
-	}
 }
 
 func TestIDECloseAndCancel(t *testing.T) {
@@ -155,6 +140,9 @@ func TestIDECloseAndCancel(t *testing.T) {
 	c3, _, _ := ideCallRaw(a, "openDiff", args("three"))
 	if _, r, _ := ideCallRaw(a, "close_tab", map[string]any{"tab_name": "one"}); r.content[0].Text != "TAB_CLOSED" {
 		t.Errorf("close_tab = %+v", r)
+	}
+	if _, r, _ := ideCallRaw(a, "close_tab", map[string]any{"tab_name": "one"}); r.content[0].Text != "TAB_CLOSED" {
+		t.Errorf("close_tab after decision = %+v", r)
 	}
 	if r := <-c1; r.content[0].Text != "DIFF_REJECTED" {
 		t.Errorf("closed tab reply = %+v", r)

@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -18,8 +16,9 @@ import (
 // diffContext is how many unchanged lines surround each change.
 const diffContext = 3
 
-// proposal is a change the agent asked to apply with openDiff. The file is
-// written only when the user accepts.
+// proposal is a change the agent asked to apply with openDiff. Accepting
+// answers FILE_SAVED; Claude Code then writes the file itself, as it does for
+// the VS Code extension, and the file watcher picks the change up.
 type proposal struct {
 	name             string
 	oldPath, newPath string
@@ -88,38 +87,17 @@ func unifiedDiff(oldText, newText string) []propLine {
 	return out
 }
 
-// resolveProposal answers the agent and drops the proposal. Accepting writes
-// the file first; a write failure keeps the proposal open.
+// resolveProposal answers the agent and drops the proposal. The editor never
+// writes the file: that is left to Claude Code after FILE_SAVED.
 func (a *App) resolveProposal(p *proposal, accept bool) {
 	if accept {
-		if err := writeProposal(p); err != nil {
-			a.fail(err)
-			return
-		}
-		if t := a.tabFor(p.newPath); t != nil && !t.dirty() {
-			if err := t.buf.Reload(); err != nil {
-				a.fail(err)
-			}
-		}
-		a.explorer.loadGitStatus()
-		a.info("適用しました: %s", a.rel(p.newPath))
+		a.info("承認しました: %s", a.rel(p.newPath))
 		p.reply <- ideReply{content: []ide.Content{ide.Text("FILE_SAVED"), ide.Text(p.newText)}}
 	} else {
 		a.info("却下しました: %s", a.rel(p.newPath))
 		p.reply <- ideReply{content: []ide.Content{ide.Text("DIFF_REJECTED"), ide.Text(p.name)}}
 	}
 	a.props = slices.DeleteFunc(a.props, func(q *proposal) bool { return q == p })
-}
-
-func writeProposal(p *proposal) error {
-	mode := os.FileMode(0o644)
-	if st, err := os.Stat(p.newPath); err == nil {
-		mode = st.Mode().Perm()
-	}
-	if err := os.MkdirAll(filepath.Dir(p.newPath), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(p.newPath, []byte(p.newText), mode)
 }
 
 // cancelProposal drops the proposal whose client disconnected.

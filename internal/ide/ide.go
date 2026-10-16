@@ -29,10 +29,11 @@ const (
 	Name = "gh-editor"
 	// AuthHeader carries the token from the lock file.
 	AuthHeader = "x-claude-code-ide-authorization"
-	// EnvPort and EnvEnable make a Claude Code started in the terminal panel
+	// EnvPort, EnvEnable and EnvForceTerminal make a Claude Code started in the terminal panel
 	// connect to this server.
-	EnvPort   = "CLAUDE_CODE_SSE_PORT"
-	EnvEnable = "ENABLE_IDE_INTEGRATION"
+	EnvPort          = "CLAUDE_CODE_SSE_PORT"
+	EnvEnable        = "ENABLE_IDE_INTEGRATION"
+	EnvForceTerminal = "FORCE_CODE_TERMINAL"
 
 	protocolVersion = "2024-11-05"
 	writeTimeout    = 5 * time.Second

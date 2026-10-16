@@ -91,7 +91,7 @@ VS Code 拡張や claudecode.nvim と同じプロトコルで、gh-editor を Cl
 - `127.0.0.1` の空きポートで WebSocket を待ち受けます（ライブラリは `github.com/gorilla/websocket`）。サブプロトコルは `mcp`、メッセージは MCP の JSON-RPC 2.0 です（`initialize` / `ping` / `tools/list` / `tools/call`）。
 - 接続先をロックファイル `<Claude の設定ディレクトリ>/ide/<port>.lock` に書きます。設定ディレクトリは `CLAUDE_CONFIG_DIR`、なければ `~/.claude` です。内容は `{pid, workspaceFolders, ideName: "gh-editor", transport: "ws", authToken}` で、パーミッションは 0600 です。終了時に消します。起動時には、pid が存在しない gh-editor のロックファイルを掃除します。
 - 接続には HTTP ヘッダー `x-claude-code-ide-authorization: <authToken>` が必要です。トークンは起動ごとに乱数で作ります。`Origin` ヘッダー付き（ブラウザ）の接続は拒否します。
-- ターミナルパネルのプロセスには `CLAUDE_CODE_SSE_PORT=<port>` と `ENABLE_IDE_INTEGRATION=true` を渡し、中で起動した Claude Code が自動で接続するようにします。
+- ターミナルパネルのプロセスには `CLAUDE_CODE_SSE_PORT=<port>`・`ENABLE_IDE_INTEGRATION=true`・`FORCE_CODE_TERMINAL=true`（claudecode.nvim と同じ 3 つ）を渡し、中で起動した Claude Code が自動で接続するようにします。
 
 ### 道具（`tools/call`）
 
@@ -99,12 +99,13 @@ VS Code 拡張や claudecode.nvim と同じプロトコルで、gh-editor を Cl
 
 - `openFile` はフォーカスを動かしません（エージェントを使っているターミナルに残ります）。存在しないファイルはエラーにします。
 - `getDiagnostics` は LSP の診断です。`severity` は `Error` / `Warning` / `Information` / `Hint` です。位置は 0 始まりで、`character` は LSP の値をそのまま返します。
-- `openDiff` は人の判断が出るまで返事を保留します。差分はモーダルで表示し、Enter で `new_file_path` へ書き込んで `FILE_SAVED` と新しい内容を返し、Esc で `DIFF_REJECTED` を返します。複数の差分は順に出します。接続が切れたら保留を破棄します。差分の編集（承認前に右側を直す）は未対応です。
+- `openDiff` は人の判断が出るまで返事を保留します。差分はモーダルで表示し、Enter で `FILE_SAVED` と新しい内容を返し（ファイルは Claude Code が書き込みます。claudecode.nvim と同じ）、Esc で `DIFF_REJECTED` を返します。複数の差分は順に出します。接続が切れたら保留を破棄します。差分の編集（承認前に右側を直す）は未対応です。
 - 通知は `selection_changed`（カーソルか選択が動いたとき。同じ値は送りません）と `at_mentioned`（`Space a` / `Alt+A`。行は 0 始まり）です。
 
 ### 決めうちした点
 
 - 差分の表示はタブではなくモーダルです。承認の操作を 1 つのキーに絞るためです。
-- 承認前の書き込みはしません。ディスクに書くのは承認したときだけです。開いているバッファが未保存でなければ読み込み直します。
+- gh-editor はファイルへ書き込みません。承認すると Claude Code が書き込み、開いているバッファは既存のファイル監視（`watch-files`）が読み込み直します。
+- `close_tab` は、差分がすでに無くても `TAB_CLOSED` を返します（Claude Code が決定後の後始末に呼ぶため）。
 - 起動に失敗しても（ホームが書けないなど）エディターは動きます。制御用ソケットと同じ扱いです。
 - Windows は対象外です（pid の生死確認に `kill(pid, 0)` を使います）。

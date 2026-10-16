@@ -362,7 +362,9 @@ func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
 				return ideReply{content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
 			}
 		}
-		return ideReply{content: []ide.Content{ide.Text("TAB_NOT_FOUND")}}, nil, false
+		// Claude Code calls close_tab to clean up after a decision, when the
+		// diff is already gone.
+		return ideReply{content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
 	}
 	return fail("不明なツール: %s", m.tool)
 }

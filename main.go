@@ -49,6 +49,7 @@ func main() {
 			app.SetIDE(srv)
 			os.Setenv(ide.EnvPort, strconv.Itoa(srv.Port()))
 			os.Setenv(ide.EnvEnable, "true")
+			os.Setenv(ide.EnvForceTerminal, "true")
 		}
 	}
 	// The socket is best-effort: the editor still works without it.
