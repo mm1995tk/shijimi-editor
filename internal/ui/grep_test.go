@@ -24,10 +24,22 @@ func TestParseGrepArgs(t *testing.T) {
 	}
 }
 
-func TestGitGlob(t *testing.T) {
-	for in, want := range map[string]string{"*.lock": "**/*.lock", "dist/**": "dist/**", "/a/b": "a/b"} {
-		if got := gitGlob(in); got != want {
-			t.Errorf("gitGlob(%q) = %q, want %q", in, got, want)
+func TestParseGrepArgsQuotes(t *testing.T) {
+	q, inc, exc := parseGrepArgs(`-x '*.lock,"dist/**"' -i "*.go" foo`, config.Search{})
+	if q != "foo" || !reflect.DeepEqual(inc, []string{"*.go"}) || !reflect.DeepEqual(exc, []string{"*.lock", "dist/**"}) {
+		t.Fatalf("q=%q inc=%v exc=%v", q, inc, exc)
+	}
+}
+
+func TestGitGlobs(t *testing.T) {
+	for in, want := range map[string][]string{
+		"*.lock":   {"**/*.lock", "**/*.lock/**"},
+		"dist/**":  {"dist/**"},
+		"/a/b":     {"a/b", "a/b/**"},
+		"internal": {"**/internal", "**/internal/**"},
+	} {
+		if got := gitGlobs(in); !reflect.DeepEqual(got, want) {
+			t.Errorf("gitGlobs(%q) = %v, want %v", in, got, want)
 		}
 	}
 }

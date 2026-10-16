@@ -57,3 +57,19 @@ func TestFileIconsOption(t *testing.T) {
 		t.Fatal("file-icons = false should disable icons")
 	}
 }
+
+func TestSearchConfig(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(filepath.Join(root, ".gh-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".gh-editor", "config.toml"), []byte(`
+[search]
+exclude = ["*.lock", "dist/**"]
+include = ["*.go"]
+`), 0o644)
+	c := Load(root)
+	if len(c.Search.Exclude) != 2 || c.Search.Exclude[1] != "dist/**" || len(c.Search.Include) != 1 {
+		t.Fatalf("search = %+v", c.Search)
+	}
+}

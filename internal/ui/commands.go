@@ -276,7 +276,7 @@ func parseGrepArgs(arg string, def config.Search) (q string, include, exclude []
 	split := func(v string) []string {
 		var out []string
 		for _, g := range strings.Split(v, ",") {
-			if g = strings.TrimSpace(g); g != "" {
+			if g = strings.Trim(strings.TrimSpace(g), `'"`); g != "" {
 				out = append(out, g)
 			}
 		}
@@ -305,20 +305,27 @@ func parseGrepArgs(arg string, def config.Search) (q string, include, exclude []
 	return rest, include, exclude
 }
 
-// gitGlob makes a bare pattern like "*.lock" match at any depth, as rg does.
-func gitGlob(g string) string {
+// gitGlobs converts a glob to git pathspec globs that match like rg: a bare
+// pattern such as "*.lock" matches at any depth, and a name that matches a
+// directory also matches everything under it.
+func gitGlobs(g string) []string {
 	g = strings.TrimSuffix(g, "/")
 	if !strings.Contains(g, "/") {
-		return "**/" + g
+		g = "**/" + g
+	} else {
+		g = strings.TrimPrefix(g, "/")
 	}
-	return strings.TrimPrefix(g, "/")
+	if strings.HasSuffix(g, "/**") {
+		return []string{g}
+	}
+	return []string{g, g + "/**"}
 }
 
 func (a *App) grep(arg string) tea.Cmd {
 	root := a.root
 	q, include, exclude := parseGrepArgs(arg, a.cfg.Search)
 	if q == "" {
-		return a.openCmdline(":grep ")
+		return a.openCmdline(":grep " + strings.TrimSpace(arg) + " ")
 	}
 	return func() tea.Msg {
 		var out []byte
@@ -335,10 +342,14 @@ func (a *App) grep(arg string) tea.Cmd {
 		} else {
 			args := []string{"grep", "-n", "-I", "-i", "--", q}
 			for _, g := range include {
-				args = append(args, ":(glob)"+gitGlob(g))
+				for _, p := range gitGlobs(g) {
+					args = append(args, ":(glob)"+p)
+				}
 			}
 			for _, g := range exclude {
-				args = append(args, ":(exclude,glob)"+gitGlob(g))
+				for _, p := range gitGlobs(g) {
+					args = append(args, ":(exclude,glob)"+p)
+				}
 			}
 			if len(include) == 0 && len(exclude) > 0 {
 				args = append(args, ".")

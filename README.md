@@ -182,7 +182,7 @@ nix flake check        # 整形のチェック
 
 ### 全文検索の除外・包含
 
-`:grep -x '*.lock,dist/**' -i '*.go' foo` のように、カンマ区切りの glob で除外 (`-x` / `--exclude=`) と包含 (`-i` / `--include=`) を指定できます。常に効かせたい指定は `config.toml` に書きます。
+`:grep -x '*.lock,dist/**' -i '*.go' foo` のように、カンマ区切りの glob で除外 (`-x` / `--exclude=`) と包含 (`-i` / `--include=`) を指定できます。常に効かせたい指定は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` に書きます（`.helix/config.toml` などの Helix 設定には書かないでください。Helix が未知の `[search]` を拒否します）。
 
 ```toml
 [search]
