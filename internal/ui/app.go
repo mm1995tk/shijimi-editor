@@ -44,6 +44,7 @@ type App struct {
 	term     *terminal
 	proxy    *proxy.Manager
 	pal      *palette
+	search   *searchPanel
 	tabs     []*tab
 	active   int
 	branch   string
@@ -101,6 +102,7 @@ func New(dir, file string) *App {
 		term:     newTerminal(abs),
 		proxy:    proxy.NewManager(),
 		pal:      newPalette(),
+		search:   newSearchPanel(cfg.Search),
 		showSide: true,
 		focus:    focusExplorer,
 		helix:    cfg.Editor.Keymap != "vscode",
@@ -117,6 +119,7 @@ func New(dir, file string) *App {
 	styleInput(&a.findInput, cPaletteBg)
 	styleInput(&a.cmdInput, cEditorBg)
 	styleInput(&a.pal.input, cPaletteBg)
+	a.search.restyle()
 	a.commands = defaultCommands()
 	if out, err := run(abs, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		a.branch = strings.TrimSpace(string(out))
@@ -691,10 +694,10 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		} else {
 			a.info("開きました: %s", msg.url)
 		}
-	case grepMsg:
-		return a.showGrep(msg)
-	case replaceMsg:
-		return a.showReplace(msg)
+	case searchTickMsg:
+		return a.searchTick(msg)
+	case searchDoneMsg:
+		a.searchDone(msg)
 	case reviewLoadedMsg:
 		for _, t := range a.tabs {
 			if t.kind == tabReview && t.rev.id == msg.id {
@@ -747,6 +750,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		a.confirmClose = false
 	}
 
+	if a.search.open {
+		return a.handleSearchKey(msg)
+	}
 	if a.pal.open {
 		return a.handlePaletteKey(msg)
 	}
@@ -861,8 +867,6 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch t.kind {
 	case tabReview:
 		return a.handleReviewKey(t, msg)
-	case tabReplace:
-		return a.handleReplaceKey(t, msg)
 	case tabBrowser:
 		return a.handleBrowserKey(t, key)
 	case tabImage:
@@ -1297,6 +1301,9 @@ func (a *App) termMouse(l layout, msg tea.MouseMsg) (cmd tea.Cmd, ok bool) {
 }
 
 func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
+	if a.search.open {
+		return a.searchMouse(msg)
+	}
 	if a.pal.open {
 		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
 			a.pal.close()
@@ -1334,8 +1341,6 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 					t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
 				case tabReview:
 					t.rev.moveCursor(wheel)
-				case tabReplace:
-					t.rep.move(wheel)
 				case tabBrowser:
 					a.browserWheel(t.web, wheel)
 				}
@@ -1476,7 +1481,7 @@ func (a *App) View() string {
 	if a.findOpen {
 		right = append(right, a.renderFind(l.rightW))
 	}
-	editorFocused := a.focus == focusEditor && !a.pal.open
+	editorFocused := a.focus == focusEditor && !a.overlayOpen()
 	t := a.cur()
 	switch {
 	case t == nil:
@@ -1487,13 +1492,11 @@ func (a *App) View() string {
 		right = append(right, t.web.render(l.rightW, l.editH)...)
 	case t.kind == tabReview:
 		right = append(right, t.rev.render(l.rightW, l.editH, editorFocused)...)
-	case t.kind == tabReplace:
-		right = append(right, t.rep.render(l.rightW, l.editH, editorFocused)...)
 	default:
 		right = append(right, a.renderText(t, l, editorFocused)...)
 	}
 	if a.showTerm {
-		right = append(right, a.term.render(l.rightW, l.panelH, a.focus == focusTerminal && !a.pal.open)...)
+		right = append(right, a.term.render(l.rightW, l.panelH, a.focus == focusTerminal && !a.overlayOpen())...)
 	}
 
 	rows := make([]string, a.h-1)
@@ -1503,7 +1506,7 @@ func (a *App) View() string {
 		activePath = t.path()
 	}
 	if a.showSide {
-		side = a.explorer.render(l.sideW, a.h-1, a.focus == focusExplorer && !a.pal.open, activePath)
+		side = a.explorer.render(l.sideW, a.h-1, a.focus == focusExplorer && !a.overlayOpen(), activePath)
 	}
 	for i := range rows {
 		var sb strings.Builder
@@ -1546,6 +1549,11 @@ func (a *App) View() string {
 		pw := clamp(a.w*3/5, 30, 100)
 		box := a.pal.render(pw)
 		rows = overlay(rows, box, (a.w-pw)/2, 1)
+	}
+
+	if a.search.open {
+		x, y, box := a.renderSearch()
+		rows = overlay(rows, box, x, y)
 	}
 
 	if a.ctx != nil {
@@ -1764,3 +1772,7 @@ func (a *App) scrollHover(d int) {
 	v := a.hoverView(a.layout())
 	a.hoverScroll = clamp(a.hoverScroll+d, 0, v.maxScroll())
 }
+
+// overlayOpen reports whether a floating window (palette or project search)
+// has the keyboard.
+func (a *App) overlayOpen() bool { return a.pal.open || a.search.open }
