@@ -60,10 +60,18 @@ type Search struct {
 	Include []string
 }
 
+// Browser holds settings for rendering web pages (headless Chromium).
+// It is read only from gh-editor's own config directories, never from
+// `.helix/`, because Helix rejects unknown sections.
+type Browser struct {
+	Chromium string // executable path; "" = search PATH
+}
+
 // Config is the merged configuration.
 type Config struct {
 	Editor    Editor
 	Search    Search
+	Browser   Browser
 	Languages map[string]*Language
 	Servers   map[string]*Server
 	Sources   []string // files that were loaded, for display
@@ -90,12 +98,19 @@ func Load(root string) *Config {
 	}
 	dirs = append(dirs, filepath.Join(root, ".helix"), filepath.Join(root, ".gh-editor"))
 	for _, d := range dirs {
+		own := filepath.Base(d) == "gh-editor" || filepath.Base(d) == ".gh-editor"
 		if data, err := os.ReadFile(filepath.Join(d, "config.toml")); err == nil {
 			c.mergeEditor(string(data))
+			if own {
+				c.mergeBrowser(string(data))
+			}
 			c.Sources = append(c.Sources, filepath.Join(d, "config.toml"))
 		}
 		if raw, ok := evalNix(filepath.Join(d, "config.nix")); ok {
 			c.mergeEditorRaw(raw)
+			if own {
+				c.mergeBrowserRaw(raw)
+			}
 			c.Sources = append(c.Sources, filepath.Join(d, "config.nix"))
 		}
 		if data, err := os.ReadFile(filepath.Join(d, "languages.toml")); err == nil {
@@ -167,6 +182,22 @@ func (c *Config) mergeEditor(data string) {
 		return
 	}
 	c.mergeEditorRaw(raw)
+}
+
+func (c *Config) mergeBrowser(data string) {
+	var raw map[string]any
+	if _, err := toml.Decode(data, &raw); err != nil {
+		return
+	}
+	c.mergeBrowserRaw(raw)
+}
+
+func (c *Config) mergeBrowserRaw(raw map[string]any) {
+	if br, ok := raw["browser"].(map[string]any); ok {
+		if v, ok := br["chromium"].(string); ok {
+			c.Browser.Chromium = v
+		}
+	}
 }
 
 func (c *Config) mergeEditorRaw(raw map[string]any) {

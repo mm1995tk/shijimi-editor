@@ -76,6 +76,28 @@ include = ["*.go"]
 	}
 }
 
+func TestBrowserConfigOnlyFromOwnDirs(t *testing.T) {
+	root := t.TempDir()
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(filepath.Join(root, ".helix"), 0o755)
+	os.WriteFile(filepath.Join(root, ".helix", "config.toml"), []byte("[browser]\nchromium = \"/helix\"\n"), 0o644)
+	if got := Load(root).Browser.Chromium; got != "" {
+		t.Fatalf(".helix must be ignored, got %q", got)
+	}
+	os.MkdirAll(filepath.Join(cfg, "gh-editor"), 0o755)
+	os.WriteFile(filepath.Join(cfg, "gh-editor", "config.toml"), []byte("[browser]\nchromium = \"/user\"\n"), 0o644)
+	if got := Load(root).Browser.Chromium; got != "/user" {
+		t.Fatalf("user = %q", got)
+	}
+	os.MkdirAll(filepath.Join(root, ".gh-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".gh-editor", "config.toml"), []byte("[browser]\nchromium = \"/proj\"\n"), 0o644)
+	if got := Load(root).Browser.Chromium; got != "/proj" {
+		t.Fatalf("project = %q", got)
+	}
+}
+
 func TestAutoSave(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())

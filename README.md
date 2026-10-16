@@ -54,6 +54,17 @@ gh-editor main.go    # ファイルを開く
 theme = "github_dark"
 ```
 
+### ブラウザ（Web ページの画像化）
+
+Web ページはヘッドレス Chromium で描画して PNG にします。`chromium` / `chromium-browser` / `google-chrome` を PATH から探します。実行ファイルのパスは次のように上書きできます。
+
+```toml
+[browser]
+chromium = "/usr/bin/chromium"
+```
+
+`[browser]` は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` にのみ書いてください。`.helix/config.toml` に書くと、Helix が未知のセクションを拒否します（`[search]` と同じ）。
+
 ### LSP の設定例（`.helix/languages.toml`）
 
 ```toml
