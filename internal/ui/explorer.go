@@ -238,7 +238,8 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 				icon = "▾ "
 			}
 		}
-		indent := strings.Repeat("  ", n.depth) + " "
+		// Each nesting level draws a faint guide under its parent's icon.
+		indent := " " + strings.Repeat("│ ", n.depth)
 		st := stSide
 		if n.isDir {
 			st = stSideDir
@@ -269,7 +270,8 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 			iconSt = st.Foreground(lipgloss.Color(iconColor))
 		}
 		// Segments are styled separately so each keeps the row background.
-		head := st.Render(indent) + iconSt.Render(icon)
+		guideSt := st.UnsetBold().Foreground(lipgloss.Color(curTheme.Dim))
+		head := guideSt.Render(indent) + iconSt.Render(icon)
 		name := ansi.Truncate(n.name, max(0, avail-ansi.StringWidth(indent+icon)), "…")
 		used := ansi.StringWidth(indent+icon) + ansi.StringWidth(name)
 		line := head + textSt.Render(name) + textSt.Render(strings.Repeat(" ", max(0, avail-used)))
