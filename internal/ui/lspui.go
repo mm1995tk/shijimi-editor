@@ -235,12 +235,34 @@ func (a *App) hover() tea.Cmd {
 
 func (a *App) gotoDefinition() tea.Cmd {
 	return a.lspRequest("definitionProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
-		locs, err := c.Definition(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
+		pos := lspPos(t.buf, t.buf.Cur)
+		locs, err := c.Definition(ctx, t.buf.Path, pos)
 		if err != nil {
 			return lspErrMsg{err}
 		}
+		// Already on the definition: list the usages instead, like VS Code.
+		if onLocation(locs, t.buf.Path, pos) {
+			refs, err := c.References(ctx, t.buf.Path, pos)
+			if err != nil {
+				return lspErrMsg{err}
+			}
+			return locationsMsg{"参照", refs}
+		}
 		return locationsMsg{"定義", locs}
 	})
+}
+
+// onLocation reports whether pos in the file at path lies within one of locs.
+func onLocation(locs []lsp.Location, path string, pos lsp.Position) bool {
+	atOrAfter := func(a, b lsp.Position) bool {
+		return a.Line > b.Line || (a.Line == b.Line && a.Character >= b.Character)
+	}
+	for _, l := range locs {
+		if lsp.Path(l.URI) == path && atOrAfter(pos, l.Range.Start) && atOrAfter(l.Range.End, pos) {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *App) references() tea.Cmd {
