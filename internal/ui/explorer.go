@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type node struct {
@@ -27,6 +28,7 @@ type explorer struct {
 	sel    int
 	scroll int
 	git    map[string]string
+	icons  bool // Nerd Font icons; off falls back to ▸/▾
 }
 
 func newExplorer(root string) *explorer {
@@ -220,13 +222,17 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 		}
 		n := e.flat[idx]
 		icon := "  "
-		if n.isDir {
+		iconColor := ""
+		if e.icons {
+			ic := iconFor(n)
+			icon, iconColor = ic.glyph+" ", ic.color
+		} else if n.isDir {
 			icon = "▸ "
 			if n.expanded {
 				icon = "▾ "
 			}
 		}
-		label := strings.Repeat("  ", n.depth) + " " + icon + n.name
+		indent := strings.Repeat("  ", n.depth) + " "
 		st := stSide
 		if n.isDir {
 			st = stSideDir
@@ -242,15 +248,26 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 			}
 		}
 		letter := e.git[n.path]
-		if letter == "" {
-			lines = append(lines, st.Render(fit(label, w)))
-			continue
+		textSt, tail, avail := st, "", w
+		if letter != "" {
+			col := gitColor(letter)
+			if letter == "•" {
+				col = cDirty
+			}
+			textSt = st.Foreground(lipgloss.Color(col))
+			tail = textSt.Render(" " + letter)
+			avail = w - 2
 		}
-		col := gitColor(letter)
-		if letter == "•" {
-			col = cDirty
+		iconSt := textSt
+		if iconColor != "" {
+			iconSt = st.Foreground(lipgloss.Color(iconColor))
 		}
-		lines = append(lines, st.Foreground(lipgloss.Color(col)).Render(fit(label, w-2)+" "+letter))
+		// Segments are styled separately so each keeps the row background.
+		head := st.Render(indent) + iconSt.Render(icon)
+		name := ansi.Truncate(n.name, max(0, avail-ansi.StringWidth(indent+icon)), "…")
+		used := ansi.StringWidth(indent+icon) + ansi.StringWidth(name)
+		line := head + textSt.Render(name) + textSt.Render(strings.Repeat(" ", max(0, avail-used)))
+		lines = append(lines, ansi.Truncate(line, avail, "")+tail)
 	}
 	return lines
 }

@@ -36,6 +36,7 @@ type Language struct {
 type Editor struct {
 	Keymap     string // "helix" (default) or "vscode"
 	LineNumber string // "absolute" or "relative"
+	FileIcons  bool   // Nerd Font icons in the file tree (default true)
 }
 
 // Config is the merged configuration.
@@ -50,7 +51,7 @@ type Config struct {
 // `.helix/` and `.gh-editor/` directories (later ones win).
 func Load(root string) *Config {
 	c := &Config{
-		Editor:    Editor{Keymap: "helix", LineNumber: "absolute"},
+		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true},
 		Languages: map[string]*Language{},
 		Servers:   map[string]*Server{},
 	}
@@ -84,6 +85,9 @@ func (c *Config) mergeEditor(data string) {
 	ed, _ := raw["editor"].(map[string]any)
 	if v, ok := ed["line-number"].(string); ok {
 		c.Editor.LineNumber = v
+	}
+	if v, ok := ed["file-icons"].(bool); ok {
+		c.Editor.FileIcons = v
 	}
 	if v, ok := ed["keymap"].(string); ok {
 		c.Editor.Keymap = v
