@@ -2,6 +2,8 @@
 
 ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code、編集操作は Helix に合わせています。
 
+説明書: <https://mm1995tk.github.io/gh-editor/>（ソースは [`manual/`](manual/)）
+
 ## 機能
 
 - **Helix 風のモード編集**（ノーマル / 挿入 / 選択、`:` コマンド）。VS Code 風の操作にも切り替えられます
@@ -234,13 +236,12 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ## 制限
 
-- ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / `Ctrl+J` / `F1` のみ）。`F2` で新しいタブ、`Ctrl+PageUp/PageDown` でタブ切替、シェルが終了するとタブが閉じます。スクロールバックと全角文字の正確な桁計算は未対応です。
+- ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / `Ctrl+J` / `F1` のみ）。`F2` で新しいタブ、`Ctrl+PageUp/PageDown` でタブ切替、シェルが終了するとタブが閉じます。マウスのホイールで流れた出力をさかのぼれます。
 - 画像は文字（▀）で表示します。細かい部分は粗くなります。
-- 複数カーソル（Helix の `C` `s`）は未対応です。
 
 ## 開発
 
-Nix の devShell（Go・gopls・gomod2nix・gh・git）を使います。direnv があれば `.envrc` で自動で入ります。
+Nix の devShell（Go・gopls・gomod2nix・git）を使います。direnv があれば `.envrc` で自動で入ります。
 
 ```sh
 nix develop            # または direnv allow
@@ -294,3 +295,12 @@ ssh -L 8080:127.0.0.1:<待ち受けポート> vm
 ### ブラウザタブ
 
 `:browser <URL>` で Web ページを画像のタブとして表示します（ヘッドレス Chromium で描画）。URL に `https://` を付けなければ補います（`localhost` `127.0.0.1` `[::1]` は `http://`）。タブ内のキー: `o` URL 入力 / `r` 再読み込み / `[` 戻る / `]` 進む / `j` `k` スクロール / `Ctrl-d` `Ctrl-u` 半ページ / `g` `G` 先頭・末尾。
+
+## 説明書の編集
+
+説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `manual/` から作ります。`main` に push すると GitHub Actions が GitHub Pages に公開します。手元で確認するには次を実行します。
+
+```sh
+pip install -r manual/requirements.txt
+mkdocs serve --config-file manual/mkdocs.yml
+```

@@ -1,0 +1,64 @@
+site_name: gh-editor 説明書
+site_description: ターミナルで動く統合開発環境 gh-editor の説明書
+site_url: https://mm1995tk.github.io/gh-editor/
+repo_url: https://github.com/mm1995tk/gh-editor
+repo_name: mm1995tk/gh-editor
+edit_uri: edit/main/manual/docs/
+
+theme:
+  name: material
+  language: ja
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: ダークモードにする
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: ライトモードにする
+  features:
+    - navigation.sections
+    - navigation.footer
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search:
+      lang: ja
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.keys
+
+nav:
+  - はじめに:
+      - 概要: index.md
+      - インストールと起動: install.md
+      - 画面の見方: screen.md
+  - 使い方:
+      - 編集（Helix モード）: editing-helix.md
+      - 編集（VS Code モード）: editing-vscode.md
+      - ファイルと検索: files.md
+      - LSP: lsp.md
+      - レビュー: review.md
+      - プレビュー: preview.md
+      - ターミナル: terminal.md
+      - ブラウザとポート転送: browser.md
+      - AI エージェント連携: agent.md
+  - 設定:
+      - 設定ファイル: config.md
+      - Nix と home-manager: nix.md
+  - 一覧:
+      - ":コマンド一覧": commands.md
+      - 制限: limitations.md
