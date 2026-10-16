@@ -580,6 +580,12 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return cmd
 	case termErrMsg:
 		a.fail(msg.err)
+		if len(a.term.tabs) == 0 && a.showTerm {
+			a.showTerm = false
+			if a.focus == focusTerminal {
+				return a.setFocus(focusEditor)
+			}
+		}
 		return nil
 	case lspEventMsg:
 		a.handleLSPEvent(lsp.Event(msg))
@@ -1170,6 +1176,8 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			e := a.explorer
 			e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(a.h-2)))
 			e.sel = clamp(e.sel, e.scroll, e.scroll+a.h-3)
+		case a.showTerm && y >= l.panelY && y < l.statusY:
+			// no scrollback yet; do not scroll the editor behind the panel
 		default:
 			if t := a.cur(); t != nil {
 				switch t.kind {

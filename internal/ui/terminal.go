@@ -190,7 +190,7 @@ func (t *terminal) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		if tab := t.cur(); tab != nil {
-			tab.ptmx.Write(termKeyBytes(msg, tab.vt.Mode()&vt10x.ModeAppCursor != 0))
+			tab.ptmx.Write(termKeyBytes(msg, tab.mode()&vt10x.ModeAppCursor != 0))
 		}
 	}
 	return nil
@@ -205,7 +205,7 @@ func (t *terminal) switchTab(d int) {
 // run types a command line into the active shell, as if the user entered it.
 func (t *terminal) run(line string) tea.Cmd {
 	var cmd tea.Cmd
-	if len(t.tabs) == 0 {
+	if len(t.tabs) == 0 || t.cur().mode()&vt10x.ModeAltScreen != 0 {
 		cmd = t.newTab()
 	}
 	if tab := t.cur(); tab != nil {
@@ -516,4 +516,11 @@ func termKeyBytes(msg tea.KeyMsg, appCursor bool) []byte {
 		return tilde(24)
 	}
 	return nil
+}
+
+// mode reads the emulator mode under its lock (pump writes it concurrently).
+func (t *termTab) mode() vt10x.ModeFlag {
+	t.vt.Lock()
+	defer t.vt.Unlock()
+	return t.vt.Mode()
 }
