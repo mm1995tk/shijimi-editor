@@ -803,7 +803,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		a.toggleSide()
 		return nil
 	case "ctrl+j", "ctrl+@":
-		if !insert || key == "ctrl+j" {
+		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
+		// mode, or Helix insert mode.
+		typing := a.focus == focusEditor && (!a.helix || a.mode == modeInsert)
+		if key == "ctrl+j" || !typing {
 			return a.toggleTerm()
 		}
 	case "ctrl+g":
