@@ -34,6 +34,13 @@ type tab struct {
 	img *imageView
 	rev *review
 	rep *replaceView
+
+	// Markdown preview beside the buffer
+	preview   bool
+	prevCache []string
+	prevW     int
+	prevVer   int
+	prevGen   int
 }
 
 func newTab(b *buffer.Buffer) *tab {

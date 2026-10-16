@@ -372,6 +372,8 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	case "e", "E":
 		a.showSide = true
 		return a.setFocus(focusExplorer)
+	case "m":
+		return a.togglePreview()
 	case "g":
 		return a.prPicker()
 	case "G":

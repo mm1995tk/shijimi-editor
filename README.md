@@ -12,6 +12,7 @@
 - **プルリクエストのレビュー**（gh CLI を使用）：差分の表示・行へのコメント・承認・変更を要求
 - **ローカルの変更のレビュー**（hunk 風）：`git diff HEAD` と未追跡ファイルをハンク単位で確認し、コメントを Markdown でコピー
 - **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
+- **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。mermaid のコードブロックは図として表示します（下記）
 - タブ、シンタックスハイライト、Quick Open、プロジェクト全体の検索、ターミナルパネル、マウス操作
 
 ## インストール
@@ -79,6 +80,7 @@ keymap = "helix"          # "vscode" で VS Code 風の操作
 [editor]
 line-number = "relative"  # Helix と同じ
 file-icons = true         # ファイルツリーの Nerd Font アイコン。false で ▸/▾ 表示
+mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"  # mermaid を PNG にする外部コマンド。空で無効
 
 # 自動保存（既定で有効。編集が 1 秒止まると保存。名前のないファイルは対象外）
 [editor.auto-save.after-delay]
@@ -117,6 +119,12 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
   };
 }
 ```
+
+### Markdown プレビューと mermaid
+
+`.md` ファイルで `Space m`（または `:preview`、コマンドパレット）を押すと、バッファの右にプレビューが開きます。編集に追従し、カーソル位置に合わせてスクロールします。もう一度押すと閉じます。
+
+mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`）で PNG にして表示します。`mmdc` が PATH に無い場合、または描画に失敗した場合は、図の代わりにソースとエラーを表示します。`mermaid-command` で別のコマンドに差し替えられます（`{in}` が入力、`{out}` が出力 PNG）。描画結果は `~/.cache/gh-editor/mermaid` に保存します。
 
 ## キー操作（Helix モード）
 
@@ -158,6 +166,7 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
 | `Space d` | 診断の一覧 |
 | `Space /` | プロジェクト全体を検索 |
 | `Space g` | プルリクエスト一覧 → レビュー |
+| `Space m` | Markdown プレビューの切替 |
 | `Space G` | ローカルの変更をレビュー |
 | `Space y` `Space p` | システムのクリップボードへコピー / 貼り付け |
 | `Space ?` | コマンドパレット |
@@ -168,7 +177,11 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
 
 ### `:` コマンド
 
+<<<<<<< HEAD
 `:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:lsp-restart` `:config-reload` `:keymap [helix|vscode]`
+=======
+`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:pr [番号]` `:review` `:preview` `:lsp-restart` `:config-reload` `:keymap [helix|vscode]`
+>>>>>>> 56bbba2 (Markdown（mermaid）のプレビューを追加する (#14))
 
 ### 全体
 

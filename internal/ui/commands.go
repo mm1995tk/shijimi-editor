@@ -32,6 +32,7 @@ func defaultCommands() []command {
 		{"表示: 開いているバッファ一覧", "Space b", func(a *App) tea.Cmd { return a.bufferPicker() }},
 		{"表示: サイドバー（ファイルツリー）の表示切替", "Ctrl+B", func(a *App) tea.Cmd { a.toggleSide(); return nil }},
 		{"表示: ファイルツリーへ移動", "Ctrl+E / Space e", func(a *App) tea.Cmd { a.showSide = true; return a.setFocus(focusExplorer) }},
+		{"表示: Markdown プレビューの切替", "Space m / :preview", func(a *App) tea.Cmd { return a.togglePreview() }},
 		{"表示: ターミナルの表示切替", "Ctrl+J", func(a *App) tea.Cmd { return a.toggleTerm() }},
 		{"表示: 次のタブ", "Ctrl+PgDn / gn", func(a *App) tea.Cmd { a.switchTab(1); return nil }},
 		{"表示: 前のタブ", "Ctrl+PgUp / gp", func(a *App) tea.Cmd { a.switchTab(-1); return nil }},
@@ -209,6 +210,8 @@ func (a *App) execCommand(line string) tea.Cmd {
 		a.showTerm = true
 		cmd := a.setFocus(focusTerminal)
 		return tea.Batch(cmd, a.term.run(arg))
+	case "preview", "md":
+		return a.togglePreview()
 	case "review":
 		return a.openLocalReview()
 	case "pr":

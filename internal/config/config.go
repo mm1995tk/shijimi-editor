@@ -47,6 +47,11 @@ type Editor struct {
 	// it is enabled by default with a 1 second timeout.
 	AutoSave      bool
 	AutoSaveDelay time.Duration
+
+	// MermaidCommand renders a mermaid diagram to a PNG for the Markdown
+	// preview. {in} and {out} are replaced by file paths; run through `sh -c`.
+	// Empty disables diagram rendering (the source is shown instead).
+	MermaidCommand string
 }
 
 // Search holds default globs for project-wide search (`:grep`).
@@ -73,7 +78,7 @@ const nixEvalTimeout = 15 * time.Second
 // applied after the TOML file of the same name.
 func Load(root string) *Config {
 	c := &Config{
-		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second},
+		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
 		Languages: map[string]*Language{},
 		Servers:   map[string]*Server{},
 	}
@@ -182,6 +187,9 @@ func (c *Config) mergeEditorRaw(raw map[string]any) {
 	}
 	if v, ok := ed["file-icons"].(bool); ok {
 		c.Editor.FileIcons = v
+	}
+	if v, ok := ed["mermaid-command"].(string); ok {
+		c.Editor.MermaidCommand = v
 	}
 	if v, ok := ed["keymap"].(string); ok {
 		c.Editor.Keymap = v
