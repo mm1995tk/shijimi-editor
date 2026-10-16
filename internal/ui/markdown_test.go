@@ -116,3 +116,35 @@ func TestLongFenceNotClosedByShorter(t *testing.T) {
 		t.Fatalf("unexpected render:\n%s", plain)
 	}
 }
+
+func TestMermaidJobRestoredAfterTabSwitch(t *testing.T) {
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	a1 := buffer.New()
+	a1.Insert("```mermaid\nA-->B\n```\n")
+	a1.Path = "a.md"
+	b1 := buffer.New()
+	b1.Insert("other")
+	b1.Path = "b.md"
+	a := &App{cfg: &config.Config{Editor: config.Editor{MermaidCommand: "true {in} {out}"}}, tabs: []*tab{newTab(a1), newTab(b1)}}
+	a.tabs[0].preview = true
+
+	if a.syncPreview() == nil {
+		t.Fatal("expected a scheduled render")
+	}
+	code := mermaidBlocks(a1.Text())[0]
+	key := a.mermaidKey(code)
+	a.active = 1 // switch away before the timer fires
+	if cmd := a.handleMermaidStart(mermaidStartMsg{key, code}); cmd != nil {
+		t.Fatal("job for a hidden tab must not start")
+	}
+	if _, ok := a.mermaid[key]; ok {
+		t.Fatal("job should have been dropped")
+	}
+	a.active = 0 // back, without editing
+	if a.syncPreview() == nil {
+		t.Fatal("job must be re-registered after returning to the tab")
+	}
+	if _, ok := a.mermaid[key]; !ok {
+		t.Fatal("job missing after return")
+	}
+}

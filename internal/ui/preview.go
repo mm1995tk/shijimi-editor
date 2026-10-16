@@ -74,12 +74,10 @@ func (a *App) togglePreview() tea.Cmd {
 }
 
 // syncPreview starts rendering for mermaid blocks of the visible preview.
+// The block list is cached per buffer version, so each call only does a few map lookups.
 func (a *App) syncPreview() tea.Cmd {
 	t := a.curText()
 	if t == nil || !t.preview {
-		return nil
-	}
-	if t.scanned && t.scanVer == t.buf.Version {
 		return nil
 	}
 	if a.mermaid == nil {
