@@ -90,3 +90,13 @@ func (a *App) ctlStatus() *ctl.Status {
 	}
 	return st
 }
+
+// reviewToRoot turns a repository-relative review path into one relative to
+// the editor root, which is the terminal's working directory.
+func (a *App) reviewToRoot(p string) string {
+	base := a.gitTop
+	if base == "" {
+		base = a.root
+	}
+	return a.rel(filepath.Join(base, p))
+}

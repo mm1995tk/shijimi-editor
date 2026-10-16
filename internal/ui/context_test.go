@@ -107,3 +107,12 @@ func TestSendReviewComments(t *testing.T) {
 		t.Errorf("ctx = %+v, want %q", a.ctx, want)
 	}
 }
+
+func TestSendReviewCommentsRelativeToRoot(t *testing.T) {
+	a := New(t.TempDir(), "")
+	a.gitTop = a.root
+	a.root = filepath.Join(a.gitTop, "sub")
+	if got := a.reviewToRoot("sub/pkg/x.go"); got != "pkg/x.go" {
+		t.Errorf("got %q", got)
+	}
+}
