@@ -81,6 +81,7 @@ type review struct {
 	scroll     int
 	split      bool
 	viewed     map[string]bool
+	want       string // path to select once files are loaded
 
 	rows    []reviewRow
 	rowsFor string
@@ -312,6 +313,16 @@ func (r *review) submit(event, body string) tea.Cmd {
 	}
 }
 
+// selectWanted selects the wanted file if the file list is already loaded.
+func (r *review) selectWanted() {
+	for i, f := range r.files {
+		if f.Path() == r.want {
+			r.fileSel, r.rowsFor, r.cursor, r.scroll, r.want = i, "", 0, 0, ""
+			return
+		}
+	}
+}
+
 func (r *review) applyLoaded(m reviewLoadedMsg) {
 	r.loading = false
 	if m.err != nil {
@@ -323,6 +334,9 @@ func (r *review) applyLoaded(m reviewLoadedMsg) {
 	path := ""
 	if f := r.file(); f != nil {
 		path = f.Path()
+	}
+	if r.want != "" {
+		path, r.want = r.want, ""
 	}
 	r.files = m.files
 	// keep local pending comments across reloads
