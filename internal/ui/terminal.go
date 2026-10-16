@@ -344,12 +344,6 @@ func sgr(fg, bg vt10x.Color, mode int16, cursor bool) string {
 	return "\x1b[" + strings.Join(p, ";") + "m"
 }
 
-// Default colors of the panel, matching the editor.
-var (
-	defFG = hexRGB(cEditorFg)
-	defBG = hexRGB(cEditorBg)
-)
-
 func hexRGB(h string) [3]int {
 	v, _ := strconv.ParseUint(strings.TrimPrefix(h, "#"), 16, 32)
 	return [3]int{int(v >> 16 & 255), int(v >> 8 & 255), int(v & 255)}
@@ -362,9 +356,10 @@ func sgrColor(c vt10x.Color, fg bool) string {
 	}
 	switch {
 	case c >= vt10x.DefaultFG: // default fg / bg / cursor
-		rgb := defBG
+		// Default colors match the editor and follow the current theme.
+		rgb := hexRGB(cEditorBg)
 		if fg {
-			rgb = defFG
+			rgb = hexRGB(cEditorFg)
 		}
 		return fmt.Sprintf("%d;2;%d;%d;%d", base, rgb[0], rgb[1], rgb[2])
 	case c < 256:

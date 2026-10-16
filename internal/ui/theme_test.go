@@ -1,6 +1,11 @@
 package ui
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+
+	"github.com/hinshun/vt10x"
+)
 
 func TestLookupTheme(t *testing.T) {
 	cases := map[string]string{
@@ -36,5 +41,20 @@ func TestApplyThemeChangesColors(t *testing.T) {
 	}
 	if chromaStyle.Name != "light-plus" {
 		t.Fatal("syntax style not themed")
+	}
+}
+
+func TestTerminalDefaultColorsFollowTheme(t *testing.T) {
+	defer applyTheme(&darkPlus)
+	for _, th := range []*Theme{&darkPlus, &lightPlus} {
+		applyTheme(th)
+		bg := hexRGB(th.EditorBg)
+		want := fmt.Sprintf("48;2;%d;%d;%d", bg[0], bg[1], bg[2])
+		if got := sgrColor(vt10x.DefaultBG, false); got != want {
+			t.Errorf("%s: default bg = %s, want %s", th.Name, got, want)
+		}
+		if bg == [3]int{} {
+			t.Errorf("%s: default bg is black", th.Name)
+		}
 	}
 }
