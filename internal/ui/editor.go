@@ -17,7 +17,6 @@ const (
 	tabText tabKind = iota
 	tabImage
 	tabReview
-	tabReplace
 	tabBrowser
 )
 
@@ -36,7 +35,6 @@ type tab struct {
 	img *imageView
 	rev *review
 	dv  *diffView // set while the tab is shown as a diff (git-diff mode)
-	rep *replaceView
 	web *browserView
 
 	// Markdown preview beside the buffer
@@ -62,8 +60,6 @@ func (t *tab) title() string {
 		return t.img.name()
 	case tabReview:
 		return t.rev.tabTitle()
-	case tabReplace:
-		return t.rep.tabTitle()
 	case tabBrowser:
 		return t.web.name()
 	}

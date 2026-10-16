@@ -395,7 +395,7 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	case "?":
 		return a.pal.show(a.root, ">")
 	case "/":
-		return a.openCmdline(":grep ")
+		return a.openSearch(fQuery)
 	case "c":
 		a.toggleComment()
 	case "t":
