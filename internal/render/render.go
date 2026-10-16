@@ -29,6 +29,11 @@ type Renderer interface {
 // ErrNotFound means no Chromium executable could be located.
 var ErrNotFound = errors.New("Chromium が見つかりません。インストールするか、config.toml の [browser] chromium にパスを指定してください")
 
+// ErrSandbox means Chromium could not start with its sandbox (root, some
+// containers). The sandbox is never disabled; the page can be opened in an
+// external browser instead.
+var ErrSandbox = errors.New("sandbox 付きで Chromium を起動できません。:open-url で外部ブラウザで開いてください")
+
 var pngMagic = []byte("\x89PNG\r\n\x1a\n")
 
 // candidates are tried in order when no path is configured.
@@ -82,7 +87,7 @@ func (c Chromium) Render(ctx context.Context, url string, opts Options) ([]byte,
 	out := filepath.Join(dir, "shot.png")
 
 	cmd := exec.CommandContext(ctx, bin,
-		"--headless", "--disable-gpu", "--no-sandbox", "--hide-scrollbars", "--disable-crash-reporter",
+		"--headless", "--disable-gpu", "--hide-scrollbars", "--disable-crash-reporter",
 		"--user-data-dir="+filepath.Join(dir, "profile"),
 		fmt.Sprintf("--window-size=%d,%d", opts.Width, opts.Height),
 		"--screenshot="+out,
@@ -96,7 +101,11 @@ func (c Chromium) Render(ctx context.Context, url string, opts Options) ([]byte,
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("描画がタイムアウトしました（%s）", opts.Timeout)
 		}
-		return nil, fmt.Errorf("Chromium の実行に失敗しました: %w: %s", err, strings.TrimSpace(lastLines(stderr.String(), 3)))
+		msg := strings.TrimSpace(lastLines(stderr.String(), 3))
+		if low := strings.ToLower(stderr.String()); strings.Contains(low, "sandbox") || strings.Contains(low, "failed to move to new namespace") {
+			return nil, fmt.Errorf("%w: %s", ErrSandbox, msg)
+		}
+		return nil, fmt.Errorf("Chromium の実行に失敗しました: %w: %s", err, msg)
 	}
 	data, err := os.ReadFile(out)
 	if err != nil {
