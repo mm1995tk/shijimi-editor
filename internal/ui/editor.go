@@ -18,6 +18,7 @@ const (
 	tabImage
 	tabReview
 	tabReplace
+	tabBrowser
 )
 
 // tab is one item in the editor area: a text buffer, an image preview or a
@@ -35,6 +36,7 @@ type tab struct {
 	img *imageView
 	rev *review
 	rep *replaceView
+	web *browserView
 
 	// Markdown preview beside the buffer
 	preview   bool
@@ -61,6 +63,8 @@ func (t *tab) title() string {
 		return t.rev.tabTitle()
 	case tabReplace:
 		return t.rep.tabTitle()
+	case tabBrowser:
+		return t.web.name()
 	}
 	return t.buf.Name()
 }

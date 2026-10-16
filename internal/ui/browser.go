@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const browserUsage = "使い方: :browser forward <対象ポート> [待ち受けポート] / :browser list / :browser stop <待ち受けポート>"
+const browserUsage = "使い方: :browser forward <対象ポート> [待ち受けポート] / :browser list / :browser stop <待ち受けポート> / :browser <URL|reload|back|next>"
 
 // browser runs `:browser <sub> ...`.
 func (a *App) browser(arg string) tea.Cmd {
@@ -62,7 +62,8 @@ func (a *App) browser(arg string) tea.Cmd {
 		}
 		a.info("転送を停止しました: 待ち受けポート %d", ports[0])
 	default:
-		a.fail(fmt.Errorf("%s", browserUsage))
+		// anything else is the page viewer: a URL, reload, back or next
+		return a.browserCmd(arg)
 	}
 	return nil
 }

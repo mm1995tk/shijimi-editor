@@ -3,6 +3,7 @@ package ui
 
 import (
 	"fmt"
+	"github.com/mm1995tk/gh-editor/internal/render"
 	"os"
 	"path/filepath"
 	"slices"
@@ -35,6 +36,7 @@ type App struct {
 	root     string
 	gitTop   string
 	cfg      *config.Config
+	renderer render.Renderer // overrides Chromium for the browser tab (tests); nil = from config
 	lsp      *lspManager
 	w, h     int
 	focus    focus
@@ -681,6 +683,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.info("整形しました")
 	case lspErrMsg:
 		a.fail(msg.err)
+	case browserLoadedMsg:
+		a.browserLoaded(msg)
 	case openURLMsg:
 		if msg.err != nil {
 			a.fail(msg.err)
@@ -856,6 +860,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return a.handleReviewKey(t, msg)
 	case tabReplace:
 		return a.handleReplaceKey(t, msg)
+	case tabBrowser:
+		return a.handleBrowserKey(t, key)
 	case tabImage:
 		switch key {
 		case "q", "esc":
@@ -1299,6 +1305,8 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 					t.rev.moveCursor(wheel)
 				case tabReplace:
 					t.rep.move(wheel)
+				case tabBrowser:
+					a.browserWheel(t.web, wheel)
 				}
 			}
 		}
@@ -1440,6 +1448,8 @@ func (a *App) View() string {
 		right = append(right, renderWelcome(l.rightW, l.editH, a.helix)...)
 	case t.kind == tabImage:
 		right = append(right, t.img.render(l.rightW, l.editH)...)
+	case t.kind == tabBrowser:
+		right = append(right, t.web.render(l.rightW, l.editH)...)
 	case t.kind == tabReview:
 		right = append(right, t.rev.render(l.rightW, l.editH, editorFocused)...)
 	case t.kind == tabReplace:
