@@ -12,6 +12,7 @@ require (
 	github.com/chromedp/cdproto v0.157.8
 	github.com/chromedp/chromedp v0.21.0
 	github.com/creack/pty v1.1.24
+	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-runewidth v0.0.31
 	github.com/sahilm/fuzzy v0.1.3
 	golang.org/x/image v0.24.0

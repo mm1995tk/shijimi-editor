@@ -6,17 +6,18 @@ Issue #13 の検討結果です。機能を 5 つに分け、それぞれ個別�
 
 - エージェントは gh-editor の中のターミナルパネル、または外のターミナルで動きます。どちらでも使えるようにします。
 - gh-editor からエージェントへ渡す方法は「ターミナルへ貼り付け」から始めます。特定のエージェントに依存しません。
-- エージェントから gh-editor を操作する入口は、Unix ソケットと CLI にします。実行中の gh-editor は環境変数 `GH_EDITOR_SOCKET` でソケットの場所を伝えます。
+- エージェントから gh-editor を操作する入口は、Claude Code の IDE 連携（WebSocket の MCP サーバー、#64）を主にします。IDE 連携に無い操作（git-diff モードにする）だけ、Unix ソケットと CLI（環境変数 `GH_EDITOR_SOCKET`）に残します。
 
 ## 機能一覧
 
 | # | 機能 | 優先度 | 依存 |
 |---|------|--------|------|
 | A | 現在の文脈をエージェントへ送る | 高 | なし |
-| B | 制御用ソケットと `gh-editor` サブコマンド | 高 | なし |
+| B | 制御用ソケットと `gh-editor` サブコマンド（#64 で `diff` のみに縮小） | 高 | なし |
 | C | レビューコメントをエージェントへ返す | 中 | A |
 | D | エージェント用スキルの配布 | 中 | B |
 | E | エージェントの変更の追従（外部変更の再読み込みと差分表示） | 低 | なし |
+| F | Claude Code の IDE 連携（#64） | 高 | なし |
 
 ### A. 現在の文脈をエージェントへ送る
 
@@ -26,9 +27,9 @@ Issue #13 の検討結果です。機能を 5 つに分け、それぞれ個別�
 
 ### B. 制御用ソケットと CLI
 
-- `gh-editor open <path>[:行]`、`gh-editor diff [path]`、`gh-editor status` を用意します。
+- `gh-editor diff [path]` を用意します（当初は `open` と `status` もありましたが、#64 の IDE 連携の `openFile` と `getOpenEditors` と `getCurrentSelection` に重なるため削除しました）。
 - 通信は改行区切りの JSON です。サブコマンドが無い起動は今までどおりです。
-- 第 1 引数がサブコマンド名（`open` / `diff` / `status` / `skill`）なら、サブコマンドとして扱います。同じ名前のファイルやディレクトリを開くときは `./status` のようにパスで書きます。
+- 第 1 引数がサブコマンド名（`diff` / `skill`）なら、サブコマンドとして扱います。同じ名前のファイルやディレクトリを開くときは `./diff` のようにパスで書きます。
 - 受け付けるのは同じユーザーのソケットだけです（パーミッション 0600）。
 
 ### C. レビューコメントの返送
@@ -38,7 +39,7 @@ Issue #13 の検討結果です。機能を 5 つに分け、それぞれ個別�
 
 ### D. スキルの配布
 
-- `gh-editor skill install` で、B の CLI の使い方を書いたスキルを `~/.claude/skills/gh-editor/` に書き出します。
+- `gh-editor skill install` で、B の CLI（`diff`）の使い方と IDE 連携との使い分けを書いたスキルを `~/.claude/skills/gh-editor/` に書き出します。
 - 書き出し先は引数で変えられます。
 
 ### E. エージェントの変更の追従
@@ -70,3 +71,41 @@ Issue #13 の検討結果です。機能を 5 つに分け、それぞれ個別�
 - PR レビュー画面でも使えます（ヘルプ行にも載せています）。
 - 経路は A と同じです（プレビュー → Enter で貼り付け、Enter キーは押しません）。
 - 送ったあともコメントは消しません。
+
+## F. Claude Code の IDE 連携（#64）
+
+VS Code 拡張や claudecode.nvim と同じプロトコルで、gh-editor を Claude Code の IDE として使えるようにします。
+
+### 置き換えたもの・残したもの
+
+| 既存機能 | 扱い |
+|----------|------|
+| `gh-editor open`（B） | 削除。`openFile` が同じことをします |
+| `gh-editor status`（B） | 削除。`getCurrentSelection` / `getOpenEditors` / `getWorkspaceFolders` が同じ情報を返します |
+| `gh-editor diff`（B） | 残す。git-diff モードにする操作は IDE 連携に無いためです |
+| スキル（D） | 残す。`diff` と IDE 連携との使い分けだけを書きます |
+| 現在の文脈を送る（A） | 残す。IDE 連携に接続中は貼り付けの代わりに `at_mentioned` を送ります。接続していないとき、Claude Code 以外のエージェントのときは貼り付けです |
+
+### プロトコル
+
+- `127.0.0.1` の空きポートで WebSocket を待ち受けます（ライブラリは `github.com/gorilla/websocket`）。サブプロトコルは `mcp`、メッセージは MCP の JSON-RPC 2.0 です（`initialize` / `ping` / `tools/list` / `tools/call`）。
+- 接続先をロックファイル `<Claude の設定ディレクトリ>/ide/<port>.lock` に書きます。設定ディレクトリは `CLAUDE_CONFIG_DIR`、なければ `~/.claude` です。内容は `{pid, workspaceFolders, ideName: "gh-editor", transport: "ws", authToken}` で、パーミッションは 0600 です。終了時に消します。起動時には、pid が存在しない gh-editor のロックファイルを掃除します。
+- 接続には HTTP ヘッダー `x-claude-code-ide-authorization: <authToken>` が必要です。トークンは起動ごとに乱数で作ります。`Origin` ヘッダー付き（ブラウザ）の接続は拒否します。
+- ターミナルパネルのプロセスには `CLAUDE_CODE_SSE_PORT=<port>`・`ENABLE_IDE_INTEGRATION=true`・`FORCE_CODE_TERMINAL=true`（claudecode.nvim と同じ 3 つ）を渡し、中で起動した Claude Code が自動で接続するようにします。
+
+### 道具（`tools/call`）
+
+`getCurrentSelection`、`getLatestSelection`、`getOpenEditors`、`getWorkspaceFolders`、`getDiagnostics`、`openFile`、`openDiff`、`closeAllDiffTabs`、`close_tab`、`checkDocumentDirty`、`saveDocument`。一覧は `internal/ui/ide.go` の `IDETools` です。
+
+- `openFile` はフォーカスを動かしません（エージェントを使っているターミナルに残ります）。存在しないファイルはエラーにします。
+- `getDiagnostics` は LSP の診断です。`severity` は `Error` / `Warning` / `Information` / `Hint` です。位置は 0 始まりで、`character` は LSP の値をそのまま返します。
+- `openDiff` は人の判断が出るまで返事を保留します。差分はモーダルで表示し、Enter で `FILE_SAVED` と新しい内容を返し（ファイルは Claude Code が書き込みます。claudecode.nvim と同じ）、Esc で `DIFF_REJECTED` を返します。複数の差分は順に出します。接続が切れたら保留を破棄します。差分の編集（承認前に右側を直す）は未対応です。
+- 通知は `selection_changed`（カーソルか選択が動いたとき。同じ値は送りません）と `at_mentioned`（`Space a` / `Alt+A`。行は 0 始まり）です。
+
+### 決めうちした点
+
+- 差分の表示はタブではなくモーダルです。承認の操作を 1 つのキーに絞るためです。
+- gh-editor はファイルへ書き込みません。承認すると Claude Code が書き込み、開いているバッファは既存のファイル監視（`watch-files`）が読み込み直します。
+- `close_tab` は、差分がすでに無くても `TAB_CLOSED` を返します（Claude Code が決定後の後始末に呼ぶため）。
+- 起動に失敗しても（ホームが書けないなど）エディターは動きます。制御用ソケットと同じ扱いです。
+- Windows は対象外です（pid の生死確認に `kill(pid, 0)` を使います）。
