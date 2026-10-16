@@ -566,6 +566,9 @@ func (a *App) pasteText() string {
 // ---- update ----
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if m, ok := msg.(ctlMsg); ok {
+		return a, a.handleCtl(m)
+	}
 	cmd := a.update(msg)
 	a.syncLSP()
 	return a, tea.Batch(cmd, a.scheduleAutoSave())

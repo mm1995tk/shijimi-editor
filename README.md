@@ -240,3 +240,13 @@ nix flake check        # 整形のチェック
 exclude = ["*.lock", "dist/**"]
 include = []
 ```
+
+## エージェント連携（制御用ソケット）
+
+実行中の gh-editor は Unix ソケット（0600）を作り、環境変数 `GH_EDITOR_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。
+
+- `gh-editor open <path>[:行]`: ファイルを開く
+- `gh-editor diff [path]`: ローカルの変更のレビューを開く
+- `gh-editor status`: 開いているタブとカーソル位置を JSON で表示する
+
+第 1 引数が `open` / `diff` / `status` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./status` のように書きます。
