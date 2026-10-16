@@ -103,7 +103,6 @@ func New(dir, file string) *App {
 	styleInput(&a.findInput, cPaletteBg)
 	styleInput(&a.cmdInput, cEditorBg)
 	styleInput(&a.pal.input, cPaletteBg)
-	styleInput(&a.term.input, cEditorBg)
 	a.commands = defaultCommands()
 	if out, err := run(abs, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		a.branch = strings.TrimSpace(string(out))
@@ -498,6 +497,7 @@ func (a *App) quit() tea.Cmd {
 		a.msg, a.msgErr = fmt.Sprintf("未保存のファイルが %d 個あります。もう一度 Ctrl+Q（または :q!）で破棄して終了します", d), true
 		return nil
 	}
+	a.term.closeAll()
 	return tea.Quit
 }
 
@@ -570,7 +570,17 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.w, a.h = msg.Width, msg.Height
 		a.follow = true
 	case termOutputMsg, termDoneMsg:
-		return a.term.update(msg)
+		cmd := a.term.update(msg)
+		if len(a.term.tabs) == 0 && a.showTerm {
+			a.showTerm = false
+			if a.focus == focusTerminal {
+				return tea.Batch(cmd, a.setFocus(focusEditor))
+			}
+		}
+		return cmd
+	case termErrMsg:
+		a.fail(msg.err)
+		return nil
 	case lspEventMsg:
 		a.handleLSPEvent(lsp.Event(msg))
 		return a.lsp.wait()
@@ -676,6 +686,19 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		}
 	}
 
+	if a.focus == focusTerminal {
+		// The shell owns the keyboard; only these stay global.
+		switch key {
+		case "ctrl+q":
+			return a.quit()
+		case "ctrl+j":
+			return a.toggleTerm()
+		case "f1":
+			return a.pal.show(a.root, ">")
+		}
+		return a.term.update(msg)
+	}
+
 	insert := a.helix && a.mode == modeInsert && a.focus == focusEditor
 	switch key {
 	case "ctrl+q":
@@ -732,11 +755,6 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch a.focus {
 	case focusExplorer:
 		return a.handleExplorerKey(msg)
-	case focusTerminal:
-		if key == "esc" {
-			return a.setFocus(focusEditor)
-		}
-		return a.term.update(msg)
 	}
 	t := a.cur()
 	if t == nil {
@@ -1152,8 +1170,6 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			e := a.explorer
 			e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(a.h-2)))
 			e.sel = clamp(e.sel, e.scroll, e.scroll+a.h-3)
-		case a.showTerm && y >= l.panelY && y < l.statusY:
-			a.term.scroll = clamp(a.term.scroll-wheel, 0, max(0, len(a.term.lines)-1))
 		default:
 			if t := a.cur(); t != nil {
 				switch t.kind {
@@ -1205,6 +1221,9 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			}
 		}
 	case a.showTerm && y >= l.panelY && y < l.statusY:
+		if y == l.panelY+1 {
+			a.term.clickTab(x - l.rightX)
+		}
 		return a.setFocus(focusTerminal)
 	case y >= l.editY && y < l.editY+l.editH:
 		t := a.cur()
