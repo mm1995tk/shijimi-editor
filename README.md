@@ -192,7 +192,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ### `:` コマンド
 
-`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
+`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop|<URL>|reload|back|next` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
 
 ### 全体
 
@@ -290,3 +290,7 @@ ssh -L 8080:127.0.0.1:<待ち受けポート> vm
 第 1 引数が `open` / `diff` / `status` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./status` のように書きます。
 
 `gh-editor skill install [書き出し先]` は、このコマンドの使い方を書いたスキル（`SKILL.md`）を書き出します。書き出し先を省略すると `~/.claude/skills/gh-editor/` に書きます。
+
+### ブラウザタブ
+
+`:browser <URL>` で Web ページを画像のタブとして表示します（ヘッドレス Chromium で描画）。URL に `https://` を付けなければ補います（`localhost` `127.0.0.1` `[::1]` は `http://`）。タブ内のキー: `o` URL 入力 / `r` 再読み込み / `[` 戻る / `]` 進む / `j` `k` スクロール / `Ctrl-d` `Ctrl-u` 半ページ / `g` `G` 先頭・末尾。
