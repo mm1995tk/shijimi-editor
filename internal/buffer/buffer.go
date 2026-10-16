@@ -88,9 +88,14 @@ func statStamp(path string) diskStamp {
 }
 
 // DiskChanged reports whether the file was modified on disk since it was last
-// read or written by this buffer.
+// read or written by this buffer. A file that no longer exists is not reported.
 func (b *Buffer) DiskChanged() bool {
-	return b.Path != "" && statStamp(b.Path) != b.stamp
+	if b.Path == "" {
+		return false
+	}
+	now := statStamp(b.Path)
+	// a vanished file is not a change to follow: reloading would empty the buffer
+	return now.exists && now != b.stamp
 }
 
 // Open reads a file into a new buffer. A missing file yields an empty buffer

@@ -63,3 +63,13 @@ func TestWatchDisabled(t *testing.T) {
 		t.Fatal("reloaded while disabled")
 	}
 }
+
+func TestWatchIgnoresDeletedFile(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	tb := a.curText()
+	os.Remove(tb.buf.Path)
+	a.Update(watchMsg{})
+	if got := tb.buf.Text(); got != "one\n" || tb.dirty() {
+		t.Fatalf("buffer changed after delete: %q", got)
+	}
+}
