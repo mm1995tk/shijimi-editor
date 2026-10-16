@@ -77,8 +77,12 @@ func (a *App) currentContext() (string, bool) {
 	return formatContext(path, b.Cur.Row, b.Cur.Row, "", a.lsp.diagnostics(b.Path)), true
 }
 
-// sendContext opens the preview of the current context.
+// sendContext tells a connected IDE-integrated agent about the current
+// selection; otherwise it opens the preview of the context to paste.
 func (a *App) sendContext() tea.Cmd {
+	if a.mentionContext() {
+		return nil
+	}
 	text, ok := a.currentContext()
 	if !ok {
 		a.fail(fmt.Errorf("保存済みのファイルを開いてください"))

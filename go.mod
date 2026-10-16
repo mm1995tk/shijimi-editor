@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/ansi v0.10.1
 	github.com/creack/pty v1.1.24
+	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-runewidth v0.0.31
 	github.com/sahilm/fuzzy v0.1.3
 	golang.org/x/image v0.24.0

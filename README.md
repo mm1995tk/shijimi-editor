@@ -14,6 +14,7 @@
 - **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
 - **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。mermaid のコードブロックは図として表示します（下記）
 - **現在の文脈をエージェントへ送る**（`Space a` / `Alt+A` / コマンドパレット）：選択範囲（なければカーソル行）を `パス:行-行`・本文・該当行の診断に整形し、プレビューで確認してからターミナルパネルへ貼り付けます（Enter は押しません）
+- **Claude Code の IDE 連携**：ターミナルパネルの Claude Code から、選択範囲・開いているファイル・診断を取得し、変更を差分で承認できます（承認後に Claude Code が書き込みます。下記「エージェント連携」）
 - タブ、シンタックスハイライト、Quick Open、プロジェクト全体の検索、ターミナルパネル、マウス操作
 
 ## インストール
@@ -319,17 +320,41 @@ ssh -L 8080:127.0.0.1:<待ち受けポート> vm
 
 待ち受けアドレスは `[browser]` の `listen-host` で変えられます（設定は「ブラウザ」節）。既定では `0.0.0.0` にバインドしません。信頼できるネットワークでのみ変えてください。
 
-## エージェント連携（制御用ソケット）
+## エージェント連携
 
-実行中の gh-editor は Unix ソケット（0600）を作り、環境変数 `GH_EDITOR_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。
+### Claude Code の IDE 連携
 
-- `gh-editor open <path>[:行]`: ファイルを開く
+gh-editor は Claude Code の IDE 連携プロトコル（VS Code 拡張や claudecode.nvim と同じもの）に対応しています。起動すると 127.0.0.1 の空きポートで WebSocket の MCP サーバーを立て、ロックファイル `~/.claude/ide/<port>.lock`（0600、`CLAUDE_CONFIG_DIR` があればその下の `ide/`）に接続先と認証トークンを書きます。終了時に消します。
+
+gh-editor のターミナルパネルで `claude` を起動すると、環境変数 `CLAUDE_CODE_SSE_PORT` `ENABLE_IDE_INTEGRATION=true` `FORCE_CODE_TERMINAL=true` により自動で接続します。外のターミナルで動く Claude Code は、作業ディレクトリが gh-editor のルート配下なら `/ide` で選べます。
+
+エージェントが使える道具:
+
+| 道具 | 内容 |
+|------|------|
+| `getCurrentSelection` / `getLatestSelection` | 選択範囲（なければカーソル位置）とファイル |
+| `getOpenEditors` / `getWorkspaceFolders` | 開いているファイル / ルート |
+| `getDiagnostics` | LSP の診断（URI 省略で全ファイル） |
+| `openFile` | ファイルを開く（`startText` / `endText` で範囲選択） |
+| `openDiff` | 変更を差分で表示。**Enter で承認、Esc で却下**。ファイルは承認後に Claude Code が書き込みます |
+| `closeAllDiffTabs` / `close_tab` | 待っている差分を却下して閉じる |
+| `checkDocumentDirty` / `saveDocument` | 未保存の確認 / 保存 |
+
+- 選択範囲やカーソルが動くたびに `selection_changed` を送ります。
+- 接続中は `Space a` / `Alt+A`（現在の文脈をエージェントへ送る）が貼り付けではなく `at_mentioned` を送ります。接続していないときは、これまでどおりプレビューを出してターミナルへ貼り付けます。
+- 認証トークンの無い接続やブラウザ（`Origin` ヘッダー付き）からの接続は拒否します。
+
+### 制御用ソケット
+
+実行中の gh-editor は Unix ソケット（0600）を作り、環境変数 `GH_EDITOR_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。IDE 連携に無い操作だけを残しています。
+
 - `gh-editor diff [path]`: git-diff モードにする。`path` を付けるとそのファイルを diff 表示で開く
-- `gh-editor status`: 開いているタブとカーソル位置を JSON で表示する
 
-第 1 引数が `open` / `diff` / `status` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./status` のように書きます。
+第 1 引数が `diff` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./diff` のように書きます。
 
 `gh-editor skill install [書き出し先]` は、このコマンドの使い方を書いたスキル（`SKILL.md`）を書き出します。書き出し先を省略すると `~/.claude/skills/gh-editor/` に書きます。
+
+> `gh-editor open` と `gh-editor status` は IDE 連携（`openFile` / `getOpenEditors` / `getCurrentSelection`）に置き換えて削除しました。
 
 ### ブラウザタブ
 
