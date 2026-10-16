@@ -16,8 +16,8 @@
     flake-utils,
     gomod2nix,
     treefmt-nix,
-  }:
-    flake-utils.lib.eachDefaultSystem (system: let
+  }: let
+    perSystem = flake-utils.lib.eachDefaultSystem (system: let
       project-name = "mm1995tk/gh-editor";
       pkgs = import nixpkgs {
         inherit system;
@@ -47,4 +47,10 @@
       formatter = treefmtEval.config.build.wrapper;
       checks.formatting = treefmtEval.config.build.check self;
     });
+  in
+    perSystem
+    // {
+      homeManagerModules.default = import ./nix/home-manager-module.nix self;
+      homeManagerModules.gh-editor = self.homeManagerModules.default;
+    };
 }

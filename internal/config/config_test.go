@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -111,5 +112,53 @@ func TestThemeOption(t *testing.T) {
 	os.WriteFile(filepath.Join(root, ".gh-editor", "config.toml"), []byte("[editor]\ntheme = \"light\"\n"), 0o644)
 	if got := Load(root).Editor.Theme; got != "light" {
 		t.Fatalf("editor.theme = %q", got)
+	}
+}
+
+func TestNixConfig(t *testing.T) {
+	if _, err := exec.LookPath("nix"); err != nil {
+		t.Skip("nix not available")
+	}
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(filepath.Join(root, ".gh-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".gh-editor", "config.nix"), []byte(`{
+  keymap = "vscode";
+  search.exclude = [ "*.lock" ];
+  editor = {
+    line-number = "relative";
+    auto-save.after-delay = { enable = true; timeout = 250; };
+  };
+}`), 0o644)
+	os.WriteFile(filepath.Join(root, ".gh-editor", "languages.nix"), []byte(`{
+  language-server.my-gopls = {
+    command = "gopls";
+    args = [ "serve" ];
+    config.gofumpt = true;
+    environment.GOFLAGS = "-tags=integration";
+  };
+  language = [
+    { name = "go"; language-servers = [ "my-gopls" ]; indent = { tab-width = 4; unit = "\t"; }; }
+    { name = "mylang"; file-types = [ "ml2" { glob = "*.special"; } ]; language-servers = [ { name = "my-gopls"; } ]; }
+  ];
+}`), 0o644)
+	c := Load(root)
+	if c.Editor.Keymap != "vscode" || c.Editor.LineNumber != "relative" || c.Editor.AutoSaveDelay != 250*time.Millisecond {
+		t.Fatalf("editor = %+v", c.Editor)
+	}
+	if len(c.Search.Exclude) != 1 || c.Search.Exclude[0] != "*.lock" {
+		t.Fatalf("search = %+v", c.Search)
+	}
+	l := c.LanguageFor(filepath.Join(root, "main.go"))
+	if l == nil || len(l.Servers) != 1 || l.Servers[0] != "my-gopls" || l.IndentUnit != "\t" || len(l.Roots) == 0 {
+		t.Fatalf("go = %+v", l)
+	}
+	s := c.Servers["my-gopls"]
+	if s == nil || s.Args[0] != "serve" || s.Env["GOFLAGS"] != "-tags=integration" || s.Config.(map[string]any)["gofumpt"] != true {
+		t.Fatalf("server = %+v", s)
+	}
+	if l := c.LanguageFor("x.special"); l == nil || l.Name != "mylang" {
+		t.Fatalf("glob = %+v", l)
 	}
 }
