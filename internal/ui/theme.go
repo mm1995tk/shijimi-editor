@@ -45,6 +45,10 @@ type Theme struct {
 	AddBg, DelBg, AddSign, DelSign, HunkFg, HunkBg, NoteBg string
 
 	Syntax syntaxColors
+
+	// Icons overrides file tree icons by icon kind (see icons.go). Kinds not
+	// listed keep the default icon.
+	Icons map[string]iconOverride
 }
 
 var darkPlus = Theme{
@@ -116,6 +120,24 @@ var lightPlus = Theme{
 		Text: "#000000", Comment: "#008000", Preproc: "#af00db", Keyword: "#0000ff",
 		Namespace: "#af00db", Type: "#267f99", Name: "#001080", Function: "#795e26",
 		Const: "#0070c1", String: "#a31515", Escape: "#ee0000", Number: "#098658",
+	},
+	// The default icon colors are tuned for dark backgrounds; darken the ones
+	// that wash out on white.
+	Icons: map[string]iconOverride{
+		"folder":      {Color: "#3b7bb5"},
+		"folder-open": {Color: "#3b7bb5"},
+		"default":     {Color: "#6e6e6e"},
+		"text":        {Color: "#6e6e6e"},
+		"json":        {Color: "#9a8a00"},
+		"js":          {Color: "#9a8a00"},
+		"license":     {Color: "#9a8a00"},
+		"shell":       {Color: "#3f8f1f"},
+		"python":      {Color: "#c88a00"},
+		"config":      {Color: "#6b7785"},
+		"lock":        {Color: "#6b7785"},
+		"rust":        {Color: "#b5694a"},
+		"archive":     {Color: "#a07a40"},
+		"nix":         {Color: "#4f8fc4"},
 	},
 }
 
