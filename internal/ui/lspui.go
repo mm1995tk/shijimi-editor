@@ -628,7 +628,7 @@ func (c *completionPopup) render(maxH int) []string {
 		it := c.items[i]
 		st, dim := stPalette, stPaletteDim
 		if i == c.sel {
-			st, dim = stPaletteSel, bgfg(cListSel, "#bbbbbb")
+			st, dim = stPaletteSel, bgfg(cListSel, curTheme.SubSel)
 		}
 		kind := completionKinds[it.Kind]
 		label := fit(" "+it.Label, w-9)

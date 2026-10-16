@@ -12,34 +12,8 @@ import (
 
 const maxHighlightLines = 20000
 
-// chromaStyle approximates VS Code's Dark+ token colors.
-var chromaStyle = chroma.MustNewStyle("dark-plus", chroma.StyleEntries{
-	chroma.Text:                "#d4d4d4",
-	chroma.Comment:             "#6a9955",
-	chroma.CommentPreproc:      "#c586c0",
-	chroma.Keyword:             "#569cd6",
-	chroma.KeywordNamespace:    "#c586c0",
-	chroma.KeywordType:         "#4ec9b0",
-	chroma.Name:                "#9cdcfe",
-	chroma.NameBuiltin:         "#4ec9b0",
-	chroma.NameFunction:        "#dcdcaa",
-	chroma.NameClass:           "#4ec9b0",
-	chroma.NameConstant:        "#4fc1ff",
-	chroma.NameTag:             "#569cd6",
-	chroma.NameAttribute:       "#9cdcfe",
-	chroma.NameDecorator:       "#dcdcaa",
-	chroma.LiteralString:       "#ce9178",
-	chroma.LiteralStringEscape: "#d7ba7d",
-	chroma.LiteralNumber:       "#b5cea8",
-	chroma.Operator:            "#d4d4d4",
-	chroma.Punctuation:         "#d4d4d4",
-	chroma.GenericHeading:      "bold #569cd6",
-	chroma.GenericSubheading:   "bold #569cd6",
-	chroma.GenericInserted:     "#b5cea8",
-	chroma.GenericDeleted:      "#ce9178",
-	chroma.GenericEmph:         "italic",
-	chroma.GenericStrong:       "bold",
-})
+// chromaStyle holds the current theme's token colors; set by applyTheme.
+var chromaStyle *chroma.Style
 
 // highlighter caches per-rune foreground colors for one buffer.
 type highlighter struct {
@@ -47,6 +21,7 @@ type highlighter struct {
 	version int
 	colors  [][]string
 	cache   map[chroma.TokenType]string
+	gen     int // themeGen the cache was built for
 }
 
 func newHighlighter(path string) *highlighter {
@@ -85,6 +60,11 @@ func (h *highlighter) color(tt chroma.TokenType) string {
 func (h *highlighter) Colors(b *buffer.Buffer) [][]string {
 	if h.lexer == nil || len(b.Lines) > maxHighlightLines {
 		return nil
+	}
+	if h.gen != themeGen {
+		h.cache = map[chroma.TokenType]string{}
+		h.version = -1
+		h.gen = themeGen
 	}
 	if h.version == b.Version && len(h.colors) == len(b.Lines) {
 		return h.colors

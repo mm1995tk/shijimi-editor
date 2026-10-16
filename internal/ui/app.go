@@ -99,6 +99,9 @@ func New(dir, file string) *App {
 		helix:    cfg.Editor.Keymap != "vscode",
 	}
 	a.explorer.icons = cfg.Editor.FileIcons
+	if cfg.Editor.Theme != "" {
+		applyTheme(themeOrDefault(cfg.Editor.Theme))
+	}
 	a.findInput = textinput.New()
 	a.findInput.Prompt = ""
 	a.findInput.Placeholder = "検索"
@@ -125,9 +128,9 @@ func (a *App) Close() { a.lsp.stopAll() }
 
 func styleInput(ti *textinput.Model, bg string) {
 	ti.TextStyle = bgfg(bg, cEditorFg)
-	ti.PlaceholderStyle = bgfg(bg, "#6e6e6e")
+	ti.PlaceholderStyle = bgfg(bg, curTheme.Dim)
 	ti.PromptStyle = bgfg(bg, cEditorFg)
-	ti.Cursor.Style = bgfg("#aeafad", bg)
+	ti.Cursor.Style = bgfg(curTheme.Cursor, bg)
 	ti.Cursor.TextStyle = bgfg(bg, cEditorFg)
 }
 
@@ -1420,7 +1423,7 @@ func (a *App) View() string {
 func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 	o := editorOpts{
 		focused:     focused && !a.findOpen && !a.cmdOpen,
-		cursorColor: "#aeafad",
+		cursorColor: curTheme.Cursor,
 		cursorAt:    t.buf.Cur,
 		relative:    a.cfg.Editor.LineNumber == "relative",
 		diags:       a.lsp.diagnostics(t.buf.Path),
@@ -1434,9 +1437,9 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 	if a.helix {
 		switch a.mode {
 		case modeInsert:
-			o.cursorColor = "#73c991"
+			o.cursorColor = curTheme.ModeInsert
 		case modeSelect:
-			o.cursorColor = "#e2c08d"
+			o.cursorColor = curTheme.ModeSelect
 		}
 		// Helix draws the cursor on the last selected character
 		if a.mode != modeInsert && t.buf.Anchor != nil && t.buf.Anchor.Less(t.buf.Cur) {
@@ -1516,11 +1519,7 @@ func (a *App) renderFind(w int) string {
 	return label + fitStyled(a.findInput.View(), iw, stFind) + hint
 }
 
-var modeStyles = map[editMode]lipgloss.Style{
-	modeNormal: bgfg("#569cd6", "#1e1e1e").Bold(true),
-	modeInsert: bgfg("#73c991", "#1e1e1e").Bold(true),
-	modeSelect: bgfg("#e2c08d", "#1e1e1e").Bold(true),
-}
+var modeStyles map[editMode]lipgloss.Style
 
 func (a *App) renderStatus() string {
 	var prefix string

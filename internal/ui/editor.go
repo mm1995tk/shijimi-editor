@@ -74,7 +74,7 @@ func styleFor(k cellStyle) lipgloss.Style {
 	}
 	s := bgfg(k.bg, k.fg)
 	if k.cursor != "" {
-		s = bgfg(k.cursor, "#1e1e1e")
+		s = bgfg(k.cursor, curTheme.CursorFg)
 	}
 	if k.under != "" {
 		s = s.Underline(true)
@@ -118,7 +118,7 @@ type editorOpts struct {
 	diags       []lsp.Diagnostic
 }
 
-var severityColor = map[int]string{1: "#f14c4c", 2: "#cca700", 3: "#3794ff", 4: "#3794ff"}
+var severityColor map[int]string
 
 func diagColor(sev int) string {
 	if c, ok := severityColor[sev]; ok {

@@ -41,6 +41,17 @@ gh-editor main.go    # ファイルを開く
 4. **プロジェクトの `.helix/languages.toml`、`.helix/config.toml`**
 5. プロジェクトの `.gh-editor/languages.toml`、`.gh-editor/config.toml`
 
+### テーマ
+
+`config.toml` の `theme`（Helix と同じ書き方）か、実行中の `:theme <名前>`（名前を省略すると一覧）で切り替えます。コマンドパレットの「設定: テーマを切り替え」からも選べます。
+
+- 組み込み: `dark-plus`（既定）、`github-dark`、`light-plus`
+- Helix の `github_dark*` は `github-dark`、`github_light*` と `light` は `light-plus` に対応付けます
+
+```toml
+theme = "github_dark"
+```
+
 ### LSP の設定例（`.helix/languages.toml`）
 
 ```toml

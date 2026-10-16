@@ -7,27 +7,12 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// Colors follow VS Code's "Dark+" theme.
-const (
-	cEditorBg   = "#1e1e1e"
-	cEditorFg   = "#d4d4d4"
-	cSideBg     = "#252526"
-	cSideFg     = "#cccccc"
-	cTabBarBg   = "#252526"
-	cTabInact   = "#2d2d2d"
-	cTabInactFg = "#969696"
-	cAccent     = "#007acc"
-	cLineNo     = "#858585"
-	cLineNoCur  = "#c6c6c6"
-	cCurLine    = "#2a2d2e"
-	cSelection  = "#264f78"
-	cMatch      = "#613214"
-	cBorder     = "#3c3c3c"
-	cPaletteBg  = "#252526"
-	cListSel    = "#04395e"
-	cListSelUnf = "#37373d"
-	cDirty      = "#e2c08d"
-	cError      = "#f48771"
+// Palette colors. They are variables so applyTheme can swap them at runtime;
+// see theme.go.
+var (
+	cEditorBg, cEditorFg, cSideBg, cSideFg, cTabBarBg, cTabInact, cTabInactFg string
+	cAccent, cLineNo, cLineNoCur, cCurLine, cSelection, cMatch, cBorder       string
+	cPaletteBg, cListSel, cListSelUnf, cDirty, cError                         string
 )
 
 func bgfg(bg, fg string) lipgloss.Style {
@@ -35,45 +20,55 @@ func bgfg(bg, fg string) lipgloss.Style {
 }
 
 var (
-	stSide         = bgfg(cSideBg, cSideFg)
-	stSideDir      = bgfg(cSideBg, cSideFg).Bold(true)
-	stSideTitle    = bgfg(cSideBg, "#bbbbbb").Bold(true)
-	stSideActive   = bgfg(cSideBg, "#ffffff")
-	stSideSel      = bgfg(cListSelUnf, "#ffffff")
-	stSideSelFocus = bgfg(cListSel, "#ffffff")
-	stSeparator    = bgfg(cSideBg, cBorder)
-
-	stTabBar      = bgfg(cTabBarBg, cTabInactFg)
-	stTabActive   = bgfg(cEditorBg, "#ffffff")
-	stTabInactive = bgfg(cTabInact, cTabInactFg)
-	stTabDirty    = bgfg(cEditorBg, cDirty)
-
-	stLineNo    = bgfg(cEditorBg, cLineNo)
-	stLineNoCur = bgfg(cCurLine, cLineNoCur)
-	stEmpty     = bgfg(cEditorBg, cEditorFg)
-	stWelcome   = bgfg(cEditorBg, "#6e6e6e")
-	stWelcomeH  = bgfg(cEditorBg, "#9cdcfe").Bold(true)
-
-	stFind      = bgfg(cPaletteBg, cEditorFg)
-	stFindLabel = bgfg(cPaletteBg, "#9cdcfe")
-
-	stPanelTitle = bgfg(cEditorBg, "#e7e7e7").Bold(true)
-	stPanelTab   = bgfg(cEditorBg, "#e7e7e7").Underline(true)
-	stPanel      = bgfg(cEditorBg, cEditorFg)
-	stPanelDim   = bgfg(cEditorBg, cLineNo)
-	stPanelCmd   = bgfg(cEditorBg, "#4ec9b0")
-	stPanelBord  = bgfg(cEditorBg, cBorder)
-
-	stStatus      = bgfg(cAccent, "#ffffff")
-	stStatusError = bgfg("#c72e0f", "#ffffff")
-
-	stPalette    = bgfg(cPaletteBg, cEditorFg)
-	stPaletteSel = bgfg(cListSel, "#ffffff")
-	stPaletteDim = bgfg(cPaletteBg, cLineNo)
-	stPaletteHi  = bgfg(cPaletteBg, "#2aaaff").Bold(true)
-	stPaletteHiS = bgfg(cListSel, "#2aaaff").Bold(true)
-	stPaletteBox = bgfg(cPaletteBg, cAccent)
+	stSide, stSideDir, stSideTitle, stSideActive, stSideSel, stSideSelFocus, stSeparator lipgloss.Style
+	stTabBar, stTabActive, stTabInactive, stTabDirty                                     lipgloss.Style
+	stLineNo, stLineNoCur, stEmpty, stWelcome, stWelcomeH, stFind, stFindLabel           lipgloss.Style
+	stPanelTitle, stPanelTab, stPanel, stPanelDim, stPanelCmd, stPanelBord               lipgloss.Style
+	stStatus, stStatusError                                                              lipgloss.Style
+	stPalette, stPaletteSel, stPaletteDim, stPaletteHi, stPaletteHiS, stPaletteBox       lipgloss.Style
 )
+
+// rebuildStyles recreates every precomputed style from the current colors.
+func rebuildStyles(t *Theme) {
+	stSide = bgfg(cSideBg, cSideFg)
+	stSideDir = bgfg(cSideBg, cSideFg).Bold(true)
+	stSideTitle = bgfg(cSideBg, t.SideTitle).Bold(true)
+	stSideActive = bgfg(cSideBg, t.Strong)
+	stSideSel = bgfg(cListSelUnf, t.Strong)
+	stSideSelFocus = bgfg(cListSel, t.Strong)
+	stSeparator = bgfg(cSideBg, cBorder)
+
+	stTabBar = bgfg(cTabBarBg, cTabInactFg)
+	stTabActive = bgfg(cEditorBg, t.Strong)
+	stTabInactive = bgfg(cTabInact, cTabInactFg)
+	stTabDirty = bgfg(cEditorBg, cDirty)
+
+	stLineNo = bgfg(cEditorBg, cLineNo)
+	stLineNoCur = bgfg(cCurLine, cLineNoCur)
+	stEmpty = bgfg(cEditorBg, cEditorFg)
+	stWelcome = bgfg(cEditorBg, t.Dim)
+	stWelcomeH = bgfg(cEditorBg, t.Heading).Bold(true)
+
+	stFind = bgfg(cPaletteBg, cEditorFg)
+	stFindLabel = bgfg(cPaletteBg, t.Heading)
+
+	stPanelTitle = bgfg(cEditorBg, t.PanelTitle).Bold(true)
+	stPanelTab = bgfg(cEditorBg, t.PanelTitle).Underline(true)
+	stPanel = bgfg(cEditorBg, cEditorFg)
+	stPanelDim = bgfg(cEditorBg, cLineNo)
+	stPanelCmd = bgfg(cEditorBg, t.PanelCmd)
+	stPanelBord = bgfg(cEditorBg, cBorder)
+
+	stStatus = bgfg(cAccent, t.AccentFg)
+	stStatusError = bgfg(t.StatusErrBg, t.AccentFg)
+
+	stPalette = bgfg(cPaletteBg, cEditorFg)
+	stPaletteSel = bgfg(cListSel, t.Strong)
+	stPaletteDim = bgfg(cPaletteBg, cLineNo)
+	stPaletteHi = bgfg(cPaletteBg, t.PaletteHi).Bold(true)
+	stPaletteHiS = bgfg(cListSel, t.PaletteHi).Bold(true)
+	stPaletteBox = bgfg(cPaletteBg, cAccent)
+}
 
 // fit truncates or pads s (which may contain ANSI codes) to exactly w cells.
 func fit(s string, w int) string {

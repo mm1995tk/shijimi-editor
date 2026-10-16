@@ -94,3 +94,22 @@ timeout = 2500
 		t.Fatalf("override = %+v", c.Editor)
 	}
 }
+
+func TestThemeOption(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	if Load(root).Editor.Theme != "" {
+		t.Fatal("theme should default to empty")
+	}
+	os.MkdirAll(filepath.Join(root, ".helix"), 0o755)
+	os.WriteFile(filepath.Join(root, ".helix", "config.toml"), []byte("theme = \"github_dark\"\n"), 0o644)
+	if got := Load(root).Editor.Theme; got != "github_dark" {
+		t.Fatalf("top-level theme = %q", got)
+	}
+	os.MkdirAll(filepath.Join(root, ".gh-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".gh-editor", "config.toml"), []byte("[editor]\ntheme = \"light\"\n"), 0o644)
+	if got := Load(root).Editor.Theme; got != "light" {
+		t.Fatalf("editor.theme = %q", got)
+	}
+}

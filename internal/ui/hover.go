@@ -10,16 +10,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// Hover popup colors. Kept separate so a theme can override them later.
-const (
-	cHoverBg     = cPaletteBg
-	cHoverFg     = cEditorFg
-	cHoverCodeBg = "#151515"
-	cHoverBorder = cAccent
-	cHoverInline = "#ce9178"
-	cHoverHead   = "#569cd6"
-	cHoverRule   = "#5a5a5a"
-)
+// Hover popup colors; set by applyTheme.
+var cHoverBg, cHoverFg, cHoverCodeBg, cHoverBorder, cHoverInline, cHoverHead, cHoverRule string
 
 // hoverCell is one rune with its foreground color and weight.
 type hoverCell struct {

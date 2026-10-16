@@ -325,11 +325,11 @@ func (e *explorer) loadGitStatus() {
 func gitColor(letter string) string {
 	switch letter {
 	case "U", "A":
-		return "#73c991"
+		return curTheme.GitAdded
 	case "D":
-		return "#c74e39"
+		return curTheme.GitDeleted
 	case "R":
-		return "#73c991"
+		return curTheme.GitAdded
 	}
 	return cDirty
 }

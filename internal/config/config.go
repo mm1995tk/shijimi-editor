@@ -38,6 +38,7 @@ type Editor struct {
 	Keymap     string // "helix" (default) or "vscode"
 	LineNumber string // "absolute" or "relative"
 	FileIcons  bool   // Nerd Font icons in the file tree (default true)
+	Theme      string // theme name; "" = default (dark-plus)
 
 	// AutoSave mirrors Helix's [editor.auto-save.after-delay]; unlike Helix
 	// it is enabled by default with a 1 second timeout.
@@ -122,6 +123,12 @@ func (c *Config) mergeEditor(data string) {
 				c.Editor.AutoSaveDelay = time.Duration(v) * time.Millisecond
 			}
 		}
+	}
+	if v, ok := raw["theme"].(string); ok {
+		c.Editor.Theme = v
+	}
+	if v, ok := ed["theme"].(string); ok {
+		c.Editor.Theme = v
 	}
 }
 
