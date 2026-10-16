@@ -95,6 +95,9 @@ func TestPlanHitAndApply(t *testing.T) {
 
 func TestSearchWordRegexKeepCase(t *testing.T) {
 	noMatch(t, searchOpts{query: "foo", word: true}, "foobar")
+	mustPlan(t, searchOpts{query: "検索", word: true}, "全文 検索 窓")
+	noMatch(t, searchOpts{query: "検索", word: true}, "全文検索")
+	noMatch(t, searchOpts{query: "cafe", word: true}, "cafeé")
 	mustPlan(t, searchOpts{query: "foo", word: true}, "a foo b")
 
 	h := mustPlan(t, searchOpts{query: `(\w+)@(\w+)`, repl: "$2:$1", regex: true}, "x a@b y")

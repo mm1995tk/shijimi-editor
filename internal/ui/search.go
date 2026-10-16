@@ -50,9 +50,6 @@ func (o searchOpts) compile() (*regexp.Regexp, error) {
 	if !o.regex {
 		pat = regexp.QuoteMeta(pat)
 	}
-	if o.word {
-		pat = `\b(?:` + pat + `)\b`
-	}
 	if !o.caseSens {
 		pat = "(?i)" + pat
 	}
@@ -98,6 +95,21 @@ func preserveCase(matched, repl string) string {
 	return repl
 }
 
+// isWordRune reports whether r is part of a word (Unicode-aware, unlike \b).
+func isWordRune(r rune) bool { return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r) }
+
+// wordBounded reports whether line[start:end] is not glued to a word character
+// on either side.
+func wordBounded(line string, start, end int) bool {
+	if r, n := utf8.DecodeLastRuneInString(line[:start]); n > 0 && isWordRune(r) {
+		return false
+	}
+	if r, n := utf8.DecodeRuneInString(line[end:]); n > 0 && isWordRune(r) {
+		return false
+	}
+	return true
+}
+
 // planHit finds the occurrences in one line and computes their replacements;
 // ok is false when the line does not match.
 func planHit(re *regexp.Regexp, o searchOpts, line string) (h *searchHit, ok bool) {
@@ -106,6 +118,9 @@ func planHit(re *regexp.Regexp, o searchOpts, line string) (h *searchHit, ok boo
 	last := 0
 	for _, loc := range re.FindAllStringSubmatchIndex(line, -1) {
 		if loc[0] == loc[1] {
+			continue
+		}
+		if o.word && !wordBounded(line, loc[0], loc[1]) {
 			continue
 		}
 		repl := o.repl
