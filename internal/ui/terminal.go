@@ -302,7 +302,16 @@ func renderVTRow(cells []vt.Cell, w, cursorX int) string {
 		sb.WriteString(strings.Repeat(" ", w-width))
 	}
 	sb.WriteString("\x1b[0m")
-	return sb.String()
+	row := sb.String()
+	// The host terminal may draw a cluster with another width than the one
+	// counted; keep the row exactly w cells so the panel layout holds.
+	switch sw := ansi.StringWidth(row); {
+	case sw > w:
+		return ansi.Truncate(row, w, "") + "\x1b[0m"
+	case sw < w:
+		return row + sgr(0, 0, 0, false) + strings.Repeat(" ", w-sw) + "\x1b[0m"
+	}
+	return row
 }
 
 func sgr(fg, bg vt.Color, attr vt.Attr, cursor bool) string {

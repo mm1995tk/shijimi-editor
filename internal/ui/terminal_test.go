@@ -111,3 +111,12 @@ func TestTerminalScrollback(t *testing.T) {
 		t.Fatalf("offset = %d", tab.snap.Offset)
 	}
 }
+
+func TestRenderVTRowKeepsWidthWhenHostDrawsDifferently(t *testing.T) {
+	cells := []vt.Cell{{Rune: 'a', Comb: "‍‍", Width: 1}, {Rune: 'b', Width: 1}}
+	for _, w := range []int{2, 5} {
+		if got := ansi.StringWidth(renderVTRow(cells, w, -1)); got != w {
+			t.Errorf("w=%d: width = %d", w, got)
+		}
+	}
+}

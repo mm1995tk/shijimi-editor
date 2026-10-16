@@ -3,6 +3,7 @@ package vt
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -26,12 +27,21 @@ func runeWidth(r rune) int {
 }
 
 func (t *Term) print(r rune) {
+	if r < 0x20 || (r >= 0x7f && r < 0xa0) {
+		return // control characters never reach the grid
+	}
 	if g := t.gl; t.dec[g] && r >= 0x5f && r <= 0x7e {
 		r = decGraphics[r-0x5f]
 	}
+	if t.joinsPrevious(r) {
+		t.combine(r)
+		return
+	}
 	w := runeWidth(r)
 	if w == 0 {
-		t.combine(r)
+		if isMark(r) {
+			t.combine(r)
+		}
 		return
 	}
 	if w > t.cols {
@@ -66,20 +76,63 @@ func (t *Term) print(r rune) {
 	}
 }
 
-// combine attaches a zero-width character to the cell before the cursor.
-func (t *Term) combine(r rune) {
-	x := t.x
+// isMark reports whether r is a combining character or a joiner that is
+// drawn as part of the character before it.
+func isMark(r rune) bool {
+	return r == 0x200d || unicode.In(r, unicode.Mn, unicode.Me, unicode.Mc)
+}
+
+// prevCell finds the cell the next combining character belongs to.
+func (t *Term) prevCell() (line []Cell, x int, ok bool) {
+	x = t.x
 	if !t.wrapNext {
 		x--
 	}
-	line := t.grid()[t.y]
+	if x < 0 {
+		return nil, 0, false
+	}
+	line = t.grid()[t.y]
 	if x > 0 && line[x].Width == 0 {
 		x--
 	}
-	if x < 0 || line[x].Rune == 0 {
+	return line, x, line[x].Rune != 0
+}
+
+// joinsPrevious reports whether r continues the grapheme cluster before the
+// cursor: an emoji skin tone modifier, or a character after a zero-width joiner.
+func (t *Term) joinsPrevious(r rune) bool {
+	line, x, ok := t.prevCell()
+	if !ok {
+		return false
+	}
+	if r >= 0x1f3fb && r <= 0x1f3ff {
+		return true
+	}
+	return strings.HasSuffix(line[x].Comb, "‍")
+}
+
+// combine attaches r to the cell before the cursor. A cluster such as an emoji
+// with a variation selector can be wider than its first character, so the cell
+// is widened to the width the host terminal will draw it with.
+func (t *Term) combine(r rune) {
+	line, x, ok := t.prevCell()
+	if !ok {
 		return
 	}
 	line[x].Comb += string(r)
+	w := min(max(ansi.StringWidth(line[x].Text()), 1), 2)
+	if line[x].Width == 1 && w == 2 && x+1 < t.cols {
+		pc := line[x]
+		line[x].Width = 2
+		line[x+1] = Cell{FG: pc.FG, BG: pc.BG, Attr: pc.Attr}
+		if !t.wrapNext && t.x == x+1 {
+			t.x++
+			if t.x >= t.cols {
+				t.x = t.cols - 1
+				t.wrapNext = t.autowrap
+			}
+		}
+	}
 }
 
 func (t *Term) wrapLine() {

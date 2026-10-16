@@ -354,3 +354,28 @@ func TestEncodeMouse(t *testing.T) {
 		}
 	}
 }
+
+func TestEmojiClustersTakeTheirDrawnWidth(t *testing.T) {
+	for _, s := range []string{"❤️", "👨‍👩‍👧", "👍\U0001f3fd"} {
+		term, _ := newT(10, 2)
+		term.Write([]byte(s + "x"))
+		sn := snap(term)
+		if sn.Cells[0][0].Width != 2 || sn.Cells[0][1].Width != 0 || sn.Cells[0][2].Text() != "x" || sn.CursorX != 3 {
+			t.Errorf("%q: widths %d,%d cell2=%q cursor=%d", s, sn.Cells[0][0].Width, sn.Cells[0][1].Width, sn.Cells[0][2].Text(), sn.CursorX)
+		}
+	}
+}
+
+func TestControlCharactersAreNotStored(t *testing.T) {
+	term, _ := newT(10, 2)
+	term.Write([]byte("a\u009bb\u007f\u0085c​d"))
+	sn := snap(term)
+	if got := rowText(sn, 0); got != "abcd" {
+		t.Fatalf("row = %q", got)
+	}
+	for _, c := range sn.Cells[0] {
+		if c.Comb != "" {
+			t.Fatalf("combining text stored: %q", c.Comb)
+		}
+	}
+}
