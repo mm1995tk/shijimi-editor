@@ -30,3 +30,20 @@ func TestOnLocation(t *testing.T) {
 		}
 	}
 }
+
+func TestWithoutLocation(t *testing.T) {
+	at := func(line, c0, c1 int) lsp.Location {
+		return lsp.Location{URI: lsp.URI("/a.go"), Range: lsp.Range{
+			Start: lsp.Position{Line: line, Character: c0},
+			End:   lsp.Position{Line: line, Character: c1},
+		}}
+	}
+	pos := lsp.Position{Line: 3, Character: 7}
+	if got := withoutLocation([]lsp.Location{at(3, 5, 10)}, "/a.go", pos); len(got) != 0 {
+		t.Errorf("declaration only: got %v, want empty", got)
+	}
+	got := withoutLocation([]lsp.Location{at(3, 5, 10), at(8, 1, 6)}, "/a.go", pos)
+	if len(got) != 1 || got[0].Range.Start.Line != 8 {
+		t.Errorf("got %v, want only the usage on line 8", got)
+	}
+}

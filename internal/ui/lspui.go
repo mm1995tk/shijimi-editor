@@ -246,10 +246,21 @@ func (a *App) gotoDefinition() tea.Cmd {
 			if err != nil {
 				return lspErrMsg{err}
 			}
-			return locationsMsg{"参照", refs}
+			return locationsMsg{"参照", withoutLocation(refs, t.buf.Path, pos)}
 		}
 		return locationsMsg{"定義", locs}
 	})
+}
+
+// withoutLocation returns locs minus those containing pos in the file at path.
+func withoutLocation(locs []lsp.Location, path string, pos lsp.Position) []lsp.Location {
+	var out []lsp.Location
+	for _, l := range locs {
+		if !onLocation([]lsp.Location{l}, path, pos) {
+			out = append(out, l)
+		}
+	}
+	return out
 }
 
 // onLocation reports whether pos in the file at path lies within one of locs.
