@@ -2,7 +2,7 @@
 
 ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code、編集操作は Helix に合わせています。
 
-説明書: <https://mm1995tk.github.io/gh-editor/>（ソースは [`manual/`](manual/)）
+説明書: <https://gh-editor-manual.pages.dev/>（ソースは [`manual/`](manual/)）
 
 ## 機能
 
@@ -298,7 +298,7 @@ ssh -L 8080:127.0.0.1:<待ち受けポート> vm
 
 ## 説明書の編集
 
-説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `manual/` から作ります。`main` に push すると GitHub Actions が GitHub Pages に公開します。手元で確認するには次を実行します。
+説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `manual/` から作ります。`main` に push すると GitHub Actions が Cloudflare Pages に公開します（リポジトリの Secrets に `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` が必要です）。手元で確認するには次を実行します。
 
 ```sh
 pip install -r manual/requirements.txt

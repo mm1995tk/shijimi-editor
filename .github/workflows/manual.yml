@@ -1,0 +1,49 @@
+name: 説明書を Cloudflare Pages に公開
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "manual/**"
+      - ".github/workflows/manual.yml"
+  pull_request:
+    paths:
+      - "manual/**"
+      - ".github/workflows/manual.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_NAME: gh-editor-manual
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r manual/requirements.txt
+      - run: mkdocs build --strict --config-file manual/mkdocs.yml --site-dir ../_site
+      - uses: actions/setup-node@v4
+        if: github.event_name != 'pull_request'
+        with:
+          node-version: "22"
+      - name: Cloudflare Pages に公開
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # 初回だけプロジェクトを作る
+          if ! npx --yes wrangler@4 pages project list | grep -q " $PROJECT_NAME "; then
+            npx --yes wrangler@4 pages project create "$PROJECT_NAME" --production-branch=main
+          fi
+          npx --yes wrangler@4 pages deploy _site --project-name="$PROJECT_NAME" --branch=main
