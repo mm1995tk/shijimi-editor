@@ -1,12 +1,14 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -40,6 +42,8 @@ type termTab struct {
 	cols  int
 	rows  int
 	title string
+
+	bracketed atomic.Bool // the program enabled bracketed paste (CSI ? 2004 h)
 }
 
 // terminal is the bottom panel: a set of PTY-backed login shells.
@@ -129,6 +133,7 @@ func (t *terminal) pump(tab *termTab) {
 			pending = append(pending, buf[:n]...)
 			var done []byte
 			done, pending = splitIncomplete(pending)
+			tab.bracketed.Store(bracketedAfter(done, tab.bracketed.Load()))
 			if len(done) > 0 {
 				tab.vt.Write(done)
 				select {
@@ -518,4 +523,34 @@ func (t *termTab) mode() vt10x.ModeFlag {
 	t.vt.Lock()
 	defer t.vt.Unlock()
 	return t.vt.Mode()
+}
+
+// paste sends text to the active shell without a trailing Enter. Programs that
+// enabled bracketed paste receive it wrapped, so it arrives as one paste.
+func (t *terminal) paste(text string) tea.Cmd {
+	var cmd tea.Cmd
+	if len(t.tabs) == 0 {
+		cmd = t.newTab()
+	}
+	if tab := t.cur(); tab != nil {
+		if tab.bracketed.Load() {
+			text = "\x1b[200~" + text + "\x1b[201~"
+		}
+		tab.ptmx.Write([]byte(text))
+	}
+	return tea.Batch(cmd, t.wait())
+}
+
+// bracketedAfter returns whether bracketed paste is enabled after out, given
+// the state before it. When out holds both enable and disable sequences, the
+// last one wins.
+func bracketedAfter(out []byte, cur bool) bool {
+	on := bytes.LastIndex(out, []byte("\x1b[?2004h"))
+	off := bytes.LastIndex(out, []byte("\x1b[?2004l"))
+	switch {
+	case on < 0 && off < 0:
+		return cur
+	default:
+		return on > off
+	}
 }

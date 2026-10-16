@@ -69,6 +69,7 @@ type App struct {
 	comp        *completionPopup
 	hoverText   string
 	hoverScroll int
+	ctx         *ctxPreview
 
 	clipboard    string
 	msg          string
@@ -741,6 +742,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if a.pal.open {
 		return a.handlePaletteKey(msg)
 	}
+	if a.ctx != nil {
+		return a.handleContextKey(msg)
+	}
 	if a.cmdOpen {
 		return a.handleCmdlineKey(msg)
 	}
@@ -817,6 +821,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case "ctrl+pgup":
 		a.switchTab(-1)
 		return nil
+	case "alt+a":
+		return a.sendContext()
 	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
 		if i := int(key[4] - '1'); i < len(a.tabs) {
 			a.active = i
@@ -1491,6 +1497,10 @@ func (a *App) View() string {
 		pw := clamp(a.w*3/5, 30, 100)
 		box := a.pal.render(pw)
 		rows = overlay(rows, box, (a.w-pw)/2, 1)
+	}
+
+	if a.ctx != nil {
+		rows = a.renderContext(rows)
 	}
 
 	if a.cmdOpen {
