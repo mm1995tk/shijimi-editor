@@ -1,28 +1,17 @@
 package ui
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync/atomic"
-	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/creack/pty"
-	"github.com/hinshun/vt10x"
-	"github.com/mattn/go-runewidth"
-)
-
-// vt10x keeps its glyph attribute bits private; these mirror them.
-const (
-	vtAttrUnderline = 1 << 1
-	vtAttrBold      = 1 << 2
-	vtAttrItalic    = 1 << 4
+	"github.com/mm1995tk/gh-editor/internal/vt"
 )
 
 type termOutputMsg struct{ id int }
@@ -36,14 +25,13 @@ type termDoneMsg struct {
 type termTab struct {
 	id    int
 	n     int // number shown in the tab label
-	vt    vt10x.Terminal
+	vt    *vt.Term
 	ptmx  *os.File
 	cmd   *exec.Cmd
 	cols  int
 	rows  int
 	title string
-
-	bracketed atomic.Bool // the program enabled bracketed paste (CSI ? 2004 h)
+	snap  vt.Snapshot // reused by every render
 }
 
 // terminal is the bottom panel: a set of PTY-backed login shells.
@@ -56,6 +44,7 @@ type terminal struct {
 	ch     chan tea.Msg
 	armed  bool // a wait() command is outstanding
 	w, h   int  // size of the body last rendered
+	grab   bool // a mouse press was sent to the program; its drag and release follow
 	tabX   []int
 }
 
@@ -112,7 +101,7 @@ func (t *terminal) newTab() tea.Cmd {
 	t.nextN++
 	tab := &termTab{
 		id: t.nextID, n: t.nextN, ptmx: ptmx, cmd: cmd, cols: cols, rows: rows,
-		vt: vt10x.New(vt10x.WithWriter(ptmx), vt10x.WithSize(cols, rows)),
+		vt: vt.New(vt.Options{Cols: cols, Rows: rows, Reply: ptmx}),
 	}
 	t.tabs = append(t.tabs, tab)
 	t.active = len(t.tabs) - 1
@@ -126,22 +115,14 @@ type termErrMsg struct{ err error }
 // pump copies PTY output into the emulator and wakes the UI.
 func (t *terminal) pump(tab *termTab) {
 	buf := make([]byte, 32*1024)
-	var pending []byte
 	for {
 		n, err := tab.ptmx.Read(buf)
 		if n > 0 {
-			pending = append(pending, buf[:n]...)
-			var done []byte
-			done, pending = splitIncomplete(pending)
-			tab.bracketed.Store(bracketedAfter(done, tab.bracketed.Load()))
-			if len(done) > 0 {
-				tab.vt.Write(done)
-				select {
-				case t.ch <- termOutputMsg{id: tab.id}:
-				default: // a notification is already queued
-				}
+			tab.vt.Write(buf[:n])
+			select {
+			case t.ch <- termOutputMsg{id: tab.id}:
+			default: // a notification is already queued
 			}
-			pending = append([]byte(nil), pending...)
 		}
 		if err != nil {
 			break
@@ -149,20 +130,6 @@ func (t *terminal) pump(tab *termTab) {
 	}
 	werr := tab.cmd.Wait()
 	t.ch <- termDoneMsg{id: tab.id, err: werr}
-}
-
-// splitIncomplete splits off a trailing partial UTF-8 sequence so that a
-// multi-byte character cut by a read boundary is not corrupted.
-func splitIncomplete(b []byte) (complete, rest []byte) {
-	for i := 1; i <= 3 && i <= len(b); i++ {
-		if utf8.RuneStart(b[len(b)-i]) {
-			if !utf8.FullRune(b[len(b)-i:]) {
-				return b[:len(b)-i], b[len(b)-i:]
-			}
-			break
-		}
-	}
-	return b, nil
 }
 
 func (t *terminal) update(msg tea.Msg) tea.Cmd {
@@ -195,7 +162,8 @@ func (t *terminal) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		if tab := t.cur(); tab != nil {
-			tab.ptmx.Write(termKeyBytes(msg, tab.mode()&vt10x.ModeAppCursor != 0))
+			tab.vt.ScrollToBottom()
+			tab.ptmx.Write(termKeyBytes(msg, tab.vt.Modes().AppCursor))
 		}
 	}
 	return nil
@@ -210,10 +178,11 @@ func (t *terminal) switchTab(d int) {
 // run types a command line into the active shell, as if the user entered it.
 func (t *terminal) run(line string) tea.Cmd {
 	var cmd tea.Cmd
-	if len(t.tabs) == 0 || t.cur().mode()&vt10x.ModeAltScreen != 0 {
+	if len(t.tabs) == 0 || t.cur().vt.Modes().AltScreen {
 		cmd = t.newTab()
 	}
 	if tab := t.cur(); tab != nil {
+		tab.vt.ScrollToBottom()
 		tab.ptmx.Write([]byte(line + "\r"))
 	}
 	return tea.Batch(cmd, t.wait())
@@ -284,65 +253,77 @@ func (t *terminal) render(w, h int, focused bool) []string {
 		pty.Setsize(tab.ptmx, &pty.Winsize{Rows: uint16(body), Cols: uint16(w)})
 		tab.vt.Resize(w, body)
 	}
-	tab.vt.Lock()
-	tab.title = tab.vt.Title()
-	cur := tab.vt.Cursor()
-	showCur := focused && tab.vt.CursorVisible()
+	sn := &tab.snap
+	tab.vt.Snapshot(sn)
+	tab.title = sn.Title
 	for y := 0; y < body; y++ {
-		out = append(out, renderVTRow(tab.vt, y, w, showCur && cur.Y == y, cur.X))
+		cx := -1
+		if focused && sn.CursorVisible && sn.CursorY == y {
+			cx = sn.CursorX
+		}
+		out = append(out, renderVTRow(sn.Cells[y], w, cx))
 	}
-	tab.vt.Unlock()
 	return out[:h]
 }
 
 // renderVTRow turns one emulator row into an SGR-styled string w cells wide.
-func renderVTRow(v vt10x.View, y, w int, withCursor bool, curX int) string {
+// cursorX is the column of the cursor, or -1.
+func renderVTRow(cells []vt.Cell, w, cursorX int) string {
 	var sb strings.Builder
-	cols, _ := v.Size()
 	type style struct {
-		fg, bg vt10x.Color
-		mode   int16
+		fg, bg vt.Color
+		attr   vt.Attr
 		cursor bool
 	}
 	var prev style
 	first := true
 	width := 0
-	for x := 0; x < cols && x < w; x++ {
-		g := v.Cell(x, y)
-		s := style{g.FG, g.BG, g.Mode & (vtAttrBold | vtAttrUnderline | vtAttrItalic), withCursor && x == curX}
+	for x := 0; x < len(cells) && width < w; x++ {
+		c := cells[x]
+		if c.Width == 0 {
+			continue
+		}
+		// The cursor sits on the right half of a wide character: draw it on the whole.
+		onCursor := cursorX == x || (c.Width == 2 && cursorX == x+1)
+		s := style{c.FG, c.BG, c.Attr, onCursor}
 		if first || s != prev {
-			sb.WriteString(sgr(s.fg, s.bg, s.mode, s.cursor))
+			sb.WriteString(sgr(s.fg, s.bg, s.attr, s.cursor))
 			prev, first = s, false
 		}
-		c := g.Char
-		if c < ' ' {
-			c = ' '
+		if c.Rune == 0 {
+			sb.WriteByte(' ')
+		} else {
+			sb.WriteString(c.Text())
 		}
-		sb.WriteRune(c)
-		width += runewidth.RuneWidth(c)
+		width += int(c.Width)
 	}
-	if width > w {
-		return ansi.Truncate(sb.String(), w, "") + "\x1b[0m"
+	if width < w {
+		sb.WriteString(sgr(0, 0, 0, false))
+		sb.WriteString(strings.Repeat(" ", w-width))
 	}
-	sb.WriteString(sgr(vt10x.DefaultFG, vt10x.DefaultBG, 0, false))
-	sb.WriteString(strings.Repeat(" ", w-width))
 	sb.WriteString("\x1b[0m")
 	return sb.String()
 }
 
-func sgr(fg, bg vt10x.Color, mode int16, cursor bool) string {
+func sgr(fg, bg vt.Color, attr vt.Attr, cursor bool) string {
 	p := []string{"0"}
-	if mode&vtAttrBold != 0 {
+	if attr&vt.AttrBold != 0 {
 		p = append(p, "1")
 	}
-	if mode&vtAttrItalic != 0 {
+	if attr&vt.AttrFaint != 0 {
+		p = append(p, "2")
+	}
+	if attr&vt.AttrItalic != 0 {
 		p = append(p, "3")
 	}
-	if mode&vtAttrUnderline != 0 {
+	if attr&vt.AttrUnderline != 0 {
 		p = append(p, "4")
 	}
+	if attr&vt.AttrStrike != 0 {
+		p = append(p, "9")
+	}
 	fgp, bgp := sgrColor(fg, true), sgrColor(bg, false)
-	if cursor {
+	if (attr&vt.AttrReverse != 0) != cursor {
 		fgp, bgp = sgrColor(bg, true), sgrColor(fg, false)
 	}
 	p = append(p, fgp, bgp)
@@ -354,24 +335,23 @@ func hexRGB(h string) [3]int {
 	return [3]int{int(v >> 16 & 255), int(v >> 8 & 255), int(v & 255)}
 }
 
-func sgrColor(c vt10x.Color, fg bool) string {
+func sgrColor(c vt.Color, fg bool) string {
 	base := 48
 	if fg {
 		base = 38
 	}
-	switch {
-	case c >= vt10x.DefaultFG: // default fg / bg / cursor
-		// Default colors match the editor and follow the current theme.
-		rgb := hexRGB(cEditorBg)
-		if fg {
-			rgb = hexRGB(cEditorFg)
-		}
-		return fmt.Sprintf("%d;2;%d;%d;%d", base, rgb[0], rgb[1], rgb[2])
-	case c < 256:
-		return fmt.Sprintf("%d;5;%d", base, c)
-	default:
-		return fmt.Sprintf("%d;2;%d;%d;%d", base, c>>16&255, c>>8&255, c&255)
+	if i, ok := c.Index(); ok {
+		return fmt.Sprintf("%d;5;%d", base, i)
 	}
+	if r, g, b, ok := c.Components(); ok {
+		return fmt.Sprintf("%d;2;%d;%d;%d", base, r, g, b)
+	}
+	// Default colors match the editor and follow the current theme.
+	rgb := hexRGB(cEditorBg)
+	if fg {
+		rgb = hexRGB(cEditorFg)
+	}
+	return fmt.Sprintf("%d;2;%d;%d;%d", base, rgb[0], rgb[1], rgb[2])
 }
 
 // fitStyled fits s into w cells and paints the padding with st.
@@ -518,13 +498,6 @@ func termKeyBytes(msg tea.KeyMsg, appCursor bool) []byte {
 	return nil
 }
 
-// mode reads the emulator mode under its lock (pump writes it concurrently).
-func (t *termTab) mode() vt10x.ModeFlag {
-	t.vt.Lock()
-	defer t.vt.Unlock()
-	return t.vt.Mode()
-}
-
 // paste sends text to the active shell without a trailing Enter. Programs that
 // enabled bracketed paste receive it wrapped, so it arrives as one paste.
 func (t *terminal) paste(text string) tea.Cmd {
@@ -533,7 +506,8 @@ func (t *terminal) paste(text string) tea.Cmd {
 		cmd = t.newTab()
 	}
 	if tab := t.cur(); tab != nil {
-		if tab.bracketed.Load() {
+		tab.vt.ScrollToBottom()
+		if tab.vt.Modes().Bracketed {
 			text = "\x1b[200~" + text + "\x1b[201~"
 		}
 		tab.ptmx.Write([]byte(text))
@@ -541,16 +515,83 @@ func (t *terminal) paste(text string) tea.Cmd {
 	return tea.Batch(cmd, t.wait())
 }
 
-// bracketedAfter returns whether bracketed paste is enabled after out, given
-// the state before it. When out holds both enable and disable sequences, the
-// last one wins.
-func bracketedAfter(out []byte, cur bool) bool {
-	on := bytes.LastIndex(out, []byte("\x1b[?2004h"))
-	off := bytes.LastIndex(out, []byte("\x1b[?2004l"))
-	switch {
-	case on < 0 && off < 0:
-		return cur
-	default:
-		return on > off
+// mouse sends a mouse event at cell (x, y) of the terminal body to the
+// program. It reports whether anything was sent, which is false when the
+// program has not asked for mouse input.
+func (t *terminal) mouse(msg tea.MouseMsg, x, y int) bool {
+	tab := t.cur()
+	if tab == nil {
+		return false
 	}
+	ev := vt.MouseEvent{
+		X: min(max(x, 0), tab.cols-1), Y: min(max(y, 0), tab.rows-1),
+		Shift: msg.Shift, Alt: msg.Alt, Ctrl: msg.Ctrl,
+	}
+	switch msg.Button {
+	case tea.MouseButtonNone:
+		ev.Button = vt.ButtonNone
+	case tea.MouseButtonLeft:
+		ev.Button = vt.ButtonLeft
+	case tea.MouseButtonMiddle:
+		ev.Button = vt.ButtonMiddle
+	case tea.MouseButtonRight:
+		ev.Button = vt.ButtonRight
+	case tea.MouseButtonWheelUp:
+		ev.Button = vt.WheelUp
+	case tea.MouseButtonWheelDown:
+		ev.Button = vt.WheelDown
+	case tea.MouseButtonWheelLeft:
+		ev.Button = vt.WheelLeft
+	case tea.MouseButtonWheelRight:
+		ev.Button = vt.WheelRight
+	default:
+		return false
+	}
+	switch msg.Action {
+	case tea.MouseActionPress:
+		ev.Action = vt.MousePress
+	case tea.MouseActionRelease:
+		ev.Action = vt.MouseRelease
+	case tea.MouseActionMotion:
+		ev.Action = vt.MouseMotion
+	}
+	b := tab.vt.EncodeMouse(ev)
+	if len(b) == 0 {
+		return false
+	}
+	tab.ptmx.Write(b)
+	return true
+}
+
+// wheel handles a wheel turn over the panel; lines is negative for up. A
+// program that reads the mouse gets the event. Otherwise the alternate screen
+// (vim, less) gets arrow keys, and a shell's output scrolls through the
+// scrollback.
+func (t *terminal) wheel(msg tea.MouseMsg, x, y, lines int) {
+	tab := t.cur()
+	if tab == nil {
+		return
+	}
+	if t.mouse(msg, x, y) {
+		return
+	}
+	m := tab.vt.Modes()
+	if m.AltScreen {
+		key := tea.KeyDown
+		if lines < 0 {
+			key = tea.KeyUp
+		}
+		for range abs(lines) {
+			tab.ptmx.Write(termKeyBytes(tea.KeyMsg{Type: key}, m.AppCursor))
+		}
+		return
+	}
+	tab.vt.ScrollView(-lines)
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }

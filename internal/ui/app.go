@@ -1265,6 +1265,34 @@ func (a *App) refreshCompletion() tea.Cmd {
 
 // ---- mouse ----
 
+// termMouse passes presses, drags and releases over the terminal body to a
+// program that asked for mouse input (vim, htop, tmux). Once a press went to
+// the program, its drag and release do too, wherever the pointer is. ok is
+// false when the event is not for the program.
+func (a *App) termMouse(l layout, msg tea.MouseMsg) (cmd tea.Cmd, ok bool) {
+	t := a.term
+	if !a.showTerm {
+		return nil, false
+	}
+	x, y := msg.X-l.rightX, msg.Y-l.panelY-2
+	inBody := x >= 0 && x < l.rightW && y >= 0 && msg.Y < l.statusY
+	grabbed := t.grab
+	if !grabbed && !inBody {
+		return nil, false
+	}
+	sent := t.mouse(msg, x, y)
+	switch msg.Action {
+	case tea.MouseActionPress:
+		if sent {
+			t.grab = true
+			return a.setFocus(focusTerminal), true
+		}
+	case tea.MouseActionRelease:
+		t.grab = false
+	}
+	return nil, sent || grabbed
+}
+
 func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 	if a.pal.open {
 		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
@@ -1295,7 +1323,7 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(a.h-2)))
 			e.sel = clamp(e.sel, e.scroll, e.scroll+a.h-3)
 		case a.showTerm && y >= l.panelY && y < l.statusY:
-			// no scrollback yet; do not scroll the editor behind the panel
+			a.term.wheel(msg, x-l.rightX, y-l.panelY-2, wheel)
 		default:
 			if t := a.cur(); t != nil {
 				switch t.kind {
@@ -1311,6 +1339,10 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			}
 		}
 		return nil
+	}
+
+	if cmd, ok := a.termMouse(l, msg); ok {
+		return cmd
 	}
 
 	left := msg.Button == tea.MouseButtonLeft
