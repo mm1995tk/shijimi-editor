@@ -192,7 +192,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ### `:` コマンド
 
-`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:browser <URL|reload|back|next>` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
+`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop|<URL>|reload|back|next` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
 
 ### 全体
 

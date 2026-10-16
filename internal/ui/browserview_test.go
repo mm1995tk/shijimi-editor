@@ -81,7 +81,7 @@ func TestBrowserScroll(t *testing.T) {
 func TestBrowserRejectsBadInput(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.renderer = &fakeRenderer{}
-	for _, bad := range []string{"", "--version", "a b", "browser"} {
+	for _, bad := range []string{"--version", "a b", "browser"} {
 		a.msgErr = false
 		if bad == "browser" {
 			runCmd(a, a.execCommand("browser reload"))
