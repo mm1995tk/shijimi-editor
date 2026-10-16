@@ -66,11 +66,13 @@ func (a *App) currentContext() (string, bool) {
 	b := t.buf
 	path := a.rel(b.Path)
 	if s, e, ok := b.Selection(); ok {
+		selected := b.SelectedText()
 		endRow := e.Row
 		if e.Col == 0 && endRow > s.Row {
 			endRow-- // a selection ending at a line start does not include that line
+			selected = strings.TrimSuffix(selected, "\n")
 		}
-		return formatContext(path, s.Row, endRow, b.SelectedText(), a.lsp.diagnostics(b.Path)), true
+		return formatContext(path, s.Row, endRow, selected, a.lsp.diagnostics(b.Path)), true
 	}
 	return formatContext(path, b.Cur.Row, b.Cur.Row, "", a.lsp.diagnostics(b.Path)), true
 }

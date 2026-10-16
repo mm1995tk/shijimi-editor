@@ -133,12 +133,7 @@ func (t *terminal) pump(tab *termTab) {
 			pending = append(pending, buf[:n]...)
 			var done []byte
 			done, pending = splitIncomplete(pending)
-			if bytes.Contains(done, []byte("\x1b[?2004h")) {
-				tab.bracketed.Store(true)
-			}
-			if bytes.Contains(done, []byte("\x1b[?2004l")) {
-				tab.bracketed.Store(false)
-			}
+			tab.bracketed.Store(bracketedAfter(done, tab.bracketed.Load()))
 			if len(done) > 0 {
 				tab.vt.Write(done)
 				select {
@@ -544,4 +539,18 @@ func (t *terminal) paste(text string) tea.Cmd {
 		tab.ptmx.Write([]byte(text))
 	}
 	return tea.Batch(cmd, t.wait())
+}
+
+// bracketedAfter returns whether bracketed paste is enabled after out, given
+// the state before it. When out holds both enable and disable sequences, the
+// last one wins.
+func bracketedAfter(out []byte, cur bool) bool {
+	on := bytes.LastIndex(out, []byte("\x1b[?2004h"))
+	off := bytes.LastIndex(out, []byte("\x1b[?2004l"))
+	switch {
+	case on < 0 && off < 0:
+		return cur
+	default:
+		return on > off
+	}
 }

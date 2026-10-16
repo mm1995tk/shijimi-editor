@@ -54,3 +54,36 @@ func TestSendContextPreview(t *testing.T) {
 		t.Errorf("empty view")
 	}
 }
+
+func TestSendContextLineSelection(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "a.txt")
+	os.WriteFile(f, []byte("one\ntwo\nthree\n"), 0o644)
+	a := New(dir, f)
+	b := a.curText().buf
+	b.SelectRange(buffer.Pos{Row: 0, Col: 0}, buffer.Pos{Row: 2, Col: 0})
+	a.sendContext()
+	if want := "a.txt:1-2\n```\none\ntwo\n```\n"; a.ctx == nil || a.ctx.text != want {
+		t.Errorf("got %+v want %q", a.ctx, want)
+	}
+}
+
+func TestBracketedAfter(t *testing.T) {
+	h, l := "\x1b[?2004h", "\x1b[?2004l"
+	for _, c := range []struct {
+		out  string
+		cur  bool
+		want bool
+	}{
+		{"plain", true, true},
+		{"plain", false, false},
+		{l + "out" + h, false, true},
+		{h + "out" + l, true, false},
+		{h, false, true},
+		{l, true, false},
+	} {
+		if got := bracketedAfter([]byte(c.out), c.cur); got != c.want {
+			t.Errorf("%q cur=%v: got %v", c.out, c.cur, got)
+		}
+	}
+}
