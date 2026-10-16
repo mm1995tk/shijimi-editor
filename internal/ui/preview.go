@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -38,14 +37,15 @@ type mermaidDoneMsg struct {
 	err error
 }
 
-var mermaidBlockRe = regexp.MustCompile("(?s)(?:^|\n)[ \t]*(```+|~~~+)[ \t]*mermaid[^\n]*\n(.*?)\n[ \t]*(?:```+|~~~+)[ \t]*(?:\n|$)")
-
 // mermaidBlocks returns the source of every mermaid fence in a document.
+// It runs the renderer itself so the blocks found are exactly those the
+// preview asks to draw.
 func mermaidBlocks(text string) []string {
 	var out []string
-	for _, m := range mermaidBlockRe.FindAllStringSubmatch(text, -1) {
-		out = append(out, m[2])
-	}
+	renderMarkdown(text, 80, mdOpts{mermaid: func(code string, _ int) []string {
+		out = append(out, code)
+		return nil
+	}})
 	return out
 }
 
@@ -69,6 +69,7 @@ func (a *App) togglePreview() tea.Cmd {
 		return nil
 	}
 	t.preview = !t.preview
+	t.scanned = false
 	return nil
 }
 
@@ -78,11 +79,14 @@ func (a *App) syncPreview() tea.Cmd {
 	if t == nil || !t.preview {
 		return nil
 	}
+	if t.scanned && t.scanVer == t.buf.Version {
+		return nil
+	}
 	if a.mermaid == nil {
 		a.mermaid = map[string]*mermaidJob{}
 	}
 	var cmds []tea.Cmd
-	for _, code := range mermaidBlocks(t.buf.Text()) {
+	for _, code := range t.mermaidBlocks() {
 		key := a.mermaidKey(code)
 		if _, ok := a.mermaid[key]; ok {
 			continue
@@ -108,7 +112,7 @@ func (a *App) handleMermaidStart(m mermaidStartMsg) tea.Cmd {
 	// drop the job if the user kept typing and the block no longer exists
 	wanted := false
 	if t := a.curText(); t != nil && t.preview {
-		for _, code := range mermaidBlocks(t.buf.Text()) {
+		for _, code := range t.mermaidBlocks() {
 			if a.mermaidKey(code) == m.key {
 				wanted = true
 			}
@@ -222,4 +226,13 @@ func (a *App) previewLines(t *tab, w, h int) []string {
 		}
 	}
 	return out
+}
+
+// mermaidBlocks returns the tab's mermaid fences, rescanning only after the
+// buffer changed.
+func (t *tab) mermaidBlocks() []string {
+	if !t.scanned || t.scanVer != t.buf.Version {
+		t.scanBlocks, t.scanVer, t.scanned = mermaidBlocks(t.buf.Text()), t.buf.Version, true
+	}
+	return t.scanBlocks
 }

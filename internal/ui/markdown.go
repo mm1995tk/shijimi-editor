@@ -287,7 +287,7 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 			fence, lang := m[1], m[2]
 			var code []string
 			for i++; i < len(lines); i++ {
-				if t := strings.TrimSpace(lines[i]); strings.HasPrefix(t, fence[:3]) && strings.Trim(t, string(fence[0])) == "" {
+				if t := strings.TrimSpace(lines[i]); len(t) >= len(fence) && strings.Trim(t, string(fence[0])) == "" {
 					break
 				}
 				code = append(code, lines[i])

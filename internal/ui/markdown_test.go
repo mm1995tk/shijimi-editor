@@ -90,3 +90,29 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 		}
 	}
 }
+
+func TestMermaidBlocksMatchRenderer(t *testing.T) {
+	cases := map[string][]string{
+		"```mermaid\nA-->B\n```\n```mermaid\nC-->D\n```\n": {"A-->B", "C-->D"},
+		"```mermaid\n```\n":              {""},
+		"```mermaid\nA-->B":              {"A-->B"},
+		"> ```mermaid\n> A-->B\n> ```\n": {"A-->B"},
+	}
+	for src, want := range cases {
+		got := mermaidBlocks(src)
+		if strings.Join(got, "|") != strings.Join(want, "|") || len(got) != len(want) {
+			t.Errorf("%q: got %q want %q", src, got, want)
+		}
+	}
+}
+
+func TestLongFenceNotClosedByShorter(t *testing.T) {
+	src := "````md\n```mermaid\ngraph TD\n```\n````\n\nafter text\n"
+	if got := mermaidBlocks(src); len(got) != 0 {
+		t.Fatalf("example inside a longer fence must not be drawn: %q", got)
+	}
+	plain := ansi.Strip(strings.Join(renderMarkdown(src, 40, mdOpts{}), "\n"))
+	if !strings.Contains(plain, "after text") || strings.Contains(plain, "````") {
+		t.Fatalf("unexpected render:\n%s", plain)
+	}
+}

@@ -41,6 +41,11 @@ type tab struct {
 	prevW     int
 	prevVer   int
 	prevGen   int
+
+	// mermaid fences found at scanVer (scanned reports whether that is valid)
+	scanned    bool
+	scanVer    int
+	scanBlocks []string
 }
 
 func newTab(b *buffer.Buffer) *tab {

@@ -1332,6 +1332,9 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			return a.setFocus(focusEditor)
 		}
 		if t.kind == tabText {
+			if t.preview && x >= l.rightX+a.editW(t, l) {
+				return nil // the preview pane is read-only
+			}
 			a.comp = nil
 			a.mouseToCursor(l, x, y, false)
 			a.dragging = true
@@ -1346,6 +1349,7 @@ func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
 	if t == nil {
 		return
 	}
+	x = min(x, l.rightX+a.editW(t, l)-1)
 	b := t.buf
 	if y < l.editY {
 		b.MoveLines(-1, extend)
