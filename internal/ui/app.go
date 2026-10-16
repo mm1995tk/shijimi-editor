@@ -1622,9 +1622,8 @@ func (a *App) renderTabs(w int) string {
 		}
 		pieces[i] = piece{s + stTabBar.Render(" "), ansi.StringWidth(label) + 1}
 	}
-	if a.active < a.tabOffset {
-		a.tabOffset = a.active
-	}
+	// active is -1 once the last tab is closed
+	a.tabOffset = clamp(min(a.tabOffset, a.active), 0, max(0, len(a.tabs)-1))
 	for {
 		total := 0
 		for i := a.tabOffset; i <= a.active && i < len(pieces); i++ {
