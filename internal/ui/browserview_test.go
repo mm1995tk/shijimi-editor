@@ -141,7 +141,7 @@ func TestBrowserReloadKeepsScroll(t *testing.T) {
 	if v.scroll != want {
 		t.Fatalf("scroll %d, want %d", v.scroll, want)
 	}
-	a.browserWheel(v, -1)
+	a.browserWheel(v, 0, 0, -1)
 	if v.scroll >= want {
 		t.Fatal("wheel did not scroll")
 	}

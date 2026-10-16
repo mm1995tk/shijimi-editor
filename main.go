@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mm1995tk/gh-editor/internal/ctl"
+	"github.com/mm1995tk/gh-editor/internal/kitty"
 	"github.com/mm1995tk/gh-editor/internal/ui"
 )
 
@@ -37,7 +38,18 @@ func main() {
 	}
 	app := ui.New(dir, file)
 	closeSock := func() {}
-	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	opts := []tea.ProgramOption{tea.WithAltScreen(), tea.WithMouseCellMotion()}
+	// On a terminal with Kitty graphics, screen updates and image data share one
+	// writer so they are never interleaved.
+	kittyOut := kitty.NewWriter(os.Stdout)
+	graphics := kitty.Supported(os.Getenv)
+	if graphics {
+		opts = append(opts, tea.WithOutput(kittyOut))
+	}
+	p := tea.NewProgram(app, opts...)
+	if graphics {
+		app.EnableKitty(kittyOut, p.Send)
+	}
 	// The socket is best-effort: the editor still works without it.
 	if path, err := ctl.SocketPath(); err == nil {
 		if srv, err := ctl.Listen(path, ui.ControlHandler(p)); err == nil {
