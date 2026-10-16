@@ -54,6 +54,13 @@ type App struct {
 	showSide bool
 	showTerm bool
 
+	// pane sizes picked by the user (0 = automatic), see resize.go
+	sideWPref  int
+	panelHPref int
+	previewPct int
+	resizeMode bool
+	resizing   resizeTarget // border being dragged with the mouse
+
 	// Helix modal state
 	helix          bool
 	mode           editMode
@@ -163,7 +170,7 @@ func (a *App) layout() layout {
 	var l layout
 	l.statusY = a.h - 1
 	if a.showSide {
-		l.sideW = clamp(a.w/5, 18, 36)
+		l.sideW = a.sideWidth()
 		l.rightX = l.sideW + 1
 	}
 	l.rightW = max(0, a.w-l.rightX)
@@ -172,7 +179,7 @@ func (a *App) layout() layout {
 		l.editY = 2
 	}
 	if a.showTerm {
-		l.panelH = clamp((a.h-1)*2/5, 6, max(6, a.h-8))
+		l.panelH = a.panelHeight()
 	}
 	l.editH = max(0, a.h-1-l.editY-l.panelH)
 	l.panelY = l.editY + l.editH
@@ -773,6 +780,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if a.cmdOpen {
 		return a.handleCmdlineKey(msg)
 	}
+	if a.resizeMode {
+		return a.handleResizeKey(key)
+	}
 	if a.hoverText != "" {
 		if d := hoverScrollKey(key); d != 0 {
 			a.scrollHover(d)
@@ -796,6 +806,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return a.quit()
 		case "ctrl+j":
 			return a.toggleTerm()
+		case "alt+r":
+			return a.startResize()
 		case "f1":
 			return a.pal.show(a.root, ">")
 		}
@@ -851,6 +863,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	case "alt+a":
 		return a.sendContext()
+	case "alt+r":
+		return a.startResize()
 	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
 		if i := int(key[4] - '1'); i < len(a.tabs) {
 			a.active = i
@@ -1377,6 +1391,25 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 
+	if a.resizing != resizeNone {
+		switch msg.Action {
+		case tea.MouseActionMotion:
+			a.dragResize(l, x, y)
+			return nil
+		case tea.MouseActionRelease:
+			a.resizing = resizeNone
+			return nil
+		}
+		// A press means the release was lost (pointer left the window).
+		a.resizing = resizeNone
+	}
+	if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+		if r := a.resizeHit(l, x, y); r != resizeNone {
+			a.resizing = r
+			return nil
+		}
+	}
+
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
 	}
@@ -1491,7 +1524,7 @@ func (a *App) editW(t *tab, l layout) int {
 		return a.dvGeom(l).rightW
 	}
 	if t.preview {
-		return (l.rightW - 1) / 2
+		return a.editorWidth(l.rightW)
 	}
 	return l.rightW
 }
