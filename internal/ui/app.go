@@ -484,7 +484,7 @@ func (a *App) switchTab(d int) {
 
 func (a *App) toggleSide() {
 	a.showSide = !a.showSide
-	if !a.showSide && a.focus == focusExplorer {
+	if !a.showSide && (a.focus == focusExplorer || a.focus == focusChanges) {
 		a.focus = focusEditor
 	}
 }
@@ -1033,7 +1033,14 @@ func (a *App) handleExplorerKey(msg tea.KeyMsg) tea.Cmd {
 		a.pending = " "
 	case ":":
 		return a.openCmdline(":")
-	case "esc", "q", "tab":
+	case "tab":
+		if a.gd.on {
+			return a.setFocus(focusChanges)
+		}
+		if len(a.tabs) > 0 {
+			return a.setFocus(focusEditor)
+		}
+	case "esc", "q":
 		if len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
 		}
@@ -1336,7 +1343,7 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		switch {
 		case a.showSide && x < l.sideW:
 			e := a.explorer
-			if a.gd.on && y-1 >= a.explorerH() {
+			if a.gd.on && y >= a.explorerH() {
 				g := &a.gd
 				body := a.h - 2 - a.explorerH()
 				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.files)-body))
@@ -1386,8 +1393,8 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 
 	switch {
 	case a.showSide && x < l.sideW:
-		if a.gd.on && y-1 >= a.explorerH() {
-			if i := y - 2 - a.explorerH() + a.gd.scroll; y-2 >= a.explorerH() && i < len(a.gd.files) {
+		if a.gd.on && y >= a.explorerH() {
+			if i := y - 1 - a.explorerH() + a.gd.scroll; y > a.explorerH() && i < len(a.gd.files) {
 				a.gd.sel = i
 				return a.openChange(a.gd.files[i])
 			}

@@ -195,3 +195,28 @@ func TestPRBaseFallsBackToHead(t *testing.T) {
 		t.Errorf("base=%s msgErr=%v", a.gd.base, a.msgErr)
 	}
 }
+
+func TestChangesListClickAndTab(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	click := func(y int) {
+		a.handleMouse(tea.MouseMsg{X: 2, Y: y, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	}
+	h := a.explorerH()
+	click(h + 2) // second file
+	if a.curText() == nil || filepath.Base(a.curText().buf.Path) != "new.txt" {
+		t.Errorf("second row opened %v", a.curText().buf.Path)
+	}
+	click(h + 1) // first file
+	if filepath.Base(a.curText().buf.Path) != "a.txt" {
+		t.Errorf("first row opened %v", a.curText().buf.Path)
+	}
+	a.setFocus(focusExplorer)
+	a.handleExplorerKey(tea.KeyMsg{Type: tea.KeyTab})
+	if a.focus != focusChanges {
+		t.Errorf("Tab from the tree: focus=%v", a.focus)
+	}
+	a.toggleSide()
+	if a.focus == focusChanges {
+		t.Errorf("focus stays on the hidden list")
+	}
+}
