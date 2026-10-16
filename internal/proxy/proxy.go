@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -23,9 +24,10 @@ type Forward struct {
 	Listen string // actual listening address, e.g. "127.0.0.1:8080"
 	Port   int    // actual listening port
 
-	ln    net.Listener
-	mu    sync.Mutex
-	conns map[net.Conn]struct{}
+	ln     net.Listener
+	mu     sync.Mutex
+	closed bool
+	conns  map[net.Conn]struct{}
 }
 
 // Manager owns the running forwards.
@@ -44,14 +46,30 @@ func (m *Manager) Start(host string, target, listenPort int) (*Forward, error) {
 	if target < 1 || target > 65535 || listenPort < 0 || listenPort > 65535 {
 		return nil, fmt.Errorf("ポート番号は 1〜65535 で指定してください")
 	}
+	if listenPort == target {
+		// The forward would connect to itself.
+		return nil, fmt.Errorf("待ち受けポートと対象ポートは別の番号にしてください: %d", target)
+	}
 	if host == "" {
 		host = DefaultListenHost
 	}
-	ln, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(listenPort)))
-	if err != nil {
-		return nil, err
+	var ln net.Listener
+	var port int
+	for try := 0; ; try++ {
+		l, err := net.Listen("tcp", net.JoinHostPort(host, strconv.Itoa(listenPort)))
+		if err != nil {
+			return nil, err
+		}
+		ln, port = l, l.Addr().(*net.TCPAddr).Port
+		if port != target {
+			break
+		}
+		// The OS picked the target port; pick again.
+		l.Close()
+		if try >= 5 {
+			return nil, fmt.Errorf("空いている待ち受けポートが見つかりません")
+		}
 	}
-	port := ln.Addr().(*net.TCPAddr).Port
 	f := &Forward{Target: target, Listen: ln.Addr().String(), Port: port, ln: ln, conns: map[net.Conn]struct{}{}}
 
 	m.mu.Lock()
@@ -101,6 +119,7 @@ func (m *Manager) List() []*Forward {
 func (f *Forward) close() {
 	f.ln.Close()
 	f.mu.Lock()
+	f.closed = true
 	for c := range f.conns {
 		c.Close()
 	}
@@ -120,27 +139,45 @@ func (f *Forward) serve() {
 func (f *Forward) track(c net.Conn, add bool) bool {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if add {
-		f.conns[c] = struct{}{}
-	} else {
+	if !add {
 		delete(f.conns, c)
+		return true
 	}
+	if f.closed {
+		return false
+	}
+	f.conns[c] = struct{}{}
 	return true
 }
 
+// refuseSelf stops a dial from reaching this forward's own listener, which
+// would relay to itself forever (Start rejects Target == Port, but localhost
+// resolution must not loop back either).
+func (f *Forward) refuseSelf(_, address string, _ syscall.RawConn) error {
+	if _, p, err := net.SplitHostPort(address); err == nil && p == strconv.Itoa(f.Port) {
+		return fmt.Errorf("self connection refused")
+	}
+	return nil
+}
+
 func (f *Forward) relay(src net.Conn) {
-	f.track(src, true)
-	defer f.track(src, false)
 	defer src.Close()
+	if !f.track(src, true) {
+		return
+	}
+	defer f.track(src, false)
 	// "localhost" lets the dialer try both 127.0.0.1 and ::1, so servers that
 	// listen on IPv6 only (or on 0.0.0.0) are reachable.
-	dst, err := net.DialTimeout("tcp", net.JoinHostPort("localhost", strconv.Itoa(f.Target)), dialTimeout)
+	d := net.Dialer{Timeout: dialTimeout, Control: f.refuseSelf}
+	dst, err := d.Dial("tcp", net.JoinHostPort("localhost", strconv.Itoa(f.Target)))
 	if err != nil {
 		return
 	}
-	f.track(dst, true)
-	defer f.track(dst, false)
 	defer dst.Close()
+	if !f.track(dst, true) {
+		return
+	}
+	defer f.track(dst, false)
 
 	done := make(chan struct{}, 2)
 	pipe := func(a, b net.Conn) {

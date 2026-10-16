@@ -76,3 +76,40 @@ func TestStartRejectsBadPorts(t *testing.T) {
 		t.Fatal("listen 70000 should fail")
 	}
 }
+
+func TestStartRejectsSelfLoop(t *testing.T) {
+	m := NewManager()
+	defer m.StopAll()
+	if _, err := m.Start("", 3000, 3000); err == nil {
+		t.Fatal("listen == target should fail")
+	}
+	for i := 0; i < 20; i++ {
+		f, err := m.Start("", 3000, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if f.Port == 3000 {
+			t.Fatal("OS-picked port equals target")
+		}
+	}
+}
+
+func TestRefuseSelf(t *testing.T) {
+	f := &Forward{Port: 4000}
+	if err := f.refuseSelf("tcp", "127.0.0.1:4000", nil); err == nil {
+		t.Fatal("dial to own port should be refused")
+	}
+	if err := f.refuseSelf("tcp", "127.0.0.1:4001", nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestNoRelayAfterClose(t *testing.T) {
+	f := &Forward{conns: map[net.Conn]struct{}{}, closed: true}
+	a, b := net.Pipe()
+	defer a.Close()
+	defer b.Close()
+	if f.track(a, true) {
+		t.Fatal("track must refuse after close")
+	}
+}
