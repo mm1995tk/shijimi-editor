@@ -3,6 +3,7 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -58,4 +59,25 @@ func plain(ls []hoverLine) string {
 		sb.WriteByte('\n')
 	}
 	return sb.String()
+}
+
+func TestHoverWrapNarrowWideRunes(t *testing.T) {
+	done := make(chan struct{})
+	go func() {
+		hoverLines("あい", 1)
+		hoverLines("```go\nあ\n```", 1)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("wrapCells did not terminate")
+	}
+}
+
+func TestHoverRuleDoesNotWidenBox(t *testing.T) {
+	v := newHoverView("```go\nvar x int\n```\n\n---\n\nshort", 80, 10)
+	if v.width != len("var x int") {
+		t.Fatalf("width=%d", v.width)
+	}
 }

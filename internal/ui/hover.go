@@ -32,6 +32,7 @@ type hoverCell struct {
 type hoverLine struct {
 	cells []hoverCell
 	code  bool
+	rule  bool // horizontal rule, drawn at the popup width
 }
 
 var mdLink = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
@@ -62,11 +63,7 @@ func hoverLines(text string, w int) []hoverLine {
 		}
 		switch {
 		case trim == "---" || trim == "***" || trim == "___":
-			cs := make([]hoverCell, w)
-			for i := range cs {
-				cs[i] = hoverCell{r: '─', fg: cHoverRule}
-			}
-			out = append(out, hoverLine{cells: cs})
+			out = append(out, hoverLine{rule: true})
 		default:
 			out = append(out, wrapCells(textCells(l), w, false)...)
 		}
@@ -167,6 +164,9 @@ func wrapCells(lines [][]hoverCell, w int, code bool) []hoverLine {
 			if !code && space > 0 {
 				cut, next = space, space+1
 			}
+			if cut == 0 { // first rune wider than w: still make progress
+				cut, next = 1, 1
+			}
 			out = append(out, hoverLine{cells: cs[:cut], code: code})
 			cs = cs[next:]
 		}
@@ -244,7 +244,14 @@ func (v hoverView) render(scroll int) []string {
 			bg = cHoverCodeBg
 		}
 		pad := bgfg(bg, cHoverFg).Render(" ")
-		out = append(out, bd.Render("│")+pad+renderCells(l.cells, bg, v.width)+pad+bd.Render("│"))
+		cells := l.cells
+		if l.rule {
+			cells = make([]hoverCell, v.width)
+			for i := range cells {
+				cells[i] = hoverCell{r: '─', fg: cHoverRule}
+			}
+		}
+		out = append(out, bd.Render("│")+pad+renderCells(cells, bg, v.width)+pad+bd.Render("│"))
 	}
 	bottom := strings.Repeat("─", iw)
 	if v.maxScroll() > 0 {

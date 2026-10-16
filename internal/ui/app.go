@@ -1334,6 +1334,7 @@ func (a *App) View() string {
 		if y+len(box) > l.editY+l.editH && cy-len(box) >= l.editY {
 			y = cy - len(box)
 		}
+		y = max(l.editY, min(y, l.editY+l.editH-len(box)))
 		rows = overlay(rows, box, x, y)
 	}
 
@@ -1525,9 +1526,17 @@ func (a *App) renderStatus() string {
 	return prefix + st.Render(fit(left, lw)+right)
 }
 
-// hoverView lays out the current hover text for layout l.
+// hoverView lays out the current hover text for layout l. The box height is
+// capped to the larger free side of the cursor so it never overflows.
 func (a *App) hoverView(l layout) hoverView {
-	return newHoverView(a.hoverText, min(80, l.rightW-2), max(5, l.editH*2/3))
+	h := l.editH * 2 / 3
+	if t := a.curText(); t != nil {
+		cy := l.editY + t.buf.Cur.Row - t.buf.ScrollRow
+		below := l.editY + l.editH - (cy + 1)
+		above := cy - l.editY
+		h = min(h, max(below, above))
+	}
+	return newHoverView(a.hoverText, min(80, l.rightW-2), max(h, 3))
 }
 
 // hoverScrollKey maps a key to a hover scroll amount (0 = not a scroll key).
