@@ -62,6 +62,7 @@ func defaultCommands() []command {
 		{"ファイルツリー: 新しいフォルダー", "A", func(a *App) tea.Cmd { return a.newFolder() }},
 		{"ファイルツリー: 名前の変更", "r", func(a *App) tea.Cmd { return a.renameFile() }},
 		{"ファイルツリー: 削除", "d", func(a *App) tea.Cmd { return a.deleteFile() }},
+		{"編集: カーソル位置の URL を外部ブラウザで開く", "Space o / :open-url", func(a *App) tea.Cmd { return a.openURL("") }},
 		{"設定: テーマを切り替え", ":theme <名前>", func(a *App) tea.Cmd { return a.themePicker() }},
 		{"設定: キー操作を Helix / VS Code で切り替え", ":keymap", func(a *App) tea.Cmd { return a.execCommand("keymap") }},
 		{"設定: 設定ファイルを再読み込み", ":config-reload", func(a *App) tea.Cmd { return a.execCommand("config-reload") }},
@@ -272,6 +273,8 @@ func (a *App) execCommand(line string) tea.Cmd {
 		} else {
 			a.info("キー操作: VS Code")
 		}
+	case "open-url", "browse":
+		return a.openURL(arg)
 	case "tree", "explorer":
 		a.showSide = true
 		return a.setFocus(focusExplorer)

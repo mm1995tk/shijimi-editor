@@ -670,6 +670,12 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.info("整形しました")
 	case lspErrMsg:
 		a.fail(msg.err)
+	case openURLMsg:
+		if msg.err != nil {
+			a.fail(msg.err)
+		} else {
+			a.info("開きました: %s", msg.url)
+		}
 	case grepMsg:
 		return a.showGrep(msg)
 	case replaceMsg:
