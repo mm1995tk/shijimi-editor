@@ -39,9 +39,16 @@ type Editor struct {
 	FileIcons  bool   // Nerd Font icons in the file tree (default true)
 }
 
+// Search holds default globs for project-wide search (`:grep`).
+type Search struct {
+	Exclude []string
+	Include []string
+}
+
 // Config is the merged configuration.
 type Config struct {
 	Editor    Editor
+	Search    Search
 	Languages map[string]*Language
 	Servers   map[string]*Server
 	Sources   []string // files that were loaded, for display
@@ -82,6 +89,14 @@ func (c *Config) mergeEditor(data string) {
 	if v, ok := raw["keymap"].(string); ok {
 		c.Editor.Keymap = v
 	}
+	if sr, ok := raw["search"].(map[string]any); ok {
+		if v, ok := sr["exclude"]; ok {
+			c.Search.Exclude = stringList(v)
+		}
+		if v, ok := sr["include"]; ok {
+			c.Search.Include = stringList(v)
+		}
+	}
 	ed, _ := raw["editor"].(map[string]any)
 	if v, ok := ed["line-number"].(string); ok {
 		c.Editor.LineNumber = v
@@ -92,6 +107,17 @@ func (c *Config) mergeEditor(data string) {
 	if v, ok := ed["keymap"].(string); ok {
 		c.Editor.Keymap = v
 	}
+}
+
+func stringList(v any) []string {
+	list, _ := v.([]any)
+	var out []string
+	for _, x := range list {
+		if s, ok := x.(string); ok && s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 func (c *Config) mergeLanguages(data, source string) {

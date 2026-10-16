@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -266,15 +267,94 @@ type grepHit struct {
 	text string
 }
 
-func (a *App) grep(q string) tea.Cmd {
+// parseGrepArgs splits `[-x globs] [-i globs] query` (also --exclude=globs /
+// --include=globs). Globs are comma separated. Flags add to the [search]
+// defaults from config.
+func parseGrepArgs(arg string, def config.Search) (q string, include, exclude []string) {
+	include = append(include, def.Include...)
+	exclude = append(exclude, def.Exclude...)
+	split := func(v string) []string {
+		var out []string
+		for _, g := range strings.Split(v, ",") {
+			if g = strings.Trim(strings.TrimSpace(g), `'"`); g != "" {
+				out = append(out, g)
+			}
+		}
+		return out
+	}
+	rest := strings.TrimSpace(arg)
+	for strings.HasPrefix(rest, "-") {
+		flag, tail, _ := strings.Cut(rest, " ")
+		var val string
+		if f, v, ok := strings.Cut(flag, "="); ok {
+			flag, val = f, v
+			rest = strings.TrimSpace(tail)
+		} else {
+			val, rest, _ = strings.Cut(strings.TrimSpace(tail), " ")
+			rest = strings.TrimSpace(rest)
+		}
+		switch flag {
+		case "-x", "--exclude":
+			exclude = append(exclude, split(val)...)
+		case "-i", "--include":
+			include = append(include, split(val)...)
+		default:
+			return strings.TrimSpace(arg), include, exclude
+		}
+	}
+	return rest, include, exclude
+}
+
+// gitGlobs converts a glob to git pathspec globs that match like rg: a bare
+// pattern such as "*.lock" matches at any depth, and a name that matches a
+// directory also matches everything under it.
+func gitGlobs(g string) []string {
+	g = strings.TrimSuffix(g, "/")
+	if !strings.Contains(g, "/") {
+		g = "**/" + g
+	} else {
+		g = strings.TrimPrefix(g, "/")
+	}
+	if strings.HasSuffix(g, "/**") {
+		return []string{g}
+	}
+	return []string{g, g + "/**"}
+}
+
+func (a *App) grep(arg string) tea.Cmd {
 	root := a.root
+	q, include, exclude := parseGrepArgs(arg, a.cfg.Search)
+	if q == "" {
+		return a.openCmdline(":grep " + strings.TrimSpace(arg) + " ")
+	}
 	return func() tea.Msg {
 		var out []byte
 		var err error
 		if _, e := exec.LookPath("rg"); e == nil {
-			out, err = run(root, nil, "rg", "--line-number", "--no-heading", "--color", "never", "--smart-case", "--max-count", "50", "--", q)
+			args := []string{"--line-number", "--no-heading", "--color", "never", "--smart-case", "--max-count", "50"}
+			for _, g := range include {
+				args = append(args, "-g", g)
+			}
+			for _, g := range exclude {
+				args = append(args, "-g", "!"+g)
+			}
+			out, err = run(root, nil, "rg", append(args, "--", q)...)
 		} else {
-			out, err = run(root, nil, "git", "grep", "-n", "-I", "-i", "--", q)
+			args := []string{"grep", "-n", "-I", "-i", "--", q}
+			for _, g := range include {
+				for _, p := range gitGlobs(g) {
+					args = append(args, ":(glob)"+p)
+				}
+			}
+			for _, g := range exclude {
+				for _, p := range gitGlobs(g) {
+					args = append(args, ":(exclude,glob)"+p)
+				}
+			}
+			if len(include) == 0 && len(exclude) > 0 {
+				args = append(args, ".")
+			}
+			out, err = run(root, nil, "git", args...)
 		}
 		if err != nil && len(out) == 0 {
 			return grepMsg{query: q, err: nil}
@@ -294,6 +374,14 @@ func (a *App) grep(q string) tea.Cmd {
 				break
 			}
 		}
+		// group hits by file, keeping first-seen order
+		order := map[string]int{}
+		for _, h := range hits {
+			if _, ok := order[h.path]; !ok {
+				order[h.path] = len(order)
+			}
+		}
+		sort.SliceStable(hits, func(i, j int) bool { return order[hits[i].path] < order[hits[j].path] })
 		return grepMsg{query: q, hits: hits}
 	}
 }
