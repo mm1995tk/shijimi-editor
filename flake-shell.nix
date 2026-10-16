@@ -10,7 +10,6 @@ in {
       goEnv
       pkgs.gomod2nix
       pkgs.gopls
-      pkgs.gh
       pkgs.git
     ];
 
