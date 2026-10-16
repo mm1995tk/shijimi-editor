@@ -37,7 +37,11 @@ func TestKittyGraphicsOnPTY(t *testing.T) {
 	}
 	cmd := exec.Command(bin, dir)
 	// Chromium is found through PATH, as for a user without a [browser] setting.
-	cmd.Env = append(os.Environ(), "PATH="+filepath.Dir(chromium)+":"+os.Getenv("PATH"),
+	tmp := filepath.Join(dir, "tmp") // private, so only this run's leftovers are counted
+	if err := os.Mkdir(tmp, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd.Env = append(os.Environ(), "TMPDIR="+tmp, "PATH="+filepath.Dir(chromium)+":"+os.Getenv("PATH"),
 		"TERM=xterm-kitty", "KITTY_WINDOW_ID=1")
 	f, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 40, Cols: 120, X: 1200, Y: 800})
 	if err != nil {
@@ -55,8 +59,12 @@ func TestKittyGraphicsOnPTY(t *testing.T) {
 		case <-time.After(5 * time.Second):
 			_ = cmd.Process.Kill()
 			<-done
+			t.Error(":q で 5 秒以内に終了しませんでした")
 		}
 		f.Close()
+		if left, _ := filepath.Glob(filepath.Join(tmp, "gh-editor-cdp-*")); len(left) > 0 {
+			t.Errorf("終了後に一時ディレクトリが残っています: %v", left)
+		}
 	}()
 
 	var mu sync.Mutex

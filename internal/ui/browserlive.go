@@ -129,10 +129,10 @@ func (a *App) liveLoad(v *browserView) tea.Cmd {
 	l := v.live
 	l.err = nil
 	if l.sess != nil {
-		l.sess.Navigate(v.url())
+		l.sess.Navigate(v.target())
 		return nil
 	}
-	l.pending = v.url()
+	l.pending = v.target()
 	if l.starting {
 		return nil
 	}

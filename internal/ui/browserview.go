@@ -54,6 +54,15 @@ func (v *browserView) url() string {
 	return ""
 }
 
+// target is the URL the user asked for (the current history entry), as opposed
+// to url(), which prefers the address the live page has reached.
+func (v *browserView) target() string {
+	if v.idx < len(v.history) {
+		return v.history[v.idx]
+	}
+	return ""
+}
+
 func (v *browserView) name() string {
 	if u, err := url.Parse(v.url()); err == nil && u.Host != "" {
 		return u.Host

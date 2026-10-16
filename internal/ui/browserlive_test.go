@@ -295,3 +295,18 @@ func TestLiveBrowserWithChromium(t *testing.T) {
 		t.Error("the UI was never told about a state change")
 	}
 }
+
+func TestLiveBrowserOpensSecondURL(t *testing.T) {
+	a, f, _ := liveApp(t)
+	runCmd(a, a.execCommand("browser https://a.example"))
+	runCmd(a, a.execCommand("browser b.example"))
+	var navs []string
+	for _, c := range f.calls {
+		if strings.HasPrefix(c, "navigate ") {
+			navs = append(navs, c)
+		}
+	}
+	if got := strings.Join(navs, ","); got != "navigate https://a.example,navigate https://b.example" {
+		t.Errorf("navigations %q", got)
+	}
+}
