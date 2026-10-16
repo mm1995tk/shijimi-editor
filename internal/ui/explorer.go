@@ -227,18 +227,26 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 			continue
 		}
 		n := e.flat[idx]
-		icon := "  "
+		chevron := "  "
+		if n.isDir {
+			chevron = "▸ "
+			if n.expanded {
+				chevron = "▾ "
+			}
+			if e.icons {
+				chevron = " " // codicon chevron-right
+				if n.expanded {
+					chevron = " " // codicon chevron-down
+				}
+			}
+		}
+		icon := ""
 		iconColor := ""
 		if e.icons {
 			ic := iconFor(n)
 			icon, iconColor = ic.glyph+" ", ic.color
-		} else if n.isDir {
-			icon = "▸ "
-			if n.expanded {
-				icon = "▾ "
-			}
 		}
-		// Each nesting level draws a faint guide under its parent's icon.
+		// Each nesting level draws a faint guide under its parent's chevron.
 		indent := " " + strings.Repeat("│ ", n.depth)
 		st := stSide
 		if n.isDir {
@@ -271,9 +279,10 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 		}
 		// Segments are styled separately so each keeps the row background.
 		guideSt := st.UnsetBold().Foreground(lipgloss.Color(curTheme.Dim))
-		head := guideSt.Render(indent) + iconSt.Render(icon)
-		name := ansi.Truncate(n.name, max(0, avail-ansi.StringWidth(indent+icon)), "…")
-		used := ansi.StringWidth(indent+icon) + ansi.StringWidth(name)
+		head := guideSt.Render(indent) + st.Render(chevron) + iconSt.Render(icon)
+		lead := indent + chevron + icon
+		name := ansi.Truncate(n.name, max(0, avail-ansi.StringWidth(lead)), "…")
+		used := ansi.StringWidth(lead) + ansi.StringWidth(name)
 		line := head + textSt.Render(name) + textSt.Render(strings.Repeat(" ", max(0, avail-used)))
 		lines = append(lines, ansi.Truncate(line, avail, "")+tail)
 	}
