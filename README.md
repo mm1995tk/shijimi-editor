@@ -67,6 +67,11 @@ keymap = "helix"          # "vscode" で VS Code 風の操作
 [editor]
 line-number = "relative"  # Helix と同じ
 file-icons = true         # ファイルツリーの Nerd Font アイコン。false で ▸/▾ 表示
+
+# 自動保存（既定で有効。編集が 1 秒止まると保存。名前のないファイルは対象外）
+[editor.auto-save.after-delay]
+enable = true
+timeout = 1000            # ミリ秒
 ```
 
 ## キー操作（Helix モード）

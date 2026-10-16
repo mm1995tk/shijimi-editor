@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestProjectHelixLanguages(t *testing.T) {
@@ -71,5 +72,25 @@ include = ["*.go"]
 	c := Load(root)
 	if len(c.Search.Exclude) != 2 || c.Search.Exclude[1] != "dist/**" || len(c.Search.Include) != 1 {
 		t.Fatalf("search = %+v", c.Search)
+	}
+}
+
+func TestAutoSave(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	c := Load(root)
+	if !c.Editor.AutoSave || c.Editor.AutoSaveDelay != time.Second {
+		t.Fatalf("default = %+v", c.Editor)
+	}
+	os.MkdirAll(filepath.Join(root, ".helix"), 0o755)
+	os.WriteFile(filepath.Join(root, ".helix", "config.toml"), []byte(`
+[editor.auto-save.after-delay]
+enable = false
+timeout = 2500
+`), 0o644)
+	c = Load(root)
+	if c.Editor.AutoSave || c.Editor.AutoSaveDelay != 2500*time.Millisecond {
+		t.Fatalf("override = %+v", c.Editor)
 	}
 }

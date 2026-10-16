@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -37,6 +38,11 @@ type Editor struct {
 	Keymap     string // "helix" (default) or "vscode"
 	LineNumber string // "absolute" or "relative"
 	FileIcons  bool   // Nerd Font icons in the file tree (default true)
+
+	// AutoSave mirrors Helix's [editor.auto-save.after-delay]; unlike Helix
+	// it is enabled by default with a 1 second timeout.
+	AutoSave      bool
+	AutoSaveDelay time.Duration
 }
 
 // Search holds default globs for project-wide search (`:grep`).
@@ -58,7 +64,7 @@ type Config struct {
 // `.helix/` and `.gh-editor/` directories (later ones win).
 func Load(root string) *Config {
 	c := &Config{
-		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true},
+		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second},
 		Languages: map[string]*Language{},
 		Servers:   map[string]*Server{},
 	}
@@ -106,6 +112,16 @@ func (c *Config) mergeEditor(data string) {
 	}
 	if v, ok := ed["keymap"].(string); ok {
 		c.Editor.Keymap = v
+	}
+	if as, ok := ed["auto-save"].(map[string]any); ok {
+		if ad, ok := as["after-delay"].(map[string]any); ok {
+			if v, ok := ad["enable"].(bool); ok {
+				c.Editor.AutoSave = v
+			}
+			if v, ok := ad["timeout"].(int64); ok && v > 0 {
+				c.Editor.AutoSaveDelay = time.Duration(v) * time.Millisecond
+			}
+		}
 	}
 }
 
