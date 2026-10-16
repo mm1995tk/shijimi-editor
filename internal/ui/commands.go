@@ -48,6 +48,7 @@ func defaultCommands() []command {
 		{"編集: 行コメントの切替", "Ctrl+C / Ctrl+/", func(a *App) tea.Cmd { a.toggleComment(); return nil }},
 		{"検索: プロジェクト全体を検索", "Space /", func(a *App) tea.Cmd { return a.openCmdline(":grep ") }},
 		{"検索: プロジェクト全体で置換", "", func(a *App) tea.Cmd { return a.openCmdline(":replace ") }},
+		{"エージェント: 現在の文脈をターミナルへ送る", "Space a / Alt+A", func(a *App) tea.Cmd { return a.sendContext() }},
 		{"LSP: ホバー", "Space k", func(a *App) tea.Cmd { return a.hover() }},
 		{"LSP: 定義へ移動", "gd / F12", func(a *App) tea.Cmd { return a.gotoDefinition() }},
 		{"LSP: 参照を表示", "gr / Shift+F12", func(a *App) tea.Cmd { return a.references() }},

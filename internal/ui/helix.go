@@ -398,6 +398,8 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		a.toggleComment()
 	case "t":
 		return a.toggleTerm()
+	case "a":
+		return a.sendContext()
 	}
 	return nil
 }
