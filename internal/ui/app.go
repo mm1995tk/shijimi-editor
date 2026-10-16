@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -563,11 +565,45 @@ func (a *App) pasteText() string {
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmd := a.update(msg)
 	a.syncLSP()
-	return a, cmd
+	return a, tea.Batch(cmd, a.scheduleAutoSave())
+}
+
+// autoSaveMsg fires when a tab has been idle for the auto-save delay.
+type autoSaveMsg struct {
+	tab *tab
+	ver int
+}
+
+// scheduleAutoSave starts a timer for every named tab edited since the last
+// call. The timer is ignored if the buffer changed again before it fires.
+func (a *App) scheduleAutoSave() tea.Cmd {
+	if !a.cfg.Editor.AutoSave {
+		return nil
+	}
+	var cmds []tea.Cmd
+	for _, t := range a.tabs {
+		if !t.dirty() || t.buf.Path == "" || t.autoVer == t.buf.Version {
+			continue
+		}
+		t.autoVer = t.buf.Version
+		m := autoSaveMsg{tab: t, ver: t.buf.Version}
+		cmds = append(cmds, tea.Tick(a.cfg.Editor.AutoSaveDelay, func(time.Time) tea.Msg { return m }))
+	}
+	return tea.Batch(cmds...)
+}
+
+func (a *App) handleAutoSave(m autoSaveMsg) tea.Cmd {
+	t := m.tab
+	if !t.dirty() || t.buf.Version != m.ver || t.buf.Path == "" || !slices.Contains(a.tabs, t) {
+		return nil
+	}
+	return a.saveTab(t)
 }
 
 func (a *App) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
+	case autoSaveMsg:
+		return a.handleAutoSave(msg)
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
 		a.follow = true
