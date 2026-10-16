@@ -16,6 +16,8 @@
 ## インストール
 
 ```sh
+nix run github:mm1995tk/gh-editor           # その場で起動
+nix profile install github:mm1995tk/gh-editor
 go install github.com/mm1995tk/gh-editor@latest
 ```
 
@@ -164,7 +166,15 @@ line-number = "relative"  # Helix と同じ
 
 ## 開発
 
+Nix の devShell（Go・gopls・gomod2nix・gh・git）を使います。direnv があれば `.envrc` で自動で入ります。
+
 ```sh
+nix develop            # または direnv allow
 go test ./...
 go build .
+nix build              # パッケージをビルド（テストも実行）
+nix fmt                # alejandra / gofmt / taplo で整形
+nix flake check        # 整形のチェック
 ```
+
+`go.mod` を変えたら `gomod2nix` を実行して `gomod2nix.toml` を更新してください。

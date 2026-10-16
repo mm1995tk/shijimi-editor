@@ -1,1 +1,6 @@
 gh-editor
+/gomod2nix-template
+result
+.direnv
+vendor
+tmp
