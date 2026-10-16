@@ -639,6 +639,14 @@ func (a *App) handleReviewKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 		}
 		a.copyText(md)
 		a.info("%d 件のコメントを Markdown でコピーしました", r.pendingCount())
+	case "a":
+		md := r.notesMarkdown()
+		if md == "" {
+			a.fail(errString("コメントがありません（c で追加）"))
+			return nil
+		}
+		a.ctx = &ctxPreview{text: reviewPrompt + md}
+		return nil
 	case "enter", "o":
 		f := r.file()
 		l := r.target()

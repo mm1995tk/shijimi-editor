@@ -518,6 +518,9 @@ func (r *review) deletePendingAtCursor() bool {
 	return false
 }
 
+// reviewPrompt is put before the comments when they are sent to an agent.
+const reviewPrompt = "次のレビューコメントに対応してください。\n\n"
+
 // notesMarkdown renders pending comments as Markdown (to hand to an agent).
 func (r *review) notesMarkdown() string {
 	var sb strings.Builder
@@ -640,7 +643,7 @@ func (r *review) render(w, h int, focused bool) []string {
 }
 
 func (r *review) helpLine(w int) string {
-	help := " j/k:移動  ]/[:ハンク  J/K:ファイル  Tab:一覧↔差分  s:分割/統合  v:確認済み  c:コメント  y:コメントをコピー  r:再読込  q:閉じる"
+	help := " j/k:移動  ]/[:ハンク  J/K:ファイル  Tab:一覧↔差分  s:分割/統合  v:確認済み  c:コメント  y:コメントをコピー  a:エージェントへ送る  r:再読込  q:閉じる"
 	if r.pr != nil {
 		help = " j/k:移動  ]/[:ハンク  J/K:ファイル  c:コメント  d:下書き削除  A:承認  R:変更を要求  S:コメント送信  C:チェックアウト  r:再読込  q:閉じる"
 	}
