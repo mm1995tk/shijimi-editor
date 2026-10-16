@@ -164,3 +164,30 @@ func TestBrowserStaleAndError(t *testing.T) {
 		t.Fatal("error not shown")
 	}
 }
+
+func TestBrowserKeepScrollDoesNotLeak(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	a.w, a.h = 100, 40
+	a.renderer = &fakeRenderer{}
+	runCmd(a, a.execCommand("browser https://a.example"))
+	runCmd(a, a.execCommand("browser https://b.example"))
+	v := a.browserTab()
+	a.handleBrowserKey(a.cur(), "G")
+	// a reload that fails, then back to another page: scroll must reset
+	cmd := a.browserCmd("reload")
+	msg := cmd().(browserLoadedMsg)
+	msg.data, msg.err = nil, errors.New("boom")
+	a.browserLoaded(msg)
+	runCmd(a, a.browserCmd("back"))
+	if v.scroll != 0 {
+		t.Fatalf("scroll %d leaked into back", v.scroll)
+	}
+	// a reload superseded by a new navigation must not affect it either
+	a.handleBrowserKey(a.cur(), "G")
+	stale := a.browserCmd("reload")
+	runCmd(a, a.browserCmd("https://c.example"))
+	_ = stale
+	if v.scroll != 0 {
+		t.Fatalf("scroll %d leaked into new page", v.scroll)
+	}
+}

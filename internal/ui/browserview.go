@@ -108,10 +108,11 @@ func (v *browserView) render(w, h int) []string {
 
 // browserLoadedMsg carries the result of one render.
 type browserLoadedMsg struct {
-	view *browserView
-	seq  int
-	data []byte
-	err  error
+	view       *browserView
+	seq        int
+	data       []byte
+	err        error
+	keepScroll bool
 }
 
 // load renders the current history entry in the background.
@@ -119,13 +120,15 @@ func (a *App) browserLoad(v *browserView) tea.Cmd {
 	v.seq++
 	v.loading, v.err = true, nil
 	seq, target := v.seq, v.url()
+	keep := v.keepScroll // consumed here so a failed or stale load cannot leak it
+	v.keepScroll = false
 	var r render.Renderer = render.Chromium{Path: a.cfg.Browser.Chromium} // read per load so :config-reload applies
 	if a.renderer != nil {
 		r = a.renderer
 	}
 	return func() tea.Msg {
 		data, err := r.Render(context.Background(), target, render.Options{Width: browserPageW, Height: browserPageH})
-		return browserLoadedMsg{view: v, seq: seq, data: data, err: err}
+		return browserLoadedMsg{view: v, seq: seq, data: data, err: err, keepScroll: keep}
 	}
 }
 
@@ -147,10 +150,9 @@ func (a *App) browserLoaded(msg browserLoadedMsg) {
 		return
 	}
 	v.page, v.size, v.shown = img, int64(len(msg.data)), nil
-	if !v.keepScroll {
+	if !msg.keepScroll {
 		v.scroll = 0
 	}
-	v.keepScroll = false
 }
 
 var errNoBrowserTab = errors.New("ブラウザのタブがありません（:browser <URL> で開けます）")
