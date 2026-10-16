@@ -34,6 +34,18 @@ type tab struct {
 	img *imageView
 	rev *review
 	rep *replaceView
+
+	// Markdown preview beside the buffer
+	preview   bool
+	prevCache []string
+	prevW     int
+	prevVer   int
+	prevGen   int
+
+	// mermaid fences found at scanVer (scanned reports whether that is valid)
+	scanned    bool
+	scanVer    int
+	scanBlocks []string
 }
 
 func newTab(b *buffer.Buffer) *tab {

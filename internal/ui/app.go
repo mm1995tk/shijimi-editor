@@ -81,6 +81,7 @@ type App struct {
 	tabSpans  []span
 	tabOffset int
 	commands  []command
+	mermaid   map[string]*mermaidJob
 }
 
 // New creates the app rooted at dir, optionally opening file.
@@ -568,7 +569,7 @@ func (a *App) pasteText() string {
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmd := a.update(msg)
 	a.syncLSP()
-	return a, tea.Batch(cmd, a.scheduleAutoSave())
+	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview())
 }
 
 // autoSaveMsg fires when a tab has been idle for the auto-save delay.
@@ -631,6 +632,10 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case lspEventMsg:
 		a.handleLSPEvent(lsp.Event(msg))
 		return a.lsp.wait()
+	case mermaidStartMsg:
+		return a.handleMermaidStart(msg)
+	case mermaidDoneMsg:
+		a.handleMermaidDone(msg)
 	case hoverMsg:
 		if strings.TrimSpace(msg.text) == "" {
 			a.info("ホバー情報はありません")
@@ -1327,6 +1332,9 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			return a.setFocus(focusEditor)
 		}
 		if t.kind == tabText {
+			if t.preview && x >= l.rightX+a.editW(t, l) {
+				return nil // the preview pane is read-only
+			}
 			a.comp = nil
 			a.mouseToCursor(l, x, y, false)
 			a.dragging = true
@@ -1341,6 +1349,7 @@ func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
 	if t == nil {
 		return
 	}
+	x = min(x, l.rightX+a.editW(t, l)-1)
 	b := t.buf
 	if y < l.editY {
 		b.MoveLines(-1, extend)
@@ -1355,6 +1364,29 @@ func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
 
 // ---- view ----
 
+// editW is the width of the text editor, narrower while the Markdown preview is open.
+func (a *App) editW(t *tab, l layout) int {
+	if t.preview {
+		return (l.rightW - 1) / 2
+	}
+	return l.rightW
+}
+
+func (a *App) renderText(t *tab, l layout, focused bool) []string {
+	ew := a.editW(t, l)
+	edit := renderEditor(t, ew, l.editH, a.editorOpts(t, focused))
+	if !t.preview {
+		return edit
+	}
+	pw := l.rightW - ew - 1
+	prev := a.previewLines(t, pw, l.editH)
+	sep := stSeparator.Render("│")
+	for i := range edit {
+		edit[i] += sep + prev[i]
+	}
+	return edit
+}
+
 func (a *App) View() string {
 	if a.w <= 0 || a.h <= 0 {
 		return ""
@@ -1365,7 +1397,7 @@ func (a *App) View() string {
 	l := a.layout()
 	if t := a.curText(); t != nil {
 		if a.follow {
-			ensureCursorVisible(t.buf, l.rightW, l.editH)
+			ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
 			a.follow = false
 		}
 		t.buf.ScrollRow = clamp(t.buf.ScrollRow, 0, max(0, len(t.buf.Lines)-1))
@@ -1388,7 +1420,7 @@ func (a *App) View() string {
 	case t.kind == tabReplace:
 		right = append(right, t.rep.render(l.rightW, l.editH, editorFocused)...)
 	default:
-		right = append(right, renderEditor(t, l.rightW, l.editH, a.editorOpts(t, editorFocused))...)
+		right = append(right, a.renderText(t, l, editorFocused)...)
 	}
 	if a.showTerm {
 		right = append(right, a.term.render(l.rightW, l.panelH, a.focus == focusTerminal && !a.pal.open)...)
