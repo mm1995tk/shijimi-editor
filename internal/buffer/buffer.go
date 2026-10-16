@@ -60,6 +60,8 @@ type Buffer struct {
 
 	undo, redo []snapshot
 	lastEdit   editKind
+
+	multi // secondary cursors (see multi.go)
 }
 
 // New returns an empty, unnamed buffer.
@@ -161,6 +163,17 @@ func (b *Buffer) snap() snapshot {
 // begin records an undo point. Consecutive edits of the same kind
 // (typing, deleting) are grouped into one undo step.
 func (b *Buffer) begin(kind editKind) {
+	if b.looping {
+		// one undo step for an edit applied to every cursor
+		if b.batchBegun {
+			b.Dirty = true
+			b.Version++
+			return
+		}
+		b.batchBegun = true
+	} else {
+		b.extra = nil // an edit we cannot apply to every cursor
+	}
 	if kind == editOther || kind != b.lastEdit {
 		b.undo = append(b.undo, b.snap())
 		if len(b.undo) > 1000 {
@@ -201,6 +214,7 @@ func (b *Buffer) restore(s snapshot) {
 	b.Lines = s.lines
 	b.Cur = s.cur
 	b.Anchor = nil
+	b.extra = nil
 	b.lastEdit = editOther
 	b.Dirty = true
 	b.Version++
@@ -247,6 +261,7 @@ func (b *Buffer) textRange(s, e Pos) string {
 
 // SelectAll selects the whole buffer.
 func (b *Buffer) SelectAll() {
+	b.extra = nil
 	b.Anchor = &Pos{}
 	last := len(b.Lines) - 1
 	b.Cur = Pos{last, len(b.Lines[last])}
@@ -294,6 +309,8 @@ func (b *Buffer) insertWith(kind editKind, text string) {
 }
 
 func (b *Buffer) insertRaw(text []rune) {
+	start := b.Cur
+	defer func() { b.shiftOthers(func(p Pos) Pos { return shiftInsert(p, start, b.Cur) }) }()
 	parts := splitLines(text)
 	line := b.Lines[b.Cur.Row]
 	before, after := line[:b.Cur.Col], line[b.Cur.Col:]
@@ -523,6 +540,7 @@ func (b *Buffer) deleteSelection() {
 }
 
 func (b *Buffer) deleteRange(s, e Pos) {
+	b.shiftOthers(func(p Pos) Pos { return shiftDelete(p, s, e) })
 	merged := concat(b.Lines[s.Row][:s.Col], b.Lines[e.Row][e.Col:])
 	lines := make([][]rune, 0, len(b.Lines)-(e.Row-s.Row))
 	lines = append(lines, b.Lines[:s.Row]...)
@@ -632,6 +650,9 @@ func (b *Buffer) MoveLines(n int, extend bool) {
 
 // SetCursor places the cursor at a row and screen column.
 func (b *Buffer) SetCursor(row, vis int, extend bool) {
+	if !b.looping {
+		b.extra = nil
+	}
 	b.startSelect(extend)
 	b.lastEdit = editOther
 	b.Cur.Row = clampInt(row, 0, len(b.Lines)-1)
@@ -641,6 +662,7 @@ func (b *Buffer) SetCursor(row, vis int, extend bool) {
 
 // GotoLine moves the cursor to a 1-based line number.
 func (b *Buffer) GotoLine(n int) {
+	b.extra = nil
 	b.Anchor = nil
 	b.Cur = Pos{clampInt(n-1, 0, len(b.Lines)-1), 0}
 	b.syncWant()
@@ -1177,6 +1199,7 @@ func (b *Buffer) Reload() error {
 	b.crlf = nb.crlf
 	b.Dirty = false
 	b.Anchor = nil
+	b.extra = nil
 	b.clamp()
 	return nil
 }

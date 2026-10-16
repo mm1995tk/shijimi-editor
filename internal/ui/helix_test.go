@@ -101,3 +101,45 @@ func TestGroupedRunes(t *testing.T) {
 		t.Fatalf("grouped runes -> %+v %q", b.Cur, b.SelectedText())
 	}
 }
+
+func TestHelixMultiCursor(t *testing.T) {
+	a := newTestApp(t, "one\ntwo\nthree\n")
+	b := a.curText().buf
+	keys(a, "C", "C")
+	if len(b.Extra()) != 2 {
+		t.Fatalf("cursors = %d", len(b.Extra())+1)
+	}
+	keys(a, "i", "X", "Y", "esc")
+	if got := b.Text(); got != "XYone\nXYtwo\nXYthree\n" {
+		t.Fatalf("insert -> %q", got)
+	}
+	keys(a, "h", "h", "d")
+	if got := b.Text(); got != "Yone\nYtwo\nYthree\n" {
+		t.Fatalf("hhd -> %q", got)
+	}
+	keys(a, "c", "-", "esc")
+	if got := b.Text(); got != "-one\n-two\n-three\n" {
+		t.Fatalf("c -> %q", got)
+	}
+	keys(a, ",")
+	if b.HasExtra() {
+		t.Fatal(", should collapse to one cursor")
+	}
+	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C"), Alt: true})
+	if !b.HasExtra() || b.Cur.Row != 1 {
+		t.Fatalf("alt+C -> extra=%v row=%d", b.HasExtra(), b.Cur.Row)
+	}
+}
+
+func TestHelixSelectRegex(t *testing.T) {
+	a := newTestApp(t, "a1 b2\nc3\n")
+	b := a.curText().buf
+	keys(a, "%", "s")
+	for _, r := range `\d` {
+		keys(a, string(r))
+	}
+	keys(a, "enter", "c", "#", "esc")
+	if got := b.Text(); got != "a# b#\nc#\n" {
+		t.Fatalf("got %q", got)
+	}
+}

@@ -98,6 +98,10 @@ func (a *App) handleCmdlineKey(msg tea.KeyMsg) tea.Cmd {
 		if kind == ":" {
 			return a.execCommand(strings.TrimSpace(v))
 		}
+		if kind == "s" {
+			a.selectMatches(v)
+			return nil
+		}
 		if v != "" {
 			a.lastSearch = v
 			a.searchBackward = kind == "?"

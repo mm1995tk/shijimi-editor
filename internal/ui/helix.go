@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -45,6 +46,11 @@ func (a *App) handleHelixKey(msg tea.KeyMsg) tea.Cmd {
 	if a.pending != "" {
 		p := a.pending
 		a.pending = ""
+		if b.HasExtra() && (strings.Contains("ftFTr", p) || p == "g" && strings.Contains("hls", key)) {
+			var cmd tea.Cmd
+			b.ForEachCursor(func() { cmd = a.helixPending(p, key, msg) })
+			return cmd
+		}
 		return a.helixPending(p, key, msg)
 	}
 
@@ -62,6 +68,43 @@ func (a *App) handleHelixKey(msg tea.KeyMsg) tea.Cmd {
 		}
 	}
 
+	switch key {
+	case "C", "alt+C":
+		dir := 1
+		if key == "alt+C" {
+			dir = -1
+		}
+		repeat(func() { b.CopySelection(dir) })
+		return nil
+	case ",":
+		b.ClearExtra()
+		return nil
+	case "s":
+		if _, _, ok := b.Selection(); !ok && !b.HasExtra() {
+			a.info("範囲を選択してから s を押してください")
+			return nil
+		}
+		return a.openCmdline("s")
+	}
+
+	if b.HasExtra() && helixMultiKeys[key] {
+		var cmd tea.Cmd
+		b.ForEachCursor(func() { cmd = a.helixNormalKey(b, key, ext, count, hadCount, repeat) })
+		return cmd
+	}
+	return a.helixNormalKey(b, key, ext, count, hadCount, repeat)
+}
+
+// helixMultiKeys are the normal-mode keys applied to every cursor.
+var helixMultiKeys = func() map[string]bool {
+	m := map[string]bool{}
+	for _, k := range strings.Fields("h l j k left right down up w W b B e E home end x X ; alt+; esc d alt+d c alt+c y p P R i a I A o O ~ ` alt+` f t F T r") {
+		m[k] = true
+	}
+	return m
+}()
+
+func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, hadCount bool, repeat func(func())) tea.Cmd {
 	switch key {
 	// --- movement ---
 	case "h", "left":
@@ -364,19 +407,23 @@ func (a *App) handleInsertKey(msg tea.KeyMsg) tea.Cmd {
 	case "esc":
 		a.mode = modeNormal
 		a.comp = nil
-		b.ClearSelection()
+		b.ForEachCursor(b.ClearSelection)
 		return nil
 	case "ctrl+x", "ctrl+@", "ctrl+ ":
 		return a.completion()
 	case "ctrl+w", "alt+backspace":
-		end := b.Cur
-		b.MoveCursor(buffer.WordLeft, false)
-		b.DeleteRange(b.Cur, end)
+		b.ForEachCursor(func() {
+			end := b.Cur
+			b.MoveCursor(buffer.WordLeft, false)
+			b.DeleteRange(b.Cur, end)
+		})
 		return nil
 	case "ctrl+u":
-		end := b.Cur
-		b.SetCursor(b.Cur.Row, 0, false)
-		b.DeleteRange(b.Cur, end)
+		b.ForEachCursor(func() {
+			end := b.Cur
+			b.SetCursor(b.Cur.Row, 0, false)
+			b.DeleteRange(b.Cur, end)
+		})
 		return nil
 	}
 	return a.handleEditorKey(msg)
@@ -533,4 +580,40 @@ func atoiOr(s string, def int) int {
 		return n
 	}
 	return def
+}
+
+// selectMatches turns the selections into one cursor per match of the
+// regular expression pattern (Helix "s").
+func (a *App) selectMatches(pattern string) {
+	t := a.curText()
+	if t == nil || pattern == "" {
+		return
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		a.fail(err)
+		return
+	}
+	if err := t.buf.SelectMatches(re); err != nil {
+		a.fail(err)
+		return
+	}
+	a.mode = modeNormal
+	a.follow = true
+	a.info("%d 個のカーソル", len(t.buf.Extra())+1)
+}
+
+// cursorCell is where a cursor is drawn: Helix draws it on the last
+// selected character when the selection extends forwards.
+func (a *App) cursorCell(b *buffer.Buffer, anchor *buffer.Pos, cur buffer.Pos) buffer.Pos {
+	if a.mode == modeInsert || anchor == nil || !anchor.Less(cur) {
+		return cur
+	}
+	if cur.Col > 0 {
+		cur.Col--
+	} else if cur.Row > 0 {
+		cur.Row--
+		cur.Col = len(b.Lines[cur.Row])
+	}
+	return cur
 }
