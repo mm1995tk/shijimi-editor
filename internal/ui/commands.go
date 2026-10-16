@@ -30,7 +30,7 @@ func defaultCommands() []command {
 		{"表示: 開いているバッファ一覧", "Space b", func(a *App) tea.Cmd { return a.bufferPicker() }},
 		{"表示: サイドバー（ファイルツリー）の表示切替", "Ctrl+B", func(a *App) tea.Cmd { a.toggleSide(); return nil }},
 		{"表示: ファイルツリーへ移動", "Ctrl+E / Space e", func(a *App) tea.Cmd { a.showSide = true; return a.setFocus(focusExplorer) }},
-		{"表示: Markdown プレビューの切替", "Space m / :preview", func(a *App) tea.Cmd { return a.togglePreview() }},
+		{"表示: Markdown プレビューの切替（並べて表示 → 全幅 → 閉じる）", "Space m / :preview", func(a *App) tea.Cmd { return a.togglePreview() }},
 		{"表示: ターミナルの表示切替", "Ctrl+J", func(a *App) tea.Cmd { return a.toggleTerm() }},
 		{"表示: ペインのリサイズ（サイドバー・ターミナル・プレビュー）", "Alt+R", func(a *App) tea.Cmd { return a.startResize() }},
 		{"表示: ペインの大きさを初期値に戻す", "リサイズ中に =", func(a *App) tea.Cmd { a.resetPanes(); return nil }},

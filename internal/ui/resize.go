@@ -118,7 +118,7 @@ func (a *App) resizeHit(l layout, x, y int) resizeTarget {
 	case a.showTerm && y == l.panelY && x >= l.rightX:
 		return resizeTerm
 	}
-	if t := a.curText(); t != nil && t.preview && y >= l.editY && y < l.editY+l.editH && x == l.rightX+a.editW(t, l) {
+	if t := a.curText(); t != nil && t.preview == previewSplit && y >= l.editY && y < l.editY+l.editH && x == l.rightX+a.editW(t, l) {
 		return resizePreview
 	}
 	return resizeNone

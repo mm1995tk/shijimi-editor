@@ -64,7 +64,7 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 	b.Path = "x.md"
 	cfg := &config.Config{Editor: config.Editor{MermaidCommand: "cp " + shellQuote(src) + " {out}"}}
 	a := &App{cfg: cfg, tabs: []*tab{newTab(b)}}
-	a.tabs[0].preview = true
+	a.tabs[0].preview = previewSplit
 
 	if cmd := a.syncPreview(); cmd == nil {
 		t.Fatal("expected a scheduled render")
@@ -126,7 +126,7 @@ func TestMermaidJobRestoredAfterTabSwitch(t *testing.T) {
 	b1.Insert("other")
 	b1.Path = "b.md"
 	a := &App{cfg: &config.Config{Editor: config.Editor{MermaidCommand: "true {in} {out}"}}, tabs: []*tab{newTab(a1), newTab(b1)}}
-	a.tabs[0].preview = true
+	a.tabs[0].preview = previewSplit
 
 	if a.syncPreview() == nil {
 		t.Fatal("expected a scheduled render")
@@ -146,5 +146,36 @@ func TestMermaidJobRestoredAfterTabSwitch(t *testing.T) {
 	}
 	if _, ok := a.mermaid[key]; !ok {
 		t.Fatal("job missing after return")
+	}
+}
+
+func TestTogglePreviewCyclesToFullWidth(t *testing.T) {
+	b := buffer.New()
+	b.Insert("# 見出し\n")
+	b.Path = "x.md"
+	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}
+	l := layout{rightW: 81, editH: 5}
+	tb := a.tabs[0]
+
+	want := []struct {
+		mode  previewMode
+		editW int
+	}{{previewSplit, 40}, {previewFull, 0}, {previewOff, 81}}
+	for _, w := range want {
+		a.togglePreview()
+		if tb.preview != w.mode || a.editW(tb, l) != w.editW {
+			t.Fatalf("mode %v editW %d, want %v %d", tb.preview, a.editW(tb, l), w.mode, w.editW)
+		}
+	}
+
+	tb.preview = previewFull
+	lines := a.renderText(tb, l, true)
+	if len(lines) != l.editH || !strings.Contains(ansi.Strip(lines[0]), "見出し") {
+		t.Fatalf("full preview: %q", lines)
+	}
+	for _, s := range lines {
+		if ansi.StringWidth(s) != l.rightW {
+			t.Fatalf("width %d, want %d", ansi.StringWidth(s), l.rightW)
+		}
 	}
 }
