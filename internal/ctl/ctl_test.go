@@ -3,6 +3,7 @@ package ctl
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -78,5 +79,22 @@ func TestCallWithoutSocket(t *testing.T) {
 	t.Setenv(EnvSocket, "")
 	if _, err := Call(Request{Cmd: "status"}); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestSkillInstall(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "x", "gh-editor")
+	var out, errOut []string
+	code := Run([]string{"skill", "install", dir},
+		func(s string) { out = append(out, s) }, func(s string) { errOut = append(errOut, s) })
+	if code != 0 {
+		t.Fatalf("code=%d err=%v", code, errOut)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "SKILL.md"))
+	if err != nil || !strings.HasPrefix(string(b), "---\nname: gh-editor\n") {
+		t.Fatalf("bad SKILL.md: %v %q", err, b)
+	}
+	if Run([]string{"skill"}, func(string) {}, func(string) {}) != 2 {
+		t.Fatal("skill without install should be a usage error")
 	}
 }

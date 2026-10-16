@@ -272,3 +272,5 @@ include = []
 - `gh-editor status`: 開いているタブとカーソル位置を JSON で表示する
 
 第 1 引数が `open` / `diff` / `status` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./status` のように書きます。
+
+`gh-editor skill install [書き出し先]` は、このコマンドの使い方を書いたスキル（`SKILL.md`）を書き出します。書き出し先を省略すると `~/.claude/skills/gh-editor/` に書きます。
