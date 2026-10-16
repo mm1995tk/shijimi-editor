@@ -68,6 +68,19 @@ listen-host = "127.0.0.1"  # :browser forward の待ち受けアドレス
 
 `[browser]` は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` にのみ書いてください。`.helix/config.toml` に書くと、Helix が未知のセクションを拒否します（`[search]` と同じ）。
 
+#### Kitty graphics protocol に対応した端末（高解像度表示と動画）
+
+Kitty / Ghostty / WezTerm では、ブラウザタブが次のように変わります。
+
+- Chromium を常駐させ（Chrome DevTools Protocol）、画面を画像として端末へ送ります。文字が読める解像度で表示され、動画や動きのあるページも動いて見えます（最大 15 fps）。音声は再生しません。
+- マウスのクリック・ドラッグ・ホイールをページへ転送します。キーは `i`（または Enter）でページへの入力モードに入り、`Esc` で戻ります。入力モード以外では、これまでと同じ `o` `r` `[` `]` `j` `k` `Ctrl-d` `Ctrl-u` `g` `G` が使えます。
+- 別のタブを前に出している間は、画面の送信を止めて負荷を下げます。
+- sandbox は無効にしません。sandbox 付きで Chromium を起動できない環境では、エラーを表示します。
+
+端末の判定は環境変数で行います（`TERM=xterm-kitty`、`KITTY_WINDOW_ID`、`TERM_PROGRAM=ghostty` / `WezTerm` など）。判定が合わないときは `GH_EDITOR_GRAPHICS=kitty`（強制的に使う）または `GH_EDITOR_GRAPHICS=halfblock`（使わない）で上書きできます。対応していない端末では、これまでと同じ半ブロック文字の静止画表示になります。SSH 越しや Herdr の中では端末を示す環境変数が引き継がれないことがあります。その場合は `GH_EDITOR_GRAPHICS=kitty` を設定してください。
+
+画像は Unicode placeholder（U+10EEEE）の方式で配置するため、画面はセルの文字だけで構成されます。tmux / Herdr のように端末とのあいだに入るものが、Kitty graphics protocol を通す場合に使えます。
+
 ### LSP の設定例（`.helix/languages.toml`）
 
 ```toml
@@ -359,3 +372,5 @@ gh-editor のターミナルパネルで `claude` を起動すると、環境変
 ### ブラウザタブ
 
 `:browser <URL>` で Web ページを画像のタブとして表示します（ヘッドレス Chromium で描画）。URL に `https://` を付けなければ補います（`localhost` `127.0.0.1` `[::1]` は `http://`）。タブ内のキー: `o` URL 入力 / `r` 再読み込み / `[` 戻る / `]` 進む / `j` `k` スクロール / `Ctrl-d` `Ctrl-u` 半ページ / `g` `G` 先頭・末尾。
+
+Kitty graphics protocol に対応した端末では、ページが動画も含めて動く「ライブ表示」になります（上の「ブラウザ」節）。

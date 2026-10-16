@@ -39,6 +39,7 @@ type App struct {
 	gitTop   string
 	cfg      *config.Config
 	renderer render.Renderer // overrides Chromium for the browser tab (tests); nil = from config
+	gfx      *kittyGfx       // non-nil on a terminal with Kitty graphics: the browser view is live
 	lsp      *lspManager
 	w, h     int
 	focus    focus
@@ -151,7 +152,17 @@ func New(dir, file string) *App {
 }
 
 // Close stops language servers; call after the program exits.
-func (a *App) Close() { a.lsp.stopAll() }
+func (a *App) Close() {
+	a.lsp.stopAll()
+	for _, t := range a.tabs {
+		if t.kind == tabBrowser {
+			t.web.closeLiveNow()
+		}
+	}
+	if a.gfx != nil {
+		a.gfx.closing.Wait()
+	}
+}
 
 func styleInput(ti *textinput.Model, bg string) {
 	ti.TextStyle = bgfg(bg, cEditorFg)
@@ -478,6 +489,9 @@ func (a *App) closeTab(force bool) {
 	if t.kind == tabText && t.lang != nil {
 		a.detachLSP(t)
 	}
+	if t.kind == tabBrowser {
+		t.web.closeLive()
+	}
 	a.tabs = append(a.tabs[:a.active], a.tabs[a.active+1:]...)
 	if a.active >= len(a.tabs) {
 		a.active = len(a.tabs) - 1
@@ -605,6 +619,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cmd := a.update(msg)
 	a.syncLSP()
+	a.syncLive()
 	a.notifySelection()
 	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview())
 }
@@ -718,6 +733,10 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.fail(msg.err)
 	case browserLoadedMsg:
 		a.browserLoaded(msg)
+	case liveStartedMsg:
+		a.liveStarted(msg)
+	case liveStateMsg:
+		// nothing to do: the update itself redraws
 	case openURLMsg:
 		if msg.err != nil {
 			a.fail(msg.err)
@@ -1401,7 +1420,7 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 				case tabReview:
 					t.rev.moveCursor(wheel)
 				case tabBrowser:
-					a.browserWheel(t.web, wheel)
+					a.browserWheel(t.web, x, y, wheel)
 				}
 			}
 		}
@@ -1429,6 +1448,12 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
+	}
+
+	if v := a.browserTab(); v != nil && v.live != nil {
+		if cmd, ok := a.liveMouse(v, msg); ok {
+			return cmd
+		}
 	}
 
 	left := msg.Button == tea.MouseButtonLeft

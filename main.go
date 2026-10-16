@@ -11,6 +11,7 @@ import (
 
 	"github.com/mm1995tk/gh-editor/internal/ctl"
 	"github.com/mm1995tk/gh-editor/internal/ide"
+	"github.com/mm1995tk/gh-editor/internal/kitty"
 	"github.com/mm1995tk/gh-editor/internal/ui"
 )
 
@@ -39,7 +40,18 @@ func main() {
 	}
 	app := ui.New(dir, file)
 	closeSock := func() {}
-	p := tea.NewProgram(app, tea.WithAltScreen(), tea.WithMouseCellMotion())
+	opts := []tea.ProgramOption{tea.WithAltScreen(), tea.WithMouseCellMotion()}
+	// On a terminal with Kitty graphics, screen updates and image data share one
+	// writer so they are never interleaved.
+	kittyOut := kitty.NewWriter(os.Stdout)
+	graphics := kitty.Supported(os.Getenv)
+	if graphics {
+		opts = append(opts, tea.WithOutput(kittyOut))
+	}
+	p := tea.NewProgram(app, opts...)
+	if graphics {
+		app.EnableKitty(kittyOut, p.Send)
+	}
 	// The IDE integration is best-effort too: Claude Code started in the terminal
 	// panel finds this server through the environment and the lock file.
 	closeIDE := func() {}
