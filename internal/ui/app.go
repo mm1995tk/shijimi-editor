@@ -1025,6 +1025,31 @@ func (a *App) handleFindKey(msg tea.KeyMsg) tea.Cmd {
 // vscode keymap and by Helix insert mode.
 func (a *App) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 	t := a.curText()
+	if t != nil && t.buf.HasExtra() && multiEditable(msg) {
+		a.comp = nil
+		t.buf.ForEachCursor(func() { a.editorKey(t, msg) })
+		a.follow = true
+		return nil
+	}
+	return a.editorKey(t, msg)
+}
+
+// multiEditable reports whether msg is a movement or editing key that
+// applies to every cursor.
+func multiEditable(msg tea.KeyMsg) bool {
+	if msg.Paste || msg.Type == tea.KeyRunes && !msg.Alt {
+		return true
+	}
+	switch msg.String() {
+	case "left", "right", "up", "down", "shift+left", "shift+right", "shift+up", "shift+down",
+		"home", "end", "shift+home", "shift+end", "ctrl+left", "ctrl+right", "alt+b", "alt+f",
+		"ctrl+shift+left", "ctrl+shift+right", "enter", "tab", "backspace", "ctrl+h", "delete", " ":
+		return true
+	}
+	return false
+}
+
+func (a *App) editorKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 	if t == nil {
 		return nil
 	}
@@ -1041,6 +1066,7 @@ func (a *App) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 	switch msg.String() {
 	case "esc":
 		b.ClearSelection()
+		b.ClearExtra()
 		a.comp = nil
 	case "left":
 		b.MoveCursor(buffer.Left, false)
@@ -1450,15 +1476,20 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 			o.cursorColor = curTheme.ModeSelect
 		}
 		// Helix draws the cursor on the last selected character
-		if a.mode != modeInsert && t.buf.Anchor != nil && t.buf.Anchor.Less(t.buf.Cur) {
-			c := t.buf.Cur
-			if c.Col > 0 {
-				c.Col--
-			} else if c.Row > 0 {
-				c.Row--
-				c.Col = len(t.buf.Lines[c.Row])
-			}
-			o.cursorAt = c
+		o.cursorAt = a.cursorCell(t.buf, t.buf.Anchor, t.buf.Cur)
+	}
+	for _, r := range t.buf.Extra() {
+		var anchor *buffer.Pos
+		if r.HasAnchor {
+			anchor = &r.Anchor
+		}
+		c := r.Cur
+		if a.helix {
+			c = a.cursorCell(t.buf, anchor, r.Cur)
+		}
+		o.extraCursors = append(o.extraCursors, c)
+		if r.HasAnchor && r.Anchor != r.Cur {
+			o.extraSels = append(o.extraSels, [2]buffer.Pos{r.Start(), r.End()})
 		}
 	}
 	return o
@@ -1577,6 +1608,9 @@ func (a *App) renderStatus() string {
 			indent = "タブ"
 		}
 		pos := fmt.Sprintf("%d:%d", b.Cur.Row+1, buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col)+1)
+		if b.HasExtra() {
+			pos = fmt.Sprintf("%d カーソル ", len(b.Extra())+1) + pos
+		}
 		if s := b.SelectedText(); s != "" {
 			pos += fmt.Sprintf(" (%d 文字選択)", len([]rune(s)))
 		}

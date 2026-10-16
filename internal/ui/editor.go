@@ -114,12 +114,14 @@ func ensureCursorVisible(b *buffer.Buffer, w, h int) {
 }
 
 type editorOpts struct {
-	focused     bool
-	query       string
-	cursorColor string
-	cursorAt    buffer.Pos // where to draw the cursor
-	relative    bool
-	diags       []lsp.Diagnostic
+	focused      bool
+	query        string
+	cursorColor  string
+	cursorAt     buffer.Pos   // where to draw the cursor
+	extraCursors []buffer.Pos // cursors of a multi-cursor edit
+	extraSels    [][2]buffer.Pos
+	relative     bool
+	diags        []lsp.Diagnostic
 }
 
 var severityColor map[int]string
@@ -200,11 +202,24 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 			return false
 		}
 		inSel := func(col int) bool {
-			if !hasSel {
-				return false
-			}
 			p := buffer.Pos{Row: row, Col: col}
-			return !p.Less(selS) && p.Less(selE)
+			if hasSel && !p.Less(selS) && p.Less(selE) {
+				return true
+			}
+			for _, s := range o.extraSels {
+				if !p.Less(s[0]) && p.Less(s[1]) {
+					return true
+				}
+			}
+			return false
+		}
+		isExtra := func(col int) bool {
+			for _, c := range o.extraCursors {
+				if c.Row == row && c.Col == col {
+					return true
+				}
+			}
+			return false
 		}
 		// underline the ranges of diagnostics on this line
 		underline := func(col int) string {
@@ -262,7 +277,7 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 			return lineBg
 		}
 		for col := 0; col <= len(line) && drawn < textW; col++ {
-			cursorHere := o.focused && row == o.cursorAt.Row && col == o.cursorAt.Col
+			cursorHere := o.focused && (row == o.cursorAt.Row && col == o.cursorAt.Col || isExtra(col))
 			var r rune = ' '
 			rw := 1
 			if col < len(line) {
