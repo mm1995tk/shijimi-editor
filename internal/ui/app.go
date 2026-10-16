@@ -769,6 +769,9 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if a.cmdOpen {
 		return a.handleCmdlineKey(msg)
 	}
+	if a.resizeMode {
+		return a.handleResizeKey(key)
+	}
 	if a.hoverText != "" {
 		if d := hoverScrollKey(key); d != 0 {
 			a.scrollHover(d)
@@ -783,10 +786,6 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		if cmd, handled := a.handleCompletionKey(msg); handled {
 			return cmd
 		}
-	}
-
-	if a.resizeMode {
-		return a.handleResizeKey(key)
 	}
 
 	if a.focus == focusTerminal {
@@ -1368,10 +1367,13 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		switch msg.Action {
 		case tea.MouseActionMotion:
 			a.dragResize(l, x, y)
+			return nil
 		case tea.MouseActionRelease:
 			a.resizing = resizeNone
+			return nil
 		}
-		return nil
+		// A press means the release was lost (pointer left the window).
+		a.resizing = resizeNone
 	}
 	if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
 		if r := a.resizeHit(l, x, y); r != resizeNone {

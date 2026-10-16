@@ -118,3 +118,24 @@ func TestResizeMouseDrag(t *testing.T) {
 		t.Fatalf("panel drag: %d want %d", got, l.panelH+5)
 	}
 }
+
+func TestResizeWithCompletionOpen(t *testing.T) {
+	a := resizeApp(t)
+	a.showTerm = true
+	a.comp = &completionPopup{}
+	panel := a.layout().panelH
+	a.startResize()
+	a.handleKey(tea.KeyMsg{Type: tea.KeyUp})
+	if a.layout().panelH != panel+resizeStep {
+		t.Fatalf("panel %d->%d", panel, a.layout().panelH)
+	}
+}
+
+func TestResizeLostRelease(t *testing.T) {
+	a := resizeApp(t)
+	a.resizing = resizeSide
+	a.handleMouse(tea.MouseMsg{X: 60, Y: 5, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	if a.resizing != resizeNone {
+		t.Fatal("stale drag state kept")
+	}
+}

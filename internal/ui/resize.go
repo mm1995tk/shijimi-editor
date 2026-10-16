@@ -76,6 +76,8 @@ func (a *App) resetPanes() {
 }
 
 func (a *App) startResize() tea.Cmd {
+	a.comp = nil
+	a.hoverText = ""
 	a.resizeMode = true
 	a.info("リサイズ: ←→ サイドバー / ↑↓ ターミナル / < > プレビュー / = 初期値 / Esc で終了")
 	return nil
