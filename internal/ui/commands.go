@@ -635,13 +635,21 @@ func (a *App) handleReviewKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 			a.fail(errString("未送信のコメントの上で押してください"))
 		}
 	case "y":
-		md := r.notesMarkdown()
+		md := r.notesMarkdown(func(p string) string { return p })
 		if md == "" {
 			a.fail(errString("コメントがありません（c で追加）"))
 			return nil
 		}
 		a.copyText(md)
 		a.info("%d 件のコメントを Markdown でコピーしました", r.pendingCount())
+	case "a":
+		md := r.notesMarkdown(a.reviewToRoot)
+		if md == "" {
+			a.fail(errString("コメントがありません（c で追加）"))
+			return nil
+		}
+		a.ctx = &ctxPreview{text: reviewPrompt + md}
+		return nil
 	case "enter", "o":
 		f := r.file()
 		l := r.target()

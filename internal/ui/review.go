@@ -518,8 +518,11 @@ func (r *review) deletePendingAtCursor() bool {
 	return false
 }
 
+// reviewPrompt is put before the comments when they are sent to an agent.
+const reviewPrompt = "次のレビューコメントに対応してください。\n\n"
+
 // notesMarkdown renders pending comments as Markdown (to hand to an agent).
-func (r *review) notesMarkdown() string {
+func (r *review) notesMarkdown(path func(string) string) string {
 	var sb strings.Builder
 	for _, c := range r.comments {
 		if !c.Pending {
@@ -529,7 +532,7 @@ func (r *review) notesMarkdown() string {
 		if c.Side == "LEFT" {
 			side = " (削除行)"
 		}
-		fmt.Fprintf(&sb, "- %s:%d%s\n", c.Path, c.Line, side)
+		fmt.Fprintf(&sb, "- %s:%d%s\n", path(c.Path), c.Line, side)
 		for _, l := range strings.Split(c.Body, "\n") {
 			fmt.Fprintf(&sb, "  %s\n", l)
 		}
@@ -640,9 +643,9 @@ func (r *review) render(w, h int, focused bool) []string {
 }
 
 func (r *review) helpLine(w int) string {
-	help := " j/k:移動  ]/[:ハンク  J/K:ファイル  Tab:一覧↔差分  s:分割/統合  v:確認済み  c:コメント  y:コメントをコピー  r:再読込  q:閉じる"
+	help := " j/k:移動  ]/[:ハンク  J/K:ファイル  Tab:一覧↔差分  s:分割/統合  v:確認済み  c:コメント  y:コメントをコピー  a:エージェントへ送る  r:再読込  q:閉じる"
 	if r.pr != nil {
-		help = " j/k:移動  ]/[:ハンク  J/K:ファイル  c:コメント  d:下書き削除  A:承認  R:変更を要求  S:コメント送信  C:チェックアウト  r:再読込  q:閉じる"
+		help = " j/k:移動  ]/[:ハンク  J/K:ファイル  c:コメント  d:下書き削除  A:承認  R:変更を要求  S:コメント送信  C:チェックアウト  a:エージェントへ送る  r:再読込  q:閉じる"
 	}
 	if n := r.pendingCount(); n > 0 {
 		help = fmt.Sprintf(" 未送信コメント %d 件 |", n) + help

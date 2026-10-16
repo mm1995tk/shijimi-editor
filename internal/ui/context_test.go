@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/mm1995tk/gh-editor/internal/buffer"
+	"github.com/mm1995tk/gh-editor/internal/diff"
 	"github.com/mm1995tk/gh-editor/internal/lsp"
 )
 
@@ -85,5 +86,33 @@ func TestBracketedAfter(t *testing.T) {
 		if got := bracketedAfter([]byte(c.out), c.cur); got != c.want {
 			t.Errorf("%q cur=%v: got %v", c.out, c.cur, got)
 		}
+	}
+}
+
+func TestSendReviewComments(t *testing.T) {
+	a := New(t.TempDir(), "")
+	a.w, a.h = 100, 30
+	r := newReview(".", 0)
+	r.loading, r.files = false, []*diff.File{{}}
+	tb := &tab{kind: tabReview, rev: r}
+	key := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+
+	if a.handleReviewKey(tb, key); a.ctx != nil {
+		t.Fatalf("preview opened without comments")
+	}
+	r.comments = append(r.comments, &reviewComment{Path: "a.go", Line: 3, Body: "直して", Pending: true})
+	a.handleReviewKey(tb, key)
+	want := reviewPrompt + "- a.go:3\n  直して\n"
+	if a.ctx == nil || a.ctx.text != want {
+		t.Errorf("ctx = %+v, want %q", a.ctx, want)
+	}
+}
+
+func TestSendReviewCommentsRelativeToRoot(t *testing.T) {
+	a := New(t.TempDir(), "")
+	a.gitTop = a.root
+	a.root = filepath.Join(a.gitTop, "sub")
+	if got := a.reviewToRoot("sub/pkg/x.go"); got != "pkg/x.go" {
+		t.Errorf("got %q", got)
 	}
 }
