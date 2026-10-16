@@ -82,13 +82,16 @@ func (c Chromium) Render(ctx context.Context, url string, opts Options) ([]byte,
 	out := filepath.Join(dir, "shot.png")
 
 	cmd := exec.CommandContext(ctx, bin,
-		"--headless", "--disable-gpu", "--no-sandbox", "--hide-scrollbars",
+		"--headless", "--disable-gpu", "--no-sandbox", "--hide-scrollbars", "--disable-crash-reporter",
 		"--user-data-dir="+filepath.Join(dir, "profile"),
 		fmt.Sprintf("--window-size=%d,%d", opts.Width, opts.Height),
 		"--screenshot="+out,
 		url)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
+	// Chromium spawns children that keep stderr open after the parent is
+	// killed; without WaitDelay Run would block until they exit.
+	cmd.WaitDelay = time.Second
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("描画がタイムアウトしました（%s）", opts.Timeout)

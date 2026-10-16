@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fakeChromium writes a script that copies a PNG header to the --screenshot path.
@@ -51,5 +52,18 @@ func TestFailureAndNonPNG(t *testing.T) {
 	bin = fakeChromium(t, `for a in "$@"; do case "$a" in --screenshot=*) echo hi > "${a#--screenshot=}";; esac; done`)
 	if _, err := (Chromium{Path: bin}).Render(context.Background(), "http://x", Options{}); err == nil {
 		t.Fatal("non-PNG output should fail")
+	}
+}
+
+func TestTimeoutWithLingeringChild(t *testing.T) {
+	// the child inherits stderr and outlives the parent, like Chromium's helpers
+	bin := fakeChromium(t, "sleep 20 &\nsleep 20")
+	start := time.Now()
+	_, err := Chromium{Path: bin}.Render(context.Background(), "http://x", Options{Timeout: 300 * time.Millisecond})
+	if err == nil || !strings.Contains(err.Error(), "タイムアウト") {
+		t.Fatalf("err = %v", err)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Fatalf("Render took %s", d)
 	}
 }
