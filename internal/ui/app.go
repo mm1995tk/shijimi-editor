@@ -661,6 +661,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.fail(msg.err)
 	case grepMsg:
 		return a.showGrep(msg)
+	case replaceMsg:
+		return a.showReplace(msg)
 	case reviewLoadedMsg:
 		for _, t := range a.tabs {
 			if t.kind == tabReview && t.rev.id == msg.id {
@@ -819,6 +821,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch t.kind {
 	case tabReview:
 		return a.handleReviewKey(t, msg)
+	case tabReplace:
+		return a.handleReplaceKey(t, msg)
 	case tabImage:
 		switch key {
 		case "q", "esc":
@@ -1234,6 +1238,8 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 					t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
 				case tabReview:
 					t.rev.moveCursor(wheel)
+				case tabReplace:
+					t.rep.move(wheel)
 				}
 			}
 		}
@@ -1350,6 +1356,8 @@ func (a *App) View() string {
 		right = append(right, t.img.render(l.rightW, l.editH)...)
 	case t.kind == tabReview:
 		right = append(right, t.rev.render(l.rightW, l.editH, editorFocused)...)
+	case t.kind == tabReplace:
+		right = append(right, t.rep.render(l.rightW, l.editH, editorFocused)...)
 	default:
 		right = append(right, renderEditor(t, l.rightW, l.editH, a.editorOpts(t, editorFocused))...)
 	}
