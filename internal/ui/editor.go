@@ -29,7 +29,8 @@ type tab struct {
 	hl         *highlighter
 	lang       *config.Language
 	lspVersion int
-	autoVer    int // buffer version an auto-save timer was last scheduled for
+	autoVer    int  // buffer version an auto-save timer was last scheduled for
+	conflict   bool // changed on disk while holding unsaved edits (already reported)
 
 	img *imageView
 	rev *review

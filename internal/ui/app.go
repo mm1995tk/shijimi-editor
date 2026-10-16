@@ -135,7 +135,7 @@ func styleInput(ti *textinput.Model, bg string) {
 	ti.Cursor.TextStyle = bgfg(bg, cEditorFg)
 }
 
-func (a *App) Init() tea.Cmd { return a.lsp.wait() }
+func (a *App) Init() tea.Cmd { return tea.Batch(a.lsp.wait(), watchTick()) }
 
 // ---- layout ----
 
@@ -601,6 +601,9 @@ func (a *App) handleAutoSave(m autoSaveMsg) tea.Cmd {
 	if !t.dirty() || t.buf.Version != m.ver || t.buf.Path == "" || !slices.Contains(a.tabs, t) {
 		return nil
 	}
+	if t.buf.DiskChanged() {
+		return nil // never overwrite another process's change silently
+	}
 	return a.saveTab(t)
 }
 
@@ -608,6 +611,9 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	switch msg := msg.(type) {
 	case autoSaveMsg:
 		return a.handleAutoSave(msg)
+	case watchMsg:
+		a.checkDiskChanges()
+		return watchTick()
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
 		a.follow = true

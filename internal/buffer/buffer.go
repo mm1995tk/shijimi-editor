@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/mattn/go-runewidth"
@@ -56,7 +57,8 @@ type Buffer struct {
 	UseTabs    bool
 	indentUnit string
 	crlf       bool
-	wantVis    int // remembered screen column for vertical movement
+	stamp      diskStamp // file state at the last Open/Save/Reload
+	wantVis    int       // remembered screen column for vertical movement
 
 	undo, redo []snapshot
 	lastEdit   editKind
@@ -69,12 +71,35 @@ func New() *Buffer {
 	return &Buffer{Lines: [][]rune{{}}}
 }
 
+// diskStamp identifies a file's on-disk state well enough to notice that
+// another process rewrote it.
+type diskStamp struct {
+	mod    time.Time
+	size   int64
+	exists bool
+}
+
+func statStamp(path string) diskStamp {
+	st, err := os.Stat(path)
+	if err != nil {
+		return diskStamp{}
+	}
+	return diskStamp{mod: st.ModTime(), size: st.Size(), exists: true}
+}
+
+// DiskChanged reports whether the file was modified on disk since it was last
+// read or written by this buffer.
+func (b *Buffer) DiskChanged() bool {
+	return b.Path != "" && statStamp(b.Path) != b.stamp
+}
+
 // Open reads a file into a new buffer. A missing file yields an empty buffer
 // bound to that path.
 func Open(path string) (*Buffer, error) {
 	b := New()
 	b.Path = path
 	b.UseTabs = prefersTabs(path)
+	b.stamp = statStamp(path)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return b, nil
@@ -151,6 +176,7 @@ func (b *Buffer) Save() error {
 		return err
 	}
 	b.Dirty = false
+	b.stamp = statStamp(b.Path)
 	return nil
 }
 
@@ -1197,6 +1223,7 @@ func (b *Buffer) Reload() error {
 	b.begin(editOther)
 	b.Lines = nb.Lines
 	b.crlf = nb.crlf
+	b.stamp = nb.stamp
 	b.Dirty = false
 	b.Anchor = nil
 	b.extra = nil
