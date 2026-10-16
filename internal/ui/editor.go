@@ -17,6 +17,7 @@ const (
 	tabText tabKind = iota
 	tabImage
 	tabReview
+	tabReplace
 )
 
 // tab is one item in the editor area: a text buffer, an image preview or a
@@ -32,6 +33,7 @@ type tab struct {
 
 	img *imageView
 	rev *review
+	rep *replaceView
 }
 
 func newTab(b *buffer.Buffer) *tab {
@@ -44,6 +46,8 @@ func (t *tab) title() string {
 		return t.img.name()
 	case tabReview:
 		return t.rev.tabTitle()
+	case tabReplace:
+		return t.rep.tabTitle()
 	}
 	return t.buf.Name()
 }

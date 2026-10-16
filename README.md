@@ -135,7 +135,7 @@ timeout = 1000            # ミリ秒
 
 ### `:` コマンド
 
-`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:pr [番号]` `:review` `:lsp-restart` `:config-reload` `:keymap [helix|vscode]`
+`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:lsp-restart` `:config-reload` `:keymap [helix|vscode]`
 
 ### 全体
 
@@ -199,6 +199,8 @@ nix flake check        # 整形のチェック
 ### 全文検索の除外・包含
 
 `:grep -x '*.lock,dist/**' -i '*.go' foo` のように、カンマ区切りの glob で除外 (`-x` / `--exclude=`) と包含 (`-i` / `--include=`) を指定できます。常に効かせたい指定は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` に書きます（`.helix/config.toml` などの Helix 設定には書かないでください。Helix が未知の `[search]` を拒否します）。
+
+`:replace foo => bar` はプロジェクト全体の `foo` を `bar` に置換します（`-x` / `-i` は `:grep` と同じ。検索は文字列そのままで、小文字のみなら大文字小文字を区別しません）。実行前に差分プレビューのタブが開き、`j`/`k` で移動、`x` で行（ファイル行ならファイルごと）を除外/復帰、`Enter` で実行、`q` で閉じます。実行すると対象ファイルをバッファとして開いて置換します（保存するまでディスクは変わらず、`u` / Ctrl+Z で元に戻せます）。
 
 ```toml
 [search]

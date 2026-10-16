@@ -46,6 +46,7 @@ func defaultCommands() []command {
 		{"編集: やり直し", "U / Ctrl+Y", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
 		{"編集: 行コメントの切替", "Ctrl+C / Ctrl+/", func(a *App) tea.Cmd { a.toggleComment(); return nil }},
 		{"検索: プロジェクト全体を検索", "Space /", func(a *App) tea.Cmd { return a.openCmdline(":grep ") }},
+		{"検索: プロジェクト全体で置換", "", func(a *App) tea.Cmd { return a.openCmdline(":replace ") }},
 		{"LSP: ホバー", "Space k", func(a *App) tea.Cmd { return a.hover() }},
 		{"LSP: 定義へ移動", "gd / F12", func(a *App) tea.Cmd { return a.gotoDefinition() }},
 		{"LSP: 参照を表示", "gr / Shift+F12", func(a *App) tea.Cmd { return a.references() }},
@@ -216,6 +217,8 @@ func (a *App) execCommand(line string) tea.Cmd {
 			return a.openCmdline(":grep ")
 		}
 		return a.grep(arg)
+	case "replace", "rep":
+		return a.replace(arg)
 	case "lsp-restart":
 		a.lsp.restart()
 		for _, t := range a.tabs {
@@ -346,62 +349,78 @@ func (a *App) grep(arg string) tea.Cmd {
 		return a.openCmdline(":grep " + strings.TrimSpace(arg) + " ")
 	}
 	return func() tea.Msg {
-		var out []byte
-		var err error
-		if _, e := exec.LookPath("rg"); e == nil {
-			args := []string{"--line-number", "--no-heading", "--color", "never", "--smart-case", "--max-count", "50"}
-			for _, g := range include {
-				args = append(args, "-g", g)
-			}
-			for _, g := range exclude {
-				args = append(args, "-g", "!"+g)
-			}
-			out, err = run(root, nil, "rg", append(args, "--", q)...)
-		} else {
-			args := []string{"grep", "-n", "-I", "-i", "--", q}
-			for _, g := range include {
-				for _, p := range gitGlobs(g) {
-					args = append(args, ":(glob)"+p)
-				}
-			}
-			for _, g := range exclude {
-				for _, p := range gitGlobs(g) {
-					args = append(args, ":(exclude,glob)"+p)
-				}
-			}
-			if len(include) == 0 && len(exclude) > 0 {
-				args = append(args, ".")
-			}
-			out, err = run(root, nil, "git", args...)
+		hits := searchHits(root, q, include, exclude, false)
+		if len(hits) > 2000 {
+			hits = hits[:2000]
 		}
-		if err != nil && len(out) == 0 {
-			return grepMsg{query: q, err: nil}
-		}
-		var hits []grepHit
-		for _, l := range strings.Split(string(out), "\n") {
-			parts := strings.SplitN(l, ":", 3)
-			if len(parts) < 3 {
-				continue
-			}
-			n, err := strconv.Atoi(parts[1])
-			if err != nil {
-				continue
-			}
-			hits = append(hits, grepHit{path: filepath.Join(root, parts[0]), line: n, text: strings.TrimSpace(parts[2])})
-			if len(hits) >= 2000 {
-				break
-			}
-		}
-		// group hits by file, keeping first-seen order
-		order := map[string]int{}
-		for _, h := range hits {
-			if _, ok := order[h.path]; !ok {
-				order[h.path] = len(order)
-			}
-		}
-		sort.SliceStable(hits, func(i, j int) bool { return order[hits[i].path] < order[hits[j].path] })
 		return grepMsg{query: q, hits: hits}
 	}
+}
+
+// searchHits runs rg (or git grep) and returns the hits grouped by file.
+// fixed searches for q literally and lists every hit (used by :replace).
+func searchHits(root, q string, include, exclude []string, fixed bool) []grepHit {
+	var out []byte
+	var err error
+	if _, e := exec.LookPath("rg"); e == nil {
+		args := []string{"--line-number", "--no-heading", "--color", "never", "--smart-case"}
+		if fixed {
+			args = append(args, "--fixed-strings")
+		} else {
+			args = append(args, "--max-count", "50")
+		}
+		for _, g := range include {
+			args = append(args, "-g", g)
+		}
+		for _, g := range exclude {
+			args = append(args, "-g", "!"+g)
+		}
+		out, err = run(root, nil, "rg", append(args, "--", q)...)
+	} else {
+		args := []string{"grep", "-n", "-I", "-i"}
+		if fixed {
+			args = append(args, "-F")
+		}
+		args = append(args, "--", q)
+		for _, g := range include {
+			for _, p := range gitGlobs(g) {
+				args = append(args, ":(glob)"+p)
+			}
+		}
+		for _, g := range exclude {
+			for _, p := range gitGlobs(g) {
+				args = append(args, ":(exclude,glob)"+p)
+			}
+		}
+		if len(include) == 0 && len(exclude) > 0 {
+			args = append(args, ".")
+		}
+		out, err = run(root, nil, "git", args...)
+	}
+	if err != nil && len(out) == 0 {
+		return nil
+	}
+	var hits []grepHit
+	for _, l := range strings.Split(string(out), "\n") {
+		parts := strings.SplitN(l, ":", 3)
+		if len(parts) < 3 {
+			continue
+		}
+		n, err := strconv.Atoi(parts[1])
+		if err != nil {
+			continue
+		}
+		hits = append(hits, grepHit{path: filepath.Join(root, parts[0]), line: n, text: strings.TrimSpace(parts[2])})
+	}
+	// group hits by file, keeping first-seen order
+	order := map[string]int{}
+	for _, h := range hits {
+		if _, ok := order[h.path]; !ok {
+			order[h.path] = len(order)
+		}
+	}
+	sort.SliceStable(hits, func(i, j int) bool { return order[hits[i].path] < order[hits[j].path] })
+	return hits
 }
 
 func (a *App) showGrep(m grepMsg) tea.Cmd {
