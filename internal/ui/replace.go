@@ -176,12 +176,19 @@ func (a *App) replace(arg string) tea.Cmd {
 				paths = append(paths, h.path)
 			}
 		}
-		// unsaved buffers may contain matches that are not on disk yet
+		// unsaved buffers may contain matches that are not on disk yet, but
+		// they must still respect -i / -x
+		inc, exc := globMatcher(include), globMatcher(exclude)
 		for p := range open {
-			if !seen[p] && inRoot(root, p) {
-				paths = append(paths, p)
-				seen[p] = true
+			if seen[p] || !inRoot(root, p) {
+				continue
 			}
+			rel := filepath.ToSlash(relTo(root, p))
+			if (len(include) > 0 && !inc(rel)) || exc(rel) {
+				continue
+			}
+			paths = append(paths, p)
+			seen[p] = true
 		}
 		var files []*replaceFile
 		for _, p := range paths {
@@ -235,43 +242,104 @@ func (a *App) showReplace(m replaceMsg) tea.Cmd {
 // buffer and edited in memory as one undo step; nothing is written to disk
 // until the user saves, so Ctrl+Z / u reverts the whole replacement.
 func (a *App) applyReplace(v *replaceView) tea.Cmd {
-	lines, nfiles := v.active()
+	lines, _ := v.active()
 	if lines == 0 {
 		a.fail(fmt.Errorf("置換する行がありません"))
 		return nil
 	}
 	a.closeTab(true)
 	var failed []string
+	done, stale, changed := 0, 0, 0
 	for _, f := range v.files {
 		if f.skip {
-			continue
-		}
-		var edits []buffer.Edit
-		for _, it := range f.items {
-			if it.skip {
-				continue
-			}
-			for _, sp := range it.spans {
-				edits = append(edits, buffer.Edit{Start: buffer.Pos{Row: it.row, Col: sp[0]}, End: buffer.Pos{Row: it.row, Col: sp[1]}, Text: v.repl})
-			}
-		}
-		if len(edits) == 0 {
 			continue
 		}
 		if !a.openFile(f.path) {
 			failed = append(failed, a.rel(f.path))
 			continue
 		}
-		if t := a.curText(); t != nil {
+		t := a.curText()
+		if t == nil {
+			continue
+		}
+		edits, n, s := f.edits(t.buf.Lines, v.repl)
+		stale += s
+		if len(edits) > 0 {
 			t.buf.ApplyEdits(edits)
+			done += n
+			changed++
 		}
 	}
 	if len(failed) > 0 {
 		a.fail(fmt.Errorf("開けなかったファイル: %s", strings.Join(failed, ", ")))
 		return nil
 	}
-	a.info("%d 行 (%d ファイル) を置換しました。保存するまでディスクは変わりません（u で元に戻せます）", lines, nfiles)
+	msg := fmt.Sprintf("%d 行 (%d ファイル) を置換しました。保存するまでディスクは変わりません（u で元に戻せます）", done, changed)
+	if stale > 0 {
+		a.msg, a.msgErr = fmt.Sprintf("%s。プレビュー後に内容が変わった %d 行はスキップしました", msg, stale), true
+		return nil
+	}
+	a.info("%s", msg)
 	return nil
+}
+
+// edits builds the edits for the checked lines against the current buffer
+// lines. Lines whose content no longer matches the preview are counted in
+// stale and left untouched.
+func (f *replaceFile) edits(cur [][]rune, repl string) (edits []buffer.Edit, replaced, stale int) {
+	for _, it := range f.items {
+		if it.skip {
+			continue
+		}
+		if it.row >= len(cur) || string(cur[it.row]) != it.old {
+			stale++
+			continue
+		}
+		replaced++
+		for _, sp := range it.spans {
+			edits = append(edits, buffer.Edit{Start: buffer.Pos{Row: it.row, Col: sp[0]}, End: buffer.Pos{Row: it.row, Col: sp[1]}, Text: repl})
+		}
+	}
+	return
+}
+
+// globMatcher matches slash-separated relative paths against globs with the
+// same rules as gitGlobs (bare names match at any depth, directories match
+// their contents, ** crosses directories).
+func globMatcher(globs []string) func(rel string) bool {
+	var res []*regexp.Regexp
+	for _, g := range globs {
+		for _, p := range gitGlobs(g) {
+			var sb strings.Builder
+			sb.WriteString("^")
+			for i := 0; i < len(p); i++ {
+				switch {
+				case strings.HasPrefix(p[i:], "**/"):
+					sb.WriteString("(?:.*/)?")
+					i += 2
+				case strings.HasPrefix(p[i:], "**"):
+					sb.WriteString(".*")
+					i++
+				case p[i] == '*':
+					sb.WriteString("[^/]*")
+				case p[i] == '?':
+					sb.WriteString("[^/]")
+				default:
+					sb.WriteString(regexp.QuoteMeta(string(p[i])))
+				}
+			}
+			sb.WriteString("$")
+			res = append(res, regexp.MustCompile(sb.String()))
+		}
+	}
+	return func(rel string) bool {
+		for _, re := range res {
+			if re.MatchString(rel) {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 func (a *App) handleReplaceKey(t *tab, msg tea.KeyMsg) tea.Cmd {

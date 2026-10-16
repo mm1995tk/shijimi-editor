@@ -51,3 +51,38 @@ func TestPlanLineAndApply(t *testing.T) {
 		t.Fatalf("after undo = %q", got)
 	}
 }
+
+func TestGlobMatcher(t *testing.T) {
+	m := globMatcher([]string{"*.go", "dist/**", "vendor"})
+	for p, want := range map[string]bool{
+		"a.go": true, "x/y/a.go": true, "README.md": false,
+		"dist/a/b.txt": true, "vendor/x/y.txt": true, "src/vendor/z": true, "src/a.txt": false,
+	} {
+		if got := m(p); got != want {
+			t.Errorf("match(%q) = %v, want %v", p, got, want)
+		}
+	}
+	if globMatcher(nil)("a.go") {
+		t.Error("empty matcher must not match")
+	}
+}
+
+func TestReplaceFileEditsSkipsStale(t *testing.T) {
+	re := literalRegexp("foo")
+	a, _ := planLine(re, "foo one", "X")
+	a.row = 0
+	b, _ := planLine(re, "foo two", "X")
+	b.row = 1
+	f := &replaceFile{items: []*replaceItem{a, b}}
+	// a line was inserted at the top after the preview
+	cur := [][]rune{[]rune("new"), []rune("foo one"), []rune("foo two")}
+	edits, n, stale := f.edits(cur, "X")
+	if len(edits) != 0 || n != 0 || stale != 2 {
+		t.Fatalf("edits=%v n=%d stale=%d", edits, n, stale)
+	}
+	cur = [][]rune{[]rune("foo one"), []rune("foo two")}
+	edits, n, stale = f.edits(cur, "X")
+	if len(edits) != 2 || n != 2 || stale != 0 {
+		t.Fatalf("edits=%v n=%d stale=%d", edits, n, stale)
+	}
+}
