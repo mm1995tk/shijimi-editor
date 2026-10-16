@@ -64,8 +64,9 @@ type App struct {
 	findInput  textinput.Model
 	findOrigin buffer.Pos
 
-	comp      *completionPopup
-	hoverText string
+	comp        *completionPopup
+	hoverText   string
+	hoverScroll int
 
 	clipboard    string
 	msg          string
@@ -580,6 +581,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 			a.info("ホバー情報はありません")
 		} else {
 			a.hoverText = msg.text
+			a.hoverScroll = 0
 		}
 	case locationsMsg:
 		return a.showLocations(msg)
@@ -666,6 +668,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return a.handleCmdlineKey(msg)
 	}
 	if a.hoverText != "" {
+		if d := hoverScrollKey(key); d != 0 {
+			a.scrollHover(d)
+			return nil
+		}
 		a.hoverText = ""
 		if key == "esc" {
 			return nil
@@ -1137,7 +1143,6 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		}
 		return nil
 	}
-	a.hoverText = ""
 	l := a.layout()
 	x, y := msg.X, msg.Y
 	wheel := 0
@@ -1147,6 +1152,13 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 	case tea.MouseButtonWheelDown:
 		wheel = 3
 	}
+	if wheel != 0 && a.hoverText != "" {
+		if msg.Action == tea.MouseActionPress {
+			a.scrollHover(wheel)
+		}
+		return nil
+	}
+	a.hoverText = ""
 	if wheel != 0 && msg.Action == tea.MouseActionPress {
 		switch {
 		case a.showSide && x < l.sideW:
@@ -1312,7 +1324,7 @@ func (a *App) View() string {
 		if a.comp != nil {
 			box = a.comp.render(max(3, l.editH/2))
 		} else {
-			box = hoverBox(a.hoverText, min(80, l.rightW-2), max(3, l.editH/2))
+			box = a.hoverView(l).render(a.hoverScroll)
 		}
 		bw := 0
 		for _, s := range box {
@@ -1323,6 +1335,7 @@ func (a *App) View() string {
 		if y+len(box) > l.editY+l.editH && cy-len(box) >= l.editY {
 			y = cy - len(box)
 		}
+		y = max(l.editY, min(y, l.editY+l.editH-len(box)))
 		rows = overlay(rows, box, x, y)
 	}
 
@@ -1512,4 +1525,33 @@ func (a *App) renderStatus() string {
 	}
 	lw := a.w - prefixW - ansi.StringWidth(right)
 	return prefix + st.Render(fit(left, lw)+right)
+}
+
+// hoverView lays out the current hover text for layout l. The box height is
+// capped to the larger free side of the cursor so it never overflows.
+func (a *App) hoverView(l layout) hoverView {
+	h := l.editH * 2 / 3
+	if t := a.curText(); t != nil {
+		cy := l.editY + t.buf.Cur.Row - t.buf.ScrollRow
+		below := l.editY + l.editH - (cy + 1)
+		above := cy - l.editY
+		h = min(h, max(below, above))
+	}
+	return newHoverView(a.hoverText, min(80, l.rightW-2), max(h, 3))
+}
+
+// hoverScrollKey maps a key to a hover scroll amount (0 = not a scroll key).
+func hoverScrollKey(key string) int {
+	switch key {
+	case "ctrl+d", "pgdown":
+		return 5
+	case "ctrl+u", "pgup":
+		return -5
+	}
+	return 0
+}
+
+func (a *App) scrollHover(d int) {
+	v := a.hoverView(a.layout())
+	a.hoverScroll = clamp(a.hoverScroll+d, 0, v.maxScroll())
 }

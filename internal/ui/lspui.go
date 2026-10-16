@@ -604,38 +604,6 @@ func (c *completionPopup) render(maxH int) []string {
 	return out
 }
 
-// hoverBox wraps hover text into a box at most w wide and h tall.
-func hoverBox(text string, w, h int) []string {
-	text = strings.TrimSpace(text)
-	var lines []string
-	inFence := false
-	for _, l := range strings.Split(text, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(l), "```") {
-			inFence = !inFence
-			continue
-		}
-		l = strings.ReplaceAll(l, "\t", "    ")
-		for ansi.StringWidth(l) > w-2 {
-			cut := ansi.Truncate(l, w-2, "")
-			lines = append(lines, cut)
-			l = ansi.TruncateLeft(l, ansi.StringWidth(cut), "")
-		}
-		lines = append(lines, l)
-	}
-	if len(lines) > h {
-		lines = append(lines[:h-1], "…")
-	}
-	bw := 0
-	for _, l := range lines {
-		bw = max(bw, ansi.StringWidth(l)+2)
-	}
-	out := make([]string, len(lines))
-	for i, l := range lines {
-		out[i] = stPalette.Render(fit(" "+l, bw))
-	}
-	return out
-}
-
 func (a *App) lspStatus() string {
 	t := a.cur()
 	if t == nil || t.kind != tabText || t.lang == nil {
