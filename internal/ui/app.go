@@ -17,6 +17,7 @@ import (
 	"github.com/mm1995tk/gh-editor/internal/buffer"
 	"github.com/mm1995tk/gh-editor/internal/config"
 	"github.com/mm1995tk/gh-editor/internal/lsp"
+	"github.com/mm1995tk/gh-editor/internal/proxy"
 )
 
 type focus int
@@ -39,6 +40,7 @@ type App struct {
 	focus    focus
 	explorer *explorer
 	term     *terminal
+	proxy    *proxy.Manager
 	pal      *palette
 	tabs     []*tab
 	active   int
@@ -95,6 +97,7 @@ func New(dir, file string) *App {
 		lsp:      newLSPManager(cfg, abs),
 		explorer: newExplorer(abs),
 		term:     newTerminal(abs),
+		proxy:    proxy.NewManager(),
 		pal:      newPalette(),
 		showSide: true,
 		focus:    focusExplorer,
@@ -507,6 +510,7 @@ func (a *App) quit() tea.Cmd {
 		return nil
 	}
 	a.term.closeAll()
+	a.proxy.StopAll()
 	return tea.Quit
 }
 

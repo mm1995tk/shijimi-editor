@@ -69,6 +69,10 @@ type Search struct {
 // `.helix/`, because Helix rejects unknown sections.
 type Browser struct {
 	Chromium string // executable path; "" = search PATH
+
+	// ListenHost is the address `:browser forward` listens on. Set it to e.g.
+	// "0.0.0.0" only on a trusted network.
+	ListenHost string
 }
 
 // Config is the merged configuration.
@@ -90,6 +94,7 @@ const nixEvalTimeout = 15 * time.Second
 // applied after the TOML file of the same name.
 func Load(root string) *Config {
 	c := &Config{
+		Browser:   Browser{ListenHost: "127.0.0.1"},
 		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
 		Languages: map[string]*Language{},
 		Servers:   map[string]*Server{},
@@ -200,6 +205,9 @@ func (c *Config) mergeBrowserRaw(raw map[string]any) {
 	if br, ok := raw["browser"].(map[string]any); ok {
 		if v, ok := br["chromium"].(string); ok {
 			c.Browser.Chromium = v
+		}
+		if v, ok := br["listen-host"].(string); ok && v != "" {
+			c.Browser.ListenHost = v
 		}
 	}
 }
