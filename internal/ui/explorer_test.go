@@ -43,3 +43,23 @@ func TestExplorerRenderIndentGuides(t *testing.T) {
 		}
 	}
 }
+
+func TestExplorerRenderChevronWithIcons(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "a"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "b"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e := newExplorer(dir)
+	e.icons = true
+	e.toggle(e.flat[0])
+	lines := e.render(40, 3, false, "")
+	if got := ansi.Strip(lines[1]); !strings.HasPrefix(got, "  ") {
+		t.Fatalf("expanded dir: got %q", got)
+	}
+	if got := ansi.Strip(lines[2]); !strings.HasPrefix(got, "  ") {
+		t.Fatalf("collapsed dir: got %q", got)
+	}
+}
