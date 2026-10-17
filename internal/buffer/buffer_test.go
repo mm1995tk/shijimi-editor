@@ -139,3 +139,39 @@ func TestSaveRoundTripCRLF(t *testing.T) {
 		t.Fatalf("saved = %q", data)
 	}
 }
+
+func TestSelectLineDeleteLastLine(t *testing.T) {
+	cases := []struct {
+		name string
+		text string
+		row  int
+		want string
+	}{
+		{"last line with text", "a\nb", 1, "a"},
+		{"trailing empty line", "a\nb\n", 2, "a\nb"},
+		{"middle line", "a\nb\nc", 1, "a\nc"},
+		{"only line", "a", 0, ""},
+	}
+	for _, c := range cases {
+		b := fromText(c.text)
+		b.Cur = Pos{c.row, 0}
+		b.SelectLine()
+		s, e := b.SelectionOrChar()
+		b.DeleteRange(s, e)
+		if got := b.Text(); got != c.want {
+			t.Errorf("%s: text = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+func TestSelectLineExtendToLastLine(t *testing.T) {
+	b := fromText("a\nb\nc")
+	b.Cur = Pos{1, 0}
+	b.SelectLine()
+	b.SelectLine()
+	s, e := b.SelectionOrChar()
+	b.DeleteRange(s, e)
+	if got := b.Text(); got != "a" {
+		t.Fatalf("text = %q, want %q", got, "a")
+	}
+}

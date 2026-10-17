@@ -996,24 +996,30 @@ func (b *Buffer) SelectLine() {
 	s, e, ok := b.Selection()
 	if ok && s.Col == 0 && e.Col == 0 && e.Row > s.Row {
 		if e.Row < len(b.Lines) {
-			b.Anchor = &Pos{s.Row, 0}
-			b.Cur = b.lineEndPos(e.Row)
+			b.selectRows(s.Row, e.Row)
 		}
 	} else {
-		b.Anchor = &Pos{b.Cur.Row, 0}
-		b.Cur = b.lineEndPos(b.Cur.Row)
+		b.selectRows(b.Cur.Row, b.Cur.Row)
 	}
 	b.lastEdit = editOther
 	b.syncWant()
 }
 
-// lineEndPos returns the position just after row's newline (or its end
-// for the last line).
-func (b *Buffer) lineEndPos(row int) Pos {
-	if row+1 < len(b.Lines) {
-		return Pos{row + 1, 0}
+// selectRows selects whole lines first..last including their newline. When
+// last is the final line, the newline before first is taken instead (if
+// there is one) so that deleting the selection removes the lines entirely.
+func (b *Buffer) selectRows(first, last int) {
+	if last+1 < len(b.Lines) {
+		b.Anchor = &Pos{first, 0}
+		b.Cur = Pos{last + 1, 0}
+		return
 	}
-	return Pos{row, len(b.Lines[row])}
+	if first > 0 {
+		b.Anchor = &Pos{first - 1, len(b.Lines[first-1])}
+	} else {
+		b.Anchor = &Pos{first, 0}
+	}
+	b.Cur = Pos{last, len(b.Lines[last])}
 }
 
 // SelectionOrChar returns the selection, or the single character under the
