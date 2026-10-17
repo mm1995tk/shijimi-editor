@@ -19,12 +19,17 @@ type screenPt struct{ x, y int }
 // hoverDwellMsg fires hoverDelay after the pointer entered a cell.
 type hoverDwellMsg struct{ seq int }
 
+// wordSpan is the word under the pointer: columns [start, end) of one row. The
+// zero value is no word.
+type wordSpan struct{ row, start, end int }
+
 // mouseHover says which pointer position a hover reply belongs to.
 type mouseHover struct {
-	tab *tab
-	seq int
-	pos buffer.Pos
-	pt  screenPt
+	tab  *tab
+	seq  int
+	pos  buffer.Pos
+	word wordSpan
+	pt   screenPt
 }
 
 // MouseHover reports whether resting the pointer on a word shows its hover.
@@ -40,34 +45,45 @@ func (a *App) passiveMotion(l layout, msg tea.MouseMsg) tea.Cmd {
 	if !a.cfg.Editor.MouseHover || a.ctx != nil || a.overlayOpen() || a.resizing != resizeNone {
 		return nil
 	}
+	if a.focus != focusEditor {
+		// The keys belong to another pane; a popup must not open over them.
+		if a.hoverAt != nil {
+			a.hoverText, a.hoverAt = "", nil
+		}
+		return nil
+	}
 	pt := screenPt{msg.X, msg.Y}
 	if pt == a.hoverCell {
 		return nil
 	}
 	a.hoverCell = pt
-	a.hoverSeq++
-	pos, ok := a.mouseBufPos(l, pt.x, pt.y)
+	_, word, ok := a.mouseWord(l, pt)
 	if a.hoverText != "" && a.hoverAt != nil {
 		// The popup stays while the pointer is on it (so the wheel can scroll
 		// it) or still on the word it describes.
-		if a.inHoverBox(l, pt) || ok && pos == a.hoverWord {
+		if a.inHoverBox(l, pt) || ok && word == a.hoverWord {
 			return nil
 		}
 		a.hoverText, a.hoverAt = "", nil
+	} else if ok && word == a.hoverWord {
+		return nil // the timer for this word is already running
 	}
+	a.hoverSeq++
+	a.hoverWord = wordSpan{}
 	if !ok {
 		return nil
 	}
+	a.hoverWord = word
 	seq := a.hoverSeq
 	return tea.Tick(hoverDelay, func(time.Time) tea.Msg { return hoverDwellMsg{seq} })
 }
 
 // hoverDwell asks the language server about the word under a resting pointer.
 func (a *App) hoverDwell(msg hoverDwellMsg) tea.Cmd {
-	if msg.seq != a.hoverSeq {
+	if msg.seq != a.hoverSeq || a.focus != focusEditor {
 		return nil
 	}
-	pos, ok := a.mouseBufPos(a.layout(), a.hoverCell.x, a.hoverCell.y)
+	pos, word, ok := a.mouseWord(a.layout(), a.hoverCell)
 	if !ok {
 		return nil
 	}
@@ -81,7 +97,7 @@ func (a *App) hoverDwell(msg hoverDwellMsg) tea.Cmd {
 	}
 	a.syncLSP()
 	path, lp := t.buf.Path, lspPos(t.buf, pos)
-	origin := &mouseHover{tab: t, seq: msg.seq, pos: pos, pt: a.hoverCell}
+	origin := &mouseHover{tab: t, seq: msg.seq, pos: pos, word: word, pt: a.hoverCell}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
 		defer cancel()
@@ -116,6 +132,16 @@ func (a *App) mouseBufPos(l layout, x, y int) (buffer.Pos, bool) {
 		return buffer.Pos{}, false
 	}
 	return buffer.Pos{Row: row, Col: buffer.ColFromVisual(line, vis)}, true
+}
+
+// mouseWord is mouseBufPos plus the word the character belongs to.
+func (a *App) mouseWord(l layout, pt screenPt) (buffer.Pos, wordSpan, bool) {
+	pos, ok := a.mouseBufPos(l, pt.x, pt.y)
+	if !ok {
+		return pos, wordSpan{}, false
+	}
+	s, e := buffer.WordRange(a.curText().buf.Lines[pos.Row], pos.Col)
+	return pos, wordSpan{pos.Row, s, e}, true
 }
 
 // popupAnchor is the cell a popup hangs from: the pointer for a hover it

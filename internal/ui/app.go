@@ -87,10 +87,10 @@ type App struct {
 	comp        *completionPopup
 	hoverText   string
 	hoverScroll int
-	hoverAt     *screenPt  // where a mouse-triggered popup is anchored; nil = at the cursor
-	hoverWord   buffer.Pos // buffer position the mouse-triggered popup describes
-	hoverCell   screenPt   // last cell the pointer rested on without a button
-	hoverSeq    int        // bumped on every input; stale dwell timers and replies are dropped
+	hoverAt     *screenPt // where a mouse-triggered popup is anchored; nil = at the cursor
+	hoverWord   wordSpan  // word the pointer's pending or open hover belongs to
+	hoverCell   screenPt  // last cell the pointer rested on without a button
+	hoverSeq    int       // bumped on every input; stale dwell timers and replies are dropped
 	ctx         *ctxPreview
 
 	// Claude Code IDE integration (see ide.go)
@@ -746,7 +746,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 				return nil
 			}
 			a.hoverText, a.hoverScroll = msg.text, 0
-			a.hoverAt, a.hoverWord = &m.pt, m.pos
+			a.hoverAt, a.hoverWord = &m.pt, m.word
 			return nil
 		}
 		if strings.TrimSpace(msg.text) == "" {
@@ -814,6 +814,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return a.handleMouse(msg)
 	case tea.KeyMsg:
 		a.hoverSeq++ // a pending mouse hover is stale once the user types
+		a.hoverWord = wordSpan{}
 		// Fast typing can deliver several runes in one message; Helix-style
 		// commands need them one at a time.
 		if msg.Type == tea.KeyRunes && len(msg.Runes) > 1 && !msg.Paste {
@@ -870,6 +871,11 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	if a.resizeMode {
 		return a.handleResizeKey(key)
+	}
+	if a.hoverAt != nil {
+		// A popup the pointer opened never takes keys: it closes and the key
+		// goes to whatever has the focus.
+		a.hoverText, a.hoverAt = "", nil
 	}
 	if a.hoverText != "" {
 		if d := hoverScrollKey(key); d != 0 {
@@ -1459,6 +1465,7 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		return a.passiveMotion(l, msg)
 	}
 	a.hoverSeq++
+	a.hoverWord = wordSpan{}
 	a.hoverCell = screenPt{-1, -1}
 	x, y := msg.X, msg.Y
 	wheel := 0

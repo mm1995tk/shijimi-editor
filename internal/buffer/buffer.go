@@ -903,6 +903,25 @@ func leadingSpace(l []rune) []rune {
 	return l[:i]
 }
 
+// WordRange returns the half-open column range of the word around col. A
+// character that is not part of a word is a range of its own.
+func WordRange(line []rune, col int) (start, end int) {
+	if col < 0 || col >= len(line) {
+		return col, col
+	}
+	if !isWord(line[col]) {
+		return col, col + 1
+	}
+	start, end = col, col+1
+	for start > 0 && isWord(line[start-1]) {
+		start--
+	}
+	for end < len(line) && isWord(line[end]) {
+		end++
+	}
+	return start, end
+}
+
 func isWord(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }

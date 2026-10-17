@@ -54,7 +54,7 @@ func TestMouseHoverPopupStaysOnPointerAndCloses(t *testing.T) {
 	move(a, x, y)
 	a.hoverText, a.hoverScroll = "text", 0
 	a.hoverAt = &screenPt{x, y}
-	a.hoverWord.Col = 2
+	a.hoverWord = wordSpan{0, 0, 5}
 	move(a, x, y+1) // onto the popup below the word
 	if a.hoverText == "" {
 		t.Fatal("popup closed while the pointer is on it")
@@ -104,7 +104,7 @@ func TestMouseHoverWheelOutsidePopupScrollsBuffer(t *testing.T) {
 	b := a.curText().buf
 	x, y := l.rightX+gutterWidth(b)+2, l.editY
 	a.hoverText, a.hoverAt = "text", &screenPt{x, y}
-	a.hoverWord.Col = 2
+	a.hoverWord = wordSpan{0, 0, 5}
 	wheelDown(a, x, y) // on the word, outside the popup below it
 	if a.hoverText != "" || a.hoverAt != nil {
 		t.Fatal("popup should close when the wheel turns outside it")
@@ -130,5 +130,65 @@ func TestMouseHoverWheelOnPopupScrollsPopup(t *testing.T) {
 	}
 	if b.ScrollRow != 0 {
 		t.Fatal("buffer must not scroll while the popup takes the wheel")
+	}
+}
+
+func TestMouseHoverStaysAcrossWordAndClosesOutside(t *testing.T) {
+	a := newTestApp(t, "hello world\n")
+	l := a.layout()
+	gw := gutterWidth(a.curText().buf)
+	x, y := l.rightX+gw+1, l.editY
+	a.focus = focusEditor
+	cmd := move(a, x, y)
+	if cmd == nil {
+		t.Fatal("entering a word should start the timer")
+	}
+	seq := a.hoverSeq
+	if cmd := move(a, x+2, y); cmd != nil || a.hoverSeq != seq {
+		t.Fatal("moving inside the same word must not restart the timer")
+	}
+	a.hoverText, a.hoverAt = "text", &screenPt{x + 2, y}
+	move(a, x+3, y) // "hello" is columns 0-4; still inside
+	if a.hoverText == "" {
+		t.Fatal("popup closed while moving within the word")
+	}
+	move(a, l.rightX+gw+7, y) // "world"
+	if a.hoverText != "" {
+		t.Fatal("popup should close on another word")
+	}
+}
+
+func TestMouseHoverNeedsEditorFocus(t *testing.T) {
+	for _, f := range []focus{focusExplorer, focusTerminal} {
+		a := newTestApp(t, "hello world\n")
+		a.focus = f
+		l := a.layout()
+		if cmd := move(a, l.rightX+gutterWidth(a.curText().buf)+1, l.editY); cmd != nil {
+			t.Fatalf("focus %v: timer started", f)
+		}
+		a.hoverCell = screenPt{l.rightX + gutterWidth(a.curText().buf) + 1, l.editY}
+		if cmd := a.hoverDwell(hoverDwellMsg{a.hoverSeq}); cmd != nil {
+			t.Fatalf("focus %v: dwell sent a request", f)
+		}
+	}
+}
+
+func TestMouseHoverPopupDoesNotTakeKeys(t *testing.T) {
+	a := newTestApp(t, "hello world\n")
+	a.focus = focusEditor
+	a.hoverText, a.hoverAt = "text", &screenPt{3, 1}
+	a.hoverScroll = 0
+	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	if a.hoverText != "" || a.hoverAt != nil {
+		t.Fatal("a pointer popup should close on any key")
+	}
+	if a.clipboard == "text" {
+		t.Fatal("y must not copy the pointer popup")
+	}
+	// A popup opened from the keyboard keeps its key handling.
+	a.hoverText, a.hoverAt = "text", nil
+	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	if a.hoverText == "" {
+		t.Fatal("keyboard popup should still handle y (copy), staying open")
 	}
 }
