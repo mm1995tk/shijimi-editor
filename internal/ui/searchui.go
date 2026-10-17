@@ -29,6 +29,8 @@ const (
 
 var searchLabels = [numFields]string{"検索", "置換", "含める", "除外"}
 
+var searchPlaceholders = [numFields]string{"検索", "置換", "含めるファイル（例: *.go）", "除外するファイル（例: vendor/**）"}
+
 type searchTickMsg struct{ seq int64 }
 
 type searchDoneMsg struct {
@@ -559,17 +561,39 @@ func (s *searchPanel) togglesLine() string {
 		t(s.regex, "[.*] 正規表現") + sp + t(s.keepCase, "[AB] 大文字小文字を保持")
 }
 
-// renderSearch draws the window and returns its screen position.
+// fieldBox draws input field i as a three-row box whose top edge carries the
+// label. The focused field gets a bold border in the strong colour.
+func (s *searchPanel) fieldBox(i, w int) [3]string {
+	bd := bgfg(cPaletteBg, cBorder)
+	if i == s.field {
+		bd = bgfg(cPaletteBg, curTheme.Strong).Bold(true)
+	}
+	title := " " + searchLabels[i] + " "
+	// View() is one cell wider than Width when the cursor sits at the end.
+	s.in[i].Width = max(1, w-5)
+	body := s.in[i].View()
+	if s.in[i].Value() == "" {
+		body = s.placeholderView(i)
+	}
+	return [3]string{
+		bd.Render("┌─" + title + strings.Repeat("─", max(0, w-3-ansi.StringWidth(title))) + "┐"),
+		bd.Render("│") + stPalette.Render(" ") + fitStyled(body, w-4, stPalette) + stPalette.Render(" ") + bd.Render("│"),
+		bd.Render("└" + strings.Repeat("─", max(0, w-2)) + "┘"),
+	}
+}
+
+// renderSearch draws the window and returns its screen position. The window
+// fills the screen except for a one-cell margin on every side.
 func (a *App) renderSearch() (x, y int, box []string) {
 	s := a.search
-	pw := min(a.w, max(30, a.w*9/10))
-	pw = min(pw, 170)
-	ph := min(max(a.h*3/4, 14), a.h-2)
+	pw := min(a.w, max(30, a.w-2))
+	ph := min(max(a.h-2, 14), a.h)
 	inner := pw - 2
 	lw := (inner - 1) / 2
 	rw := inner - 1 - lw
-	s.bodyH = max(1, ph-9)
-	x, y = (a.w-pw)/2, 1
+	const fixedRows = 11 // title, 2x3 field rows, toggles, status, divider, bottom
+	s.bodyH = max(1, ph-fixedRows)
+	x, y = (a.w-pw)/2, min(1, max(0, a.h-ph))
 	s.rect = [4]int{x, y, pw, ph}
 
 	bs := func(t string) string { return stPaletteBox.Render(t) }
@@ -578,14 +602,16 @@ func (a *App) renderSearch() (x, y int, box []string) {
 	title := " 全文検索 "
 	box = append(box, bs("┌─"+title+strings.Repeat("─", max(0, pw-3-ansi.StringWidth(title)))+"┐"))
 
-	const labelW = 9
-	for i := range s.in {
-		ls := stFindLabel
-		if i == s.field {
-			ls = bgfg(cListSel, curTheme.Strong).Bold(true)
+	// Two columns: search | replace, then include | exclude.
+	avail := inner - 2
+	bl := (avail - 1) / 2
+	br := avail - 1 - bl
+	sp := stPalette.Render(" ")
+	for _, pair := range [][2]int{{fQuery, fRepl}, {fInclude, fExclude}} {
+		l, r := s.fieldBox(pair[0], bl), s.fieldBox(pair[1], br)
+		for k := range l {
+			box = append(box, line(sp+l[k]+sp+r[k]+sp))
 		}
-		s.in[i].Width = max(1, inner-labelW-1)
-		box = append(box, line(ls.Render(fit(" "+searchLabels[i], labelW))+fitStyled(s.in[i].View(), inner-labelW, stPalette)))
 	}
 	box = append(box, line(fitStyled(s.togglesLine(), inner, stPalette)))
 
@@ -715,4 +741,15 @@ func (s *searchPanel) viewRows(a *App, w, h int) []string {
 		out = append(out, blank)
 	}
 	return out[:h]
+}
+
+// placeholderView draws the hint of an empty field with the cursor on its
+// first character. textinput's own placeholder is not used: it pads with NULs
+// when the text has wide characters.
+func (s *searchPanel) placeholderView(i int) string {
+	rs := []rune(searchPlaceholders[i])
+	c := s.in[i].Cursor
+	c.TextStyle = stPaletteDim
+	c.SetChar(string(rs[0]))
+	return c.View() + stPaletteDim.Render(string(rs[1:]))
 }
