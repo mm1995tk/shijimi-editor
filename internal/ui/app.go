@@ -1464,13 +1464,14 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 	case tea.MouseButtonWheelDown:
 		wheel = 3
 	}
-	if wheel != 0 && a.hoverText != "" {
+	// A popup the pointer opened only owns the wheel while the pointer is on it.
+	if wheel != 0 && a.hoverText != "" && (a.hoverAt == nil || a.inHoverBox(l, screenPt{x, y})) {
 		if msg.Action == tea.MouseActionPress {
 			a.scrollHover(wheel)
 		}
 		return nil
 	}
-	a.hoverText = ""
+	a.hoverText, a.hoverAt = "", nil
 	if wheel != 0 && msg.Action == tea.MouseActionPress {
 		switch {
 		case a.showSide && x < l.sideW:

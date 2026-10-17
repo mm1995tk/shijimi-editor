@@ -89,3 +89,46 @@ func TestMouseHoverDisabled(t *testing.T) {
 		t.Fatal("disabled: no timer")
 	}
 }
+
+func wheelDown(a *App, x, y int) {
+	a.handleMouse(tea.MouseMsg{X: x, Y: y, Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown})
+}
+
+func TestMouseHoverWheelOutsidePopupScrollsBuffer(t *testing.T) {
+	lines := ""
+	for range 60 {
+		lines += "hello world\n"
+	}
+	a := newTestApp(t, lines)
+	l := a.layout()
+	b := a.curText().buf
+	x, y := l.rightX+gutterWidth(b)+2, l.editY
+	a.hoverText, a.hoverAt = "text", &screenPt{x, y}
+	a.hoverPos.Col = 2
+	wheelDown(a, x, y) // on the word, outside the popup below it
+	if a.hoverText != "" || a.hoverAt != nil {
+		t.Fatal("popup should close when the wheel turns outside it")
+	}
+	if b.ScrollRow == 0 {
+		t.Fatal("the wheel outside the popup should scroll the buffer")
+	}
+}
+
+func TestMouseHoverWheelOnPopupScrollsPopup(t *testing.T) {
+	a := newTestApp(t, "hello world\nsecond\n")
+	l := a.layout()
+	b := a.curText().buf
+	x, y := l.rightX+gutterWidth(b)+2, l.editY
+	long := ""
+	for i := range 40 {
+		long += "line " + string(rune('a'+i%26)) + "\n\n"
+	}
+	a.hoverText, a.hoverAt = long, &screenPt{x, y}
+	wheelDown(a, x, y+1) // on the popup
+	if a.hoverText == "" || a.hoverScroll == 0 {
+		t.Fatalf("wheel on the popup should scroll it: text=%v scroll=%d", a.hoverText != "", a.hoverScroll)
+	}
+	if b.ScrollRow != 0 {
+		t.Fatal("buffer must not scroll while the popup takes the wheel")
+	}
+}
