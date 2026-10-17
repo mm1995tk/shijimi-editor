@@ -147,6 +147,9 @@ func TestIDECloseAndCancel(t *testing.T) {
 	if r := <-c1; r.content[0].Text != "DIFF_REJECTED" {
 		t.Errorf("closed tab reply = %+v", r)
 	}
+	if strings.Contains(a.msg, "却下しました") || !strings.Contains(a.msg, "差分を閉じました") {
+		t.Errorf("close_tab status = %q", a.msg)
+	}
 	a.cancelProposal(c3)
 	if len(a.props) != 1 || a.props[0].name != "two" {
 		t.Errorf("props after cancel = %d", len(a.props))

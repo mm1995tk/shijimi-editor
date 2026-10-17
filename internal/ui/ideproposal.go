@@ -101,6 +101,16 @@ func (a *App) resolveProposal(p *proposal, accept bool) {
 	a.props = slices.DeleteFunc(a.props, func(q *proposal) bool { return q == p })
 }
 
+// closeProposal drops a proposal the agent closed itself (close_tab,
+// closeAllDiffTabs), typically after the decision was made on the Claude Code
+// side. The pending request is still answered, but the editor rejected
+// nothing, so the status bar must not say so.
+func (a *App) closeProposal(p *proposal) {
+	a.info("Claude Code 側で決まったので差分を閉じました: %s", a.rel(p.newPath))
+	p.reply <- ideReply{content: []ide.Content{ide.Text("DIFF_REJECTED"), ide.Text(p.name)}}
+	a.props = slices.DeleteFunc(a.props, func(q *proposal) bool { return q == p })
+}
+
 // cancelProposal drops the proposal whose client disconnected.
 func (a *App) cancelProposal(reply chan ideReply) {
 	a.props = slices.DeleteFunc(a.props, func(q *proposal) bool { return q.reply == reply })

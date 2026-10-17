@@ -352,13 +352,13 @@ func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
 	case "closeAllDiffTabs":
 		n := len(a.props)
 		for _, p := range slices.Clone(a.props) {
-			a.resolveProposal(p, false)
+			a.closeProposal(p)
 		}
 		return ideReply{content: []ide.Content{ide.Text(fmt.Sprintf("CLOSED_%d_DIFF_TABS", n))}}, nil, false
 	case "close_tab":
 		for _, p := range slices.Clone(a.props) {
 			if p.name == args.TabName {
-				a.resolveProposal(p, false)
+				a.closeProposal(p)
 				return ideReply{content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
 			}
 		}
