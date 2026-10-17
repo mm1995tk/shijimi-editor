@@ -176,7 +176,9 @@ func styleInput(ti *textinput.Model, bg string) {
 	ti.TextStyle = bgfg(bg, cEditorFg)
 	ti.PlaceholderStyle = bgfg(bg, curTheme.Dim)
 	ti.PromptStyle = bgfg(bg, cEditorFg)
-	ti.Cursor.Style = bgfg(curTheme.Cursor, bg)
+	// bubbles' cursor applies Reverse on top of this style, so the cursor
+	// colour goes in the foreground; it ends up as the cell background.
+	ti.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(curTheme.Cursor))
 	ti.Cursor.TextStyle = bgfg(bg, cEditorFg)
 }
 
