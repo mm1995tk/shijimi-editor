@@ -25,7 +25,9 @@ func TestSupported(t *testing.T) {
 		{"kitty window", map[string]string{"KITTY_WINDOW_ID": "3"}, true},
 		{"ghostty", map[string]string{"TERM_PROGRAM": "ghostty"}, true},
 		{"wezterm", map[string]string{"TERM_PROGRAM": "WezTerm"}, true},
-		{"herdr", map[string]string{"TERM_PROGRAM": "herdr", "TERM": "xterm-256color"}, true},
+		{"herdr", map[string]string{"TERM_PROGRAM": "herdr", "TERM": "xterm-256color"}, false},
+		{"herdr in ghostty", map[string]string{"TERM_PROGRAM": "herdr", "GHOSTTY_RESOURCES_DIR": "/x"}, false},
+		{"herdr forced", map[string]string{"TERM_PROGRAM": "herdr", EnvGraphics: "kitty"}, true},
 		{"force on", map[string]string{EnvGraphics: "kitty"}, true},
 		{"force off", map[string]string{EnvGraphics: "halfblock", "TERM": "xterm-kitty"}, false},
 	}
