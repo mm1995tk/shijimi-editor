@@ -10,6 +10,8 @@ import (
 	"compress/zlib"
 	"encoding/base64"
 	"fmt"
+	"image"
+	"image/color"
 	"image/jpeg"
 	"os"
 	"strings"
@@ -94,8 +96,9 @@ func Transmit(id uint32, png []byte, cols, rows int) string {
 }
 
 // TransmitJPEG is Transmit for a JPEG frame. Kitty graphics cannot take JPEG,
-// so the frame is decoded and sent as zlib-compressed RGB, which is far
-// smaller than the PNG of the same video frame.
+// so the frame is decoded and sent as zlib-compressed RGB. This shrinks the
+// transfer from Chromium; what reaches the terminal is about as large as a
+// PNG when the frame has much texture.
 func TransmitJPEG(id uint32, data []byte, cols, rows int) (string, error) {
 	img, err := jpeg.Decode(bytes.NewReader(data))
 	if err != nil {
@@ -106,11 +109,7 @@ func TransmitJPEG(id uint32, data []byte, cols, rows int) (string, error) {
 	zw, _ := zlib.NewWriterLevel(&raw, zlib.BestSpeed)
 	row := make([]byte, 0, b.Dx()*3)
 	for y := b.Min.Y; y < b.Max.Y; y++ {
-		row = row[:0]
-		for x := b.Min.X; x < b.Max.X; x++ {
-			r, g, bl, _ := img.At(x, y).RGBA()
-			row = append(row, byte(r>>8), byte(g>>8), byte(bl>>8))
-		}
+		row = appendRGB(row[:0], img, y)
 		_, _ = zw.Write(row)
 	}
 	if err := zw.Close(); err != nil {
@@ -185,4 +184,23 @@ func CellSize(f *os.File) (w, h int) {
 		return 0, 0
 	}
 	return int(ws.Xpixel) / int(ws.Col), int(ws.Ypixel) / int(ws.Row)
+}
+
+// appendRGB appends row y of img as RGB bytes. The *image.YCbCr that
+// jpeg.Decode returns is converted straight from its planes; At would cost an
+// interface call per pixel.
+func appendRGB(row []byte, img image.Image, y int) []byte {
+	b := img.Bounds()
+	if yc, ok := img.(*image.YCbCr); ok {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r, g, bl := color.YCbCrToRGB(yc.Y[yc.YOffset(x, y)], yc.Cb[yc.COffset(x, y)], yc.Cr[yc.COffset(x, y)])
+			row = append(row, r, g, bl)
+		}
+		return row
+	}
+	for x := b.Min.X; x < b.Max.X; x++ {
+		r, g, bl, _ := img.At(x, y).RGBA()
+		row = append(row, byte(r>>8), byte(g>>8), byte(bl>>8))
+	}
+	return row
 }
