@@ -111,6 +111,7 @@ line-number = "relative"  # Helix と同じ
 file-icons = true         # ファイルツリーの Nerd Font アイコン。false で ▸/▾ 表示
 mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"  # mermaid を PNG にする外部コマンド。空で無効
 watch-files = true        # 他のプロセス（AI エージェントなど）によるファイル変更を検知して反映。未保存の編集があるファイルは :reload を待つ
+mouse-hover = true        # エディタ上の単語にマウスを 0.5 秒乗せると LSP のホバーを表示。false で無効（動きだけのマウスイベントも受け取らなくなる）
 
 # 自動保存（既定で有効。編集が 1 秒止まると保存。名前のないファイルは対象外）
 [editor.auto-save.after-delay]

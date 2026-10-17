@@ -40,7 +40,12 @@ func main() {
 	}
 	app := ui.New(dir, file)
 	closeSock := func() {}
-	opts := []tea.ProgramOption{tea.WithAltScreen(), tea.WithMouseCellMotion()}
+	mouse := tea.WithMouseCellMotion()
+	if app.MouseHover() {
+		// A resting pointer is only noticed if motion without a button is reported.
+		mouse = tea.WithMouseAllMotion()
+	}
+	opts := []tea.ProgramOption{tea.WithAltScreen(), mouse}
 	// On a terminal with Kitty graphics, screen updates and image data share one
 	// writer so they are never interleaved.
 	kittyOut := kitty.NewWriter(os.Stdout)

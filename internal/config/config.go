@@ -52,6 +52,10 @@ type Editor struct {
 	// changed on disk. Default true.
 	WatchFiles bool
 
+	// MouseHover shows the LSP hover when the pointer rests on a word in the
+	// editor. Default true.
+	MouseHover bool
+
 	// MermaidCommand renders a mermaid diagram to a PNG for the Markdown
 	// preview. {in} and {out} are replaced by file paths; run through `sh -c`.
 	// Empty disables diagram rendering (the source is shown instead).
@@ -95,7 +99,7 @@ const nixEvalTimeout = 15 * time.Second
 func Load(root string) *Config {
 	c := &Config{
 		Browser:   Browser{ListenHost: "127.0.0.1"},
-		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
+		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
 		Languages: map[string]*Language{},
 		Servers:   map[string]*Server{},
 	}
@@ -236,6 +240,9 @@ func (c *Config) mergeEditorRaw(raw map[string]any) {
 	}
 	if v, ok := ed["watch-files"].(bool); ok {
 		c.Editor.WatchFiles = v
+	}
+	if v, ok := ed["mouse-hover"].(bool); ok {
+		c.Editor.MouseHover = v
 	}
 	if v, ok := ed["keymap"].(string); ok {
 		c.Editor.Keymap = v

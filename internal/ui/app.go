@@ -87,6 +87,10 @@ type App struct {
 	comp        *completionPopup
 	hoverText   string
 	hoverScroll int
+	hoverAt     *screenPt // where a mouse-triggered popup is anchored; nil = at the cursor
+	hoverWord   wordSpan  // word the pointer's pending or open hover belongs to
+	hoverCell   screenPt  // last cell the pointer rested on without a button
+	hoverSeq    int       // bumped on every input; stale dwell timers and replies are dropped
 	ctx         *ctxPreview
 
 	// Claude Code IDE integration (see ide.go)
@@ -737,12 +741,23 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		if t := a.curText(); a.fullPreview(t) {
 			return nil // the popup would be anchored to the hidden buffer
 		}
+		if m := msg.mouse; m != nil {
+			if m.seq != a.hoverSeq || m.tab != a.cur() || strings.TrimSpace(msg.text) == "" {
+				return nil
+			}
+			a.hoverText, a.hoverScroll = msg.text, 0
+			a.hoverAt, a.hoverWord = &m.pt, m.word
+			return nil
+		}
 		if strings.TrimSpace(msg.text) == "" {
 			a.info("ホバー情報はありません")
 		} else {
 			a.hoverText = msg.text
 			a.hoverScroll = 0
+			a.hoverAt = nil
 		}
+	case hoverDwellMsg:
+		return a.hoverDwell(msg)
 	case locationsMsg:
 		return a.showLocations(msg)
 	case completionMsg:
@@ -798,6 +813,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case tea.MouseMsg:
 		return a.handleMouse(msg)
 	case tea.KeyMsg:
+		a.hoverSeq++ // a pending mouse hover is stale once the user types
+		a.hoverWord = wordSpan{}
 		// Fast typing can deliver several runes in one message; Helix-style
 		// commands need them one at a time.
 		if msg.Type == tea.KeyRunes && len(msg.Runes) > 1 && !msg.Paste {
@@ -830,6 +847,11 @@ func (a *App) handleLSPEvent(e lsp.Event) {
 func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	key := msg.String()
 	a.msg = ""
+	if a.hoverAt != nil {
+		// A popup the pointer opened never takes keys: it closes whatever has the
+		// focus, and the key goes on to it.
+		a.hoverText, a.hoverAt = "", nil
+	}
 	if key != "ctrl+q" {
 		a.confirmQuit = false
 	}
@@ -1439,6 +1461,9 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 	l := a.layout()
+	if msg.Action == tea.MouseActionMotion && msg.Button == tea.MouseButtonNone {
+		return a.passiveMotion(l, msg)
+	}
 	x, y := msg.X, msg.Y
 	wheel := 0
 	switch msg.Button {
@@ -1447,7 +1472,8 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 	case tea.MouseButtonWheelDown:
 		wheel = 3
 	}
-	if wheel != 0 && a.hoverText != "" {
+	// A popup the pointer opened only owns the wheel while the pointer is on it.
+	if wheel != 0 && a.hoverText != "" && (a.hoverAt == nil || a.inHoverBox(l, screenPt{x, y})) {
 		if msg.Action == tea.MouseActionPress {
 			a.scrollHover(wheel)
 		}
@@ -1462,7 +1488,11 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			return nil
 		}
 	}
-	a.hoverText = ""
+	// Past the branches that keep the popup open: the pointer's hover is over.
+	a.hoverSeq++
+	a.hoverWord = wordSpan{}
+	a.hoverCell = screenPt{-1, -1}
+	a.hoverText, a.hoverAt = "", nil
 	if wheel != 0 && msg.Action == tea.MouseActionPress {
 		switch {
 		case a.showSide && x < l.sideW:
@@ -1736,7 +1766,7 @@ func (a *App) View() string {
 
 	// popups anchored at the cursor
 	if t := a.curText(); t != nil && !a.fullPreview(t) && (a.comp != nil || a.hoverText != "") {
-		cx, cy := a.cursorScreen(t, l)
+		cx, cy := a.popupAnchor(t, l)
 		var box []string
 		if a.comp != nil {
 			box = a.comp.render(max(3, l.editH/2))
@@ -1974,7 +2004,7 @@ func (a *App) hoverPos(l layout) (x, y int, ok bool) {
 	if t == nil || a.fullPreview(t) {
 		return 0, 0, false
 	}
-	cx, cy := a.cursorScreen(t, l)
+	cx, cy := a.popupAnchor(t, l)
 	x, y = popupPos(l, a.w, cx, cy, a.hoverView(l).render(a.hoverScroll))
 	return x, y, true
 }
@@ -1990,7 +2020,7 @@ func (a *App) copyHover() {
 func (a *App) hoverView(l layout) hoverView {
 	h := l.editH * 2 / 3
 	if t := a.curText(); t != nil {
-		_, cy := a.cursorScreen(t, l)
+		_, cy := a.popupAnchor(t, l)
 		below := l.editY + l.editH - (cy + 1)
 		above := cy - l.editY
 		h = min(h, max(below, above))

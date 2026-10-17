@@ -262,3 +262,12 @@ func TestStaleLineSelectionDoesNotWiden(t *testing.T) {
 		}
 	})
 }
+
+func TestWordRange(t *testing.T) {
+	line := []rune("foo_bar.baz(1)")
+	for _, c := range []struct{ col, s, e int }{{0, 0, 7}, {6, 0, 7}, {7, 7, 8}, {8, 8, 11}, {11, 11, 12}, {12, 12, 13}} {
+		if s, e := WordRange(line, c.col); s != c.s || e != c.e {
+			t.Errorf("col %d: [%d,%d) want [%d,%d)", c.col, s, e, c.s, c.e)
+		}
+	}
+}

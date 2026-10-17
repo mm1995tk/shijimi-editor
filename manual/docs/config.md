@@ -32,6 +32,7 @@ line-number = "relative"  # Helix と同じ
 file-icons = true         # ファイルツリーの Nerd Font アイコン。false で ▸/▾ 表示
 mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"  # 空で無効
 watch-files = true        # 他のプロセスによるファイル変更を反映する
+mouse-hover = true        # 単語にマウスを乗せるとホバーを表示する
 
 # 自動保存（既定で有効。編集が 1 秒止まると保存。名前のないファイルは対象外）
 [editor.auto-save.after-delay]
@@ -57,6 +58,7 @@ listen-host = "127.0.0.1"
 | `editor.file-icons` | ファイルツリーのアイコン | [ファイルと検索](files.md) |
 | `editor.mermaid-command` | mermaid を PNG にするコマンド | [プレビュー](preview.md) |
 | `editor.watch-files` | 外部での変更を反映するか | [ファイルと検索](files.md) |
+| `editor.mouse-hover` | マウスを乗せたときにホバーを表示するか | [LSP](lsp.md) |
 | `editor.auto-save.after-delay` | 自動保存 | [ファイルと検索](files.md) |
 | `search.exclude` / `search.include` | 全体検索の除外 / 包含 | [ファイルと検索](files.md) |
 | `browser.chromium` / `browser.listen-host` | Chromium の場所 / ポート転送の待ち受けアドレス | [ブラウザとポート転送](browser.md) |
