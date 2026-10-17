@@ -339,3 +339,28 @@ func TestSearchPanelLayout(t *testing.T) {
 		}
 	}
 }
+
+func TestSearchFieldKeepsCursorCell(t *testing.T) {
+	a := newTestApp(t, "foo\n")
+	a.Update(tea.WindowSizeMsg{Width: 60, Height: 40})
+	drive(a, a.openSearch(fQuery))
+	// field box width is 26, so the text area is 22 cells wide.
+	for _, n := range []int{20, 21, 22, 23, 30} {
+		a.search.in[fQuery].SetValue(strings.Repeat("a", n))
+		a.search.in[fQuery].CursorEnd()
+		_, _, box := a.renderSearch()
+		got := ansi.Strip(box[2])
+		// text, then the cursor cell, then the padding column before the border
+		i := strings.Index(got, "│ ") + len("│ ")
+		field := []rune(got[i:])
+		inner := string(field[:22])
+		if !strings.HasSuffix(strings.TrimRight(inner, "a"), "") || !strings.Contains(inner, " ") && n <= 22 {
+			t.Fatalf("n=%d: no cursor cell: %q", n, got)
+		}
+	}
+	a.search.in[fQuery].SetValue("")
+	_, _, box := a.renderSearch()
+	if strings.Contains(strings.Join(box, ""), "\x00") {
+		t.Fatal("NUL in output")
+	}
+}

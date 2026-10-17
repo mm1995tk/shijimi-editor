@@ -75,7 +75,6 @@ func newSearchPanel(def config.Search) *searchPanel {
 		ti := textinput.New()
 		ti.Prompt = ""
 		ti.CharLimit = 4096
-		ti.Placeholder = searchPlaceholders[i]
 		s.in[i] = ti
 	}
 	s.in[fInclude].SetValue(strings.Join(def.Include, ","))
@@ -570,10 +569,15 @@ func (s *searchPanel) fieldBox(i, w int) [3]string {
 		bd = bgfg(cPaletteBg, curTheme.Strong).Bold(true)
 	}
 	title := " " + searchLabels[i] + " "
-	s.in[i].Width = max(1, w-4)
+	// View() is one cell wider than Width when the cursor sits at the end.
+	s.in[i].Width = max(1, w-5)
+	body := s.in[i].View()
+	if s.in[i].Value() == "" {
+		body = s.placeholderView(i)
+	}
 	return [3]string{
 		bd.Render("┌─" + title + strings.Repeat("─", max(0, w-3-ansi.StringWidth(title))) + "┐"),
-		bd.Render("│") + stPalette.Render(" ") + fitStyled(s.in[i].View(), w-4, stPalette) + stPalette.Render(" ") + bd.Render("│"),
+		bd.Render("│") + stPalette.Render(" ") + fitStyled(body, w-4, stPalette) + stPalette.Render(" ") + bd.Render("│"),
 		bd.Render("└" + strings.Repeat("─", max(0, w-2)) + "┘"),
 	}
 }
@@ -737,4 +741,14 @@ func (s *searchPanel) viewRows(a *App, w, h int) []string {
 		out = append(out, blank)
 	}
 	return out[:h]
+}
+
+// placeholderView draws the hint of an empty field with the cursor on its
+// first character. textinput's own placeholder is not used: it pads with NULs
+// when the text has wide characters.
+func (s *searchPanel) placeholderView(i int) string {
+	rs := []rune(searchPlaceholders[i])
+	c := s.in[i].Cursor
+	c.SetChar(string(rs[0]))
+	return c.View() + stPaletteDim.Render(string(rs[1:]))
 }
