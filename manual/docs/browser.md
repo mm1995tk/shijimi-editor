@@ -105,3 +105,20 @@ listen-host = "127.0.0.1"
 !!! warning "書く場所"
     `[browser]` は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` に書きます。
     `.helix/config.toml` に書くと、Helix が未知のセクションとして拒否します。
+
+### 音声
+
+```toml
+[browser]
+audio = true
+```
+
+既定ではミュートです。`audio = true` にすると、Chromium のミュートを外します。音声は gh-editor を動かしているマシンで鳴ります。
+
+SSH 先（dev-vm など）で動かしている場合、スピーカーがないので Mac まで音声を運ぶ必要があります。PulseAudio を使う例です。
+
+1. Mac で PulseAudio サーバーを起動し、TCP で受け付けるようにします（`module-native-protocol-tcp`、`auth-ip-acl=127.0.0.1`）。
+2. `ssh -R 4713:localhost:4713 <host>` で接続します。
+3. SSH 先で `PULSE_SERVER=tcp:localhost:4713 gh-editor` を起動します。Chromium は環境変数を引き継ぎます。
+
+Mac 上で直接 gh-editor を動かす場合は、`audio = true` だけで鳴ります。映像は最大 15 fps で遅れるため、音声のほうが先に進むことがあります。

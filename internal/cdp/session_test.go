@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -107,5 +108,26 @@ func TestSessionLive(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	if n := frames.Load() - before; n > 1 {
 		t.Errorf("%d frames after SetStreaming(false)", n)
+	}
+}
+
+// Chromium is muted by chromedp's headless defaults; Config.Audio must lift it.
+func TestAudioFlag(t *testing.T) {
+	for _, audio := range []bool{false, true} {
+		dir := t.TempDir()
+		args := filepath.Join(dir, "args")
+		bin := filepath.Join(dir, "fake-chromium")
+		script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + args + "\nexit 1\n"
+		if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		Start(Config{Chromium: bin, Audio: audio}) // fails on purpose; only the arguments matter
+		data, err := os.ReadFile(args)
+		if err != nil {
+			t.Fatalf("audio=%v: arguments were not recorded: %v", audio, err)
+		}
+		if got := strings.Contains(string(data), "--mute-audio"); got == audio {
+			t.Errorf("audio=%v: --mute-audio present = %v\n%s", audio, got, data)
+		}
 	}
 }

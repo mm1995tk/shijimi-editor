@@ -145,6 +145,7 @@ func (a *App) liveLoad(v *browserView) tea.Cmd {
 	w, h := a.liveViewport()
 	cfg := cdp.Config{
 		Chromium: a.cfg.Browser.Chromium, // read per start so :config-reload applies
+		Audio:    a.cfg.Browser.Audio,
 		Width:    w, Height: h,
 		OnFrame: l.onFrame,
 		// In a goroutine: Navigate reports its state change from inside Update, where

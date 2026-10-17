@@ -77,6 +77,10 @@ type Browser struct {
 	// ListenHost is the address `:browser forward` listens on. Set it to e.g.
 	// "0.0.0.0" only on a trusted network.
 	ListenHost string
+
+	// Audio turns on sound in the live browser. Chromium is muted otherwise
+	// (chromedp's headless defaults add --mute-audio).
+	Audio bool
 }
 
 // Config is the merged configuration.
@@ -212,6 +216,9 @@ func (c *Config) mergeBrowserRaw(raw map[string]any) {
 		}
 		if v, ok := br["listen-host"].(string); ok && v != "" {
 			c.Browser.ListenHost = v
+		}
+		if v, ok := br["audio"].(bool); ok {
+			c.Browser.Audio = v
 		}
 	}
 }
