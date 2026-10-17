@@ -174,7 +174,8 @@ func styleInput(ti *textinput.Model, bg string) {
 	ti.TextStyle = bgfg(bg, cEditorFg)
 	ti.PlaceholderStyle = bgfg(bg, curTheme.Dim)
 	ti.PromptStyle = bgfg(bg, cEditorFg)
-	ti.Cursor.Style = bgfg(curTheme.Cursor, bg)
+	// bubbles の cursor は Style に Reverse を重ねて描くので、前景にカーソル色を置く
+	ti.Cursor.Style = bgfg(bg, curTheme.Cursor)
 	ti.Cursor.TextStyle = bgfg(bg, cEditorFg)
 }
 
