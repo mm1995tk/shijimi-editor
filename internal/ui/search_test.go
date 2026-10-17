@@ -268,3 +268,25 @@ func TestPreserveCase(t *testing.T) {
 		}
 	}
 }
+
+func TestSearchReplaceOne(t *testing.T) {
+	a := newTestApp(t, "foo one\nbar\nfoo two\nfoo three\n")
+	drive(a, a.openSearchArgs("foo => X", true))
+	if len(a.search.res.hits) != 3 {
+		t.Fatalf("hits = %d", len(a.search.res.hits))
+	}
+	a.handleSearchKey(tea.KeyMsg{Type: tea.KeyDown})
+	drive(a, a.handleSearchKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}, Alt: true}))
+	if !a.search.open {
+		t.Fatal("panel must stay open")
+	}
+	if got := a.curText().buf.Text(); !strings.HasPrefix(got, "foo one\nbar\nX two\nfoo three") {
+		t.Fatalf("text = %q", got)
+	}
+	if len(a.search.res.hits) != 2 || a.search.cursor != 1 {
+		t.Fatalf("hits=%d cursor=%d", len(a.search.res.hits), a.search.cursor)
+	}
+	if h := a.search.cur(); h == nil || h.row != 3 {
+		t.Fatalf("cursor must be on the next hit: %+v", h)
+	}
+}

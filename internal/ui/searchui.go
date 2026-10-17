@@ -59,6 +59,8 @@ type searchPanel struct {
 	skipped map[string]bool // lines left out of the replacement, by path and row
 
 	cursor, scroll int
+	restore        bool // after the next search, put the cursor at restoreAt
+	restoreAt      int
 	bodyH          int
 	rect           [4]int // x, y, w, h on screen
 	view           searchView
@@ -258,6 +260,10 @@ func (a *App) searchDone(m searchDoneMsg) {
 			s.cursor = i
 		}
 	}
+	if s.restore {
+		s.cursor = clamp(s.restoreAt, 0, max(0, len(s.res.hits)-1))
+		s.restore = false
+	}
 	s.view.path = ""
 }
 
@@ -304,6 +310,8 @@ func (a *App) handleSearchKey(msg tea.KeyMsg) tea.Cmd {
 		return a.searchOpenHit()
 	case "alt+enter":
 		return a.searchReplaceAll()
+	case "alt+1":
+		return a.searchReplaceOne()
 	}
 	before := s.in[s.field].Value()
 	var cmd tea.Cmd
@@ -373,18 +381,49 @@ func (a *App) searchReplaceAll() tea.Cmd {
 		a.fail(fmt.Errorf("置換する行がありません"))
 		return nil
 	}
+	var hits []*searchHit
+	for _, h := range s.res.hits {
+		if !h.skip {
+			hits = append(hits, h)
+		}
+	}
+	s.close()
+	a.replaceHits(hits)
+	return nil
+}
+
+// searchReplaceOne replaces only the selected line and keeps the panel open,
+// re-running the search so the cursor lands on the next hit.
+func (a *App) searchReplaceOne() tea.Cmd {
+	s := a.search
+	if s.busy {
+		a.fail(fmt.Errorf("検索中です。結果が出てから実行してください"))
+		return nil
+	}
+	h := s.cur()
+	if h == nil {
+		a.fail(fmt.Errorf("置換する行がありません"))
+		return nil
+	}
+	idx := s.cursor
+	if !a.replaceHits([]*searchHit{h}) {
+		return nil
+	}
+	s.restore, s.restoreAt = true, idx
+	return a.searchNow()
+}
+
+// replaceHits applies the replacement to hits, opening each affected file as
+// a buffer. It reports whether every file could be opened.
+func (a *App) replaceHits(hits []*searchHit) bool {
 	var paths []string
 	byPath := map[string][]*searchHit{}
-	for _, h := range s.res.hits {
-		if h.skip {
-			continue
-		}
+	for _, h := range hits {
 		if _, ok := byPath[h.path]; !ok {
 			paths = append(paths, h.path)
 		}
 		byPath[h.path] = append(byPath[h.path], h)
 	}
-	s.close()
 	var failed []string
 	done, stale, changed := 0, 0, 0
 	for _, p := range paths {
@@ -406,15 +445,15 @@ func (a *App) searchReplaceAll() tea.Cmd {
 	}
 	if len(failed) > 0 {
 		a.fail(fmt.Errorf("開けなかったファイル: %s", strings.Join(failed, ", ")))
-		return nil
+		return false
 	}
 	msg := fmt.Sprintf("%d 行 (%d ファイル) を置換しました。保存するまでディスクは変わりません（u で元に戻せます）", done, changed)
 	if stale > 0 {
 		a.msg, a.msgErr = fmt.Sprintf("%s。検索後に内容が変わった %d 行はスキップしました", msg, stale), true
-		return nil
+		return true
 	}
 	a.info("%s", msg)
-	return nil
+	return true
 }
 
 // ---- rendering ----
@@ -540,7 +579,7 @@ func (a *App) renderSearch() (x, y int, box []string) {
 	}
 	box = append(box, line(fitStyled(s.togglesLine(), inner, stPalette)))
 
-	left, help := s.statusLine(), stPaletteDim.Render("Tab 次の欄  Alt+C/W/R/P 切替  Ctrl+X 除外  Alt+Enter 全置換")
+	left, help := s.statusLine(), stPaletteDim.Render("Tab 次の欄  Alt+C/W/R/P 切替  Ctrl+X 除外  Alt+1 この行を置換  Alt+Enter 全置換")
 	if gap := inner - ansi.StringWidth(left) - ansi.StringWidth(help) - 1; gap > 0 {
 		left += stPalette.Render(strings.Repeat(" ", gap)) + help
 	}
