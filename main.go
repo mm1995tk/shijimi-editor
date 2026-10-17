@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/mm1995tk/gh-editor/internal/caret"
 	"github.com/mm1995tk/gh-editor/internal/ctl"
 	"github.com/mm1995tk/gh-editor/internal/ide"
 	"github.com/mm1995tk/gh-editor/internal/kitty"
@@ -50,9 +51,15 @@ func main() {
 	// writer so they are never interleaved.
 	kittyOut := kitty.NewWriter(os.Stdout)
 	graphics := kitty.Supported(os.Getenv)
+	var out caret.File = os.Stdout
 	if graphics {
-		opts = append(opts, tea.WithOutput(kittyOut))
+		out = kittyOut
 	}
+	// The terminal cursor follows the typing position so that an IME shows
+	// the text being composed there.
+	caretOut := caret.NewWriter(out)
+	app.SetCaret(caretOut)
+	opts = append(opts, tea.WithOutput(caretOut))
 	p := tea.NewProgram(app, opts...)
 	if graphics {
 		app.EnableKitty(kittyOut, p.Send)

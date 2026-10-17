@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/gh-editor/internal/buffer"
+	"github.com/mm1995tk/gh-editor/internal/caret"
 	"github.com/mm1995tk/gh-editor/internal/config"
 	"github.com/mm1995tk/gh-editor/internal/ide"
 	"github.com/mm1995tk/gh-editor/internal/lsp"
@@ -41,6 +42,7 @@ type App struct {
 	cfg       *config.Config
 	renderer  render.Renderer // overrides Chromium for the browser tab (tests); nil = from config
 	gfx       *kittyGfx       // non-nil on a terminal with Kitty graphics: the browser view is live
+	caret     *caret.Writer   // parks the terminal cursor for the IME; nil in tests
 	lsp       *lspManager
 	w, h      int
 	focus     focus
@@ -1702,6 +1704,9 @@ func (a *App) View() string {
 		return ""
 	}
 	if a.w < 30 || a.h < 8 {
+		if a.caret != nil {
+			a.caret.Clear()
+		}
 		return "ウィンドウが小さすぎます"
 	}
 	l := a.layout()
@@ -1801,6 +1806,7 @@ func (a *App) View() string {
 	} else {
 		rows = append(rows, a.renderStatus())
 	}
+	a.updateCaret(l)
 	return strings.Join(rows, "\n")
 }
 
