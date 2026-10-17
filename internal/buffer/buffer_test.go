@@ -230,3 +230,35 @@ func TestLineDeleteRangeWidenedText(t *testing.T) {
 		t.Fatalf("removed = %q", got)
 	}
 }
+
+func TestStaleLineSelectionDoesNotWiden(t *testing.T) {
+	t.Run("cleared", func(t *testing.T) {
+		b := fromText("a\n}")
+		b.Cur = Pos{1, 0}
+		b.SelectLine()
+		b.ClearSelection()
+		b.Cur = Pos{1, 0}
+		b.SelectWord(true, false)
+		s, e, widened := b.LineDeleteRange()
+		if widened {
+			t.Fatal("widened after ClearSelection")
+		}
+		b.DeleteRange(s, e)
+		if got := b.Text(); got != "a\n" {
+			t.Fatalf("text = %q, want %q", got, "a\n")
+		}
+	})
+	t.Run("undo", func(t *testing.T) {
+		b := fromText("a\n}")
+		b.Cur = Pos{1, 0}
+		b.SelectLine()
+		s, e, _ := b.LineDeleteRange()
+		b.DeleteRange(s, e)
+		b.Undo()
+		b.Cur = Pos{1, 0}
+		b.SelectWord(true, false)
+		if _, _, widened := b.LineDeleteRange(); widened {
+			t.Fatal("widened after undo")
+		}
+	})
+}
