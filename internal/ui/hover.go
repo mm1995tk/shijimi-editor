@@ -194,6 +194,25 @@ func renderCells(cs []hoverCell, bg string, w int) string {
 	return sb.String()
 }
 
+const (
+	// hoverCopyLabel is the click target drawn on the top border's right end.
+	hoverCopyLabel    = "[コピー]"
+	hoverHint         = " ^D/^U スクロール  y コピー "
+	hoverHintCopyOnly = " y コピー "
+)
+
+// copyHit reports whether the cell (col, row), relative to the box's top-left
+// corner, is on the [コピー] button.
+func (v hoverView) copyHit(col, row int) bool {
+	iw := v.width + 2
+	n := ansi.StringWidth(hoverCopyLabel)
+	if row != 0 || n+2 > iw {
+		return false
+	}
+	start := iw - n // box column of the label's first cell (column 0 is the corner)
+	return col >= start && col < start+n
+}
+
 // hoverView is a laid-out hover popup.
 type hoverView struct {
 	lines  []hoverLine
@@ -229,7 +248,11 @@ func (v hoverView) render(scroll int) []string {
 	bd := bgfg(cHoverBg, cHoverBorder)
 	iw := v.width + 2
 	out := make([]string, 0, len(vis)+2)
-	out = append(out, bd.Render("╭"+strings.Repeat("─", iw)+"╮"))
+	top := strings.Repeat("─", iw)
+	if n := ansi.StringWidth(hoverCopyLabel); n+2 <= iw {
+		top = strings.Repeat("─", iw-n-1) + hoverCopyLabel + "─"
+	}
+	out = append(out, bd.Render("╭"+top+"╮"))
 	for _, l := range vis {
 		bg := cHoverBg
 		if l.code {
@@ -245,18 +268,26 @@ func (v hoverView) render(scroll int) []string {
 		}
 		out = append(out, bd.Render("│")+pad+renderCells(cells, bg, v.width)+pad+bd.Render("│"))
 	}
-	bottom := strings.Repeat("─", iw)
+	ind := ""
+	hint := hoverHintCopyOnly
 	if v.maxScroll() > 0 {
-		ind := fmt.Sprintf(" %d/%d ", end, len(v.lines))
+		hint = hoverHint
+		ind = fmt.Sprintf(" %d/%d ", end, len(v.lines))
 		if scroll > 0 {
 			ind = "↑" + ind
 		}
 		if end < len(v.lines) {
 			ind += "↓"
 		}
-		if n := ansi.StringWidth(ind); n < iw {
-			bottom = strings.Repeat("─", iw-n-1) + ind + "─"
-		}
+	}
+	bottom := strings.Repeat("─", iw)
+	switch hn, in := ansi.StringWidth(hint), ansi.StringWidth(ind); {
+	case in > 0 && hn+in+3 <= iw:
+		bottom = "─" + hint + strings.Repeat("─", iw-hn-in-2) + ind + "─"
+	case in == 0 && hn+2 <= iw:
+		bottom = "─" + hint + strings.Repeat("─", iw-hn-1)
+	case in > 0 && in < iw:
+		bottom = strings.Repeat("─", iw-in-1) + ind + "─"
 	}
 	out = append(out, bd.Render("╰"+bottom+"╯"))
 	return out
