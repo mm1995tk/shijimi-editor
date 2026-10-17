@@ -38,7 +38,7 @@ type tab struct {
 	web *browserView
 
 	// Markdown preview beside the buffer
-	preview   bool
+	preview   previewMode
 	prevCache []string
 	prevW     int
 	prevVer   int

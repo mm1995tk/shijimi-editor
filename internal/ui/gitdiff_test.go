@@ -220,3 +220,34 @@ func TestChangesListClickAndTab(t *testing.T) {
 		t.Errorf("focus stays on the hidden list")
 	}
 }
+
+func TestFullPreviewDoesNotBlockEditingInGitDiff(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git がありません")
+	}
+	dir := t.TempDir()
+	gitIn(t, dir, "init", "-q")
+	file := filepath.Join(dir, "a.md")
+	os.WriteFile(file, []byte("a\nb\n"), 0o644)
+	gitIn(t, dir, "add", ".")
+	gitIn(t, dir, "commit", "-q", "-m", "init")
+	os.WriteFile(file, []byte("a\nc\n"), 0o644)
+	a := New(dir, file)
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	a.gd.on = true
+	a.gd.base = baseHead
+	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead).(changesLoadedMsg))
+
+	tb := a.curText()
+	tb.preview = previewFull
+	if a.diffFile(tb) == nil || a.fullPreview(tb) {
+		t.Fatalf("diffFile %v fullPreview %v", a.diffFile(tb), a.fullPreview(tb))
+	}
+	ver := tb.buf.Version
+	for _, k := range []string{"i", "Z"} {
+		a.handleHelixKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)})
+	}
+	if tb.buf.Version == ver {
+		t.Fatal("editing was blocked while the diff is visible")
+	}
+}

@@ -62,14 +62,28 @@ func mermaidCacheDir() string {
 	return filepath.Join(d, "gh-editor", "mermaid")
 }
 
+// previewMode is how a Markdown tab shows its preview.
+type previewMode int
+
+const (
+	previewOff   previewMode = iota
+	previewSplit             // beside the buffer
+	previewFull              // the preview alone, using the whole editor area
+)
+
+// togglePreview cycles off → beside the buffer → full width → off.
 func (a *App) togglePreview() tea.Cmd {
 	t := a.curText()
 	if t == nil || !isMarkdown(t.buf.Path) {
 		a.fail(fmt.Errorf("Markdown ファイル（.md）を開いてください"))
 		return nil
 	}
-	t.preview = !t.preview
+	t.preview = (t.preview + 1) % (previewFull + 1)
 	t.scanned = false
+	a.comp, a.hoverText = nil, "" // popups are anchored to the hidden buffer
+	if t.preview == previewFull && a.mode == modeInsert {
+		a.mode = modeNormal // keystrokes must not edit a buffer that is not visible
+	}
 	return nil
 }
 
@@ -77,7 +91,7 @@ func (a *App) togglePreview() tea.Cmd {
 // The block list is cached per buffer version, so each call only does a few map lookups.
 func (a *App) syncPreview() tea.Cmd {
 	t := a.curText()
-	if t == nil || !t.preview {
+	if t == nil || t.preview == previewOff {
 		return nil
 	}
 	if a.mermaid == nil {
@@ -109,7 +123,7 @@ func (a *App) syncPreview() tea.Cmd {
 func (a *App) handleMermaidStart(m mermaidStartMsg) tea.Cmd {
 	// drop the job if the user kept typing and the block no longer exists
 	wanted := false
-	if t := a.curText(); t != nil && t.preview {
+	if t := a.curText(); t != nil && t.preview != previewOff {
 		for _, code := range t.mermaidBlocks() {
 			if a.mermaidKey(code) == m.key {
 				wanted = true
@@ -233,4 +247,11 @@ func (t *tab) mermaidBlocks() []string {
 		t.scanBlocks, t.scanVer, t.scanned = mermaidBlocks(t.buf.Text()), t.buf.Version, true
 	}
 	return t.scanBlocks
+}
+
+// fullPreview reports whether t is showing the Markdown preview alone. In
+// git-diff mode the diff takes the whole area instead, so the buffer stays
+// visible and editable.
+func (a *App) fullPreview(t *tab) bool {
+	return t != nil && t.preview == previewFull && a.diffFile(t) == nil
 }

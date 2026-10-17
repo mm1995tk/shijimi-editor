@@ -701,6 +701,9 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case mermaidDoneMsg:
 		a.handleMermaidDone(msg)
 	case hoverMsg:
+		if t := a.curText(); a.fullPreview(t) {
+			return nil // the popup would be anchored to the hidden buffer
+		}
 		if strings.TrimSpace(msg.text) == "" {
 			a.info("ホバー情報はありません")
 		} else {
@@ -958,6 +961,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	if a.helix {
 		return a.handleHelixKey(msg)
+	}
+	if t := a.curText(); a.fullPreview(t) && !fullPreviewEditorKey(msg) {
+		a.info("全幅プレビュー中は編集できません")
+		return nil
 	}
 	return a.handleEditorKey(msg)
 }
@@ -1426,6 +1433,10 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			if t := a.cur(); t != nil {
 				switch t.kind {
 				case tabText:
+					if a.fullPreview(t) {
+						t.buf.MoveLines(wheel, false) // the preview scrolls with the cursor
+						break
+					}
 					t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
 				case tabReview:
 					t.rev.moveCursor(wheel)
@@ -1534,7 +1545,7 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 					return nil // the base side is read-only
 				}
 			}
-			if t.preview && x >= l.rightX+a.editW(t, l) {
+			if t.preview != previewOff && x >= l.rightX+a.editW(t, l) {
 				return nil // the preview pane is read-only
 			}
 			a.comp = nil
@@ -1570,13 +1581,17 @@ func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
 
 // ---- view ----
 
-// editW is the width of the text editor, narrower while the Markdown preview is open.
+// editW is the width of the text editor, narrower while the Markdown preview
+// is open and zero while the preview fills the area.
 func (a *App) editW(t *tab, l layout) int {
 	if a.diffFile(t) != nil {
 		return a.dvGeom(l).rightW
 	}
-	if t.preview {
+	switch t.preview {
+	case previewSplit:
 		return a.editorWidth(l.rightW)
+	case previewFull:
+		return 0
 	}
 	return l.rightW
 }
@@ -1585,9 +1600,12 @@ func (a *App) renderText(t *tab, l layout, focused bool) []string {
 	if dv := a.diffFor(t); dv != nil {
 		return a.renderDiffText(t, dv, l, focused)
 	}
+	if t.preview == previewFull {
+		return a.previewLines(t, l.rightW, l.editH)
+	}
 	ew := a.editW(t, l)
 	edit := renderEditor(t, ew, l.editH, a.editorOpts(t, focused))
-	if !t.preview {
+	if t.preview == previewOff {
 		return edit
 	}
 	pw := l.rightW - ew - 1
@@ -1667,7 +1685,7 @@ func (a *App) View() string {
 	}
 
 	// popups anchored at the cursor
-	if t := a.curText(); t != nil && (a.comp != nil || a.hoverText != "") {
+	if t := a.curText(); t != nil && !a.fullPreview(t) && (a.comp != nil || a.hoverText != "") {
 		cx, cy := a.cursorScreen(t, l)
 		var box []string
 		if a.comp != nil {
