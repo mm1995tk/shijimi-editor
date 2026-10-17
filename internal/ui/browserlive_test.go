@@ -9,6 +9,8 @@ import (
 
 	"fmt"
 	"github.com/mm1995tk/gh-editor/internal/render"
+	"image"
+	"image/jpeg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,10 +117,12 @@ func TestLiveBrowserSendsFrames(t *testing.T) {
 	a, _, ttyPath := liveApp(t)
 	runCmd(a, a.execCommand("browser https://a.example"))
 	v := a.browserTab()
-	v.live.onFrame([]byte("\x89PNGdata"))
+	var jpg bytes.Buffer
+	_ = jpeg.Encode(&jpg, image.NewRGBA(image.Rect(0, 0, 8, 8)), nil)
+	v.live.onFrame(jpg.Bytes())
 	data, _ := os.ReadFile(ttyPath)
 	cols, rows := v.live.size()
-	want := fmt.Sprintf("\x1b_Ga=T,U=1,f=100,i=%d,c=%d,r=%d", v.live.id, cols, rows)
+	want := fmt.Sprintf("\x1b_Ga=T,U=1,f=24,o=z,s=8,v=8,i=%d,c=%d,r=%d", v.live.id, cols, rows)
 	if !strings.Contains(string(data), want) {
 		t.Errorf("frame header %q not in output %q", want, data)
 	}
@@ -280,7 +284,7 @@ func TestLiveBrowserWithChromium(t *testing.T) {
 	deadline := time.Now().Add(20 * time.Second)
 	for {
 		data, _ := os.ReadFile(out.Name())
-		if bytes.Contains(data, []byte("\x1b_Ga=T,U=1,f=100,i=")) && bytes.Contains(data, []byte("iVBORw0KGgo")) { // base64 of the PNG magic
+		if bytes.Contains(data, []byte("\x1b_Ga=T,U=1,f=24,o=z,s=")) {
 			break
 		}
 		if time.Now().After(deadline) {

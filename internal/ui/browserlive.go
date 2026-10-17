@@ -95,14 +95,18 @@ func (l *liveView) size() (cols, rows int) {
 }
 
 // onFrame runs on the session's goroutine: it sends the frame to the terminal.
-func (l *liveView) onFrame(png []byte) {
+func (l *liveView) onFrame(jpeg []byte) {
 	l.mu.Lock()
 	cols, rows, closed := l.cols, l.rows, l.closed
 	l.mu.Unlock()
 	if closed || cols <= 0 || rows <= 0 {
 		return
 	}
-	_ = l.gfx.out.WriteString(kitty.Transmit(l.id, png, cols, rows))
+	seq, err := kitty.TransmitJPEG(l.id, jpeg, cols, rows)
+	if err != nil {
+		return
+	}
+	_ = l.gfx.out.WriteString(seq)
 }
 
 // liveMsg reports that the session started (sess) or failed (err).

@@ -60,7 +60,7 @@ theme = "github_dark"
 
 ### ブラウザ（Web ページの画像化とポート転送）
 
-Web ページはヘッドレス Chromium で描画して PNG にします。`chromium` / `chromium-browser` / `google-chrome` を PATH から探します。実行ファイルのパスは次のように上書きできます。`:browser forward` の待ち受けアドレスも同じセクションで設定します。
+Web ページはヘッドレス Chromium で描画して 画像にします。`chromium` / `chromium-browser` / `google-chrome` を PATH から探します。実行ファイルのパスは次のように上書きできます。`:browser forward` の待ち受けアドレスも同じセクションで設定します。
 
 ```toml
 [browser]

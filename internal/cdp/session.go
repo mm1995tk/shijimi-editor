@@ -26,9 +26,13 @@ import (
 )
 
 // DefaultFPS is the most frames per second sent to OnFrame. A terminal has to
-// receive every frame as PNG data, so the limit keeps CPU and bandwidth (SSH)
+// receive every frame as image data, so the limit keeps CPU and bandwidth (SSH)
 // bounded.
 const DefaultFPS = 15
+
+// screencastQuality is the JPEG quality of the frames. PNG frames of a video
+// are several MB each, too much for a terminal behind SSH.
+const screencastQuality = 70
 
 // State is what the UI shows about the page.
 type State struct {
@@ -42,7 +46,7 @@ type Config struct {
 	Chromium      string // executable; "" = search PATH
 	Width, Height int    // viewport in pixels
 	FPS           int    // frame rate limit; 0 = DefaultFPS
-	OnFrame       func(png []byte)
+	OnFrame       func(jpeg []byte)
 	OnState       func(State)
 }
 
@@ -355,7 +359,7 @@ func (s *Session) Resize(w, h int) {
 
 func startScreencast(ctx context.Context, w, h int) {
 	_, _ = chromedp.Call(ctx, page.StartScreencast, page.StartScreencastParams{
-		Format: page.StartScreencastFormatPng, MaxWidth: int64(w), MaxHeight: int64(h), EveryNthFrame: 1,
+		Format: page.StartScreencastFormatJpeg, Quality: new(int64(screencastQuality)), MaxWidth: int64(w), MaxHeight: int64(h), EveryNthFrame: 1,
 	})
 }
 
