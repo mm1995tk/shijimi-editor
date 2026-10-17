@@ -847,6 +847,11 @@ func (a *App) handleLSPEvent(e lsp.Event) {
 func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	key := msg.String()
 	a.msg = ""
+	if a.hoverAt != nil {
+		// A popup the pointer opened never takes keys: it closes whatever has the
+		// focus, and the key goes on to it.
+		a.hoverText, a.hoverAt = "", nil
+	}
 	if key != "ctrl+q" {
 		a.confirmQuit = false
 	}
@@ -871,11 +876,6 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	if a.resizeMode {
 		return a.handleResizeKey(key)
-	}
-	if a.hoverAt != nil {
-		// A popup the pointer opened never takes keys: it closes and the key
-		// goes to whatever has the focus.
-		a.hoverText, a.hoverAt = "", nil
 	}
 	if a.hoverText != "" {
 		if d := hoverScrollKey(key); d != 0 {

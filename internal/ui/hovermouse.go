@@ -42,7 +42,7 @@ func (a *App) passiveMotion(l layout, msg tea.MouseMsg) tea.Cmd {
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
 	}
-	if !a.cfg.Editor.MouseHover || a.ctx != nil || a.overlayOpen() || a.resizing != resizeNone {
+	if !a.cfg.Editor.MouseHover || a.hoverBlocked() || a.resizing != resizeNone {
 		return nil
 	}
 	if a.focus != focusEditor {
@@ -80,9 +80,16 @@ func (a *App) passiveMotion(l layout, msg tea.MouseMsg) tea.Cmd {
 	return tea.Tick(hoverDelay, func(time.Time) tea.Msg { return hoverDwellMsg{seq} })
 }
 
+// hoverBlocked reports whether something that owns the keys is open (palette,
+// project search, context menu, command line, resize mode, agent proposal), so
+// a popup must not appear over it.
+func (a *App) hoverBlocked() bool {
+	return a.ctx != nil || a.overlayOpen() || a.cmdOpen || a.resizeMode || len(a.props) > 0
+}
+
 // hoverDwell asks the language server about the word under a resting pointer.
 func (a *App) hoverDwell(msg hoverDwellMsg) tea.Cmd {
-	if msg.seq != a.hoverSeq || a.focus != focusEditor {
+	if msg.seq != a.hoverSeq || a.focus != focusEditor || a.hoverBlocked() {
 		return nil
 	}
 	pos, word, ok := a.mouseWord(a.layout(), a.hoverCell)

@@ -231,3 +231,38 @@ func TestMouseHoverOverKeyboardPopupAsksNothing(t *testing.T) {
 		t.Fatal("popup replaced or word armed")
 	}
 }
+
+func TestMouseHoverBlockedByKeyOwners(t *testing.T) {
+	for name, set := range map[string]func(*App){
+		"cmdline": func(a *App) { a.cmdOpen = true },
+		"resize":  func(a *App) { a.resizeMode = true },
+		"palette": func(a *App) { a.pal.open = true },
+	} {
+		a := newTestApp(t, "hello world\n")
+		a.focus = focusEditor
+		set(a)
+		l := a.layout()
+		x, y := l.rightX+gutterWidth(a.curText().buf)+1, l.editY
+		if cmd := move(a, x, y); cmd != nil {
+			t.Fatalf("%s: timer started", name)
+		}
+		a.hoverCell = screenPt{x, y}
+		if cmd := a.hoverDwell(hoverDwellMsg{a.hoverSeq}); cmd != nil {
+			t.Fatalf("%s: dwell sent a request", name)
+		}
+	}
+}
+
+func TestMouseHoverClosedByKeyInCommandLine(t *testing.T) {
+	a := newTestApp(t, "hello world\n")
+	a.focus = focusEditor
+	a.cmdOpen = true
+	a.hoverText, a.hoverAt = "text", &screenPt{3, 1}
+	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	if a.hoverText != "" || a.hoverAt != nil {
+		t.Fatal("the pointer popup should close on a key typed in the command line")
+	}
+	if !a.cmdOpen {
+		t.Fatal("the command line must stay open")
+	}
+}
