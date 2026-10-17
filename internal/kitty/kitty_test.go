@@ -2,6 +2,8 @@ package kitty
 
 import (
 	"bytes"
+	"image"
+	"image/jpeg"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -108,5 +110,26 @@ func TestTransmitChunks(t *testing.T) {
 func TestDelete(t *testing.T) {
 	if got := Delete(9); got != "\x1b_Ga=d,d=I,i=9,q=2\x1b\\" {
 		t.Errorf("Delete = %q", got)
+	}
+}
+
+func TestTransmitJPEG(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 16, 8))
+	for i := range img.Pix {
+		img.Pix[i] = 0xff
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, nil); err != nil {
+		t.Fatal(err)
+	}
+	s, err := TransmitJPEG(3, buf.Bytes(), 4, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(s, "\x1b_Ga=T,U=1,f=24,o=z,s=16,v=8,i=3,c=4,r=2,C=1,q=2,m=") {
+		t.Errorf("bad header: %q", s[:70])
+	}
+	if _, err := TransmitJPEG(3, []byte("not a jpeg"), 4, 2); err == nil {
+		t.Error("invalid JPEG must fail")
 	}
 }

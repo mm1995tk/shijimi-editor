@@ -6,8 +6,13 @@
 package kitty
 
 import (
+	"bytes"
+	"compress/zlib"
 	"encoding/base64"
 	"fmt"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"os"
 	"strings"
 	"sync"
@@ -87,7 +92,36 @@ const chunkSize = 4096
 // in place, which is how video frames are shown. Replies are suppressed
 // (q=2): the terminal would otherwise answer on stdin.
 func Transmit(id uint32, png []byte, cols, rows int) string {
-	enc := base64.StdEncoding.EncodeToString(png)
+	return transmit(id, base64.StdEncoding.EncodeToString(png), "f=100", cols, rows)
+}
+
+// TransmitJPEG is Transmit for a JPEG frame. Kitty graphics cannot take JPEG,
+// so the frame is decoded and sent as zlib-compressed RGB. This shrinks the
+// transfer from Chromium; what reaches the terminal is about as large as a
+// PNG when the frame has much texture.
+func TransmitJPEG(id uint32, data []byte, cols, rows int) (string, error) {
+	img, err := jpeg.Decode(bytes.NewReader(data))
+	if err != nil {
+		return "", err
+	}
+	b := img.Bounds()
+	var raw bytes.Buffer
+	zw, _ := zlib.NewWriterLevel(&raw, zlib.BestSpeed)
+	row := make([]byte, 0, b.Dx()*3)
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		row = appendRGB(row[:0], img, y)
+		_, _ = zw.Write(row)
+	}
+	if err := zw.Close(); err != nil {
+		return "", err
+	}
+	enc := base64.StdEncoding.EncodeToString(raw.Bytes())
+	return transmit(id, enc, fmt.Sprintf("f=24,o=z,s=%d,v=%d", b.Dx(), b.Dy()), cols, rows), nil
+}
+
+// transmit splits the base64 payload into chunks; format holds the f= (and
+// size) keys of the first chunk.
+func transmit(id uint32, enc, format string, cols, rows int) string {
 	var sb strings.Builder
 	for first := true; len(enc) > 0; first = false {
 		n := min(len(enc), chunkSize)
@@ -96,7 +130,7 @@ func Transmit(id uint32, png []byte, cols, rows int) string {
 			more = 1
 		}
 		if first {
-			fmt.Fprintf(&sb, "\x1b_Ga=T,U=1,f=100,i=%d,c=%d,r=%d,C=1,q=2,m=%d;", id, cols, rows, more)
+			fmt.Fprintf(&sb, "\x1b_Ga=T,U=1,%s,i=%d,c=%d,r=%d,C=1,q=2,m=%d;", format, id, cols, rows, more)
 		} else {
 			fmt.Fprintf(&sb, "\x1b_Gm=%d;", more)
 		}
@@ -150,4 +184,23 @@ func CellSize(f *os.File) (w, h int) {
 		return 0, 0
 	}
 	return int(ws.Xpixel) / int(ws.Col), int(ws.Ypixel) / int(ws.Row)
+}
+
+// appendRGB appends row y of img as RGB bytes. The *image.YCbCr that
+// jpeg.Decode returns is converted straight from its planes; At would cost an
+// interface call per pixel.
+func appendRGB(row []byte, img image.Image, y int) []byte {
+	b := img.Bounds()
+	if yc, ok := img.(*image.YCbCr); ok {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			r, g, bl := color.YCbCrToRGB(yc.Y[yc.YOffset(x, y)], yc.Cb[yc.COffset(x, y)], yc.Cr[yc.COffset(x, y)])
+			row = append(row, r, g, bl)
+		}
+		return row
+	}
+	for x := b.Min.X; x < b.Max.X; x++ {
+		r, g, bl, _ := img.At(x, y).RGBA()
+		row = append(row, byte(r>>8), byte(g>>8), byte(bl>>8))
+	}
+	return row
 }

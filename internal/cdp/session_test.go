@@ -66,10 +66,10 @@ const testPage = `<!doctype html><title>start</title>
 
 func TestSessionLive(t *testing.T) {
 	var frames atomic.Int64
-	var lastPNG atomic.Value
+	var lastFrame atomic.Value
 	s := startForTest(t, Config{
 		Width: 640, Height: 400,
-		OnFrame: func(png []byte) { frames.Add(1); lastPNG.Store(png) },
+		OnFrame: func(jpeg []byte) { frames.Add(1); lastFrame.Store(jpeg) },
 	})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, testPage)
@@ -84,8 +84,8 @@ func TestSessionLive(t *testing.T) {
 	}
 	// the page repaints all the time, so frames keep coming
 	waitFor(t, "frames", func() bool { return frames.Load() >= 3 })
-	if png, _ := lastPNG.Load().([]byte); !bytes.HasPrefix(png, []byte("\x89PNG")) {
-		t.Errorf("frame is not a PNG")
+	if f, _ := lastFrame.Load().([]byte); !bytes.HasPrefix(f, []byte("\xff\xd8")) {
+		t.Errorf("frame is not a JPEG")
 	}
 
 	// a click is delivered to the page
