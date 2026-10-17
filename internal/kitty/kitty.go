@@ -21,7 +21,10 @@ const EnvGraphics = "GH_EDITOR_GRAPHICS"
 
 // Supported reports whether the terminal draws Kitty graphics, judging by
 // environment variables (getenv is os.Getenv in production). Kitty, Ghostty
-// and WezTerm are recognised, and so is Herdr, which draws the images itself.
+// and WezTerm are recognised. Herdr is deliberately not: it redraws its panes
+// without resending the images, so the page vanishes (#102). It inherits the
+// outer terminal's variables, so it is checked first; set GH_EDITOR_GRAPHICS=kitty
+// to use the protocol there anyway.
 func Supported(getenv func(string) string) bool {
 	switch strings.ToLower(getenv(EnvGraphics)) {
 	case "kitty", "on", "1":
@@ -29,11 +32,14 @@ func Supported(getenv func(string) string) bool {
 	case "halfblock", "off", "0":
 		return false
 	}
+	if strings.EqualFold(getenv("TERM_PROGRAM"), "herdr") {
+		return false
+	}
 	if getenv("KITTY_WINDOW_ID") != "" || getenv("GHOSTTY_RESOURCES_DIR") != "" || getenv("WEZTERM_EXECUTABLE") != "" {
 		return true
 	}
 	switch strings.ToLower(getenv("TERM_PROGRAM")) {
-	case "ghostty", "wezterm", "herdr":
+	case "ghostty", "wezterm":
 		return true
 	}
 	switch getenv("TERM") {

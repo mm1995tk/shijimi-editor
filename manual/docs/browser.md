@@ -23,7 +23,7 @@
 
 ### ライブ表示（Kitty graphics protocol 対応の端末）
 
-Kitty / Ghostty / WezTerm / Herdr では、ブラウザタブが次のように変わります。
+Kitty / Ghostty / WezTerm では、ブラウザタブが次のように変わります。
 
 - Chromium を常駐させ（Chrome DevTools Protocol）、画面を画像として端末へ送ります。文字が読める解像度で表示され、動画や動きのあるページも動いて見えます（最大 15 fps）。音声は再生しません。
 - マウスのクリック・ドラッグ・ホイールを、ページへ転送します。
@@ -32,7 +32,7 @@ Kitty / Ghostty / WezTerm / Herdr では、ブラウザタブが次のように�
 - 別のタブを前に出している間は、画面の送信を止めて負荷を下げます。
 - sandbox は無効にしません。sandbox 付きで Chromium を起動できない環境では、エラーを表示します。
 
-端末の判定は環境変数で行います（`TERM=xterm-kitty`、`KITTY_WINDOW_ID`、`TERM_PROGRAM=ghostty` / `WezTerm` / `herdr` など）。
+端末の判定は環境変数で行います（`TERM=xterm-kitty`、`KITTY_WINDOW_ID`、`TERM_PROGRAM=ghostty` / `WezTerm` など）。Herdr の中では、画面の描き直しで画像が消えるため自動では使いません（`GH_EDITOR_GRAPHICS=kitty` で強制できます）。
 判定が合わないときは、`GH_EDITOR_GRAPHICS` で上書きできます。
 
 | 値 | 動作 |

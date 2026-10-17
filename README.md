@@ -72,14 +72,14 @@ listen-host = "127.0.0.1"  # :browser forward の待ち受けアドレス
 
 #### Kitty graphics protocol に対応した端末（高解像度表示と動画）
 
-Kitty / Ghostty / WezTerm / Herdr では、ブラウザタブが次のように変わります。
+Kitty / Ghostty / WezTerm では、ブラウザタブが次のように変わります。
 
 - Chromium を常駐させ（Chrome DevTools Protocol）、画面を画像として端末へ送ります。文字が読める解像度で表示され、動画や動きのあるページも動いて見えます（最大 15 fps）。音声は再生しません。
 - マウスのクリック・ドラッグ・ホイールをページへ転送します。ページをクリックするか `i`（または Enter）を押すと、キーをページへ送る入力モードに入り、`Esc` で戻ります。入力モード以外では、これまでと同じ `o` `r` `[` `]` `j` `k` `Ctrl-d` `Ctrl-u` `g` `G` が使えます。
 - 別のタブを前に出している間は、画面の送信を止めて負荷を下げます。
 - sandbox は無効にしません。sandbox 付きで Chromium を起動できない環境では、エラーを表示します。
 
-端末の判定は環境変数で行います（`TERM=xterm-kitty`、`KITTY_WINDOW_ID`、`TERM_PROGRAM=ghostty` / `WezTerm` / `herdr` など）。判定が合わないときは `GH_EDITOR_GRAPHICS=kitty`（強制的に使う）または `GH_EDITOR_GRAPHICS=halfblock`（使わない）で上書きできます。対応していない端末では、これまでと同じ半ブロック文字の静止画表示になります。SSH 越しでは端末を示す環境変数が引き継がれないことがあります。その場合は `GH_EDITOR_GRAPHICS=kitty` を設定してください。
+端末の判定は環境変数で行います（`TERM=xterm-kitty`、`KITTY_WINDOW_ID`、`TERM_PROGRAM=ghostty` / `WezTerm` など）。Herdr の中では、画面の描き直しで画像が消えるため自動では使いません（`GH_EDITOR_GRAPHICS=kitty` で強制できます）。判定が合わないときは `GH_EDITOR_GRAPHICS=kitty`（強制的に使う）または `GH_EDITOR_GRAPHICS=halfblock`（使わない）で上書きできます。対応していない端末では、これまでと同じ半ブロック文字の静止画表示になります。SSH 越しでは端末を示す環境変数が引き継がれないことがあります。その場合は `GH_EDITOR_GRAPHICS=kitty` を設定してください。
 
 画像は Unicode placeholder（U+10EEEE）の方式で配置するため、画面はセルの文字だけで構成されます。tmux / Herdr のように端末とのあいだに入るものが、Kitty graphics protocol を通す場合に使えます。
 
