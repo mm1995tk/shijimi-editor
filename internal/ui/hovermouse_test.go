@@ -54,7 +54,7 @@ func TestMouseHoverPopupStaysOnPointerAndCloses(t *testing.T) {
 	move(a, x, y)
 	a.hoverText, a.hoverScroll = "text", 0
 	a.hoverAt = &screenPt{x, y}
-	a.hoverPos.Col = 2
+	a.hoverWord.Col = 2
 	move(a, x, y+1) // onto the popup below the word
 	if a.hoverText == "" {
 		t.Fatal("popup closed while the pointer is on it")
@@ -104,7 +104,7 @@ func TestMouseHoverWheelOutsidePopupScrollsBuffer(t *testing.T) {
 	b := a.curText().buf
 	x, y := l.rightX+gutterWidth(b)+2, l.editY
 	a.hoverText, a.hoverAt = "text", &screenPt{x, y}
-	a.hoverPos.Col = 2
+	a.hoverWord.Col = 2
 	wheelDown(a, x, y) // on the word, outside the popup below it
 	if a.hoverText != "" || a.hoverAt != nil {
 		t.Fatal("popup should close when the wheel turns outside it")

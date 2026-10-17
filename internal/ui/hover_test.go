@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -91,5 +92,57 @@ func TestHoverPlaintextFallback(t *testing.T) {
 	}
 	if !strings.Contains(plain(lines), "func Println(a ...any)") {
 		t.Fatalf("text lost:\n%s", plain(lines))
+	}
+}
+
+func TestHoverBorderShowsCopyButtonAndHint(t *testing.T) {
+	v := newHoverView(goplsHover, 60, 5)
+	box := v.render(0)
+	if top := ansi.Strip(box[0]); !strings.Contains(top, hoverCopyLabel+"─╮") {
+		t.Fatalf("top border: %q", top)
+	}
+	bottom := ansi.Strip(box[len(box)-1])
+	if !strings.Contains(bottom, "y コピー") || !strings.Contains(bottom, "↓") {
+		t.Fatalf("bottom border: %q", bottom)
+	}
+	short := newHoverView("short text that fits", 60, 5).render(0)
+	if b := ansi.Strip(short[len(short)-1]); !strings.Contains(b, "y コピー") || strings.Contains(b, "スクロール") {
+		t.Fatalf("unscrollable bottom border: %q", b)
+	}
+}
+
+func TestHoverCopyKeyAndButton(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	a.hoverText = goplsHover
+	keys(a, "y")
+	if a.clipboard != goplsHover || a.hoverText == "" || a.msg == "" || a.msgErr {
+		t.Fatalf("key: clipboard=%q hover=%v msg=%q", a.clipboard, a.hoverText != "", a.msg)
+	}
+
+	a.clipboard = ""
+	l := a.layout()
+	bx, by, ok := a.hoverPos(l)
+	if !ok {
+		t.Fatal("no hover position")
+	}
+	v := a.hoverView(l)
+	n := ansi.StringWidth(hoverCopyLabel)
+	col := v.width + 2 - n/2
+	if !v.copyHit(col, 0) {
+		t.Fatalf("copyHit(%d,0) = false", col)
+	}
+	a.handleMouse(tea.MouseMsg{X: bx + col, Y: by, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	if a.clipboard != goplsHover || a.hoverText == "" {
+		t.Fatalf("button: clipboard=%q hover=%v", a.clipboard, a.hoverText != "")
+	}
+	a.handleMouse(tea.MouseMsg{X: bx + col, Y: by, Action: tea.MouseActionRelease, Button: tea.MouseButtonLeft})
+	if a.hoverText == "" {
+		t.Fatal("release on the button closed the hover")
+	}
+
+	a.clipboard = ""
+	a.handleMouse(tea.MouseMsg{X: bx + 2, Y: by + 1, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	if a.clipboard != "" || a.hoverText != "" {
+		t.Fatalf("click elsewhere: clipboard=%q hover=%v", a.clipboard, a.hoverText != "")
 	}
 }

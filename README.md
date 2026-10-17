@@ -192,7 +192,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `Space f` | ファイルを開く |
 | `Space b` | 開いているバッファ |
 | `Space e` | ファイルツリーへ移動 |
-| `Space k` | ホバー |
+| `Space k` | ホバー。表示中は `Ctrl+D` / `Ctrl+U`（`PgDn` / `PgUp`・ホイール）でスクロール、`y` または枠の右上の `[コピー]` クリックで markdown の原文をコピー |
 | `Space o` | カーソル位置の URL を外部ブラウザで開く（Linux: `xdg-open` / macOS: `open`） |
 | `Space r` | 名前の変更 |
 | `Space d` | 診断の一覧 |

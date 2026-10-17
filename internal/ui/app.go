@@ -88,7 +88,7 @@ type App struct {
 	hoverText   string
 	hoverScroll int
 	hoverAt     *screenPt  // where a mouse-triggered popup is anchored; nil = at the cursor
-	hoverPos    buffer.Pos // buffer position the mouse-triggered popup describes
+	hoverWord   buffer.Pos // buffer position the mouse-triggered popup describes
 	hoverCell   screenPt   // last cell the pointer rested on without a button
 	hoverSeq    int        // bumped on every input; stale dwell timers and replies are dropped
 	ctx         *ctxPreview
@@ -746,7 +746,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 				return nil
 			}
 			a.hoverText, a.hoverScroll = msg.text, 0
-			a.hoverAt, a.hoverPos = &m.pt, m.pos
+			a.hoverAt, a.hoverWord = &m.pt, m.pos
 			return nil
 		}
 		if strings.TrimSpace(msg.text) == "" {
@@ -874,6 +874,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if a.hoverText != "" {
 		if d := hoverScrollKey(key); d != 0 {
 			a.scrollHover(d)
+			return nil
+		}
+		if key == "y" {
+			a.copyHover()
 			return nil
 		}
 		a.hoverText = ""
@@ -1471,6 +1475,15 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		}
 		return nil
 	}
+	if a.hoverText != "" && msg.Button == tea.MouseButtonLeft {
+		// The button copies on press; the matching release must not close the hover.
+		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).copyHit(x-bx, y-by) {
+			if msg.Action == tea.MouseActionPress {
+				a.copyHover()
+			}
+			return nil
+		}
+	}
 	a.hoverText, a.hoverAt = "", nil
 	if wheel != 0 && msg.Action == tea.MouseActionPress {
 		switch {
@@ -1752,11 +1765,7 @@ func (a *App) View() string {
 		} else {
 			box = a.hoverView(l).render(a.hoverScroll)
 		}
-		bw := 0
-		for _, s := range box {
-			bw = max(bw, ansi.StringWidth(s))
-		}
-		x, y := a.popupRect(l, cx, cy, bw, len(box))
+		x, y := popupPos(l, a.w, cx, cy, box)
 		rows = overlay(rows, box, x, y)
 	}
 
@@ -1963,6 +1972,39 @@ func (a *App) renderStatus() string {
 	}
 	lw := a.w - prefixW - ansi.StringWidth(right)
 	return prefix + st.Render(fit(left, lw)+right)
+}
+
+// popupPos places box below the cursor cell (cx, cy), or above it when there
+// is no room below, clamped to the editor area of a screen w cells wide.
+func popupPos(l layout, w, cx, cy int, box []string) (x, y int) {
+	bw := 0
+	for _, s := range box {
+		bw = max(bw, ansi.StringWidth(s))
+	}
+	x = clamp(cx, l.rightX, max(l.rightX, w-bw))
+	y = cy + 1
+	if y+len(box) > l.editY+l.editH && cy-len(box) >= l.editY {
+		y = cy - len(box)
+	}
+	y = max(l.editY, min(y, l.editY+l.editH-len(box)))
+	return x, y
+}
+
+// hoverPos is the screen position of the hover popup's top-left corner.
+func (a *App) hoverPos(l layout) (x, y int, ok bool) {
+	t := a.curText()
+	if t == nil || a.fullPreview(t) {
+		return 0, 0, false
+	}
+	cx, cy := a.popupAnchor(t, l)
+	x, y = popupPos(l, a.w, cx, cy, a.hoverView(l).render(a.hoverScroll))
+	return x, y, true
+}
+
+// copyHover copies the hover markdown source to the clipboard.
+func (a *App) copyHover() {
+	a.copyText(a.hoverText)
+	a.info("ホバーをコピーしました")
 }
 
 // hoverView lays out the current hover text for layout l. The box height is

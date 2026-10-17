@@ -50,7 +50,7 @@ func (a *App) passiveMotion(l layout, msg tea.MouseMsg) tea.Cmd {
 	if a.hoverText != "" && a.hoverAt != nil {
 		// The popup stays while the pointer is on it (so the wheel can scroll
 		// it) or still on the word it describes.
-		if a.inHoverBox(l, pt) || ok && pos == a.hoverPos {
+		if a.inHoverBox(l, pt) || ok && pos == a.hoverWord {
 			return nil
 		}
 		a.hoverText, a.hoverAt = "", nil
@@ -127,22 +127,10 @@ func (a *App) popupAnchor(t *tab, l layout) (x, y int) {
 	return a.cursorScreen(t, l)
 }
 
-// popupRect places a bw x bh popup below the anchor cell, above it when it does
-// not fit, and inside the editor area.
-func (a *App) popupRect(l layout, cx, cy, bw, bh int) (x, y int) {
-	x = clamp(cx, l.rightX, max(l.rightX, a.w-bw))
-	y = cy + 1
-	if y+bh > l.editY+l.editH && cy-bh >= l.editY {
-		y = cy - bh
-	}
-	y = max(l.editY, min(y, l.editY+l.editH-bh))
-	return x, y
-}
-
 // inHoverBox reports whether pt is on the open hover popup.
 func (a *App) inHoverBox(l layout, pt screenPt) bool {
-	t := a.curText()
-	if t == nil || a.hoverAt == nil {
+	x, y, ok := a.hoverPos(l)
+	if !ok || a.hoverAt == nil {
 		return false
 	}
 	box := a.hoverView(l).render(a.hoverScroll)
@@ -150,7 +138,5 @@ func (a *App) inHoverBox(l layout, pt screenPt) bool {
 	for _, s := range box {
 		bw = max(bw, ansi.StringWidth(s))
 	}
-	cx, cy := a.popupAnchor(t, l)
-	x, y := a.popupRect(l, cx, cy, bw, len(box))
 	return pt.x >= x && pt.x < x+bw && pt.y >= y && pt.y < y+len(box)
 }
