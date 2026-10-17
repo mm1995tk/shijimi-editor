@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -141,5 +142,25 @@ func TestHelixSelectRegex(t *testing.T) {
 	keys(a, "enter", "c", "#", "esc")
 	if got := b.Text(); got != "a# b#\nc#\n" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestSpaceMenuPopup(t *testing.T) {
+	a := newTestApp(t, "hello\n")
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if strings.Contains(a.View(), "ファイルを開く") {
+		t.Fatal("menu shown before Space")
+	}
+	keys(a, "space")
+	if !strings.Contains(a.View(), "ファイルを開く") {
+		t.Fatal("menu not shown after Space")
+	}
+	keys(a, "esc")
+	if strings.Contains(a.View(), "ファイルを開く") {
+		t.Fatal("menu still shown after Esc")
+	}
+	keys(a, "space", "z")
+	if strings.Contains(a.View(), "ファイルを開く") {
+		t.Fatal("menu still shown after unassigned key")
 	}
 }

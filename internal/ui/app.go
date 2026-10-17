@@ -1784,6 +1784,10 @@ func (a *App) View() string {
 		rows = overlay(rows, box, x, y)
 	}
 
+	if a.pending == " " && !a.pal.open && !a.cmdOpen {
+		rows = a.renderSpaceMenu(rows, l)
+	}
+
 	if a.pal.open {
 		a.pal.filter(a.commands)
 		pw := clamp(a.w*3/5, 30, 100)

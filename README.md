@@ -187,6 +187,8 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ### Space メニュー
 
+`Space` を押すと、続けて押せるキーの一覧がエディタ領域の右下にポップアップで出ます。`Esc` か割り当てのないキーで閉じます。
+
 | キー | 動作 |
 | --- | --- |
 | `Space f` | ファイルを開く |
