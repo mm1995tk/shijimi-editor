@@ -28,11 +28,52 @@ func (m editMode) label() string {
 	return "NOR"
 }
 
+// fullPreviewKey reports whether a key may run while the Markdown preview
+// fills the editor area: scrolling, counts, the leader and command line, and
+// ctrl chords. Anything else would edit a buffer that is not visible.
+func (a *App) fullPreviewKey(key string) bool {
+	if a.pending == " " {
+		return strings.Contains("fbkodDeEmgGy?/ta", key) && len(key) == 1
+	}
+	if a.pending != "" {
+		return a.pending == "g"
+	}
+	switch key {
+	case "j", "k", "up", "down", "G", "g", "pgup", "pgdown", "esc", ":", " ", "space":
+		return true
+	}
+	if len(key) == 1 && key[0] >= '0' && key[0] <= '9' {
+		return true
+	}
+	return strings.HasPrefix(key, "ctrl+")
+}
+
+// fullPreviewEditorKey is fullPreviewKey for the modeless (vscode) keymap,
+// where plain characters and pastes would be typed into the hidden buffer.
+func fullPreviewEditorKey(msg tea.KeyMsg) bool {
+	if msg.Paste {
+		return false
+	}
+	switch msg.String() {
+	case "up", "down", "pgup", "pgdown", "home", "end", "ctrl+home", "ctrl+end", "esc":
+		return true
+	}
+	return false
+}
+
 // handleHelixKey implements Helix-style modal editing for text tabs.
 func (a *App) handleHelixKey(msg tea.KeyMsg) tea.Cmd {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
+	}
+	if a.fullPreview(t) {
+		a.mode = modeNormal // e.g. after switching back to this tab from insert mode
+		if !a.fullPreviewKey(msg.String()) {
+			a.pending, a.count = "", 0
+			a.info("全幅プレビュー中は編集できません")
+			return nil
+		}
 	}
 	if a.mode == modeInsert {
 		return a.handleInsertKey(msg)
@@ -167,8 +208,13 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 
 	// --- editing ---
 	case "d", "alt+d":
-		s, e := b.SelectionOrChar()
+		s, e, widened := b.LineDeleteRange()
 		text := b.DeleteRange(s, e)
+		if widened {
+			// the removed text starts with the preceding newline; keep the
+			// register linewise so "p" pastes whole lines
+			text = strings.TrimPrefix(text, "\n") + "\n"
+		}
 		if key == "d" {
 			a.clipboard = text
 		}
@@ -379,7 +425,7 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	case "g":
 		return a.prPicker()
 	case "G":
-		return a.openLocalReview()
+		return a.toggleGitDiff()
 	case "y":
 		if t := a.cur(); t != nil && t.kind == tabText {
 			s, e := t.buf.SelectionOrChar()
@@ -395,7 +441,7 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	case "?":
 		return a.pal.show(a.root, ">")
 	case "/":
-		return a.openCmdline(":grep ")
+		return a.openSearch(fQuery)
 	case "c":
 		a.toggleComment()
 	case "t":

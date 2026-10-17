@@ -2,9 +2,7 @@ package ui
 
 import (
 	"fmt"
-	"os/exec"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -32,8 +30,10 @@ func defaultCommands() []command {
 		{"表示: 開いているバッファ一覧", "Space b", func(a *App) tea.Cmd { return a.bufferPicker() }},
 		{"表示: サイドバー（ファイルツリー）の表示切替", "Ctrl+B", func(a *App) tea.Cmd { a.toggleSide(); return nil }},
 		{"表示: ファイルツリーへ移動", "Ctrl+E / Space e", func(a *App) tea.Cmd { a.showSide = true; return a.setFocus(focusExplorer) }},
-		{"表示: Markdown プレビューの切替", "Space m / :preview", func(a *App) tea.Cmd { return a.togglePreview() }},
+		{"表示: Markdown プレビューの切替（並べて表示 → 全幅 → 閉じる）", "Space m / :preview", func(a *App) tea.Cmd { return a.togglePreview() }},
 		{"表示: ターミナルの表示切替", "Ctrl+J", func(a *App) tea.Cmd { return a.toggleTerm() }},
+		{"表示: ペインのリサイズ（サイドバー・ターミナル・プレビュー）", "Alt+R", func(a *App) tea.Cmd { return a.startResize() }},
+		{"表示: ペインの大きさを初期値に戻す", "リサイズ中に =", func(a *App) tea.Cmd { a.resetPanes(); return nil }},
 		{"表示: 次のタブ", "Ctrl+PgDn / gn", func(a *App) tea.Cmd { a.switchTab(1); return nil }},
 		{"表示: 前のタブ", "Ctrl+PgUp / gp", func(a *App) tea.Cmd { a.switchTab(-1); return nil }},
 		{"編集: 検索", "Ctrl+F / /", func(a *App) tea.Cmd {
@@ -46,8 +46,7 @@ func defaultCommands() []command {
 		{"編集: 元に戻す", "u / Ctrl+Z", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Undo() }); return nil }},
 		{"編集: やり直し", "U / Ctrl+Y", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
 		{"編集: 行コメントの切替", "Ctrl+C / Ctrl+/", func(a *App) tea.Cmd { a.toggleComment(); return nil }},
-		{"検索: プロジェクト全体を検索", "Space /", func(a *App) tea.Cmd { return a.openCmdline(":grep ") }},
-		{"検索: プロジェクト全体で置換", "", func(a *App) tea.Cmd { return a.openCmdline(":replace ") }},
+		{"検索: プロジェクト全体を検索 / 置換", "Space /", func(a *App) tea.Cmd { return a.openSearch(fQuery) }},
 		{"エージェント: 現在の文脈をターミナルへ送る", "Space a / Alt+A", func(a *App) tea.Cmd { return a.sendContext() }},
 		{"LSP: ホバー", "Space k", func(a *App) tea.Cmd { return a.hover() }},
 		{"LSP: 定義へ移動", "gd / F12", func(a *App) tea.Cmd { return a.gotoDefinition() }},
@@ -57,7 +56,10 @@ func defaultCommands() []command {
 		{"LSP: 診断の一覧", "Space d", func(a *App) tea.Cmd { return a.diagnosticPicker() }},
 		{"LSP: 言語サーバーを再起動", ":lsp-restart", func(a *App) tea.Cmd { return a.execCommand("lsp-restart") }},
 		{"レビュー: プルリクエスト一覧", "Space g / :pr", func(a *App) tea.Cmd { return a.prPicker() }},
-		{"レビュー: ローカルの変更", "Ctrl+G / :review", func(a *App) tea.Cmd { return a.openLocalReview() }},
+		{"git-diff: モードの切替", "Ctrl+G / Space G / :gitdiff", func(a *App) tea.Cmd { return a.toggleGitDiff() }},
+		{"git-diff: 分割表示 / 統合表示の切替", ":gitdiff split|unified", func(a *App) tea.Cmd { a.toggleSplit(); return nil }},
+		{"git-diff: 比較元を HEAD / PR の base で切替", "b / :gitdiff base", func(a *App) tea.Cmd { return a.cycleGitDiffBase() }},
+		{"git-diff: 変更一覧へ移動", "", func(a *App) tea.Cmd { return a.focusChangesList() }},
 		{"ファイルツリー: 最新の情報に更新", "R", func(a *App) tea.Cmd { a.explorer.refresh(); return nil }},
 		{"ファイルツリー: 新しいファイル", "a", func(a *App) tea.Cmd { return a.newFileIn(a.explorer.targetDir()) }},
 		{"ファイルツリー: 新しいフォルダー", "A", func(a *App) tea.Cmd { return a.newFolder() }},
@@ -216,22 +218,19 @@ func (a *App) execCommand(line string) tea.Cmd {
 		return tea.Batch(cmd, a.term.run(arg))
 	case "preview", "md":
 		return a.togglePreview()
-	case "review":
-		return a.openLocalReview()
+	case "gitdiff", "gd", "review":
+		return a.gitDiffCommand(arg)
 	case "pr":
 		if n, err := strconv.Atoi(strings.TrimPrefix(arg, "#")); err == nil {
 			return a.openPR(n)
 		}
 		return a.prPicker()
 	case "grep", "rg":
-		if arg == "" {
-			return a.openCmdline(":grep ")
-		}
-		return a.grep(arg)
+		return a.openSearchArgs(arg, false)
 	case "browser":
 		return a.browser(arg)
 	case "replace", "rep":
-		return a.replace(arg)
+		return a.openSearchArgs(arg, true)
 	case "lsp-restart":
 		a.lsp.restart()
 		for _, t := range a.tabs {
@@ -291,33 +290,12 @@ func (a *App) execCommand(line string) tea.Cmd {
 
 // ---- project search ----
 
-type grepMsg struct {
-	query string
-	hits  []grepHit
-	err   error
-}
-
-type grepHit struct {
-	path string
-	line int
-	text string
-}
-
 // parseGrepArgs splits `[-x globs] [-i globs] query` (also --exclude=globs /
 // --include=globs). Globs are comma separated. Flags add to the [search]
 // defaults from config.
 func parseGrepArgs(arg string, def config.Search) (q string, include, exclude []string) {
 	include = append(include, def.Include...)
 	exclude = append(exclude, def.Exclude...)
-	split := func(v string) []string {
-		var out []string
-		for _, g := range strings.Split(v, ",") {
-			if g = strings.Trim(strings.TrimSpace(g), `'"`); g != "" {
-				out = append(out, g)
-			}
-		}
-		return out
-	}
 	rest := strings.TrimSpace(arg)
 	for strings.HasPrefix(rest, "-") {
 		flag, tail, _ := strings.Cut(rest, " ")
@@ -331,9 +309,9 @@ func parseGrepArgs(arg string, def config.Search) (q string, include, exclude []
 		}
 		switch flag {
 		case "-x", "--exclude":
-			exclude = append(exclude, split(val)...)
+			exclude = append(exclude, splitGlobs(val)...)
 		case "-i", "--include":
-			include = append(include, split(val)...)
+			include = append(include, splitGlobs(val)...)
 		default:
 			return strings.TrimSpace(arg), include, exclude
 		}
@@ -341,147 +319,7 @@ func parseGrepArgs(arg string, def config.Search) (q string, include, exclude []
 	return rest, include, exclude
 }
 
-// gitGlobs converts a glob to git pathspec globs that match like rg: a bare
-// pattern such as "*.lock" matches at any depth, and a name that matches a
-// directory also matches everything under it.
-func gitGlobs(g string) []string {
-	g = strings.TrimSuffix(g, "/")
-	if !strings.Contains(g, "/") {
-		g = "**/" + g
-	} else {
-		g = strings.TrimPrefix(g, "/")
-	}
-	if strings.HasSuffix(g, "/**") {
-		return []string{g}
-	}
-	return []string{g, g + "/**"}
-}
-
-func (a *App) grep(arg string) tea.Cmd {
-	root := a.root
-	q, include, exclude := parseGrepArgs(arg, a.cfg.Search)
-	if q == "" {
-		return a.openCmdline(":grep " + strings.TrimSpace(arg) + " ")
-	}
-	return func() tea.Msg {
-		hits := searchHits(root, q, include, exclude, false)
-		if len(hits) > 2000 {
-			hits = hits[:2000]
-		}
-		return grepMsg{query: q, hits: hits}
-	}
-}
-
-// searchHits runs rg (or git grep) and returns the hits grouped by file.
-// fixed searches for q literally and lists every hit (used by :replace).
-func searchHits(root, q string, include, exclude []string, fixed bool) []grepHit {
-	var out []byte
-	var err error
-	if _, e := exec.LookPath("rg"); e == nil {
-		args := []string{"--line-number", "--no-heading", "--color", "never", "--smart-case"}
-		if fixed {
-			args = append(args, "--fixed-strings")
-		} else {
-			args = append(args, "--max-count", "50")
-		}
-		for _, g := range include {
-			args = append(args, "-g", g)
-		}
-		for _, g := range exclude {
-			args = append(args, "-g", "!"+g)
-		}
-		out, err = run(root, nil, "rg", append(args, "--", q)...)
-	} else {
-		args := []string{"grep", "-n", "-I", "-i"}
-		if fixed {
-			args = append(args, "-F")
-		}
-		args = append(args, "--", q)
-		for _, g := range include {
-			for _, p := range gitGlobs(g) {
-				args = append(args, ":(glob)"+p)
-			}
-		}
-		for _, g := range exclude {
-			for _, p := range gitGlobs(g) {
-				args = append(args, ":(exclude,glob)"+p)
-			}
-		}
-		if len(include) == 0 && len(exclude) > 0 {
-			args = append(args, ".")
-		}
-		out, err = run(root, nil, "git", args...)
-	}
-	if err != nil && len(out) == 0 {
-		return nil
-	}
-	var hits []grepHit
-	for _, l := range strings.Split(string(out), "\n") {
-		parts := strings.SplitN(l, ":", 3)
-		if len(parts) < 3 {
-			continue
-		}
-		n, err := strconv.Atoi(parts[1])
-		if err != nil {
-			continue
-		}
-		hits = append(hits, grepHit{path: filepath.Join(root, parts[0]), line: n, text: strings.TrimSpace(parts[2])})
-	}
-	// group hits by file, keeping first-seen order
-	order := map[string]int{}
-	for _, h := range hits {
-		if _, ok := order[h.path]; !ok {
-			order[h.path] = len(order)
-		}
-	}
-	sort.SliceStable(hits, func(i, j int) bool { return order[hits[i].path] < order[hits[j].path] })
-	return hits
-}
-
-func (a *App) showGrep(m grepMsg) tea.Cmd {
-	if m.err != nil {
-		a.fail(m.err)
-		return nil
-	}
-	if len(m.hits) == 0 {
-		a.fail(fmt.Errorf("見つかりません: %s", m.query))
-		return nil
-	}
-	items := make([]paletteItem, len(m.hits))
-	for i, h := range m.hits {
-		items[i] = paletteItem{label: fmt.Sprintf("%s:%d  %s", a.rel(h.path), h.line, h.text)}
-	}
-	return a.pal.pick("検索: "+m.query, items, func(i int) tea.Cmd {
-		h := m.hits[i]
-		if !a.openFile(h.path) {
-			return nil
-		}
-		t := a.curText()
-		if t != nil {
-			t.buf.GotoLine(h.line)
-			a.lastSearch = m.query
-		}
-		a.follow = true
-		return a.setFocus(focusEditor)
-	})
-}
-
 // ---- review ----
-
-func (a *App) openLocalReview() tea.Cmd {
-	for i, t := range a.tabs {
-		if t.kind == tabReview && t.rev.prNumber == 0 {
-			a.active = i
-			t.rev.loading = true
-			a.focus = focusEditor
-			return t.rev.load()
-		}
-	}
-	r := newReview(a.root, 0)
-	a.addTab(&tab{kind: tabReview, rev: r})
-	a.focus = focusEditor
-	return r.load()
-}
 
 func (a *App) openPR(n int) tea.Cmd {
 	for i, t := range a.tabs {
@@ -707,4 +545,15 @@ func (a *App) reviewClick(r *review, l layout, x, y int) {
 	}
 	r.focusFiles = false
 	r.cursor = clamp(r.scroll+row, 0, max(0, len(r.buildRows())-1))
+}
+
+// splitGlobs splits a comma separated glob list, dropping quotes and blanks.
+func splitGlobs(v string) []string {
+	var out []string
+	for _, g := range strings.Split(v, ",") {
+		if g = strings.Trim(strings.TrimSpace(g), `'"`); g != "" {
+			out = append(out, g)
+		}
+	}
+	return out
 }

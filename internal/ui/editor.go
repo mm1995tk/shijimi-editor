@@ -17,7 +17,6 @@ const (
 	tabText tabKind = iota
 	tabImage
 	tabReview
-	tabReplace
 	tabBrowser
 )
 
@@ -35,11 +34,11 @@ type tab struct {
 
 	img *imageView
 	rev *review
-	rep *replaceView
+	dv  *diffView // set while the tab is shown as a diff (git-diff mode)
 	web *browserView
 
 	// Markdown preview beside the buffer
-	preview   bool
+	preview   previewMode
 	prevCache []string
 	prevW     int
 	prevVer   int
@@ -61,8 +60,6 @@ func (t *tab) title() string {
 		return t.img.name()
 	case tabReview:
 		return t.rev.tabTitle()
-	case tabReplace:
-		return t.rep.tabTitle()
 	case tabBrowser:
 		return t.web.name()
 	}
@@ -139,6 +136,7 @@ type editorOpts struct {
 	extraSels    [][2]buffer.Pos
 	relative     bool
 	diags        []lsp.Diagnostic
+	rowBg        func(row int) string // background override per buffer line (diff view)
 }
 
 var severityColor map[int]string
@@ -178,6 +176,11 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 		}
 		isCur := row == b.Cur.Row
 		lineBg := cEditorBg
+		if o.rowBg != nil {
+			if c := o.rowBg(row); c != "" {
+				lineBg = c
+			}
+		}
 		numSt := stLineNo
 		if isCur && !hasSel {
 			lineBg = cCurLine
@@ -385,7 +388,7 @@ func renderWelcome(w, h int, helix bool) []string {
 			row{"Space ?       コマンドパレット", false},
 			row{"Space e       ファイルツリーへ移動", false},
 			row{"Space g       プルリクエストをレビュー", false},
-			row{"Ctrl+G        ローカルの変更をレビュー", false},
+			row{"Ctrl+G        git-diff モード（変更を差分で見る）", false},
 			row{"Ctrl+J        ターミナル", false},
 			row{":q            終了", false},
 		)
@@ -395,7 +398,7 @@ func renderWelcome(w, h int, helix bool) []string {
 			row{"F1 / Ctrl+K   コマンドパレット", false},
 			row{"Ctrl+B        サイドバーの表示切替", false},
 			row{"Ctrl+E        ファイルツリーへ移動", false},
-			row{"Ctrl+G        ローカルの変更をレビュー", false},
+			row{"Ctrl+G        git-diff モード（変更を差分で見る）", false},
 			row{"Ctrl+J        ターミナル", false},
 			row{"Ctrl+Q        終了", false},
 		)

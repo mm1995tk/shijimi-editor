@@ -331,9 +331,9 @@ func sgr(fg, bg vt.Color, attr vt.Attr, cursor bool) string {
 	if attr&vt.AttrStrike != 0 {
 		p = append(p, "9")
 	}
-	fgp, bgp := sgrColor(fg, true), sgrColor(bg, false)
+	fgp, bgp := sgrColor(fg, true, true), sgrColor(bg, false, false)
 	if (attr&vt.AttrReverse != 0) != cursor {
-		fgp, bgp = sgrColor(bg, true), sgrColor(fg, false)
+		fgp, bgp = sgrColor(bg, true, false), sgrColor(fg, false, true)
 	}
 	p = append(p, fgp, bgp)
 	return "\x1b[" + strings.Join(p, ";") + "m"
@@ -344,7 +344,10 @@ func hexRGB(h string) [3]int {
 	return [3]int{int(v >> 16 & 255), int(v >> 8 & 255), int(v & 255)}
 }
 
-func sgrColor(c vt.Color, fg bool) string {
+// sgrColor renders c as a foreground (fg) or background parameter. A default
+// color is the editor foreground when isFG, otherwise the editor background,
+// so a reversed default cell still shows the opposite color.
+func sgrColor(c vt.Color, fg, isFG bool) string {
 	base := 48
 	if fg {
 		base = 38
@@ -357,7 +360,7 @@ func sgrColor(c vt.Color, fg bool) string {
 	}
 	// Default colors match the editor and follow the current theme.
 	rgb := hexRGB(cEditorBg)
-	if fg {
+	if isFG {
 		rgb = hexRGB(cEditorFg)
 	}
 	return fmt.Sprintf("%d;2;%d;%d;%d", base, rgb[0], rgb[1], rgb[2])

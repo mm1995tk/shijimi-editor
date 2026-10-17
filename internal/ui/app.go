@@ -17,6 +17,7 @@ import (
 
 	"github.com/mm1995tk/gh-editor/internal/buffer"
 	"github.com/mm1995tk/gh-editor/internal/config"
+	"github.com/mm1995tk/gh-editor/internal/ide"
 	"github.com/mm1995tk/gh-editor/internal/lsp"
 	"github.com/mm1995tk/gh-editor/internal/proxy"
 )
@@ -27,6 +28,7 @@ const (
 	focusEditor focus = iota
 	focusExplorer
 	focusTerminal
+	focusChanges // the CHANGES list in git-diff mode
 )
 
 type span struct{ x0, x1 int }
@@ -37,6 +39,7 @@ type App struct {
 	gitTop   string
 	cfg      *config.Config
 	renderer render.Renderer // overrides Chromium for the browser tab (tests); nil = from config
+	gfx      *kittyGfx       // non-nil on a terminal with Kitty graphics: the browser view is live
 	lsp      *lspManager
 	w, h     int
 	focus    focus
@@ -44,12 +47,21 @@ type App struct {
 	term     *terminal
 	proxy    *proxy.Manager
 	pal      *palette
+	search   *searchPanel
 	tabs     []*tab
 	active   int
 	branch   string
+	gd       gitDiff
 
 	showSide bool
 	showTerm bool
+
+	// pane sizes picked by the user (0 = automatic), see resize.go
+	sideWPref  int
+	panelHPref int
+	previewPct int
+	resizeMode bool
+	resizing   resizeTarget // border being dragged with the mouse
 
 	// Helix modal state
 	helix          bool
@@ -74,6 +86,12 @@ type App struct {
 	hoverText   string
 	hoverScroll int
 	ctx         *ctxPreview
+
+	// Claude Code IDE integration (see ide.go)
+	ide     *ide.Server
+	props   []*proposal // agent changes waiting for the user's decision
+	lastSel *ideSelection
+	sentSel *ideSelection
 
 	clipboard    string
 	msg          string
@@ -101,9 +119,11 @@ func New(dir, file string) *App {
 		term:     newTerminal(abs),
 		proxy:    proxy.NewManager(),
 		pal:      newPalette(),
+		search:   newSearchPanel(cfg.Search),
 		showSide: true,
 		focus:    focusExplorer,
 		helix:    cfg.Editor.Keymap != "vscode",
+		gd:       gitDiff{split: true},
 	}
 	a.explorer.icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
@@ -117,6 +137,7 @@ func New(dir, file string) *App {
 	styleInput(&a.findInput, cPaletteBg)
 	styleInput(&a.cmdInput, cEditorBg)
 	styleInput(&a.pal.input, cPaletteBg)
+	a.search.restyle()
 	a.commands = defaultCommands()
 	if out, err := run(abs, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		a.branch = strings.TrimSpace(string(out))
@@ -131,7 +152,17 @@ func New(dir, file string) *App {
 }
 
 // Close stops language servers; call after the program exits.
-func (a *App) Close() { a.lsp.stopAll() }
+func (a *App) Close() {
+	a.lsp.stopAll()
+	for _, t := range a.tabs {
+		if t.kind == tabBrowser {
+			t.web.closeLiveNow()
+		}
+	}
+	if a.gfx != nil {
+		a.gfx.closing.Wait()
+	}
+}
 
 func styleInput(ti *textinput.Model, bg string) {
 	ti.TextStyle = bgfg(bg, cEditorFg)
@@ -157,7 +188,7 @@ func (a *App) layout() layout {
 	var l layout
 	l.statusY = a.h - 1
 	if a.showSide {
-		l.sideW = clamp(a.w/5, 18, 36)
+		l.sideW = a.sideWidth()
 		l.rightX = l.sideW + 1
 	}
 	l.rightW = max(0, a.w-l.rightX)
@@ -166,7 +197,7 @@ func (a *App) layout() layout {
 		l.editY = 2
 	}
 	if a.showTerm {
-		l.panelH = clamp((a.h-1)*2/5, 6, max(6, a.h-8))
+		l.panelH = a.panelHeight()
 	}
 	l.editH = max(0, a.h-1-l.editY-l.panelH)
 	l.panelY = l.editY + l.editH
@@ -281,7 +312,7 @@ func (a *App) saveTab(t *tab) tea.Cmd {
 	}
 	a.explorer.loadGitStatus()
 	a.info("保存しました: %s", a.rel(t.buf.Path))
-	return nil
+	return a.afterSave()
 }
 
 func (a *App) saveAll() tea.Cmd {
@@ -458,6 +489,9 @@ func (a *App) closeTab(force bool) {
 	if t.kind == tabText && t.lang != nil {
 		a.detachLSP(t)
 	}
+	if t.kind == tabBrowser {
+		t.web.closeLive()
+	}
 	a.tabs = append(a.tabs[:a.active], a.tabs[a.active+1:]...)
 	if a.active >= len(a.tabs) {
 		a.active = len(a.tabs) - 1
@@ -481,7 +515,7 @@ func (a *App) switchTab(d int) {
 
 func (a *App) toggleSide() {
 	a.showSide = !a.showSide
-	if !a.showSide && a.focus == focusExplorer {
+	if !a.showSide && (a.focus == focusExplorer || a.focus == focusChanges) {
 		a.focus = focusEditor
 	}
 }
@@ -574,11 +608,19 @@ func (a *App) pasteText() string {
 // ---- update ----
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m, ok := msg.(ctlMsg); ok {
+	switch m := msg.(type) {
+	case ctlMsg:
 		return a, a.handleCtl(m)
+	case ideMsg:
+		return a, a.handleIDE(m)
+	case ideCancelMsg:
+		a.cancelProposal(m.reply)
+		return a, nil
 	}
 	cmd := a.update(msg)
 	a.syncLSP()
+	a.syncLive()
+	a.notifySelection()
 	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview())
 }
 
@@ -622,7 +664,13 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case autoSaveMsg:
 		return a.handleAutoSave(msg)
 	case watchMsg:
-		a.checkDiskChanges()
+		reload := a.checkDiskChanges()
+		if a.gd.on {
+			a.gd.ticks++
+			if reload || a.gd.ticks%gitDiffRefreshTicks == 0 {
+				return tea.Batch(watchTick(), a.reloadChanges())
+			}
+		}
 		return watchTick()
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
@@ -653,6 +701,9 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case mermaidDoneMsg:
 		a.handleMermaidDone(msg)
 	case hoverMsg:
+		if t := a.curText(); a.fullPreview(t) {
+			return nil // the popup would be anchored to the hidden buffer
+		}
 		if strings.TrimSpace(msg.text) == "" {
 			a.info("ホバー情報はありません")
 		} else {
@@ -685,16 +736,22 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.fail(msg.err)
 	case browserLoadedMsg:
 		a.browserLoaded(msg)
+	case liveStartedMsg:
+		a.liveStarted(msg)
+	case liveStateMsg:
+		// nothing to do: the update itself redraws
 	case openURLMsg:
 		if msg.err != nil {
 			a.fail(msg.err)
 		} else {
 			a.info("開きました: %s", msg.url)
 		}
-	case grepMsg:
-		return a.showGrep(msg)
-	case replaceMsg:
-		return a.showReplace(msg)
+	case changesLoadedMsg:
+		a.applyChanges(msg)
+	case searchTickMsg:
+		return a.searchTick(msg)
+	case searchDoneMsg:
+		a.searchDone(msg)
 	case reviewLoadedMsg:
 		for _, t := range a.tabs {
 			if t.kind == tabReview && t.rev.id == msg.id {
@@ -747,14 +804,23 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		a.confirmClose = false
 	}
 
+	if a.search.open {
+		return a.handleSearchKey(msg)
+	}
 	if a.pal.open {
 		return a.handlePaletteKey(msg)
+	}
+	if len(a.props) > 0 {
+		return a.handleProposalKey(msg)
 	}
 	if a.ctx != nil {
 		return a.handleContextKey(msg)
 	}
 	if a.cmdOpen {
 		return a.handleCmdlineKey(msg)
+	}
+	if a.resizeMode {
+		return a.handleResizeKey(key)
 	}
 	if a.hoverText != "" {
 		if d := hoverScrollKey(key); d != 0 {
@@ -779,6 +845,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return a.quit()
 		case "ctrl+j":
 			return a.toggleTerm()
+		case "alt+r":
+			return a.startResize()
 		case "f1":
 			return a.pal.show(a.root, ">")
 		}
@@ -803,11 +871,14 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		a.toggleSide()
 		return nil
 	case "ctrl+j", "ctrl+@":
-		if !insert || key == "ctrl+j" {
+		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
+		// mode, or Helix insert mode.
+		typing := a.focus == focusEditor && a.curText() != nil && (!a.helix || a.mode == modeInsert)
+		if key == "ctrl+j" || !typing {
 			return a.toggleTerm()
 		}
 	case "ctrl+g":
-		return a.openLocalReview()
+		return a.toggleGitDiff()
 	case "ctrl+e":
 		if a.focus == focusExplorer && len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
@@ -831,6 +902,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return nil
 	case "alt+a":
 		return a.sendContext()
+	case "alt+r":
+		return a.startResize()
 	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
 		if i := int(key[4] - '1'); i < len(a.tabs) {
 			a.active = i
@@ -843,6 +916,8 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch a.focus {
 	case focusExplorer:
 		return a.handleExplorerKey(msg)
+	case focusChanges:
+		return a.handleChangesKey(msg)
 	}
 	t := a.cur()
 	if t == nil {
@@ -858,9 +933,12 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch t.kind {
 	case tabReview:
 		return a.handleReviewKey(t, msg)
-	case tabReplace:
-		return a.handleReplaceKey(t, msg)
 	case tabBrowser:
+		if l := t.web.live; l != nil && l.input && l.sess != nil && msg.Paste {
+			// pasted text goes in at once (typed runes arrive here one by one)
+			l.sess.Text(string(msg.Runes))
+			return nil
+		}
 		return a.handleBrowserKey(t, key)
 	case tabImage:
 		switch key {
@@ -883,6 +961,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	if a.helix {
 		return a.handleHelixKey(msg)
+	}
+	if t := a.curText(); a.fullPreview(t) && !fullPreviewEditorKey(msg) {
+		a.info("全幅プレビュー中は編集できません")
+		return nil
 	}
 	return a.handleEditorKey(msg)
 }
@@ -1017,7 +1099,14 @@ func (a *App) handleExplorerKey(msg tea.KeyMsg) tea.Cmd {
 		a.pending = " "
 	case ":":
 		return a.openCmdline(":")
-	case "esc", "q", "tab":
+	case "tab":
+		if a.gd.on {
+			return a.setFocus(focusChanges)
+		}
+		if len(a.tabs) > 0 {
+			return a.setFocus(focusEditor)
+		}
+	case "esc", "q":
 		if len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
 		}
@@ -1232,6 +1321,11 @@ func (a *App) afterTyping(t *tab, typed []rune) tea.Cmd {
 		}
 		a.comp = nil
 	}
+	// Typing must not report a missing or starting server; only an explicit
+	// request does.
+	if a.lsp.client(t, "completionProvider") == nil {
+		return nil
+	}
 	cs, _ := a.lsp.clientsFor(t)
 	for _, c := range cs {
 		if c.IsCompletionTrigger(r) {
@@ -1294,6 +1388,9 @@ func (a *App) termMouse(l layout, msg tea.MouseMsg) (cmd tea.Cmd, ok bool) {
 }
 
 func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
+	if a.search.open {
+		return a.searchMouse(msg)
+	}
 	if a.pal.open {
 		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
 			a.pal.close()
@@ -1320,29 +1417,64 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		switch {
 		case a.showSide && x < l.sideW:
 			e := a.explorer
-			e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(a.h-2)))
-			e.sel = clamp(e.sel, e.scroll, e.scroll+a.h-3)
+			if a.gd.on && y >= a.explorerH() {
+				g := &a.gd
+				body := a.h - 2 - a.explorerH()
+				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.files)-body))
+				g.sel = clamp(g.sel, g.scroll, g.scroll+body-1)
+			} else {
+				eh := a.explorerH()
+				e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(eh-1)))
+				e.sel = clamp(e.sel, e.scroll, e.scroll+eh-2)
+			}
 		case a.showTerm && y >= l.panelY && y < l.statusY:
 			a.term.wheel(msg, x-l.rightX, y-l.panelY-2, wheel)
 		default:
 			if t := a.cur(); t != nil {
 				switch t.kind {
 				case tabText:
+					if a.fullPreview(t) {
+						t.buf.MoveLines(wheel, false) // the preview scrolls with the cursor
+						break
+					}
 					t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
 				case tabReview:
 					t.rev.moveCursor(wheel)
-				case tabReplace:
-					t.rep.move(wheel)
 				case tabBrowser:
-					a.browserWheel(t.web, wheel)
+					a.browserWheel(t.web, x, y, wheel)
 				}
 			}
 		}
 		return nil
 	}
 
+	if a.resizing != resizeNone {
+		switch msg.Action {
+		case tea.MouseActionMotion:
+			a.dragResize(l, x, y)
+			return nil
+		case tea.MouseActionRelease:
+			a.resizing = resizeNone
+			return nil
+		}
+		// A press means the release was lost (pointer left the window).
+		a.resizing = resizeNone
+	}
+	if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+		if r := a.resizeHit(l, x, y); r != resizeNone {
+			a.resizing = r
+			return nil
+		}
+	}
+
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
+	}
+
+	if v := a.browserTab(); v != nil && v.live != nil {
+		if cmd, ok := a.liveMouse(v, msg); ok {
+			return cmd
+		}
 	}
 
 	left := msg.Button == tea.MouseButtonLeft
@@ -1362,6 +1494,13 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 
 	switch {
 	case a.showSide && x < l.sideW:
+		if a.gd.on && y >= a.explorerH() {
+			if i := y - 1 - a.explorerH() + a.gd.scroll; y > a.explorerH() && i < len(a.gd.files) {
+				a.gd.sel = i
+				return a.openChange(a.gd.files[i])
+			}
+			return a.setFocus(focusChanges)
+		}
 		row := y - 1 + a.explorer.scroll
 		if y >= 1 && row < len(a.explorer.flat) {
 			a.explorer.sel = row
@@ -1397,7 +1536,16 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			return a.setFocus(focusEditor)
 		}
 		if t.kind == tabText {
-			if t.preview && x >= l.rightX+a.editW(t, l) {
+			if a.diffFile(t) != nil {
+				if y == l.editY {
+					a.toggleSplit()
+					return nil
+				}
+				if x < a.dvGeom(l).rightX {
+					return nil // the base side is read-only
+				}
+			}
+			if t.preview != previewOff && x >= l.rightX+a.editW(t, l) {
 				return nil // the preview pane is read-only
 			}
 			a.comp = nil
@@ -1412,6 +1560,10 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
 	t := a.curText()
 	if t == nil {
+		return
+	}
+	if dv := a.diffFor(t); dv != nil {
+		a.diffMouseToCursor(t, dv, l, x, y, extend)
 		return
 	}
 	x = min(x, l.rightX+a.editW(t, l)-1)
@@ -1429,18 +1581,31 @@ func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
 
 // ---- view ----
 
-// editW is the width of the text editor, narrower while the Markdown preview is open.
+// editW is the width of the text editor, narrower while the Markdown preview
+// is open and zero while the preview fills the area.
 func (a *App) editW(t *tab, l layout) int {
-	if t.preview {
-		return (l.rightW - 1) / 2
+	if a.diffFile(t) != nil {
+		return a.dvGeom(l).rightW
+	}
+	switch t.preview {
+	case previewSplit:
+		return a.editorWidth(l.rightW)
+	case previewFull:
+		return 0
 	}
 	return l.rightW
 }
 
 func (a *App) renderText(t *tab, l layout, focused bool) []string {
+	if dv := a.diffFor(t); dv != nil {
+		return a.renderDiffText(t, dv, l, focused)
+	}
+	if t.preview == previewFull {
+		return a.previewLines(t, l.rightW, l.editH)
+	}
 	ew := a.editW(t, l)
 	edit := renderEditor(t, ew, l.editH, a.editorOpts(t, focused))
-	if !t.preview {
+	if t.preview == previewOff {
 		return edit
 	}
 	pw := l.rightW - ew - 1
@@ -1462,7 +1627,11 @@ func (a *App) View() string {
 	l := a.layout()
 	if t := a.curText(); t != nil {
 		if a.follow {
-			ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
+			if dv := a.diffFor(t); dv != nil {
+				a.ensureDiffVisible(t, dv, a.editW(t, l), a.dvGeom(l).h)
+			} else {
+				ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
+			}
 			a.follow = false
 		}
 		t.buf.ScrollRow = clamp(t.buf.ScrollRow, 0, max(0, len(t.buf.Lines)-1))
@@ -1473,7 +1642,7 @@ func (a *App) View() string {
 	if a.findOpen {
 		right = append(right, a.renderFind(l.rightW))
 	}
-	editorFocused := a.focus == focusEditor && !a.pal.open
+	editorFocused := a.focus == focusEditor && !a.overlayOpen()
 	t := a.cur()
 	switch {
 	case t == nil:
@@ -1484,13 +1653,11 @@ func (a *App) View() string {
 		right = append(right, t.web.render(l.rightW, l.editH)...)
 	case t.kind == tabReview:
 		right = append(right, t.rev.render(l.rightW, l.editH, editorFocused)...)
-	case t.kind == tabReplace:
-		right = append(right, t.rep.render(l.rightW, l.editH, editorFocused)...)
 	default:
 		right = append(right, a.renderText(t, l, editorFocused)...)
 	}
 	if a.showTerm {
-		right = append(right, a.term.render(l.rightW, l.panelH, a.focus == focusTerminal && !a.pal.open)...)
+		right = append(right, a.term.render(l.rightW, l.panelH, a.focus == focusTerminal && !a.overlayOpen())...)
 	}
 
 	rows := make([]string, a.h-1)
@@ -1500,7 +1667,10 @@ func (a *App) View() string {
 		activePath = t.path()
 	}
 	if a.showSide {
-		side = a.explorer.render(l.sideW, a.h-1, a.focus == focusExplorer && !a.pal.open, activePath)
+		side = a.explorer.render(l.sideW, a.explorerH(), a.focus == focusExplorer && !a.overlayOpen(), activePath)
+		if a.gd.on {
+			side = append(side, a.renderChanges(l.sideW, a.h-1-a.explorerH(), a.focus == focusChanges && !a.overlayOpen())...)
+		}
 	}
 	for i := range rows {
 		var sb strings.Builder
@@ -1515,10 +1685,8 @@ func (a *App) View() string {
 	}
 
 	// popups anchored at the cursor
-	if t := a.curText(); t != nil && (a.comp != nil || a.hoverText != "") {
-		b := t.buf
-		cx := l.rightX + gutterWidth(b) + buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col) - b.ScrollCol
-		cy := l.editY + b.Cur.Row - b.ScrollRow
+	if t := a.curText(); t != nil && !a.fullPreview(t) && (a.comp != nil || a.hoverText != "") {
+		cx, cy := a.cursorScreen(t, l)
 		var box []string
 		if a.comp != nil {
 			box = a.comp.render(max(3, l.editH/2))
@@ -1545,8 +1713,16 @@ func (a *App) View() string {
 		rows = overlay(rows, box, (a.w-pw)/2, 1)
 	}
 
+	if a.search.open {
+		x, y, box := a.renderSearch()
+		rows = overlay(rows, box, x, y)
+	}
+
 	if a.ctx != nil {
 		rows = a.renderContext(rows)
+	}
+	if len(a.props) > 0 {
+		rows = a.renderProposal(rows)
 	}
 
 	if a.cmdOpen {
@@ -1622,9 +1798,8 @@ func (a *App) renderTabs(w int) string {
 		}
 		pieces[i] = piece{s + stTabBar.Render(" "), ansi.StringWidth(label) + 1}
 	}
-	if a.active < a.tabOffset {
-		a.tabOffset = a.active
-	}
+	// active is -1 once the last tab is closed
+	a.tabOffset = clamp(min(a.tabOffset, a.active), 0, max(0, len(a.tabs)-1))
 	for {
 		total := 0
 		for i := a.tabOffset; i <= a.active && i < len(pieces); i++ {
@@ -1685,6 +1860,8 @@ func (a *App) renderStatus() string {
 	switch a.focus {
 	case focusExplorer:
 		leftParts = append(leftParts, "ファイルツリー")
+	case focusChanges:
+		leftParts = append(leftParts, "変更一覧")
 	case focusTerminal:
 		leftParts = append(leftParts, "ターミナル")
 	}
@@ -1739,7 +1916,7 @@ func (a *App) renderStatus() string {
 func (a *App) hoverView(l layout) hoverView {
 	h := l.editH * 2 / 3
 	if t := a.curText(); t != nil {
-		cy := l.editY + t.buf.Cur.Row - t.buf.ScrollRow
+		_, cy := a.cursorScreen(t, l)
 		below := l.editY + l.editH - (cy + 1)
 		above := cy - l.editY
 		h = min(h, max(below, above))
@@ -1762,3 +1939,7 @@ func (a *App) scrollHover(d int) {
 	v := a.hoverView(a.layout())
 	a.hoverScroll = clamp(a.hoverScroll+d, 0, v.maxScroll())
 }
+
+// overlayOpen reports whether a floating window (palette or project search)
+// has the keyboard.
+func (a *App) overlayOpen() bool { return a.pal.open || a.search.open }

@@ -10,17 +10,15 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 )
 
 // EnvSocket is the environment variable that carries the socket path.
 const EnvSocket = "GH_EDITOR_SOCKET"
 
-// Subcommands are matched before file paths; write "./status" to open a file
+// Subcommands are matched before file paths; write "./diff" to open a file
 // with the same name.
-var Subcommands = []string{"open", "diff", "status", "skill"}
+var Subcommands = []string{"diff", "skill"}
 
 // IsSubcommand reports whether arg selects a subcommand.
 func IsSubcommand(arg string) bool {
@@ -34,25 +32,14 @@ func IsSubcommand(arg string) bool {
 
 // Request is sent by the CLI to the editor.
 type Request struct {
-	Cmd  string `json:"cmd"` // open | diff | status
+	Cmd  string `json:"cmd"` // diff
 	Path string `json:"path,omitempty"`
-	Line int    `json:"line,omitempty"`
-}
-
-// Status describes the running editor.
-type Status struct {
-	Root   string   `json:"root"`
-	Branch string   `json:"branch,omitempty"`
-	Active string   `json:"active,omitempty"` // path of the active tab
-	Line   int      `json:"line,omitempty"`   // 1-based cursor line of the active tab
-	Tabs   []string `json:"tabs"`
 }
 
 // Response is the editor's reply.
 type Response struct {
-	OK     bool    `json:"ok"`
-	Error  string  `json:"error,omitempty"`
-	Status *Status `json:"status,omitempty"`
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
 }
 
 // Handler runs a request inside the editor and returns the reply.
@@ -149,36 +136,10 @@ func Call(req Request) (Response, error) {
 	return resp, nil
 }
 
-// ParseTarget splits "path[:line]". If the whole argument names an existing
-// file, it is used as a path unchanged.
-func ParseTarget(arg string) (string, int) {
-	if _, err := os.Stat(arg); err == nil {
-		return arg, 0
-	}
-	if i := strings.LastIndex(arg, ":"); i > 0 {
-		if n, err := strconv.Atoi(arg[i+1:]); err == nil && n > 0 {
-			return arg[:i], n
-		}
-	}
-	return arg, 0
-}
-
 // Run executes a subcommand and returns the process exit code.
 func Run(args []string, stdout, stderr func(string)) int {
 	var req Request
 	switch args[0] {
-	case "open":
-		if len(args) != 2 {
-			stderr("usage: gh-editor open <path>[:行]")
-			return 2
-		}
-		p, line := ParseTarget(args[1])
-		abs, err := filepath.Abs(p)
-		if err != nil {
-			stderr(err.Error())
-			return 1
-		}
-		req = Request{Cmd: "open", Path: abs, Line: line}
 	case "diff":
 		if len(args) > 2 {
 			stderr("usage: gh-editor diff [path]")
@@ -193,8 +154,6 @@ func Run(args []string, stdout, stderr func(string)) int {
 			}
 			req.Path = abs
 		}
-	case "status":
-		req = Request{Cmd: "status"}
 	case "skill":
 		return runSkill(args[1:], stdout, stderr)
 	default:
@@ -209,10 +168,6 @@ func Run(args []string, stdout, stderr func(string)) int {
 	if !resp.OK {
 		stderr(resp.Error)
 		return 1
-	}
-	if resp.Status != nil {
-		b, _ := json.MarshalIndent(resp.Status, "", "  ")
-		stdout(string(b))
 	}
 	return 0
 }

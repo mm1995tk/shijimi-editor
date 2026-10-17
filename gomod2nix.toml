@@ -45,6 +45,14 @@ hash = 'sha256-XAhCOt8qJ2vR77lH1ez0IVU1/2CaLTq9jSmrHVg5HHU='
 version = 'v0.2.1'
 hash = 'sha256-VBkCZLI90PhMasftGw3403IqoV7d3E5WEGAIVrN5xQM='
 
+[mod.'github.com/chromedp/cdproto']
+version = 'v0.157.8'
+hash = 'sha256-E2yF0GxrK5TikkvhApYtt4XOk/5KnKvwi3kljTm47HU='
+
+[mod.'github.com/chromedp/chromedp']
+version = 'v0.21.0'
+hash = 'sha256-Egoo//IzU0kYkVRLLqAEKROdoNKEoUJrMRbH/GNgpfY='
+
 [mod.'github.com/clipperhouse/uax29/v2']
 version = 'v2.7.0'
 hash = 'sha256-GO3az7WiGcwU0OvmocwdfR5ohGRL8NbjscIaMyhAdxE='
@@ -60,6 +68,14 @@ hash = 'sha256-kd7GO+bExbWUNCZXtX/zwG4pn2ZYEYuEfIR2KfTHqMQ='
 [mod.'github.com/erikgeiser/coninput']
 version = 'v0.0.0-20211004153227-1c3628e74d0f'
 hash = 'sha256-OWSqN1+IoL73rWXWdbbcahZu8n2al90Y3eT5Z0vgHvU='
+
+[mod.'github.com/go-json-experiment/json']
+version = 'v0.0.0-20260213210345-44df1a37e875'
+hash = 'sha256-0EOA+V+hFBq6q0ktegT02+RB0FBfnlYic546F8kIyBY='
+
+[mod.'github.com/gorilla/websocket']
+version = 'v1.5.3'
+hash = 'sha256-vTIGEFMEi+30ZdO6ffMNJ/kId6pZs5bbyqov8xe9BM0='
 
 [mod.'github.com/lucasb-eyer/go-colorful']
 version = 'v1.4.1'

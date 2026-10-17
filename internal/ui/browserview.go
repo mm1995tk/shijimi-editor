@@ -34,6 +34,8 @@ type browserView struct {
 	seq        int  // incremented per load; stale results are dropped
 	keepScroll bool // the next load is a reload: keep the scroll position
 
+	live *liveView // non-nil on a terminal with Kitty graphics
+
 	shown *imageView // window currently displayed
 	shW   int        // cache key for shown
 	shH   int
@@ -41,6 +43,20 @@ type browserView struct {
 }
 
 func (v *browserView) url() string {
+	if v.live != nil && v.live.sess != nil {
+		if u := v.live.sess.State().URL; u != "" {
+			return u
+		}
+	}
+	if v.idx < len(v.history) {
+		return v.history[v.idx]
+	}
+	return ""
+}
+
+// target is the URL the user asked for (the current history entry), as opposed
+// to url(), which prefers the address the live page has reached.
+func (v *browserView) target() string {
 	if v.idx < len(v.history) {
 		return v.history[v.idx]
 	}
@@ -71,6 +87,9 @@ func (v *browserView) maxScroll(w, body int) int {
 }
 
 func (v *browserView) render(w, h int) []string {
+	if v.live != nil {
+		return v.renderLive(w, h)
+	}
 	body := h - 1
 	status := "  " + v.url()
 	switch {
@@ -117,6 +136,9 @@ type browserLoadedMsg struct {
 
 // load renders the current history entry in the background.
 func (a *App) browserLoad(v *browserView) tea.Cmd {
+	if a.gfx != nil {
+		return a.liveLoad(v)
+	}
 	v.seq++
 	v.loading, v.err = true, nil
 	seq, target := v.seq, v.url()
@@ -211,6 +233,10 @@ func (a *App) browserCmd(arg string) tea.Cmd {
 			a.fail(errNoBrowserTab)
 			return nil
 		}
+		if a.gfx != nil {
+			v.liveNav(arg)
+			return nil
+		}
 		switch arg {
 		case "reload":
 			v.keepScroll = true
@@ -249,7 +275,11 @@ func (a *App) browserCmd(arg string) tea.Cmd {
 }
 
 // browserWheel scrolls by wheel * 3 rows of the view.
-func (a *App) browserWheel(v *browserView, wheel int) {
+func (a *App) browserWheel(v *browserView, x, y, wheel int) {
+	if v.live != nil {
+		a.liveWheel(v, x, y, wheel)
+		return
+	}
 	l := a.layout()
 	body := l.editH - 1
 	if body <= 0 {
@@ -260,6 +290,9 @@ func (a *App) browserWheel(v *browserView, wheel int) {
 
 func (a *App) handleBrowserKey(t *tab, key string) tea.Cmd {
 	v := t.web
+	if v.live != nil && (v.live.input || a.pending != " " && liveKeys[key]) {
+		return a.liveKey(v, key)
+	}
 	l := a.layout()
 	w, body := l.rightW, l.editH-1
 	page := max(1, v.windowH(w, body))

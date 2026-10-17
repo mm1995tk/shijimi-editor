@@ -12,10 +12,11 @@
 - **LSP**：診断・補完・ホバー・定義へ移動・参照・名前の変更・整形
 - **LSP の設定は Helix と同じ `.helix/languages.toml`** をプロジェクトのルートから読み込みます
 - **プルリクエストのレビュー**（gh CLI を使用）：差分の表示・行へのコメント・承認・変更を要求
-- **ローカルの変更のレビュー**（hunk 風）：`git diff HEAD` と未追跡ファイルをハンク単位で確認し、コメントを Markdown でコピー（`y`）、またはプレビューで確認してターミナルのエージェントへ送る（`a`）
+- **git-diff モード**（`Ctrl+G` / `:gitdiff`）：エディター全体を「通常モード」と「git-diff モード」で切り替えます。変更ファイルの一覧（CHANGES）を出し、変更のあるファイルは**ファイル全体**を左右分割（または統合）の diff で開きます。右側は編集できます。比較元は `HEAD` と「PR の base との merge-base」を切り替えられます（下記）
 - **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
-- **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。mermaid のコードブロックは図として表示します（下記）
+- **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。もう一度押すとプレビューだけを全幅で表示します。mermaid のコードブロックは図として表示します（下記）
 - **現在の文脈をエージェントへ送る**（`Space a` / `Alt+A` / コマンドパレット）：選択範囲（なければカーソル行）を `パス:行-行`・本文・該当行の診断に整形し、プレビューで確認してからターミナルパネルへ貼り付けます（Enter は押しません）
+- **Claude Code の IDE 連携**：ターミナルパネルの Claude Code から、選択範囲・開いているファイル・診断を取得し、変更を差分で承認できます（承認後に Claude Code が書き込みます。下記「エージェント連携」）
 - タブ、シンタックスハイライト、Quick Open、プロジェクト全体の検索、ターミナルパネル、マウス操作
 
 ## インストール
@@ -68,6 +69,19 @@ listen-host = "127.0.0.1"  # :browser forward の待ち受けアドレス
 ```
 
 `[browser]` は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` にのみ書いてください。`.helix/config.toml` に書くと、Helix が未知のセクションを拒否します（`[search]` と同じ）。
+
+#### Kitty graphics protocol に対応した端末（高解像度表示と動画）
+
+Kitty / Ghostty / WezTerm / Herdr では、ブラウザタブが次のように変わります。
+
+- Chromium を常駐させ（Chrome DevTools Protocol）、画面を画像として端末へ送ります。文字が読める解像度で表示され、動画や動きのあるページも動いて見えます（最大 15 fps）。音声は再生しません。
+- マウスのクリック・ドラッグ・ホイールをページへ転送します。ページをクリックするか `i`（または Enter）を押すと、キーをページへ送る入力モードに入り、`Esc` で戻ります。入力モード以外では、これまでと同じ `o` `r` `[` `]` `j` `k` `Ctrl-d` `Ctrl-u` `g` `G` が使えます。
+- 別のタブを前に出している間は、画面の送信を止めて負荷を下げます。
+- sandbox は無効にしません。sandbox 付きで Chromium を起動できない環境では、エラーを表示します。
+
+端末の判定は環境変数で行います（`TERM=xterm-kitty`、`KITTY_WINDOW_ID`、`TERM_PROGRAM=ghostty` / `WezTerm` / `herdr` など）。判定が合わないときは `GH_EDITOR_GRAPHICS=kitty`（強制的に使う）または `GH_EDITOR_GRAPHICS=halfblock`（使わない）で上書きできます。対応していない端末では、これまでと同じ半ブロック文字の静止画表示になります。SSH 越しでは端末を示す環境変数が引き継がれないことがあります。その場合は `GH_EDITOR_GRAPHICS=kitty` を設定してください。
+
+画像は Unicode placeholder（U+10EEEE）の方式で配置するため、画面はセルの文字だけで構成されます。tmux / Herdr のように端末とのあいだに入るものが、Kitty graphics protocol を通す場合に使えます。
 
 ### LSP の設定例（`.helix/languages.toml`）
 
@@ -138,7 +152,7 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
 
 ### Markdown プレビューと mermaid
 
-`.md` ファイルで `Space m`（または `:preview`、コマンドパレット）を押すと、バッファの右にプレビューが開きます。編集に追従し、カーソル位置に合わせてスクロールします。もう一度押すと閉じます。
+`.md` ファイルで `Space m`（または `:preview`、コマンドパレット）を押すと、バッファの右にプレビューが開きます。編集に追従し、カーソル位置に合わせてスクロールします。もう一度押すとプレビューだけを全幅で表示し、3 回目で閉じます。全幅のときは `j` / `k` やマウスホイールでスクロールします。
 
 mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`）で PNG にして表示します。`mmdc` が PATH に無い場合、または描画に失敗した場合は、図の代わりにソースとエラーを表示します。`mermaid-command` で別のコマンドに差し替えられます（`{in}` が入力、`{out}` が出力 PNG）。描画結果は `~/.cache/gh-editor/mermaid` に保存します。
 
@@ -181,10 +195,10 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `Space o` | カーソル位置の URL を外部ブラウザで開く（Linux: `xdg-open` / macOS: `open`） |
 | `Space r` | 名前の変更 |
 | `Space d` | 診断の一覧 |
-| `Space /` | プロジェクト全体を検索 |
+| `Space /` | プロジェクト全体を検索・置換（フローティング窓。「全文検索」の節を参照） |
 | `Space g` | プルリクエスト一覧 → レビュー |
-| `Space m` | Markdown プレビューの切替 |
-| `Space G` | ローカルの変更をレビュー |
+| `Space m` | Markdown プレビューの切替（並べて表示 → 全幅 → 閉じる） |
+| `Space G` | git-diff モードの切替 |
 | `Space y` `Space p` | システムのクリップボードへコピー / 貼り付け |
 | `Space ?` | コマンドパレット |
 
@@ -194,7 +208,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ### `:` コマンド
 
-`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:review` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop|<URL>|reload|back|next` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
+`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:gitdiff [on|off|split|unified|base [head|pr]]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop|<URL>|reload|back|next` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
 
 ### 全体
 
@@ -204,8 +218,9 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `F1` / `Ctrl+K` | コマンドパレット |
 | `Ctrl+B` | ファイルツリーの表示切替 |
 | `Ctrl+E` | ファイルツリーとエディタのフォーカス切替 |
-| `Ctrl+G` | ローカルの変更をレビュー |
+| `Ctrl+G` | git-diff モードの切替 |
 | `Ctrl+J` | ターミナルの表示切替 |
+| `Alt+R` | ペインのリサイズモード（`←→` サイドバー幅、`↑↓` ターミナル高さ、`<` `>` エディタとプレビューの境界、`=` 初期値、`Esc` で終了）。境界線のマウスドラッグでも変えられます。大きさはエディタを終了するまで保たれます |
 | `Ctrl+S` | 保存 |
 | `Ctrl+W` | タブを閉じる |
 | `Ctrl+PgUp` / `Ctrl+PgDn` / `Alt+1`〜`9` | タブの切替 |
@@ -215,7 +230,28 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 `j/k` 移動、`Enter` 開く、`h/l` 閉じる / 展開、`a` 新しいファイル、`A` 新しいフォルダー、`r` 名前の変更、`d` 削除、`R` 更新、`Esc` エディタへ。
 
-### レビュー画面
+### git-diff モード
+
+`Ctrl+G`（Helix では `Space G`）、`:gitdiff`、コマンドパレットで入り、もう一度押すと通常モードに戻ります。
+
+- サイドバーが上下 7:3 に分かれ、下の 3 に **CHANGES**（変更ファイルの一覧）が出ます。`Tab` でファイルツリーと行き来します。
+- 変更のないファイルは通常のエディターで開きます。変更のあるファイルは、ファイル全体を **Split**（左が比較元、右が今のファイル）で開きます。新規ファイル（未追跡を含む）は全行を追加行の色で表示します。
+- 右側（今のファイル）は通常どおり編集・保存できます。編集すると diff がすぐに更新されます。
+- **Unified** にも切り替えられます（`s`、`:gitdiff unified` / `split`、ヘッダーの `[分割 ⇄ 統合]` のクリック）。Unified でも編集できます。削除された行は読み取り専用の行として挟まります。
+- 比較元（base）は `b`（`:gitdiff base head|pr`）で切り替えます。初期値は `HEAD`（未追跡ファイルを含む）。今のブランチに PR があるときは、`git merge-base <PR の base> HEAD` と作業ツリーを比べます。GitHub の PR 画面の差分に、まだコミットしていない変更を足したものになり、base ブランチをマージしても差分には自分の変更だけが出ます（`gh` が必要）。
+- CHANGES の一覧は保存時、外部の変更の検知時、数秒ごとに更新されます。
+
+| キー（CHANGES にフォーカス中） | 動作 |
+| --- | --- |
+| `j/k` | 移動 |
+| `Enter` / `l` | ファイルを開く |
+| `s` | 分割 / 統合の切替 |
+| `b` | 比較元の切替（HEAD ⇄ PR の base） |
+| `r` | 一覧の更新 |
+| `Tab` | ファイルツリーへ |
+| `Esc` | エディタへ |
+
+### PR のレビュー画面
 
 | キー | 動作 |
 | --- | --- |
@@ -254,11 +290,29 @@ nix flake check        # 整形のチェック
 
 `go.mod` を変えたら `gomod2nix` を実行して `gomod2nix.toml` を更新してください。
 
+### 全文検索・置換
+
+`Space /`、コマンドパレットの「検索: プロジェクト全体を検索 / 置換」、`:grep`、`:replace` はどれも同じフローティング窓を開きます。上部に条件（検索・置換・含める・除外の 4 欄とトグル）、左下に一致した行（Matched）、右下に選択行の前後（View）を出します。条件を変えると短い待ち時間のあと自動で検索し直します。置換欄に文字があると、View に `-` / `+` の差分も出ます。
+
+| キー | 動作 |
+| --- | --- |
+| `Tab` / `Shift+Tab` | 次 / 前の欄へ |
+| `↑` `↓` / `Ctrl+P` `Ctrl+N` / `PgUp` `PgDn` | 一致した行を選ぶ |
+| `Enter` | 選んだ行をそのファイルで開く |
+| `Ctrl+X`（`Alt+X`） | 選んだ行を置換の対象から外す / 戻す（外した行は `x` で表示） |
+| `Alt+C` / `Alt+W` / `Alt+R` / `Alt+P` | 大文字小文字の区別 / 単語単位 / 正規表現 / 置換で大文字小文字を保持 |
+| `Alt+Enter` | 対象の行を全置換 |
+| `Esc` | 閉じる |
+
+- 全置換は対象のファイルをバッファとして開いて置換します。保存するまでディスクは変わらず、`u` / `Ctrl+Z` で元に戻せます。
+- 正規表現が有効なときは、置換欄で `$1` などのキャプチャを使えます。無効なときの `$` はそのままの文字です。
+- 検索結果が 5000 件を超えたときは、条件を絞るまで全置換できません。
+- 検索対象は Git の管理下（未追跡で ignore されていないものを含む）のテキストファイルです。Git の外ではビルド用ディレクトリを除いて探します。開いているバッファの未保存の内容も検索します。
+- `:grep -x '*.lock,dist/**' -i '*.go' foo` と `:replace foo => bar` の引数は、各欄に入れた状態で窓を開きます。`:grep` / `:replace` だけを打つと前回の条件のまま開きます。
+
 ### 全文検索の除外・包含
 
-`:grep -x '*.lock,dist/**' -i '*.go' foo` のように、カンマ区切りの glob で除外 (`-x` / `--exclude=`) と包含 (`-i` / `--include=`) を指定できます。常に効かせたい指定は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` に書きます（`.helix/config.toml` などの Helix 設定には書かないでください。Helix が未知の `[search]` を拒否します）。
-
-`:replace foo => bar` はプロジェクト全体の `foo` を `bar` に置換します（`-x` / `-i` は `:grep` と同じ。検索は文字列そのままで、小文字のみなら大文字小文字を区別しません）。実行前に差分プレビューのタブが開き、`j`/`k` で移動、`x` で行（ファイル行ならファイルごと）を除外/復帰、`Enter` で実行、`q` で閉じます。実行すると対象ファイルをバッファとして開いて置換します（保存するまでディスクは変わらず、`u` / Ctrl+Z で元に戻せます）。
+「含める」「除外」欄にはカンマ区切りの glob を書きます（例: `*.lock,dist/**`）。`:grep` / `:replace` では `-x` / `--exclude=`（除外）と `-i` / `--include=`（包含）でも指定できます。初期値は `[search]` 設定の値です。常に効かせたい指定は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` に書きます（`.helix/config.toml` などの Helix 設定には書かないでください。Helix が未知の `[search]` を拒否します）。
 
 ```toml
 [search]
@@ -280,21 +334,47 @@ ssh -L 8080:127.0.0.1:<待ち受けポート> vm
 
 待ち受けアドレスは `[browser]` の `listen-host` で変えられます（設定は「ブラウザ」節）。既定では `0.0.0.0` にバインドしません。信頼できるネットワークでのみ変えてください。
 
-## エージェント連携（制御用ソケット）
+## エージェント連携
 
-実行中の gh-editor は Unix ソケット（0600）を作り、環境変数 `GH_EDITOR_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。
+### Claude Code の IDE 連携
 
-- `gh-editor open <path>[:行]`: ファイルを開く
-- `gh-editor diff [path]`: ローカルの変更のレビューを開く
-- `gh-editor status`: 開いているタブとカーソル位置を JSON で表示する
+gh-editor は Claude Code の IDE 連携プロトコル（VS Code 拡張や claudecode.nvim と同じもの）に対応しています。起動すると 127.0.0.1 の空きポートで WebSocket の MCP サーバーを立て、ロックファイル `~/.claude/ide/<port>.lock`（0600、`CLAUDE_CONFIG_DIR` があればその下の `ide/`）に接続先と認証トークンを書きます。終了時に消します。
 
-第 1 引数が `open` / `diff` / `status` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./status` のように書きます。
+gh-editor のターミナルパネルで `claude` を起動すると、環境変数 `CLAUDE_CODE_SSE_PORT` `ENABLE_IDE_INTEGRATION=true` `FORCE_CODE_TERMINAL=true` により自動で接続します。外のターミナルで動く Claude Code は、作業ディレクトリが gh-editor のルート配下なら `/ide` で選べます。
+
+エージェントが使える道具:
+
+| 道具 | 内容 |
+|------|------|
+| `getCurrentSelection` / `getLatestSelection` | 選択範囲（なければカーソル位置）とファイル |
+| `getOpenEditors` / `getWorkspaceFolders` | 開いているファイル / ルート |
+| `getDiagnostics` | LSP の診断（URI 省略で全ファイル） |
+| `openFile` | ファイルを開く（`startText` / `endText` で範囲選択） |
+| `openDiff` | 変更を差分で表示。**Enter で承認、Esc で却下**。ファイルは承認後に Claude Code が書き込みます |
+| `closeAllDiffTabs` / `close_tab` | 待っている差分を却下して閉じる |
+| `checkDocumentDirty` / `saveDocument` | 未保存の確認 / 保存 |
+
+- 選択範囲やカーソルが動くたびに `selection_changed` を送ります。
+- 接続中は `Space a` / `Alt+A`（現在の文脈をエージェントへ送る）が貼り付けではなく `at_mentioned` を送ります。接続していないときは、これまでどおりプレビューを出してターミナルへ貼り付けます。
+- 認証トークンの無い接続やブラウザ（`Origin` ヘッダー付き）からの接続は拒否します。
+
+### 制御用ソケット
+
+実行中の gh-editor は Unix ソケット（0600）を作り、環境変数 `GH_EDITOR_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。IDE 連携に無い操作だけを残しています。
+
+- `gh-editor diff [path]`: git-diff モードにする。`path` を付けるとそのファイルを diff 表示で開く
+
+第 1 引数が `diff` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./diff` のように書きます。
 
 `gh-editor skill install [書き出し先]` は、このコマンドの使い方を書いたスキル（`SKILL.md`）を書き出します。書き出し先を省略すると `~/.claude/skills/gh-editor/` に書きます。
+
+> `gh-editor open` と `gh-editor status` は IDE 連携（`openFile` / `getOpenEditors` / `getCurrentSelection`）に置き換えて削除しました。
 
 ### ブラウザタブ
 
 `:browser <URL>` で Web ページを画像のタブとして表示します（ヘッドレス Chromium で描画）。URL に `https://` を付けなければ補います（`localhost` `127.0.0.1` `[::1]` は `http://`）。タブ内のキー: `o` URL 入力 / `r` 再読み込み / `[` 戻る / `]` 進む / `j` `k` スクロール / `Ctrl-d` `Ctrl-u` 半ページ / `g` `G` 先頭・末尾。
+
+Kitty graphics protocol に対応した端末では、ページが動画も含めて動く「ライブ表示」になります（上の「ブラウザ」節）。
 
 ## 説明書の編集
 
