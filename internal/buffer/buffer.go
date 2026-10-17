@@ -41,6 +41,13 @@ const (
 //
 // Invariant: a line's rune slice is never mutated in place once stored in
 // Lines, so snapshots only need to copy the outer slice.
+// lineSelection records the Anchor/Cur pair SelectLine produced, and the
+// content version it was made at.
+type lineSelection struct {
+	anchor, cur Pos
+	ver         int
+}
+
 type Buffer struct {
 	Path  string
 	Lines [][]rune
@@ -48,6 +55,10 @@ type Buffer struct {
 
 	Cur    Pos
 	Anchor *Pos // selection anchor; nil when nothing is selected
+
+	// lineSel is the Anchor/Cur pair left by SelectLine; it identifies a
+	// selection as "whole lines" only while neither end has moved.
+	lineSel *lineSelection
 
 	ScrollRow, ScrollCol int
 
@@ -292,6 +303,7 @@ func (b *Buffer) textRange(s, e Pos) string {
 
 // SelectAll selects the whole buffer.
 func (b *Buffer) SelectAll() {
+	b.lineSel = nil
 	b.extra = nil
 	b.Anchor = &Pos{}
 	last := len(b.Lines) - 1
@@ -299,11 +311,15 @@ func (b *Buffer) SelectAll() {
 }
 
 // ClearSelection drops the selection.
-func (b *Buffer) ClearSelection() { b.Anchor = nil }
+func (b *Buffer) ClearSelection() {
+	b.Anchor = nil
+	b.lineSel = nil
+}
 
 // startSelect sets the anchor at the cursor if extend is true and there is
 // none yet; clears it otherwise.
 func (b *Buffer) startSelect(extend bool) {
+	b.lineSel = nil
 	if !extend {
 		b.Anchor = nil
 		return
@@ -972,6 +988,7 @@ func (b *Buffer) WordEnd(extend bool) {
 // SelectWord selects from the cursor to the start of the next word (Helix
 // "w") or to the start of the previous word (Helix "b").
 func (b *Buffer) SelectWord(forward, extend bool) {
+	b.lineSel = nil
 	if !extend {
 		b.Anchor = nil
 	}
@@ -994,15 +1011,17 @@ func (b *Buffer) SelectWord(forward, extend bool) {
 // the selection by one line.
 func (b *Buffer) SelectLine() {
 	s, e, ok := b.Selection()
-	if ok && s.Col == 0 && e.Col == 0 && e.Row > s.Row {
-		if e.Row < len(b.Lines) {
-			b.Anchor = &Pos{s.Row, 0}
-			b.Cur = b.lineEndPos(e.Row)
-		}
+	last := len(b.Lines) - 1
+	if ok && s.Col == 0 && e.Row > s.Row && e.Col == 0 {
+		b.Anchor = &Pos{s.Row, 0}
+		b.Cur = b.lineEndPos(e.Row)
+	} else if ok && s.Col == 0 && e.Row > s.Row && e == (Pos{last, len(b.Lines[last])}) {
+		// already extended to the end of the last line
 	} else {
 		b.Anchor = &Pos{b.Cur.Row, 0}
 		b.Cur = b.lineEndPos(b.Cur.Row)
 	}
+	b.lineSel = &lineSelection{*b.Anchor, b.Cur, b.Version}
 	b.lastEdit = editOther
 	b.syncWant()
 }
@@ -1014,6 +1033,23 @@ func (b *Buffer) lineEndPos(row int) Pos {
 		return Pos{row + 1, 0}
 	}
 	return Pos{row, len(b.Lines[row])}
+}
+
+// LineDeleteRange returns the range "d" should delete. It is the selection,
+// except when the selection was made by SelectLine, covers the last line
+// (possibly empty) and a previous line exists: the newline before it is
+// included so the line disappears, and widened is true. Falls back to
+// SelectionOrChar.
+func (b *Buffer) LineDeleteRange() (s, e Pos, widened bool) {
+	if b.Anchor != nil && b.lineSel != nil && b.lineSel.ver == b.Version && *b.Anchor == b.lineSel.anchor && b.Cur == b.lineSel.cur {
+		s, e = *b.Anchor, b.Cur
+		last := len(b.Lines) - 1
+		if s.Col == 0 && s.Row > 0 && s.Row <= last && e == (Pos{last, len(b.Lines[last])}) {
+			return Pos{s.Row - 1, len(b.Lines[s.Row-1])}, e, true
+		}
+	}
+	s, e = b.SelectionOrChar()
+	return s, e, false
 }
 
 // SelectionOrChar returns the selection, or the single character under the

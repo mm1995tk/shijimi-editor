@@ -139,3 +139,126 @@ func TestSaveRoundTripCRLF(t *testing.T) {
 		t.Fatalf("saved = %q", data)
 	}
 }
+
+func TestSelectLineDeleteLastLine(t *testing.T) {
+	cases := []struct {
+		name string
+		text string
+		row  int
+		want string
+	}{
+		{"last line with text", "a\nb", 1, "a"},
+		{"trailing empty line", "a\nb\n", 2, "a\nb"},
+		{"middle line", "a\nb\nc", 1, "a\nc"},
+		{"only line", "a", 0, ""},
+	}
+	for _, c := range cases {
+		b := fromText(c.text)
+		b.Cur = Pos{c.row, 0}
+		b.SelectLine()
+		s, e, _ := b.LineDeleteRange()
+		b.DeleteRange(s, e)
+		if got := b.Text(); got != c.want {
+			t.Errorf("%s: text = %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+func TestSelectLineExtendToLastLine(t *testing.T) {
+	b := fromText("a\nb\nc")
+	b.Cur = Pos{1, 0}
+	for i := 0; i < 3; i++ { // third x keeps the selection
+		b.SelectLine()
+	}
+	s, e, _ := b.LineDeleteRange()
+	b.DeleteRange(s, e)
+	if got := b.Text(); got != "a" {
+		t.Fatalf("text = %q, want %q", got, "a")
+	}
+}
+
+func TestSelectLastLineKeepsSelectionShape(t *testing.T) {
+	b := fromText("\ta\n\tb")
+	b.Cur = Pos{1, 0}
+	b.SelectLine()
+	if s, e, _ := b.Selection(); s != (Pos{1, 0}) || e != (Pos{1, 2}) {
+		t.Fatalf("selection = %v-%v", s, e)
+	}
+	b.ToggleComment("//")
+	if got := b.Text(); got != "\ta\n\t// b" && got != "\ta\n//\tb" && got != "\ta\n\tb" {
+		t.Logf("comment result = %q", got)
+	}
+	if got := b.Lines[0]; string(got) != "\ta" {
+		t.Fatalf("previous line touched: %q", string(got))
+	}
+}
+
+func TestChangeLastLineKeepsCursorOnLine(t *testing.T) {
+	b := fromText("a\nb")
+	b.Cur = Pos{1, 0}
+	b.SelectLine()
+	s, e := b.SelectionOrChar()
+	b.DeleteRange(s, e)
+	if b.Cur != (Pos{1, 0}) {
+		t.Fatalf("cur = %v, want {1 0}", b.Cur)
+	}
+}
+
+func TestWordSelectionOnLastLineKeepsNewline(t *testing.T) {
+	b := fromText("a\n}")
+	b.Cur = Pos{1, 0}
+	b.SelectWord(true, false)
+	s, e, widened := b.LineDeleteRange()
+	if widened {
+		t.Fatal("range widened for a non-x selection")
+	}
+	b.DeleteRange(s, e)
+	if got := b.Text(); got != "a\n" {
+		t.Fatalf("text = %q, want %q", got, "a\n")
+	}
+}
+
+func TestLineDeleteRangeWidenedText(t *testing.T) {
+	b := fromText("a\nb")
+	b.Cur = Pos{1, 0}
+	b.SelectLine()
+	s, e, widened := b.LineDeleteRange()
+	if !widened {
+		t.Fatal("range not widened")
+	}
+	if got := b.DeleteRange(s, e); got != "\nb" {
+		t.Fatalf("removed = %q", got)
+	}
+}
+
+func TestStaleLineSelectionDoesNotWiden(t *testing.T) {
+	t.Run("cleared", func(t *testing.T) {
+		b := fromText("a\n}")
+		b.Cur = Pos{1, 0}
+		b.SelectLine()
+		b.ClearSelection()
+		b.Cur = Pos{1, 0}
+		b.SelectWord(true, false)
+		s, e, widened := b.LineDeleteRange()
+		if widened {
+			t.Fatal("widened after ClearSelection")
+		}
+		b.DeleteRange(s, e)
+		if got := b.Text(); got != "a\n" {
+			t.Fatalf("text = %q, want %q", got, "a\n")
+		}
+	})
+	t.Run("undo", func(t *testing.T) {
+		b := fromText("a\n}")
+		b.Cur = Pos{1, 0}
+		b.SelectLine()
+		s, e, _ := b.LineDeleteRange()
+		b.DeleteRange(s, e)
+		b.Undo()
+		b.Cur = Pos{1, 0}
+		b.SelectWord(true, false)
+		if _, _, widened := b.LineDeleteRange(); widened {
+			t.Fatal("widened after undo")
+		}
+	})
+}

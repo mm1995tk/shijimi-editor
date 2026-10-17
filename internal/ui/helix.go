@@ -167,8 +167,13 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 
 	// --- editing ---
 	case "d", "alt+d":
-		s, e := b.SelectionOrChar()
+		s, e, widened := b.LineDeleteRange()
 		text := b.DeleteRange(s, e)
+		if widened {
+			// the removed text starts with the preceding newline; keep the
+			// register linewise so "p" pastes whole lines
+			text = strings.TrimPrefix(text, "\n") + "\n"
+		}
 		if key == "d" {
 			a.clipboard = text
 		}
