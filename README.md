@@ -272,7 +272,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ## 制限
 
-- ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / `Ctrl+J` / `F1` のみ）。`F2` で新しいタブ、`Ctrl+PageUp/PageDown` でタブ切替、シェルが終了するとタブが閉じます。マウスのホイールで流れた出力をさかのぼれます。
+- ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / `Ctrl+J` / `F1` / `Alt+R` のみ）。`F2` で新しいタブ、`Ctrl+PageUp/PageDown` でタブ切替、シェルが終了するとタブが閉じます。マウスのホイールで流れた出力をさかのぼれます。
 - 画像は文字（▀）で表示します。細かい部分は粗くなります。
 
 ## 開発

@@ -16,7 +16,7 @@ VS Code モードでは、コマンドパレット（`F1`）から同じ操作�
 | `:o <パス>` | `:open` `:e` `:edit` | ファイルを開く |
 | `:n` | `:new` | 新しいファイル |
 | `:bc` | `:bclose` `:buffer-close` | バッファを閉じる |
-| `:bc!` | `:bclose!` | 保存せずにバッファを閉じる |
+| `:bc!` | `:bclose!` `:buffer-close!` | 保存せずにバッファを閉じる |
 | `:reload` | `:rl` | ディスクから読み直す |
 | `:<行番号>` | — | その行へ移動 |
 
@@ -46,7 +46,7 @@ VS Code モードでは、コマンドパレット（`F1`）から同じ操作�
 
 | コマンド | 動作 |
 | --- | --- |
-| `:gitdiff [on\|off\|split\|unified\|base [head\|pr]]` | git-diff モードの切替、分割 / 統合の切替、比較元の切替 |
+| `:gitdiff [on\|off\|split\|unified\|base [head\|pr]]` (`:gd` `:review`) | git-diff モードの切替、分割 / 統合の切替、比較元の切替 |
 | `:pr [番号]` | プルリクエストをレビュー。番号を省略すると一覧 |
 
 ## ブラウザ
