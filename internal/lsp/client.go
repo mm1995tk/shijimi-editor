@@ -166,7 +166,7 @@ func (c *Client) initialize() {
 			},
 			"textDocument": map[string]any{
 				"synchronization": map[string]any{"didSave": true},
-				"hover":           map[string]any{"contentFormat": []string{"plaintext", "markdown"}},
+				"hover":           map[string]any{"contentFormat": []string{"markdown", "plaintext"}},
 				"completion": map[string]any{
 					"completionItem": map[string]any{"snippetSupport": false},
 				},

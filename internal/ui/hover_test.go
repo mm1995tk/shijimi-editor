@@ -81,3 +81,15 @@ func TestHoverRuleDoesNotWidenBox(t *testing.T) {
 		t.Fatalf("width=%d", v.width)
 	}
 }
+
+func TestHoverPlaintextFallback(t *testing.T) {
+	lines := hoverLines("func Println(a ...any)\n\nPrintln formats using the default formats.", 60)
+	for _, l := range lines {
+		if l.code || l.rule {
+			t.Fatalf("plaintext rendered as code/rule: %+v", l)
+		}
+	}
+	if !strings.Contains(plain(lines), "func Println(a ...any)") {
+		t.Fatalf("text lost:\n%s", plain(lines))
+	}
+}
