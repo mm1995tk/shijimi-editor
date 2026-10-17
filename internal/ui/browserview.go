@@ -288,8 +288,19 @@ func (a *App) browserWheel(v *browserView, x, y, wheel int) {
 	v.scroll = clamp(v.scroll+wheel*3*v.windowH(l.rightW, body)/body, 0, v.maxScroll(l.rightW, body))
 }
 
+// editBrowserURL opens the command line as ":browser <current URL>".
+func (a *App) editBrowserURL(v *browserView) tea.Cmd {
+	if v.live != nil {
+		v.live.input = false
+	}
+	return a.openCmdline(":browser " + v.url())
+}
+
 func (a *App) handleBrowserKey(t *tab, key string) tea.Cmd {
 	v := t.web
+	if key == "ctrl+l" { // works in the page input mode too, like a browser's address bar
+		return a.editBrowserURL(v)
+	}
 	if v.live != nil && (v.live.input || a.pending != " " && liveKeys[key]) {
 		return a.liveKey(v, key)
 	}
@@ -308,6 +319,8 @@ func (a *App) handleBrowserKey(t *tab, key string) tea.Cmd {
 		a.pending = " "
 	case key == "o":
 		return a.openCmdline(":browser ")
+	case key == "O":
+		return a.editBrowserURL(v)
 	case key == "r":
 		return a.browserCmd("reload")
 	case key == "[" || key == "alt+left":

@@ -326,3 +326,27 @@ func TestLiveBrowserOpensSecondURL(t *testing.T) {
 		t.Errorf("navigations %q", got)
 	}
 }
+
+func TestLiveBrowserEditURL(t *testing.T) {
+	a, _, _ := liveApp(t)
+	runCmd(a, a.execCommand("browser https://a.example"))
+	v := a.browserTab()
+	check := func(what string) {
+		t.Helper()
+		if !a.cmdOpen || a.cmdInput.Value() != "browser https://a.example" {
+			t.Errorf("%s: cmdOpen=%v value=%q", what, a.cmdOpen, a.cmdInput.Value())
+		}
+		a.cmdOpen = false
+	}
+	keys(a, "O")
+	check("O")
+	v.live.input = true
+	a.Update(tea.KeyMsg{Type: tea.KeyCtrlL})
+	check("Ctrl+L in the input mode")
+	if v.live.input {
+		t.Error("input mode stayed on")
+	}
+	l := a.layout()
+	a.handleMouse(tea.MouseMsg{X: l.rightX + 1, Y: l.editY, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
+	check("status line click")
+}
