@@ -135,6 +135,10 @@ func TestHoverCopyKeyAndButton(t *testing.T) {
 	if a.clipboard != goplsHover || a.hoverText == "" {
 		t.Fatalf("button: clipboard=%q hover=%v", a.clipboard, a.hoverText != "")
 	}
+	a.handleMouse(tea.MouseMsg{X: bx + col, Y: by, Action: tea.MouseActionRelease, Button: tea.MouseButtonLeft})
+	if a.hoverText == "" {
+		t.Fatal("release on the button closed the hover")
+	}
 
 	a.clipboard = ""
 	a.handleMouse(tea.MouseMsg{X: bx + 2, Y: by + 1, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
