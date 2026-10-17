@@ -50,7 +50,7 @@ func TestTerminalDefaultColorsFollowTheme(t *testing.T) {
 		applyTheme(th)
 		bg := hexRGB(th.EditorBg)
 		want := fmt.Sprintf("48;2;%d;%d;%d", bg[0], bg[1], bg[2])
-		if got := sgrColor(vt.Color(0), false); got != want {
+		if got := sgrColor(vt.Color(0), false, false); got != want {
 			t.Errorf("%s: default bg = %s, want %s", th.Name, got, want)
 		}
 		if bg == [3]int{} {

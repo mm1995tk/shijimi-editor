@@ -120,3 +120,17 @@ func TestRenderVTRowKeepsWidthWhenHostDrawsDifferently(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderVTRowCursorOnDefaultCell(t *testing.T) {
+	term := vt.New(vt.Options{Cols: 10, Rows: 1})
+	term.Write([]byte("a"))
+	var s vt.Snapshot
+	term.Snapshot(&s)
+	row := renderVTRow(s.Cells[0], 10, s.CursorX)
+	if !strings.Contains(row, sgr(0, 0, 0, true)) {
+		t.Fatalf("cursor cell not drawn: %q", row)
+	}
+	if sgr(0, 0, 0, true) == sgr(0, 0, 0, false) {
+		t.Fatal("cursor on a default cell looks the same as without it")
+	}
+}
