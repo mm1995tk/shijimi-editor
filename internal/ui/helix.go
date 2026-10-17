@@ -28,11 +28,36 @@ func (m editMode) label() string {
 	return "NOR"
 }
 
+// fullPreviewKey reports whether a key may run while the Markdown preview
+// fills the editor area: scrolling, counts, the leader and command line, and
+// ctrl chords. Anything else would edit a buffer that is not visible.
+func (a *App) fullPreviewKey(key string) bool {
+	if a.pending != "" {
+		return a.pending == " " || a.pending == "g"
+	}
+	switch key {
+	case "j", "k", "up", "down", "G", "g", "pgup", "pgdown", "esc", ":", " ", "space":
+		return true
+	}
+	if len(key) == 1 && key[0] >= '0' && key[0] <= '9' {
+		return true
+	}
+	return strings.HasPrefix(key, "ctrl+")
+}
+
 // handleHelixKey implements Helix-style modal editing for text tabs.
 func (a *App) handleHelixKey(msg tea.KeyMsg) tea.Cmd {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
+	}
+	if t.preview == previewFull {
+		a.mode = modeNormal // e.g. after switching back to this tab from insert mode
+		if !a.fullPreviewKey(msg.String()) {
+			a.pending, a.count = "", 0
+			a.info("全幅プレビュー中は編集できません")
+			return nil
+		}
 	}
 	if a.mode == modeInsert {
 		return a.handleInsertKey(msg)

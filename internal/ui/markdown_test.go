@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -177,5 +178,35 @@ func TestTogglePreviewCyclesToFullWidth(t *testing.T) {
 		if ansi.StringWidth(s) != l.rightW {
 			t.Fatalf("width %d, want %d", ansi.StringWidth(s), l.rightW)
 		}
+	}
+}
+
+func TestFullPreviewBlocksEditing(t *testing.T) {
+	b := buffer.New()
+	b.Insert("# 見出し\n")
+	b.Path = "x.md"
+	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}, helix: true, mode: modeInsert}
+	tb := a.tabs[0]
+	tb.preview = previewFull
+	ver := b.Version
+
+	press := func(s string) {
+		a.handleHelixKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)})
+	}
+	for _, k := range []string{"i", "a", "o", "d", "x", "x", "K"} {
+		press(k)
+		if a.mode != modeNormal || b.Version != ver {
+			t.Fatalf("key %q: mode %v, version %d (want %d)", k, a.mode, b.Version, ver)
+		}
+	}
+
+	press("j") // scrolling still works
+	if a.pending != "" {
+		t.Fatalf("pending %q", a.pending)
+	}
+
+	a.Update(hoverMsg{text: "doc"})
+	if a.hoverText != "" {
+		t.Fatalf("hover shown in full preview: %q", a.hoverText)
 	}
 }

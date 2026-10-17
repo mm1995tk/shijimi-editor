@@ -701,6 +701,9 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case mermaidDoneMsg:
 		a.handleMermaidDone(msg)
 	case hoverMsg:
+		if t := a.curText(); t != nil && t.preview == previewFull {
+			return nil // the popup would be anchored to the hidden buffer
+		}
 		if strings.TrimSpace(msg.text) == "" {
 			a.info("ホバー情報はありません")
 		} else {
