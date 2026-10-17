@@ -351,11 +351,11 @@ func TestSearchFieldKeepsCursorCell(t *testing.T) {
 		_, _, box := a.renderSearch()
 		got := ansi.Strip(box[2])
 		// text, then the cursor cell, then the padding column before the border
-		i := strings.Index(got, "│ ") + len("│ ")
+		i := strings.Index(got, "│ │ ") + len("│ │ ") // outer border, field border, padding
 		field := []rune(got[i:])
 		inner := string(field[:22])
-		if !strings.HasSuffix(strings.TrimRight(inner, "a"), "") || !strings.Contains(inner, " ") && n <= 22 {
-			t.Fatalf("n=%d: no cursor cell: %q", n, got)
+		if !strings.HasSuffix(inner, " ") {
+			t.Fatalf("n=%d: no cursor cell at the end: %q", n, got)
 		}
 	}
 	a.search.in[fQuery].SetValue("")

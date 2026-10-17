@@ -749,6 +749,7 @@ func (s *searchPanel) viewRows(a *App, w, h int) []string {
 func (s *searchPanel) placeholderView(i int) string {
 	rs := []rune(searchPlaceholders[i])
 	c := s.in[i].Cursor
+	c.TextStyle = stPaletteDim
 	c.SetChar(string(rs[0]))
 	return c.View() + stPaletteDim.Render(string(rs[1:]))
 }
