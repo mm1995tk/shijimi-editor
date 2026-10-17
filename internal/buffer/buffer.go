@@ -49,6 +49,10 @@ type Buffer struct {
 	Cur    Pos
 	Anchor *Pos // selection anchor; nil when nothing is selected
 
+	// lineSel is the Anchor/Cur pair left by SelectLine; it identifies a
+	// selection as "whole lines" only while neither end has moved.
+	lineSel *[2]Pos
+
 	ScrollRow, ScrollCol int
 
 	// Version increments on every content change (used by highlight caches).
@@ -1004,6 +1008,7 @@ func (b *Buffer) SelectLine() {
 		b.Anchor = &Pos{b.Cur.Row, 0}
 		b.Cur = b.lineEndPos(b.Cur.Row)
 	}
+	b.lineSel = &[2]Pos{*b.Anchor, b.Cur}
 	b.lastEdit = editOther
 	b.syncWant()
 }
@@ -1018,21 +1023,20 @@ func (b *Buffer) lineEndPos(row int) Pos {
 }
 
 // LineDeleteRange returns the range "d" should delete. It is the selection,
-// except when the selection is the whole last line (possibly empty) and a
-// previous line exists: the newline before it is included so the line
-// disappears. Falls back to SelectionOrChar.
-func (b *Buffer) LineDeleteRange() (Pos, Pos) {
-	if b.Anchor != nil {
-		s, e := *b.Anchor, b.Cur
-		if e.Less(s) {
-			s, e = e, s
-		}
+// except when the selection was made by SelectLine, covers the last line
+// (possibly empty) and a previous line exists: the newline before it is
+// included so the line disappears, and widened is true. Falls back to
+// SelectionOrChar.
+func (b *Buffer) LineDeleteRange() (s, e Pos, widened bool) {
+	if b.Anchor != nil && b.lineSel != nil && *b.Anchor == b.lineSel[0] && b.Cur == b.lineSel[1] {
+		s, e = *b.Anchor, b.Cur
 		last := len(b.Lines) - 1
 		if s.Col == 0 && s.Row > 0 && s.Row <= last && e == (Pos{last, len(b.Lines[last])}) {
-			return Pos{s.Row - 1, len(b.Lines[s.Row-1])}, e
+			return Pos{s.Row - 1, len(b.Lines[s.Row-1])}, e, true
 		}
 	}
-	return b.SelectionOrChar()
+	s, e = b.SelectionOrChar()
+	return s, e, false
 }
 
 // SelectionOrChar returns the selection, or the single character under the
