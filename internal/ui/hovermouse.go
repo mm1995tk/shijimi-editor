@@ -1,0 +1,156 @@
+package ui
+
+import (
+	"context"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/gh-editor/internal/buffer"
+)
+
+// hoverDelay is how long the pointer must rest on a word before its hover shows.
+const hoverDelay = 500 * time.Millisecond
+
+// screenPt is a screen cell.
+type screenPt struct{ x, y int }
+
+// hoverDwellMsg fires hoverDelay after the pointer entered a cell.
+type hoverDwellMsg struct{ seq int }
+
+// mouseHover says which pointer position a hover reply belongs to.
+type mouseHover struct {
+	tab *tab
+	seq int
+	pos buffer.Pos
+	pt  screenPt
+}
+
+// MouseHover reports whether resting the pointer on a word shows its hover.
+func (a *App) MouseHover() bool { return a.cfg.Editor.MouseHover }
+
+// passiveMotion handles pointer movement with no button held. It never moves
+// the cursor: it only starts the dwell timer, or closes a popup the pointer
+// left.
+func (a *App) passiveMotion(l layout, msg tea.MouseMsg) tea.Cmd {
+	if cmd, ok := a.termMouse(l, msg); ok {
+		return cmd
+	}
+	if !a.cfg.Editor.MouseHover || a.ctx != nil || a.overlayOpen() || a.resizing != resizeNone {
+		return nil
+	}
+	pt := screenPt{msg.X, msg.Y}
+	if pt == a.hoverCell {
+		return nil
+	}
+	a.hoverCell = pt
+	a.hoverSeq++
+	pos, ok := a.mouseBufPos(l, pt.x, pt.y)
+	if a.hoverText != "" && a.hoverAt != nil {
+		// The popup stays while the pointer is on it (so the wheel can scroll
+		// it) or still on the word it describes.
+		if a.inHoverBox(l, pt) || ok && pos == a.hoverPos {
+			return nil
+		}
+		a.hoverText, a.hoverAt = "", nil
+	}
+	if !ok {
+		return nil
+	}
+	seq := a.hoverSeq
+	return tea.Tick(hoverDelay, func(time.Time) tea.Msg { return hoverDwellMsg{seq} })
+}
+
+// hoverDwell asks the language server about the word under a resting pointer.
+func (a *App) hoverDwell(msg hoverDwellMsg) tea.Cmd {
+	if msg.seq != a.hoverSeq {
+		return nil
+	}
+	pos, ok := a.mouseBufPos(a.layout(), a.hoverCell.x, a.hoverCell.y)
+	if !ok {
+		return nil
+	}
+	t := a.cur()
+	if t == nil || t.kind != tabText || t.lang == nil {
+		return nil
+	}
+	c := a.lsp.client(t, "hoverProvider")
+	if c == nil {
+		return nil // no server yet: stay silent, the pointer did not ask for an error
+	}
+	a.syncLSP()
+	path, lp := t.buf.Path, lspPos(t.buf, pos)
+	origin := &mouseHover{tab: t, seq: msg.seq, pos: pos, pt: a.hoverCell}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
+		defer cancel()
+		text, err := c.Hover(ctx, path, lp)
+		if err != nil {
+			return nil
+		}
+		return hoverMsg{text: text, mouse: origin}
+	}
+}
+
+// mouseBufPos maps a screen cell to the buffer position of the character under
+// it. ok is false outside the text of a plain editor, including past the end
+// of a line.
+func (a *App) mouseBufPos(l layout, x, y int) (buffer.Pos, bool) {
+	t := a.curText()
+	if t == nil || a.fullPreview(t) || a.diffFor(t) != nil {
+		return buffer.Pos{}, false
+	}
+	b := t.buf
+	gw := gutterWidth(b)
+	if y < l.editY || y >= l.editY+l.editH || x < l.rightX+gw || x >= l.rightX+a.editW(t, l) {
+		return buffer.Pos{}, false
+	}
+	row := b.ScrollRow + y - l.editY
+	if row >= len(b.Lines) {
+		return buffer.Pos{}, false
+	}
+	line := b.Lines[row]
+	vis := x - l.rightX - gw + b.ScrollCol
+	if vis >= buffer.VisualCol(line, len(line)) {
+		return buffer.Pos{}, false
+	}
+	return buffer.Pos{Row: row, Col: buffer.ColFromVisual(line, vis)}, true
+}
+
+// popupAnchor is the cell a popup hangs from: the pointer for a hover it
+// triggered, the cursor otherwise.
+func (a *App) popupAnchor(t *tab, l layout) (x, y int) {
+	if a.comp == nil && a.hoverAt != nil {
+		return a.hoverAt.x, a.hoverAt.y
+	}
+	return a.cursorScreen(t, l)
+}
+
+// popupRect places a bw x bh popup below the anchor cell, above it when it does
+// not fit, and inside the editor area.
+func (a *App) popupRect(l layout, cx, cy, bw, bh int) (x, y int) {
+	x = clamp(cx, l.rightX, max(l.rightX, a.w-bw))
+	y = cy + 1
+	if y+bh > l.editY+l.editH && cy-bh >= l.editY {
+		y = cy - bh
+	}
+	y = max(l.editY, min(y, l.editY+l.editH-bh))
+	return x, y
+}
+
+// inHoverBox reports whether pt is on the open hover popup.
+func (a *App) inHoverBox(l layout, pt screenPt) bool {
+	t := a.curText()
+	if t == nil || a.hoverAt == nil {
+		return false
+	}
+	box := a.hoverView(l).render(a.hoverScroll)
+	bw := 0
+	for _, s := range box {
+		bw = max(bw, ansi.StringWidth(s))
+	}
+	cx, cy := a.popupAnchor(t, l)
+	x, y := a.popupRect(l, cx, cy, bw, len(box))
+	return pt.x >= x && pt.x < x+bw && pt.y >= y && pt.y < y+len(box)
+}

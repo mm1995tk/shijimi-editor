@@ -182,7 +182,10 @@ func (a *App) syncLSP() {
 	}
 }
 
-type hoverMsg struct{ text string }
+type hoverMsg struct {
+	text  string
+	mouse *mouseHover // set when the pointer, not the cursor, asked for it
+}
 type locationsMsg struct {
 	title string
 	locs  []lsp.Location
@@ -229,7 +232,7 @@ func (a *App) hover() tea.Cmd {
 		if err != nil {
 			return lspErrMsg{err}
 		}
-		return hoverMsg{text}
+		return hoverMsg{text: text}
 	})
 }
 

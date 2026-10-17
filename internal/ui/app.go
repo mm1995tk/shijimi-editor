@@ -87,6 +87,10 @@ type App struct {
 	comp        *completionPopup
 	hoverText   string
 	hoverScroll int
+	hoverAt     *screenPt  // where a mouse-triggered popup is anchored; nil = at the cursor
+	hoverPos    buffer.Pos // buffer position the mouse-triggered popup describes
+	hoverCell   screenPt   // last cell the pointer rested on without a button
+	hoverSeq    int        // bumped on every input; stale dwell timers and replies are dropped
 	ctx         *ctxPreview
 
 	// Claude Code IDE integration (see ide.go)
@@ -737,12 +741,23 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		if t := a.curText(); a.fullPreview(t) {
 			return nil // the popup would be anchored to the hidden buffer
 		}
+		if m := msg.mouse; m != nil {
+			if m.seq != a.hoverSeq || m.tab != a.cur() || strings.TrimSpace(msg.text) == "" {
+				return nil
+			}
+			a.hoverText, a.hoverScroll = msg.text, 0
+			a.hoverAt, a.hoverPos = &m.pt, m.pos
+			return nil
+		}
 		if strings.TrimSpace(msg.text) == "" {
 			a.info("ホバー情報はありません")
 		} else {
 			a.hoverText = msg.text
 			a.hoverScroll = 0
+			a.hoverAt = nil
 		}
+	case hoverDwellMsg:
+		return a.hoverDwell(msg)
 	case locationsMsg:
 		return a.showLocations(msg)
 	case completionMsg:
@@ -798,6 +813,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case tea.MouseMsg:
 		return a.handleMouse(msg)
 	case tea.KeyMsg:
+		a.hoverSeq++ // a pending mouse hover is stale once the user types
 		// Fast typing can deliver several runes in one message; Helix-style
 		// commands need them one at a time.
 		if msg.Type == tea.KeyRunes && len(msg.Runes) > 1 && !msg.Paste {
@@ -1435,6 +1451,11 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 	l := a.layout()
+	if msg.Action == tea.MouseActionMotion && msg.Button == tea.MouseButtonNone {
+		return a.passiveMotion(l, msg)
+	}
+	a.hoverSeq++
+	a.hoverCell = screenPt{-1, -1}
 	x, y := msg.X, msg.Y
 	wheel := 0
 	switch msg.Button {
@@ -1723,7 +1744,7 @@ func (a *App) View() string {
 
 	// popups anchored at the cursor
 	if t := a.curText(); t != nil && !a.fullPreview(t) && (a.comp != nil || a.hoverText != "") {
-		cx, cy := a.cursorScreen(t, l)
+		cx, cy := a.popupAnchor(t, l)
 		var box []string
 		if a.comp != nil {
 			box = a.comp.render(max(3, l.editH/2))
@@ -1734,12 +1755,7 @@ func (a *App) View() string {
 		for _, s := range box {
 			bw = max(bw, ansi.StringWidth(s))
 		}
-		x := clamp(cx, l.rightX, max(l.rightX, a.w-bw))
-		y := cy + 1
-		if y+len(box) > l.editY+l.editH && cy-len(box) >= l.editY {
-			y = cy - len(box)
-		}
-		y = max(l.editY, min(y, l.editY+l.editH-len(box)))
+		x, y := a.popupRect(l, cx, cy, bw, len(box))
 		rows = overlay(rows, box, x, y)
 	}
 
@@ -1953,7 +1969,7 @@ func (a *App) renderStatus() string {
 func (a *App) hoverView(l layout) hoverView {
 	h := l.editH * 2 / 3
 	if t := a.curText(); t != nil {
-		_, cy := a.cursorScreen(t, l)
+		_, cy := a.popupAnchor(t, l)
 		below := l.editY + l.editH - (cy + 1)
 		above := cy - l.editY
 		h = min(h, max(below, above))

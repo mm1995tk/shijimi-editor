@@ -190,3 +190,17 @@ func TestNixConfig(t *testing.T) {
 		t.Fatalf("glob = %+v", l)
 	}
 }
+
+func TestMouseHoverOption(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	if !Load(root).Editor.MouseHover {
+		t.Fatal("mouse-hover should default to true")
+	}
+	os.MkdirAll(filepath.Join(root, ".gh-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".gh-editor", "config.toml"), []byte("[editor]\nmouse-hover = false\n"), 0o644)
+	if Load(root).Editor.MouseHover {
+		t.Fatal("mouse-hover = false should disable it")
+	}
+}
