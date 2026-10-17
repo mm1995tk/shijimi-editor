@@ -26,13 +26,16 @@
 
       treefmtEval = treefmt-nix.lib.evalModule pkgs ./flake-treefmt.nix;
 
+      version = "0.1";
+
       appDrv = pkgs.buildGoApplication {
         pname = "gh-editor";
-        version = "0.1";
+        inherit version;
         pwd = ./.;
         src = ./.;
         modules = ./gomod2nix.toml;
         CGO_ENABLED = 0;
+        ldflags = ["-X github.com/mm1995tk/gh-editor/internal/ui.Version=${version}"];
       };
     in {
       packages = {
