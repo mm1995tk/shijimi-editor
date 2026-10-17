@@ -1969,8 +1969,9 @@ func (a *App) renderStatus() string {
 		if st := a.lspStatus(); st != "" {
 			lang += " [" + st + "]"
 		}
-		right = fmt.Sprintf("%s   %s   %s ", pos, indent, lang)
+		right = fmt.Sprintf("%s   %s   %s   ", pos, indent, lang)
 	}
+	right += versionLabel() + " "
 	st := stStatus
 	if a.msg != "" {
 		if a.msgErr {
