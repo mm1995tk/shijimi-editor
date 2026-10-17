@@ -228,7 +228,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ### ファイルツリー
 
-`j/k` 移動、`Enter` 開く、`h/l` 閉じる / 展開、`a` 新しいファイル、`A` 新しいフォルダー、`r` 名前の変更、`d` 削除、`R` 更新、`Esc` エディタへ。
+`j/k` 移動、`Enter` 開く、`h/l` 閉じる / 展開、`a` 新しいファイル、`A` 新しいフォルダー、`r` 名前の変更、`d` 削除、`y` 相対パスをコピー、`Y` 絶対パスをコピー、`R` 更新、`Esc` エディタへ。
 
 ### git-diff モード
 

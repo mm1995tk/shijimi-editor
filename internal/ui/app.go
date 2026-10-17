@@ -2,6 +2,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"github.com/mm1995tk/gh-editor/internal/render"
 	"os"
@@ -598,6 +599,32 @@ func (a *App) copyText(s string) {
 	writeSystemClipboard(s)
 }
 
+// activePath is the file of the current tab, or "" when it has none.
+func (a *App) activePath() string {
+	if t := a.cur(); t != nil {
+		return t.path()
+	}
+	return ""
+}
+
+// copyPath copies p to the clipboard (relative to the root unless abs) and
+// shows what was copied.
+func (a *App) copyPath(p string, abs bool) {
+	if p == "" {
+		a.fail(errors.New("パスをコピーできるファイルがありません"))
+		return
+	}
+	if abs {
+		if ap, err := filepath.Abs(p); err == nil {
+			p = ap
+		}
+	} else {
+		p = a.rel(p)
+	}
+	a.copyText(p)
+	a.info("パスをコピーしました: %s", p)
+}
+
 func (a *App) pasteText() string {
 	if s, ok := readSystemClipboard(); ok {
 		return s
@@ -1092,6 +1119,10 @@ func (a *App) handleExplorerKey(msg tea.KeyMsg) tea.Cmd {
 		return a.renameFile()
 	case "d", "delete":
 		return a.deleteFile()
+	case "y", "Y":
+		if n := e.selected(); n != nil {
+			a.copyPath(n.path, key == "Y")
+		}
 	case "R":
 		e.refresh()
 		a.info("ファイルツリーを更新しました")
