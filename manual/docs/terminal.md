@@ -34,4 +34,6 @@ gh-editor が受け取るキーは次のとおりです。
 ## 環境変数
 
 ターミナルパネルのシェルには `GH_EDITOR_SOCKET` が設定されます。
-これを使って、シェルから gh-editor を操作できます。詳しくは [AI エージェント連携](agent.md) にあります。
+これを使って、シェルから gh-editor を操作できます。
+Claude Code の IDE 連携のために、`CLAUDE_CODE_SSE_PORT`、`ENABLE_IDE_INTEGRATION=true`、`FORCE_CODE_TERMINAL=true` も設定されます。
+詳しくは [AI エージェント連携](agent.md) にあります。

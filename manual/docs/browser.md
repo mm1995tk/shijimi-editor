@@ -4,7 +4,7 @@
 
 `:browser <URL>` で、Web ページを画像のタブとして表示します。
 
-- ヘッドレス Chromium でページを描画し、PNG にして表示します。
+- ヘッドレス Chromium でページを描画し、画像にして表示します。
 - `chromium` / `chromium-browser` / `google-chrome` を PATH から探します。
 - URL に `https://` を付けなければ、自動で補います。`localhost`、`127.0.0.1`、`[::1]` には `http://` を補います。
 
@@ -20,6 +20,30 @@
 | `g` / `G` | 先頭 / 末尾 |
 
 `:browser reload`、`:browser back`、`:browser next` でも同じ操作ができます。
+
+### ライブ表示（Kitty graphics protocol 対応の端末）
+
+Kitty / Ghostty / WezTerm / Herdr では、ブラウザタブが次のように変わります。
+
+- Chromium を常駐させ（Chrome DevTools Protocol）、画面を画像として端末へ送ります。文字が読める解像度で表示され、動画や動きのあるページも動いて見えます（最大 15 fps）。音声は再生しません。
+- マウスのクリック・ドラッグ・ホイールを、ページへ転送します。
+- ページをクリックするか、`i`（または `Enter`）を押すと、キーをページへ送る入力モードに入ります。`Esc` で戻ります。
+- 入力モード以外では、上の表のキーが使えます。
+- 別のタブを前に出している間は、画面の送信を止めて負荷を下げます。
+- sandbox は無効にしません。sandbox 付きで Chromium を起動できない環境では、エラーを表示します。
+
+端末の判定は環境変数で行います（`TERM=xterm-kitty`、`KITTY_WINDOW_ID`、`TERM_PROGRAM=ghostty` / `WezTerm` / `herdr` など）。
+判定が合わないときは、`GH_EDITOR_GRAPHICS` で上書きできます。
+
+| 値 | 動作 |
+| --- | --- |
+| `kitty` | 強制的にライブ表示を使う |
+| `halfblock` | 使わない |
+
+SSH 越しでは、端末を示す環境変数が引き継がれないことがあります。そのときは `GH_EDITOR_GRAPHICS=kitty` を設定してください。
+
+対応していない端末では、半ブロック文字（`▀`）の静止画表示になります。
+画像は Unicode placeholder（U+10EEEE）の方式で配置するので、tmux や Herdr のように端末とのあいだに入るものが Kitty graphics protocol を通す場合にも使えます。
 
 ### Chromium の場所を指定する
 

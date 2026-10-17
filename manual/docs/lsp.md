@@ -5,7 +5,7 @@
 | 機能 | Helix モード | VS Code モード |
 | --- | --- | --- |
 | 診断 | `]d` / `[d` で移動、`Space d` で一覧 | — |
-| 補完 | 自動。`Ctrl+X` / `Ctrl+Space` で手動 | 自動 |
+| 補完 | 自動。`Ctrl+X` / `Ctrl+Space` で手動 | 自動。`Ctrl+Space` で手動 |
 | ホバー | `K` / `Space k` | — |
 | 定義へ移動 | `gd` | `F12` |
 | 参照 | `gr` | `Shift+F12` |
