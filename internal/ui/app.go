@@ -1464,9 +1464,6 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 	if msg.Action == tea.MouseActionMotion && msg.Button == tea.MouseButtonNone {
 		return a.passiveMotion(l, msg)
 	}
-	a.hoverSeq++
-	a.hoverWord = wordSpan{}
-	a.hoverCell = screenPt{-1, -1}
 	x, y := msg.X, msg.Y
 	wheel := 0
 	switch msg.Button {
@@ -1491,6 +1488,10 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			return nil
 		}
 	}
+	// Past the branches that keep the popup open: the pointer's hover is over.
+	a.hoverSeq++
+	a.hoverWord = wordSpan{}
+	a.hoverCell = screenPt{-1, -1}
 	a.hoverText, a.hoverAt = "", nil
 	if wheel != 0 && msg.Action == tea.MouseActionPress {
 		switch {

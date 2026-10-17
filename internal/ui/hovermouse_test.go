@@ -192,3 +192,42 @@ func TestMouseHoverPopupDoesNotTakeKeys(t *testing.T) {
 		t.Fatal("keyboard popup should still handle y (copy), staying open")
 	}
 }
+
+func TestMouseHoverKeptAfterWheelOnPopup(t *testing.T) {
+	a := newTestApp(t, "hello world\nsecond line\n")
+	a.focus = focusEditor
+	l := a.layout()
+	gw := gutterWidth(a.curText().buf)
+	x, y := l.rightX+gw+1, l.editY
+	long := ""
+	for range 40 {
+		long += "line\n\n"
+	}
+	a.hoverText, a.hoverAt = long, &screenPt{x, y}
+	a.hoverWord = wordSpan{0, 0, 5}
+	a.hoverCell = screenPt{x, y}
+	wheelDown(a, x, y+1) // on the popup
+	if a.hoverText == "" || a.hoverWord != (wordSpan{0, 0, 5}) {
+		t.Fatal("wheel on the popup must keep the popup and its word")
+	}
+	if cmd := move(a, x+2, y); cmd != nil || a.hoverText == "" {
+		t.Fatal("back on the word after scrolling: the popup must stay and no timer start")
+	}
+}
+
+func TestMouseHoverOverKeyboardPopupAsksNothing(t *testing.T) {
+	a := newTestApp(t, "hello world\nsecond line\nthird\n")
+	a.focus = focusEditor
+	l := a.layout()
+	a.hoverText, a.hoverAt = "text", nil // opened with Space k
+	x, y, ok := a.hoverPos(l)
+	if !ok {
+		t.Fatal("no popup rect")
+	}
+	if cmd := move(a, x+2, y+1); cmd != nil {
+		t.Fatal("the pointer on a keyboard popup must not start a hover for the text below")
+	}
+	if a.hoverWord != (wordSpan{}) || a.hoverText != "text" {
+		t.Fatal("popup replaced or word armed")
+	}
+}

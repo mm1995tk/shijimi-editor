@@ -58,10 +58,12 @@ func (a *App) passiveMotion(l layout, msg tea.MouseMsg) tea.Cmd {
 	}
 	a.hoverCell = pt
 	_, word, ok := a.mouseWord(l, pt)
+	if a.hoverText != "" && a.inHoverBox(l, pt) {
+		return nil // reading it (the wheel scrolls it); whatever hides below is not asked about
+	}
 	if a.hoverText != "" && a.hoverAt != nil {
-		// The popup stays while the pointer is on it (so the wheel can scroll
-		// it) or still on the word it describes.
-		if a.inHoverBox(l, pt) || ok && word == a.hoverWord {
+		// A pointer popup also stays while the pointer is on the word it describes.
+		if ok && word == a.hoverWord {
 			return nil
 		}
 		a.hoverText, a.hoverAt = "", nil
@@ -156,7 +158,7 @@ func (a *App) popupAnchor(t *tab, l layout) (x, y int) {
 // inHoverBox reports whether pt is on the open hover popup.
 func (a *App) inHoverBox(l layout, pt screenPt) bool {
 	x, y, ok := a.hoverPos(l)
-	if !ok || a.hoverAt == nil {
+	if !ok {
 		return false
 	}
 	box := a.hoverView(l).render(a.hoverScroll)
