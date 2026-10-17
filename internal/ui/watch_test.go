@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -71,5 +72,66 @@ func TestWatchIgnoresDeletedFile(t *testing.T) {
 	a.Update(watchMsg{})
 	if got := tb.buf.Text(); got != "one\n" || tb.dirty() {
 		t.Fatalf("buffer changed after delete: %q", got)
+	}
+}
+
+func TestWatchRefreshesTreeAfterExternalChange(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+	a := newTestApp(t, "one\n")
+	dir := a.explorer.root.path
+	// b.txt is not open in a tab, so only the periodic refresh can notice it.
+	path := filepath.Join(dir, "b.txt")
+	os.WriteFile(path, []byte("b\n"), 0o644)
+	if out, err := run(dir, nil, "git", "init", "-q"); err != nil {
+		t.Skipf("git unavailable: %v %s", err, out)
+	}
+	git := []string{"-c", "user.name=t", "-c", "user.email=t@t"}
+	if out, err := run(dir, nil, "git", append(git, "add", "a.txt", "b.txt")...); err != nil {
+		t.Skipf("git add failed: %v %s", err, out)
+	}
+	if out, err := run(dir, nil, "git", append(git, "commit", "-qm", "init")...); err != nil {
+		t.Skipf("git commit failed: %v %s", err, out)
+	}
+	a.explorer.refresh()
+	if a.explorer.git[path] != "" {
+		t.Fatalf("clean file marked: %q", a.explorer.git[path])
+	}
+	tick := func(n int) {
+		for i := 0; i < n; i++ {
+			a.Update(watchMsg{})
+		}
+	}
+	hasNode := func(name string) bool {
+		for _, n := range a.explorer.flat {
+			if n.name == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	os.WriteFile(filepath.Join(dir, "new.txt"), []byte("x"), 0o644)
+	os.WriteFile(path, []byte("changed\n"), 0o644)
+	tick(treeRefreshTicks - 1)
+	if a.explorer.git[path] != "" || hasNode("new.txt") {
+		t.Fatal("tree refreshed before treeRefreshTicks")
+	}
+	tick(1)
+	if a.explorer.git[path] != "M" {
+		t.Fatalf("modified mark missing: %q", a.explorer.git[path])
+	}
+	if !hasNode("new.txt") {
+		t.Fatal("externally created file not in tree")
+	}
+
+	run(dir, nil, "git", "checkout", ".")
+	tick(treeRefreshTicks - 1)
+	if a.explorer.git[path] != "M" {
+		t.Fatalf("mark cleared before treeRefreshTicks: %q", a.explorer.git[path])
+	}
+	tick(1)
+	if a.explorer.git[path] != "" {
+		t.Fatalf("stale mark: %q", a.explorer.git[path])
 	}
 }

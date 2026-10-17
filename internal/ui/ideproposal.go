@@ -93,6 +93,7 @@ func (a *App) resolveProposal(p *proposal, accept bool) {
 	if accept {
 		a.info("承認しました: %s", a.rel(p.newPath))
 		p.reply <- ideReply{content: []ide.Content{ide.Text("FILE_SAVED"), ide.Text(p.newText)}}
+		a.treeTicks = treeRefreshTicks - 2 // the client writes the file after this reply
 	} else {
 		a.info("却下しました: %s", a.rel(p.newPath))
 		p.reply <- ideReply{content: []ide.Content{ide.Text("DIFF_REJECTED"), ide.Text(p.name)}}

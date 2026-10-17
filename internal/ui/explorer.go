@@ -102,6 +102,10 @@ func (e *explorer) flatten() {
 
 // refresh reloads every expanded directory from disk.
 func (e *explorer) refresh() {
+	var selPath string
+	if n := e.selected(); n != nil {
+		selPath = n.path
+	}
 	var walk func(n *node)
 	walk = func(n *node) {
 		if n.isDir && n.expanded {
@@ -113,6 +117,12 @@ func (e *explorer) refresh() {
 	}
 	walk(e.root)
 	e.flatten()
+	for i, n := range e.flat { // keep the cursor on the same entry when rows shift
+		if n.path == selPath {
+			e.sel = i
+		}
+	}
+	e.sel = clamp(e.sel, 0, max(0, len(e.flat)-1))
 	e.loadGitStatus()
 }
 
