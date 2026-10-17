@@ -61,6 +61,7 @@ type searchPanel struct {
 	cursor, scroll int
 	restore        bool // after the next search, put the cursor at restoreAt
 	restoreAt      int
+	restoreKey     string // the replaced line; if it still matches, move past it
 	bodyH          int
 	rect           [4]int // x, y, w, h on screen
 	view           searchView
@@ -261,7 +262,11 @@ func (a *App) searchDone(m searchDoneMsg) {
 		}
 	}
 	if s.restore {
-		s.cursor = clamp(s.restoreAt, 0, max(0, len(s.res.hits)-1))
+		at := s.restoreAt
+		if at < len(s.res.hits) && skipKey(s.res.hits[at]) == s.restoreKey {
+			at++
+		}
+		s.cursor = clamp(at, 0, max(0, len(s.res.hits)-1))
 		s.restore = false
 	}
 	s.view.path = ""
@@ -405,11 +410,16 @@ func (a *App) searchReplaceOne() tea.Cmd {
 		a.fail(fmt.Errorf("置換する行がありません"))
 		return nil
 	}
-	idx := s.cursor
+	if h.skip {
+		// picking a line to replace is explicit, so it overrides the exclusion
+		h.skip = false
+		delete(s.skipped, skipKey(h))
+	}
+	idx, key := s.cursor, skipKey(h)
 	if !a.replaceHits([]*searchHit{h}) {
 		return nil
 	}
-	s.restore, s.restoreAt = true, idx
+	s.restore, s.restoreAt, s.restoreKey = true, idx, key
 	return a.searchNow()
 }
 
