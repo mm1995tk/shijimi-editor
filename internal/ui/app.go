@@ -957,6 +957,10 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if a.helix {
 		return a.handleHelixKey(msg)
 	}
+	if t := a.curText(); t != nil && t.preview == previewFull && !fullPreviewEditorKey(msg) {
+		a.info("全幅プレビュー中は編集できません")
+		return nil
+	}
 	return a.handleEditorKey(msg)
 }
 

@@ -210,3 +210,25 @@ func TestFullPreviewBlocksEditing(t *testing.T) {
 		t.Fatalf("hover shown in full preview: %q", a.hoverText)
 	}
 }
+
+func TestFullPreviewBlocksLeaderPasteAndVscodeKeymap(t *testing.T) {
+	b := buffer.New()
+	b.Insert("abc\n")
+	b.Path = "x.md"
+	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}, helix: true, pal: &palette{}, search: &searchPanel{}}
+	a.tabs[0].preview = previewFull
+	ver := b.Version
+
+	a.handleHelixKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(" ")})
+	a.handleHelixKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
+	if b.Version != ver || a.pending != "" {
+		t.Fatalf("Space p: version %d (want %d), pending %q", b.Version, ver, a.pending)
+	}
+
+	a.helix = false
+	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("pasted"), Paste: true})
+	if b.Version != ver {
+		t.Fatalf("vscode keymap edited the hidden buffer: version %d, want %d", b.Version, ver)
+	}
+}

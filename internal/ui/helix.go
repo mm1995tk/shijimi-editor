@@ -32,8 +32,11 @@ func (m editMode) label() string {
 // fills the editor area: scrolling, counts, the leader and command line, and
 // ctrl chords. Anything else would edit a buffer that is not visible.
 func (a *App) fullPreviewKey(key string) bool {
+	if a.pending == " " {
+		return strings.Contains("fbkodDeEmgGy?/ta", key) && len(key) == 1
+	}
 	if a.pending != "" {
-		return a.pending == " " || a.pending == "g"
+		return a.pending == "g"
 	}
 	switch key {
 	case "j", "k", "up", "down", "G", "g", "pgup", "pgdown", "esc", ":", " ", "space":
@@ -43,6 +46,19 @@ func (a *App) fullPreviewKey(key string) bool {
 		return true
 	}
 	return strings.HasPrefix(key, "ctrl+")
+}
+
+// fullPreviewEditorKey is fullPreviewKey for the modeless (vscode) keymap,
+// where plain characters and pastes would be typed into the hidden buffer.
+func fullPreviewEditorKey(msg tea.KeyMsg) bool {
+	if msg.Paste {
+		return false
+	}
+	switch msg.String() {
+	case "up", "down", "pgup", "pgdown", "home", "end", "ctrl+home", "ctrl+end", "esc":
+		return true
+	}
+	return false
 }
 
 // handleHelixKey implements Helix-style modal editing for text tabs.
