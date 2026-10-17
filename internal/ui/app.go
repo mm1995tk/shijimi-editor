@@ -1453,9 +1453,12 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		}
 		return nil
 	}
-	if a.hoverText != "" && msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+	if a.hoverText != "" && msg.Button == tea.MouseButtonLeft {
+		// The button copies on press; the matching release must not close the hover.
 		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).copyHit(x-bx, y-by) {
-			a.copyHover()
+			if msg.Action == tea.MouseActionPress {
+				a.copyHover()
+			}
 			return nil
 		}
 	}
