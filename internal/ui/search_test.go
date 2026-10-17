@@ -318,3 +318,24 @@ func TestSearchReplaceOneStillMatching(t *testing.T) {
 		t.Fatalf("text = %q", got)
 	}
 }
+
+func TestSearchPanelLayout(t *testing.T) {
+	a := newTestApp(t, "foo\n")
+	a.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+	drive(a, a.openSearch(fQuery))
+	x, y, box := a.renderSearch()
+	if x != 1 || y != 1 || len(box) != a.h-2 {
+		t.Fatalf("window must leave a 1-cell margin: x=%d y=%d rows=%d (h=%d)", x, y, len(box), a.h)
+	}
+	for _, r := range box {
+		if w := ansi.StringWidth(r); w != a.w-2 {
+			t.Fatalf("row width = %d, want %d: %q", w, a.w-2, ansi.Strip(r))
+		}
+	}
+	got := ansi.Strip(strings.Join(box, "\n"))
+	for _, want := range []string{"┌─ 検索 ", "┌─ 置換 ", "┌─ 含める ", "┌─ 除外 ", "置換", "含めるファイル（例: *.go）"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+}
