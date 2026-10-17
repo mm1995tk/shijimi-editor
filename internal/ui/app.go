@@ -1004,6 +1004,13 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 		}
 		return a.handleBrowserKey(t, key)
 	case tabImage:
+		if a.pending == " " {
+			a.pending = ""
+			if key == "esc" {
+				return nil
+			}
+			return a.spaceMode(key)
+		}
 		switch key {
 		case "q", "esc":
 			a.closeTab(true)
@@ -1011,11 +1018,6 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return a.openCmdline(":")
 		case " ":
 			a.pending = " "
-		default:
-			if a.pending == " " {
-				a.pending = ""
-				return a.spaceMode(key)
-			}
 		}
 		return nil
 	}

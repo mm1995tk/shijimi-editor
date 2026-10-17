@@ -164,3 +164,32 @@ func TestSpaceMenuPopup(t *testing.T) {
 		t.Fatal("menu still shown after unassigned key")
 	}
 }
+
+func TestSpaceMenuFiltersItems(t *testing.T) {
+	a := newTestApp(t, "hello\n")
+
+	a.focus = focusExplorer
+	keys(a, "space")
+	v := a.View()
+	if !strings.Contains(v, "ファイルを開く") || !strings.Contains(v, "名前の変更") {
+		t.Fatal("explorer: want file and buffer commands")
+	}
+	keys(a, "esc")
+	a.focus = focusEditor
+
+	a.curText().preview = previewFull
+	keys(a, "space")
+	v = a.View()
+	if !strings.Contains(v, "ファイルを開く") || strings.Contains(v, "名前の変更") || strings.Contains(v, "貼り付け") {
+		t.Fatal("full preview: want only commands usable there")
+	}
+	keys(a, "esc")
+	a.curText().preview = previewOff
+
+	a.closeTab(true)
+	keys(a, "space")
+	v = a.View()
+	if !strings.Contains(v, "ファイルを開く") || strings.Contains(v, "名前の変更") || strings.Contains(v, "コピー") {
+		t.Fatal("no text tab: want text-only commands hidden")
+	}
+}
