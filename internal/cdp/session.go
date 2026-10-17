@@ -420,6 +420,11 @@ func (s *Session) Key(name string) {
 	s.do(func(ctx context.Context) { _ = chromedp.Do(ctx, chromedp.KeyEvent(k)) })
 }
 
+// Text inserts text (a paste) into the focused element at once.
+func (s *Session) Text(text string) {
+	send(s, input.InsertText, input.InsertTextParams{Text: text})
+}
+
 var specialKeys = map[string]string{
 	"enter": kb.Enter, "backspace": kb.Backspace, "tab": kb.Tab, "esc": kb.Escape,
 	"delete": kb.Delete, "up": kb.ArrowUp, "down": kb.ArrowDown, "left": kb.ArrowLeft,

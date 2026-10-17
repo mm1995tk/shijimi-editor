@@ -47,6 +47,7 @@ func (f *fakeLive) Size() (int, int)     { return f.w, f.h }
 func (f *fakeLive) SetStreaming(on bool) { f.streaming = on }
 func (f *fakeLive) Redraw()              { f.rec("redraw") }
 func (f *fakeLive) Key(name string)      { f.rec("key " + name) }
+func (f *fakeLive) Text(s string)        { f.rec("text " + s) }
 func (f *fakeLive) ScrollToEdge(b bool) {
 	f.rec("edge " + map[bool]string{false: "top", true: "bottom"}[b])
 }
@@ -138,6 +139,17 @@ func TestLiveBrowserInput(t *testing.T) {
 	if len(f.mouse) != 2 || f.mouse[0].kind != cdp.MousePress || f.mouse[1].kind != cdp.MouseRelease {
 		t.Fatalf("mouse %+v", f.mouse)
 	}
+	// the click enters the input mode, so typing and pasting reach the page
+	if !v.live.input {
+		t.Fatal("a click on the page did not enter the input mode")
+	}
+	n := len(f.calls)
+	keys(a, "j")
+	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("天気"), Paste: true})
+	if got := strings.Join(f.calls[n:], ","); got != "key j,text 天気" {
+		t.Errorf("calls after the click %q", got)
+	}
+	keys(a, "esc")
 	wantX := (float64(cols/2) + 0.5) / float64(cols) * 1000
 	wantY := (float64(rows/2) + 0.5) / float64(rows) * 500
 	if d := f.mouse[0].x - wantX; d > 0.01 || d < -0.01 {
@@ -164,7 +176,7 @@ func TestLiveBrowserInput(t *testing.T) {
 	if len(f.wheel) != 2 {
 		t.Errorf("j did not scroll: %v", f.wheel)
 	}
-	n := len(f.calls)
+	n = len(f.calls)
 	keys(a, "i", "a", "enter", "q")
 	if got := strings.Join(f.calls[n:], ","); got != "key a,key enter,key q" {
 		t.Errorf("calls %q", got)
