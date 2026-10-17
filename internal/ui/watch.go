@@ -10,6 +10,11 @@ import (
 // CHANGES list in git-diff mode.
 const gitDiffRefreshTicks = 3
 
+// treeRefreshTicks is how many watch ticks pass between reloads of the file
+// tree (directory contents and git marks), so changes made outside the editor
+// show up.
+const treeRefreshTicks = 3
+
 // watchInterval is how often open files are compared with the disk.
 const watchInterval = time.Second
 

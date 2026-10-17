@@ -35,23 +35,24 @@ type span struct{ x0, x1 int }
 
 // App is the root Bubble Tea model.
 type App struct {
-	root     string
-	gitTop   string
-	cfg      *config.Config
-	renderer render.Renderer // overrides Chromium for the browser tab (tests); nil = from config
-	gfx      *kittyGfx       // non-nil on a terminal with Kitty graphics: the browser view is live
-	lsp      *lspManager
-	w, h     int
-	focus    focus
-	explorer *explorer
-	term     *terminal
-	proxy    *proxy.Manager
-	pal      *palette
-	search   *searchPanel
-	tabs     []*tab
-	active   int
-	branch   string
-	gd       gitDiff
+	root      string
+	gitTop    string
+	cfg       *config.Config
+	renderer  render.Renderer // overrides Chromium for the browser tab (tests); nil = from config
+	gfx       *kittyGfx       // non-nil on a terminal with Kitty graphics: the browser view is live
+	lsp       *lspManager
+	w, h      int
+	focus     focus
+	explorer  *explorer
+	treeTicks int // watch ticks since the tree was last reloaded
+	term      *terminal
+	proxy     *proxy.Manager
+	pal       *palette
+	search    *searchPanel
+	tabs      []*tab
+	active    int
+	branch    string
+	gd        gitDiff
 
 	showSide bool
 	showTerm bool
@@ -665,6 +666,11 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return a.handleAutoSave(msg)
 	case watchMsg:
 		reload := a.checkDiskChanges()
+		a.treeTicks++
+		if reload || a.treeTicks >= treeRefreshTicks {
+			a.treeTicks = 0
+			a.explorer.refresh()
+		}
 		if a.gd.on {
 			a.gd.ticks++
 			if reload || a.gd.ticks%gitDiffRefreshTicks == 0 {

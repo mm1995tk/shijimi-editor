@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -71,5 +72,42 @@ func TestWatchIgnoresDeletedFile(t *testing.T) {
 	a.Update(watchMsg{})
 	if got := tb.buf.Text(); got != "one\n" || tb.dirty() {
 		t.Fatalf("buffer changed after delete: %q", got)
+	}
+}
+
+func TestWatchRefreshesTreeAfterExternalChange(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	dir := a.explorer.root.path
+	if out, err := run(dir, nil, "git", "init", "-q"); err != nil {
+		t.Skipf("git unavailable: %v %s", err, out)
+	}
+	run(dir, nil, "git", "-c", "user.name=t", "-c", "user.email=t@t", "add", "a.txt")
+	run(dir, nil, "git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init")
+	a.explorer.refresh()
+	path := filepath.Join(dir, "a.txt")
+	if a.explorer.git[path] != "" {
+		t.Fatalf("clean file marked: %q", a.explorer.git[path])
+	}
+	os.WriteFile(filepath.Join(dir, "new.txt"), []byte("x"), 0o644)
+	os.WriteFile(path, []byte("changed\n"), 0o644)
+	for i := 0; i < treeRefreshTicks; i++ {
+		a.Update(watchMsg{})
+	}
+	if a.explorer.git[path] != "M" {
+		t.Fatalf("modified mark missing: %q", a.explorer.git[path])
+	}
+	found := false
+	for _, n := range a.explorer.flat {
+		found = found || n.name == "new.txt"
+	}
+	if !found {
+		t.Fatal("externally created file not in tree")
+	}
+	run(dir, nil, "git", "checkout", ".")
+	for i := 0; i < treeRefreshTicks; i++ {
+		a.Update(watchMsg{})
+	}
+	if a.explorer.git[path] != "" {
+		t.Fatalf("stale mark: %q", a.explorer.git[path])
 	}
 }
