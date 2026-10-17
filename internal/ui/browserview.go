@@ -299,6 +299,7 @@ func (a *App) editBrowserURL(v *browserView) tea.Cmd {
 func (a *App) handleBrowserKey(t *tab, key string) tea.Cmd {
 	v := t.web
 	if key == "ctrl+l" { // works in the page input mode too, like a browser's address bar
+		a.pending = ""
 		return a.editBrowserURL(v)
 	}
 	if v.live != nil && (v.live.input || a.pending != " " && liveKeys[key]) {

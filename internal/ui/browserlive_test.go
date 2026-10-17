@@ -349,4 +349,11 @@ func TestLiveBrowserEditURL(t *testing.T) {
 	l := a.layout()
 	a.handleMouse(tea.MouseMsg{X: l.rightX + 1, Y: l.editY, Button: tea.MouseButtonLeft, Action: tea.MouseActionPress})
 	check("status line click")
+
+	keys(a, " ")
+	a.Update(tea.KeyMsg{Type: tea.KeyCtrlL})
+	check("Ctrl+L after Space")
+	if a.pending != "" {
+		t.Errorf("pending = %q", a.pending)
+	}
 }
