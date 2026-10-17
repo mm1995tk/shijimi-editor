@@ -38,6 +38,7 @@ type liveSession interface {
 	Mouse(kind cdp.MouseKind, x, y float64)
 	Wheel(x, y, dy float64)
 	Key(name string)
+	Text(s string)
 	ScrollToEdge(bottom bool)
 	State() cdp.State
 	Close()
@@ -342,6 +343,7 @@ func (a *App) liveMouse(v *browserView, msg tea.MouseMsg) (tea.Cmd, bool) {
 			return nil, false
 		}
 		l.dragging = true
+		l.input = true // clicking a search box is followed by typing into it
 		l.sess.Mouse(cdp.MousePress, px, py)
 		return a.setFocus(focusEditor), true
 	case tea.MouseActionRelease:
@@ -385,7 +387,8 @@ func (a *App) liveWheel(v *browserView, x, y, wheel int) {
 }
 
 // liveKey handles a key on the live view. Outside the input mode the keys
-// scroll and navigate like the screenshot view; "i" / Enter switch to input.
+// scroll and navigate like the screenshot view; "i" / Enter or a click on the
+// page switch to input.
 func (a *App) liveKey(v *browserView, key string) tea.Cmd {
 	l := v.live
 	if l.input {

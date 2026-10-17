@@ -931,6 +931,11 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case tabReview:
 		return a.handleReviewKey(t, msg)
 	case tabBrowser:
+		if l := t.web.live; l != nil && l.input && l.sess != nil && msg.Paste {
+			// pasted text goes in at once (typed runes arrive here one by one)
+			l.sess.Text(string(msg.Runes))
+			return nil
+		}
 		return a.handleBrowserKey(t, key)
 	case tabImage:
 		switch key {
