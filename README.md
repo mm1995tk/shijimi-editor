@@ -66,6 +66,7 @@ Web ページはヘッドレス Chromium で描画して画像にします。`ch
 [browser]
 chromium = "/usr/bin/chromium"
 listen-host = "127.0.0.1"  # :browser forward の待ち受けアドレス
+audio = false              # true で内蔵ブラウザの音声を出す
 ```
 
 `[browser]` は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` にのみ書いてください。`.helix/config.toml` に書くと、Helix が未知のセクションを拒否します（`[search]` と同じ）。

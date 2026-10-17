@@ -46,6 +46,7 @@ type Config struct {
 	Chromium      string // executable; "" = search PATH
 	Width, Height int    // viewport in pixels
 	FPS           int    // frame rate limit; 0 = DefaultFPS
+	Audio         bool   // false = Chromium is started with --mute-audio
 	OnFrame       func(jpeg []byte)
 	OnState       func(State)
 }
@@ -97,14 +98,7 @@ func Start(cfg Config) (*Session, error) {
 		wake: make(chan struct{}, 1),
 		done: make(chan struct{}),
 	}
-	opts := append(append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...),
-		chromedp.ExecPath(bin),
-		chromedp.UserDataDir(filepath.Join(dir, "profile")),
-		chromedp.Flag("hide-scrollbars", true),
-		chromedp.Flag("disable-crash-reporter", true),
-		chromedp.Flag("autoplay-policy", "no-user-gesture-required"),
-		chromedp.DisableGPU,
-	)
+	opts := allocatorOptions(cfg, bin, filepath.Join(dir, "profile"))
 	allocCtx, cancelAlloc := chromedp.NewExecAllocator(context.Background(), opts...)
 	ctx, cancelCtx := chromedp.NewContext(allocCtx)
 	s.ctx = ctx
@@ -148,6 +142,23 @@ func Start(cfg Config) (*Session, error) {
 	go s.worker()
 	go s.pump()
 	return s, nil
+}
+
+// allocatorOptions returns the Chromium flags. chromedp's defaults include
+// --mute-audio (via Headless), so it is overridden only when cfg.Audio is set.
+func allocatorOptions(cfg Config, bin, profile string) []chromedp.ExecAllocatorOption {
+	opts := append(append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...),
+		chromedp.ExecPath(bin),
+		chromedp.UserDataDir(profile),
+		chromedp.Flag("hide-scrollbars", true),
+		chromedp.Flag("disable-crash-reporter", true),
+		chromedp.Flag("autoplay-policy", "no-user-gesture-required"),
+		chromedp.DisableGPU,
+	)
+	if cfg.Audio {
+		opts = append(opts, chromedp.Flag("mute-audio", false))
+	}
+	return opts
 }
 
 // listen calls fn for each event until the session ends.
