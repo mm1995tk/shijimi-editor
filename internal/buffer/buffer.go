@@ -994,32 +994,45 @@ func (b *Buffer) SelectWord(forward, extend bool) {
 // the selection by one line.
 func (b *Buffer) SelectLine() {
 	s, e, ok := b.Selection()
-	if ok && s.Col == 0 && e.Col == 0 && e.Row > s.Row {
-		if e.Row < len(b.Lines) {
-			b.selectRows(s.Row, e.Row)
-		}
+	last := len(b.Lines) - 1
+	if ok && s.Col == 0 && e.Row > s.Row && e.Col == 0 {
+		b.Anchor = &Pos{s.Row, 0}
+		b.Cur = b.lineEndPos(e.Row)
+	} else if ok && s.Col == 0 && e.Row > s.Row && e == (Pos{last, len(b.Lines[last])}) {
+		// already extended to the end of the last line
 	} else {
-		b.selectRows(b.Cur.Row, b.Cur.Row)
+		b.Anchor = &Pos{b.Cur.Row, 0}
+		b.Cur = b.lineEndPos(b.Cur.Row)
 	}
 	b.lastEdit = editOther
 	b.syncWant()
 }
 
-// selectRows selects whole lines first..last including their newline. When
-// last is the final line, the newline before first is taken instead (if
-// there is one) so that deleting the selection removes the lines entirely.
-func (b *Buffer) selectRows(first, last int) {
-	if last+1 < len(b.Lines) {
-		b.Anchor = &Pos{first, 0}
-		b.Cur = Pos{last + 1, 0}
-		return
+// lineEndPos returns the position just after row's newline (or its end
+// for the last line).
+func (b *Buffer) lineEndPos(row int) Pos {
+	if row+1 < len(b.Lines) {
+		return Pos{row + 1, 0}
 	}
-	if first > 0 {
-		b.Anchor = &Pos{first - 1, len(b.Lines[first-1])}
-	} else {
-		b.Anchor = &Pos{first, 0}
+	return Pos{row, len(b.Lines[row])}
+}
+
+// LineDeleteRange returns the range "d" should delete. It is the selection,
+// except when the selection is the whole last line (possibly empty) and a
+// previous line exists: the newline before it is included so the line
+// disappears. Falls back to SelectionOrChar.
+func (b *Buffer) LineDeleteRange() (Pos, Pos) {
+	if b.Anchor != nil {
+		s, e := *b.Anchor, b.Cur
+		if e.Less(s) {
+			s, e = e, s
+		}
+		last := len(b.Lines) - 1
+		if s.Col == 0 && s.Row > 0 && s.Row <= last && e == (Pos{last, len(b.Lines[last])}) {
+			return Pos{s.Row - 1, len(b.Lines[s.Row-1])}, e
+		}
 	}
-	b.Cur = Pos{last, len(b.Lines[last])}
+	return b.SelectionOrChar()
 }
 
 // SelectionOrChar returns the selection, or the single character under the

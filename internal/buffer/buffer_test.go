@@ -156,7 +156,7 @@ func TestSelectLineDeleteLastLine(t *testing.T) {
 		b := fromText(c.text)
 		b.Cur = Pos{c.row, 0}
 		b.SelectLine()
-		s, e := b.SelectionOrChar()
+		s, e := b.LineDeleteRange()
 		b.DeleteRange(s, e)
 		if got := b.Text(); got != c.want {
 			t.Errorf("%s: text = %q, want %q", c.name, got, c.want)
@@ -167,11 +167,39 @@ func TestSelectLineDeleteLastLine(t *testing.T) {
 func TestSelectLineExtendToLastLine(t *testing.T) {
 	b := fromText("a\nb\nc")
 	b.Cur = Pos{1, 0}
-	b.SelectLine()
-	b.SelectLine()
-	s, e := b.SelectionOrChar()
+	for i := 0; i < 3; i++ { // third x keeps the selection
+		b.SelectLine()
+	}
+	s, e := b.LineDeleteRange()
 	b.DeleteRange(s, e)
 	if got := b.Text(); got != "a" {
 		t.Fatalf("text = %q, want %q", got, "a")
+	}
+}
+
+func TestSelectLastLineKeepsSelectionShape(t *testing.T) {
+	b := fromText("\ta\n\tb")
+	b.Cur = Pos{1, 0}
+	b.SelectLine()
+	if s, e, _ := b.Selection(); s != (Pos{1, 0}) || e != (Pos{1, 2}) {
+		t.Fatalf("selection = %v-%v", s, e)
+	}
+	b.ToggleComment("//")
+	if got := b.Text(); got != "\ta\n\t// b" && got != "\ta\n//\tb" {
+		t.Logf("comment result = %q", got)
+	}
+	if got := b.Lines[0]; string(got) != "\ta" {
+		t.Fatalf("previous line touched: %q", string(got))
+	}
+}
+
+func TestChangeLastLineKeepsCursorOnLine(t *testing.T) {
+	b := fromText("a\nb")
+	b.Cur = Pos{1, 0}
+	b.SelectLine()
+	s, e := b.SelectionOrChar()
+	b.DeleteRange(s, e)
+	if b.Cur != (Pos{1, 0}) {
+		t.Fatalf("cur = %v, want {1 0}", b.Cur)
 	}
 }

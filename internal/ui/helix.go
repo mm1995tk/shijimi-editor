@@ -167,7 +167,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 
 	// --- editing ---
 	case "d", "alt+d":
-		s, e := b.SelectionOrChar()
+		s, e := b.LineDeleteRange()
 		text := b.DeleteRange(s, e)
 		if key == "d" {
 			a.clipboard = text
