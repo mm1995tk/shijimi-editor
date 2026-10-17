@@ -67,7 +67,7 @@ func (a *App) handleHelixKey(msg tea.KeyMsg) tea.Cmd {
 	if t == nil || t.kind != tabText {
 		return nil
 	}
-	if t.preview == previewFull {
+	if a.fullPreview(t) {
 		a.mode = modeNormal // e.g. after switching back to this tab from insert mode
 		if !a.fullPreviewKey(msg.String()) {
 			a.pending, a.count = "", 0

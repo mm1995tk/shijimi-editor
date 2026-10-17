@@ -701,7 +701,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case mermaidDoneMsg:
 		a.handleMermaidDone(msg)
 	case hoverMsg:
-		if t := a.curText(); t != nil && t.preview == previewFull {
+		if t := a.curText(); a.fullPreview(t) {
 			return nil // the popup would be anchored to the hidden buffer
 		}
 		if strings.TrimSpace(msg.text) == "" {
@@ -957,7 +957,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if a.helix {
 		return a.handleHelixKey(msg)
 	}
-	if t := a.curText(); t != nil && t.preview == previewFull && !fullPreviewEditorKey(msg) {
+	if t := a.curText(); a.fullPreview(t) && !fullPreviewEditorKey(msg) {
 		a.info("全幅プレビュー中は編集できません")
 		return nil
 	}
@@ -1428,7 +1428,7 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 			if t := a.cur(); t != nil {
 				switch t.kind {
 				case tabText:
-					if t.preview == previewFull {
+					if a.fullPreview(t) {
 						t.buf.MoveLines(wheel, false) // the preview scrolls with the cursor
 						break
 					}
@@ -1680,7 +1680,7 @@ func (a *App) View() string {
 	}
 
 	// popups anchored at the cursor
-	if t := a.curText(); t != nil && t.preview != previewFull && (a.comp != nil || a.hoverText != "") {
+	if t := a.curText(); t != nil && !a.fullPreview(t) && (a.comp != nil || a.hoverText != "") {
 		cx, cy := a.cursorScreen(t, l)
 		var box []string
 		if a.comp != nil {
