@@ -3,6 +3,7 @@ package ui
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -141,5 +142,54 @@ func TestHelixSelectRegex(t *testing.T) {
 	keys(a, "enter", "c", "#", "esc")
 	if got := b.Text(); got != "a# b#\nc#\n" {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func TestSpaceMenuPopup(t *testing.T) {
+	a := newTestApp(t, "hello\n")
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if strings.Contains(a.View(), "ファイルを開く") {
+		t.Fatal("menu shown before Space")
+	}
+	keys(a, "space")
+	if !strings.Contains(a.View(), "ファイルを開く") {
+		t.Fatal("menu not shown after Space")
+	}
+	keys(a, "esc")
+	if strings.Contains(a.View(), "ファイルを開く") {
+		t.Fatal("menu still shown after Esc")
+	}
+	keys(a, "space", "z")
+	if strings.Contains(a.View(), "ファイルを開く") {
+		t.Fatal("menu still shown after unassigned key")
+	}
+}
+
+func TestSpaceMenuFiltersItems(t *testing.T) {
+	a := newTestApp(t, "hello\n")
+
+	a.focus = focusExplorer
+	keys(a, "space")
+	v := a.View()
+	if !strings.Contains(v, "ファイルを開く") || !strings.Contains(v, "名前の変更") {
+		t.Fatal("explorer: want file and buffer commands")
+	}
+	keys(a, "esc")
+	a.focus = focusEditor
+
+	a.curText().preview = previewFull
+	keys(a, "space")
+	v = a.View()
+	if !strings.Contains(v, "ファイルを開く") || strings.Contains(v, "名前の変更") || strings.Contains(v, "貼り付け") {
+		t.Fatal("full preview: want only commands usable there")
+	}
+	keys(a, "esc")
+	a.curText().preview = previewOff
+
+	a.closeTab(true)
+	keys(a, "space")
+	v = a.View()
+	if !strings.Contains(v, "ファイルを開く") || strings.Contains(v, "名前の変更") || strings.Contains(v, "コピー") {
+		t.Fatal("no text tab: want text-only commands hidden")
 	}
 }
