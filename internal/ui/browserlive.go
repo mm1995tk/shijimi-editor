@@ -339,6 +339,11 @@ func (a *App) liveMouse(v *browserView, msg tea.MouseMsg) (tea.Cmd, bool) {
 	if l == nil || l.sess == nil {
 		return nil, false
 	}
+	if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+		if ly := a.layout(); msg.Y == ly.editY && msg.X >= ly.rightX { // status line
+			return a.editBrowserURL(v), true
+		}
+	}
 	px, py, in := a.pagePoint(v, msg.X, msg.Y)
 	left := msg.Button == tea.MouseButtonLeft
 	switch msg.Action {
@@ -443,7 +448,7 @@ func (v *browserView) liveNav(arg string) {
 }
 
 // liveKeys are the keys liveKey handles outside the input mode; the others
-// (q, :, o, r, [, ] and the Space leader) work as in the screenshot view.
+// (q, :, o, O, r, [, ] and the Space leader) work as in the screenshot view.
 var liveKeys = map[string]bool{
 	"i": true, "enter": true, "j": true, "down": true, "k": true, "up": true,
 	"pgdown": true, "ctrl+d": true, "ctrl+f": true, "pgup": true, "ctrl+u": true, "ctrl+b": true,
