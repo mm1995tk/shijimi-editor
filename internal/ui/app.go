@@ -1309,6 +1309,11 @@ func (a *App) afterTyping(t *tab, typed []rune) tea.Cmd {
 		}
 		a.comp = nil
 	}
+	// Typing must not report a missing or starting server; only an explicit
+	// request does.
+	if a.lsp.client(t, "completionProvider") == nil {
+		return nil
+	}
 	cs, _ := a.lsp.clientsFor(t)
 	for _, c := range cs {
 		if c.IsCompletionTrigger(r) {
