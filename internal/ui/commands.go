@@ -25,6 +25,8 @@ func defaultCommands() []command {
 		{"ファイル: すべて保存", ":wa", func(a *App) tea.Cmd { return a.saveAll() }},
 		{"ファイル: 新しいファイル", "Ctrl+N", func(a *App) tea.Cmd { return a.newFile() }},
 		{"ファイル: ファイルを開く", "Ctrl+P / Space f", func(a *App) tea.Cmd { return a.pal.show(a.root, "") }},
+		{"ファイル: 相対パスをコピー", "y（ファイルツリー）", func(a *App) tea.Cmd { a.copyPath(a.activePath(), false); return nil }},
+		{"ファイル: 絶対パスをコピー", "Y（ファイルツリー）", func(a *App) tea.Cmd { a.copyPath(a.activePath(), true); return nil }},
 		{"ファイル: ディスクから再読み込み", ":reload", func(a *App) tea.Cmd { return a.execCommand("reload") }},
 		{"表示: タブを閉じる", "Ctrl+W / :bc", func(a *App) tea.Cmd { a.closeTab(false); return nil }},
 		{"表示: 開いているバッファ一覧", "Space b", func(a *App) tea.Cmd { return a.bufferPicker() }},
