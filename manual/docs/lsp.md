@@ -7,7 +7,7 @@
 | 診断 | `]d` / `[d` で移動、`Space d` で一覧 | — |
 | 補完 | 自動。`Ctrl+X` / `Ctrl+Space` で手動 | 自動。`Ctrl+Space` で手動 |
 | ホバー | `K` / `Space k` | — |
-| シグネチャヘルプ（引数の表示） | 自動。`Ctrl+Shift+Space` / `:signature` で手動 | 自動。`Ctrl+Shift+Space` / `:signature` で手動 |
+| シグネチャヘルプ（引数の表示） | 自動。`:signature` で手動 | 自動。`:signature` で手動 |
 | 定義へ移動 | `gd` | `F12` |
 | 参照 | `gr` | `Shift+F12` |
 | 名前の変更 | `Space r` | `F2` |
@@ -107,5 +107,5 @@ indent = { tab-width = 4, unit = "\t" }
 関数の `(` や引数の `,` を打つと、関数の引数一覧をカーソルの1行上に出します。今の引数は太字です。
 
 - `)` か `Esc` で消えます。カーソルが別の行に移っても消えます。
-- 手動では、挿入中に `Ctrl+Shift+Space` か `:signature` で出せます。端末が `Ctrl+Shift+Space` を送らないときは `:signature` を使ってください。
+- 手動では、`:signature` で出せます（挿入中でなくても使えます）。`Ctrl+Shift+Space` は端末が `Ctrl+Space` と同じ信号で送るため、使えません。
 - 自動で出す文字は、言語サーバーが知らせる `triggerCharacters` です。知らせないときは `(` と `,` です。

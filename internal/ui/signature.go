@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/mm1995tk/gh-editor/internal/buffer"
 	"github.com/mm1995tk/gh-editor/internal/lsp"
 )
 
@@ -19,7 +20,9 @@ type signaturePopup struct {
 
 type signatureMsg struct {
 	tab    *tab
-	manual bool // asked for with a key or :signature; say so when there is nothing
+	pos    buffer.Pos // where the request was made
+	seq    int        // a.sigSeq at the time; a closed popup bumps it
+	manual bool       // asked for with :signature; say so when there is nothing
 	help   *lsp.SignatureHelp
 }
 
@@ -30,15 +33,18 @@ func (a *App) signatureHelp(manual bool) tea.Cmd {
 	if t == nil {
 		return nil
 	}
+	pos, seq := t.buf.Cur, a.sigSeq+1
+	a.sigSeq = seq
+	lp := lspPos(t.buf, pos)
 	req := func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
-		h, err := c.SignatureHelp(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
+		h, err := c.SignatureHelp(ctx, t.buf.Path, lp)
 		if err != nil {
 			if !manual {
 				return nil
 			}
 			return lspErrMsg{err}
 		}
-		return signatureMsg{tab: t, manual: manual, help: h}
+		return signatureMsg{tab: t, pos: pos, seq: seq, manual: manual, help: h}
 	}
 	if manual {
 		return a.lspRequest("signatureHelpProvider", req)
@@ -57,7 +63,7 @@ func (a *App) signatureHelp(manual bool) tea.Cmd {
 
 func (a *App) showSignature(m signatureMsg) {
 	t := a.curText()
-	if t == nil || t != m.tab || a.mode != modeInsert && a.helix && !m.manual {
+	if t == nil || t != m.tab || m.seq != a.sigSeq || t.buf.Cur.Row != m.pos.Row || a.mode != modeInsert && a.helix && !m.manual {
 		return
 	}
 	if m.help == nil {
@@ -67,14 +73,14 @@ func (a *App) showSignature(m signatureMsg) {
 		}
 		return
 	}
-	a.sig = &signaturePopup{tab: t, row: t.buf.Cur.Row, help: m.help}
+	a.sig = &signaturePopup{tab: t, row: m.pos.Row, help: m.help}
 }
 
 // signatureTyped keeps the popup in step with a typed rune: ")" closes it, a
 // trigger character (re)opens it.
 func (a *App) signatureTyped(t *tab, r rune) tea.Cmd {
 	if r == ')' {
-		a.sig = nil
+		a.closeSignature()
 		return nil
 	}
 	cs, _ := a.lsp.clientsFor(t)
@@ -119,4 +125,10 @@ func signaturePos(l layout, w, cx, cy int, box []string) (x, y int) {
 		y = cy + 1
 	}
 	return x, y
+}
+
+// closeSignature hides the popup and drops replies to requests still in flight.
+func (a *App) closeSignature() {
+	a.sig = nil
+	a.sigSeq++
 }

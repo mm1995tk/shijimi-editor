@@ -89,6 +89,7 @@ type App struct {
 
 	comp        *completionPopup
 	sig         *signaturePopup
+	sigSeq      int // bumped on every request and close; stale replies are dropped
 	hoverText   string
 	hoverScroll int
 	hoverAt     *screenPt // where a mouse-triggered popup is anchored; nil = at the cursor
@@ -860,7 +861,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	key := msg.String()
 	a.msg = ""
 	if a.sig != nil && (key == "esc" || !a.sigVisible()) {
-		a.sig = nil
+		a.closeSignature()
 	}
 	if a.hoverAt != nil {
 		// A popup the pointer opened never takes keys: it closes whatever has the
@@ -1368,8 +1369,6 @@ func (a *App) editorKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 		a.toggleComment()
 	case "ctrl+@", "ctrl+ ":
 		return a.completion()
-	case "ctrl+shift+ ", "ctrl+shift+@":
-		return a.signatureHelp(true)
 	case "f12":
 		return a.gotoDefinition()
 	case "shift+f12":
