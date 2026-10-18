@@ -326,3 +326,12 @@ func TestTypeRuneWrapsSelection(t *testing.T) {
 		t.Fatalf("after undo = %q", got)
 	}
 }
+
+func TestBackspaceBeforeNULKeepsIt(t *testing.T) {
+	b := fromText("a\x00")
+	b.Cur = Pos{0, 1}
+	b.Backspace()
+	if got := b.Text(); got != "\x00" {
+		t.Fatalf("text = %q", got)
+	}
+}

@@ -527,10 +527,12 @@ func (b *Buffer) Backspace() {
 	}
 	b.begin(editDeleting)
 	start := b.Cur
-	if line := b.Lines[start.Row]; start.Col > 0 && start.Col < len(line) && bracketPairs[line[start.Col-1]] == line[start.Col] {
+	if line := b.Lines[start.Row]; start.Col > 0 && start.Col < len(line) {
 		// empty bracket pair: remove both
-		b.deleteRange(Pos{start.Row, start.Col - 1}, Pos{start.Row, start.Col + 1})
-		return
+		if closer, ok := bracketPairs[line[start.Col-1]]; ok && line[start.Col] == closer {
+			b.deleteRange(Pos{start.Row, start.Col - 1}, Pos{start.Row, start.Col + 1})
+			return
+		}
 	}
 	if start.Col > 0 {
 		start.Col--
