@@ -36,6 +36,13 @@ var ErrSandbox = errors.New("sandbox 付きで Chromium を起動できません
 
 var pngMagic = []byte("\x89PNG\r\n\x1a\n")
 
+// scriptBudget is how much virtual time (in ms) the page's scripts get before
+// the screenshot. Without it Chromium shoots at the load event, and pages
+// that build themselves with JavaScript (YouTube) show only their skeleton.
+// Virtual time runs ahead while the page is idle, so this rarely costs the
+// full amount of real time.
+const scriptBudget = 5000
+
 // candidates are tried in order when no path is configured.
 var candidates = []string{"chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "chrome"}
 
@@ -90,6 +97,7 @@ func (c Chromium) Render(ctx context.Context, url string, opts Options) ([]byte,
 		"--headless", "--disable-gpu", "--hide-scrollbars", "--disable-crash-reporter",
 		"--user-data-dir="+filepath.Join(dir, "profile"),
 		fmt.Sprintf("--window-size=%d,%d", opts.Width, opts.Height),
+		fmt.Sprintf("--virtual-time-budget=%d", scriptBudget),
 		"--screenshot="+out,
 		url)
 	var stderr bytes.Buffer

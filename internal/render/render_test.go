@@ -32,6 +32,15 @@ func TestRenderPNG(t *testing.T) {
 	}
 }
 
+func TestRenderWaitsForScripts(t *testing.T) {
+	bin := fakeChromium(t, `ok=; for a in "$@"; do [ "$a" = --virtual-time-budget=5000 ] && ok=1; done
+[ -n "$ok" ] || { echo "no virtual-time-budget" >&2; exit 1; }
+for a in "$@"; do case "$a" in --screenshot=*) printf '\211PNG\r\n\032\nxx' > "${a#--screenshot=}";; esac; done`)
+	if _, err := (Chromium{Path: bin}).Render(context.Background(), "https://youtube.com", Options{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNotFound(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	_, err := Chromium{}.Render(context.Background(), "http://x", Options{})

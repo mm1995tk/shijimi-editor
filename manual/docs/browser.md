@@ -43,7 +43,7 @@ Kitty / Ghostty / WezTerm では、ブラウザタブが次のように変わり
 
 SSH 越しでは、端末を示す環境変数が引き継がれないことがあります。そのときは `GH_EDITOR_GRAPHICS=kitty` を設定してください。
 
-対応していない端末では、半ブロック文字（`▀`）の静止画表示になります。
+対応していない端末では、半ブロック文字（`▀`）の静止画表示になります。静止画は、ページの JavaScript を最大 5 秒（仮想時間）動かしてから撮ります。
 画像は Unicode placeholder（U+10EEEE）の方式で配置するので、tmux や Herdr のように端末とのあいだに入るものが Kitty graphics protocol を通す場合にも使えます。
 
 ### Chromium の場所を指定する
