@@ -415,6 +415,8 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		return a.openURL("")
 	case "r":
 		return a.rename()
+	case ".":
+		return a.codeAction()
 	case "d", "D":
 		return a.diagnosticPicker()
 	case "e", "E":

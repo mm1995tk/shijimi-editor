@@ -42,9 +42,13 @@ type Location struct {
 // Diagnostic is an LSP diagnostic.
 type Diagnostic struct {
 	Range    Range  `json:"range"`
-	Severity int    `json:"severity"`
+	Severity int    `json:"severity,omitempty"`
 	Message  string `json:"message"`
-	Source   string `json:"source"`
+	Source   string `json:"source,omitempty"`
+	// Code and Data are kept verbatim so a code action request can hand the
+	// diagnostic back to the server unchanged.
+	Code json.RawMessage `json:"code,omitempty"`
+	Data json.RawMessage `json:"data,omitempty"`
 }
 
 // TextEdit is an LSP text edit.
@@ -69,6 +73,24 @@ type CompletionItem struct {
 // WorkspaceEdit maps file URIs to edits.
 type WorkspaceEdit map[string][]TextEdit
 
+// Command is an LSP command the server runs via workspace/executeCommand.
+type Command struct {
+	Title     string            `json:"title"`
+	Command   string            `json:"command"`
+	Arguments []json.RawMessage `json:"arguments,omitempty"`
+}
+
+// CodeAction is an LSP code action (quick fix or refactoring). Raw keeps the
+// server's object for codeAction/resolve.
+type CodeAction struct {
+	Title       string
+	Kind        string
+	IsPreferred bool
+	Edit        WorkspaceEdit
+	Command     *Command
+	Raw         json.RawMessage
+}
+
 // Event is an asynchronous notification from a server.
 type Event struct {
 	Server      string
@@ -76,6 +98,12 @@ type Event struct {
 	Diagnostics []Diagnostic
 	Message     string
 	Err         error
+	// Edit is set when the server asks the editor to apply a workspace edit
+	// (workspace/applyEdit), e.g. while running a code action's command.
+	Edit WorkspaceEdit
+	// Document is set when the server asks the editor to show a file or web
+	// page (window/showDocument).
+	Document string
 }
 
 type response struct {
@@ -159,10 +187,13 @@ func (c *Client) initialize() {
 		"initializationOptions": c.server.Config,
 		"capabilities": map[string]any{
 			"general": map[string]any{"positionEncodings": []string{"utf-16"}},
+			"window":  map[string]any{"showDocument": map[string]any{"support": true}},
 			"workspace": map[string]any{
 				"configuration":    true,
 				"workspaceFolders": true,
-				"applyEdit":        false,
+				"applyEdit":        true,
+				"workspaceEdit":    map[string]any{"documentChanges": true},
+				"executeCommand":   map[string]any{},
 			},
 			"textDocument": map[string]any{
 				"synchronization": map[string]any{"didSave": true},
@@ -170,10 +201,21 @@ func (c *Client) initialize() {
 				"completion": map[string]any{
 					"completionItem": map[string]any{"snippetSupport": false},
 				},
-				"definition":         map[string]any{},
-				"references":         map[string]any{},
-				"rename":             map[string]any{},
-				"formatting":         map[string]any{},
+				"definition": map[string]any{},
+				"references": map[string]any{},
+				"rename":     map[string]any{},
+				"formatting": map[string]any{},
+				"codeAction": map[string]any{
+					"codeActionLiteralSupport": map[string]any{
+						"codeActionKind": map[string]any{"valueSet": []string{
+							"", "quickfix", "refactor", "refactor.extract", "refactor.inline",
+							"refactor.rewrite", "source", "source.organizeImports", "source.fixAll",
+						}},
+					},
+					"isPreferredSupport": true,
+					"dataSupport":        true,
+					"resolveSupport":     map[string]any{"properties": []string{"edit"}},
+				},
 				"publishDiagnostics": map[string]any{},
 			},
 		},
@@ -380,6 +422,22 @@ func (c *Client) handleRequest(id json.RawMessage, method string, params json.Ra
 		}
 		result = res
 	}
+	if method == "workspace/applyEdit" {
+		var p struct {
+			Edit json.RawMessage `json:"edit"`
+		}
+		json.Unmarshal(params, &p)
+		c.events <- Event{Server: c.Name, Edit: parseWorkspaceEdit(p.Edit)}
+		result = map[string]any{"applied": true}
+	}
+	if method == "window/showDocument" {
+		var p struct {
+			URI string `json:"uri"`
+		}
+		json.Unmarshal(params, &p)
+		c.events <- Event{Server: c.Name, Document: p.URI}
+		result = map[string]any{"success": true}
+	}
 	if method == "workspace/workspaceFolders" {
 		result = []map[string]any{{"uri": URI(c.Root), "name": filepath.Base(c.Root)}}
 	}
@@ -566,6 +624,16 @@ func (c *Client) Completion(ctx context.Context, path string, pos Position) ([]C
 func (c *Client) Rename(ctx context.Context, path string, pos Position, newName string) (WorkspaceEdit, error) {
 	p := docPos(path, pos)
 	p["newName"] = newName
+	var raw json.RawMessage
+	if err := c.Call(ctx, "textDocument/rename", p, &raw); err != nil {
+		return nil, err
+	}
+	return parseWorkspaceEdit(raw), nil
+}
+
+// parseWorkspaceEdit reads both the "changes" and the "documentChanges"
+// forms. File operations (create, rename, delete) are skipped.
+func parseWorkspaceEdit(raw json.RawMessage) WorkspaceEdit {
 	var res struct {
 		Changes         map[string][]TextEdit `json:"changes"`
 		DocumentChanges []struct {
@@ -575,9 +643,7 @@ func (c *Client) Rename(ctx context.Context, path string, pos Position, newName 
 			Edits []TextEdit `json:"edits"`
 		} `json:"documentChanges"`
 	}
-	if err := c.Call(ctx, "textDocument/rename", p, &res); err != nil {
-		return nil, err
-	}
+	json.Unmarshal(raw, &res)
 	we := WorkspaceEdit{}
 	for uri, edits := range res.Changes {
 		we[uri] = append(we[uri], edits...)
@@ -587,7 +653,93 @@ func (c *Client) Rename(ctx context.Context, path string, pos Position, newName 
 			we[dc.TextDocument.URI] = append(we[dc.TextDocument.URI], dc.Edits...)
 		}
 	}
-	return we, nil
+	return we
+}
+
+// CodeActions returns the code actions for rng, given the diagnostics that
+// overlap it.
+func (c *Client) CodeActions(ctx context.Context, path string, rng Range, diags []Diagnostic) ([]CodeAction, error) {
+	if diags == nil {
+		diags = []Diagnostic{}
+	}
+	var raw []json.RawMessage
+	err := c.Call(ctx, "textDocument/codeAction", map[string]any{
+		"textDocument": map[string]any{"uri": URI(path)},
+		"range":        rng,
+		"context":      map[string]any{"diagnostics": diags, "triggerKind": 1},
+	}, &raw)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]CodeAction, 0, len(raw))
+	for _, r := range raw {
+		if a, ok := parseCodeAction(r); ok {
+			out = append(out, a)
+		}
+	}
+	return out, nil
+}
+
+// parseCodeAction reads a CodeAction, or a bare Command (whose "command"
+// field is a string rather than an object). Disabled actions are dropped.
+func parseCodeAction(raw json.RawMessage) (CodeAction, bool) {
+	var a struct {
+		Title       string          `json:"title"`
+		Kind        string          `json:"kind"`
+		IsPreferred bool            `json:"isPreferred"`
+		Disabled    json.RawMessage `json:"disabled"`
+		Edit        json.RawMessage `json:"edit"`
+		Command     json.RawMessage `json:"command"`
+	}
+	if json.Unmarshal(raw, &a) != nil || a.Title == "" || len(a.Disabled) > 0 {
+		return CodeAction{}, false
+	}
+	out := CodeAction{Title: a.Title, Kind: a.Kind, IsPreferred: a.IsPreferred, Raw: raw}
+	if len(a.Edit) > 0 {
+		out.Edit = parseWorkspaceEdit(a.Edit)
+	}
+	var cmd Command
+	var name string
+	if json.Unmarshal(a.Command, &name) == nil {
+		if json.Unmarshal(raw, &cmd) == nil {
+			out.Command = &cmd
+		}
+	} else if json.Unmarshal(a.Command, &cmd) == nil && cmd.Command != "" {
+		out.Command = &cmd
+	}
+	return out, true
+}
+
+// ResolveCodeAction fills in an action's edit via codeAction/resolve when the
+// server left it out.
+func (c *Client) ResolveCodeAction(ctx context.Context, a CodeAction) (CodeAction, error) {
+	if a.Edit != nil || !c.resolvesCodeActions() {
+		return a, nil
+	}
+	var raw json.RawMessage
+	if err := c.Call(ctx, "codeAction/resolve", a.Raw, &raw); err != nil {
+		return a, err
+	}
+	if r, ok := parseCodeAction(raw); ok {
+		return r, nil
+	}
+	return a, nil
+}
+
+func (c *Client) resolvesCodeActions() bool {
+	cp, _ := c.caps["codeActionProvider"].(map[string]any)
+	b, _ := cp["resolveProvider"].(bool)
+	return b
+}
+
+// ExecuteCommand asks the server to run a command. Edits the command makes
+// arrive as workspace/applyEdit requests and are reported as Events.
+func (c *Client) ExecuteCommand(ctx context.Context, cmd Command) error {
+	p := map[string]any{"command": cmd.Command}
+	if len(cmd.Arguments) > 0 {
+		p["arguments"] = cmd.Arguments
+	}
+	return c.Call(ctx, "workspace/executeCommand", p, nil)
 }
 
 // Format returns formatting edits for a document.
