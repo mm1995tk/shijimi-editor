@@ -3,6 +3,7 @@ package ui
 import (
 	"testing"
 
+	"github.com/mm1995tk/gh-editor/internal/buffer"
 	"github.com/mm1995tk/gh-editor/internal/lsp"
 )
 
@@ -45,5 +46,42 @@ func TestWithoutLocation(t *testing.T) {
 	got := withoutLocation([]lsp.Location{at(3, 5, 10), at(8, 1, 6)}, "/a.go", pos)
 	if len(got) != 1 || got[0].Range.Start.Line != 8 {
 		t.Errorf("got %v, want only the usage on line 8", got)
+	}
+}
+
+func TestCodeActionRange(t *testing.T) {
+	b := buffer.New()
+	b.Insert("for x {\n\treturn\n}\nnext")
+	diag := lsp.Diagnostic{Message: "loop", Range: lsp.Range{
+		Start: lsp.Position{Line: 0, Character: 4},
+		End:   lsp.Position{Line: 2, Character: 1},
+	}}
+	other := lsp.Diagnostic{Message: "other", Range: lsp.Range{
+		Start: lsp.Position{Line: 3, Character: 0},
+		End:   lsp.Position{Line: 3, Character: 4},
+	}}
+	all := []lsp.Diagnostic{diag, other}
+
+	// Inside the diagnostic: ask at the cursor.
+	b.Anchor = nil
+	b.Cur = buffer.Pos{Row: 1, Col: 1}
+	rng, ds := codeActionRange(b, all)
+	if rng.Start != (lsp.Position{Line: 1, Character: 1}) || rng.End != rng.Start || len(ds) != 1 || ds[0].Message != "loop" {
+		t.Errorf("inside: %+v %+v", rng, ds)
+	}
+
+	// Before the diagnostic on the same line: use the diagnostic's range.
+	b.Cur = buffer.Pos{Row: 0, Col: 0}
+	rng, ds = codeActionRange(b, all)
+	if rng != diag.Range || len(ds) != 1 || ds[0].Message != "loop" {
+		t.Errorf("same line: %+v %+v", rng, ds)
+	}
+
+	// A selection is used as is.
+	b.Anchor = &buffer.Pos{Row: 3, Col: 0}
+	b.Cur = buffer.Pos{Row: 3, Col: 2}
+	rng, ds = codeActionRange(b, all)
+	if rng.End != (lsp.Position{Line: 3, Character: 2}) || len(ds) != 1 || ds[0].Message != "other" {
+		t.Errorf("selection: %+v %+v", rng, ds)
 	}
 }

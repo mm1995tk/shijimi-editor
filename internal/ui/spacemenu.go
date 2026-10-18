@@ -20,6 +20,7 @@ var spaceItems = []spaceItem{
 	{"k", "ホバー", true},
 	{"o", "URL を開く", false},
 	{"r", "名前の変更", true},
+	{".", "コードアクション", true},
 	{"d", "診断の一覧", false},
 	{"e", "ファイルツリー", false},
 	{"m", "プレビュー切替", false},

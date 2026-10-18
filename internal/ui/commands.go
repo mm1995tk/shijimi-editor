@@ -54,6 +54,7 @@ func defaultCommands() []command {
 		{"LSP: 定義へ移動", "gd / F12", func(a *App) tea.Cmd { return a.gotoDefinition() }},
 		{"LSP: 参照を表示", "gr / Shift+F12", func(a *App) tea.Cmd { return a.references() }},
 		{"LSP: 名前の変更", "Space r / F2", func(a *App) tea.Cmd { return a.rename() }},
+		{"LSP: コードアクション（クイックフィックス・リファクタリング）", "Space . / :action", func(a *App) tea.Cmd { return a.codeAction() }},
 		{"LSP: 整形", ":fmt", func(a *App) tea.Cmd { return a.format(false) }},
 		{"LSP: 診断の一覧", "Space d", func(a *App) tea.Cmd { return a.diagnosticPicker() }},
 		{"LSP: 言語サーバーを再起動", ":lsp-restart", func(a *App) tea.Cmd { return a.execCommand("lsp-restart") }},
@@ -210,6 +211,8 @@ func (a *App) execCommand(line string) tea.Cmd {
 		a.closeTab(true)
 	case "fmt", "format":
 		return a.format(false)
+	case "action", "code-action", "ca":
+		return a.codeAction()
 	case "reload", "rl":
 		if t := a.curText(); t != nil && t.buf.Path != "" {
 			if err := t.buf.Reload(); err != nil {

@@ -735,8 +735,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case lspEventMsg:
-		a.handleLSPEvent(lsp.Event(msg))
-		return a.lsp.wait()
+		return tea.Batch(a.handleLSPEvent(lsp.Event(msg)), a.lsp.wait())
 	case mermaidStartMsg:
 		return a.handleMermaidStart(msg)
 	case mermaidDoneMsg:
@@ -776,6 +775,10 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		}
 	case workspaceEditMsg:
 		a.applyWorkspaceEdit(msg.edit)
+	case codeActionsMsg:
+		return a.showCodeActions(msg)
+	case codeActionResolvedMsg:
+		return a.runCodeAction(msg)
 	case formatMsg:
 		if len(msg.edits) > 0 {
 			msg.tab.buf.ApplyEdits(toEdits(msg.tab.buf, msg.edits))
@@ -833,12 +836,24 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (a *App) handleLSPEvent(e lsp.Event) {
+func (a *App) handleLSPEvent(e lsp.Event) tea.Cmd {
 	switch {
 	case e.Err != nil:
 		a.fail(e.Err)
 	case e.Message != "":
 		a.info("[%s] %s", e.Server, firstLine(e.Message))
+	case e.Edit != nil:
+		if len(e.Edit) > 0 {
+			a.applyWorkspaceEdit(e.Edit)
+		}
+	case e.Document != "":
+		if strings.HasPrefix(e.Document, "file:") {
+			if a.openFile(lsp.Path(e.Document)) {
+				return a.setFocus(focusEditor)
+			}
+			return nil
+		}
+		return a.openURL(e.Document)
 	case e.URI != "":
 		p := lsp.Path(e.URI)
 		if a.lsp.diags[p] == nil {
@@ -846,6 +861,7 @@ func (a *App) handleLSPEvent(e lsp.Event) {
 		}
 		a.lsp.diags[p][e.Server] = e.Diagnostics
 	}
+	return nil
 }
 
 func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {

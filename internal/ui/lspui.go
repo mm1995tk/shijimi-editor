@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -345,6 +346,124 @@ func (a *App) format(save bool) tea.Cmd {
 		}
 		return formatMsg{tab: t, edits: edits, save: save}
 	})
+}
+
+type codeActionsMsg struct {
+	client  *lsp.Client
+	actions []lsp.CodeAction
+}
+type codeActionResolvedMsg struct {
+	client *lsp.Client
+	action lsp.CodeAction
+}
+
+// codeAction lists the quick fixes and refactorings for the selection, or
+// for the cursor position when nothing is selected.
+func (a *App) codeAction() tea.Cmd {
+	t := a.cur()
+	if t == nil || t.kind != tabText {
+		return nil
+	}
+	rng, diags := codeActionRange(t.buf, a.lsp.diagnostics(t.buf.Path))
+	return a.lspRequest("codeActionProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+		actions, err := c.CodeActions(ctx, t.buf.Path, rng, diags)
+		if err != nil {
+			return lspErrMsg{err}
+		}
+		return codeActionsMsg{c, actions}
+	})
+}
+
+// codeActionRange returns the range to ask code actions for and the
+// diagnostics overlapping it. With no selection and the cursor outside every
+// diagnostic, a diagnostic on the cursor's line is used, so its fix is
+// offered without first moving onto the underlined span.
+func codeActionRange(b *buffer.Buffer, all []lsp.Diagnostic) (lsp.Range, []lsp.Diagnostic) {
+	s, e, sel := b.Selection()
+	if !sel {
+		s, e = b.Cur, b.Cur
+	}
+	rng := lsp.Range{Start: lspPos(b, s), End: lspPos(b, e)}
+	le := func(p, q lsp.Position) bool {
+		return p.Line < q.Line || p.Line == q.Line && p.Character <= q.Character
+	}
+	var diags []lsp.Diagnostic
+	for _, d := range all {
+		if le(d.Range.Start, rng.End) && le(rng.Start, d.Range.End) {
+			diags = append(diags, d)
+		}
+	}
+	if len(diags) > 0 || sel {
+		return rng, diags
+	}
+	for _, d := range all {
+		if d.Range.Start.Line <= s.Row && s.Row <= d.Range.End.Line {
+			diags = append(diags, d)
+		}
+	}
+	if len(diags) > 0 {
+		rng = diags[0].Range
+	}
+	return rng, diags
+}
+
+func (a *App) showCodeActions(m codeActionsMsg) tea.Cmd {
+	if len(m.actions) == 0 {
+		a.info("ここで使えるコードアクションはありません")
+		return nil
+	}
+	actions := slices.Clone(m.actions)
+	// Preferred fixes first, then the other quick fixes, then refactorings.
+	rank := func(act lsp.CodeAction) int {
+		switch {
+		case act.IsPreferred:
+			return 0
+		case act.Kind == "quickfix" || strings.HasPrefix(act.Kind, "quickfix."):
+			return 1
+		}
+		return 2
+	}
+	sort.SliceStable(actions, func(i, j int) bool { return rank(actions[i]) < rank(actions[j]) })
+	items := make([]paletteItem, len(actions))
+	for i, act := range actions {
+		items[i] = paletteItem{label: act.Title, detail: act.Kind}
+	}
+	return a.pal.pick("コードアクション", items, func(i int) tea.Cmd {
+		act := actions[i]
+		return func() tea.Msg {
+			ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
+			defer cancel()
+			r, err := m.client.ResolveCodeAction(ctx, act)
+			if err != nil {
+				return lspErrMsg{err}
+			}
+			return codeActionResolvedMsg{m.client, r}
+		}
+	})
+}
+
+// runCodeAction applies the action's edit, then runs its command; the
+// command's own edits come back as workspace/applyEdit events.
+func (a *App) runCodeAction(m codeActionResolvedMsg) tea.Cmd {
+	if len(m.action.Edit) > 0 {
+		a.applyWorkspaceEdit(m.action.Edit)
+	}
+	cmd := m.action.Command
+	if cmd == nil {
+		if len(m.action.Edit) == 0 {
+			a.info("このコードアクションには変更がありません")
+		}
+		return nil
+	}
+	a.syncLSP()
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
+		defer cancel()
+		if err := m.client.ExecuteCommand(ctx, *cmd); err != nil {
+			return lspErrMsg{err}
+		}
+		return nil
+	}
 }
 
 func (a *App) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
