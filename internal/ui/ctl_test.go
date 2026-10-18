@@ -56,7 +56,7 @@ func TestCtlExec(t *testing.T) {
 			t.Errorf("%s should be refused: %+v", line, r)
 		}
 	}
-	for _, line := range []string{":o", ":pr", ":theme", ":symbol", ":action"} {
+	for _, line := range []string{":o", ":pr", ":pr foo", ":theme", ":symbol", ":action", ":grep", ":replace"} {
 		if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: line}); r.OK || a.pal.open {
 			t.Errorf("%s should need a human: %+v open=%v", line, r, a.pal.open)
 		}
@@ -65,6 +65,14 @@ func TestCtlExec(t *testing.T) {
 		t.Errorf("empty: %+v", r)
 	}
 	a.curText().buf.Dirty = true
+	for i := 0; i < 2; i++ {
+		if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: ":bc"}); r.OK {
+			t.Errorf("bc with unsaved changes: %+v", r)
+		}
+	}
+	if len(a.tabs) != 1 || a.confirmClose {
+		t.Errorf("tab lost or confirmClose left on: tabs=%d confirm=%v", len(a.tabs), a.confirmClose)
+	}
 	if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: ":reload"}); r.OK {
 		t.Errorf("reload with unsaved changes: %+v", r)
 	}

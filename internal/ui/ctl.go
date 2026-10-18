@@ -2,6 +2,7 @@ package ui
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -76,8 +77,11 @@ var agentForbidden = map[string]bool{
 // at a picker that only a person can answer.
 func agentNeedsHuman(name, arg string) bool {
 	switch name {
-	case "o", "open", "e", "edit", "pr", "theme":
+	case "o", "open", "e", "edit", "theme", "grep", "rg", "replace", "rep":
 		return arg == ""
+	case "pr":
+		_, err := strconv.Atoi(strings.TrimPrefix(arg, "#"))
+		return err != nil
 	case "symbol", "sym", "symbol-all", "sym-all", "action", "code-action", "ca":
 		return true
 	}
@@ -97,7 +101,8 @@ func (a *App) ctlExec(line string) (ctl.Response, tea.Cmd) {
 	if agentForbidden[name] {
 		return ctl.Response{Error: ":" + name + " はエージェントからは実行できません"}, nil
 	}
-	if name == "reload" || name == "rl" {
+	switch name {
+	case "reload", "rl", "bc", "bclose", "buffer-close":
 		if t := a.curText(); t != nil && t.dirty() {
 			return ctl.Response{Error: "未保存の変更があるため :" + name + " は実行できません（先に :w で保存）"}, nil
 		}
@@ -107,6 +112,8 @@ func (a *App) ctlExec(line string) (ctl.Response, tea.Cmd) {
 	}
 	a.msg, a.msgErr = "", false
 	cmd := a.execCommand(line)
+	// Only a key press clears this, so it must not carry over to a person.
+	a.confirmClose = false
 	if a.pal.open || a.cmdOpen {
 		a.pal.close()
 		a.closeCmdline()
