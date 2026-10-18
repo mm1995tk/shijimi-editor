@@ -54,7 +54,7 @@ nav:
       - レビュー: review.md
       - プレビュー: preview.md
       - ターミナル: terminal.md
-      - ブラウザとポート転送: browser.md
+      - 外部ブラウザとポート転送: browser.md
       - AI エージェント連携: agent.md
   - 設定:
       - 設定ファイル: config.md

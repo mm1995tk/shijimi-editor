@@ -17,7 +17,6 @@ const (
 	tabText tabKind = iota
 	tabImage
 	tabReview
-	tabBrowser
 )
 
 // tab is one item in the editor area: a text buffer, an image preview or a
@@ -35,7 +34,6 @@ type tab struct {
 	img *imageView
 	rev *review
 	dv  *diffView // set while the tab is shown as a diff (git-diff mode)
-	web *browserView
 
 	// Markdown preview beside the buffer
 	preview   previewMode
@@ -60,8 +58,6 @@ func (t *tab) title() string {
 		return t.img.name()
 	case tabReview:
 		return t.rev.tabTitle()
-	case tabBrowser:
-		return t.web.name()
 	}
 	return t.buf.Name()
 }
