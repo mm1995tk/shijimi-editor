@@ -655,57 +655,16 @@ func (a *App) acceptCompletion() {
 		start = bufPos(b, it.TextEdit.Range.Start)
 		text = it.TextEdit.NewText
 	}
-	if it.InsertTextFormat == 2 {
-		text = stripSnippet(text)
-	}
 	if b.Cur.Less(start) {
 		start = b.Cur
 	}
+	a.follow = true
+	if it.InsertTextFormat == 2 {
+		a.startSnippet(c.tab, start, text)
+		return
+	}
 	b.SelectRange(start, b.Cur)
 	b.InsertBlock(text)
-	a.follow = true
-}
-
-// stripSnippet removes LSP snippet placeholders: ${1:foo} -> foo, $0 -> "".
-func stripSnippet(s string) string {
-	var sb strings.Builder
-	for i := 0; i < len(s); i++ {
-		if s[i] == '\\' && i+1 < len(s) {
-			sb.WriteByte(s[i+1])
-			i++
-			continue
-		}
-		if s[i] == '$' && i+1 < len(s) {
-			if s[i+1] == '{' {
-				j := i + 2
-				for j < len(s) && s[j] >= '0' && s[j] <= '9' {
-					j++
-				}
-				if j < len(s) && s[j] == ':' {
-					j++
-				}
-				depth := 1
-				k := j
-				for k < len(s) && depth > 0 {
-					if s[k] == '{' {
-						depth++
-					} else if s[k] == '}' {
-						depth--
-					}
-					k++
-				}
-				sb.WriteString(stripSnippet(s[j : k-1]))
-				i = k - 1
-				continue
-			}
-			if s[i+1] >= '0' && s[i+1] <= '9' {
-				i++
-				continue
-			}
-		}
-		sb.WriteByte(s[i])
-	}
-	return sb.String()
 }
 
 func wordStart(b *buffer.Buffer) buffer.Pos {

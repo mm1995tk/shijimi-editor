@@ -75,6 +75,8 @@ type Buffer struct {
 	lastEdit   editKind
 
 	multi // secondary cursors (see multi.go)
+
+	marks []*Mark // positions that follow edits (see marks.go)
 }
 
 // New returns an empty, unnamed buffer.
@@ -257,6 +259,7 @@ func (b *Buffer) restore(s snapshot) {
 	b.Cur = s.cur
 	b.Anchor = nil
 	b.extra = nil
+	b.marks = nil // the old text is gone, so the positions mean nothing
 	b.lastEdit = editOther
 	b.Dirty = true
 	b.Version++
@@ -357,7 +360,11 @@ func (b *Buffer) insertWith(kind editKind, text string) {
 
 func (b *Buffer) insertRaw(text []rune) {
 	start := b.Cur
-	defer func() { b.shiftOthers(func(p Pos) Pos { return shiftInsert(p, start, b.Cur) }) }()
+	defer func() {
+		f := func(p Pos) Pos { return shiftInsert(p, start, b.Cur) }
+		b.shiftOthers(f)
+		b.shiftMarks(f, func(p Pos) bool { return p == start })
+	}()
 	parts := splitLines(text)
 	line := b.Lines[b.Cur.Row]
 	before, after := line[:b.Cur.Col], line[b.Cur.Col:]
@@ -588,6 +595,7 @@ func (b *Buffer) deleteSelection() {
 
 func (b *Buffer) deleteRange(s, e Pos) {
 	b.shiftOthers(func(p Pos) Pos { return shiftDelete(p, s, e) })
+	b.shiftMarks(func(p Pos) Pos { return shiftDelete(p, s, e) }, func(Pos) bool { return false })
 	merged := concat(b.Lines[s.Row][:s.Col], b.Lines[e.Row][e.Col:])
 	lines := make([][]rune, 0, len(b.Lines)-(e.Row-s.Row))
 	lines = append(lines, b.Lines[:s.Row]...)
