@@ -4,6 +4,7 @@
 package ctl
 
 import (
+	"slices"
 	"bufio"
 	"encoding/json"
 	"fmt"
@@ -22,12 +23,7 @@ var Subcommands = []string{"diff", "skill"}
 
 // IsSubcommand reports whether arg selects a subcommand.
 func IsSubcommand(arg string) bool {
-	for _, s := range Subcommands {
-		if arg == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(Subcommands, arg)
 }
 
 // Request is sent by the CLI to the editor.
