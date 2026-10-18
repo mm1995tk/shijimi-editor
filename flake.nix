@@ -26,7 +26,7 @@
 
       treefmtEval = treefmt-nix.lib.evalModule pkgs ./flake-treefmt.nix;
 
-      version = "0.2.0";
+      version = "0.3.0";
 
       appDrv = pkgs.buildGoApplication {
         pname = "gh-editor";
