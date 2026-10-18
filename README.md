@@ -169,6 +169,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `mm` | 対応する括弧へ |
 | `gg` `ge` `gh` `gl` `gs` / `数字g` | ジャンプ |
 | `gd` `gr` | 定義へ移動 / 参照 |
+| `Ctrl+O` `Ctrl+I` | 飛ぶ前の場所へ戻る / 進む（VS Code モードは `Alt+←` `Alt+→`） |
 | `]d` `[d` | 次 / 前の診断 |
 | `gn` `gp` | 次 / 前のタブ |
 | `/` `?` `n` `N` `*` | 検索 |
