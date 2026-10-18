@@ -345,14 +345,26 @@ func (t *Term) osc(cmd int, data []byte) {
 			}, s[i+1:])
 		}
 	case 52: // clipboard: 52;Pc;Pd, where Pd is base64 or "?" for a query
+		if len(data) >= maxOSCData {
+			// The parser dropped the rest; a cut-off copy would be wrong.
+			t.clip = &Clip{TooLarge: true}
+			return
+		}
 		parts := strings.SplitN(string(data), ";", 3)
 		if len(parts) != 3 || parts[2] == "?" {
 			return
 		}
-		if b, err := base64.StdEncoding.DecodeString(parts[2]); err == nil {
-			s := string(b)
-			t.clip = &s
+		b, err := base64.StdEncoding.DecodeString(parts[2])
+		if err != nil {
+			// Some programs leave out the padding.
+			b, err = base64.RawStdEncoding.DecodeString(parts[2])
 		}
+		// An empty payload asks to clear the clipboard; it must not wipe the
+		// editor's yank register.
+		if err != nil || len(b) == 0 {
+			return
+		}
+		t.clip = &Clip{Text: string(b)}
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -716,10 +717,17 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case termOutputMsg, termDoneMsg:
 		cmd := a.term.update(msg)
 		// A program in the terminal panel (Claude Code, tmux, …) copies with
-		// OSC 52; pass the text on to the clipboard.
+		// OSC 52; pass the text on to the clipboard. Any program there can do
+		// this unasked, so every copy is shown.
 		for _, tab := range a.term.tabs {
-			if s, ok := tab.vt.TakeClipboard(); ok {
-				a.copyText(s)
+			c, ok := tab.vt.TakeClipboard()
+			switch {
+			case !ok:
+			case c.TooLarge:
+				a.fail(errors.New("ターミナルからのコピーが大きすぎるため、コピーしませんでした"))
+			default:
+				a.copyText(c.Text)
+				a.info("ターミナルから %d 文字をコピーしました", utf8.RuneCountInString(c.Text))
 			}
 		}
 		if len(a.term.tabs) == 0 && a.showTerm {
