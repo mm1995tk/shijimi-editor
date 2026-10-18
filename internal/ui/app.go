@@ -52,6 +52,8 @@ type App struct {
 	wsClient  *lsp.Client  // server the project symbol picker asks
 	search    *searchPanel
 	tabs      []*tab
+	jumps     []jumpLoc // positions to return to (Ctrl+O / Ctrl+I)
+	jumpIdx   int       // where in jumps the user is; len(jumps) = at the newest
 	active    int
 	branch    string
 	gd        gitDiff
@@ -1105,6 +1107,7 @@ func (a *App) submitPalette() tea.Cmd {
 	default:
 		if p.sel < len(p.items) {
 			f := p.files[p.items[p.sel].index]
+			a.pushJump()
 			if a.openFile(filepath.Join(a.root, f)) {
 				return a.setFocus(focusEditor)
 			}
@@ -1262,6 +1265,10 @@ func (a *App) editorKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 		b.ClearSelection()
 		b.ClearExtra()
 		a.comp = nil
+	case "alt+left":
+		return a.jumpMove(-1)
+	case "alt+right":
+		return a.jumpMove(1)
 	case "left":
 		b.MoveCursor(buffer.Left, false)
 	case "right":

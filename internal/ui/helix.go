@@ -177,7 +177,12 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 		b.MoveLines(-a.pageSize()/2, ext)
 	case "ctrl+d":
 		b.MoveLines(a.pageSize()/2, ext)
+	case "ctrl+o":
+		return a.jumpMove(-1)
+	case "tab": // Ctrl+I arrives as Tab
+		return a.jumpMove(1)
 	case "G":
+		a.pushJump()
 		if hadCount {
 			b.GotoLine(count)
 		} else {
@@ -289,11 +294,14 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 	case "/", "?":
 		return a.openCmdline(key)
 	case "n":
+		a.pushJump()
 		a.searchNext(false)
 	case "N":
+		a.pushJump()
 		a.searchNext(true)
 	case "*":
 		if s := b.SelectedText(); s != "" && !strings.Contains(s, "\n") {
+			a.pushJump()
 			a.lastSearch = s
 			a.info("検索: %s", s)
 		}
@@ -305,6 +313,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 			a.pending = " "
 		}
 		if hadCount && key == "g" {
+			a.pushJump()
 			b.GotoLine(count)
 			a.pending = ""
 		}
@@ -340,8 +349,10 @@ func (a *App) helixPending(p, key string, msg tea.KeyMsg) tea.Cmd {
 	case "g":
 		switch key {
 		case "g":
+			a.pushJump()
 			b.MoveCursor(buffer.DocStart, ext)
 		case "e":
+			a.pushJump()
 			b.MoveCursor(buffer.DocEnd, ext)
 			b.Cur.Col = 0
 		case "h":
@@ -627,6 +638,7 @@ func (a *App) bufferPicker() tea.Cmd {
 		items[i] = paletteItem{label: label, detail: a.rel(t.path())}
 	}
 	return a.pal.pick("バッファ", items, func(i int) tea.Cmd {
+		a.pushJump()
 		a.active = i
 		a.follow = true
 		return a.setFocus(focusEditor)

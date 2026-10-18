@@ -45,6 +45,8 @@ func defaultCommands() []command {
 			return a.openFind()
 		}},
 		{"編集: 行へ移動", ":<行番号>", func(a *App) tea.Cmd { return a.openCmdline(":") }},
+		{"編集: 戻る", "Ctrl+O / Alt+←", func(a *App) tea.Cmd { return a.jumpMove(-1) }},
+		{"編集: 進む", "Ctrl+I / Alt+→", func(a *App) tea.Cmd { return a.jumpMove(1) }},
 		{"編集: 元に戻す", "u / Ctrl+Z", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Undo() }); return nil }},
 		{"編集: やり直し", "U / Ctrl+Y", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
 		{"編集: 行コメントの切替", "Ctrl+C / Ctrl+/", func(a *App) tea.Cmd { a.toggleComment(); return nil }},
@@ -120,6 +122,7 @@ func (a *App) handleCmdlineKey(msg tea.KeyMsg) tea.Cmd {
 				t.buf.Cur = a.cmdFrom
 				t.buf.Anchor = nil
 			}
+			a.pushJump()
 			a.searchNext(false)
 		}
 		return nil
@@ -146,6 +149,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 		return nil
 	}
 	if n, err := strconv.Atoi(line); err == nil {
+		a.pushJump()
 		a.withBuf(func(b *buffer.Buffer) { b.GotoLine(n) })
 		return a.setFocus(focusEditor)
 	}
@@ -194,6 +198,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 		if !filepath.IsAbs(p) {
 			p = filepath.Join(a.root, p)
 		}
+		a.pushJump()
 		if a.openFile(p) {
 			return a.setFocus(focusEditor)
 		}

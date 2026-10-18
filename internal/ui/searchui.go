@@ -357,6 +357,7 @@ func (a *App) searchOpenHit() tea.Cmd {
 	}
 	q, regex := s.in[fQuery].Value(), s.regex
 	s.close()
+	a.pushJump()
 	if !a.openFile(h.path) {
 		return nil
 	}

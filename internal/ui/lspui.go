@@ -778,6 +778,7 @@ func relTo(root, p string) string {
 
 // jumpTo opens the file of l and puts the cursor at the start of its range.
 func (a *App) jumpTo(l lsp.Location) tea.Cmd {
+	a.pushJump()
 	if !a.openFile(lsp.Path(l.URI)) {
 		return nil
 	}
