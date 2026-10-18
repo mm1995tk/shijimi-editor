@@ -56,6 +56,10 @@ type Editor struct {
 	// editor. Default true.
 	MouseHover bool
 
+	// IndentGuides draws a faint vertical line at each indent level in the
+	// editor ([editor.indent-guides] render). Default true.
+	IndentGuides bool
+
 	// MermaidCommand renders a mermaid diagram to a PNG for the Markdown
 	// preview. {in} and {out} are replaced by file paths; run through `sh -c`.
 	// Empty disables diagram rendering (the source is shown instead).
@@ -97,7 +101,7 @@ const nixEvalTimeout = 15 * time.Second
 func Load(root string) *Config {
 	c := &Config{
 		Browser:   Browser{ListenHost: "127.0.0.1"},
-		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
+		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
 		Languages: map[string]*Language{},
 		Servers:   map[string]*Server{},
 	}
@@ -238,6 +242,11 @@ func (c *Config) mergeEditorRaw(raw map[string]any) {
 	}
 	if v, ok := ed["mouse-hover"].(bool); ok {
 		c.Editor.MouseHover = v
+	}
+	if ig, ok := ed["indent-guides"].(map[string]any); ok {
+		if v, ok := ig["render"].(bool); ok {
+			c.Editor.IndentGuides = v
+		}
 	}
 	if v, ok := ed["keymap"].(string); ok {
 		c.Editor.Keymap = v

@@ -1798,11 +1798,12 @@ func (a *App) View() string {
 
 func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 	o := editorOpts{
-		focused:     focused && !a.findOpen && !a.cmdOpen,
-		cursorColor: curTheme.Cursor,
-		cursorAt:    t.buf.Cur,
-		relative:    a.cfg.Editor.LineNumber == "relative",
-		diags:       a.lsp.diagnostics(t.buf.Path),
+		focused:      focused && !a.findOpen && !a.cmdOpen,
+		cursorColor:  curTheme.Cursor,
+		cursorAt:     t.buf.Cur,
+		relative:     a.cfg.Editor.LineNumber == "relative",
+		indentGuides: a.cfg.Editor.IndentGuides,
+		diags:        a.lsp.diagnostics(t.buf.Path),
 	}
 	if a.findOpen {
 		o.query = a.findInput.Value()

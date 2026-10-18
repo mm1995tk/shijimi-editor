@@ -22,6 +22,7 @@ type Theme struct {
 	EditorBg, EditorFg, SideBg, SideFg, TabBarBg, TabInact, TabInactFg string
 	Accent, LineNo, LineNoCur, CurLine, Selection, Match, Border       string
 	PaletteBg, ListSel, ListSelUnf, Dirty, Error                       string
+	IndentGuide                                                        string // editor indent guides; "" = LineNo
 
 	Strong      string // text on selections and active tabs
 	SubSel      string // secondary text on a selected list row
@@ -55,7 +56,7 @@ var darkPlus = Theme{
 	Name:     "dark-plus",
 	EditorBg: "#1e1e1e", EditorFg: "#d4d4d4", SideBg: "#252526", SideFg: "#cccccc",
 	TabBarBg: "#252526", TabInact: "#2d2d2d", TabInactFg: "#969696",
-	Accent: "#007acc", LineNo: "#858585", LineNoCur: "#c6c6c6", CurLine: "#2a2d2e",
+	Accent: "#007acc", LineNo: "#858585", LineNoCur: "#c6c6c6", CurLine: "#2a2d2e", IndentGuide: "#404040",
 	Selection: "#264f78", Match: "#613214", Border: "#3c3c3c",
 	PaletteBg: "#252526", ListSel: "#04395e", ListSelUnf: "#37373d",
 	Dirty: "#e2c08d", Error: "#f48771",
@@ -79,7 +80,7 @@ var githubDark = Theme{
 	Name:     "github-dark",
 	EditorBg: "#0d1117", EditorFg: "#c9d1d9", SideBg: "#010409", SideFg: "#c9d1d9",
 	TabBarBg: "#010409", TabInact: "#161b22", TabInactFg: "#8b949e",
-	Accent: "#1f6feb", LineNo: "#6e7681", LineNoCur: "#c9d1d9", CurLine: "#161b22",
+	Accent: "#1f6feb", LineNo: "#6e7681", LineNoCur: "#c9d1d9", CurLine: "#161b22", IndentGuide: "#30363d",
 	Selection: "#264466", Match: "#5a4a10", Border: "#30363d",
 	PaletteBg: "#161b22", ListSel: "#1f3a5f", ListSelUnf: "#21262d",
 	Dirty: "#e3b341", Error: "#ff7b72",
@@ -103,7 +104,7 @@ var lightPlus = Theme{
 	Name:     "light-plus",
 	EditorBg: "#ffffff", EditorFg: "#000000", SideBg: "#f3f3f3", SideFg: "#616161",
 	TabBarBg: "#f3f3f3", TabInact: "#ececec", TabInactFg: "#8e8e90",
-	Accent: "#007acc", LineNo: "#237893", LineNoCur: "#0b216f", CurLine: "#f2f2f2",
+	Accent: "#007acc", LineNo: "#237893", LineNoCur: "#0b216f", CurLine: "#f2f2f2", IndentGuide: "#d3d3d3",
 	Selection: "#add6ff", Match: "#f8c9ab", Border: "#e5e5e5",
 	PaletteBg: "#f3f3f3", ListSel: "#0060c0", ListSelUnf: "#e4e6f1",
 	Dirty: "#bf8803", Error: "#e51400",
@@ -207,6 +208,9 @@ func applyTheme(t *Theme) {
 	cTabBarBg, cTabInact, cTabInactFg = t.TabBarBg, t.TabInact, t.TabInactFg
 	cAccent, cLineNo, cLineNoCur, cCurLine = t.Accent, t.LineNo, t.LineNoCur, t.CurLine
 	cSelection, cMatch, cBorder = t.Selection, t.Match, t.Border
+	if cIndentGuide = t.IndentGuide; cIndentGuide == "" {
+		cIndentGuide = t.LineNo
+	}
 	cPaletteBg, cListSel, cListSelUnf = t.PaletteBg, t.ListSel, t.ListSelUnf
 	cDirty, cError = t.Dirty, t.Error
 
