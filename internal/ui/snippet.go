@@ -213,19 +213,14 @@ func (a *App) selectStop(i int) {
 				sp.start.Right, sp.end.Right = false, true
 				continue
 			}
-			base := cur[0].start.Pos
-			for _, c := range cur {
-				if !sp.start.Pos.Less(c.start.Pos) {
-					base = c.start.Pos
-				}
-			}
-			if sp.start.Pos == base && sp.end.Pos == base {
+			baseStart, baseEnd := nearest(cur, sp.start.Pos), nearest(cur, sp.end.Pos)
+			if sp.start.Pos == baseStart && sp.end.Pos == baseStart {
 				// an empty stop at the insertion point: keep the visiting order
 				sp.start.Right, sp.end.Right = g > i, g > i
 				continue
 			}
-			sp.start.Right = !sp.start.Pos.Less(base)
-			sp.end.Right = base.Less(sp.end.Pos)
+			sp.start.Right = !sp.start.Pos.Less(baseStart)
+			sp.end.Right = baseEnd.Less(sp.end.Pos)
 		}
 	}
 	var pairs [][2]buffer.Pos
@@ -283,4 +278,16 @@ func (a *App) handleSnippetKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 		a.endSnippet()
 	}
 	return nil, false
+}
+
+// nearest returns the start of the span in spans that is closest in front of
+// p (or at it), or the first span's start when none is.
+func nearest(spans []snipSpan, p buffer.Pos) buffer.Pos {
+	base := spans[0].start.Pos
+	for _, c := range spans {
+		if !p.Less(c.start.Pos) {
+			base = c.start.Pos
+		}
+	}
+	return base
 }

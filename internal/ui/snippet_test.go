@@ -145,3 +145,19 @@ func TestSnippetReverseOrderAdjacentStops(t *testing.T) {
 		t.Fatalf("empty stops: text = %q", got)
 	}
 }
+
+func TestSnippetStopBeforeMirror(t *testing.T) {
+	for _, c := range []struct{ in, want string }{
+		{"${1:a} ${2:b}${1:c}", "x Zx"},
+		{"${1:a}${2:b}${1:c}", "xZx"},
+	} {
+		a, b := snipSetup(t, "")
+		a.startSnippet(a.curText(), buffer.Pos{}, c.in)
+		keys(a, "x")
+		pressKey(a, tea.KeyTab)
+		keys(a, "Z")
+		if got := b.Text(); got != c.want {
+			t.Errorf("%q: text = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
