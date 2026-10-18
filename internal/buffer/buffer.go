@@ -259,6 +259,7 @@ func (b *Buffer) restore(s snapshot) {
 	b.Cur = s.cur
 	b.Anchor = nil
 	b.extra = nil
+	b.marks = nil // the old text is gone, so the positions mean nothing
 	b.lastEdit = editOther
 	b.Dirty = true
 	b.Version++

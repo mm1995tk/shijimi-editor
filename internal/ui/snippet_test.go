@@ -92,3 +92,36 @@ func TestSnippetEscEndsSession(t *testing.T) {
 		t.Fatal("session should have ended")
 	}
 }
+
+func TestSnippetAdjacentStopsDoNotSwallowTyping(t *testing.T) {
+	a, b := snipSetup(t, "")
+	a.startSnippet(a.curText(), buffer.Pos{}, "${1:x}$0")
+	keys(a, "a", "b")
+	pressKey(a, tea.KeyTab)
+	if a.snip != nil || b.Cur != (buffer.Pos{Col: 2}) || b.Anchor != nil {
+		t.Fatalf("cursor = %v anchor = %v session = %v", b.Cur, b.Anchor, a.snip)
+	}
+
+	a, b = snipSetup(t, "")
+	a.startSnippet(a.curText(), buffer.Pos{}, "${1:x}${2:y}")
+	keys(a, "a", "b")
+	pressKey(a, tea.KeyTab)
+	keys(a, "Z")
+	if got := b.Text(); got != "abZ" {
+		t.Fatalf("text = %q", got)
+	}
+}
+
+func TestSnippetUndoEndsSession(t *testing.T) {
+	a, b := snipSetup(t, "")
+	a.startSnippet(a.curText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
+	keys(a, "x")
+	pressKey(a, tea.KeyCtrlZ)
+	if got := b.Text(); got != "f(a, b)" {
+		t.Fatalf("text = %q", got)
+	}
+	pressKey(a, tea.KeyTab) // plain indentation now, not a jump to a stale stop
+	if a.snip != nil {
+		t.Fatal("session should have ended")
+	}
+}

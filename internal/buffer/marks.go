@@ -37,3 +37,7 @@ func (b *Buffer) SelectRanges(pairs [][2]Pos) {
 	b.setRanges(rs, 0)
 	b.syncWant()
 }
+
+// HasMarks reports whether any mark is still registered. Undo and redo drop
+// them, because they replace the text the marks pointed into.
+func (b *Buffer) HasMarks() bool { return len(b.marks) > 0 }
