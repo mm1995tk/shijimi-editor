@@ -68,19 +68,13 @@ type Search struct {
 	Include []string
 }
 
-// Browser holds settings for rendering web pages (headless Chromium).
+// Browser holds the settings of `:browser forward` (port forwarding).
 // It is read only from gh-editor's own config directories, never from
 // `.helix/`, because Helix rejects unknown sections.
 type Browser struct {
-	Chromium string // executable path; "" = search PATH
-
 	// ListenHost is the address `:browser forward` listens on. Set it to e.g.
 	// "0.0.0.0" only on a trusted network.
 	ListenHost string
-
-	// Audio turns on sound in the live browser. Chromium is muted otherwise
-	// (chromedp's headless defaults add --mute-audio).
-	Audio bool
 }
 
 // Config is the merged configuration.
@@ -211,14 +205,8 @@ func (c *Config) mergeBrowser(data string) {
 
 func (c *Config) mergeBrowserRaw(raw map[string]any) {
 	if br, ok := raw["browser"].(map[string]any); ok {
-		if v, ok := br["chromium"].(string); ok {
-			c.Browser.Chromium = v
-		}
 		if v, ok := br["listen-host"].(string); ok && v != "" {
 			c.Browser.ListenHost = v
-		}
-		if v, ok := br["audio"].(bool); ok {
-			c.Browser.Audio = v
 		}
 	}
 }

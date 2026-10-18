@@ -22,7 +22,6 @@ gh-editor 本体だけで編集はできます。次の機能は、別のコマ�
 | ファイルツリーの Git の状態、git-diff モード | `git` |
 | LSP | 各言語のサーバー（`gopls`、`rust-analyzer` など） |
 | mermaid の図 | [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`） |
-| ブラウザタブ | `chromium` / `chromium-browser` / `google-chrome` のどれか |
 | 設定を Nix で書く | `nix` |
 | ファイルツリーのアイコン | Nerd Font を設定したターミナル |
 

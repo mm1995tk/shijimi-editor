@@ -44,9 +44,7 @@ exclude = ["*.lock", "dist/**"]
 include = []
 
 [browser]
-chromium = "/usr/bin/chromium"
 listen-host = "127.0.0.1"
-audio = false
 ```
 
 ## 項目
@@ -62,7 +60,7 @@ audio = false
 | `editor.mouse-hover` | マウスを乗せたときにホバーを表示するか | [LSP](lsp.md) |
 | `editor.auto-save.after-delay` | 自動保存 | [ファイルと検索](files.md) |
 | `search.exclude` / `search.include` | 全体検索の除外 / 包含 | [ファイルと検索](files.md) |
-| `browser.chromium` / `browser.listen-host` / `browser.audio` | Chromium の場所 / ポート転送の待ち受けアドレス / 内蔵ブラウザの音声 | [ブラウザとポート転送](browser.md) |
+| `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
 
 ## テーマ
 

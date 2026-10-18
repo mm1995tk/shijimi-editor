@@ -67,14 +67,6 @@ func defaultCommands() []command {
 		{"ファイルツリー: 新しいフォルダー", "A", func(a *App) tea.Cmd { return a.newFolder() }},
 		{"ファイルツリー: 名前の変更", "r", func(a *App) tea.Cmd { return a.renameFile() }},
 		{"ファイルツリー: 削除", "d", func(a *App) tea.Cmd { return a.deleteFile() }},
-		{"表示: Web ページをブラウザタブで開く", ":browser <URL>", func(a *App) tea.Cmd { return a.openCmdline(":browser ") }},
-		{"表示: 今の URL を編集してブラウザタブで開き直す", "O / Ctrl+L", func(a *App) tea.Cmd {
-			if v := a.findBrowserTab(); v != nil {
-				return a.editBrowserURL(v)
-			}
-			a.fail(errNoBrowserTab)
-			return nil
-		}},
 		{"編集: カーソル位置の URL を外部ブラウザで開く", "Space o / :open-url", func(a *App) tea.Cmd { return a.openURL("") }},
 		{"ブラウザ: ポート転送の一覧", ":browser list", func(a *App) tea.Cmd { return a.execCommand("browser list") }},
 		{"設定: テーマを切り替え", ":theme <名前>", func(a *App) tea.Cmd { return a.themePicker() }},

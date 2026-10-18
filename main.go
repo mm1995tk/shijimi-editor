@@ -12,7 +12,6 @@ import (
 	"github.com/mm1995tk/gh-editor/internal/caret"
 	"github.com/mm1995tk/gh-editor/internal/ctl"
 	"github.com/mm1995tk/gh-editor/internal/ide"
-	"github.com/mm1995tk/gh-editor/internal/kitty"
 	"github.com/mm1995tk/gh-editor/internal/ui"
 )
 
@@ -47,23 +46,12 @@ func main() {
 		mouse = tea.WithMouseAllMotion()
 	}
 	opts := []tea.ProgramOption{tea.WithAltScreen(), mouse}
-	// On a terminal with Kitty graphics, screen updates and image data share one
-	// writer so they are never interleaved.
-	kittyOut := kitty.NewWriter(os.Stdout)
-	graphics := kitty.Supported(os.Getenv)
-	var out caret.File = os.Stdout
-	if graphics {
-		out = kittyOut
-	}
 	// The terminal cursor follows the typing position so that an IME shows
 	// the text being composed there.
-	caretOut := caret.NewWriter(out)
+	caretOut := caret.NewWriter(os.Stdout)
 	app.SetCaret(caretOut)
 	opts = append(opts, tea.WithOutput(caretOut))
 	p := tea.NewProgram(app, opts...)
-	if graphics {
-		app.EnableKitty(kittyOut, p.Send)
-	}
 	// The IDE integration is best-effort too: Claude Code started in the terminal
 	// panel finds this server through the environment and the lock file.
 	closeIDE := func() {}

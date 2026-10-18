@@ -4,7 +4,6 @@ package ui
 import (
 	"errors"
 	"fmt"
-	"github.com/mm1995tk/gh-editor/internal/render"
 	"os"
 	"path/filepath"
 	"slices"
@@ -40,9 +39,7 @@ type App struct {
 	root      string
 	gitTop    string
 	cfg       *config.Config
-	renderer  render.Renderer // overrides Chromium for the browser tab (tests); nil = from config
-	gfx       *kittyGfx       // non-nil on a terminal with Kitty graphics: the browser view is live
-	caret     *caret.Writer   // parks the terminal cursor for the IME; nil in tests
+	caret     *caret.Writer // parks the terminal cursor for the IME; nil in tests
 	lsp       *lspManager
 	w, h      int
 	focus     focus
@@ -162,14 +159,6 @@ func New(dir, file string) *App {
 // Close stops language servers; call after the program exits.
 func (a *App) Close() {
 	a.lsp.stopAll()
-	for _, t := range a.tabs {
-		if t.kind == tabBrowser {
-			t.web.closeLiveNow()
-		}
-	}
-	if a.gfx != nil {
-		a.gfx.closing.Wait()
-	}
 }
 
 func styleInput(ti *textinput.Model, bg string) {
@@ -499,9 +488,6 @@ func (a *App) closeTab(force bool) {
 	if t.kind == tabText && t.lang != nil {
 		a.detachLSP(t)
 	}
-	if t.kind == tabBrowser {
-		t.web.closeLive()
-	}
 	a.tabs = append(a.tabs[:a.active], a.tabs[a.active+1:]...)
 	if a.active >= len(a.tabs) {
 		a.active = len(a.tabs) - 1
@@ -655,7 +641,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cmd := a.update(msg)
 	a.syncLSP()
-	a.syncLive()
 	a.notifySelection()
 	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview())
 }
@@ -786,12 +771,6 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.info("整形しました")
 	case lspErrMsg:
 		a.fail(msg.err)
-	case browserLoadedMsg:
-		a.browserLoaded(msg)
-	case liveStartedMsg:
-		a.liveStarted(msg)
-	case liveStateMsg:
-		// nothing to do: the update itself redraws
 	case openURLMsg:
 		if msg.err != nil {
 			a.fail(msg.err)
@@ -996,13 +975,6 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	switch t.kind {
 	case tabReview:
 		return a.handleReviewKey(t, msg)
-	case tabBrowser:
-		if l := t.web.live; l != nil && l.input && l.sess != nil && msg.Paste {
-			// pasted text goes in at once (typed runes arrive here one by one)
-			l.sess.Text(string(msg.Runes))
-			return nil
-		}
-		return a.handleBrowserKey(t, key)
 	case tabImage:
 		if a.pending == " " {
 			a.pending = ""
@@ -1526,8 +1498,6 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 					t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
 				case tabReview:
 					t.rev.moveCursor(wheel)
-				case tabBrowser:
-					a.browserWheel(t.web, x, y, wheel)
 				}
 			}
 		}
@@ -1555,12 +1525,6 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
-	}
-
-	if v := a.browserTab(); v != nil && v.live != nil {
-		if cmd, ok := a.liveMouse(v, msg); ok {
-			return cmd
-		}
 	}
 
 	left := msg.Button == tea.MouseButtonLeft
@@ -1738,8 +1702,6 @@ func (a *App) View() string {
 		right = append(right, renderWelcome(l.rightW, l.editH, a.helix)...)
 	case t.kind == tabImage:
 		right = append(right, t.img.render(l.rightW, l.editH)...)
-	case t.kind == tabBrowser:
-		right = append(right, t.web.render(l.rightW, l.editH)...)
 	case t.kind == tabReview:
 		right = append(right, t.rev.render(l.rightW, l.editH, editorFocused)...)
 	default:
