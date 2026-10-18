@@ -347,6 +347,53 @@ func (b *Buffer) Insert(text string) {
 	b.insertWith(kind, text)
 }
 
+// bracketPairs maps an opening bracket to its closing one.
+var bracketPairs = map[rune]rune{'(': ')', '{': '}', '[': ']'}
+
+func isCloser(r rune) bool {
+	for _, c := range bracketPairs {
+		if c == r {
+			return true
+		}
+	}
+	return false
+}
+
+// TypeRune inserts one typed rune. An opening bracket also inserts the
+// closing one and leaves the cursor between them (or wraps the selection);
+// a closing bracket right before the cursor is stepped over.
+func (b *Buffer) TypeRune(r rune) {
+	if closer, ok := bracketPairs[r]; ok {
+		if s, e, sel := b.Selection(); sel {
+			text := b.textRange(s, e)
+			b.begin(editOther)
+			b.deleteSelection()
+			b.insertRaw([]rune(string(r) + text + string(closer)))
+			from := Pos{s.Row, s.Col + 1}
+			to := b.Cur
+			to.Col--
+			b.Anchor, b.Cur = &from, to
+			b.syncWant()
+			return
+		}
+		b.Insert(string(r) + string(closer))
+		b.Cur.Col--
+		b.syncWant()
+		return
+	}
+	if isCloser(r) {
+		if _, _, sel := b.Selection(); !sel {
+			if line := b.Lines[b.Cur.Row]; b.Cur.Col < len(line) && line[b.Cur.Col] == r {
+				b.Anchor = nil
+				b.Cur.Col++
+				b.syncWant()
+				return
+			}
+		}
+	}
+	b.Insert(string(r))
+}
+
 // InsertBlock inserts text (e.g. a paste) as its own undo step.
 func (b *Buffer) InsertBlock(text string) {
 	b.insertWith(editOther, text)
@@ -480,6 +527,13 @@ func (b *Buffer) Backspace() {
 	}
 	b.begin(editDeleting)
 	start := b.Cur
+	if line := b.Lines[start.Row]; start.Col > 0 && start.Col < len(line) {
+		// empty bracket pair: remove both
+		if closer, ok := bracketPairs[line[start.Col-1]]; ok && line[start.Col] == closer {
+			b.deleteRange(Pos{start.Row, start.Col - 1}, Pos{start.Row, start.Col + 1})
+			return
+		}
+	}
 	if start.Col > 0 {
 		start.Col--
 	} else {
