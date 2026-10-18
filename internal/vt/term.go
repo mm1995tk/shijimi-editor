@@ -12,12 +12,19 @@ import (
 // string terminator, and the other C1 controls. The parser takes them as
 // controls inside strings, so a title such as "✳ 検索" (✳ is E2 9C B3) ended
 // early and the rest of it was printed on the screen. Treat 0x80-0xFF inside
-// strings as text, as UTF-8 terminals do.
+// strings as text, as UTF-8 terminals do. As a result 0x9C never ends a string
+// any more: only ESC \, BEL, CAN and SUB do.
+//
+// parser.Table is shared by the whole process, so this also fixes
+// ansi.StringWidth, Strip and Truncate in the UI.
 func init() {
-	for _, s := range []parser.State{
-		parser.DcsStringState, parser.OscStringState,
-		parser.SosStringState, parser.PmStringState, parser.ApcStringState,
-	} {
+	// Upstream already puts 0x80-0xFF in OSC and DCS strings, except 0x9C.
+	for _, s := range []parser.State{parser.DcsStringState, parser.OscStringState} {
+		parser.Table.AddOne(0x9C, s, parser.PutAction, s)
+	}
+	// In SOS, PM and APC strings 0x80-0xFF still follow the "anywhere" C1 and
+	// UTF-8 transitions, which print the string on the screen.
+	for _, s := range []parser.State{parser.SosStringState, parser.PmStringState, parser.ApcStringState} {
 		parser.Table.AddRange(0x80, 0xFF, s, parser.PutAction, s)
 	}
 }
