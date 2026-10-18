@@ -194,6 +194,7 @@ func (c *Client) initialize() {
 				"applyEdit":        true,
 				"workspaceEdit":    map[string]any{"documentChanges": true},
 				"executeCommand":   map[string]any{},
+				"symbol":           map[string]any{},
 			},
 			"textDocument": map[string]any{
 				"synchronization": map[string]any{"didSave": true},
@@ -205,6 +206,9 @@ func (c *Client) initialize() {
 				"references": map[string]any{},
 				"rename":     map[string]any{},
 				"formatting": map[string]any{},
+				"documentSymbol": map[string]any{
+					"hierarchicalDocumentSymbolSupport": true,
+				},
 				"codeAction": map[string]any{
 					"codeActionLiteralSupport": map[string]any{
 						"codeActionKind": map[string]any{"valueSet": []string{

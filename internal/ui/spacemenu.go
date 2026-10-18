@@ -21,6 +21,8 @@ var spaceItems = []spaceItem{
 	{"o", "URL を開く", false},
 	{"r", "名前の変更", true},
 	{".", "コードアクション", true},
+	{"s", "シンボル一覧", true},
+	{"S", "プロジェクトのシンボル", true},
 	{"d", "診断の一覧", false},
 	{"e", "ファイルツリー", false},
 	{"m", "プレビュー切替", false},

@@ -51,3 +51,37 @@ func TestParseWorkspaceEditChanges(t *testing.T) {
 		t.Errorf("got %+v", we)
 	}
 }
+
+func TestParseDocumentSymbolsNested(t *testing.T) {
+	uri := "file:///a.go"
+	got := parseDocumentSymbols(json.RawMessage(`[
+		{"name":"Server","kind":23,"range":{"start":{"line":0,"character":0},"end":{"line":9,"character":1}},
+		 "selectionRange":{"start":{"line":0,"character":5},"end":{"line":0,"character":11}},
+		 "children":[{"name":"Start","kind":6,"range":{"start":{"line":2,"character":0},"end":{"line":4,"character":1}},
+		   "selectionRange":{"start":{"line":2,"character":10},"end":{"line":2,"character":15}}}]}]`), uri)
+	if len(got) != 2 || got[0].Name != "Server" || got[0].Range.Start.Character != 5 ||
+		got[1].Name != "Start" || got[1].Container != "Server" || got[1].URI != uri {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func TestParseDocumentSymbolsFlat(t *testing.T) {
+	uri := "file:///a.go"
+	got := parseDocumentSymbols(json.RawMessage(`[
+		{"name":"b","kind":12,"containerName":"pkg","location":{"uri":"`+uri+`","range":{"start":{"line":5,"character":0},"end":{"line":6,"character":0}}}},
+		{"name":"a","kind":13,"location":{"uri":"`+uri+`","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":3}}}}]`), uri)
+	if len(got) != 2 || got[0].Name != "a" || got[1].Name != "b" || got[1].Container != "pkg" || got[1].Range.Start.Line != 5 {
+		t.Errorf("got %+v", got)
+	}
+	if got := parseDocumentSymbols(json.RawMessage(`null`), uri); len(got) != 0 {
+		t.Errorf("null: %+v", got)
+	}
+}
+
+func TestParseWorkspaceSymbols(t *testing.T) {
+	// A WorkspaceSymbol's location may carry only the uri.
+	got := parseSymbolInformation(json.RawMessage(`[{"name":"X","kind":5,"location":{"uri":"file:///x.go"}}]`), "")
+	if len(got) != 1 || got[0].URI != "file:///x.go" || SymbolKindName(got[0].Kind) != "クラス" {
+		t.Errorf("got %+v", got)
+	}
+}

@@ -48,6 +48,8 @@ type App struct {
 	term      *terminal
 	proxy     *proxy.Manager
 	pal       *palette
+	wsSyms    []lsp.Symbol // rows of the project symbol picker
+	wsClient  *lsp.Client  // server the project symbol picker asks
 	search    *searchPanel
 	tabs      []*tab
 	active    int
@@ -760,6 +762,12 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		}
 	case workspaceEditMsg:
 		a.applyWorkspaceEdit(msg.edit)
+	case symbolsMsg:
+		return a.showSymbols(msg)
+	case symbolQueryMsg:
+		return a.runSymbolQuery(msg)
+	case workspaceSymbolsMsg:
+		a.showWorkspaceSymbols(msg)
 	case codeActionsMsg:
 		return a.showCodeActions(msg)
 	case codeActionResolvedMsg:
@@ -1060,10 +1068,14 @@ func (a *App) handlePaletteKey(msg tea.KeyMsg) tea.Cmd {
 	case "enter":
 		return a.submitPalette()
 	}
+	old := p.input.Value()
 	var cmd tea.Cmd
 	p.input, cmd = p.input.Update(msg)
 	p.sel = 0
 	p.filter(a.commands)
+	if p.picking && p.live && p.input.Value() != old {
+		return tea.Batch(cmd, p.queryLater())
+	}
 	return cmd
 }
 
