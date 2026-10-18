@@ -77,6 +77,35 @@ func TestNewlineKeepsIndent(t *testing.T) {
 	}
 }
 
+func TestNewlineBetweenBrackets(t *testing.T) {
+	for _, pair := range []string{"{}", "()", "[]"} {
+		b := fromText("\tf " + pair)
+		b.UseTabs = true
+		b.Cur = Pos{0, 4}
+		b.Newline()
+		want := "\tf " + pair[:1] + "\n\t\t\n\t" + pair[1:]
+		if got := b.Text(); got != want {
+			t.Fatalf("%s: text = %q, want %q", pair, got, want)
+		}
+		if b.Cur != (Pos{1, 2}) {
+			t.Fatalf("%s: cur = %+v", pair, b.Cur)
+		}
+		if !b.Undo() || b.Text() != "\tf "+pair {
+			t.Fatalf("%s: one undo should restore, got %q", pair, b.Text())
+		}
+	}
+}
+
+func TestNewlineMismatchedBracketsKeepsOldBehavior(t *testing.T) {
+	b := fromText("{)")
+	b.UseTabs = true
+	b.Cur = Pos{0, 1}
+	b.Newline()
+	if got := b.Text(); got != "{\n\t)" {
+		t.Fatalf("text = %q", got)
+	}
+}
+
 func TestToggleComment(t *testing.T) {
 	b := fromText("  a\n  b")
 	b.SelectAll()
