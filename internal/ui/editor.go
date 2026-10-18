@@ -131,6 +131,7 @@ type editorOpts struct {
 	extraCursors []buffer.Pos // cursors of a multi-cursor edit
 	extraSels    [][2]buffer.Pos
 	relative     bool
+	indentGuides bool // draw a faint │ at each indent level
 	diags        []lsp.Diagnostic
 	rowBg        func(row int) string // background override per buffer line (diff view)
 }
@@ -283,6 +284,10 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 
 		vis := 0
 		drawn := 0
+		guideW, guideU := 0, 1
+		if o.indentGuides {
+			guideW, guideU = indentGuideWidth(b, row), indentUnitWidth(b)
+		}
 		cellBg := func(col int) string {
 			switch {
 			case inSel(col):
@@ -316,6 +321,10 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 					}
 				}
 			}
+			isGuide := col < len(line) && (r == ' ' || r == '\t') && vis < guideW && vis%guideU == 0
+			if isGuide {
+				k.fg = cIndentGuide
+			}
 			if cursorHere {
 				k.cursor = o.cursorColor
 			}
@@ -326,13 +335,20 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 						if c > 0 {
 							kk.cursor = ""
 						}
-						put(kk, " ")
+						if c == 0 && isGuide {
+							put(kk, "│")
+						} else {
+							put(kk, " ")
+						}
 						drawn++
 					}
 				}
 			} else if vis >= b.ScrollCol {
 				if drawn+rw > textW {
 					break
+				}
+				if isGuide {
+					r = '│'
 				}
 				put(k, string(r))
 				drawn += rw
@@ -341,6 +357,18 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 				drawn += vis + rw - b.ScrollCol
 			}
 			vis += rw
+		}
+		// guides of a blank line extend past its end
+		for v := vis; v < guideW && drawn < textW; v++ {
+			if v < b.ScrollCol {
+				continue
+			}
+			ch := " "
+			if v%guideU == 0 {
+				ch = "│"
+			}
+			put(cellStyle{fg: cIndentGuide, bg: cellBg(len(line))}, ch)
+			drawn++
 		}
 		flush()
 		// inline diagnostic message (like Helix's inline diagnostics)

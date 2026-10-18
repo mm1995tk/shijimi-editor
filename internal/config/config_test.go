@@ -198,3 +198,16 @@ func TestMouseHoverOption(t *testing.T) {
 		t.Fatal("mouse-hover = false should disable it")
 	}
 }
+
+func TestIndentGuidesOption(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	if !Load(root).Editor.IndentGuides {
+		t.Fatal("indent-guides should default to true")
+	}
+	os.MkdirAll(filepath.Join(root, ".gh-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".gh-editor", "config.toml"), []byte("[editor.indent-guides]\nrender = false\n"), 0o644)
+	if Load(root).Editor.IndentGuides {
+		t.Fatal("render = false should disable indent guides")
+	}
+}

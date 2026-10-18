@@ -13,6 +13,7 @@ var (
 	cEditorBg, cEditorFg, cSideBg, cSideFg, cTabBarBg, cTabInact, cTabInactFg string
 	cAccent, cLineNo, cLineNoCur, cCurLine, cSelection, cMatch, cBorder       string
 	cPaletteBg, cListSel, cListSelUnf, cDirty, cError                         string
+	cIndentGuide                                                              string
 )
 
 func bgfg(bg, fg string) lipgloss.Style {
