@@ -10,6 +10,11 @@ import (
 // DefaultScrollback is the number of lines kept after they leave the screen.
 const DefaultScrollback = 5000
 
+// maxOSCData is the most an OSC (or DCS, APC, …) payload may hold. It bounds
+// OSC 52 copies at about 1.5 MB of text; the parser's default of 64 KB cut
+// copies off at 48 KB.
+const maxOSCData = 2 << 20
+
 // Options configures a Term.
 type Options struct {
 	Cols, Rows int
@@ -90,6 +95,7 @@ type Term struct {
 	showCur  bool
 
 	title    string
+	clip     *Clip // the program's last copy (OSC 52), not yet taken
 	lastRune rune
 }
 
@@ -106,6 +112,7 @@ func New(o Options) *Term {
 	t.main = newGrid(t.cols, t.rows)
 	t.alt = newGrid(t.cols, t.rows)
 	t.parser = ansi.NewParser()
+	t.parser.SetDataSize(maxOSCData)
 	t.parser.SetHandler(ansi.Handler{
 		Print:     t.print,
 		Execute:   t.execute,
@@ -190,6 +197,26 @@ func (t *Term) Title() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.title
+}
+
+// Clip is a copy a program asked for with OSC 52.
+type Clip struct {
+	Text string
+	// TooLarge means the copy did not fit in maxOSCData and was dropped.
+	TooLarge bool
+}
+
+// TakeClipboard returns the copy the program last asked for with OSC 52,
+// once. Only the last one since the previous call is kept.
+func (t *Term) TakeClipboard() (Clip, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.clip == nil {
+		return Clip{}, false
+	}
+	c := *t.clip
+	t.clip = nil
+	return c, true
 }
 
 // Scrollback returns the number of lines held above the screen.

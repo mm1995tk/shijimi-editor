@@ -10,6 +10,7 @@ package caret
 import (
 	"io"
 	"strconv"
+	"sync"
 	"sync/atomic"
 )
 
@@ -23,7 +24,17 @@ type File interface {
 // bubbletea still recognises the output as a terminal.
 type Writer struct {
 	f   File
+	mu  sync.Mutex    // keeps Send from landing in the middle of a frame
 	pos atomic.Uint64 // (y+1)<<32 | (x+1); 0 = leave the cursor alone
+}
+
+// Send writes p to the terminal as is, between frames. It is for sequences
+// that draw nothing, such as setting the clipboard (OSC 52).
+func (w *Writer) Send(p []byte) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	_, err := w.f.Write(p)
+	return err
 }
 
 // NewWriter wraps f.
@@ -45,6 +56,8 @@ func (w *Writer) Clear() { w.pos.Store(0) }
 // bubbletea starts every frame on the alternate screen from the home
 // position, so moving the cursor afterwards does not disturb the next frame.
 func (w *Writer) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	pos := w.pos.Load()
 	if pos == 0 {
 		return w.f.Write(p)

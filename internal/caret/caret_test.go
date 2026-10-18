@@ -30,3 +30,18 @@ func TestWriteParksCursor(t *testing.T) {
 		t.Errorf("output = %q, want %q", got, want)
 	}
 }
+
+func TestSendGoesBetweenWrites(t *testing.T) {
+	f := &fakeFile{}
+	w := NewWriter(f)
+	w.Set(0, 0)
+	_, _ = w.Write([]byte("frame1"))
+	if err := w.Send([]byte("\x1b]52;c;eA==\x07")); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = w.Write([]byte("frame2"))
+	want := "frame1\x1b[1;1H\x1b]52;c;eA==\x07frame2\x1b[1;1H"
+	if got := f.String(); got != want {
+		t.Errorf("output = %q, want %q", got, want)
+	}
+}

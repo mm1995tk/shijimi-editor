@@ -2,6 +2,7 @@ package vt
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"testing"
@@ -377,5 +378,68 @@ func TestControlCharactersAreNotStored(t *testing.T) {
 		if c.Comb != "" {
 			t.Fatalf("combining text stored: %q", c.Comb)
 		}
+	}
+}
+
+func TestOSC52CopyIsTakenOnce(t *testing.T) {
+	term, _ := newT(10, 3)
+	term.Write([]byte("\x1b]52;c;5pel5pys6Kqe\x07"))
+	if c, ok := term.TakeClipboard(); !ok || c.Text != "日本語" || c.TooLarge {
+		t.Fatalf("TakeClipboard = %+v, %v; want 日本語", c, ok)
+	}
+	if _, ok := term.TakeClipboard(); ok {
+		t.Fatal("TakeClipboard returned the copy twice")
+	}
+}
+
+func TestOSC52Variants(t *testing.T) {
+	cases := []struct {
+		name, in string
+		want     string // "" = nothing to take
+	}{
+		{"ST terminator", "\x1b]52;c;aGVsbG8=\x1b\\", "hello"},
+		{"no padding", "\x1b]52;c;aGVsbG8\x07", "hello"},
+		{"query", "\x1b]52;c;?\x07", ""},
+		{"empty clears", "\x1b]52;c;\x07", ""},
+		{"bad base64", "\x1b]52;c;@@@\x07", ""},
+		{"last one wins", "\x1b]52;c;Zmlyc3Q=\x07\x1b]52;c;c2Vjb25k\x07", "second"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			term, _ := newT(10, 3)
+			term.Write([]byte(tc.in))
+			c, ok := term.TakeClipboard()
+			if tc.want == "" {
+				if ok {
+					t.Fatalf("took %+v, want nothing", c)
+				}
+				return
+			}
+			if !ok || c.Text != tc.want {
+				t.Fatalf("TakeClipboard = %+v, %v; want %q", c, ok, tc.want)
+			}
+		})
+	}
+}
+
+func TestOSC52LargeCopy(t *testing.T) {
+	term, _ := newT(10, 3)
+	text := strings.Repeat("あいう", 100_000) // 900 KB, past the parser's default 64 KB
+	term.Write([]byte("\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(text)) + "\x07"))
+	if c, ok := term.TakeClipboard(); !ok || c.Text != text {
+		t.Fatalf("large copy: ok=%v len=%d, want len %d", ok, len(c.Text), len(text))
+	}
+}
+
+func TestOSC52TooLargeIsReported(t *testing.T) {
+	term, _ := newT(10, 3)
+	term.Write([]byte("\x1b]52;c;" + strings.Repeat("A", maxOSCData) + "\x07"))
+	if c, ok := term.TakeClipboard(); !ok || !c.TooLarge || c.Text != "" {
+		t.Fatalf("TakeClipboard = ok=%v TooLarge=%v len=%d; want TooLarge", ok, c.TooLarge, len(c.Text))
+	}
+	// The terminal keeps working after the dropped copy.
+	term.Write([]byte("ok"))
+	if got := rowText(snap(term), 0); got != "ok" {
+		t.Fatalf("row 0 = %q, want ok", got)
 	}
 }
