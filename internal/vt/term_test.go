@@ -379,3 +379,17 @@ func TestControlCharactersAreNotStored(t *testing.T) {
 		}
 	}
 }
+
+func TestTitleWithUTF8DoesNotSpillOntoScreen(t *testing.T) {
+	term, _ := newT(40, 3)
+	// ✳ is E2 9C B3 and 検 is E6 A4 9C: both hold 0x9C, the 8-bit ST.
+	term.Write([]byte("\x1b[2;1H\x1b]0;✳ ファイル内検索機能\x07\x1b]2;検索\x1b\\"))
+	s := snap(term)
+	if s.Title != "検索" || rowText(s, 1) != "" {
+		t.Fatalf("title = %q, row = %q", s.Title, rowText(s, 1))
+	}
+	term.Write([]byte("\x1b]0;✳ ファイル内検索機能\x07"))
+	if got := snap(term).Title; got != "✳ ファイル内検索機能" {
+		t.Fatalf("title = %q", got)
+	}
+}

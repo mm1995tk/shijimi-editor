@@ -5,7 +5,22 @@ import (
 	"sync"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/ansi/parser"
 )
+
+// Programs write UTF-8, whose continuation bytes include 0x9C, the 8-bit
+// string terminator, and the other C1 controls. The parser takes them as
+// controls inside strings, so a title such as "✳ 検索" (✳ is E2 9C B3) ended
+// early and the rest of it was printed on the screen. Treat 0x80-0xFF inside
+// strings as text, as UTF-8 terminals do.
+func init() {
+	for _, s := range []parser.State{
+		parser.DcsStringState, parser.OscStringState,
+		parser.SosStringState, parser.PmStringState, parser.ApcStringState,
+	} {
+		parser.Table.AddRange(0x80, 0xFF, s, parser.PutAction, s)
+	}
+}
 
 // DefaultScrollback is the number of lines kept after they leave the screen.
 const DefaultScrollback = 5000
