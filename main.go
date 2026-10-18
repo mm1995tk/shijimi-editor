@@ -22,6 +22,7 @@ func main() {
 		if arg == "-h" || arg == "--help" {
 			fmt.Println("usage: gh-editor [ディレクトリ | ファイル]")
 			fmt.Println("       gh-editor diff [path]")
+			fmt.Println("       gh-editor exec \":コマンド\"")
 			fmt.Println("       gh-editor skill install [書き出し先]")
 			fmt.Println("サブコマンドは実行中の gh-editor へ $" + ctl.EnvSocket + " 経由で送ります。")
 			fmt.Println("同名のファイルを開くときは ./diff のようにパスで書いてください。")

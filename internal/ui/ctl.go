@@ -2,6 +2,7 @@ package ui
 
 import (
 	"path/filepath"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -42,6 +43,8 @@ func (a *App) handleCtl(m ctlMsg) tea.Cmd {
 			}
 			cmd = tea.Batch(cmd, a.setFocus(focusEditor))
 		}
+	case "exec":
+		resp, cmd = a.ctlExec(m.req.Line)
 	default:
 		resp = ctl.Response{Error: "不明なコマンド: " + m.req.Cmd}
 	}
@@ -57,4 +60,60 @@ func (a *App) reviewToRoot(p string) string {
 		base = a.root
 	}
 	return a.rel(filepath.Join(base, p))
+}
+
+// agentForbidden lists ":" commands that an agent may not run: quitting would
+// end the agent's own session, and the "!" forms throw away unsaved work.
+var agentForbidden = map[string]bool{
+	"q": true, "quit": true, "qa": true, "quit-all": true,
+	"q!": true, "quit!": true, "qa!": true, "quit-all!": true,
+	"wq": true, "x": true, "write-quit": true, "x!": true, "wq!": true,
+	"wqa": true, "xa": true, "write-quit-all": true,
+	"bc!": true, "bclose!": true, "buffer-close!": true,
+}
+
+// agentNeedsHuman reports whether the command, written like this, would stop
+// at a picker that only a person can answer.
+func agentNeedsHuman(name, arg string) bool {
+	switch name {
+	case "o", "open", "e", "edit", "pr", "theme":
+		return arg == ""
+	case "symbol", "sym", "symbol-all", "sym-all", "action", "code-action", "ca":
+		return true
+	}
+	return false
+}
+
+// ctlExec runs a ":" command for the control socket and reports how it went.
+// The command is the same one a person types; failures that execCommand only
+// shows in the status line are turned into the reply.
+func (a *App) ctlExec(line string) (ctl.Response, tea.Cmd) {
+	line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), ":"))
+	if line == "" {
+		return ctl.Response{Error: "コマンドが空です"}, nil
+	}
+	name, arg, _ := strings.Cut(line, " ")
+	arg = strings.TrimSpace(arg)
+	if agentForbidden[name] {
+		return ctl.Response{Error: ":" + name + " はエージェントからは実行できません"}, nil
+	}
+	if name == "reload" || name == "rl" {
+		if t := a.curText(); t != nil && t.dirty() {
+			return ctl.Response{Error: "未保存の変更があるため :" + name + " は実行できません（先に :w で保存）"}, nil
+		}
+	}
+	if agentNeedsHuman(name, arg) {
+		return ctl.Response{Error: ":" + name + " は引数なしだと人が選ぶ画面になります。引数を付けてください"}, nil
+	}
+	a.msg, a.msgErr = "", false
+	cmd := a.execCommand(line)
+	if a.pal.open || a.cmdOpen {
+		a.pal.close()
+		a.closeCmdline()
+		return ctl.Response{Error: ":" + name + " は人の入力待ちになるため実行できません"}, cmd
+	}
+	if a.msgErr {
+		return ctl.Response{Error: a.msg}, cmd
+	}
+	return ctl.Response{OK: true, Message: a.msg}, cmd
 }
