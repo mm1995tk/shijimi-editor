@@ -88,6 +88,7 @@ type App struct {
 	findOrigin buffer.Pos
 
 	comp        *completionPopup
+	snip        *snippetSession
 	hoverText   string
 	hoverScroll int
 	hoverAt     *screenPt // where a mouse-triggered popup is anchored; nil = at the cursor
@@ -902,6 +903,11 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	if a.comp != nil {
 		if cmd, handled := a.handleCompletionKey(msg); handled {
+			return cmd
+		}
+	}
+	if a.snip != nil {
+		if cmd, handled := a.handleSnippetKey(msg); handled {
 			return cmd
 		}
 	}
