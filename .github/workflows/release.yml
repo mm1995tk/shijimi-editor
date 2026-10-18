@@ -1,0 +1,73 @@
+name: リリース
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "上げるバージョンの桁"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: main 以外では実行しない
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::main ブランチで実行してください（現在: $GITHUB_REF）"
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - name: バージョンを上げる
+        id: ver
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          current=$(sed -n 's/^ *version = "\([0-9]*\.[0-9]*\.[0-9]*\)";$/\1/p' flake.nix)
+          if [ "$(printf '%s\n' "$current" | wc -l)" != 1 ] || [ -z "$current" ]; then
+            echo "::error::flake.nix から X.Y.Z 形式の version を1つ読めませんでした"
+            exit 1
+          fi
+          IFS=. read -r major minor patch <<< "$current"
+          case "$BUMP" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+          next="$major.$minor.$patch"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$next" >/dev/null; then
+            echo "::error::タグ v$next はすでにあります"
+            exit 1
+          fi
+          sed -i "s/^\( *version = \)\"$current\";$/\1\"$next\";/" flake.nix
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+
+      - name: コミットしてタグを打つ
+        env:
+          NEXT: ${{ steps.ver.outputs.next }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "v$NEXT"
+          git tag "v$NEXT"
+          # コミットとタグを同時に push する（どちらかが失敗したら両方失敗する）
+          git push --atomic origin HEAD:main "v$NEXT"
+
+      - name: GitHub Release を作る
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT: ${{ steps.ver.outputs.next }}
+        run: gh release create "v$NEXT" --title "v$NEXT" --generate-notes --verify-tag
