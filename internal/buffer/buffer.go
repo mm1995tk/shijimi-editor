@@ -450,26 +450,15 @@ func (b *Buffer) Newline() {
 	}
 	// Between a bracket pair, keep the closing bracket on its own line at the
 	// original indentation and leave the cursor on the indented line between.
-	if _, _, sel := b.Selection(); !sel && extra != "" && b.Cur.Col < len(line) && line[b.Cur.Col] == closer(line[b.Cur.Col-1]) {
-		b.Insert("\n" + string(indent) + extra + "\n" + string(indent))
-		b.Cur = Pos{b.Cur.Row - 1, len(indent) + len([]rune(extra))}
-		b.syncWant()
-		return
+	if _, _, sel := b.Selection(); !sel && extra != "" && b.Cur.Col < len(line) {
+		if c, ok := bracketPairs[line[b.Cur.Col-1]]; ok && line[b.Cur.Col] == c {
+			b.Insert("\n" + string(indent) + extra + "\n" + string(indent))
+			b.Cur = Pos{b.Cur.Row - 1, len(indent) + len([]rune(extra))}
+			b.syncWant()
+			return
+		}
 	}
 	b.Insert("\n" + string(indent) + extra)
-}
-
-// closer returns the closing bracket for an opening one, or 0.
-func closer(open rune) rune {
-	switch open {
-	case '{':
-		return '}'
-	case '[':
-		return ']'
-	case '(':
-		return ')'
-	}
-	return 0
 }
 
 // IndentUnit is the string inserted for one level of indentation.

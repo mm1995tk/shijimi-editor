@@ -97,12 +97,21 @@ func TestNewlineBetweenBrackets(t *testing.T) {
 }
 
 func TestNewlineMismatchedBracketsKeepsOldBehavior(t *testing.T) {
-	b := fromText("{)")
-	b.UseTabs = true
-	b.Cur = Pos{0, 1}
-	b.Newline()
-	if got := b.Text(); got != "{\n\t)" {
-		t.Fatalf("text = %q", got)
+	for _, c := range []struct {
+		text string
+		col  int
+		want string
+	}{
+		{"{)", 1, "{\n\t)"},
+		{"a:\x00", 2, "a:\n\t\x00"},
+	} {
+		b := fromText(c.text)
+		b.UseTabs = true
+		b.Cur = Pos{0, c.col}
+		b.Newline()
+		if got := b.Text(); got != c.want {
+			t.Fatalf("%q: text = %q, want %q", c.text, got, c.want)
+		}
 	}
 }
 
