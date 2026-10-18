@@ -271,3 +271,58 @@ func TestWordRange(t *testing.T) {
 		}
 	}
 }
+
+func TestTypeRuneAutoClose(t *testing.T) {
+	for _, pair := range []string{"()", "{}", "[]"} {
+		b := fromText("")
+		b.TypeRune(rune(pair[0]))
+		if got := b.Text(); got != pair || b.Cur != (Pos{0, 1}) {
+			t.Fatalf("%q: text = %q cur = %v", pair, got, b.Cur)
+		}
+		b.TypeRune(rune(pair[1]))
+		if got := b.Text(); got != pair || b.Cur != (Pos{0, 2}) {
+			t.Fatalf("%q step over: text = %q cur = %v", pair, got, b.Cur)
+		}
+	}
+}
+
+func TestTypeRuneCloserWithoutMatchInserts(t *testing.T) {
+	b := fromText("ab")
+	b.Cur = Pos{0, 1}
+	b.TypeRune(')')
+	if got := b.Text(); got != "a)b" {
+		t.Fatalf("text = %q", got)
+	}
+}
+
+func TestBackspaceDeletesEmptyPair(t *testing.T) {
+	b := fromText("")
+	b.TypeRune('(')
+	b.Backspace()
+	if got := b.Text(); got != "" || b.Cur != (Pos{}) {
+		t.Fatalf("text = %q cur = %v", got, b.Cur)
+	}
+	b.TypeRune('(')
+	b.TypeRune('x')
+	b.Backspace()
+	b.Backspace()
+	if got := b.Text(); got != "" {
+		t.Fatalf("text = %q", got)
+	}
+}
+
+func TestTypeRuneWrapsSelection(t *testing.T) {
+	b := fromText("foo bar")
+	b.SelectRange(Pos{0, 4}, Pos{0, 7})
+	b.TypeRune('[')
+	if got := b.Text(); got != "foo [bar]" {
+		t.Fatalf("text = %q", got)
+	}
+	if got := b.SelectedText(); got != "bar" {
+		t.Fatalf("selection = %q", got)
+	}
+	b.Undo()
+	if got := b.Text(); got != "foo bar" {
+		t.Fatalf("after undo = %q", got)
+	}
+}

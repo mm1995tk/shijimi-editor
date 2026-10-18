@@ -193,3 +193,26 @@ func TestSpaceMenuFiltersItems(t *testing.T) {
 		t.Fatal("no text tab: want text-only commands hidden")
 	}
 }
+
+func TestAutoCloseBracketHelixInsert(t *testing.T) {
+	a := newTestApp(t, "")
+	b := a.curText().buf
+	keys(a, "i", "{")
+	if got := b.Text(); got != "{}" || b.Cur.Col != 1 {
+		t.Fatalf("text = %q cur = %v", got, b.Cur)
+	}
+	a.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	if got := b.Text(); got != "" {
+		t.Fatalf("after backspace = %q", got)
+	}
+}
+
+func TestAutoCloseBracketVSCode(t *testing.T) {
+	a := newTestApp(t, "")
+	a.helix = false
+	b := a.curText().buf
+	keys(a, "(", ")")
+	if got := b.Text(); got != "()" || b.Cur.Col != 2 {
+		t.Fatalf("text = %q cur = %v", got, b.Cur)
+	}
+}
