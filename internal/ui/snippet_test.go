@@ -125,3 +125,23 @@ func TestSnippetUndoEndsSession(t *testing.T) {
 		t.Fatal("session should have ended")
 	}
 }
+
+func TestSnippetReverseOrderAdjacentStops(t *testing.T) {
+	a, b := snipSetup(t, "")
+	a.startSnippet(a.curText(), buffer.Pos{}, "${2:b}${1:a}")
+	keys(a, "x")
+	pressKey(a, tea.KeyTab)
+	keys(a, "Z")
+	if got := b.Text(); got != "Zx" {
+		t.Fatalf("text = %q", got)
+	}
+
+	a, b = snipSetup(t, "")
+	a.startSnippet(a.curText(), buffer.Pos{}, "$1$2")
+	keys(a, "p")
+	pressKey(a, tea.KeyTab)
+	keys(a, "q")
+	if got := b.Text(); got != "pq" {
+		t.Fatalf("empty stops: text = %q", got)
+	}
+}

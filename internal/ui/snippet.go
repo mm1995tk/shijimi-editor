@@ -203,12 +203,29 @@ func (a *App) startSnippet(t *tab, start buffer.Pos, text string) {
 func (a *App) selectStop(i int) {
 	s := a.snip
 	s.cur = i
-	// Text typed at a boundary belongs to the selected stop: marks of later
-	// stops move past it, marks of earlier stops stay in front of it.
+	// Text typed at a boundary belongs to the selected stop. Which side a
+	// mark of another stop falls on is decided by where it sits in the
+	// document, not by the order the stops are visited in.
+	cur := s.groups[i]
 	for g, spans := range s.groups {
 		for _, sp := range spans {
-			sp.start.Right = g > i
-			sp.end.Right = g >= i
+			if g == i {
+				sp.start.Right, sp.end.Right = false, true
+				continue
+			}
+			base := cur[0].start.Pos
+			for _, c := range cur {
+				if !sp.start.Pos.Less(c.start.Pos) {
+					base = c.start.Pos
+				}
+			}
+			if sp.start.Pos == base && sp.end.Pos == base {
+				// an empty stop at the insertion point: keep the visiting order
+				sp.start.Right, sp.end.Right = g > i, g > i
+				continue
+			}
+			sp.start.Right = !sp.start.Pos.Less(base)
+			sp.end.Right = base.Less(sp.end.Pos)
 		}
 	}
 	var pairs [][2]buffer.Pos
