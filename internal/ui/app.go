@@ -599,6 +599,11 @@ func (a *App) toggleComment() {
 func (a *App) copyText(s string) {
 	a.clipboard = s
 	writeSystemClipboard(s)
+	// Over SSH there is no local helper tool; the outer terminal can still
+	// take the text through OSC 52.
+	if a.caret != nil {
+		_ = a.caret.Send([]byte(ansi.SetSystemClipboard(s)))
+	}
 }
 
 // activePath is the file of the current tab, or "" when it has none.
@@ -710,6 +715,13 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.follow = true
 	case termOutputMsg, termDoneMsg:
 		cmd := a.term.update(msg)
+		// A program in the terminal panel (Claude Code, tmux, …) copies with
+		// OSC 52; pass the text on to the clipboard.
+		for _, tab := range a.term.tabs {
+			if s, ok := tab.vt.TakeClipboard(); ok {
+				a.copyText(s)
+			}
+		}
 		if len(a.term.tabs) == 0 && a.showTerm {
 			a.showTerm = false
 			if a.focus == focusTerminal {

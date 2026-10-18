@@ -90,6 +90,7 @@ type Term struct {
 	showCur  bool
 
 	title    string
+	clip     *string // text the program asked to copy (OSC 52), not yet taken
 	lastRune rune
 }
 
@@ -190,6 +191,19 @@ func (t *Term) Title() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.title
+}
+
+// TakeClipboard returns the text the program last asked to copy with OSC 52,
+// once.
+func (t *Term) TakeClipboard() (string, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.clip == nil {
+		return "", false
+	}
+	s := *t.clip
+	t.clip = nil
+	return s, true
 }
 
 // Scrollback returns the number of lines held above the screen.

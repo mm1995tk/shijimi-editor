@@ -379,3 +379,18 @@ func TestControlCharactersAreNotStored(t *testing.T) {
 		}
 	}
 }
+
+func TestOSC52CopyIsTakenOnce(t *testing.T) {
+	term, _ := newT(10, 3)
+	term.Write([]byte("\x1b]52;c;5pel5pys6Kqe\x07"))
+	if s, ok := term.TakeClipboard(); !ok || s != "日本語" {
+		t.Fatalf("TakeClipboard = %q, %v; want 日本語", s, ok)
+	}
+	if _, ok := term.TakeClipboard(); ok {
+		t.Fatal("TakeClipboard returned the text twice")
+	}
+	term.Write([]byte("\x1b]52;c;?\x07"))
+	if _, ok := term.TakeClipboard(); ok {
+		t.Fatal("a clipboard query was taken as a copy")
+	}
+}

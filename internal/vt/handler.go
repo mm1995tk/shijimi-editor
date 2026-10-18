@@ -1,6 +1,7 @@
 package vt
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"unicode"
@@ -342,6 +343,15 @@ func (t *Term) osc(cmd int, data []byte) {
 				}
 				return r
 			}, s[i+1:])
+		}
+	case 52: // clipboard: 52;Pc;Pd, where Pd is base64 or "?" for a query
+		parts := strings.SplitN(string(data), ";", 3)
+		if len(parts) != 3 || parts[2] == "?" {
+			return
+		}
+		if b, err := base64.StdEncoding.DecodeString(parts[2]); err == nil {
+			s := string(b)
+			t.clip = &s
 		}
 	}
 }
