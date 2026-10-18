@@ -417,6 +417,10 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		return a.rename()
 	case ".":
 		return a.codeAction()
+	case "s":
+		return a.documentSymbols()
+	case "S":
+		return a.workspaceSymbols()
 	case "d", "D":
 		return a.diagnosticPicker()
 	case "e", "E":

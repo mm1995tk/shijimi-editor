@@ -85,3 +85,13 @@ func TestCodeActionRange(t *testing.T) {
 		t.Errorf("selection: %+v %+v", rng, ds)
 	}
 }
+
+func TestSymbolDetail(t *testing.T) {
+	s := lsp.Symbol{Name: "Start", Kind: 6, Container: "Server", Range: lsp.Range{Start: lsp.Position{Line: 11}}}
+	if got := symbolDetail(s, ""); got != "メソッド  Server  12行目" {
+		t.Errorf("file: %q", got)
+	}
+	if got := symbolDetail(s, "a/b.go"); got != "メソッド  Server  a/b.go:12" {
+		t.Errorf("project: %q", got)
+	}
+}

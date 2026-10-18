@@ -44,6 +44,11 @@ type palette struct {
 	pickTitle string
 	pickAll   []paletteItem
 	onPick    func(index int) tea.Cmd
+
+	// live is set when the list comes from a server query (see pickLive);
+	// liveSeq numbers the edits so that late answers can be told apart.
+	live    bool
+	liveSeq int
 }
 
 func newPalette() *palette {
@@ -80,6 +85,7 @@ func indexFiles(root string) []string {
 func (p *palette) show(root, initial string) tea.Cmd {
 	p.open = true
 	p.picking = false
+	p.live = false
 	p.prompt = ""
 	p.onSubmit = nil
 	p.files = indexFiles(root)
@@ -94,6 +100,7 @@ func (p *palette) show(root, initial string) tea.Cmd {
 func (p *palette) ask(prompt, initial string, onSubmit func(string) tea.Cmd) tea.Cmd {
 	p.open = true
 	p.picking = false
+	p.live = false
 	p.prompt = prompt
 	p.onSubmit = onSubmit
 	p.items = nil
@@ -113,6 +120,8 @@ func (p *palette) filter(cmds []command) {
 	v := p.input.Value()
 	p.items = p.items[:0]
 	switch {
+	case p.picking && p.live:
+		p.items = append(p.items, p.pickAll...)
 	case p.picking:
 		q := strings.TrimSpace(v)
 		if q == "" {
@@ -246,6 +255,7 @@ func (p *palette) pick(title string, items []paletteItem, onPick func(int) tea.C
 	p.picking = true
 	p.prompt = ""
 	p.pickTitle = title
+	p.live = false
 	for i := range items {
 		items[i].index = i
 	}
@@ -255,4 +265,24 @@ func (p *palette) pick(title string, items []paletteItem, onPick func(int) tea.C
 	p.input.SetValue("")
 	p.sel = 0
 	return p.input.Focus()
+}
+
+// pickLive is pick for a list the language server filters: the list is not
+// fuzzy-filtered here. The caller asks the server after each edit of the
+// input (queryLater) and puts the answer in with setPickItems.
+func (p *palette) pickLive(title string, onPick func(int) tea.Cmd) tea.Cmd {
+	cmd := p.pick(title, nil, onPick)
+	p.live = true
+	p.liveSeq++
+	p.input.Placeholder = "名前を入力して検索"
+	return cmd
+}
+
+// setPickItems replaces the list of a pick palette and selects the first row.
+func (p *palette) setPickItems(items []paletteItem) {
+	for i := range items {
+		items[i].index = i
+	}
+	p.pickAll = items
+	p.sel = 0
 }

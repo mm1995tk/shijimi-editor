@@ -486,17 +486,7 @@ func (a *App) showLocations(m locationsMsg) tea.Cmd {
 		a.fail(fmt.Errorf("%sが見つかりません", m.title))
 		return nil
 	}
-	jump := func(l lsp.Location) tea.Cmd {
-		if !a.openFile(lsp.Path(l.URI)) {
-			return nil
-		}
-		t := a.cur()
-		t.buf.Anchor = nil
-		p := bufPos(t.buf, l.Range.Start)
-		t.buf.SetCursor(p.Row, buffer.VisualCol(t.buf.Lines[p.Row], p.Col), false)
-		a.follow = true
-		return a.setFocus(focusEditor)
-	}
+	jump := a.jumpTo
 	if len(m.locs) == 1 {
 		return jump(m.locs[0])
 	}
@@ -784,4 +774,17 @@ func relTo(root, p string) string {
 		return r
 	}
 	return p
+}
+
+// jumpTo opens the file of l and puts the cursor at the start of its range.
+func (a *App) jumpTo(l lsp.Location) tea.Cmd {
+	if !a.openFile(lsp.Path(l.URI)) {
+		return nil
+	}
+	t := a.cur()
+	t.buf.Anchor = nil
+	p := bufPos(t.buf, l.Range.Start)
+	t.buf.SetCursor(p.Row, buffer.VisualCol(t.buf.Lines[p.Row], p.Col), false)
+	a.follow = true
+	return a.setFocus(focusEditor)
 }
