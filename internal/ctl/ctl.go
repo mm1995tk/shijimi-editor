@@ -4,13 +4,14 @@
 package ctl
 
 import (
-	"slices"
 	"bufio"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -19,7 +20,7 @@ const EnvSocket = "GH_EDITOR_SOCKET"
 
 // Subcommands are matched before file paths; write "./diff" to open a file
 // with the same name.
-var Subcommands = []string{"diff", "skill"}
+var Subcommands = []string{"diff", "exec", "skill"}
 
 // IsSubcommand reports whether arg selects a subcommand.
 func IsSubcommand(arg string) bool {
@@ -28,14 +29,16 @@ func IsSubcommand(arg string) bool {
 
 // Request is sent by the CLI to the editor.
 type Request struct {
-	Cmd  string `json:"cmd"` // diff
+	Cmd  string `json:"cmd"` // diff | exec
 	Path string `json:"path,omitempty"`
+	Line string `json:"line,omitempty"` // exec: the ":" command to run
 }
 
 // Response is the editor's reply.
 type Response struct {
-	OK    bool   `json:"ok"`
-	Error string `json:"error,omitempty"`
+	OK      bool   `json:"ok"`
+	Error   string `json:"error,omitempty"`
+	Message string `json:"message,omitempty"` // exec: the status line after the command
 }
 
 // Handler runs a request inside the editor and returns the reply.
@@ -150,6 +153,12 @@ func Run(args []string, stdout, stderr func(string)) int {
 			}
 			req.Path = abs
 		}
+	case "exec":
+		if len(args) < 2 {
+			stderr("usage: gh-editor exec \":コマンド\"")
+			return 2
+		}
+		req = Request{Cmd: "exec", Line: strings.Join(args[1:], " ")}
 	case "skill":
 		return runSkill(args[1:], stdout, stderr)
 	default:
@@ -164,6 +173,9 @@ func Run(args []string, stdout, stderr func(string)) int {
 	if !resp.OK {
 		stderr(resp.Error)
 		return 1
+	}
+	if resp.Message != "" {
+		stdout(resp.Message)
 	}
 	return 0
 }

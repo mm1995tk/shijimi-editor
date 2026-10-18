@@ -360,8 +360,9 @@ gh-editor のターミナルパネルで `claude` を起動すると、環境変
 実行中の gh-editor は Unix ソケット（0600）を作り、環境変数 `GH_EDITOR_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。IDE 連携に無い操作だけを残しています。
 
 - `gh-editor diff [path]`: git-diff モードにする。`path` を付けるとそのファイルを diff 表示で開く
+- `gh-editor exec ":<コマンド>"`: `:` コマンドをそのまま実行する（例: `gh-editor exec ":preview"`）。成功するとステータス欄の文を標準出力へ、失敗するとエラーの文を標準エラーへ書き、終了コード 1 にする。`:q` `:q!` `:wq` `:bc!` などの終了・破棄するコマンド、引数なしで選択画面を開くコマンド（`:o` `:theme` `:grep` `:replace` `:symbol` `:action`、番号以外の引数の `:pr`）、未保存の変更があるファイルの `:reload` と `:bc` は実行せずエラーを返す
 
-第 1 引数が `diff` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./diff` のように書きます。
+第 1 引数が `diff` / `exec` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./diff` のように書きます。
 
 `gh-editor skill install [書き出し先]` は、このコマンドの使い方を書いたスキル（`SKILL.md`）を書き出します。書き出し先を省略すると `~/.claude/skills/gh-editor/` に書きます。
 

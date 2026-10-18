@@ -1406,8 +1406,11 @@ func (a *App) editorKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 		a.comp = nil
 	default:
 		if msg.Type == tea.KeyRunes && !msg.Alt {
-			s := string(msg.Runes)
-			b.Insert(s)
+			if len(msg.Runes) == 1 {
+				b.TypeRune(msg.Runes[0])
+			} else {
+				b.Insert(string(msg.Runes))
+			}
 			return a.afterTyping(t, msg.Runes)
 		}
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestIsSubcommand(t *testing.T) {
-	for _, s := range []string{"diff", "skill"} {
+	for _, s := range []string{"diff", "exec", "skill"} {
 		if !IsSubcommand(s) {
 			t.Errorf("%s should be a subcommand", s)
 		}
@@ -73,5 +73,39 @@ func TestSkillInstall(t *testing.T) {
 	}
 	if Run([]string{"skill"}, func(string) {}, func(string) {}) != 2 {
 		t.Fatal("skill without install should be a usage error")
+	}
+}
+
+func TestRunExec(t *testing.T) {
+	dir, err := os.MkdirTemp("", "ghe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	sock := filepath.Join(dir, "s.sock")
+	var got string
+	srv, err := Listen(sock, func(r Request) Response {
+		got = r.Cmd + "|" + r.Line
+		if r.Line == ":bad" {
+			return Response{Error: "no"}
+		}
+		return Response{OK: true, Message: "done"}
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer srv.Close()
+	t.Setenv(EnvSocket, sock)
+	var out, errOut []string
+	o := func(s string) { out = append(out, s) }
+	e := func(s string) { errOut = append(errOut, s) }
+	if Run([]string{"exec", ":grep", "foo"}, o, e) != 0 || got != "exec|:grep foo" || len(out) != 1 || out[0] != "done" {
+		t.Fatalf("got=%q out=%v err=%v", got, out, errOut)
+	}
+	if Run([]string{"exec", ":bad"}, o, e) != 1 {
+		t.Fatal("error reply should exit 1")
+	}
+	if Run([]string{"exec"}, o, e) != 2 {
+		t.Fatal("exec without a command is a usage error")
 	}
 }
