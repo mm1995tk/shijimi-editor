@@ -199,7 +199,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ### 挿入モード
 
-`Esc` でノーマルモードへ戻ります。補完は `.` などの入力や 2 文字入力で自動的に出ます（`Ctrl+X` で手動）。`Tab` / `Enter` で確定します。
+`Esc` でノーマルモードへ戻ります。補完は `.` などの入力や 2 文字入力で自動的に出ます（`Ctrl+X` で手動）。`Tab` / `Enter` で確定します。スニペット補完は穴が選択された状態で入り、`Tab` / `Shift+Tab` で穴を移れます。
 
 ### `:` コマンド
 
