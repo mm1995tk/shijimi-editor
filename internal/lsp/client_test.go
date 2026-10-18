@@ -85,3 +85,29 @@ func TestParseWorkspaceSymbols(t *testing.T) {
 		t.Errorf("got %+v", got)
 	}
 }
+
+func TestParseSignatureHelp(t *testing.T) {
+	// Offsets into the label (UTF-16).
+	h := parseSignatureHelp(json.RawMessage(`{"signatures":[{"label":"f(a int, b string)","parameters":[{"label":[2,7]},{"label":[9,17]}]}],"activeParameter":1}`))
+	if h == nil || h.Label != "f(a int, b string)" || h.ParamStart != 9 || h.ParamEnd != 17 {
+		t.Errorf("offsets: %+v", h)
+	}
+
+	// Parameter given as text; the signature's own activeParameter wins.
+	h = parseSignatureHelp(json.RawMessage(`{"signatures":[{"label":"f(あ int, b string)","activeParameter":0,"parameters":[{"label":"あ int"},{"label":"b string"}]}],"activeParameter":1}`))
+	if h == nil || h.ParamStart != 2 || h.ParamEnd != 7 {
+		t.Errorf("text label: %+v", h)
+	}
+
+	// No active parameter: still shows the signature.
+	h = parseSignatureHelp(json.RawMessage(`{"signatures":[{"label":"f()"}]}`))
+	if h == nil || h.ParamStart != -1 {
+		t.Errorf("no parameter: %+v", h)
+	}
+
+	for _, in := range []string{`null`, `{"signatures":[]}`} {
+		if h := parseSignatureHelp(json.RawMessage(in)); h != nil {
+			t.Errorf("%s: got %+v, want nil", in, h)
+		}
+	}
+}
