@@ -132,6 +132,7 @@ type Client struct {
 	dead   chan struct{}
 
 	completionTriggers string
+	signatureTriggers  string
 }
 
 // Start launches a server and performs the initialize handshake in the
@@ -202,6 +203,13 @@ func (c *Client) initialize() {
 				"completion": map[string]any{
 					"completionItem": map[string]any{"snippetSupport": false},
 				},
+				"signatureHelp": map[string]any{
+					"signatureInformation": map[string]any{
+						"documentationFormat":    []string{"plaintext"},
+						"parameterInformation":   map[string]any{"labelOffsetSupport": true},
+						"activeParameterSupport": true,
+					},
+				},
 				"definition": map[string]any{},
 				"references": map[string]any{},
 				"rename":     map[string]any{},
@@ -241,6 +249,20 @@ func (c *Client) initialize() {
 			}
 		}
 	}
+	if sp, ok := c.caps["signatureHelpProvider"].(map[string]any); ok {
+		for _, key := range []string{"triggerCharacters", "retriggerCharacters"} {
+			if tc, ok := sp[key].([]any); ok {
+				for _, t := range tc {
+					if s, ok := t.(string); ok && !strings.Contains(c.signatureTriggers, s) {
+						c.signatureTriggers += s
+					}
+				}
+			}
+		}
+	}
+	if c.caps["signatureHelpProvider"] != nil && c.signatureTriggers == "" {
+		c.signatureTriggers = "(,"
+	}
 	c.Notify("initialized", map[string]any{})
 	if c.server.Config != nil {
 		c.Notify("workspace/didChangeConfiguration", map[string]any{"settings": c.server.Config})
@@ -256,6 +278,16 @@ func (c *Client) IsCompletionTrigger(r rune) bool {
 		return false
 	}
 	return strings.ContainsRune(c.completionTriggers, r)
+}
+
+// IsSignatureTrigger reports whether typing r should show signature help.
+func (c *Client) IsSignatureTrigger(r rune) bool {
+	select {
+	case <-c.ready:
+	default:
+		return false
+	}
+	return strings.ContainsRune(c.signatureTriggers, r)
 }
 
 // Supports reports whether the server advertised a capability, e.g.
@@ -602,6 +634,70 @@ func parseLocations(raw json.RawMessage) []Location {
 			out = append(out, Location{URI: l.TargetURI, Range: l.TargetSelectionRange})
 		} else {
 			out = append(out, l.Location)
+		}
+	}
+	return out
+}
+
+// SignatureHelp is the active signature at a call. The active parameter is
+// the rune range [ParamStart, ParamEnd) of Label; both are -1 when unknown.
+type SignatureHelp struct {
+	Label                string
+	ParamStart, ParamEnd int
+}
+
+// SignatureHelp returns the signature of the call around pos, or nil.
+func (c *Client) SignatureHelp(ctx context.Context, path string, pos Position) (*SignatureHelp, error) {
+	var raw json.RawMessage
+	if err := c.Call(ctx, "textDocument/signatureHelp", docPos(path, pos), &raw); err != nil {
+		return nil, err
+	}
+	return parseSignatureHelp(raw), nil
+}
+
+func parseSignatureHelp(raw json.RawMessage) *SignatureHelp {
+	var res struct {
+		Signatures []struct {
+			Label      string `json:"label"`
+			Parameters []struct {
+				Label json.RawMessage `json:"label"`
+			} `json:"parameters"`
+			ActiveParameter *int `json:"activeParameter"`
+		} `json:"signatures"`
+		ActiveSignature *int `json:"activeSignature"`
+		ActiveParameter *int `json:"activeParameter"`
+	}
+	if json.Unmarshal(raw, &res) != nil || len(res.Signatures) == 0 {
+		return nil
+	}
+	i := 0
+	if res.ActiveSignature != nil && *res.ActiveSignature >= 0 && *res.ActiveSignature < len(res.Signatures) {
+		i = *res.ActiveSignature
+	}
+	sig := res.Signatures[i]
+	if sig.Label == "" {
+		return nil
+	}
+	out := &SignatureHelp{Label: sig.Label, ParamStart: -1, ParamEnd: -1}
+	n := -1
+	if sig.ActiveParameter != nil {
+		n = *sig.ActiveParameter
+	} else if res.ActiveParameter != nil {
+		n = *res.ActiveParameter
+	}
+	if n < 0 || n >= len(sig.Parameters) {
+		return out
+	}
+	label := []rune(sig.Label)
+	var span [2]int
+	var name string
+	switch {
+	case json.Unmarshal(sig.Parameters[n].Label, &span) == nil:
+		out.ParamStart, out.ParamEnd = FromUTF16(label, span[0]), FromUTF16(label, span[1])
+	case json.Unmarshal(sig.Parameters[n].Label, &name) == nil && name != "":
+		if at := strings.Index(sig.Label, name); at >= 0 {
+			out.ParamStart = len([]rune(sig.Label[:at]))
+			out.ParamEnd = out.ParamStart + len([]rune(name))
 		}
 	}
 	return out

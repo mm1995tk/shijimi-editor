@@ -88,6 +88,7 @@ type App struct {
 	findOrigin buffer.Pos
 
 	comp        *completionPopup
+	sig         *signaturePopup
 	hoverText   string
 	hoverScroll int
 	hoverAt     *screenPt // where a mouse-triggered popup is anchored; nil = at the cursor
@@ -762,6 +763,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		if len(a.comp.items) == 0 {
 			a.comp = nil
 		}
+	case signatureMsg:
+		a.showSignature(msg)
 	case workspaceEditMsg:
 		a.applyWorkspaceEdit(msg.edit)
 	case symbolsMsg:
@@ -856,6 +859,9 @@ func (a *App) handleLSPEvent(e lsp.Event) tea.Cmd {
 func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	key := msg.String()
 	a.msg = ""
+	if a.sig != nil && (key == "esc" || !a.sigVisible()) {
+		a.sig = nil
+	}
 	if a.hoverAt != nil {
 		// A popup the pointer opened never takes keys: it closes whatever has the
 		// focus, and the key goes on to it.
@@ -1362,6 +1368,8 @@ func (a *App) editorKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 		a.toggleComment()
 	case "ctrl+@", "ctrl+ ":
 		return a.completion()
+	case "ctrl+shift+ ", "ctrl+shift+@":
+		return a.signatureHelp(true)
 	case "f12":
 		return a.gotoDefinition()
 	case "shift+f12":
@@ -1381,12 +1389,15 @@ func (a *App) editorKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-// afterTyping opens or refreshes the completion popup.
+// afterTyping opens or refreshes the completion and signature popups.
 func (a *App) afterTyping(t *tab, typed []rune) tea.Cmd {
 	if len(typed) != 1 {
 		return nil
 	}
-	r := typed[0]
+	return tea.Batch(a.signatureTyped(t, typed[0]), a.completionTyped(t, typed[0]))
+}
+
+func (a *App) completionTyped(t *tab, r rune) tea.Cmd {
 	if a.comp != nil {
 		if isIdent(r) {
 			a.comp.filter()
@@ -1780,6 +1791,13 @@ func (a *App) View() string {
 			box = a.hoverView(l).render(a.hoverScroll)
 		}
 		x, y := popupPos(l, a.w, cx, cy, box)
+		rows = overlay(rows, box, x, y)
+	}
+
+	if a.sig != nil && a.comp == nil && a.hoverText == "" && a.sigVisible() {
+		cx, cy := a.cursorScreen(a.sig.tab, l)
+		box := a.sig.render(max(10, a.w-l.rightX))
+		x, y := signaturePos(l, a.w, cx, cy, box)
 		rows = overlay(rows, box, x, y)
 	}
 
