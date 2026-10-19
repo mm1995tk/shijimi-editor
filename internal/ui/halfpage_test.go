@@ -83,3 +83,20 @@ func TestHalfPageStopsAtEndOfFile(t *testing.T) {
 		t.Fatalf("row %d, scrolling %v; want last row and stopped", b.Cur.Row, a.hold.buf != nil)
 	}
 }
+
+// Some terminals drop IME text while key releases are reported, so they are
+// asked for only where Ctrl+D / Ctrl+U scroll.
+func TestKeyReleasesOnlyInNormalMode(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	if !a.View().KeyboardEnhancements.ReportEventTypes {
+		t.Fatal("normal mode should ask for key releases")
+	}
+	keys(a, "i")
+	if a.View().KeyboardEnhancements.ReportEventTypes {
+		t.Fatal("insert mode should not ask for key releases")
+	}
+	keys(a, "esc", ":")
+	if a.View().KeyboardEnhancements.ReportEventTypes {
+		t.Fatal("the command line should not ask for key releases")
+	}
+}
