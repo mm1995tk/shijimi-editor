@@ -5,16 +5,16 @@
 次のどれか 1 つを実行します。
 
 ```sh
-nix run github:mm1995tk/gh-editor           # インストールせずにその場で起動
-nix profile install github:mm1995tk/gh-editor
-go install github.com/mm1995tk/gh-editor@latest
+nix run github:mm1995tk/dageki           # インストールせずにその場で起動
+nix profile install github:mm1995tk/dageki
+go install github.com/mm1995tk/dageki/cmd/dgk@latest
 ```
 
 home-manager で入れる方法は [Nix と home-manager](nix.md) にあります。
 
 ## 必要なもの
 
-gh-editor 本体だけで編集はできます。次の機能は、別のコマンドが必要です。
+dageki 本体だけで編集はできます。次の機能は、別のコマンドが必要です。
 
 | 機能 | 必要なコマンド |
 | --- | --- |
@@ -28,9 +28,9 @@ gh-editor 本体だけで編集はできます。次の機能は、別のコマ�
 ## 起動
 
 ```sh
-gh-editor            # カレントディレクトリを開く
-gh-editor ./src      # ディレクトリを開く
-gh-editor main.go    # ファイルを開く
+dgk            # カレントディレクトリを開く
+dgk ./src      # ディレクトリを開く
+dgk main.go    # ファイルを開く
 ```
 
 ## 終了

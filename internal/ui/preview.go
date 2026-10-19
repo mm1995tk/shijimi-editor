@@ -59,7 +59,7 @@ func mermaidCacheDir() string {
 	if err != nil {
 		d = os.TempDir()
 	}
-	return filepath.Join(d, "gh-editor", "mermaid")
+	return filepath.Join(d, "dageki", "mermaid")
 }
 
 // previewMode is how a Markdown tab shows its preview.

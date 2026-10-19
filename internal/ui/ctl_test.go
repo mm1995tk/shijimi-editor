@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mm1995tk/gh-editor/internal/ctl"
+	"github.com/mm1995tk/dageki/internal/ctl"
 )
 
 func ctlCall(a *App, r ctl.Request) ctl.Response {

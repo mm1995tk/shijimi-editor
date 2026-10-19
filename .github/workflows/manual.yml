@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PROJECT_NAME: gh-editor-manual
+  PROJECT_NAME: dageki-manual
 
 jobs:
   build:

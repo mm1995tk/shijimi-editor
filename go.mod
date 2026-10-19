@@ -1,4 +1,4 @@
-module github.com/mm1995tk/gh-editor
+module github.com/mm1995tk/dageki
 
 go 1.26.8
 

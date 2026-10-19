@@ -9,8 +9,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/gh-editor/internal/diff"
-	"github.com/mm1995tk/gh-editor/internal/ide"
+	"github.com/mm1995tk/dageki/internal/diff"
+	"github.com/mm1995tk/dageki/internal/ide"
 )
 
 // diffContext is how many unchanged lines surround each change.

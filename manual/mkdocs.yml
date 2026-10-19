@@ -1,8 +1,8 @@
-site_name: gh-editor 説明書
-site_description: ターミナルで動く統合開発環境 gh-editor の説明書
-site_url: https://gh-editor-manual.pages.dev/
-repo_url: https://github.com/mm1995tk/gh-editor
-repo_name: mm1995tk/gh-editor
+site_name: dageki 説明書
+site_description: ターミナルで動く統合開発環境 dageki の説明書
+site_url: https://dageki-manual.pages.dev/
+repo_url: https://github.com/mm1995tk/dageki
+repo_name: mm1995tk/dageki
 edit_uri: edit/main/manual/docs/
 
 theme:

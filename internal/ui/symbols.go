@@ -7,7 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/mm1995tk/gh-editor/internal/lsp"
+	"github.com/mm1995tk/dageki/internal/lsp"
 )
 
 // symbolQueryDelay is how long the input rests before workspace/symbol is

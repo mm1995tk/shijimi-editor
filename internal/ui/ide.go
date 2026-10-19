@@ -12,8 +12,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/mm1995tk/gh-editor/internal/buffer"
-	"github.com/mm1995tk/gh-editor/internal/ide"
+	"github.com/mm1995tk/dageki/internal/buffer"
+	"github.com/mm1995tk/dageki/internal/ide"
 )
 
 // ideReply is the result of an IDE tool call.

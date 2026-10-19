@@ -12,8 +12,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/gh-editor/internal/buffer"
-	"github.com/mm1995tk/gh-editor/internal/diff"
+	"github.com/mm1995tk/dageki/internal/buffer"
+	"github.com/mm1995tk/dageki/internal/diff"
 )
 
 // git-diff mode: the whole editor switches to showing changes. The sidebar

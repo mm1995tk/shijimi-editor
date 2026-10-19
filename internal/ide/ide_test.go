@@ -72,9 +72,9 @@ func TestRemoveStale(t *testing.T) {
 	stale := dir + "/1.lock"
 	other := dir + "/2.lock"
 	live := dir + "/3.lock"
-	os.WriteFile(stale, []byte(`{"pid":2147483646,"ideName":"gh-editor"}`), 0o600)
+	os.WriteFile(stale, []byte(`{"pid":2147483646,"ideName":"dageki"}`), 0o600)
 	os.WriteFile(other, []byte(`{"pid":2147483646,"ideName":"Neovim"}`), 0o600)
-	os.WriteFile(live, []byte(fmt.Sprintf(`{"pid":%d,"ideName":"gh-editor"}`, os.Getpid())), 0o600)
+	os.WriteFile(live, []byte(fmt.Sprintf(`{"pid":%d,"ideName":"dageki"}`, os.Getpid())), 0o600)
 	removeStale(dir)
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {
 		t.Error("stale lock kept")

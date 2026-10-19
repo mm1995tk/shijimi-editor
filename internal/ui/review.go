@@ -15,7 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/gh-editor/internal/diff"
+	"github.com/mm1995tk/dageki/internal/diff"
 )
 
 // Review colors; set by applyTheme.

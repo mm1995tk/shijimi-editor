@@ -16,7 +16,7 @@ func DefaultSkillDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".claude", "skills", "gh-editor"), nil
+	return filepath.Join(home, ".claude", "skills", "dageki"), nil
 }
 
 // InstallSkill writes SKILL.md into dir and returns the file path.
@@ -33,7 +33,7 @@ func InstallSkill(dir string) (string, error) {
 
 func runSkill(args []string, stdout, stderr func(string)) int {
 	if len(args) < 1 || len(args) > 2 || args[0] != "install" {
-		stderr("usage: gh-editor skill install [書き出し先ディレクトリ]")
+		stderr("usage: dgk skill install [書き出し先ディレクトリ]")
 		return 2
 	}
 	var dir string

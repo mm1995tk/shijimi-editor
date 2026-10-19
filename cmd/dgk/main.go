@@ -1,4 +1,4 @@
-// Command gh-editor is a VS Code–style IDE for the terminal.
+// Command dgk runs dageki, a VS Code–style IDE for the terminal.
 package main
 
 import (
@@ -9,10 +9,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/mm1995tk/gh-editor/internal/caret"
-	"github.com/mm1995tk/gh-editor/internal/ctl"
-	"github.com/mm1995tk/gh-editor/internal/ide"
-	"github.com/mm1995tk/gh-editor/internal/ui"
+	"github.com/mm1995tk/dageki/internal/caret"
+	"github.com/mm1995tk/dageki/internal/ctl"
+	"github.com/mm1995tk/dageki/internal/ide"
+	"github.com/mm1995tk/dageki/internal/ui"
 )
 
 func main() {
@@ -20,11 +20,11 @@ func main() {
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
 		if arg == "-h" || arg == "--help" {
-			fmt.Println("usage: gh-editor [ディレクトリ | ファイル]")
-			fmt.Println("       gh-editor diff [path]")
-			fmt.Println("       gh-editor exec \":コマンド\"")
-			fmt.Println("       gh-editor skill install [書き出し先]")
-			fmt.Println("サブコマンドは実行中の gh-editor へ $" + ctl.EnvSocket + " 経由で送ります。")
+			fmt.Println("usage: dgk [ディレクトリ | ファイル]")
+			fmt.Println("       dgk diff [path]")
+			fmt.Println("       dgk exec \":コマンド\"")
+			fmt.Println("       dgk skill install [書き出し先]")
+			fmt.Println("サブコマンドは実行中の dageki へ $" + ctl.EnvSocket + " 経由で送ります。")
 			fmt.Println("同名のファイルを開くときは ./diff のようにパスで書いてください。")
 			return
 		}

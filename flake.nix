@@ -1,5 +1,5 @@
 {
-  description = "gh-editor: VS Code-style terminal IDE with Helix keybindings";
+  description = "dageki: VS Code-style terminal IDE with Helix keybindings";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -18,7 +18,7 @@
     treefmt-nix,
   }: let
     perSystem = flake-utils.lib.eachDefaultSystem (system: let
-      project-name = "mm1995tk/gh-editor";
+      project-name = "mm1995tk/dageki";
       pkgs = import nixpkgs {
         inherit system;
         overlays = [gomod2nix.overlays.default];
@@ -29,22 +29,24 @@
       version = "0.3.0";
 
       appDrv = pkgs.buildGoApplication {
-        pname = "gh-editor";
+        pname = "dageki";
         inherit version;
         pwd = ./.;
         src = ./.;
         modules = ./gomod2nix.toml;
+        subPackages = ["cmd/dgk"];
         CGO_ENABLED = 0;
         ldflags = [
-          "-X github.com/mm1995tk/gh-editor/internal/ui.Version=${version}"
+          "-X github.com/mm1995tk/dageki/internal/ui.Version=${version}"
           # dirtyShortRev ends in "-dirty" when built from uncommitted changes
-          "-X github.com/mm1995tk/gh-editor/internal/ui.Commit=${self.shortRev or self.dirtyShortRev or ""}"
+          "-X github.com/mm1995tk/dageki/internal/ui.Commit=${self.shortRev or self.dirtyShortRev or ""}"
         ];
+        meta.mainProgram = "dgk";
       };
     in {
       packages = {
         default = appDrv;
-        gh-editor = appDrv;
+        dageki = appDrv;
         treefmt = treefmtEval.config.build.configFile;
       };
 
@@ -58,6 +60,6 @@
     perSystem
     // {
       homeManagerModules.default = import ./nix/home-manager-module.nix self;
-      homeManagerModules.gh-editor = self.homeManagerModules.default;
+      homeManagerModules.dageki = self.homeManagerModules.default;
     };
 }

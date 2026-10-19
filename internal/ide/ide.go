@@ -26,7 +26,7 @@ import (
 
 const (
 	// Name is shown by Claude Code as the connected IDE.
-	Name = "gh-editor"
+	Name = "dageki"
 	// AuthHeader carries the token from the lock file.
 	AuthHeader = "x-claude-code-ide-authorization"
 	// EnvPort, EnvEnable and EnvForceTerminal make a Claude Code started in the terminal panel
@@ -157,7 +157,7 @@ func start(lockDir, root string, tools []Tool, h Handler) (*Server, error) {
 	return s, nil
 }
 
-// removeStale deletes lock files left by gh-editor processes that are gone.
+// removeStale deletes lock files left by dageki processes that are gone.
 func removeStale(dir string) {
 	ents, _ := os.ReadDir(dir)
 	for _, e := range ents {

@@ -3,7 +3,7 @@ package ui
 import (
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/gh-editor/internal/caret"
+	"github.com/mm1995tk/dageki/internal/caret"
 )
 
 // SetCaret hands the app the output writer that parks the terminal's cursor

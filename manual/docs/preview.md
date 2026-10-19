@@ -19,7 +19,7 @@ mermaid のコードブロックは図として表示します。
 
 - [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`）で PNG にします。
 - `mmdc` が PATH に無いときや、描画に失敗したときは、図の代わりにソースとエラーを表示します。
-- 描画した結果は `~/.cache/gh-editor/mermaid` に保存します。
+- 描画した結果は `~/.cache/dageki/mermaid` に保存します。
 
 `[editor]` の `mermaid-command` で、使うコマンドを差し替えられます。`{in}` が入力ファイル、`{out}` が出力する PNG です。空にすると無効になります。
 
