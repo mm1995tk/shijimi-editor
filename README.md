@@ -215,7 +215,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `Ctrl+B` | ファイルツリーの表示切替 |
 | `Ctrl+E` | ファイルツリーとエディタのフォーカス切替 |
 | `Ctrl+G` | git-diff モードの切替 |
-| `Ctrl+J` | ターミナルの表示切替 |
+| ``Ctrl+` `` / `Ctrl+J` | ターミナルの表示切替（ターミナルの中では ``Ctrl+` `` だけ） |
 | `Alt+R` | ペインのリサイズモード（`←→` サイドバー幅、`↑↓` ターミナル高さ、`<` `>` エディタとプレビューの境界、`=` 初期値、`Esc` で終了）。境界線のマウスドラッグでも変えられます。大きさはエディタを終了するまで保たれます |
 | `Ctrl+S` | 保存 |
 | `Ctrl+W` | タブを閉じる |
@@ -268,7 +268,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ## 制限
 
-- ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / `Ctrl+J` / `F1` / `Alt+R` のみ）。`F2` で新しいタブ、`Ctrl+PageUp/PageDown` でタブ切替、シェルが終了するとタブが閉じます。マウスのホイールで流れた出力をさかのぼれます。
+- ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / ``Ctrl+` `` / `F1` / `Alt+R` のみ）。`Ctrl+J` はシェルへ渡るので、Shift+Enter を LF で送る端末でも Claude Code で改行できます。`F2` で新しいタブ、`Ctrl+PageUp/PageDown` でタブ切替、シェルが終了するとタブが閉じます。マウスのホイールで流れた出力をさかのぼれます。
 - 画像は文字（▀）で表示します。細かい部分は粗くなります。
 
 ## 開発

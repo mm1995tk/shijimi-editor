@@ -413,7 +413,7 @@ func renderWelcome(w, h int, helix bool) []string {
 			row{"Space e       ファイルツリーへ移動", false},
 			row{"Space g       プルリクエストをレビュー", false},
 			row{"Ctrl+G        git-diff モード（変更を差分で見る）", false},
-			row{"Ctrl+J        ターミナル", false},
+			row{"Ctrl+`        ターミナル", false},
 			row{":q            終了", false},
 		)
 	} else {
@@ -423,7 +423,7 @@ func renderWelcome(w, h int, helix bool) []string {
 			row{"Ctrl+B        サイドバーの表示切替", false},
 			row{"Ctrl+E        ファイルツリーへ移動", false},
 			row{"Ctrl+G        git-diff モード（変更を差分で見る）", false},
-			row{"Ctrl+J        ターミナル", false},
+			row{"Ctrl+`        ターミナル", false},
 			row{"Ctrl+Q        終了", false},
 		)
 	}

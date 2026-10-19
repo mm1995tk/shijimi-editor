@@ -963,11 +963,13 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 
 	if a.focus == focusTerminal {
-		// The shell owns the keyboard; only these stay global.
+		// The shell owns the keyboard; only these stay global. Ctrl+J is not
+		// one of them: many terminals send Shift+Enter as LF, which arrives as
+		// ctrl+j, and the program in the shell takes it as a newline.
 		switch key {
 		case "ctrl+q":
 			return a.quit()
-		case "ctrl+j":
+		case "ctrl+`":
 			return a.toggleTerm()
 		case "alt+r":
 			return a.startResize()
@@ -994,6 +996,8 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+b":
 		a.toggleSide()
 		return nil
+	case "ctrl+`":
+		return a.toggleTerm()
 	case "ctrl+j", "ctrl+space":
 		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
 		// mode, or Helix insert mode.
