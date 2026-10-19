@@ -4,7 +4,9 @@
 // The editor draws its cursors itself. An input method (IME), however, shows
 // the text being composed at the terminal's cursor, so the app hands bubbletea
 // the typing position as the view's cursor. bubbletea then also shows that
-// cursor; Writer drops the "show cursor" sequence so it stays hidden.
+// cursor; Writer turns the "show cursor" sequence into "hide cursor" so it
+// stays hidden. Dropping it is not enough: bubbletea never hides a cursor it
+// means to show, and terminals start with the cursor visible.
 package caret
 
 import (
@@ -40,14 +42,18 @@ func (w *Writer) Send(p []byte) error {
 	return err
 }
 
-var showCursor = []byte(ansi.SetModeTextCursorEnable)
+var (
+	showCursor = []byte(ansi.SetModeTextCursorEnable)
+	hideCursor = []byte(ansi.ResetModeTextCursorEnable)
+)
 
-// Write writes p without any "show cursor" sequence. Call ShowCursor once the
-// program has exited to give the shell its cursor back.
+// Write writes p with every "show cursor" sequence turned into "hide cursor".
+// Call ShowCursor once the program has exited to give the shell its cursor
+// back.
 func (w *Writer) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if _, err := w.f.Write(bytes.ReplaceAll(p, showCursor, nil)); err != nil {
+	if _, err := w.f.Write(bytes.ReplaceAll(p, showCursor, hideCursor)); err != nil {
 		return 0, err
 	}
 	return len(p), nil
