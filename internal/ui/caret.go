@@ -1,25 +1,23 @@
 package ui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/dageki/internal/caret"
 )
 
-// SetCaret hands the app the output writer that parks the terminal's cursor
-// where the user is typing, so an IME shows its composition there.
+// SetCaret hands the app the output writer, which keeps the terminal's cursor
+// hidden and carries sequences such as the clipboard (OSC 52).
 func (a *App) SetCaret(w *caret.Writer) { a.caret = w }
 
-// updateCaret tells the caret writer where the user is typing in the frame
-// View is about to return.
+// updateCaret records where the user is typing in the frame View is about to
+// return. View hands it to bubbletea as the cursor, so an IME shows its
+// composition there.
 func (a *App) updateCaret(l layout) {
-	if a.caret == nil {
-		return
-	}
+	a.caretAt = nil
 	if x, y, ok := a.caretPos(l); ok {
-		a.caret.Set(x, y)
-	} else {
-		a.caret.Clear()
+		a.caretAt = tea.NewCursor(x, y)
 	}
 }
 

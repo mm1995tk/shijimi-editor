@@ -40,7 +40,8 @@ type App struct {
 	root      string
 	gitTop    string
 	cfg       *config.Config
-	caret     *caret.Writer // parks the terminal cursor for the IME; nil in tests
+	caret     *caret.Writer // the terminal output; nil in tests
+	caretAt   *tea.Cursor   // where the user is typing, for the IME
 	lsp       *lspManager
 	w, h      int
 	focus     focus
@@ -1776,6 +1777,9 @@ func (a *App) View() tea.View {
 	}
 	// Key releases let Ctrl+D / Ctrl+U scroll only while held.
 	v.KeyboardEnhancements.ReportEventTypes = true
+	// The terminal cursor stays hidden (see package caret), but an IME shows
+	// its composition where it is.
+	v.Cursor = a.caretAt
 	return v
 }
 
@@ -1784,9 +1788,7 @@ func (a *App) render() string {
 		return ""
 	}
 	if a.w < 30 || a.h < 8 {
-		if a.caret != nil {
-			a.caret.Clear()
-		}
+		a.caretAt = nil
 		return "ウィンドウが小さすぎます"
 	}
 	l := a.layout()
