@@ -44,6 +44,32 @@ func TestRenderMarkdownWidth(t *testing.T) {
 	}
 }
 
+func TestMarkdownTableWrapsLongCells(t *testing.T) {
+	src := "| 名前 | 説明 |\n|---|---|\n| foo | とても長い説明文がここに入ります。この文は幅を超えるので折り返されるべきです。 |\n| bar | short words that should wrap at spaces nicely |\n"
+	const w = 40
+	lines := renderMarkdown(src, w, mdOpts{})
+	var text strings.Builder
+	for i, l := range lines {
+		if got := ansi.StringWidth(l); got != w {
+			t.Fatalf("line %d width=%d: %q", i, got, ansi.Strip(l))
+		}
+		// collect the second column's content
+		parts := strings.Split(ansi.Strip(l), "│")
+		if len(parts) >= 3 {
+			text.WriteString(strings.TrimSpace(parts[2]))
+		}
+	}
+	plain := ansi.Strip(strings.Join(lines, "\n"))
+	for _, want := range []string{"とても長い説明文がここに入ります。この文は幅を超えるので折り返されるべきです。", "shortwordsthatshouldwrapatspacesnicely"} {
+		if !strings.Contains(strings.ReplaceAll(text.String(), " ", ""), want) {
+			t.Errorf("missing %q in\n%s", want, plain)
+		}
+	}
+	if !strings.Contains(plain, "│ foo  │") || !strings.Contains(plain, "│      │") {
+		t.Errorf("long cell did not wrap onto extra lines\n%s", plain)
+	}
+}
+
 func TestMermaidBlocks(t *testing.T) {
 	got := mermaidBlocks(mdSample)
 	if len(got) != 1 || got[0] != "graph TD; A-->B" {

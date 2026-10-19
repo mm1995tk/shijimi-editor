@@ -495,30 +495,43 @@ func mdTable(rows [][]string, aligns []string, w int) []string {
 	var out []string
 	out = append(out, rule("┌", "┬", "┐"))
 	for ri := range rows {
-		var sb strings.Builder
-		sb.WriteString(bd.Render("│"))
+		// wrap each cell to its column; the row is as tall as its tallest cell
+		wrapped := make([][][]mdCell, cols)
+		height := 1
 		for ci := 0; ci < cols; ci++ {
-			cs := cells[ri][ci]
-			for cellsWidth(cs) > widths[ci] && len(cs) > 0 {
-				cs = cs[:len(cs)-1]
-			}
-			padN := widths[ci] - cellsWidth(cs)
-			left := 0
-			if ci < len(aligns) {
-				a := strings.TrimSpace(aligns[ci])
-				switch {
-				case strings.HasPrefix(a, ":") && strings.HasSuffix(a, ":"):
-					left = padN / 2
-				case strings.HasSuffix(a, ":"):
-					left = padN
-				}
-			}
-			sb.WriteString(stEmpty.Render(" " + strings.Repeat(" ", left)))
-			sb.WriteString(mdRender(cs))
-			sb.WriteString(stEmpty.Render(strings.Repeat(" ", padN-left) + " "))
-			sb.WriteString(bd.Render("│"))
+			wrapped[ci] = mdWrap(cells[ri][ci], widths[ci])
+			height = max(height, len(wrapped[ci]))
 		}
-		out = append(out, fitEmpty(sb.String(), w))
+		for li := 0; li < height; li++ {
+			var sb strings.Builder
+			sb.WriteString(bd.Render("│"))
+			for ci := 0; ci < cols; ci++ {
+				var cs []mdCell
+				if li < len(wrapped[ci]) {
+					cs = wrapped[ci][li]
+				}
+				// a wide rune can still overflow a 1-column cell
+				for cellsWidth(cs) > widths[ci] && len(cs) > 0 {
+					cs = cs[:len(cs)-1]
+				}
+				padN := widths[ci] - cellsWidth(cs)
+				left := 0
+				if ci < len(aligns) {
+					a := strings.TrimSpace(aligns[ci])
+					switch {
+					case strings.HasPrefix(a, ":") && strings.HasSuffix(a, ":"):
+						left = padN / 2
+					case strings.HasSuffix(a, ":"):
+						left = padN
+					}
+				}
+				sb.WriteString(stEmpty.Render(" " + strings.Repeat(" ", left)))
+				sb.WriteString(mdRender(cs))
+				sb.WriteString(stEmpty.Render(strings.Repeat(" ", padN-left) + " "))
+				sb.WriteString(bd.Render("│"))
+			}
+			out = append(out, fitEmpty(sb.String(), w))
+		}
 		if ri == 0 {
 			out = append(out, rule("├", "┼", "┤"))
 		}
