@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -100,7 +100,7 @@ func TestRenderDiffTextShowsWholeFile(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	for _, split := range []bool{true, false} {
 		a.gd.split = split
-		view := ansi.Strip(a.View())
+		view := ansi.Strip(a.render())
 		for _, s := range []string{"a.txt", "比較元: HEAD", "CHANGES", "new.txt"} {
 			if !strings.Contains(view, s) {
 				t.Errorf("split=%v: view lacks %q", split, s)
@@ -152,11 +152,11 @@ func TestToggleGitDiffAndKeys(t *testing.T) {
 	}
 	a.setFocus(focusChanges)
 	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead).(changesLoadedMsg))
-	a.handleChangesKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+	a.handleChangesKey(textKey("s"))
 	if a.gd.split {
 		t.Errorf("s did not switch to unified")
 	}
-	a.handleChangesKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+	a.handleChangesKey(textKey("j"))
 	if a.gd.sel != 1 {
 		t.Errorf("sel = %d", a.gd.sel)
 	}
@@ -199,7 +199,7 @@ func TestPRBaseFallsBackToHead(t *testing.T) {
 func TestChangesListClickAndTab(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	click := func(y int) {
-		a.handleMouse(tea.MouseMsg{X: 2, Y: y, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+		a.handleMouse(mouseEvent{X: 2, Y: y, Action: mousePress, Button: tea.MouseLeft})
 	}
 	h := a.explorerH()
 	click(h + 2) // second file
@@ -211,7 +211,7 @@ func TestChangesListClickAndTab(t *testing.T) {
 		t.Errorf("first row opened %v", a.curText().buf.Path)
 	}
 	a.setFocus(focusExplorer)
-	a.handleExplorerKey(tea.KeyMsg{Type: tea.KeyTab})
+	a.handleExplorerKey(tea.KeyPressMsg{Code: tea.KeyTab})
 	if a.focus != focusChanges {
 		t.Errorf("Tab from the tree: focus=%v", a.focus)
 	}
@@ -245,7 +245,7 @@ func TestFullPreviewDoesNotBlockEditingInGitDiff(t *testing.T) {
 	}
 	ver := tb.buf.Version
 	for _, k := range []string{"i", "Z"} {
-		a.handleHelixKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)})
+		a.handleHelixKey(textKey(k))
 	}
 	if tb.buf.Version == ver {
 		t.Fatal("editing was blocked while the diff is visible")

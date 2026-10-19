@@ -11,9 +11,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
@@ -170,13 +170,15 @@ func (a *App) Close() {
 }
 
 func styleInput(ti *textinput.Model, bg string) {
-	ti.TextStyle = bgfg(bg, cEditorFg)
-	ti.PlaceholderStyle = bgfg(bg, curTheme.Dim)
-	ti.PromptStyle = bgfg(bg, cEditorFg)
-	// bubbles' cursor applies Reverse on top of this style, so the cursor
-	// colour goes in the foreground; it ends up as the cell background.
-	ti.Cursor.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(curTheme.Cursor))
-	ti.Cursor.TextStyle = bgfg(bg, cEditorFg)
+	st := bgfg(bg, cEditorFg)
+	s := ti.Styles()
+	s.Focused = textinput.StyleState{Text: st, Placeholder: bgfg(bg, curTheme.Dim), Prompt: st}
+	s.Blurred = s.Focused
+	// bubbles' cursor applies Reverse on top of this colour, so it ends up as
+	// the cell background.
+	s.Cursor.Color = lipgloss.Color(curTheme.Cursor)
+	s.Cursor.Blink = false
+	ti.SetStyles(s)
 }
 
 func (a *App) Init() tea.Cmd { return tea.Batch(a.lsp.wait(), watchTick()) }
@@ -831,21 +833,27 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return a.handleSubmitted(msg)
 	case prListMsg:
 		return a.showPRList(msg)
-	case tea.MouseMsg:
+	case mouseEvent:
 		return a.handleMouse(msg)
-	case tea.KeyMsg:
+	case tea.MouseMsg:
+		return a.handleMouse(toMouseEvent(msg))
+	case tea.KeyPressMsg:
 		a.hoverSeq++ // a pending mouse hover is stale once the user types
 		a.hoverWord = wordSpan{}
 		// Fast typing can deliver several runes in one message; Helix-style
 		// commands need them one at a time.
-		if msg.Type == tea.KeyRunes && len(msg.Runes) > 1 && !msg.Paste {
+		if utf8.RuneCountInString(msg.Text) > 1 {
 			var cmds []tea.Cmd
-			for _, r := range msg.Runes {
-				cmds = append(cmds, a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}, Alt: msg.Alt}))
+			for _, r := range msg.Text {
+				cmds = append(cmds, a.handleKey(tea.KeyPressMsg{Code: r, Text: string(r), Mod: msg.Mod}))
 			}
 			return tea.Batch(cmds...)
 		}
 		return a.handleKey(msg)
+	case tea.PasteMsg:
+		a.hoverSeq++
+		a.hoverWord = wordSpan{}
+		return a.handlePaste(msg)
 	}
 	return nil
 }
@@ -878,7 +886,7 @@ func (a *App) handleLSPEvent(e lsp.Event) tea.Cmd {
 	return nil
 }
 
-func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	key := msg.String()
 	a.msg = ""
 	if a.sig != nil && (key == "esc" || !a.sigVisible()) {
@@ -971,7 +979,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case "ctrl+b":
 		a.toggleSide()
 		return nil
-	case "ctrl+j", "ctrl+@":
+	case "ctrl+j", "ctrl+space":
 		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
 		// mode, or Helix insert mode.
 		typing := a.focus == focusEditor && a.curText() != nil && (!a.helix || a.mode == modeInsert)
@@ -1022,7 +1030,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	t := a.cur()
 	if t == nil {
-		if key == "esc" || key == "tab" || key == " " {
+		if key == "esc" || key == "tab" || key == "space" {
 			a.showSide = true
 			return a.setFocus(focusExplorer)
 		}
@@ -1047,7 +1055,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 			a.closeTab(true)
 		case ":":
 			return a.openCmdline(":")
-		case " ":
+		case "space":
 			a.pending = " "
 		}
 		return nil
@@ -1065,7 +1073,7 @@ func (a *App) handleKey(msg tea.KeyMsg) tea.Cmd {
 	return a.handleEditorKey(msg)
 }
 
-func (a *App) handleCompletionKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+func (a *App) handleCompletionKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	c := a.comp
 	switch msg.String() {
 	case "up", "ctrl+p", "shift+tab":
@@ -1084,7 +1092,7 @@ func (a *App) handleCompletionKey(msg tea.KeyMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (a *App) handlePaletteKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handlePaletteKey(msg tea.KeyPressMsg) tea.Cmd {
 	p := a.pal
 	switch msg.String() {
 	case "esc", "ctrl+c":
@@ -1103,6 +1111,12 @@ func (a *App) handlePaletteKey(msg tea.KeyMsg) tea.Cmd {
 	case "enter":
 		return a.submitPalette()
 	}
+	return a.paletteInput(msg)
+}
+
+// paletteInput passes a key or a paste to the palette's query.
+func (a *App) paletteInput(msg tea.Msg) tea.Cmd {
+	p := a.pal
 	old := p.input.Value()
 	var cmd tea.Cmd
 	p.input, cmd = p.input.Update(msg)
@@ -1149,7 +1163,7 @@ func (a *App) submitPalette() tea.Cmd {
 	return nil
 }
 
-func (a *App) handleExplorerKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleExplorerKey(msg tea.KeyPressMsg) tea.Cmd {
 	e := a.explorer
 	key := msg.String()
 	if a.pending == " " {
@@ -1200,7 +1214,7 @@ func (a *App) handleExplorerKey(msg tea.KeyMsg) tea.Cmd {
 	case "R":
 		e.refresh()
 		a.info("ファイルツリーを更新しました")
-	case " ":
+	case "space":
 		a.pending = " "
 	case ":":
 		return a.openCmdline(":")
@@ -1219,7 +1233,7 @@ func (a *App) handleExplorerKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-func (a *App) handleFindKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleFindKey(msg tea.KeyPressMsg) tea.Cmd {
 	t := a.curText()
 	if t == nil {
 		a.closeFind()
@@ -1242,6 +1256,11 @@ func (a *App) handleFindKey(msg tea.KeyMsg) tea.Cmd {
 	case "ctrl+f":
 		return nil
 	}
+	return a.findInputUpdate(msg)
+}
+
+// findInputUpdate passes a key or a paste to the find bar.
+func (a *App) findInputUpdate(msg tea.Msg) tea.Cmd {
 	before := a.findInput.Value()
 	var cmd tea.Cmd
 	a.findInput, cmd = a.findInput.Update(msg)
@@ -1253,7 +1272,7 @@ func (a *App) handleFindKey(msg tea.KeyMsg) tea.Cmd {
 
 // handleEditorKey is the modeless (VS Code style) editing used by the
 // vscode keymap and by Helix insert mode.
-func (a *App) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleEditorKey(msg tea.KeyPressMsg) tea.Cmd {
 	t := a.curText()
 	if t != nil && t.buf.HasExtra() && multiEditable(msg) {
 		a.comp = nil
@@ -1266,32 +1285,26 @@ func (a *App) handleEditorKey(msg tea.KeyMsg) tea.Cmd {
 
 // multiEditable reports whether msg is a movement or editing key that
 // applies to every cursor.
-func multiEditable(msg tea.KeyMsg) bool {
-	if msg.Paste || msg.Type == tea.KeyRunes && !msg.Alt {
+func multiEditable(msg tea.KeyPressMsg) bool {
+	if typed(msg) != "" {
 		return true
 	}
 	switch msg.String() {
 	case "left", "right", "up", "down", "shift+left", "shift+right", "shift+up", "shift+down",
 		"home", "end", "shift+home", "shift+end", "ctrl+left", "ctrl+right", "alt+b", "alt+f",
-		"ctrl+shift+left", "ctrl+shift+right", "enter", "tab", "backspace", "ctrl+h", "delete", " ":
+		"ctrl+shift+left", "ctrl+shift+right", "enter", "tab", "backspace", "ctrl+h", "delete", "space":
 		return true
 	}
 	return false
 }
 
-func (a *App) editorKey(t *tab, msg tea.KeyMsg) tea.Cmd {
+func (a *App) editorKey(t *tab, msg tea.KeyPressMsg) tea.Cmd {
 	if t == nil {
 		return nil
 	}
 	b := t.buf
 	a.follow = true
 	page := a.pageSize()
-
-	if msg.Paste {
-		s := strings.ReplaceAll(string(msg.Runes), "\r\n", "\n")
-		b.InsertBlock(strings.ReplaceAll(s, "\r", "\n"))
-		return nil
-	}
 
 	switch msg.String() {
 	case "esc":
@@ -1393,7 +1406,7 @@ func (a *App) editorKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 		return a.openFind()
 	case "ctrl+_", "ctrl+/":
 		a.toggleComment()
-	case "ctrl+@", "ctrl+ ":
+	case "ctrl+space":
 		return a.completion()
 	case "f12":
 		return a.gotoDefinition()
@@ -1401,17 +1414,17 @@ func (a *App) editorKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 		return a.references()
 	case "f2":
 		return a.rename()
-	case " ":
+	case "space":
 		b.Insert(" ")
 		a.comp = nil
 	default:
-		if msg.Type == tea.KeyRunes && !msg.Alt {
-			if len(msg.Runes) == 1 {
-				b.TypeRune(msg.Runes[0])
+		if s := typed(msg); s != "" {
+			if rs := []rune(s); len(rs) == 1 {
+				b.TypeRune(rs[0])
 			} else {
-				b.Insert(string(msg.Runes))
+				b.Insert(s)
 			}
-			return a.afterTyping(t, msg.Runes)
+			return a.afterTyping(t, []rune(s))
 		}
 	}
 	return nil
@@ -1478,7 +1491,7 @@ func (a *App) refreshCompletion() tea.Cmd {
 // program that asked for mouse input (vim, htop, tmux). Once a press went to
 // the program, its drag and release do too, wherever the pointer is. ok is
 // false when the event is not for the program.
-func (a *App) termMouse(l layout, msg tea.MouseMsg) (cmd tea.Cmd, ok bool) {
+func (a *App) termMouse(l layout, msg mouseEvent) (cmd tea.Cmd, ok bool) {
 	t := a.term
 	if !a.showTerm {
 		return nil, false
@@ -1491,50 +1504,50 @@ func (a *App) termMouse(l layout, msg tea.MouseMsg) (cmd tea.Cmd, ok bool) {
 	}
 	sent := t.mouse(msg, x, y)
 	switch msg.Action {
-	case tea.MouseActionPress:
+	case mousePress:
 		if sent {
 			t.grab = true
 			return a.setFocus(focusTerminal), true
 		}
-	case tea.MouseActionRelease:
+	case mouseRelease:
 		t.grab = false
 	}
 	return nil, sent || grabbed
 }
 
-func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
+func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	if a.search.open {
 		return a.searchMouse(msg)
 	}
 	if a.pal.open {
-		if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+		if msg.Action == mousePress && msg.Button == tea.MouseLeft {
 			a.pal.close()
 		}
 		return nil
 	}
 	l := a.layout()
-	if msg.Action == tea.MouseActionMotion && msg.Button == tea.MouseButtonNone {
+	if msg.Action == mouseMotion && msg.Button == tea.MouseNone {
 		return a.passiveMotion(l, msg)
 	}
 	x, y := msg.X, msg.Y
 	wheel := 0
 	switch msg.Button {
-	case tea.MouseButtonWheelUp:
+	case tea.MouseWheelUp:
 		wheel = -3
-	case tea.MouseButtonWheelDown:
+	case tea.MouseWheelDown:
 		wheel = 3
 	}
 	// A popup the pointer opened only owns the wheel while the pointer is on it.
 	if wheel != 0 && a.hoverText != "" && (a.hoverAt == nil || a.inHoverBox(l, screenPt{x, y})) {
-		if msg.Action == tea.MouseActionPress {
+		if msg.Action == mousePress {
 			a.scrollHover(wheel)
 		}
 		return nil
 	}
-	if a.hoverText != "" && msg.Button == tea.MouseButtonLeft {
+	if a.hoverText != "" && msg.Button == tea.MouseLeft {
 		// The button copies on press; the matching release must not close the hover.
 		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).copyHit(x-bx, y-by) {
-			if msg.Action == tea.MouseActionPress {
+			if msg.Action == mousePress {
 				a.copyHover()
 			}
 			return nil
@@ -1545,7 +1558,7 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 	a.hoverWord = wordSpan{}
 	a.hoverCell = screenPt{-1, -1}
 	a.hoverText, a.hoverAt = "", nil
-	if wheel != 0 && msg.Action == tea.MouseActionPress {
+	if wheel != 0 && msg.Action == mousePress {
 		switch {
 		case a.showSide && x < l.sideW:
 			e := a.explorer
@@ -1580,17 +1593,17 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 
 	if a.resizing != resizeNone {
 		switch msg.Action {
-		case tea.MouseActionMotion:
+		case mouseMotion:
 			a.dragResize(l, x, y)
 			return nil
-		case tea.MouseActionRelease:
+		case mouseRelease:
 			a.resizing = resizeNone
 			return nil
 		}
 		// A press means the release was lost (pointer left the window).
 		a.resizing = resizeNone
 	}
-	if msg.Action == tea.MouseActionPress && msg.Button == tea.MouseButtonLeft {
+	if msg.Action == mousePress && msg.Button == tea.MouseLeft {
 		if r := a.resizeHit(l, x, y); r != resizeNone {
 			a.resizing = r
 			return nil
@@ -1601,12 +1614,12 @@ func (a *App) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		return cmd
 	}
 
-	left := msg.Button == tea.MouseButtonLeft
+	left := msg.Button == tea.MouseLeft
 	switch msg.Action {
-	case tea.MouseActionRelease:
+	case mouseRelease:
 		a.dragging = false
 		return nil
-	case tea.MouseActionMotion:
+	case mouseMotion:
 		if a.dragging && left {
 			a.mouseToCursor(l, x, y, true)
 		}
@@ -1741,7 +1754,18 @@ func (a *App) renderText(t *tab, l layout, focused bool) []string {
 	return edit
 }
 
-func (a *App) View() string {
+func (a *App) View() tea.View {
+	v := tea.NewView(a.render())
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	if a.MouseHover() {
+		// A resting pointer is only noticed if motion without a button is reported.
+		v.MouseMode = tea.MouseModeAllMotion
+	}
+	return v
+}
+
+func (a *App) render() string {
 	if a.w <= 0 || a.h <= 0 {
 		return ""
 	}
@@ -1961,7 +1985,7 @@ func (a *App) renderFind(w int) string {
 	label := stFindLabel.Render(" 検索: ")
 	hint := stFind.Render("  Enter:次  ↑:前  Esc:閉じる ")
 	iw := w - lipgloss.Width(label) - lipgloss.Width(hint)
-	a.findInput.Width = max(1, iw-1)
+	a.findInput.SetWidth(max(1, iw-1))
 	return label + fitStyled(a.findInput.View(), iw, stFind) + hint
 }
 

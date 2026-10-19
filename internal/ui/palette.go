@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 )
@@ -190,7 +190,7 @@ func (p *palette) render(w int) []string {
 	} else if p.picking {
 		label = " " + p.pickTitle + " > "
 	}
-	p.input.Width = max(1, w-ansi.StringWidth(label)-2)
+	p.input.SetWidth(max(1, w-ansi.StringWidth(label)-2))
 	out = append(out, stPaletteBox.Render(fit("", w)))
 	out = append(out, stPaletteBox.Render(label)+fitStyled(p.input.View(), w-ansi.StringWidth(label), stPalette))
 	start := 0

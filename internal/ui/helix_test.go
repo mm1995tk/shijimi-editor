@@ -5,25 +5,41 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func keys(a *App, ks ...string) {
 	for _, k := range ks {
-		var m tea.KeyMsg
+		var m tea.KeyPressMsg
 		switch k {
 		case "esc":
-			m = tea.KeyMsg{Type: tea.KeyEscape}
+			m = tea.KeyPressMsg{Code: tea.KeyEscape}
 		case "enter":
-			m = tea.KeyMsg{Type: tea.KeyEnter}
+			m = tea.KeyPressMsg{Code: tea.KeyEnter}
 		case "space":
-			m = tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}}
+			m = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
 		default:
-			m = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}
+			m = textKey(k)
 		}
 		a.Update(m)
 	}
+}
+
+// textKey is a key press that types s (several runes arrive as one message).
+func textKey(s string) tea.KeyPressMsg {
+	r, _ := utf8.DecodeRuneInString(s)
+	if utf8.RuneCountInString(s) > 1 {
+		r = tea.KeyExtended
+	}
+	return tea.KeyPressMsg{Code: r, Text: s}
+}
+
+// altKey is Alt held with the key that types s.
+func altKey(s string) tea.KeyPressMsg {
+	r, _ := utf8.DecodeRuneInString(s)
+	return tea.KeyPressMsg{Code: r, Mod: tea.ModAlt}
 }
 
 func newTestApp(t *testing.T, content string) *App {
@@ -97,7 +113,7 @@ func TestCmdline(t *testing.T) {
 func TestGroupedRunes(t *testing.T) {
 	a := newTestApp(t, "a\nb\nc\n")
 	b := a.curText().buf
-	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3gx")})
+	a.Update(textKey("3gx"))
 	if b.SelectedText() != "c\n" {
 		t.Fatalf("grouped runes -> %+v %q", b.Cur, b.SelectedText())
 	}
@@ -126,7 +142,7 @@ func TestHelixMultiCursor(t *testing.T) {
 	if b.HasExtra() {
 		t.Fatal(", should collapse to one cursor")
 	}
-	a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("C"), Alt: true})
+	a.Update(altKey("C"))
 	if !b.HasExtra() || b.Cur.Row != 1 {
 		t.Fatalf("alt+C -> extra=%v row=%d", b.HasExtra(), b.Cur.Row)
 	}
@@ -148,19 +164,19 @@ func TestHelixSelectRegex(t *testing.T) {
 func TestSpaceMenuPopup(t *testing.T) {
 	a := newTestApp(t, "hello\n")
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
-	if strings.Contains(a.View(), "ファイルを開く") {
+	if strings.Contains(a.render(), "ファイルを開く") {
 		t.Fatal("menu shown before Space")
 	}
 	keys(a, "space")
-	if !strings.Contains(a.View(), "ファイルを開く") {
+	if !strings.Contains(a.render(), "ファイルを開く") {
 		t.Fatal("menu not shown after Space")
 	}
 	keys(a, "esc")
-	if strings.Contains(a.View(), "ファイルを開く") {
+	if strings.Contains(a.render(), "ファイルを開く") {
 		t.Fatal("menu still shown after Esc")
 	}
 	keys(a, "space", "z")
-	if strings.Contains(a.View(), "ファイルを開く") {
+	if strings.Contains(a.render(), "ファイルを開く") {
 		t.Fatal("menu still shown after unassigned key")
 	}
 }
@@ -170,7 +186,7 @@ func TestSpaceMenuFiltersItems(t *testing.T) {
 
 	a.focus = focusExplorer
 	keys(a, "space")
-	v := a.View()
+	v := a.render()
 	if !strings.Contains(v, "ファイルを開く") || !strings.Contains(v, "名前の変更") {
 		t.Fatal("explorer: want file and buffer commands")
 	}
@@ -179,7 +195,7 @@ func TestSpaceMenuFiltersItems(t *testing.T) {
 
 	a.curText().preview = previewFull
 	keys(a, "space")
-	v = a.View()
+	v = a.render()
 	if !strings.Contains(v, "ファイルを開く") || strings.Contains(v, "名前の変更") || strings.Contains(v, "貼り付け") {
 		t.Fatal("full preview: want only commands usable there")
 	}
@@ -188,7 +204,7 @@ func TestSpaceMenuFiltersItems(t *testing.T) {
 
 	a.closeTab(true)
 	keys(a, "space")
-	v = a.View()
+	v = a.render()
 	if !strings.Contains(v, "ファイルを開く") || strings.Contains(v, "名前の変更") || strings.Contains(v, "コピー") {
 		t.Fatal("no text tab: want text-only commands hidden")
 	}
@@ -201,7 +217,7 @@ func TestAutoCloseBracketHelixInsert(t *testing.T) {
 	if got := b.Text(); got != "{}" || b.Cur.Col != 1 {
 		t.Fatalf("text = %q cur = %v", got, b.Cur)
 	}
-	a.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+	a.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 	if got := b.Text(); got != "" {
 		t.Fatalf("after backspace = %q", got)
 	}

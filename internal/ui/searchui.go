@@ -7,8 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
@@ -276,7 +277,7 @@ func (a *App) searchDone(m searchDoneMsg) {
 
 // ---- keys ----
 
-func (a *App) handleSearchKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleSearchKey(msg tea.KeyPressMsg) tea.Cmd {
 	s := a.search
 	switch key := msg.String(); key {
 	case "esc", "ctrl+c":
@@ -320,6 +321,12 @@ func (a *App) handleSearchKey(msg tea.KeyMsg) tea.Cmd {
 	case "alt+1":
 		return a.searchReplaceOne()
 	}
+	return a.searchInput(msg)
+}
+
+// searchInput passes a key or a paste to the focused search field.
+func (a *App) searchInput(msg tea.Msg) tea.Cmd {
+	s := a.search
 	before := s.in[s.field].Value()
 	var cmd tea.Cmd
 	s.in[s.field], cmd = s.in[s.field].Update(msg)
@@ -329,17 +336,17 @@ func (a *App) handleSearchKey(msg tea.KeyMsg) tea.Cmd {
 	return cmd
 }
 
-func (a *App) searchMouse(msg tea.MouseMsg) tea.Cmd {
+func (a *App) searchMouse(msg mouseEvent) tea.Cmd {
 	s := a.search
-	if msg.Action != tea.MouseActionPress {
+	if msg.Action != mousePress {
 		return nil
 	}
 	switch msg.Button {
-	case tea.MouseButtonWheelUp:
+	case tea.MouseWheelUp:
 		s.move(-3)
-	case tea.MouseButtonWheelDown:
+	case tea.MouseWheelDown:
 		s.move(3)
-	case tea.MouseButtonLeft:
+	case tea.MouseLeft:
 		r := s.rect
 		if msg.X < r[0] || msg.X >= r[0]+r[2] || msg.Y < r[1] || msg.Y >= r[1]+r[3] {
 			s.close()
@@ -571,7 +578,7 @@ func (s *searchPanel) fieldBox(i, w int) [3]string {
 	}
 	title := " " + searchLabels[i] + " "
 	// View() is one cell wider than Width when the cursor sits at the end.
-	s.in[i].Width = max(1, w-5)
+	s.in[i].SetWidth(max(1, w-5))
 	body := s.in[i].View()
 	if s.in[i].Value() == "" {
 		body = s.placeholderView(i)
@@ -749,8 +756,9 @@ func (s *searchPanel) viewRows(a *App, w, h int) []string {
 // when the text has wide characters.
 func (s *searchPanel) placeholderView(i int) string {
 	rs := []rune(searchPlaceholders[i])
-	c := s.in[i].Cursor
-	c.TextStyle = stPaletteDim
-	c.SetChar(string(rs[0]))
-	return c.View() + stPaletteDim.Render(string(rs[1:]))
+	first := stPaletteDim.Render(string(rs[0]))
+	if s.in[i].Focused() {
+		first = lipgloss.NewStyle().Foreground(lipgloss.Color(curTheme.Cursor)).Reverse(true).Render(string(rs[0]))
+	}
+	return first + stPaletteDim.Render(string(rs[1:]))
 }

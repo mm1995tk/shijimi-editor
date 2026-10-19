@@ -1,10 +1,10 @@
 // Package caret parks the terminal's own cursor where the user is typing.
 //
-// bubbletea hides the terminal cursor and leaves it at the bottom-left corner
-// after every frame; the editor draws its cursors itself. An input method
-// (IME), however, shows the text being composed at the terminal's cursor, so
-// Japanese input appeared in the corner instead of where it goes. Writer
-// moves the (still hidden) cursor to the typing position after each write.
+// bubbletea hides the terminal cursor and leaves it wherever the last frame
+// ended; the editor draws its cursors itself. An input method (IME), however,
+// shows the text being composed at the terminal's cursor, so Japanese input
+// appeared in the corner instead of where it goes. Writer moves the (still
+// hidden) cursor to the typing position after each write.
 package caret
 
 import (
@@ -26,6 +26,9 @@ type Writer struct {
 	f   File
 	mu  sync.Mutex    // keeps Send from landing in the middle of a frame
 	pos atomic.Uint64 // (y+1)<<32 | (x+1); 0 = leave the cursor alone
+	// parked is set while the cursor sits at pos instead of where bubbletea
+	// left it; guarded by mu.
+	parked bool
 }
 
 // Send writes p to the terminal as is, between frames. It is for sequences
@@ -53,22 +56,29 @@ func (w *Writer) Set(x, y int) {
 func (w *Writer) Clear() { w.pos.Store(0) }
 
 // Write writes p, followed by a move to the parked position in the same write.
-// bubbletea starts every frame on the alternate screen from the home
-// position, so moving the cursor afterwards does not disturb the next frame.
+// bubbletea moves the cursor relative to where its last frame left it, so the
+// cursor is saved (DECSC) before the move and restored (DECRC) before the next
+// write.
 func (w *Writer) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	pos := w.pos.Load()
-	if pos == 0 {
+	if pos == 0 && !w.parked {
 		return w.f.Write(p)
 	}
-	buf := make([]byte, 0, len(p)+16)
+	buf := make([]byte, 0, len(p)+20)
+	if w.parked {
+		buf = append(buf, "\x1b8"...)
+	}
 	buf = append(buf, p...)
-	buf = append(buf, "\x1b["...)
-	buf = strconv.AppendUint(buf, pos>>32, 10)
-	buf = append(buf, ';')
-	buf = strconv.AppendUint(buf, pos&0xffffffff, 10)
-	buf = append(buf, 'H')
+	w.parked = pos != 0
+	if w.parked {
+		buf = append(buf, "\x1b7\x1b["...)
+		buf = strconv.AppendUint(buf, pos>>32, 10)
+		buf = append(buf, ';')
+		buf = strconv.AppendUint(buf, pos&0xffffffff, 10)
+		buf = append(buf, 'H')
+	}
 	if _, err := w.f.Write(buf); err != nil {
 		return 0, err
 	}

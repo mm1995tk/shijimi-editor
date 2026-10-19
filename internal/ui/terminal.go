@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/creack/pty"
 	"github.com/mm1995tk/dageki/internal/vt"
@@ -150,7 +151,7 @@ func (t *terminal) update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		return t.wait()
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "f2":
 			return t.newTab()
@@ -376,51 +377,70 @@ func fitStyled(s string, w int, st interface{ Render(...string) string }) string
 }
 
 // termKeyBytes encodes a key press the way an xterm would send it.
-func termKeyBytes(msg tea.KeyMsg, appCursor bool) []byte {
+func termKeyBytes(msg tea.KeyPressMsg, appCursor bool) []byte {
+	shift := msg.Mod.Contains(tea.ModShift)
+	alt := msg.Mod.Contains(tea.ModAlt)
+	ctrl := msg.Mod.Contains(tea.ModCtrl)
 	esc := func(b []byte) []byte {
-		if msg.Alt {
+		if alt {
 			return append([]byte{0x1b}, b...)
 		}
 		return b
 	}
-	switch msg.Type {
-	case tea.KeyRunes:
-		s := string(msg.Runes)
-		if msg.Paste {
-			s = strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", "\r"), "\n", "\r")
-		}
-		return esc([]byte(s))
-	case tea.KeySpace:
-		return esc([]byte{' '})
-	case tea.KeyBackspace:
-		return esc([]byte{0x7f})
-	case tea.KeyShiftTab:
-		return []byte("\x1b[Z")
+	if s := typed(msg); s != "" {
+		return []byte(s)
 	}
-	if msg.Type >= 0 && msg.Type < ' ' { // ctrl+letter, tab, enter, esc
-		return esc([]byte{byte(msg.Type)})
+	switch c := msg.Code; {
+	case c == tea.KeySpace:
+		if ctrl {
+			return esc([]byte{0})
+		}
+		return esc([]byte{' '})
+	case c == tea.KeyBackspace:
+		return esc([]byte{0x7f})
+	case c == tea.KeyTab && shift:
+		return []byte("\x1b[Z")
+	case c == tea.KeyTab, c == tea.KeyEnter, c == tea.KeyEscape:
+		return esc([]byte{byte(c)})
+	case ctrl && c >= 'a' && c <= 'z':
+		return esc([]byte{byte(c - 'a' + 1)})
+	case ctrl && c >= '@' && c <= '_': // ctrl+@ [ \ ] ^ _
+		return esc([]byte{byte(c - '@')})
+	case ctrl && c == '?':
+		return esc([]byte{0x7f})
+	case !ctrl && c >= ' ' && c < tea.KeyExtended && utf8.ValidRune(c): // alt+letter
+		if shift && msg.ShiftedCode != 0 {
+			c = msg.ShiftedCode
+		}
+		return esc([]byte(string(c)))
 	}
 
 	mod := 1
-	if msg.Alt {
+	if shift {
+		mod++
+	}
+	if alt {
 		mod += 2
 	}
+	if ctrl {
+		mod += 4
+	}
 	// csi builds a cursor-style sequence (ESC [ 1 ; mod F).
-	csi := func(f byte, shift, ctrl bool) []byte {
-		m := mod
-		if shift {
-			m++
-		}
-		if ctrl {
-			m += 4
-		}
-		if m == 1 {
+	csi := func(f byte) []byte {
+		if mod == 1 {
 			if appCursor {
 				return []byte{0x1b, 'O', f}
 			}
 			return []byte{0x1b, '[', f}
 		}
-		return []byte(fmt.Sprintf("\x1b[1;%d%c", m, f))
+		return []byte(fmt.Sprintf("\x1b[1;%d%c", mod, f))
+	}
+	// ss3 builds F1-F4, which drop to CSI form once a modifier is held.
+	ss3 := func(f byte) []byte {
+		if mod == 1 {
+			return []byte{0x1b, 'O', f}
+		}
+		return []byte(fmt.Sprintf("\x1b[1;%d%c", mod, f))
 	}
 	// tilde builds an ESC [ n ; mod ~ sequence.
 	tilde := func(n int) []byte {
@@ -429,51 +449,19 @@ func termKeyBytes(msg tea.KeyMsg, appCursor bool) []byte {
 		}
 		return []byte(fmt.Sprintf("\x1b[%d;%d~", n, mod))
 	}
-	switch msg.Type {
+	switch msg.Code {
 	case tea.KeyUp:
-		return csi('A', false, false)
+		return csi('A')
 	case tea.KeyDown:
-		return csi('B', false, false)
+		return csi('B')
 	case tea.KeyRight:
-		return csi('C', false, false)
+		return csi('C')
 	case tea.KeyLeft:
-		return csi('D', false, false)
-	case tea.KeyShiftUp:
-		return csi('A', true, false)
-	case tea.KeyShiftDown:
-		return csi('B', true, false)
-	case tea.KeyShiftRight:
-		return csi('C', true, false)
-	case tea.KeyShiftLeft:
-		return csi('D', true, false)
-	case tea.KeyCtrlUp:
-		return csi('A', false, true)
-	case tea.KeyCtrlDown:
-		return csi('B', false, true)
-	case tea.KeyCtrlRight:
-		return csi('C', false, true)
-	case tea.KeyCtrlLeft:
-		return csi('D', false, true)
-	case tea.KeyCtrlShiftUp:
-		return csi('A', true, true)
-	case tea.KeyCtrlShiftDown:
-		return csi('B', true, true)
-	case tea.KeyCtrlShiftRight:
-		return csi('C', true, true)
-	case tea.KeyCtrlShiftLeft:
-		return csi('D', true, true)
+		return csi('D')
 	case tea.KeyHome:
-		return csi('H', false, false)
+		return csi('H')
 	case tea.KeyEnd:
-		return csi('F', false, false)
-	case tea.KeyShiftHome:
-		return csi('H', true, false)
-	case tea.KeyShiftEnd:
-		return csi('F', true, false)
-	case tea.KeyCtrlHome:
-		return csi('H', false, true)
-	case tea.KeyCtrlEnd:
-		return csi('F', false, true)
+		return csi('F')
 	case tea.KeyInsert:
 		return tilde(2)
 	case tea.KeyDelete:
@@ -483,13 +471,13 @@ func termKeyBytes(msg tea.KeyMsg, appCursor bool) []byte {
 	case tea.KeyPgDown:
 		return tilde(6)
 	case tea.KeyF1:
-		return []byte("\x1bOP")
+		return ss3('P')
 	case tea.KeyF2:
-		return []byte("\x1bOQ")
+		return ss3('Q')
 	case tea.KeyF3:
-		return []byte("\x1bOR")
+		return ss3('R')
 	case tea.KeyF4:
-		return []byte("\x1bOS")
+		return ss3('S')
 	case tea.KeyF5:
 		return tilde(15)
 	case tea.KeyF6:
@@ -530,7 +518,7 @@ func (t *terminal) paste(text string) tea.Cmd {
 // mouse sends a mouse event at cell (x, y) of the terminal body to the
 // program. It reports whether anything was sent, which is false when the
 // program has not asked for mouse input.
-func (t *terminal) mouse(msg tea.MouseMsg, x, y int) bool {
+func (t *terminal) mouse(msg mouseEvent, x, y int) bool {
 	tab := t.cur()
 	if tab == nil {
 		return false
@@ -540,31 +528,31 @@ func (t *terminal) mouse(msg tea.MouseMsg, x, y int) bool {
 		Shift: msg.Shift, Alt: msg.Alt, Ctrl: msg.Ctrl,
 	}
 	switch msg.Button {
-	case tea.MouseButtonNone:
+	case tea.MouseNone:
 		ev.Button = vt.ButtonNone
-	case tea.MouseButtonLeft:
+	case tea.MouseLeft:
 		ev.Button = vt.ButtonLeft
-	case tea.MouseButtonMiddle:
+	case tea.MouseMiddle:
 		ev.Button = vt.ButtonMiddle
-	case tea.MouseButtonRight:
+	case tea.MouseRight:
 		ev.Button = vt.ButtonRight
-	case tea.MouseButtonWheelUp:
+	case tea.MouseWheelUp:
 		ev.Button = vt.WheelUp
-	case tea.MouseButtonWheelDown:
+	case tea.MouseWheelDown:
 		ev.Button = vt.WheelDown
-	case tea.MouseButtonWheelLeft:
+	case tea.MouseWheelLeft:
 		ev.Button = vt.WheelLeft
-	case tea.MouseButtonWheelRight:
+	case tea.MouseWheelRight:
 		ev.Button = vt.WheelRight
 	default:
 		return false
 	}
 	switch msg.Action {
-	case tea.MouseActionPress:
+	case mousePress:
 		ev.Action = vt.MousePress
-	case tea.MouseActionRelease:
+	case mouseRelease:
 		ev.Action = vt.MouseRelease
-	case tea.MouseActionMotion:
+	case mouseMotion:
 		ev.Action = vt.MouseMotion
 	}
 	b := tab.vt.EncodeMouse(ev)
@@ -579,7 +567,7 @@ func (t *terminal) mouse(msg tea.MouseMsg, x, y int) bool {
 // program that reads the mouse gets the event. Otherwise the alternate screen
 // (vim, less) gets arrow keys, and a shell's output scrolls through the
 // scrollback.
-func (t *terminal) wheel(msg tea.MouseMsg, x, y, lines int) {
+func (t *terminal) wheel(msg mouseEvent, x, y, lines int) {
 	tab := t.cur()
 	if tab == nil {
 		return
@@ -594,7 +582,7 @@ func (t *terminal) wheel(msg tea.MouseMsg, x, y, lines int) {
 			key = tea.KeyUp
 		}
 		for range abs(lines) {
-			tab.ptmx.Write(termKeyBytes(tea.KeyMsg{Type: key}, m.AppCursor))
+			tab.ptmx.Write(termKeyBytes(tea.KeyPressMsg{Code: key}, m.AppCursor))
 		}
 		return
 	}

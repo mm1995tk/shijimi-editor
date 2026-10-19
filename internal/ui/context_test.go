@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
 	"github.com/mm1995tk/dageki/internal/diff"
@@ -41,7 +41,7 @@ func TestSendContextPreview(t *testing.T) {
 	if a.sendContext(); a.ctx == nil || !strings.HasPrefix(a.ctx.text, "a.txt:1\n") {
 		t.Fatalf("ctx = %+v", a.ctx)
 	}
-	a.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if a.ctx != nil {
 		t.Errorf("esc did not close preview")
 	}
@@ -51,7 +51,7 @@ func TestSendContextPreview(t *testing.T) {
 	if a.ctx == nil || !strings.HasPrefix(a.ctx.text, "a.txt:1-2\n```\nne\ntw\n```") {
 		t.Errorf("selection ctx = %+v", a.ctx)
 	}
-	if len(a.View()) == 0 {
+	if len(a.render()) == 0 {
 		t.Errorf("empty view")
 	}
 }
@@ -75,7 +75,7 @@ func TestSendReviewComments(t *testing.T) {
 	r := newReview(".", 0)
 	r.loading, r.files = false, []*diff.File{{}}
 	tb := &tab{kind: tabReview, rev: r}
-	key := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+	key := textKey(string('a'))
 
 	if a.handleReviewKey(tb, key); a.ctx != nil {
 		t.Fatalf("preview opened without comments")

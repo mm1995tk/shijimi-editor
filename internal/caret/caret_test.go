@@ -26,7 +26,7 @@ func TestWriteParksCursor(t *testing.T) {
 	w.Set(-1, 3)
 	_, _ = w.Write([]byte("frame4"))
 
-	if got, want := f.String(), "frame1frame2\x1b[3;5Hframe3frame4"; got != want {
+	if got, want := f.String(), "frame1frame2\x1b7\x1b[3;5H\x1b8frame3frame4"; got != want {
 		t.Errorf("output = %q, want %q", got, want)
 	}
 }
@@ -40,7 +40,7 @@ func TestSendGoesBetweenWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _ = w.Write([]byte("frame2"))
-	want := "frame1\x1b[1;1H\x1b]52;c;eA==\x07frame2\x1b[1;1H"
+	want := "frame1\x1b7\x1b[1;1H\x1b]52;c;eA==\x07\x1b8frame2\x1b7\x1b[1;1H"
 	if got := f.String(); got != want {
 		t.Errorf("output = %q, want %q", got, want)
 	}

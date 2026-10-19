@@ -4,8 +4,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
 )
@@ -39,7 +40,7 @@ func (a *App) fullPreviewKey(key string) bool {
 		return a.pending == "g"
 	}
 	switch key {
-	case "j", "k", "up", "down", "G", "g", "pgup", "pgdown", "esc", ":", " ", "space":
+	case "j", "k", "up", "down", "G", "g", "pgup", "pgdown", "esc", ":", "space":
 		return true
 	}
 	if len(key) == 1 && key[0] >= '0' && key[0] <= '9' {
@@ -49,11 +50,8 @@ func (a *App) fullPreviewKey(key string) bool {
 }
 
 // fullPreviewEditorKey is fullPreviewKey for the modeless (vscode) keymap,
-// where plain characters and pastes would be typed into the hidden buffer.
-func fullPreviewEditorKey(msg tea.KeyMsg) bool {
-	if msg.Paste {
-		return false
-	}
+// where plain characters would be typed into the hidden buffer.
+func fullPreviewEditorKey(msg tea.KeyPressMsg) bool {
 	switch msg.String() {
 	case "up", "down", "pgup", "pgdown", "home", "end", "ctrl+home", "ctrl+end", "esc":
 		return true
@@ -62,7 +60,7 @@ func fullPreviewEditorKey(msg tea.KeyMsg) bool {
 }
 
 // handleHelixKey implements Helix-style modal editing for text tabs.
-func (a *App) handleHelixKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -179,7 +177,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 		b.MoveLines(a.pageSize()/2, ext)
 	case "ctrl+o":
 		return a.jumpMove(-1)
-	case "tab": // Ctrl+I arrives as Tab
+	case "tab", "ctrl+i": // Ctrl+I arrives as Tab unless the terminal tells them apart
 		return a.jumpMove(1)
 	case "G":
 		a.pushJump()
@@ -307,7 +305,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 		}
 
 	// --- prefixes ---
-	case "g", "m", "]", "[", "f", "t", "F", "T", "r", " ", "space":
+	case "g", "m", "]", "[", "f", "t", "F", "T", "r", "space":
 		a.pending = key
 		if key == "space" {
 			a.pending = " "
@@ -333,14 +331,14 @@ func (a *App) enterInsert() tea.Cmd {
 	return nil
 }
 
-func (a *App) helixPending(p, key string, msg tea.KeyMsg) tea.Cmd {
+func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 	t := a.cur()
 	b := t.buf
 	ext := a.mode == modeSelect
 	ch := []rune(key)
-	single := msg.Type == tea.KeyRunes && len(msg.Runes) == 1 || key == " "
+	single := utf8.RuneCountInString(typed(msg)) == 1
 	var r rune
-	if key == " " || key == "space" {
+	if key == "space" {
 		r = ' '
 	} else if len(ch) > 0 {
 		r = ch[0]
@@ -469,7 +467,7 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	return nil
 }
 
-func (a *App) handleInsertKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleInsertKey(msg tea.KeyPressMsg) tea.Cmd {
 	t := a.cur()
 	b := t.buf
 	switch msg.String() {
@@ -478,7 +476,7 @@ func (a *App) handleInsertKey(msg tea.KeyMsg) tea.Cmd {
 		a.comp = nil
 		b.ForEachCursor(b.ClearSelection)
 		return nil
-	case "ctrl+x", "ctrl+@", "ctrl+ ":
+	case "ctrl+x", "ctrl+space":
 		return a.completion()
 	case "ctrl+w", "alt+backspace":
 		b.ForEachCursor(func() {

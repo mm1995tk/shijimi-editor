@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/dageki/internal/caret"
 	"github.com/mm1995tk/dageki/internal/ctl"
@@ -41,18 +41,11 @@ func main() {
 	}
 	app := ui.New(dir, file)
 	closeSock := func() {}
-	mouse := tea.WithMouseCellMotion()
-	if app.MouseHover() {
-		// A resting pointer is only noticed if motion without a button is reported.
-		mouse = tea.WithMouseAllMotion()
-	}
-	opts := []tea.ProgramOption{tea.WithAltScreen(), mouse}
 	// The terminal cursor follows the typing position so that an IME shows
 	// the text being composed there.
 	caretOut := caret.NewWriter(os.Stdout)
 	app.SetCaret(caretOut)
-	opts = append(opts, tea.WithOutput(caretOut))
-	p := tea.NewProgram(app, opts...)
+	p := tea.NewProgram(app, tea.WithOutput(caretOut))
 	// The IDE integration is best-effort too: Claude Code started in the terminal
 	// panel finds this server through the environment and the lock file.
 	closeIDE := func() {}

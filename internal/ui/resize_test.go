@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func resizeApp(t *testing.T) *App {
@@ -13,7 +13,7 @@ func resizeApp(t *testing.T) *App {
 }
 
 func press(a *App, key string) {
-	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)})
+	a.handleKey(textKey(key))
 }
 
 func TestResizeKeys(t *testing.T) {
@@ -22,15 +22,15 @@ func TestResizeKeys(t *testing.T) {
 	side, panel := a.layout().sideW, a.layout().panelH
 
 	a.startResize()
-	a.handleKey(tea.KeyMsg{Type: tea.KeyRight})
-	a.handleKey(tea.KeyMsg{Type: tea.KeyUp})
+	a.handleKey(tea.KeyPressMsg{Code: tea.KeyRight})
+	a.handleKey(tea.KeyPressMsg{Code: tea.KeyUp})
 	l := a.layout()
 	if l.sideW != side+resizeStep || l.panelH != panel+resizeStep {
 		t.Fatalf("side %d->%d panel %d->%d", side, l.sideW, panel, l.panelH)
 	}
 
 	// keys do not leak to the editor while resizing, and Esc leaves the mode
-	a.handleKey(tea.KeyMsg{Type: tea.KeyEsc})
+	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEsc})
 	if a.resizeMode {
 		t.Fatal("still in resize mode")
 	}
@@ -54,15 +54,15 @@ func TestResizeClamp(t *testing.T) {
 	a.showTerm = true
 	a.startResize()
 	for i := 0; i < 200; i++ {
-		a.handleKey(tea.KeyMsg{Type: tea.KeyLeft})
-		a.handleKey(tea.KeyMsg{Type: tea.KeyDown})
+		a.handleKey(tea.KeyPressMsg{Code: tea.KeyLeft})
+		a.handleKey(tea.KeyPressMsg{Code: tea.KeyDown})
 	}
 	if l := a.layout(); l.sideW != minSideW || l.panelH != 6 {
 		t.Fatalf("min: %d %d", l.sideW, l.panelH)
 	}
 	for i := 0; i < 200; i++ {
-		a.handleKey(tea.KeyMsg{Type: tea.KeyRight})
-		a.handleKey(tea.KeyMsg{Type: tea.KeyUp})
+		a.handleKey(tea.KeyPressMsg{Code: tea.KeyRight})
+		a.handleKey(tea.KeyPressMsg{Code: tea.KeyUp})
 	}
 	l := a.layout()
 	if l.sideW > a.w/2 || l.panelH > a.h-8 {
@@ -100,20 +100,20 @@ func TestResizeMouseDrag(t *testing.T) {
 	a := resizeApp(t)
 	a.showTerm = true
 	l := a.layout()
-	mouse := func(act tea.MouseAction, x, y int) {
-		a.handleMouse(tea.MouseMsg{X: x, Y: y, Action: act, Button: tea.MouseButtonLeft})
+	mouse := func(act mouseAction, x, y int) {
+		a.handleMouse(mouseEvent{X: x, Y: y, Action: act, Button: tea.MouseLeft})
 	}
 
-	mouse(tea.MouseActionPress, l.sideW, 5)
-	mouse(tea.MouseActionMotion, 40, 5)
-	mouse(tea.MouseActionRelease, 40, 5)
+	mouse(mousePress, l.sideW, 5)
+	mouse(mouseMotion, 40, 5)
+	mouse(mouseRelease, 40, 5)
 	if a.layout().sideW != 40 || a.resizing != resizeNone {
 		t.Fatalf("side drag: %d", a.layout().sideW)
 	}
 
-	mouse(tea.MouseActionPress, 60, l.panelY)
-	mouse(tea.MouseActionMotion, 60, l.panelY-5)
-	mouse(tea.MouseActionRelease, 60, l.panelY-5)
+	mouse(mousePress, 60, l.panelY)
+	mouse(mouseMotion, 60, l.panelY-5)
+	mouse(mouseRelease, 60, l.panelY-5)
 	if got := a.layout().panelH; got != l.panelH+5 {
 		t.Fatalf("panel drag: %d want %d", got, l.panelH+5)
 	}
@@ -125,7 +125,7 @@ func TestResizeWithCompletionOpen(t *testing.T) {
 	a.comp = &completionPopup{}
 	panel := a.layout().panelH
 	a.startResize()
-	a.handleKey(tea.KeyMsg{Type: tea.KeyUp})
+	a.handleKey(tea.KeyPressMsg{Code: tea.KeyUp})
 	if a.layout().panelH != panel+resizeStep {
 		t.Fatalf("panel %d->%d", panel, a.layout().panelH)
 	}
@@ -134,7 +134,7 @@ func TestResizeWithCompletionOpen(t *testing.T) {
 func TestResizeLostRelease(t *testing.T) {
 	a := resizeApp(t)
 	a.resizing = resizeSide
-	a.handleMouse(tea.MouseMsg{X: 60, Y: 5, Action: tea.MouseActionPress, Button: tea.MouseButtonLeft})
+	a.handleMouse(mouseEvent{X: 60, Y: 5, Action: mousePress, Button: tea.MouseLeft})
 	if a.resizing != resizeNone {
 		t.Fatal("stale drag state kept")
 	}

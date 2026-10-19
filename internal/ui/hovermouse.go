@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
@@ -38,7 +38,7 @@ func (a *App) MouseHover() bool { return a.cfg.Editor.MouseHover }
 // passiveMotion handles pointer movement with no button held. It never moves
 // the cursor: it only starts the dwell timer, or closes a popup the pointer
 // left.
-func (a *App) passiveMotion(l layout, msg tea.MouseMsg) tea.Cmd {
+func (a *App) passiveMotion(l layout, msg mouseEvent) tea.Cmd {
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
 	}

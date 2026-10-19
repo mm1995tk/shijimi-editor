@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 const browserUsage = "使い方: :browser forward <対象ポート> [待ち受けポート] / :browser list / :browser stop <待ち受けポート>"

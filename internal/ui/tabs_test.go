@@ -14,13 +14,13 @@ func TestRenderTabsAfterClosingLastTab(t *testing.T) {
 	if len(a.tabs) != 0 {
 		t.Fatalf("tabs = %d", len(a.tabs))
 	}
-	a.View()
+	a.render()
 	p := filepath.Join(a.root, "b.txt")
 	os.WriteFile(p, []byte("two\n"), 0o644)
 	if !a.openFile(p) {
 		t.Fatal("openFile failed")
 	}
-	a.View()
+	a.render()
 	if a.tabOffset < 0 {
 		t.Fatalf("tabOffset = %d", a.tabOffset)
 	}

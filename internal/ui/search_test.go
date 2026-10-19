@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
@@ -191,11 +191,11 @@ func TestSearchPanelFlow(t *testing.T) {
 	}
 
 	// leave the first line out, then replace the rest
-	a.handleSearchKey(tea.KeyMsg{Type: tea.KeyCtrlX})
+	a.handleSearchKey(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
 	if !a.search.res.hits[0].skip {
 		t.Fatal("ctrl+x must exclude the line")
 	}
-	drive(a, a.handleSearchKey(tea.KeyMsg{Type: tea.KeyEnter, Alt: true}))
+	drive(a, a.handleSearchKey(tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModAlt}))
 	if a.search.open {
 		t.Fatal("panel must close after replacing")
 	}
@@ -223,7 +223,7 @@ func TestSearchPanelOpenHit(t *testing.T) {
 	if len(a.search.res.hits) != 1 {
 		t.Fatalf("hits = %+v", a.search.res.hits)
 	}
-	a.handleSearchKey(tea.KeyMsg{Type: tea.KeyEnter})
+	a.handleSearchKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	b := a.curText().buf
 	if a.search.open || b.Cur.Row != 2 || b.Cur.Col != 6 {
 		t.Fatalf("open=%v cur=%+v", a.search.open, b.Cur)
@@ -235,7 +235,7 @@ func TestSearchPanelDebounce(t *testing.T) {
 	a.openSearch(fQuery)
 	keys := func(s string) {
 		for _, r := range s {
-			a.handleSearchKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+			a.handleSearchKey(textKey(string(r)))
 		}
 	}
 	keys("nee")
@@ -275,8 +275,8 @@ func TestSearchReplaceOne(t *testing.T) {
 	if len(a.search.res.hits) != 3 {
 		t.Fatalf("hits = %d", len(a.search.res.hits))
 	}
-	a.handleSearchKey(tea.KeyMsg{Type: tea.KeyDown})
-	drive(a, a.handleSearchKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}, Alt: true}))
+	a.handleSearchKey(tea.KeyPressMsg{Code: tea.KeyDown})
+	drive(a, a.handleSearchKey(altKey(string('1'))))
 	if !a.search.open {
 		t.Fatal("panel must stay open")
 	}
@@ -294,11 +294,11 @@ func TestSearchReplaceOne(t *testing.T) {
 func TestSearchReplaceOneExcludedLine(t *testing.T) {
 	a := newTestApp(t, "foo one\nfoo two\n")
 	drive(a, a.openSearchArgs("foo => X", true))
-	a.handleSearchKey(tea.KeyMsg{Type: tea.KeyCtrlX})
+	a.handleSearchKey(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
 	if !a.search.res.hits[0].skip {
 		t.Fatal("ctrl+x must exclude the line")
 	}
-	drive(a, a.handleSearchKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}, Alt: true}))
+	drive(a, a.handleSearchKey(altKey(string('1'))))
 	if got := a.curText().buf.Text(); !strings.HasPrefix(got, "X one\nfoo two") {
 		t.Fatalf("text = %q", got)
 	}
@@ -310,7 +310,7 @@ func TestSearchReplaceOneExcludedLine(t *testing.T) {
 func TestSearchReplaceOneStillMatching(t *testing.T) {
 	a := newTestApp(t, "foo\nfoo\n")
 	drive(a, a.openSearchArgs("foo => foobar", true))
-	drive(a, a.handleSearchKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'1'}, Alt: true}))
+	drive(a, a.handleSearchKey(altKey(string('1'))))
 	if h := a.search.cur(); h == nil || h.row != 1 {
 		t.Fatalf("cursor must move past the replaced line: %+v", h)
 	}
