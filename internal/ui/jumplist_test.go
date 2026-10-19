@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
-func ctrlO(a *App) { a.Update(tea.KeyMsg{Type: tea.KeyCtrlO}) }
-func ctrlI(a *App) { a.Update(tea.KeyMsg{Type: tea.KeyTab}) }
+func ctrlO(a *App) { a.Update(tea.KeyPressMsg{Code: 'o', Mod: tea.ModCtrl}) }
+func ctrlI(a *App) { a.Update(tea.KeyPressMsg{Code: tea.KeyTab}) }
 
 func TestJumpListBackForward(t *testing.T) {
 	a := newTestApp(t, "1\n2\n3\n4\n5\n")
@@ -104,11 +104,11 @@ func TestJumpListAltArrowsInVSCodeMode(t *testing.T) {
 	a.helix = false
 	b := a.curText().buf
 	a.execCommand("3")
-	a.Update(tea.KeyMsg{Type: tea.KeyLeft, Alt: true})
+	a.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt})
 	if b.Cur.Row != 0 {
 		t.Fatalf("Alt+Left -> row %d, want 0", b.Cur.Row)
 	}
-	a.Update(tea.KeyMsg{Type: tea.KeyRight, Alt: true})
+	a.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModAlt})
 	if b.Cur.Row != 2 {
 		t.Fatalf("Alt+Right -> row %d, want 2", b.Cur.Row)
 	}

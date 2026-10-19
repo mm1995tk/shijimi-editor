@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
 	"github.com/mm1995tk/dageki/internal/config"
@@ -100,7 +100,7 @@ func (a *App) closeCmdline() {
 	a.cmdInput.Blur()
 }
 
-func (a *App) handleCmdlineKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleCmdlineKey(msg tea.KeyPressMsg) tea.Cmd {
 	switch msg.String() {
 	case "esc", "ctrl+c":
 		a.closeCmdline()
@@ -133,6 +133,11 @@ func (a *App) handleCmdlineKey(msg tea.KeyMsg) tea.Cmd {
 			return nil
 		}
 	}
+	return a.cmdlineInput(msg)
+}
+
+// cmdlineInput passes a key or a paste to the command line.
+func (a *App) cmdlineInput(msg tea.Msg) tea.Cmd {
 	var cmd tea.Cmd
 	a.cmdInput, cmd = a.cmdInput.Update(msg)
 	return cmd
@@ -140,7 +145,7 @@ func (a *App) handleCmdlineKey(msg tea.KeyMsg) tea.Cmd {
 
 func (a *App) renderCmdline() string {
 	prefix := a.cmdKind
-	a.cmdInput.Width = max(1, a.w-3)
+	a.cmdInput.SetWidth(max(1, a.w-3))
 	return stPanel.Render(prefix) + fitStyled(a.cmdInput.View(), a.w-1, stPanel)
 }
 
@@ -403,7 +408,7 @@ func (a *App) handleSubmitted(m reviewSubmittedMsg) tea.Cmd {
 	return nil
 }
 
-func (a *App) handleReviewKey(t *tab, msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleReviewKey(t *tab, msg tea.KeyPressMsg) tea.Cmd {
 	r := t.rev
 	key := msg.String()
 	if a.pending == " " {
@@ -425,7 +430,7 @@ func (a *App) handleReviewKey(t *tab, msg tea.KeyMsg) tea.Cmd {
 		return r.load()
 	case ":":
 		return a.openCmdline(":")
-	case " ":
+	case "space":
 		a.pending = " "
 		return nil
 	}

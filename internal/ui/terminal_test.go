@@ -6,26 +6,26 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mm1995tk/dageki/internal/vt"
 )
 
 func TestTermKeyBytes(t *testing.T) {
 	cases := []struct {
-		msg  tea.KeyMsg
+		msg  tea.KeyPressMsg
 		app  bool
 		want string
 	}{
-		{tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}, false, "a"},
-		{tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a"), Alt: true}, false, "\x1ba"},
-		{tea.KeyMsg{Type: tea.KeyEnter}, false, "\r"},
-		{tea.KeyMsg{Type: tea.KeyCtrlC}, false, "\x03"},
-		{tea.KeyMsg{Type: tea.KeyBackspace}, false, "\x7f"},
-		{tea.KeyMsg{Type: tea.KeyUp}, false, "\x1b[A"},
-		{tea.KeyMsg{Type: tea.KeyUp}, true, "\x1bOA"},
-		{tea.KeyMsg{Type: tea.KeyCtrlRight}, false, "\x1b[1;5C"},
-		{tea.KeyMsg{Type: tea.KeyDelete}, false, "\x1b[3~"},
+		{textKey("a"), false, "a"},
+		{altKey("a"), false, "\x1ba"},
+		{tea.KeyPressMsg{Code: tea.KeyEnter}, false, "\r"},
+		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, false, "\x03"},
+		{tea.KeyPressMsg{Code: tea.KeyBackspace}, false, "\x7f"},
+		{tea.KeyPressMsg{Code: tea.KeyUp}, false, "\x1b[A"},
+		{tea.KeyPressMsg{Code: tea.KeyUp}, true, "\x1bOA"},
+		{tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModCtrl}, false, "\x1b[1;5C"},
+		{tea.KeyPressMsg{Code: tea.KeyDelete}, false, "\x1b[3~"},
 	}
 	for _, c := range cases {
 		if got := string(termKeyBytes(c.msg, c.app)); got != c.want {
@@ -105,7 +105,7 @@ func TestTerminalScrollback(t *testing.T) {
 	if tab.vt.Scrollback() < 50 {
 		t.Fatalf("scrollback = %d", tab.vt.Scrollback())
 	}
-	tm.wheel(tea.MouseMsg{Button: tea.MouseButtonWheelUp, Action: tea.MouseActionPress}, 0, 0, -3)
+	tm.wheel(mouseEvent{Button: tea.MouseWheelUp, Action: mousePress}, 0, 0, -3)
 	tm.render(40, 12, true)
 	if tab.snap.Offset != 3 {
 		t.Fatalf("offset = %d", tab.snap.Offset)

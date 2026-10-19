@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/gorilla/websocket"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
@@ -103,7 +103,7 @@ func TestIDEOpenDiffAccept(t *testing.T) {
 	if done || len(a.props) != 1 {
 		t.Fatalf("done=%v props=%d", done, len(a.props))
 	}
-	a.update(tea.KeyMsg{Type: tea.KeyEnter})
+	a.update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	r := <-ch
 	if len(r.content) != 2 || r.content[0].Text != "FILE_SAVED" || r.content[1].Text != "one\n2\nthree\n" {
 		t.Fatalf("reply = %+v", r)
@@ -120,7 +120,7 @@ func TestIDEOpenDiffRejectAndNewFile(t *testing.T) {
 	a, f := ideApp(t)
 	args := map[string]any{"old_file_path": f, "new_file_path": f, "new_file_contents": "zzz\n", "tab_name": "edit"}
 	ch, _, _ := ideCallRaw(a, "openDiff", args)
-	a.update(tea.KeyMsg{Type: tea.KeyEscape})
+	a.update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	r := <-ch
 	if r.content[0].Text != "DIFF_REJECTED" || r.content[1].Text != "edit" {
 		t.Fatalf("reply = %+v", r)

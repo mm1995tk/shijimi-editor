@@ -3,11 +3,11 @@ package ui
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func move(a *App, x, y int) tea.Cmd {
-	return a.handleMouse(tea.MouseMsg{X: x, Y: y, Action: tea.MouseActionMotion, Button: tea.MouseButtonNone})
+	return a.handleMouse(mouseEvent{X: x, Y: y, Action: mouseMotion, Button: tea.MouseNone})
 }
 
 func TestMouseHoverDwellKeepsCursor(t *testing.T) {
@@ -91,7 +91,7 @@ func TestMouseHoverDisabled(t *testing.T) {
 }
 
 func wheelDown(a *App, x, y int) {
-	a.handleMouse(tea.MouseMsg{X: x, Y: y, Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown})
+	a.handleMouse(mouseEvent{X: x, Y: y, Action: mousePress, Button: tea.MouseWheelDown})
 }
 
 func TestMouseHoverWheelOutsidePopupScrollsBuffer(t *testing.T) {
@@ -178,7 +178,7 @@ func TestMouseHoverPopupDoesNotTakeKeys(t *testing.T) {
 	a.focus = focusEditor
 	a.hoverText, a.hoverAt = "text", &screenPt{3, 1}
 	a.hoverScroll = 0
-	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	a.handleKey(textKey(string('y')))
 	if a.hoverText != "" || a.hoverAt != nil {
 		t.Fatal("a pointer popup should close on any key")
 	}
@@ -187,7 +187,7 @@ func TestMouseHoverPopupDoesNotTakeKeys(t *testing.T) {
 	}
 	// A popup opened from the keyboard keeps its key handling.
 	a.hoverText, a.hoverAt = "text", nil
-	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}})
+	a.handleKey(textKey(string('y')))
 	if a.hoverText == "" {
 		t.Fatal("keyboard popup should still handle y (copy), staying open")
 	}
@@ -258,7 +258,7 @@ func TestMouseHoverClosedByKeyInCommandLine(t *testing.T) {
 	a.focus = focusEditor
 	a.cmdOpen = true
 	a.hoverText, a.hoverAt = "text", &screenPt{3, 1}
-	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'w'}})
+	a.handleKey(textKey(string('w')))
 	if a.hoverText != "" || a.hoverAt != nil {
 		t.Fatal("the pointer popup should close on a key typed in the command line")
 	}

@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
@@ -272,7 +272,7 @@ func (a *App) openChange(f *diff.File) tea.Cmd {
 	return a.setFocus(focusEditor)
 }
 
-func (a *App) handleChangesKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleChangesKey(msg tea.KeyPressMsg) tea.Cmd {
 	g := &a.gd
 	key := msg.String()
 	if a.pending == " " {
@@ -298,7 +298,7 @@ func (a *App) handleChangesKey(msg tea.KeyMsg) tea.Cmd {
 		a.toggleSplit()
 	case "r", "R":
 		return a.reloadChanges()
-	case " ":
+	case "space":
 		a.pending = " "
 	case ":":
 		return a.openCmdline(":")

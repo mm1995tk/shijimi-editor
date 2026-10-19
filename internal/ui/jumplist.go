@@ -3,7 +3,7 @@ package ui
 import (
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
 )

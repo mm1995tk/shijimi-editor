@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/dageki/internal/lsp"
@@ -93,7 +93,7 @@ func (a *App) sendContext() tea.Cmd {
 }
 
 // handleContextKey drives the preview: Enter pastes, Esc cancels.
-func (a *App) handleContextKey(msg tea.KeyMsg) tea.Cmd {
+func (a *App) handleContextKey(msg tea.KeyPressMsg) tea.Cmd {
 	switch msg.String() {
 	case "enter":
 		text := a.ctx.text

@@ -1,6 +1,6 @@
 package ui
 
-import tea "github.com/charmbracelet/bubbletea"
+import tea "charm.land/bubbletea/v2"
 
 // Pane resizing. The sizes the user picked are kept on the App, so they
 // survive closing and reopening the pane; layout() clamps them on every draw.

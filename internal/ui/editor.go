@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
 	"github.com/mm1995tk/dageki/internal/config"

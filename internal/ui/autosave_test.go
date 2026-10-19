@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestAutoSave(t *testing.T) {
@@ -42,13 +42,13 @@ func TestScheduleAutoSave(t *testing.T) {
 	tb := a.curText()
 
 	// no edit: nothing is scheduled
-	if _, cmd := a.Update(tea.KeyMsg{Type: tea.KeyEscape}); cmd != nil && tb.autoVer != 0 {
+	if _, cmd := a.Update(tea.KeyPressMsg{Code: tea.KeyEscape}); cmd != nil && tb.autoVer != 0 {
 		t.Fatal("scheduled without an edit")
 	}
 
 	// an edit schedules a timer; running it yields the save message
 	keys(a, "i")
-	_, cmd := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
+	_, cmd := a.Update(textKey("x"))
 	if cmd == nil || tb.autoVer != tb.buf.Version {
 		t.Fatalf("edit did not schedule auto-save (autoVer=%d, version=%d)", tb.autoVer, tb.buf.Version)
 	}
@@ -78,7 +78,7 @@ func TestAutoSaveDisabled(t *testing.T) {
 	a := newTestApp(t, "one\n")
 	a.cfg.Editor.AutoSave = false
 	keys(a, "i")
-	_, cmd := a.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
+	_, cmd := a.Update(textKey("x"))
 	for _, m := range collect(cmd) {
 		if _, ok := m.(autoSaveMsg); ok {
 			t.Fatal("scheduled while disabled")

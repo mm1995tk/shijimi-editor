@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 var urlRe = regexp.MustCompile(`https?://[^\s<>"'` + "`" + `]+`)

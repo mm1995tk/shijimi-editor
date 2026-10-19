@@ -4,7 +4,7 @@ import (
 	"sort"
 	"unicode"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
 )
@@ -263,7 +263,7 @@ func (a *App) snippetActive() bool {
 
 // handleSnippetKey moves between tab stops. handled is false for every key
 // the session does not take.
-func (a *App) handleSnippetKey(msg tea.KeyMsg) (tea.Cmd, bool) {
+func (a *App) handleSnippetKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	if !a.snippetActive() {
 		return nil, false
 	}

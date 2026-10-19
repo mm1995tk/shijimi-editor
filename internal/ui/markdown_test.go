@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -217,7 +217,7 @@ func TestFullPreviewBlocksEditing(t *testing.T) {
 	ver := b.Version
 
 	press := func(s string) {
-		a.handleHelixKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)})
+		a.handleHelixKey(textKey(s))
 	}
 	for _, k := range []string{"i", "a", "o", "d", "x", "x", "K"} {
 		press(k)
@@ -245,15 +245,15 @@ func TestFullPreviewBlocksLeaderPasteAndVscodeKeymap(t *testing.T) {
 	a.tabs[0].preview = previewFull
 	ver := b.Version
 
-	a.handleHelixKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(" ")})
-	a.handleHelixKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("p")})
+	a.handleHelixKey(textKey(" "))
+	a.handleHelixKey(textKey("p"))
 	if b.Version != ver || a.pending != "" {
 		t.Fatalf("Space p: version %d (want %d), pending %q", b.Version, ver, a.pending)
 	}
 
 	a.helix = false
-	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
-	a.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("pasted"), Paste: true})
+	a.handleKey(textKey("j"))
+	a.handlePaste(tea.PasteMsg{Content: "pasted"})
 	if b.Version != ver {
 		t.Fatalf("vscode keymap edited the hidden buffer: version %d, want %d", b.Version, ver)
 	}

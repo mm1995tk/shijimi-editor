@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/dageki/internal/buffer"
 )
@@ -39,7 +39,13 @@ func snipSetup(t *testing.T, content string) (*App, *buffer.Buffer) {
 	return a, b
 }
 
-func pressKey(a *App, k tea.KeyType) { a.Update(tea.KeyMsg{Type: k}) }
+func pressKey(a *App, k rune, mod ...tea.KeyMod) {
+	m := tea.KeyPressMsg{Code: k}
+	for _, x := range mod {
+		m.Mod |= x
+	}
+	a.Update(m)
+}
 
 func TestSnippetTabMovesBetweenStops(t *testing.T) {
 	a, b := snipSetup(t, "fmt.")
@@ -53,7 +59,7 @@ func TestSnippetTabMovesBetweenStops(t *testing.T) {
 	if got := b.Text(); got != "fmt.Printf(x, yz)" {
 		t.Fatalf("text = %q", got)
 	}
-	pressKey(a, tea.KeyShiftTab)
+	pressKey(a, tea.KeyTab, tea.ModShift)
 	keys(a, "w")
 	if got := b.Text(); got != "fmt.Printf(w, yz)" {
 		t.Fatalf("after shift+tab: %q", got)
@@ -116,7 +122,7 @@ func TestSnippetUndoEndsSession(t *testing.T) {
 	a, b := snipSetup(t, "")
 	a.startSnippet(a.curText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
 	keys(a, "x")
-	pressKey(a, tea.KeyCtrlZ)
+	pressKey(a, 'z', tea.ModCtrl)
 	if got := b.Text(); got != "f(a, b)" {
 		t.Fatalf("text = %q", got)
 	}
