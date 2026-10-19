@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mm1995tk/gh-editor/internal/vt"
+	"github.com/mm1995tk/dageki/internal/vt"
 )
 
 func TestLookupTheme(t *testing.T) {

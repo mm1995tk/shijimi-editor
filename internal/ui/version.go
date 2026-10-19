@@ -8,7 +8,7 @@ import (
 )
 
 // Version and Commit are set at build time with
-// -ldflags "-X github.com/mm1995tk/gh-editor/internal/ui.Version=... -X github.com/mm1995tk/gh-editor/internal/ui.Commit=...".
+// -ldflags "-X github.com/mm1995tk/dageki/internal/ui.Version=... -X github.com/mm1995tk/dageki/internal/ui.Commit=...".
 var Version, Commit = "", ""
 
 // versionLabel is the build's version as shown on the status line, such as

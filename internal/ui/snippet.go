@@ -6,7 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/mm1995tk/gh-editor/internal/buffer"
+	"github.com/mm1995tk/dageki/internal/buffer"
 )
 
 // snipStop is one tab stop of a parsed LSP snippet. start and end are rune

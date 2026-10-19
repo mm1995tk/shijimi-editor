@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/gh-editor/internal/lsp"
+	"github.com/mm1995tk/dageki/internal/lsp"
 )
 
 // ctxPreview is the confirmation box shown before the context is pasted.

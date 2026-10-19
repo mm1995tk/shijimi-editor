@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/gh-editor/internal/buffer"
+	"github.com/mm1995tk/dageki/internal/buffer"
 )
 
 func TestSplitReplaceArgs(t *testing.T) {

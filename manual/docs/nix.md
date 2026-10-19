@@ -9,7 +9,7 @@
 - `nix` が無いとき、または評価に失敗したときは、そのファイルを無視します。
 
 ```nix
-# ~/.config/gh-editor/languages.nix
+# ~/.config/dageki/languages.nix
 {
   language-server.nil.command = "nil";
   language = [
@@ -22,13 +22,13 @@
 
 flake の `homeManagerModules.default` を読み込みます。
 
-- `settings` は `~/.config/gh-editor/config.toml` に書き出します。
-- `languages` は `~/.config/gh-editor/languages.toml` に書き出します。
+- `settings` は `~/.config/dageki/config.toml` に書き出します。
+- `languages` は `~/.config/dageki/languages.toml` に書き出します。
 
 ```nix
 {
-  imports = [ inputs.gh-editor.homeManagerModules.default ];
-  programs.gh-editor = {
+  imports = [ inputs.dageki.homeManagerModules.default ];
+  programs.dageki = {
     enable = true;
     settings = { keymap = "vscode"; editor.line-number = "relative"; };
     languages = {

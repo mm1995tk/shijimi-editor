@@ -6,9 +6,9 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/mm1995tk/gh-editor/internal/buffer"
-	"github.com/mm1995tk/gh-editor/internal/config"
-	"github.com/mm1995tk/gh-editor/internal/lsp"
+	"github.com/mm1995tk/dageki/internal/buffer"
+	"github.com/mm1995tk/dageki/internal/config"
+	"github.com/mm1995tk/dageki/internal/lsp"
 )
 
 type tabKind int
@@ -405,7 +405,7 @@ func renderWelcome(w, h int, helix bool) []string {
 		text string
 		head bool
 	}
-	msg := []row{{"gh-editor", true}, {"", false}}
+	msg := []row{{"dageki", true}, {"", false}}
 	if helix {
 		msg = append(msg,
 			row{"Space f       ファイルを開く", false},

@@ -1,15 +1,15 @@
 # AI エージェント連携
 
-ターミナルパネルで動かす AI エージェント（Claude Code など）と、gh-editor の間で情報をやりとりします。
+ターミナルパネルで動かす AI エージェント（Claude Code など）と、dageki の間で情報をやりとりします。
 
 ## Claude Code の IDE 連携
 
-gh-editor は Claude Code の IDE 連携プロトコルに対応しています。VS Code 拡張や claudecode.nvim と同じプロトコルです。
+dageki は Claude Code の IDE 連携プロトコルに対応しています。VS Code 拡張や claudecode.nvim と同じプロトコルです。
 
 - 起動すると、`127.0.0.1` の空きポートで WebSocket の MCP サーバーを立てます。
 - ロックファイル `~/.claude/ide/<ポート>.lock`（権限 0600）に、接続先と認証トークンを書きます。`CLAUDE_CONFIG_DIR` があれば、その下の `ide/` に書きます。終了すると消します。
-- gh-editor のターミナルパネルで `claude` を起動すると、自動で接続します。
-- 外のターミナルで動く Claude Code は、作業ディレクトリが gh-editor のルート配下なら、`/ide` で選べます。
+- dageki のターミナルパネルで `claude` を起動すると、自動で接続します。
+- 外のターミナルで動く Claude Code は、作業ディレクトリが dageki のルート配下なら、`/ide` で選べます。
 - 認証トークンの無い接続と、ブラウザ（`Origin` ヘッダー付き）からの接続は拒否します。
 
 ### エージェントが使える道具
@@ -24,8 +24,8 @@ gh-editor は Claude Code の IDE 連携プロトコルに対応しています�
 | `closeAllDiffTabs` / `close_tab` | 待っている差分を却下して閉じる |
 | `checkDocumentDirty` / `saveDocument` | 未保存かどうかの確認 / 保存 |
 
-- `openDiff` で承認しても、gh-editor はファイルを書きません。承認の後に Claude Code が書き込みます。
-- 選択範囲やカーソルが動くたびに、gh-editor は `selection_changed` を送ります。
+- `openDiff` で承認しても、dageki はファイルを書きません。承認の後に Claude Code が書き込みます。
+- 選択範囲やカーソルが動くたびに、dageki は `selection_changed` を送ります。
 
 ## 現在の文脈をエージェントへ送る
 
@@ -58,25 +58,25 @@ IDE 連携で接続しているときは、整えた文を `at_mentioned` とし
 PR のレビューで書いたコメントを、エージェントに渡せます。
 手順は [レビュー](review.md) にあります。
 
-## シェルから gh-editor を操作する
+## シェルから dageki を操作する
 
-gh-editor は起動すると Unix ソケット（権限 0600）を作ります。
-ソケットの場所は、ターミナルパネルのシェルの環境変数 `GH_EDITOR_SOCKET` に入ります。
+dageki は起動すると Unix ソケット（権限 0600）を作ります。
+ソケットの場所は、ターミナルパネルのシェルの環境変数 `DAGEKI_SOCKET` に入ります。
 そのシェルで次のコマンドが使えます。IDE 連携にない操作だけを残しています。
 
 | コマンド | 動作 |
 | --- | --- |
-| `gh-editor diff [パス]` | git-diff モードにする。パスを付けるとそのファイルを diff 表示で開く |
+| `dgk diff [パス]` | git-diff モードにする。パスを付けるとそのファイルを diff 表示で開く |
 
 !!! note "削除したコマンド"
-    `gh-editor open` と `gh-editor status` は、IDE 連携の `openFile` と `getOpenEditors` / `getCurrentSelection` に置き換えて削除しました。
+    `dgk open` と `dgk status` は、IDE 連携の `openFile` と `getOpenEditors` / `getCurrentSelection` に置き換えて削除しました。
 
 ## スキルを書き出す
 
 ```sh
-gh-editor skill install [書き出し先]
+dgk skill install [書き出し先]
 ```
 
-`gh-editor diff` の使い方を書いたスキル（`SKILL.md`）を書き出します。
-書き出し先を省略すると `~/.claude/skills/gh-editor/` に書きます。
-Claude Code はこのスキルを読んで、差分を gh-editor で開けるようになります。
+`dgk diff` の使い方を書いたスキル（`SKILL.md`）を書き出します。
+書き出し先を省略すると `~/.claude/skills/dageki/` に書きます。
+Claude Code はこのスキルを読んで、差分を dageki で開けるようになります。

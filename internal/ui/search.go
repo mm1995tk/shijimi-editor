@@ -10,7 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/mm1995tk/gh-editor/internal/buffer"
+	"github.com/mm1995tk/dageki/internal/buffer"
 )
 
 const (

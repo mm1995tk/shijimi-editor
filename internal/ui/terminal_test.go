@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/mm1995tk/gh-editor/internal/vt"
+	"github.com/mm1995tk/dageki/internal/vt"
 )
 
 func TestTermKeyBytes(t *testing.T) {

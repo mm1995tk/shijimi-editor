@@ -1,8 +1,8 @@
-# gh-editor
+# dageki
 
-ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code、編集操作は Helix に合わせています。
+ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code、編集操作は Helix に合わせています。コマンド名は `dgk` です。
 
-説明書: <https://gh-editor-manual.pages.dev/>（ソースは [`manual/`](manual/)）
+説明書: <https://dageki-manual.pages.dev/>（ソースは [`manual/`](manual/)）
 
 ## 機能
 
@@ -22,9 +22,9 @@
 ## インストール
 
 ```sh
-nix run github:mm1995tk/gh-editor           # その場で起動
-nix profile install github:mm1995tk/gh-editor
-go install github.com/mm1995tk/gh-editor@latest
+nix run github:mm1995tk/dageki           # その場で起動
+nix profile install github:mm1995tk/dageki
+go install github.com/mm1995tk/dageki/cmd/dgk@latest
 ```
 
 PR レビューには [gh](https://cli.github.com/) と `gh auth login` が必要です。
@@ -32,9 +32,9 @@ PR レビューには [gh](https://cli.github.com/) と `gh auth login` が必�
 ## 使い方
 
 ```sh
-gh-editor            # カレントディレクトリを開く
-gh-editor ./src      # ディレクトリを開く
-gh-editor main.go    # ファイルを開く
+dgk            # カレントディレクトリを開く
+dgk ./src      # ディレクトリを開く
+dgk main.go    # ファイルを開く
 ```
 
 ## 設定
@@ -43,9 +43,9 @@ gh-editor main.go    # ファイルを開く
 
 1. 組み込みの既定値（gopls / rust-analyzer / typescript-language-server など）
 2. `~/.config/helix/languages.toml`、`~/.config/helix/config.toml`
-3. `~/.config/gh-editor/languages.toml`、`~/.config/gh-editor/config.toml`
+3. `~/.config/dageki/languages.toml`、`~/.config/dageki/config.toml`
 4. **プロジェクトの `.helix/languages.toml`、`.helix/config.toml`**
-5. プロジェクトの `.gh-editor/languages.toml`、`.gh-editor/config.toml`
+5. プロジェクトの `.dageki/languages.toml`、`.dageki/config.toml`
 
 ### テーマ
 
@@ -67,7 +67,7 @@ theme = "github_dark"
 listen-host = "127.0.0.1"
 ```
 
-`[browser]` は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` にのみ書いてください。`.helix/config.toml` に書くと、Helix が未知のセクションを拒否します（`[search]` と同じ）。
+`[browser]` は `~/.config/dageki/config.toml` か `.dageki/config.toml` にのみ書いてください。`.helix/config.toml` に書くと、Helix が未知のセクションを拒否します（`[search]` と同じ）。
 
 ### LSP の設定例（`.helix/languages.toml`）
 
@@ -114,7 +114,7 @@ timeout = 1000            # ミリ秒
 各ディレクトリの `config.toml` / `languages.toml` と同じ場所に `config.nix` / `languages.nix` を置くと、`nix eval --json --file` で評価して TOML と同じ構造として読みます（同じディレクトリでは TOML のあとに適用）。`nix` が無い、または評価に失敗したファイルは無視します。
 
 ```nix
-# ~/.config/gh-editor/languages.nix
+# ~/.config/dageki/languages.nix
 {
   language-server.nil.command = "nil";
   language = [
@@ -125,12 +125,12 @@ timeout = 1000            # ミリ秒
 
 ### home-manager
 
-flake の `homeManagerModules.default` を読み込みます。`settings` が `config.toml`、`languages` が `languages.toml` として `~/.config/gh-editor/` に書き出されます。
+flake の `homeManagerModules.default` を読み込みます。`settings` が `config.toml`、`languages` が `languages.toml` として `~/.config/dageki/` に書き出されます。
 
 ```nix
 {
-  imports = [ inputs.gh-editor.homeManagerModules.default ];
-  programs.gh-editor = {
+  imports = [ inputs.dageki.homeManagerModules.default ];
+  programs.dageki = {
     enable = true;
     settings = { keymap = "vscode"; editor.line-number = "relative"; };
     languages = {
@@ -145,7 +145,7 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
 
 `.md` ファイルで `Space m`（または `:preview`、コマンドパレット）を押すと、バッファの右にプレビューが開きます。編集に追従し、カーソル位置に合わせてスクロールします。もう一度押すとプレビューだけを全幅で表示し、3 回目で閉じます。全幅のときは `j` / `k` やマウスホイールでスクロールします。
 
-mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`）で PNG にして表示します。`mmdc` が PATH に無い場合、または描画に失敗した場合は、図の代わりにソースとエラーを表示します。`mermaid-command` で別のコマンドに差し替えられます（`{in}` が入力、`{out}` が出力 PNG）。描画結果は `~/.cache/gh-editor/mermaid` に保存します。
+mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`）で PNG にして表示します。`mmdc` が PATH に無い場合、または描画に失敗した場合は、図の代わりにソースとエラーを表示します。`mermaid-command` で別のコマンドに差し替えられます（`{in}` が入力、`{out}` が出力 PNG）。描画結果は `~/.cache/dageki/mermaid` に保存します。
 
 ## キー操作（Helix モード）
 
@@ -278,7 +278,7 @@ Nix の devShell（Go・gopls・gomod2nix・git）を使います。direnv が�
 ```sh
 nix develop            # または direnv allow
 go test ./...
-go build .
+go build ./cmd/dgk
 nix build              # パッケージをビルド（テストも実行）
 nix fmt                # alejandra / gofmt / taplo で整形
 nix flake check        # 整形のチェック
@@ -309,7 +309,7 @@ nix flake check        # 整形のチェック
 
 ### 全文検索の除外・包含
 
-「含める」「除外」欄にはカンマ区切りの glob を書きます（例: `*.lock,dist/**`）。`:grep` / `:replace` では `-x` / `--exclude=`（除外）と `-i` / `--include=`（包含）でも指定できます。初期値は `[search]` 設定の値です。常に効かせたい指定は `~/.config/gh-editor/config.toml` か `.gh-editor/config.toml` に書きます（`.helix/config.toml` などの Helix 設定には書かないでください。Helix が未知の `[search]` を拒否します）。
+「含める」「除外」欄にはカンマ区切りの glob を書きます（例: `*.lock,dist/**`）。`:grep` / `:replace` では `-x` / `--exclude=`（除外）と `-i` / `--include=`（包含）でも指定できます。初期値は `[search]` 設定の値です。常に効かせたい指定は `~/.config/dageki/config.toml` か `.dageki/config.toml` に書きます（`.helix/config.toml` などの Helix 設定には書かないでください。Helix が未知の `[search]` を拒否します）。
 
 ```toml
 [search]
@@ -319,9 +319,9 @@ include = []
 
 ### ポート転送（`:browser forward`）
 
-`:browser forward <対象ポート> [待ち受けポート]` は、gh-editor が `127.0.0.1` で待ち受け、`localhost:<対象ポート>` へ TCP で転送します（HTTP も WebSocket も通ります）。待ち受けポートを省略すると空いているポートが選ばれます。`:browser list` で一覧、`:browser stop <待ち受けポート>` で停止します。gh-editor を終了すると全て止まります。
+`:browser forward <対象ポート> [待ち受けポート]` は、dageki が `127.0.0.1` で待ち受け、`localhost:<対象ポート>` へ TCP で転送します（HTTP も WebSocket も通ります）。待ち受けポートを省略すると空いているポートが選ばれます。`:browser list` で一覧、`:browser stop <待ち受けポート>` で停止します。dageki を終了すると全て止まります。
 
-リモートの VM で gh-editor を動かしているときは、手元で次を実行すると、手元のブラウザから `http://localhost:8080` で開発サーバーを見られます。
+リモートの VM で dageki を動かしているときは、手元で次を実行すると、手元のブラウザから `http://localhost:8080` で開発サーバーを見られます。
 
 ```sh
 ssh -L 8080:127.0.0.1:<待ち受けポート> vm
@@ -335,9 +335,9 @@ ssh -L 8080:127.0.0.1:<待ち受けポート> vm
 
 ### Claude Code の IDE 連携
 
-gh-editor は Claude Code の IDE 連携プロトコル（VS Code 拡張や claudecode.nvim と同じもの）に対応しています。起動すると 127.0.0.1 の空きポートで WebSocket の MCP サーバーを立て、ロックファイル `~/.claude/ide/<port>.lock`（0600、`CLAUDE_CONFIG_DIR` があればその下の `ide/`）に接続先と認証トークンを書きます。終了時に消します。
+dageki は Claude Code の IDE 連携プロトコル（VS Code 拡張や claudecode.nvim と同じもの）に対応しています。起動すると 127.0.0.1 の空きポートで WebSocket の MCP サーバーを立て、ロックファイル `~/.claude/ide/<port>.lock`（0600、`CLAUDE_CONFIG_DIR` があればその下の `ide/`）に接続先と認証トークンを書きます。終了時に消します。
 
-gh-editor のターミナルパネルで `claude` を起動すると、環境変数 `CLAUDE_CODE_SSE_PORT` `ENABLE_IDE_INTEGRATION=true` `FORCE_CODE_TERMINAL=true` により自動で接続します。外のターミナルで動く Claude Code は、作業ディレクトリが gh-editor のルート配下なら `/ide` で選べます。
+dageki のターミナルパネルで `claude` を起動すると、環境変数 `CLAUDE_CODE_SSE_PORT` `ENABLE_IDE_INTEGRATION=true` `FORCE_CODE_TERMINAL=true` により自動で接続します。外のターミナルで動く Claude Code は、作業ディレクトリが dageki のルート配下なら `/ide` で選べます。
 
 エージェントが使える道具:
 
@@ -357,16 +357,16 @@ gh-editor のターミナルパネルで `claude` を起動すると、環境変
 
 ### 制御用ソケット
 
-実行中の gh-editor は Unix ソケット（0600）を作り、環境変数 `GH_EDITOR_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。IDE 連携に無い操作だけを残しています。
+実行中の dageki は Unix ソケット（0600）を作り、環境変数 `DAGEKI_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。IDE 連携に無い操作だけを残しています。
 
-- `gh-editor diff [path]`: git-diff モードにする。`path` を付けるとそのファイルを diff 表示で開く
-- `gh-editor exec ":<コマンド>"`: `:` コマンドをそのまま実行する（例: `gh-editor exec ":preview"`）。成功するとステータス欄の文を標準出力へ、失敗するとエラーの文を標準エラーへ書き、終了コード 1 にする。`:q` `:q!` `:wq` `:bc!` などの終了・破棄するコマンド、引数なしで選択画面を開くコマンド（`:o` `:theme` `:grep` `:replace` `:symbol` `:action`、番号以外の引数の `:pr`）、未保存の変更があるファイルの `:reload` と `:bc` は実行せずエラーを返す
+- `dgk diff [path]`: git-diff モードにする。`path` を付けるとそのファイルを diff 表示で開く
+- `dgk exec ":<コマンド>"`: `:` コマンドをそのまま実行する（例: `dgk exec ":preview"`）。成功するとステータス欄の文を標準出力へ、失敗するとエラーの文を標準エラーへ書き、終了コード 1 にする。`:q` `:q!` `:wq` `:bc!` などの終了・破棄するコマンド、引数なしで選択画面を開くコマンド（`:o` `:theme` `:grep` `:replace` `:symbol` `:action`、番号以外の引数の `:pr`）、未保存の変更があるファイルの `:reload` と `:bc` は実行せずエラーを返す
 
 第 1 引数が `diff` / `exec` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./diff` のように書きます。
 
-`gh-editor skill install [書き出し先]` は、このコマンドの使い方を書いたスキル（`SKILL.md`）を書き出します。書き出し先を省略すると `~/.claude/skills/gh-editor/` に書きます。
+`dgk skill install [書き出し先]` は、このコマンドの使い方を書いたスキル（`SKILL.md`）を書き出します。書き出し先を省略すると `~/.claude/skills/dageki/` に書きます。
 
-> `gh-editor open` と `gh-editor status` は IDE 連携（`openFile` / `getOpenEditors` / `getCurrentSelection`）に置き換えて削除しました。
+> `dgk open` と `dgk status` は IDE 連携（`openFile` / `getOpenEditors` / `getCurrentSelection`）に置き換えて削除しました。
 
 ## 説明書の編集
 

@@ -1,4 +1,4 @@
-// Package ui implements the gh-editor terminal IDE.
+// Package ui implements the dageki terminal IDE.
 package ui
 
 import (
@@ -16,12 +16,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/gh-editor/internal/buffer"
-	"github.com/mm1995tk/gh-editor/internal/caret"
-	"github.com/mm1995tk/gh-editor/internal/config"
-	"github.com/mm1995tk/gh-editor/internal/ide"
-	"github.com/mm1995tk/gh-editor/internal/lsp"
-	"github.com/mm1995tk/gh-editor/internal/proxy"
+	"github.com/mm1995tk/dageki/internal/buffer"
+	"github.com/mm1995tk/dageki/internal/caret"
+	"github.com/mm1995tk/dageki/internal/config"
+	"github.com/mm1995tk/dageki/internal/ide"
+	"github.com/mm1995tk/dageki/internal/lsp"
+	"github.com/mm1995tk/dageki/internal/proxy"
 )
 
 type focus int

@@ -7,7 +7,7 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 
-	"github.com/mm1995tk/gh-editor/internal/buffer"
+	"github.com/mm1995tk/dageki/internal/buffer"
 )
 
 const maxHighlightLines = 20000
