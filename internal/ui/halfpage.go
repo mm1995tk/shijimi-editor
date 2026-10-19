@@ -69,3 +69,11 @@ func (a *App) holdScrollRelease(msg tea.KeyReleaseMsg) {
 		a.stopHoldScroll()
 	}
 }
+
+// wantKeyReleases reports whether Ctrl+D / Ctrl+U would scroll now: the Helix
+// normal or select mode in the editor, with nothing open on top. Text is not
+// typed there, so losing IME input to key-release reporting does no harm.
+func (a *App) wantKeyReleases() bool {
+	return a.helix && a.mode != modeInsert && a.focus == focusEditor && a.curText() != nil &&
+		!a.overlayOpen() && !a.cmdOpen && !a.findOpen && len(a.props) == 0 && a.ctx == nil
+}

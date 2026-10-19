@@ -1775,8 +1775,10 @@ func (a *App) View() tea.View {
 		// A resting pointer is only noticed if motion without a button is reported.
 		v.MouseMode = tea.MouseModeAllMotion
 	}
-	// Key releases let Ctrl+D / Ctrl+U scroll only while held.
-	v.KeyboardEnhancements.ReportEventTypes = true
+	// Key releases let Ctrl+D / Ctrl+U scroll only while held. Some terminals
+	// (herdr 0.9.5) then drop text committed by an IME, so they are asked
+	// for only where those keys scroll.
+	v.KeyboardEnhancements.ReportEventTypes = a.wantKeyReleases()
 	// The terminal cursor stays hidden (see package caret), but an IME shows
 	// its composition where it is.
 	v.Cursor = a.caretAt
