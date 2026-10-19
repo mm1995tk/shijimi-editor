@@ -1022,8 +1022,13 @@ func (b *Buffer) ApplyEdits(edits []Edit) {
 		return
 	}
 	b.begin(editOther)
-	sorted := append([]Edit(nil), edits...)
-	// apply from the end so earlier positions stay valid
+	// apply from the end so earlier positions stay valid; edits sharing a
+	// start go last-first too, so an insert listed before a replace at the
+	// same spot ends up in front of the replacement (LSP order)
+	sorted := make([]Edit, len(edits))
+	for i, e := range edits {
+		sorted[len(edits)-1-i] = e
+	}
 	for i := 1; i < len(sorted); i++ {
 		for j := i; j > 0 && sorted[j-1].Start.Less(sorted[j].Start); j-- {
 			sorted[j-1], sorted[j] = sorted[j], sorted[j-1]
