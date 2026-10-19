@@ -126,6 +126,14 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 		return a.openCmdline("s")
 	}
 
+	if (key == "ctrl+d" || key == "ctrl+u") && !b.HasExtra() {
+		dir := 1
+		if key == "ctrl+u" {
+			dir = -1
+		}
+		return a.halfPage(b, dir, ext, msg)
+	}
+
 	if b.HasExtra() && helixMultiKeys[key] {
 		var cmd tea.Cmd
 		b.ForEachCursor(func() { cmd = a.helixNormalKey(b, key, ext, count, hadCount, repeat) })

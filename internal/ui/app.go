@@ -113,6 +113,9 @@ type App struct {
 	confirmClose bool
 	follow       bool // scroll to the cursor on next render
 	dragging     bool
+	keyReleases  bool // the terminal reports key releases
+	hold         holdScroll
+	holdSeq      int // tells the current hold-scroll tick chain from stale ones
 
 	tabSpans  []span
 	tabOffset int
@@ -819,6 +822,12 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		}
 	case changesLoadedMsg:
 		a.applyChanges(msg)
+	case holdScrollMsg:
+		return a.holdScrollTick(msg.seq)
+	case tea.KeyboardEnhancementsMsg:
+		a.keyReleases = msg.SupportsEventTypes()
+	case tea.KeyReleaseMsg:
+		a.holdScrollRelease(msg)
 	case searchTickMsg:
 		return a.searchTick(msg)
 	case searchDoneMsg:
@@ -838,6 +847,9 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case tea.MouseMsg:
 		return a.handleMouse(toMouseEvent(msg))
 	case tea.KeyPressMsg:
+		if a.hold.buf != nil && !(msg.Code == a.hold.code && msg.Mod.Contains(tea.ModCtrl)) {
+			a.stopHoldScroll() // another key ends the scroll
+		}
 		a.hoverSeq++ // a pending mouse hover is stale once the user types
 		a.hoverWord = wordSpan{}
 		// Fast typing can deliver several runes in one message; Helix-style
@@ -1762,6 +1774,8 @@ func (a *App) View() tea.View {
 		// A resting pointer is only noticed if motion without a button is reported.
 		v.MouseMode = tea.MouseModeAllMotion
 	}
+	// Key releases let Ctrl+D / Ctrl+U scroll only while held.
+	v.KeyboardEnhancements.ReportEventTypes = true
 	return v
 }
 
