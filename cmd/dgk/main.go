@@ -42,7 +42,7 @@ func main() {
 	app := ui.New(dir, file)
 	closeSock := func() {}
 	// The terminal cursor follows the typing position so that an IME shows
-	// the text being composed there.
+	// the text being composed there, but stays hidden while dageki runs.
 	caretOut := caret.NewWriter(os.Stdout)
 	app.SetCaret(caretOut)
 	p := tea.NewProgram(app, tea.WithOutput(caretOut))
@@ -66,6 +66,7 @@ func main() {
 		}
 	}
 	_, err := p.Run()
+	_ = caretOut.ShowCursor()
 	app.Close()
 	closeSock()
 	closeIDE()
