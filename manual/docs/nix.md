@@ -9,7 +9,7 @@
 - `nix` が無いとき、または評価に失敗したときは、そのファイルを無視します。
 
 ```nix
-# ~/.config/dageki/languages.nix
+# ~/.config/shijimi/languages.nix
 {
   language-server.nil.command = "nil";
   language = [
@@ -22,13 +22,13 @@
 
 flake の `homeManagerModules.default` を読み込みます。
 
-- `settings` は `~/.config/dageki/config.toml` に書き出します。
-- `languages` は `~/.config/dageki/languages.toml` に書き出します。
+- `settings` は `~/.config/shijimi/config.toml` に書き出します。
+- `languages` は `~/.config/shijimi/languages.toml` に書き出します。
 
 ```nix
 {
-  imports = [ inputs.dageki.homeManagerModules.default ];
-  programs.dageki = {
+  imports = [ inputs.shijimi.homeManagerModules.default ];
+  programs.shijimi = {
     enable = true;
     settings = { keymap = "vscode"; editor.line-number = "relative"; };
     languages = {

@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PROJECT_NAME: dageki-manual
+  PROJECT_NAME: shijimi-manual
 
 jobs:
   build:

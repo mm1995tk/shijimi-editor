@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/mm1995tk/dageki/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
 // Ctrl+D / Ctrl+U move half a page. A jump makes it easy to lose the line one

@@ -1,5 +1,5 @@
 // Package ctl implements the control socket that lets other processes (for
-// example AI agents) drive a running dageki. Messages are newline-delimited
+// example AI agents) drive a running shijimi. Messages are newline-delimited
 // JSON: one Request in, one Response out, per connection.
 package ctl
 
@@ -16,7 +16,7 @@ import (
 )
 
 // EnvSocket is the environment variable that carries the socket path.
-const EnvSocket = "DAGEKI_SOCKET"
+const EnvSocket = "SHIJIMI_SOCKET"
 
 // Subcommands are matched before file paths; write "./diff" to open a file
 // with the same name.
@@ -56,7 +56,7 @@ func SocketPath() (string, error) {
 	if base == "" {
 		base = os.TempDir()
 	}
-	dir := filepath.Join(base, fmt.Sprintf("dageki-%d", os.Getuid()))
+	dir := filepath.Join(base, fmt.Sprintf("shijimi-%d", os.Getuid()))
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
@@ -113,15 +113,15 @@ func (s *Server) serve(h Handler) {
 	}
 }
 
-// Call sends req to the editor named by DAGEKI_SOCKET.
+// Call sends req to the editor named by SHIJIMI_SOCKET.
 func Call(req Request) (Response, error) {
 	sock := os.Getenv(EnvSocket)
 	if sock == "" {
-		return Response{}, fmt.Errorf("%s が設定されていません。dageki のターミナルパネル内で実行してください", EnvSocket)
+		return Response{}, fmt.Errorf("%s が設定されていません。shijimi のターミナルパネル内で実行してください", EnvSocket)
 	}
 	c, err := net.DialTimeout("unix", sock, 3*time.Second)
 	if err != nil {
-		return Response{}, fmt.Errorf("dageki に接続できません (%s): %w", sock, err)
+		return Response{}, fmt.Errorf("shijimi に接続できません (%s): %w", sock, err)
 	}
 	defer c.Close()
 	_ = c.SetDeadline(time.Now().Add(10 * time.Second))
@@ -141,7 +141,7 @@ func Run(args []string, stdout, stderr func(string)) int {
 	switch args[0] {
 	case "diff":
 		if len(args) > 2 {
-			stderr("usage: dgk diff [path]")
+			stderr("usage: shj diff [path]")
 			return 2
 		}
 		req = Request{Cmd: "diff"}
@@ -155,7 +155,7 @@ func Run(args []string, stdout, stderr func(string)) int {
 		}
 	case "exec":
 		if len(args) < 2 {
-			stderr("usage: dgk exec \":コマンド\"")
+			stderr("usage: shj exec \":コマンド\"")
 			return 2
 		}
 		req = Request{Cmd: "exec", Line: strings.Join(args[1:], " ")}

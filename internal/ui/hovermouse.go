@@ -7,7 +7,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/dageki/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
 // hoverDelay is how long the pointer must rest on a word before its hover shows.

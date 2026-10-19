@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mm1995tk/dageki/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/config"
 )
 
 func TestParseGrepArgs(t *testing.T) {

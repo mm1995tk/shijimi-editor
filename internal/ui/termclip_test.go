@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mm1995tk/dageki/internal/vt"
+	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
 // addTermTab adds a terminal tab with no shell behind it.

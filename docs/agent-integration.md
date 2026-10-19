@@ -4,16 +4,16 @@ Issue #13 の検討結果です。機能を 5 つに分け、それぞれ個別�
 
 ## 方針
 
-- エージェントは dageki の中のターミナルパネル、または外のターミナルで動きます。どちらでも使えるようにします。
-- dageki からエージェントへ渡す方法は「ターミナルへ貼り付け」から始めます。特定のエージェントに依存しません。
-- エージェントから dageki を操作する入口は、Claude Code の IDE 連携（WebSocket の MCP サーバー、#64）を主にします。IDE 連携に無い操作（git-diff モードにする）だけ、Unix ソケットと CLI（環境変数 `DAGEKI_SOCKET`）に残します。
+- エージェントは shijimi の中のターミナルパネル、または外のターミナルで動きます。どちらでも使えるようにします。
+- shijimi からエージェントへ渡す方法は「ターミナルへ貼り付け」から始めます。特定のエージェントに依存しません。
+- エージェントから shijimi を操作する入口は、Claude Code の IDE 連携（WebSocket の MCP サーバー、#64）を主にします。IDE 連携に無い操作（git-diff モードにする）だけ、Unix ソケットと CLI（環境変数 `SHIJIMI_SOCKET`）に残します。
 
 ## 機能一覧
 
 | # | 機能 | 優先度 | 依存 |
 |---|------|--------|------|
 | A | 現在の文脈をエージェントへ送る | 高 | なし |
-| B | 制御用ソケットと `dgk` サブコマンド（#64 で `diff` のみに縮小） | 高 | なし |
+| B | 制御用ソケットと `shj` サブコマンド（#64 で `diff` のみに縮小） | 高 | なし |
 | C | レビューコメントをエージェントへ返す | 中 | A |
 | D | エージェント用スキルの配布 | 中 | B |
 | E | エージェントの変更の追従（外部変更の再読み込みと差分表示） | 低 | なし |
@@ -27,7 +27,7 @@ Issue #13 の検討結果です。機能を 5 つに分け、それぞれ個別�
 
 ### B. 制御用ソケットと CLI
 
-- `dgk diff [path]` を用意します（当初は `open` と `status` もありましたが、#64 の IDE 連携の `openFile` と `getOpenEditors` と `getCurrentSelection` に重なるため削除しました）。
+- `shj diff [path]` を用意します（当初は `open` と `status` もありましたが、#64 の IDE 連携の `openFile` と `getOpenEditors` と `getCurrentSelection` に重なるため削除しました）。
 - 通信は改行区切りの JSON です。サブコマンドが無い起動は今までどおりです。
 - 第 1 引数がサブコマンド名（`diff` / `exec` / `skill`）なら、サブコマンドとして扱います。同じ名前のファイルやディレクトリを開くときは `./diff` のようにパスで書きます。
 - 受け付けるのは同じユーザーのソケットだけです（パーミッション 0600）。
@@ -39,7 +39,7 @@ Issue #13 の検討結果です。機能を 5 つに分け、それぞれ個別�
 
 ### D. スキルの配布
 
-- `dgk skill install` で、B の CLI（`diff`）の使い方と IDE 連携との使い分けを書いたスキルを `~/.claude/skills/dageki/` に書き出します。
+- `shj skill install` で、B の CLI（`diff`）の使い方と IDE 連携との使い分けを書いたスキルを `~/.claude/skills/shijimi/` に書き出します。
 - 書き出し先は引数で変えられます。
 
 ### E. エージェントの変更の追従
@@ -67,29 +67,29 @@ Issue #13 の検討結果です。機能を 5 つに分け、それぞれ個別�
 
 - レビュー画面のキーは `a` です（`y` はこれまでどおりコピー）。`commands.go` の `case "a"` で変えられます。
 - 送る内容は、未送信のコメントの Markdown の前に「次のレビューコメントに対応してください。」の 1 文を付けたものです。文は `reviewPrompt` で変えられます。
-- コメントのパスは、リポジトリのトップ基準から dageki のルート基準（ターミナルの cwd）に直して送ります。
+- コメントのパスは、リポジトリのトップ基準から shijimi のルート基準（ターミナルの cwd）に直して送ります。
 - PR レビュー画面でも使えます（ヘルプ行にも載せています）。
 - 経路は A と同じです（プレビュー → Enter で貼り付け、Enter キーは押しません）。
 - 送ったあともコメントは消しません。
 
 ## F. Claude Code の IDE 連携（#64）
 
-VS Code 拡張や claudecode.nvim と同じプロトコルで、dageki を Claude Code の IDE として使えるようにします。
+VS Code 拡張や claudecode.nvim と同じプロトコルで、shijimi を Claude Code の IDE として使えるようにします。
 
 ### 置き換えたもの・残したもの
 
 | 既存機能 | 扱い |
 |----------|------|
-| `dgk open`（B） | 削除。`openFile` が同じことをします |
-| `dgk status`（B） | 削除。`getCurrentSelection` / `getOpenEditors` / `getWorkspaceFolders` が同じ情報を返します |
-| `dgk diff`（B） | 残す。git-diff モードにする操作は IDE 連携に無いためです |
+| `shj open`（B） | 削除。`openFile` が同じことをします |
+| `shj status`（B） | 削除。`getCurrentSelection` / `getOpenEditors` / `getWorkspaceFolders` が同じ情報を返します |
+| `shj diff`（B） | 残す。git-diff モードにする操作は IDE 連携に無いためです |
 | スキル（D） | 残す。`diff` と IDE 連携との使い分けだけを書きます |
 | 現在の文脈を送る（A） | 残す。IDE 連携に接続中は貼り付けの代わりに `at_mentioned` を送ります。接続していないとき、Claude Code 以外のエージェントのときは貼り付けです |
 
 ### プロトコル
 
 - `127.0.0.1` の空きポートで WebSocket を待ち受けます（ライブラリは `github.com/gorilla/websocket`）。サブプロトコルは `mcp`、メッセージは MCP の JSON-RPC 2.0 です（`initialize` / `ping` / `tools/list` / `tools/call`）。
-- 接続先をロックファイル `<Claude の設定ディレクトリ>/ide/<port>.lock` に書きます。設定ディレクトリは `CLAUDE_CONFIG_DIR`、なければ `~/.claude` です。内容は `{pid, workspaceFolders, ideName: "dageki", transport: "ws", authToken}` で、パーミッションは 0600 です。終了時に消します。起動時には、pid が存在しない dageki のロックファイルを掃除します。
+- 接続先をロックファイル `<Claude の設定ディレクトリ>/ide/<port>.lock` に書きます。設定ディレクトリは `CLAUDE_CONFIG_DIR`、なければ `~/.claude` です。内容は `{pid, workspaceFolders, ideName: "shijimi", transport: "ws", authToken}` で、パーミッションは 0600 です。終了時に消します。起動時には、pid が存在しない shijimi のロックファイルを掃除します。
 - 接続には HTTP ヘッダー `x-claude-code-ide-authorization: <authToken>` が必要です。トークンは起動ごとに乱数で作ります。`Origin` ヘッダー付き（ブラウザ）の接続は拒否します。
 - ターミナルパネルのプロセスには `CLAUDE_CODE_SSE_PORT=<port>`・`ENABLE_IDE_INTEGRATION=true`・`FORCE_CODE_TERMINAL=true`（claudecode.nvim と同じ 3 つ）を渡し、中で起動した Claude Code が自動で接続するようにします。
 
@@ -105,7 +105,7 @@ VS Code 拡張や claudecode.nvim と同じプロトコルで、dageki を Claud
 ### 決めうちした点
 
 - 差分の表示はタブではなくモーダルです。承認の操作を 1 つのキーに絞るためです。
-- dageki はファイルへ書き込みません。承認すると Claude Code が書き込み、開いているバッファは既存のファイル監視（`watch-files`）が読み込み直します。
+- shijimi はファイルへ書き込みません。承認すると Claude Code が書き込み、開いているバッファは既存のファイル監視（`watch-files`）が読み込み直します。
 - `close_tab` は、差分がすでに無くても `TAB_CLOSED` を返します（Claude Code が決定後の後始末に呼ぶため）。
 - 起動に失敗しても（ホームが書けないなど）エディターは動きます。制御用ソケットと同じ扱いです。
 - Windows は対象外です（pid の生死確認に `kill(pid, 0)` を使います）。

@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/dageki/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
 func TestSignatureRender(t *testing.T) {

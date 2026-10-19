@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mm1995tk/dageki/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 )
 
 func ctlCall(a *App, r ctl.Request) ctl.Response {

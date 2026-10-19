@@ -1,6 +1,6 @@
 package ui
 
-import "github.com/mm1995tk/dageki/internal/buffer"
+import "github.com/mm1995tk/shijimi-editor/internal/buffer"
 
 // indentUnitWidth is the screen width of one indent level (at least 1).
 func indentUnitWidth(b *buffer.Buffer) int {

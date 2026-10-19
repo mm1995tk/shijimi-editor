@@ -1,21 +1,21 @@
-# home-manager module: programs.dageki
+# home-manager module: programs.shijimi
 self: {
   config,
   lib,
   pkgs,
   ...
 }: let
-  cfg = config.programs.dageki;
+  cfg = config.programs.shijimi;
   toml = pkgs.formats.toml {};
 in {
-  options.programs.dageki = {
-    enable = lib.mkEnableOption "dageki";
+  options.programs.shijimi = {
+    enable = lib.mkEnableOption "shijimi";
 
     package = lib.mkOption {
       type = lib.types.package;
       default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
-      defaultText = lib.literalExpression "dageki.packages.\${system}.default";
-      description = "The dageki package to install.";
+      defaultText = lib.literalExpression "shijimi.packages.\${system}.default";
+      description = "The shijimi package to install.";
     };
 
     settings = lib.mkOption {
@@ -27,7 +27,7 @@ in {
           editor.line-number = "relative";
         }
       '';
-      description = "Written to {file}`$XDG_CONFIG_HOME/dageki/config.toml` (same structure as Helix's config.toml).";
+      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi/config.toml` (same structure as Helix's config.toml).";
     };
 
     languages = lib.mkOption {
@@ -39,17 +39,17 @@ in {
           language = [{ name = "go"; language-servers = ["gopls"]; }];
         }
       '';
-      description = "Written to {file}`$XDG_CONFIG_HOME/dageki/languages.toml` (same structure as Helix's languages.toml).";
+      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi/languages.toml` (same structure as Helix's languages.toml).";
     };
   };
 
   config = lib.mkIf cfg.enable {
     home.packages = [cfg.package];
-    xdg.configFile."dageki/config.toml" = lib.mkIf (cfg.settings != {}) {
-      source = toml.generate "dageki-config.toml" cfg.settings;
+    xdg.configFile."shijimi/config.toml" = lib.mkIf (cfg.settings != {}) {
+      source = toml.generate "shijimi-config.toml" cfg.settings;
     };
-    xdg.configFile."dageki/languages.toml" = lib.mkIf (cfg.languages != {}) {
-      source = toml.generate "dageki-languages.toml" cfg.languages;
+    xdg.configFile."shijimi/languages.toml" = lib.mkIf (cfg.languages != {}) {
+      source = toml.generate "shijimi-languages.toml" cfg.languages;
     };
   };
 }

@@ -59,7 +59,7 @@ func mermaidCacheDir() string {
 	if err != nil {
 		d = os.TempDir()
 	}
-	return filepath.Join(d, "dageki", "mermaid")
+	return filepath.Join(d, "shijimi", "mermaid")
 }
 
 // previewMode is how a Markdown tab shows its preview.

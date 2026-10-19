@@ -1,4 +1,4 @@
-// Package config loads dageki settings. Language and language-server
+// Package config loads shijimi settings. Language and language-server
 // definitions use Helix's languages.toml format, so an existing
 // `.helix/languages.toml` in a project works as-is.
 package config
@@ -73,7 +73,7 @@ type Search struct {
 }
 
 // Browser holds the settings of `:browser forward` (port forwarding).
-// It is read only from dageki's own config directories, never from
+// It is read only from shijimi's own config directories, never from
 // `.helix/`, because Helix rejects unknown sections.
 type Browser struct {
 	// ListenHost is the address `:browser forward` listens on. Set it to e.g.
@@ -95,7 +95,7 @@ type Config struct {
 const nixEvalTimeout = 15 * time.Second
 
 // Load merges built-in defaults, the user's Helix config, and the project's
-// `.helix/` and `.dageki/` directories (later ones win). In each directory
+// `.helix/` and `.shijimi/` directories (later ones win). In each directory
 // `config.nix` / `languages.nix` are evaluated with `nix eval --json` and
 // applied after the TOML file of the same name.
 func Load(root string) *Config {
@@ -109,11 +109,11 @@ func Load(root string) *Config {
 
 	var dirs []string
 	if d, err := os.UserConfigDir(); err == nil {
-		dirs = append(dirs, filepath.Join(d, "helix"), filepath.Join(d, "dageki"))
+		dirs = append(dirs, filepath.Join(d, "helix"), filepath.Join(d, "shijimi"))
 	}
-	dirs = append(dirs, filepath.Join(root, ".helix"), filepath.Join(root, ".dageki"))
+	dirs = append(dirs, filepath.Join(root, ".helix"), filepath.Join(root, ".shijimi"))
 	for _, d := range dirs {
-		own := filepath.Base(d) == "dageki" || filepath.Base(d) == ".dageki"
+		own := filepath.Base(d) == "shijimi" || filepath.Base(d) == ".shijimi"
 		if data, err := os.ReadFile(filepath.Join(d, "config.toml")); err == nil {
 			c.mergeEditor(string(data))
 			if own {

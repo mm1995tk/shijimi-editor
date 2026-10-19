@@ -8,17 +8,17 @@
 
 1. 組み込みの既定値
 2. `~/.config/helix/languages.toml`、`~/.config/helix/config.toml`
-3. `~/.config/dageki/languages.toml`、`~/.config/dageki/config.toml`
+3. `~/.config/shijimi/languages.toml`、`~/.config/shijimi/config.toml`
 4. プロジェクトの `.helix/languages.toml`、`.helix/config.toml`
-5. プロジェクトの `.dageki/languages.toml`、`.dageki/config.toml`
+5. プロジェクトの `.shijimi/languages.toml`、`.shijimi/config.toml`
 
 - `languages.toml` には言語サーバーを書きます（[LSP](lsp.md)）。
 - `config.toml` にはそれ以外を書きます（このページ）。
 - 実行中に `:config-reload` を実行すると、読み直します。
 
-!!! warning "dageki だけの設定"
+!!! warning "shijimi だけの設定"
     `[browser]` と `[search]` は Helix にない設定です。
-    `~/.config/dageki/config.toml` か `.dageki/config.toml` に書いてください。
+    `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書いてください。
     `.helix/config.toml` に書くと、Helix が未知のセクションとして拒否します。
 
 ## config.toml の例

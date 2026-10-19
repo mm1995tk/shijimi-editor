@@ -15,7 +15,7 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/dageki/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/diff"
 )
 
 // Review colors; set by applyTheme.

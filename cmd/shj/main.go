@@ -1,4 +1,4 @@
-// Command dgk runs dageki, a VS Code–style IDE for the terminal.
+// Command shj runs shijimi, a VS Code–style IDE for the terminal.
 package main
 
 import (
@@ -9,10 +9,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/mm1995tk/dageki/internal/caret"
-	"github.com/mm1995tk/dageki/internal/ctl"
-	"github.com/mm1995tk/dageki/internal/ide"
-	"github.com/mm1995tk/dageki/internal/ui"
+	"github.com/mm1995tk/shijimi-editor/internal/caret"
+	"github.com/mm1995tk/shijimi-editor/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/ide"
+	"github.com/mm1995tk/shijimi-editor/internal/ui"
 )
 
 func main() {
@@ -20,11 +20,11 @@ func main() {
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
 		if arg == "-h" || arg == "--help" {
-			fmt.Println("usage: dgk [ディレクトリ | ファイル]")
-			fmt.Println("       dgk diff [path]")
-			fmt.Println("       dgk exec \":コマンド\"")
-			fmt.Println("       dgk skill install [書き出し先]")
-			fmt.Println("サブコマンドは実行中の dageki へ $" + ctl.EnvSocket + " 経由で送ります。")
+			fmt.Println("usage: shj [ディレクトリ | ファイル]")
+			fmt.Println("       shj diff [path]")
+			fmt.Println("       shj exec \":コマンド\"")
+			fmt.Println("       shj skill install [書き出し先]")
+			fmt.Println("サブコマンドは実行中の shijimi へ $" + ctl.EnvSocket + " 経由で送ります。")
 			fmt.Println("同名のファイルを開くときは ./diff のようにパスで書いてください。")
 			return
 		}
@@ -42,7 +42,7 @@ func main() {
 	app := ui.New(dir, file)
 	closeSock := func() {}
 	// The terminal cursor follows the typing position so that an IME shows
-	// the text being composed there, but stays hidden while dageki runs.
+	// the text being composed there, but stays hidden while shijimi runs.
 	caretOut := caret.NewWriter(os.Stdout)
 	app.SetCaret(caretOut)
 	p := tea.NewProgram(app, tea.WithOutput(caretOut))
