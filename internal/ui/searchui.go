@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -704,7 +703,7 @@ func (a *App) loadView(path string) {
 		}
 	}
 	if b, err := buffer.Open(path); err == nil {
-		v.lines, v.colors = b.Lines, newHighlighter(filepath.Base(path)).Colors(b)
+		v.lines, v.colors = b.Lines, highlightNow(path, b)
 	}
 }
 
