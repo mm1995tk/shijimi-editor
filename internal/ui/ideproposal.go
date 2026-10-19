@@ -9,8 +9,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/dageki/internal/diff"
-	"github.com/mm1995tk/dageki/internal/ide"
+	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
 // diffContext is how many unchanged lines surround each change.

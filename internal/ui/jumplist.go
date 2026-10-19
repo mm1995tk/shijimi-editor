@@ -5,7 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/mm1995tk/dageki/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
 // maxJumps caps the jump list.

@@ -8,9 +8,9 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/mm1995tk/dageki/internal/buffer"
-	"github.com/mm1995tk/dageki/internal/diff"
-	"github.com/mm1995tk/dageki/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
 func TestFormatContext(t *testing.T) {

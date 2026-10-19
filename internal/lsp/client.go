@@ -18,7 +18,7 @@ import (
 	"time"
 	"unicode/utf16"
 
-	"github.com/mm1995tk/dageki/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/config"
 )
 
 // Position is an LSP position (UTF-16 character offset).

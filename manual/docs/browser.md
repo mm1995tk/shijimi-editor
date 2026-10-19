@@ -1,6 +1,6 @@
 # 外部ブラウザとポート転送
 
-dageki にブラウザは入っていません。Web ページは、手元のブラウザで開きます。リモートの VM で動かしている開発サーバーは、ポート転送して手元のブラウザで見ます（下の「リモートの VM で使う例」）。
+shijimi にブラウザは入っていません。Web ページは、手元のブラウザで開きます。リモートの VM で動かしている開発サーバーは、ポート転送して手元のブラウザで見ます（下の「リモートの VM で使う例」）。
 
 ## 外部ブラウザで開く
 
@@ -11,7 +11,7 @@ Linux では `xdg-open`、macOS では `open` を使います。
 
 ## ポート転送
 
-`:browser forward <対象ポート> [待ち受けポート]` を実行すると、dageki が `127.0.0.1` で待ち受け、`localhost:<対象ポート>` へ TCP で転送します。
+`:browser forward <対象ポート> [待ち受けポート]` を実行すると、shijimi が `127.0.0.1` で待ち受け、`localhost:<対象ポート>` へ TCP で転送します。
 HTTP も WebSocket も通ります。
 
 | コマンド | 動作 |
@@ -20,13 +20,13 @@ HTTP も WebSocket も通ります。
 | `:browser list` | 転送の一覧 |
 | `:browser stop <待ち受けポート>` | 転送を止める |
 
-dageki を終了すると、すべての転送が止まります。
+shijimi を終了すると、すべての転送が止まります。
 
 ### リモートの VM で使う例
 
-VM で dageki を動かし、開発サーバーを手元のブラウザで見る手順です。
+VM で shijimi を動かし、開発サーバーを手元のブラウザで見る手順です。
 
-1. VM の dageki で `:browser forward 3000` を実行します。表示された待ち受けポートを控えます。
+1. VM の shijimi で `:browser forward 3000` を実行します。表示された待ち受けポートを控えます。
 2. 手元で次を実行します。
 
     ```sh
@@ -52,5 +52,5 @@ listen-host = "127.0.0.1"
 既定は `127.0.0.1` です。`0.0.0.0` に変えるのは、信頼できるネットワークの中だけにしてください。
 
 !!! warning "書く場所"
-    `[browser]` は `~/.config/dageki/config.toml` か `.dageki/config.toml` に書きます。
+    `[browser]` は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書きます。
     `.helix/config.toml` に書くと、Helix が未知のセクションとして拒否します。

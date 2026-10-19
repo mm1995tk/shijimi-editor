@@ -14,8 +14,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/gorilla/websocket"
 
-	"github.com/mm1995tk/dageki/internal/buffer"
-	"github.com/mm1995tk/dageki/internal/ide"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
 // ideCall runs a tool and returns the first text block; pending replies are

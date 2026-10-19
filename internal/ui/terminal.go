@@ -12,7 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/creack/pty"
-	"github.com/mm1995tk/dageki/internal/vt"
+	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
 type termOutputMsg struct{ id int }

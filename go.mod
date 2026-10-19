@@ -1,4 +1,4 @@
-module github.com/mm1995tk/dageki
+module github.com/mm1995tk/shijimi-editor
 
 go 1.26.8
 

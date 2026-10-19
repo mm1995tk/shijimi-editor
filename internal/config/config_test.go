@@ -53,8 +53,8 @@ func TestFileIconsOption(t *testing.T) {
 	if !Load(root).Editor.FileIcons {
 		t.Fatal("file-icons should default to true")
 	}
-	os.MkdirAll(filepath.Join(root, ".dageki"), 0o755)
-	os.WriteFile(filepath.Join(root, ".dageki", "config.toml"), []byte("[editor]\nfile-icons = false\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[editor]\nfile-icons = false\n"), 0o644)
 	if Load(root).Editor.FileIcons {
 		t.Fatal("file-icons = false should disable icons")
 	}
@@ -64,8 +64,8 @@ func TestSearchConfig(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	os.MkdirAll(filepath.Join(root, ".dageki"), 0o755)
-	os.WriteFile(filepath.Join(root, ".dageki", "config.toml"), []byte(`
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte(`
 [search]
 exclude = ["*.lock", "dist/**"]
 include = ["*.go"]
@@ -86,13 +86,13 @@ func TestBrowserConfigOnlyFromOwnDirs(t *testing.T) {
 	if got := Load(root).Browser.ListenHost; got != "127.0.0.1" {
 		t.Fatalf(".helix listen-host must be ignored, got %q", got)
 	}
-	os.MkdirAll(filepath.Join(cfg, "dageki"), 0o755)
-	os.WriteFile(filepath.Join(cfg, "dageki", "config.toml"), []byte("[browser]\nlisten-host = \"10.0.0.1\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(cfg, "shijimi"), 0o755)
+	os.WriteFile(filepath.Join(cfg, "shijimi", "config.toml"), []byte("[browser]\nlisten-host = \"10.0.0.1\"\n"), 0o644)
 	if got := Load(root).Browser.ListenHost; got != "10.0.0.1" {
 		t.Fatalf("user = %q", got)
 	}
-	os.MkdirAll(filepath.Join(root, ".dageki"), 0o755)
-	os.WriteFile(filepath.Join(root, ".dageki", "config.toml"), []byte("[browser]\nlisten-host = \"::1\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[browser]\nlisten-host = \"::1\"\n"), 0o644)
 	if got := Load(root).Browser.ListenHost; got != "::1" {
 		t.Fatalf("listen-host = %q", got)
 	}
@@ -130,8 +130,8 @@ func TestThemeOption(t *testing.T) {
 	if got := Load(root).Editor.Theme; got != "github_dark" {
 		t.Fatalf("top-level theme = %q", got)
 	}
-	os.MkdirAll(filepath.Join(root, ".dageki"), 0o755)
-	os.WriteFile(filepath.Join(root, ".dageki", "config.toml"), []byte("[editor]\ntheme = \"light\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[editor]\ntheme = \"light\"\n"), 0o644)
 	if got := Load(root).Editor.Theme; got != "light" {
 		t.Fatalf("editor.theme = %q", got)
 	}
@@ -144,8 +144,8 @@ func TestNixConfig(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	os.MkdirAll(filepath.Join(root, ".dageki"), 0o755)
-	os.WriteFile(filepath.Join(root, ".dageki", "config.nix"), []byte(`{
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.nix"), []byte(`{
   keymap = "vscode";
   search.exclude = [ "*.lock" ];
   editor = {
@@ -153,7 +153,7 @@ func TestNixConfig(t *testing.T) {
     auto-save.after-delay = { enable = true; timeout = 250; };
   };
 }`), 0o644)
-	os.WriteFile(filepath.Join(root, ".dageki", "languages.nix"), []byte(`{
+	os.WriteFile(filepath.Join(root, ".shijimi", "languages.nix"), []byte(`{
   language-server.my-gopls = {
     command = "gopls";
     args = [ "serve" ];
@@ -192,8 +192,8 @@ func TestMouseHoverOption(t *testing.T) {
 	if !Load(root).Editor.MouseHover {
 		t.Fatal("mouse-hover should default to true")
 	}
-	os.MkdirAll(filepath.Join(root, ".dageki"), 0o755)
-	os.WriteFile(filepath.Join(root, ".dageki", "config.toml"), []byte("[editor]\nmouse-hover = false\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[editor]\nmouse-hover = false\n"), 0o644)
 	if Load(root).Editor.MouseHover {
 		t.Fatal("mouse-hover = false should disable it")
 	}
@@ -205,8 +205,8 @@ func TestIndentGuidesOption(t *testing.T) {
 	if !Load(root).Editor.IndentGuides {
 		t.Fatal("indent-guides should default to true")
 	}
-	os.MkdirAll(filepath.Join(root, ".dageki"), 0o755)
-	os.WriteFile(filepath.Join(root, ".dageki", "config.toml"), []byte("[editor.indent-guides]\nrender = false\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[editor.indent-guides]\nrender = false\n"), 0o644)
 	if Load(root).Editor.IndentGuides {
 		t.Fatal("render = false should disable indent guides")
 	}

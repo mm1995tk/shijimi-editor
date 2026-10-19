@@ -1,8 +1,8 @@
-site_name: dageki 説明書
-site_description: ターミナルで動く統合開発環境 dageki の説明書
-site_url: https://dageki-manual.pages.dev/
-repo_url: https://github.com/mm1995tk/dageki
-repo_name: mm1995tk/dageki
+site_name: shijimi 説明書
+site_description: ターミナルで動く統合開発環境 shijimi の説明書
+site_url: https://shijimi-manual.pages.dev/
+repo_url: https://github.com/mm1995tk/shijimi-editor
+repo_name: mm1995tk/shijimi-editor
 edit_uri: edit/main/manual/docs/
 
 theme:

@@ -1,4 +1,4 @@
-// Package ui implements the dageki terminal IDE.
+// Package ui implements the shijimi terminal IDE.
 package ui
 
 import (
@@ -16,12 +16,12 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/dageki/internal/buffer"
-	"github.com/mm1995tk/dageki/internal/caret"
-	"github.com/mm1995tk/dageki/internal/config"
-	"github.com/mm1995tk/dageki/internal/ide"
-	"github.com/mm1995tk/dageki/internal/lsp"
-	"github.com/mm1995tk/dageki/internal/proxy"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/caret"
+	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/ide"
+	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/proxy"
 )
 
 type focus int

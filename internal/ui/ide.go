@@ -12,8 +12,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/mm1995tk/dageki/internal/buffer"
-	"github.com/mm1995tk/dageki/internal/ide"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
 // ideReply is the result of an IDE tool call.

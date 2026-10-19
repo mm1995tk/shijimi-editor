@@ -122,7 +122,7 @@ include = []
 ```
 
 !!! warning "書く場所"
-    `[search]` は `~/.config/dageki/config.toml` か `.dageki/config.toml` に書きます。
+    `[search]` は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書きます。
     `.helix/config.toml` に書くと、Helix が未知のセクションとして拒否します。
 
 ### 置換
@@ -135,7 +135,7 @@ include = []
 
 ## 外部での変更の反映
 
-AI エージェントなど、別のプロセスがファイルを変えると、dageki は自動で読み直します。
+AI エージェントなど、別のプロセスがファイルを変えると、shijimi は自動で読み直します。
 
 - 未保存の編集があるファイルは読み直しません。`:reload` を実行すると読み直します。
 - 無効にするには `[editor]` の `watch-files = false` を設定します（[設定ファイル](config.md)）。

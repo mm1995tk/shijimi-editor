@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"github.com/mm1995tk/dageki/internal/buffer"
-	"github.com/mm1995tk/dageki/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
 func TestOnLocation(t *testing.T) {

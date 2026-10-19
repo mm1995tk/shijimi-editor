@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/mm1995tk/dageki/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
 // symbolQueryDelay is how long the input rests before workspace/symbol is

@@ -7,7 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/mm1995tk/dageki/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 )
 
 // ctlMsg carries a control-socket request into the Bubble Tea loop.

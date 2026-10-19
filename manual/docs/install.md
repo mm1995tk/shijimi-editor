@@ -5,16 +5,16 @@
 次のどれか 1 つを実行します。
 
 ```sh
-nix run github:mm1995tk/dageki           # インストールせずにその場で起動
-nix profile install github:mm1995tk/dageki
-go install github.com/mm1995tk/dageki/cmd/dgk@latest
+nix run github:mm1995tk/shijimi-editor           # インストールせずにその場で起動
+nix profile install github:mm1995tk/shijimi-editor
+go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
 ```
 
 home-manager で入れる方法は [Nix と home-manager](nix.md) にあります。
 
 ## 必要なもの
 
-dageki 本体だけで編集はできます。次の機能は、別のコマンドが必要です。
+shijimi 本体だけで編集はできます。次の機能は、別のコマンドが必要です。
 
 | 機能 | 必要なコマンド |
 | --- | --- |
@@ -23,16 +23,16 @@ dageki 本体だけで編集はできます。次の機能は、別のコマン�
 | LSP | 各言語のサーバー（`gopls`、`rust-analyzer` など） |
 | mermaid の図 | [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`） |
 | 設定を Nix で書く | `nix` |
-| システムのクリップボードへのコピーと貼り付け（`Space y` / `Space p`） | Wayland は `wl-copy` と `wl-paste`、X11 は `xclip` か `xsel`、macOS は `pbcopy` と `pbpaste`（macOS には最初から入っている）。無いときは dageki の中のクリップボードだけを使う |
+| システムのクリップボードへのコピーと貼り付け（`Space y` / `Space p`） | Wayland は `wl-copy` と `wl-paste`、X11 は `xclip` か `xsel`、macOS は `pbcopy` と `pbpaste`（macOS には最初から入っている）。無いときは shijimi の中のクリップボードだけを使う |
 | カーソル位置の URL を外部ブラウザで開く（`Space o`） | Linux は `xdg-open`、macOS は `open`（macOS には最初から入っている） |
 | ファイルツリーのアイコン | Nerd Font を設定したターミナル |
 
 ## 起動
 
 ```sh
-dgk            # カレントディレクトリを開く
-dgk ./src      # ディレクトリを開く
-dgk main.go    # ファイルを開く
+shj            # カレントディレクトリを開く
+shj ./src      # ディレクトリを開く
+shj main.go    # ファイルを開く
 ```
 
 ## 終了

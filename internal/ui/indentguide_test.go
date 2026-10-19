@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
-	"github.com/mm1995tk/dageki/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
 func guideRows(src string, on bool) []string {
