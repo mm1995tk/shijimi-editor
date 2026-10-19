@@ -24,12 +24,14 @@ flake の `homeManagerModules.default` を読み込みます。
 
 - `settings` は `~/.config/dageki/config.toml` に書き出します。
 - `languages` は `~/.config/dageki/languages.toml` に書き出します。
+- `extraPackages` に書いたコマンドを、`dgk` の PATH の後ろに足します。`gh`・`git`・`mmdc`・言語サーバーを一緒に入れるときに使います。既定は空で、何も足しません。PATH にすでにあるコマンドは、そちらを先に使います。
 
 ```nix
 {
   imports = [ inputs.dageki.homeManagerModules.default ];
   programs.dageki = {
     enable = true;
+    extraPackages = with pkgs; [ gh git mermaid-cli gopls ];
     settings = { keymap = "vscode"; editor.line-number = "relative"; };
     languages = {
       language-server.gopls.command = "gopls";

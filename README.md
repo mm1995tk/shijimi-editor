@@ -125,13 +125,14 @@ timeout = 1000            # ミリ秒
 
 ### home-manager
 
-flake の `homeManagerModules.default` を読み込みます。`settings` が `config.toml`、`languages` が `languages.toml` として `~/.config/dageki/` に書き出されます。
+flake の `homeManagerModules.default` を読み込みます。`settings` が `config.toml`、`languages` が `languages.toml` として `~/.config/dageki/` に書き出されます。`extraPackages` に書いたコマンド（`gh`・`git`・`mmdc`・言語サーバーなど）は `dgk` の PATH の後ろに足されます。既定は空です。
 
 ```nix
 {
   imports = [ inputs.dageki.homeManagerModules.default ];
   programs.dageki = {
     enable = true;
+    extraPackages = with pkgs; [ gh git mermaid-cli gopls ];
     settings = { keymap = "vscode"; editor.line-number = "relative"; };
     languages = {
       language-server.gopls.command = "gopls";

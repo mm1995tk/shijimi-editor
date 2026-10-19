@@ -25,6 +25,8 @@ dageki 本体だけで編集はできます。次の機能は、別のコマン�
 | 設定を Nix で書く | `nix` |
 | ファイルツリーのアイコン | Nerd Font を設定したターミナル |
 
+home-manager で入れるときは、`extraPackages` でこれらのコマンドも一緒に入れられます（[Nix と home-manager](nix.md)）。
+
 ## 起動
 
 ```sh

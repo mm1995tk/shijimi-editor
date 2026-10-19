@@ -18,6 +18,16 @@ in {
       description = "The dageki package to install.";
     };
 
+    extraPackages = lib.mkOption {
+      type = with lib.types; listOf package;
+      default = [];
+      example = lib.literalExpression "with pkgs; [ gh git mermaid-cli gopls ]";
+      description = ''
+        Commands added to the end of {command}`dgk`'s PATH, such as gh, git,
+        mermaid-cli and language servers. Commands already on PATH win.
+      '';
+    };
+
     settings = lib.mkOption {
       type = toml.type;
       default = {};
@@ -44,7 +54,20 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [cfg.package];
+    home.packages =
+      if cfg.extraPackages == []
+      then [cfg.package]
+      else [
+        (pkgs.symlinkJoin {
+          name = "${lib.getName cfg.package}-wrapped-${lib.getVersion cfg.package}";
+          paths = [cfg.package];
+          preferLocalBuild = true;
+          nativeBuildInputs = [pkgs.makeWrapper];
+          postBuild = ''
+            wrapProgram $out/bin/dgk --suffix PATH : ${lib.makeBinPath cfg.extraPackages}
+          '';
+        })
+      ];
     xdg.configFile."dageki/config.toml" = lib.mkIf (cfg.settings != {}) {
       source = toml.generate "dageki-config.toml" cfg.settings;
     };
