@@ -373,3 +373,18 @@ func TestBackspaceBeforeNULKeepsIt(t *testing.T) {
 		t.Fatalf("text = %q", got)
 	}
 }
+
+// gopls's CutPrefix fix inserts and replaces at the same position.
+func TestApplyEditsInsertBeforeReplaceAtSameStart(t *testing.T) {
+	b := fromText("\tif strings.HasPrefix(trim, \"```\") {\n\t\tx := strings.TrimPrefix(trim, \"```\")")
+	b.ApplyEdits([]Edit{
+		{Start: Pos{0, 4}, End: Pos{0, 4}, Text: "after, ok := "},
+		{Start: Pos{0, 4}, End: Pos{0, 21}, Text: "strings.CutPrefix"},
+		{Start: Pos{0, 34}, End: Pos{0, 34}, Text: "; ok "},
+		{Start: Pos{1, 7}, End: Pos{1, 38}, Text: "after"},
+	})
+	want := "\tif after, ok := strings.CutPrefix(trim, \"```\"); ok  {\n\t\tx := after"
+	if got := b.Text(); got != want {
+		t.Fatalf("text = %q\nwant %q", got, want)
+	}
+}
