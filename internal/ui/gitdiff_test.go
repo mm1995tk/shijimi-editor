@@ -325,7 +325,7 @@ func TestOpenDiffSwitchesAndCloses(t *testing.T) {
 	}
 	pr := &prInfo{Number: 12, Title: "差分モードを 1 つにする", State: "OPEN", BaseRefName: "main"}
 	pr.Author.Login = "someone"
-	a.handlePRFound(prFoundMsg{pr: pr})
+	a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, pr: pr})
 	if a.gd.base != basePR || a.gd.pr != pr {
 		t.Fatalf("base=%s pr=%v", a.gd.base, a.gd.pr)
 	}
@@ -340,7 +340,7 @@ func TestOpenDiffSwitchesAndCloses(t *testing.T) {
 	if !a.gd.on || a.gd.base != baseHead || a.gd.pr != nil {
 		t.Errorf("Space G did not switch to HEAD: on=%v base=%s", a.gd.on, a.gd.base)
 	}
-	a.handlePRFound(prFoundMsg{pr: pr})
+	a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, pr: pr})
 	a.openDiff(basePR)
 	if a.gd.on {
 		t.Error("Space g did not close")
@@ -349,10 +349,10 @@ func TestOpenDiffSwitchesAndCloses(t *testing.T) {
 
 func TestPRNotFoundListsPRs(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	if cmd := a.handlePRFound(prFoundMsg{err: errString("no pull requests found")}); cmd == nil || a.gd.base != baseHead {
+	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, err: errString("no pull requests found")}); cmd == nil || a.gd.base != baseHead {
 		t.Errorf("no PR for the branch: cmd=%v base=%s", cmd, a.gd.base)
 	}
-	if cmd := a.handlePRFound(prFoundMsg{num: 5, err: errString("not found")}); cmd != nil || !a.msgErr {
+	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 5, err: errString("not found")}); cmd != nil || !a.msgErr {
 		t.Errorf(":pr 5 failing: cmd=%v msgErr=%v", cmd, a.msgErr)
 	}
 }
@@ -523,5 +523,75 @@ func TestInlineMarksAreDrawn(t *testing.T) {
 	}
 	if got := ansi.Strip(highlightText("\tx", nil, cDelBg, nil, "", 6)); got != "    x " {
 		t.Errorf("tab = %q", got)
+	}
+}
+
+func TestInlineBudgetBoundsOneBuild(t *testing.T) {
+	a, file := gitDiffApp(t)
+	tb := a.curText()
+	var oldLines []string
+	tb.buf.Lines = nil
+	for i := 0; i < 5000; i++ {
+		s := fmt.Sprintf("%03d %s", i, strings.Repeat("abcdefghij", 10))
+		oldLines = append(oldLines, s)
+		tb.buf.Lines = append(tb.buf.Lines, []rune(s+"X"))
+	}
+	tb.buf.Version++
+	a.gd.byAbs[file] = &diff.File{NewPath: "a.txt", Status: "modified"}
+	tb.dv = &diffView{rev: a.gd.rev, old: oldLines}
+	dv := a.diffFor(tb)
+	if n := len(dv.newSpans); n == 0 || n >= 5000 {
+		t.Errorf("first build compared %d of 5000 pairs", n)
+	}
+	// later builds go on from the pairs already compared
+	tb.buf.Version++
+	dv = a.diffFor(tb)
+	if n := len(dv.newSpans); n <= 0 {
+		t.Errorf("second build: %d", n)
+	}
+}
+
+func TestStalePRLookupIsDropped(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	cmd := a.findPR(0)
+	if cmd == nil {
+		t.Fatal("no lookup")
+	}
+	seq := a.gd.prSeq
+	a.closeDiff() // Space G before gh answers
+	a.handlePRFound(prFoundMsg{seq: seq, pr: &prInfo{Number: 3, BaseRefName: "main"}})
+	if a.gd.on || a.gd.base == basePR {
+		t.Errorf("a lookup answered after closing reopened the mode: on=%v base=%s", a.gd.on, a.gd.base)
+	}
+}
+
+func TestGitDiffCommandComparesWithHead(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	a.showDiff(basePR, &prInfo{Number: 3, BaseRefName: "main"})
+	a.gitDiffCommand("")
+	if !a.gd.on || a.gd.base != baseHead {
+		t.Errorf(":gitdiff with the PR base shown: on=%v base=%s", a.gd.on, a.gd.base)
+	}
+	a.showDiff(basePR, &prInfo{Number: 3, BaseRefName: "main"})
+	a.gitDiffCommand("on")
+	if a.gd.base != baseHead {
+		t.Errorf(":gitdiff on kept base %s", a.gd.base)
+	}
+	a.gitDiffCommand("")
+	if a.gd.on {
+		t.Error(":gitdiff with HEAD shown did not close")
+	}
+}
+
+func TestBarClickOutsideTheBarRows(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	tb := a.curText()
+	dv := a.diffFor(tb)
+	g := a.dvGeom(a.layout())
+	tb.buf.ScrollRow = 2
+	a.diffBarClick(tb, dv, g, g.top-1)
+	a.diffBarClick(tb, dv, g, g.top+g.h)
+	if tb.buf.ScrollRow != 2 {
+		t.Errorf("a click outside the bar scrolled to %d", tb.buf.ScrollRow)
 	}
 }

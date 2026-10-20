@@ -31,11 +31,7 @@ func (a *App) handleCtl(m ctlMsg) tea.Cmd {
 	var resp ctl.Response
 	switch m.req.Cmd {
 	case "diff":
-		if !a.gd.on {
-			cmd = a.toggleGitDiff()
-		} else {
-			cmd = a.reloadChanges()
-		}
+		cmd = a.diffWithHead()
 		resp = ctl.Response{OK: true}
 		if m.req.Path != "" {
 			if !a.openFile(m.req.Path) {

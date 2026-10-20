@@ -59,3 +59,12 @@ func TestInlineHalfCommon(t *testing.T) {
 		t.Errorf("less than half common was treated as related")
 	}
 }
+
+func TestSharedRunes(t *testing.T) {
+	if got := sharedRunes([]rune("aabc"), []rune("abca")); got != 4 {
+		t.Errorf("same runes: %d", got)
+	}
+	if got := sharedRunes([]rune("aaa"), []rune("ab")); got != 1 {
+		t.Errorf("repeats: %d", got)
+	}
+}

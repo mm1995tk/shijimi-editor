@@ -46,6 +46,7 @@ type gitDiff struct {
 	err     string
 	gen     int
 	ticks   int
+	prSeq   int // bumped when the mode changes; older PR lookups are dropped
 }
 
 type changesLoadedMsg struct {
@@ -60,6 +61,7 @@ type changesLoadedMsg struct {
 // prFoundMsg reports the pull request looked up to compare with. num is the
 // number asked for, 0 for the current branch's.
 type prFoundMsg struct {
+	seq int
 	num int
 	pr  *prInfo
 	err error
@@ -92,10 +94,6 @@ func loadChanges(gen int, root, base string, pr *prInfo) tea.Msg {
 		if pr == nil {
 			m.err = errString("プルリクエストが選ばれていません")
 			return m
-		}
-		// refresh the title and state shown in the header
-		if p, err := viewPR(root, pr.Number); err == nil {
-			pr = p
 		}
 		ref := "origin/" + pr.BaseRefName
 		if _, err := run(root, nil, "git", "rev-parse", "--verify", "-q", ref); err != nil {
@@ -279,6 +277,15 @@ func (a *App) openDiff(base string) tea.Cmd {
 	return a.showDiff(baseHead, nil)
 }
 
+// diffWithHead opens diff mode against HEAD, or refreshes it when it is
+// already showing HEAD.
+func (a *App) diffWithHead() tea.Cmd {
+	if a.gd.on && a.gd.base == baseHead {
+		return a.reloadChanges()
+	}
+	return a.showDiff(baseHead, nil)
+}
+
 // toggleGitDiff opens diff mode against HEAD, or closes it.
 func (a *App) toggleGitDiff() tea.Cmd {
 	if a.gd.on {
@@ -288,6 +295,7 @@ func (a *App) toggleGitDiff() tea.Cmd {
 }
 
 func (a *App) showDiff(base string, pr *prInfo) tea.Cmd {
+	a.gd.prSeq++
 	a.gd.on = true
 	a.gd.base, a.gd.pr = base, pr
 	a.showSide = true
@@ -296,6 +304,7 @@ func (a *App) showDiff(base string, pr *prInfo) tea.Cmd {
 }
 
 func (a *App) closeDiff() tea.Cmd {
+	a.gd.prSeq++
 	a.gd.on = false
 	if a.focus == focusChanges {
 		a.focus = focusExplorer
@@ -309,14 +318,18 @@ func (a *App) closeDiff() tea.Cmd {
 // to compare with its base.
 func (a *App) findPR(num int) tea.Cmd {
 	a.info("プルリクエストを探しています…")
-	root := a.root
+	a.gd.prSeq++
+	root, seq := a.root, a.gd.prSeq
 	return func() tea.Msg {
 		pr, err := viewPR(root, num)
-		return prFoundMsg{num: num, pr: pr, err: err}
+		return prFoundMsg{seq: seq, num: num, pr: pr, err: err}
 	}
 }
 
 func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
+	if m.seq != a.gd.prSeq {
+		return nil // the mode was closed or switched meanwhile
+	}
 	if m.err != nil {
 		if m.num > 0 {
 			a.fail(m.err)
@@ -365,14 +378,11 @@ func (a *App) toggleSplit() {
 func (a *App) gitDiffCommand(arg string) tea.Cmd {
 	f := strings.Fields(arg)
 	if len(f) == 0 {
-		return a.toggleGitDiff()
+		return a.openDiff(baseHead)
 	}
 	switch f[0] {
 	case "on":
-		if !a.gd.on {
-			return a.toggleGitDiff()
-		}
-		return a.reloadChanges()
+		return a.diffWithHead()
 	case "off":
 		if a.gd.on {
 			return a.closeDiff()
@@ -426,6 +436,9 @@ func (a *App) handleChangesKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "s":
 		a.toggleSplit()
 	case "r", "R":
+		if g.base == basePR && g.pr != nil {
+			return a.findPR(g.pr.Number) // also refreshes the title and state
+		}
 		return a.reloadChanges()
 	case "space":
 		a.pending = " "
@@ -626,6 +639,10 @@ type dispRow struct {
 	hunk     hunkKind
 }
 
+// inlineBudget is how many bytes of changed line pairs one build compares
+// afresh; pairs past it are marked as whole lines until a later build.
+const inlineBudget = 256 << 10
+
 // inlinePair is the result of comparing one changed line pair rune by rune.
 type inlinePair struct {
 	old, cur []diff.Span
@@ -713,6 +730,7 @@ func (dv *diffView) build(t *tab, split bool) {
 	dv.oldSpans, dv.newSpans = map[int][]diff.Span{}, map[int][]diff.Span{}
 	prevInline := dv.inline
 	dv.inline = map[[2]string]inlinePair{}
+	budget := inlineBudget
 	oi, ni := 0, 0
 	ctx := func(n int) {
 		for ; n > 0; n-- {
@@ -746,6 +764,9 @@ func (dv *diffView) build(t *tab, split bool) {
 			key := [2]string{dv.old[o], lines[n]}
 			p, seen := prevInline[key]
 			if !seen {
+				if budget -= len(key[0]) + len(key[1]); budget < 0 {
+					continue // too much to compare; whole lines are marked
+				}
 				p.old, p.cur, p.ok = diff.Inline(key[0], key[1])
 			}
 			dv.inline[key] = p
@@ -916,6 +937,9 @@ func (dv *diffView) changeBar(h, start int) []string {
 // diffBarClick scrolls the diff view to the part of the file that the bar
 // cell at row y stands for.
 func (a *App) diffBarClick(t *tab, dv *diffView, g dvGeom, y int) {
+	if y < g.top || y >= g.top+g.h {
+		return
+	}
 	lo, _ := barRange(y-g.top, g.h, len(dv.rows))
 	t.buf.ScrollRow = dv.scrollFor(max(0, lo-g.h/2))
 }

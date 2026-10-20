@@ -20,6 +20,10 @@ func Inline(old, cur string) (oldSpans, curSpans []Span, ok bool) {
 	if len(a) > MaxInlineRunes || len(b) > MaxInlineRunes {
 		return nil, nil, false
 	}
+	// the runes both lines have, counted with repeats, bound the common part
+	if 2*sharedRunes(a, b) < max(len(a), len(b)) {
+		return nil, nil, false
+	}
 	// common >= max/2 ⇔ edits = n+m-2·common <= min(n, m)
 	limit := min(len(a), len(b))
 	blocks, found := compare(a, b, limit)
@@ -50,4 +54,21 @@ func Inline(old, cur string) (oldSpans, curSpans []Span, ok bool) {
 		}
 	}
 	return oldSpans, curSpans, true
+}
+
+// sharedRunes counts the runes a and b have in common, ignoring order. It is
+// at least the length of their longest common subsequence.
+func sharedRunes(a, b []rune) int {
+	count := make(map[rune]int, len(a))
+	for _, r := range a {
+		count[r]++
+	}
+	n := 0
+	for _, r := range b {
+		if count[r] > 0 {
+			count[r]--
+			n++
+		}
+	}
+	return n
 }
