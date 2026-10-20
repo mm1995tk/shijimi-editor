@@ -8,6 +8,8 @@ edit_uri: edit/main/manual/docs/
 theme:
   name: material
   language: ja
+  logo: assets/icon.png
+  favicon: assets/icon.png
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
