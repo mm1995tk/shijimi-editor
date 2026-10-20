@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -84,4 +86,35 @@ func TestCaretInPaletteAndFind(t *testing.T) {
 	a.findInput.SetValue("日本語")
 	a.findInput.CursorEnd()
 	check("find", "日本語")
+}
+
+// After text longer than the field scrolls it, moving left keeps the scroll,
+// and repeated characters must not make the caret drift to the right.
+func TestInputCaretScrolledRepeats(t *testing.T) {
+	for _, c := range []struct {
+		value       string
+		width, left int
+		want        int
+	}{
+		{strings.Repeat("a", 20), 11, 1, 10},
+		{"ababab", 4, 2, 2},
+		{"あいうえおかきく", 6, 1, 4},
+		{"日本語", 20, 0, 6},
+		{"", 10, 0, 0},
+	} {
+		ti := textinput.New()
+		ti.Prompt = ""
+		ti.SetWidth(c.width)
+		ti.Focus()
+		styleInput(&ti, cPaletteBg)
+		for _, r := range c.value {
+			ti, _ = ti.Update(textKey(string(r)))
+		}
+		for range c.left {
+			ti, _ = ti.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+		}
+		if got := inputCaret(ti); got != c.want {
+			t.Errorf("%q width %d left %d: caret = %d, want %d", c.value, c.width, c.left, got, c.want)
+		}
+	}
 }

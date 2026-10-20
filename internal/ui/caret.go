@@ -73,16 +73,14 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 
 // inputCaret is how many cells after the start of ti's view the typed text
 // goes. textinput's own Cursor counts runes, which is wrong for wide
-// characters, and the view may be scrolled, so the visible part is matched
-// against the value.
+// characters, and how far the view is scrolled is not exported. So a copy
+// without colours is drawn, where the cursor is the only reversed text.
 func inputCaret(ti textinput.Model) int {
-	v := []rune(ti.Value())
-	pos := clamp(ti.Position(), 0, len(v))
-	shown := ansi.Strip(ti.View())
-	for k := 0; k < pos; k++ {
-		if strings.HasPrefix(shown, string(v[k:pos])) {
-			return ansi.StringWidth(string(v[k:pos]))
-		}
+	ti.SetStyles(textinput.Styles{})
+	v := ti.View()
+	i := strings.Index(v, "\x1b[7m")
+	if i < 0 {
+		return 0
 	}
-	return 0
+	return ansi.StringWidth(v[:i])
 }
