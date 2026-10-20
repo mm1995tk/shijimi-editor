@@ -26,6 +26,7 @@ import (
 
 // prReview is the review state of the pull request shown.
 type prReview struct {
+	num     int         // the pull request this state belongs to
 	threads []*prThread // from GitHub
 	pending []*prThread // written here, sent with the review
 	viewed  map[string]bool
@@ -405,6 +406,7 @@ func threadState(t *prThread) string {
 
 // viewedMsg reports the end of marking a file viewed or not.
 type viewedMsg struct {
+	num    int
 	path   string
 	viewed bool
 	err    error
@@ -421,10 +423,13 @@ func (a *App) toggleViewed() tea.Cmd {
 	}
 	v := !a.gd.rv.viewed[p]
 	root, pr := a.root, a.gd.pr
-	return func() tea.Msg { return viewedMsg{path: p, viewed: v, err: setViewed(root, pr, p, v)} }
+	return func() tea.Msg { return viewedMsg{num: pr.Number, path: p, viewed: v, err: setViewed(root, pr, p, v)} }
 }
 
 func (a *App) handleViewed(m viewedMsg) {
+	if !a.prShown() || a.gd.pr.Number != m.num {
+		return // another pull request is shown now
+	}
 	if m.err != nil {
 		a.fail(m.err)
 		return
@@ -445,6 +450,7 @@ func (a *App) handleViewed(m viewedMsg) {
 // reviewSentMsg reports the end of sending something to GitHub; the review
 // is reloaded after it.
 type reviewSentMsg struct {
+	num  int    // the pull request it was sent to
 	done string // message on success
 	sent []*prThread
 	err  error
@@ -467,7 +473,7 @@ func (a *App) startSubmit(event string) tea.Cmd {
 		root, pr, threads := a.root, a.gd.pr, append([]*prThread(nil), a.gd.rv.pending...)
 		return func() tea.Msg {
 			err := submitReview(root, pr, event, body, threads)
-			return reviewSentMsg{done: fmt.Sprintf("レビューを送信しました（%s）", eventNames[event]), sent: threads, err: err}
+			return reviewSentMsg{num: pr.Number, done: fmt.Sprintf("レビューを送信しました（%s）", eventNames[event]), sent: threads, err: err}
 		}
 	})
 	a.composer.empty = true
@@ -479,7 +485,7 @@ func (a *App) handleReviewSent(m reviewSentMsg) tea.Cmd {
 		a.fail(m.err)
 		return nil
 	}
-	if len(m.sent) > 0 {
+	if m.num == a.gd.rv.num && len(m.sent) > 0 {
 		var keep []*prThread
 		for _, t := range a.gd.rv.pending {
 			sent := false
@@ -496,7 +502,7 @@ func (a *App) handleReviewSent(m reviewSentMsg) tea.Cmd {
 	if a.card != nil && a.card.thread.Pending {
 		a.card = nil
 	}
-	if !a.prShown() {
+	if !a.prShown() || a.gd.pr.Number != m.num {
 		return nil
 	}
 	return a.loadReview()
@@ -531,9 +537,11 @@ func (dv *diffView) inHunk(row int) bool {
 
 // prCard is a thread shown like a hover popup. It takes the keys while open.
 type prCard struct {
-	thread *prThread
-	path   string
-	scroll int
+	thread    *prThread
+	path      string
+	scroll    int
+	byPointer bool      // opened by resting the pointer: it takes no keys, like a hover
+	at        *screenPt // the marker it hangs from when the mouse opened it
 }
 
 // cardLines draws the thread as markdown at width w (content only).
@@ -625,7 +633,9 @@ func (a *App) cardBox(l layout) (rows []string, x, y int) {
 	c.scroll = clamp(c.scroll, 0, max(0, len(lines)-h))
 	rows = box(lines, w, h, c.scroll, a.cardHint(c))
 	cx, cy := l.rightX+2, l.editY+1
-	if t := a.curText(); t != nil && t.buf.Path != "" && a.repoPath(t.buf.Path) == c.path {
+	if c.at != nil {
+		cx, cy = c.at.x, c.at.y
+	} else if t := a.curText(); t != nil && t.buf.Path != "" && a.repoPath(t.buf.Path) == c.path {
 		cx, cy = a.cursorScreen(t, l)
 		if t.buf.Cur.Row+1 != c.thread.Line {
 			cx, cy = l.rightX+2, l.editY+1
@@ -666,7 +676,10 @@ func (a *App) handleCardKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return a.compose("返信: "+threadWhere(t), "", nil, func(body string) tea.Cmd {
 			a.info("返信を送信しています…")
 			root, id := a.root, t.ID
-			return func() tea.Msg { return reviewSentMsg{done: "返信しました", err: replyThread(root, id, body)} }
+			num := a.gd.pr.Number
+			return func() tea.Msg {
+				return reviewSentMsg{num: num, done: "返信しました", err: replyThread(root, id, body)}
+			}
 		}), true
 	case "x":
 		if t.Pending {
@@ -685,7 +698,8 @@ func (a *App) handleCardKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		if !resolve {
 			done = "未解決に戻しました"
 		}
-		return func() tea.Msg { return reviewSentMsg{done: done, err: resolveThread(root, id, resolve)} }, true
+		num := a.gd.pr.Number
+		return func() tea.Msg { return reviewSentMsg{num: num, done: done, err: resolveThread(root, id, resolve)} }, true
 	case "s":
 		if t.Pending || suggestion(t) == nil {
 			return nil, true
@@ -704,7 +718,8 @@ func (a *App) gotoThread(c *prCard) tea.Cmd {
 	if !a.openFile(abs) {
 		return nil
 	}
-	if t := a.curText(); t != nil && c.thread.Line > 0 && !c.thread.File {
+	// base side and outdated lines count in another version of the file
+	if t := a.curText(); t != nil && c.thread.onLine(c.thread.Line) {
 		t.buf.Anchor = nil
 		t.buf.Cur = t.buf.ClampPos(buffer.Pos{Row: c.thread.Line - 1})
 		a.follow = true

@@ -34,7 +34,10 @@ func (m editMode) label() string {
 // ctrl chords. Anything else would edit a buffer that is not visible.
 func (a *App) fullPreviewKey(key string) bool {
 	if a.pending == " " {
-		return strings.Contains("fbkodDeEmgGy?/ta", key) && len(key) == 1
+		return strings.Contains("fbkodDeEmgGvy?/ta", key) && len(key) == 1
+	}
+	if a.pending == "space v" {
+		return true // review commands do not edit the hidden buffer
 	}
 	if a.pending != "" {
 		return a.pending == "g"

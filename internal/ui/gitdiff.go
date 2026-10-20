@@ -330,9 +330,11 @@ func (a *App) toggleGitDiff() tea.Cmd {
 func (a *App) showDiff(base string, pr *prInfo) tea.Cmd {
 	a.gd.prSeq++
 	a.gd.on = true
-	if pr == nil || a.gd.pr == nil || a.gd.pr.Number != pr.Number {
-		a.gd.rv = prReview{} // comments written for another pull request are not kept
-		a.card = nil
+	a.card = nil
+	if pr != nil && a.gd.rv.num != pr.Number {
+		// another pull request: what was read or written for the last one goes.
+		// Comparing with HEAD keeps it for coming back.
+		a.gd.rv = prReview{num: pr.Number}
 	}
 	a.gd.base, a.gd.pr = base, pr
 	a.gd.stale, a.gd.staleAll = nil, false
@@ -411,10 +413,22 @@ func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
 		return nil
 	}
 	a.msg = ""
-	if !m.refresh && m.pr.HeadRefName != a.branch {
-		return a.switchToPR(m.pr)
+	pr := m.pr
+	proceed := func() tea.Cmd {
+		if !m.refresh && pr.HeadRefName != a.branch {
+			return a.switchToPR(pr)
+		}
+		return a.openPR(pr)
 	}
-	return a.openPR(m.pr)
+	if rv := a.gd.rv; len(rv.pending) > 0 && rv.num != pr.Number {
+		a.confirm = &yesNo{
+			prompt: fmt.Sprintf("PR #%d の未送信コメントが %d 件あります。破棄して PR #%d を開きますか？ (y/n)", rv.num, len(rv.pending), pr.Number),
+			yes:    proceed,
+			no:     func() tea.Cmd { a.info("PR #%d を開くのをやめました", pr.Number); return nil },
+		}
+		return nil
+	}
+	return proceed()
 }
 
 // openPR compares with the base of pr, whose branch is checked out, and
@@ -458,6 +472,11 @@ func (a *App) checkoutPR(pr *prInfo, stash bool) tea.Cmd {
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
 	return func() tea.Msg {
+		head := func() string {
+			out, _ := run(root, nil, "git", "rev-parse", "HEAD")
+			return string(out)
+		}
+		before := head()
 		if stash {
 			msg := fmt.Sprintf("shijimi: PR #%d に切り替える前の変更", pr.Number)
 			if _, err := run(root, nil, "git", "stash", "push", "-u", "-m", msg); err != nil {
@@ -465,6 +484,17 @@ func (a *App) checkoutPR(pr *prInfo, stash bool) tea.Cmd {
 			}
 		}
 		_, err := run(root, nil, "gh", "pr", "checkout", fmt.Sprint(pr.Number))
+		if err != nil && stash {
+			// put the changes back where they were, if still there
+			popped := false
+			if head() == before {
+				_, perr := run(root, nil, "git", "stash", "pop")
+				popped = perr == nil
+			}
+			if !popped {
+				err = fmt.Errorf("%w（変更は stash の「shijimi: PR #%d に切り替える前の変更」にあります）", err, pr.Number)
+			}
+		}
 		return prCheckedOutMsg{seq: seq, pr: pr, err: err}
 	}
 }

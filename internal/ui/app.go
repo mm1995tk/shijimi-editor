@@ -933,6 +933,9 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		// focus, and the key goes on to it.
 		a.hoverText, a.hoverAt = "", nil
 	}
+	if a.card != nil && a.card.byPointer {
+		a.card = nil // the same for a comment card the pointer opened
+	}
 	if key != "ctrl+q" {
 		a.confirmQuit = false
 	}
@@ -1759,7 +1762,7 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 					return nil // the base side is read-only
 				}
 				if th := a.markerAt(l, x, y); th != nil {
-					a.card = &prCard{thread: th, path: a.repoPath(t.buf.Path)}
+					a.card = &prCard{thread: th, path: a.repoPath(t.buf.Path), at: &screenPt{x, y}}
 					return nil
 				}
 			} else if t.preview != previewOff && x >= l.rightX+a.editW(t, l) {

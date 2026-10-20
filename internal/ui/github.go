@@ -155,10 +155,13 @@ func syncWith(root, oid string) prSync {
 	return s
 }
 
+// ghRun runs gh for gql; tests replace it.
+var ghRun = run
+
 // gql runs a GraphQL query through gh and decodes the "data" member into out.
 func gql(root, query string, vars map[string]any, out any) error {
 	req, _ := json.Marshal(map[string]any{"query": query, "variables": vars})
-	data, err := run(root, req, "gh", "api", "graphql", "--input", "-")
+	data, err := ghRun(root, req, "gh", "api", "graphql", "--input", "-")
 	if err != nil {
 		return err
 	}
@@ -223,80 +226,131 @@ type prReviewData struct {
 	viewed  map[string]bool
 }
 
-const reviewQuery = `query($id: ID!) {
+const threadsQuery = `query($id: ID!, $after: String) {
   node(id: $id) {
     ... on PullRequest {
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id path line startLine diffSide isResolved isOutdated subjectType
           comments(first: 100) { nodes { body createdAt author { login } } }
         }
       }
-      files(first: 100) { nodes { path viewerViewedState } }
     }
   }
 }`
 
-// loadReview reads the review threads and viewed files of pull request pr.
+const filesQuery = `query($id: ID!, $after: String) {
+  node(id: $id) {
+    ... on PullRequest {
+      files(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes { path viewerViewedState }
+      }
+    }
+  }
+}`
+
+type pageInfo struct {
+	HasNextPage bool   `json:"hasNextPage"`
+	EndCursor   string `json:"endCursor"`
+}
+
+// pageVars returns the variables for the page after cursor ("" = the first).
+func pageVars(id, cursor string) map[string]any {
+	v := map[string]any{"id": id}
+	if cursor != "" {
+		v["after"] = cursor
+	}
+	return v
+}
+
+// loadReview reads the review threads and viewed files of pull request pr,
+// every page of them.
 func loadReview(root string, pr *prInfo) (prReviewData, error) {
-	var resp struct {
-		Node struct {
-			ReviewThreads struct {
-				Nodes []struct {
-					ID          string `json:"id"`
-					Path        string `json:"path"`
-					Line        *int   `json:"line"`
-					StartLine   *int   `json:"startLine"`
-					DiffSide    string `json:"diffSide"`
-					IsResolved  bool   `json:"isResolved"`
-					IsOutdated  bool   `json:"isOutdated"`
-					SubjectType string `json:"subjectType"`
-					Comments    struct {
-						Nodes []struct {
-							Body      string    `json:"body"`
-							CreatedAt time.Time `json:"createdAt"`
-							Author    *struct {
-								Login string `json:"login"`
-							} `json:"author"`
-						} `json:"nodes"`
-					} `json:"comments"`
-				} `json:"nodes"`
-			} `json:"reviewThreads"`
-			Files struct {
-				Nodes []struct {
-					Path   string `json:"path"`
-					Viewed string `json:"viewerViewedState"`
-				} `json:"nodes"`
-			} `json:"files"`
-		} `json:"node"`
-	}
 	d := prReviewData{viewed: map[string]bool{}}
-	if err := gql(root, reviewQuery, map[string]any{"id": pr.ID}, &resp); err != nil {
-		return d, err
-	}
-	for _, n := range resp.Node.ReviewThreads.Nodes {
-		t := &prThread{ID: n.ID, Path: n.Path, Side: n.DiffSide, Resolved: n.IsResolved, Outdated: n.IsOutdated, File: n.SubjectType == "FILE"}
-		if n.Line != nil {
-			t.Line = *n.Line
-		} else if !t.File {
-			t.Outdated = true
+	for cursor := ""; ; {
+		var resp struct {
+			Node struct {
+				ReviewThreads struct {
+					PageInfo pageInfo `json:"pageInfo"`
+					Nodes    []struct {
+						ID          string `json:"id"`
+						Path        string `json:"path"`
+						Line        *int   `json:"line"`
+						StartLine   *int   `json:"startLine"`
+						DiffSide    string `json:"diffSide"`
+						IsResolved  bool   `json:"isResolved"`
+						IsOutdated  bool   `json:"isOutdated"`
+						SubjectType string `json:"subjectType"`
+						Comments    struct {
+							Nodes []struct {
+								Body      string    `json:"body"`
+								CreatedAt time.Time `json:"createdAt"`
+								Author    *struct {
+									Login string `json:"login"`
+								} `json:"author"`
+							} `json:"nodes"`
+						} `json:"comments"`
+					} `json:"nodes"`
+				} `json:"reviewThreads"`
+			} `json:"node"`
 		}
-		if n.StartLine != nil && *n.StartLine != t.Line {
-			t.StartLine = *n.StartLine
+		if err := gql(root, threadsQuery, pageVars(pr.ID, cursor), &resp); err != nil {
+			return d, err
 		}
-		for _, c := range n.Comments.Nodes {
-			who := "ghost"
-			if c.Author != nil {
-				who = c.Author.Login
+		rt := resp.Node.ReviewThreads
+		for _, n := range rt.Nodes {
+			t := &prThread{ID: n.ID, Path: n.Path, Side: n.DiffSide, Resolved: n.IsResolved, Outdated: n.IsOutdated, File: n.SubjectType == "FILE"}
+			if n.Line != nil {
+				t.Line = *n.Line
+			} else if !t.File {
+				t.Outdated = true
 			}
-			t.Comments = append(t.Comments, prComment{Author: who, Body: c.Body, Created: c.CreatedAt})
+			if n.StartLine != nil && *n.StartLine != t.Line {
+				t.StartLine = *n.StartLine
+			}
+			for _, c := range n.Comments.Nodes {
+				who := "ghost"
+				if c.Author != nil {
+					who = c.Author.Login
+				}
+				t.Comments = append(t.Comments, prComment{Author: who, Body: c.Body, Created: c.CreatedAt})
+			}
+			if len(t.Comments) > 0 {
+				d.threads = append(d.threads, t)
+			}
 		}
-		d.threads = append(d.threads, t)
+		if !rt.PageInfo.HasNextPage {
+			break
+		}
+		cursor = rt.PageInfo.EndCursor
 	}
-	for _, f := range resp.Node.Files.Nodes {
-		if f.Viewed == "VIEWED" {
-			d.viewed[f.Path] = true
+	for cursor := ""; ; {
+		var resp struct {
+			Node struct {
+				Files struct {
+					PageInfo pageInfo `json:"pageInfo"`
+					Nodes    []struct {
+						Path   string `json:"path"`
+						Viewed string `json:"viewerViewedState"`
+					} `json:"nodes"`
+				} `json:"files"`
+			} `json:"node"`
 		}
+		if err := gql(root, filesQuery, pageVars(pr.ID, cursor), &resp); err != nil {
+			return d, err
+		}
+		fs := resp.Node.Files
+		for _, f := range fs.Nodes {
+			if f.Viewed == "VIEWED" {
+				d.viewed[f.Path] = true
+			}
+		}
+		if !fs.PageInfo.HasNextPage {
+			break
+		}
+		cursor = fs.PageInfo.EndCursor
 	}
 	return d, nil
 }
@@ -332,6 +386,26 @@ func setViewed(root string, pr *prInfo, path string, viewed bool) error {
 // filled, then submitted; on any failure the draft is deleted, so nothing
 // half-sent stays on GitHub.
 func submitReview(root string, pr *prInfo, event, body string, threads []*prThread) error {
+	// GitHub allows one draft review per person; one left over (from the web,
+	// or a send that could not clean up) would make every send fail
+	var drafts struct {
+		Node struct {
+			Reviews struct {
+				Nodes []struct {
+					ViewerDidAuthor bool `json:"viewerDidAuthor"`
+				} `json:"nodes"`
+			} `json:"reviews"`
+		} `json:"node"`
+	}
+	if err := gql(root, `query($id: ID!) { node(id: $id) { ... on PullRequest { reviews(states: PENDING, first: 20) { nodes { viewerDidAuthor } } } } }`,
+		map[string]any{"id": pr.ID}, &drafts); err != nil {
+		return err
+	}
+	for _, r := range drafts.Node.Reviews.Nodes {
+		if r.ViewerDidAuthor {
+			return fmt.Errorf("GitHub に送信していない下書きのレビューがあります。%s で送信するか破棄してから、もう一度送ってください", pr.URL)
+		}
+	}
 	var created struct {
 		AddPullRequestReview struct {
 			PullRequestReview struct {

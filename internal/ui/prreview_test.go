@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -352,11 +354,12 @@ func TestCheckoutPRStashes(t *testing.T) {
 	if msg.err == nil {
 		t.Skip("gh pr checkout worked here; nothing to check")
 	}
-	if got := gitOut(t, a.root, "stash", "list"); !strings.Contains(got, "shijimi: PR #9 に切り替える前の変更") {
+	// the checkout failed on the same branch: the stash is popped again
+	if got := gitOut(t, a.root, "stash", "list"); got != "" {
 		t.Errorf("stash list = %q", got)
 	}
-	if got := gitOut(t, a.root, "status", "--porcelain"); got != "" {
-		t.Errorf("tree not clean after stash: %q", got)
+	if got := gitOut(t, a.root, "status", "--porcelain"); !strings.Contains(got, "a.txt") || !strings.Contains(got, "new.txt") {
+		t.Errorf("changes not restored: %q", got)
 	}
 	a.handlePRCheckedOut(msg)
 	if !a.msgErr || a.gd.base == basePR {
@@ -412,11 +415,11 @@ func TestReviewSentDropsSentComments(t *testing.T) {
 	a, _ := prApp(t)
 	t1, t2 := &prThread{Pending: true}, &prThread{Pending: true}
 	a.gd.rv.pending = []*prThread{t1, t2}
-	a.handleReviewSent(reviewSentMsg{done: "ok", sent: []*prThread{t1}})
+	a.handleReviewSent(reviewSentMsg{num: 7, done: "ok", sent: []*prThread{t1}})
 	if len(a.gd.rv.pending) != 1 || a.gd.rv.pending[0] != t2 {
 		t.Errorf("pending = %v", a.gd.rv.pending)
 	}
-	a.handleReviewSent(reviewSentMsg{err: errString("boom"), sent: []*prThread{t2}})
+	a.handleReviewSent(reviewSentMsg{num: 7, err: errString("boom"), sent: []*prThread{t2}})
 	if len(a.gd.rv.pending) != 1 || !a.msgErr {
 		t.Error("a failed send dropped comments")
 	}
@@ -474,5 +477,261 @@ func TestResizeDragInDiffMode(t *testing.T) {
 	a.handleMouse(mouseEvent{X: 40, Y: 5, Action: mouseRelease, Button: tea.MouseLeft})
 	if a.layout().sideW != 40 {
 		t.Fatalf("side drag in diff mode: %d", a.layout().sideW)
+	}
+}
+
+// markerCell returns the screen cell of the marker of buffer line row.
+func markerCell(a *App, row int) (x, y int) {
+	a.render()
+	g := a.dvGeom(a.layout())
+	tb := a.curText()
+	dv := a.diffFor(tb)
+	return g.rightX, g.top + dv.newIdx[row] - dv.start(tb.buf.ScrollRow)
+}
+
+func TestPointerCardTakesNoKeys(t *testing.T) {
+	a, _ := prApp(t)
+	a.cfg.Editor.MouseHover = true
+	th := &prThread{ID: "T", Path: "a.txt", Line: 10, Side: "RIGHT", Comments: []prComment{{Author: "r", Body: "x"}}}
+	a.gd.rv.threads = []*prThread{th}
+	x, y := markerCell(a, 9)
+	a.handleMouse(mouseEvent{X: x, Y: y, Action: mouseMotion, Button: tea.MouseNone})
+	if a.card == nil || !a.card.byPointer {
+		t.Fatal("resting on the marker did not show the card")
+	}
+	// a key closes it and goes to the editor: x selects the line, nothing is sent
+	cmd := a.handleKey(textKey("x"))
+	if a.card != nil || cmd != nil {
+		t.Errorf("x went to the card: card=%v cmd=%v", a.card != nil, cmd != nil)
+	}
+	if _, _, ok := a.curText().buf.Selection(); !ok {
+		t.Error("x did not reach the editor")
+	}
+	// leaving the marker closes it
+	a.handleMouse(mouseEvent{X: x, Y: y, Action: mouseMotion, Button: tea.MouseNone})
+	a.handleMouse(mouseEvent{X: x + 60, Y: y - 5, Action: mouseMotion, Button: tea.MouseNone})
+	if a.card != nil {
+		t.Error("card stayed after the pointer left")
+	}
+	// without mouse hover, resting opens nothing
+	a.cfg.Editor.MouseHover = false
+	a.handleMouse(mouseEvent{X: x, Y: y, Action: mouseMotion, Button: tea.MouseNone})
+	if a.card != nil {
+		t.Error("card opened with mouse hover off")
+	}
+}
+
+func TestPendingCommentsSurviveHeadBase(t *testing.T) {
+	a, _ := prApp(t)
+	pr := a.gd.pr
+	a.gd.rv.pending = []*prThread{{Path: "a.txt", Line: 10, Side: "RIGHT", Pending: true, Comments: []prComment{{Body: "x"}}}}
+	a.openDiff(baseHead)
+	a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 7, pr: pr})
+	if len(a.gd.rv.pending) != 1 {
+		t.Fatal("Space G then Space g lost the comment")
+	}
+	// another pull request asks first
+	other := &prInfo{Number: 8, HeadRefName: "feature", BaseRefName: "main"}
+	a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 8, pr: other})
+	if a.confirm == nil || !strings.Contains(a.confirm.prompt, "PR #7 の未送信コメントが 1 件あります") {
+		t.Fatal("no question before dropping comments")
+	}
+	press(a, "n")
+	if len(a.gd.rv.pending) != 1 || a.gd.pr.Number != 7 {
+		t.Error("n dropped the comments")
+	}
+	a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 8, pr: other})
+	press(a, "y")
+	if len(a.gd.rv.pending) != 0 || a.gd.pr.Number != 8 {
+		t.Errorf("y: pending=%d pr=%d", len(a.gd.rv.pending), a.gd.pr.Number)
+	}
+}
+
+func TestLateAnswersForAnotherPRAreDropped(t *testing.T) {
+	a, _ := prApp(t)
+	a.handleViewed(viewedMsg{num: 99, path: "a.txt", viewed: true})
+	if a.gd.rv.viewed["a.txt"] {
+		t.Error("viewed answer of another PR applied")
+	}
+	a.handleViewed(viewedMsg{num: 7, path: "a.txt", viewed: true})
+	if !a.gd.rv.viewed["a.txt"] {
+		t.Error("viewed answer not applied")
+	}
+	p := &prThread{Pending: true}
+	a.gd.rv.pending = []*prThread{p}
+	if cmd := a.handleReviewSent(reviewSentMsg{num: 99, sent: []*prThread{p}}); cmd != nil || len(a.gd.rv.pending) != 1 {
+		t.Error("send answer of another PR applied")
+	}
+	// review loads: an older one or one for another PR is dropped; the open
+	// card follows its thread into the new data
+	old := &prThread{ID: "T", Path: "a.txt", Line: 10, Side: "RIGHT", Comments: []prComment{{Body: "old"}}}
+	a.card = &prCard{thread: old, path: "a.txt"}
+	a.gd.rv.seq = 5
+	fresh := &prThread{ID: "T", Path: "a.txt", Line: 10, Side: "RIGHT", Comments: []prComment{{Body: "old"}, {Body: "reply"}}}
+	a.handlePRReview(prReviewMsg{seq: 4, num: 7, data: prReviewData{threads: []*prThread{fresh}}})
+	a.handlePRReview(prReviewMsg{seq: 5, num: 8, data: prReviewData{threads: []*prThread{fresh}}})
+	if len(a.gd.rv.threads) != 0 {
+		t.Fatal("stale review load applied")
+	}
+	a.handlePRReview(prReviewMsg{seq: 5, num: 7, data: prReviewData{threads: []*prThread{fresh}}})
+	if len(a.gd.rv.threads) != 1 || a.card == nil || a.card.thread != fresh {
+		t.Error("card not moved to the reloaded thread")
+	}
+}
+
+func TestInHunkAroundDeletion(t *testing.T) {
+	// base 1..10, buffer has line 5 deleted: the deletion sits between buffer
+	// lines 3 and 4 (0-based); 3 lines of context on each side make rows 1..6
+	// the hunk
+	dv := &diffView{}
+	for i := 1; i <= 10; i++ {
+		dv.old = append(dv.old, fmt.Sprint(i))
+	}
+	b := buffer.New()
+	b.Insert("1\n2\n3\n4\n6\n7\n8\n9\n10")
+	dv.build(newTab(b), false)
+	for row, want := range map[int]bool{0: false, 1: true, 3: true, 6: true, 7: false} {
+		if got := dv.inHunk(row); got != want {
+			t.Errorf("row %d: %v", row, got)
+		}
+	}
+}
+
+func TestApplyEmptySuggestionDeletesLines(t *testing.T) {
+	a, file := prApp(t)
+	th := &prThread{ID: "T", Path: "a.txt", Line: 11, StartLine: 10, Side: "RIGHT", Comments: []prComment{{Body: "```suggestion\n```"}}}
+	a.gd.rv.threads = []*prThread{th}
+	a.card = &prCard{thread: th, path: "a.txt"}
+	a.handleKey(textKey("s"))
+	data, _ := os.ReadFile(file)
+	if !strings.Contains(string(data), "linei\nlinel\n") || strings.Contains(string(data), "changed") {
+		t.Errorf("file = %q", data)
+	}
+	// the last line: the line break before it goes
+	a.applyChanges(loadChanges(a.gd.gen, a.root, basePR, a.gd.pr).(changesLoadedMsg))
+	gitIn(t, a.root, "commit", "-qam", "x")
+	a.gd.pr.HeadRefOid = gitOut(t, a.root, "rev-parse", "HEAD")
+	a.applyChanges(loadChanges(a.gd.gen, a.root, basePR, a.gd.pr).(changesLoadedMsg))
+	n := len(a.curText().buf.Lines) // the empty line after the last newline counts
+	th2 := &prThread{ID: "U", Path: "a.txt", Line: n - 1, Side: "RIGHT", Comments: []prComment{{Body: "```suggestion\n```"}}}
+	a.card = &prCard{thread: th2, path: "a.txt"}
+	a.handleKey(textKey("s"))
+	data, _ = os.ReadFile(file)
+	if !strings.HasSuffix(string(data), "lines\n") {
+		t.Errorf("last line not removed: %q", data[len(data)-20:])
+	}
+}
+
+func TestEnterOnBaseSideThreadDoesNotMove(t *testing.T) {
+	a, _ := prApp(t)
+	th := &prThread{ID: "T", Path: "a.txt", Line: 15, Side: "LEFT", Comments: []prComment{{Body: "x"}}}
+	a.card = &prCard{thread: th, path: "a.txt"}
+	a.curText().buf.Cur = buffer.Pos{Row: 2}
+	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if a.curText().buf.Cur.Row != 2 {
+		t.Errorf("moved to %d", a.curText().buf.Cur.Row)
+	}
+}
+
+// stubGH replaces gh with f for the test.
+func stubGH(t *testing.T, f func(req map[string]any) string) *[]string {
+	t.Helper()
+	var queries []string
+	old := ghRun
+	ghRun = func(dir string, stdin []byte, name string, args ...string) ([]byte, error) {
+		var req map[string]any
+		json.Unmarshal(stdin, &req)
+		queries = append(queries, req["query"].(string))
+		return []byte(f(req)), nil
+	}
+	t.Cleanup(func() { ghRun = old })
+	return &queries
+}
+
+func TestSubmitReviewBuildsAndCleansUp(t *testing.T) {
+	pr := &prInfo{ID: "PR", Number: 1, HeadRefOid: "abc", URL: "https://example/pr/1"}
+	threads := []*prThread{
+		{Path: "a.go", Line: 5, StartLine: 3, Side: "RIGHT", Comments: []prComment{{Body: "range"}}},
+		{Path: "b.go", File: true, Comments: []prComment{{Body: "file"}}},
+	}
+	q := stubGH(t, func(req map[string]any) string {
+		s := req["query"].(string)
+		switch {
+		case strings.Contains(s, "reviews(states: PENDING"):
+			return `{"data":{"node":{"reviews":{"nodes":[]}}}}`
+		case strings.Contains(s, "addPullRequestReview("):
+			return `{"data":{"addPullRequestReview":{"pullRequestReview":{"id":"R1"}}}}`
+		}
+		return `{"data":{}}`
+	})
+	if err := submitReview("", pr, "COMMENT", "body", threads); err != nil {
+		t.Fatal(err)
+	}
+	all := strings.Join(*q, "\n")
+	for _, s := range []string{"startLine: $start, startSide: RIGHT", "subjectType: FILE", "submitPullRequestReview", "$body: String"} {
+		if !strings.Contains(all, s) {
+			t.Errorf("queries lack %q", s)
+		}
+	}
+	if strings.Contains(all, "deletePullRequestReview") {
+		t.Error("deleted a review that was sent")
+	}
+
+	// a failing thread deletes the draft
+	q = stubGH(t, func(req map[string]any) string {
+		s := req["query"].(string)
+		switch {
+		case strings.Contains(s, "reviews(states: PENDING"):
+			return `{"data":{"node":{"reviews":{"nodes":[]}}}}`
+		case strings.Contains(s, "addPullRequestReview("):
+			return `{"data":{"addPullRequestReview":{"pullRequestReview":{"id":"R1"}}}}`
+		case strings.Contains(s, "addPullRequestReviewThread"):
+			return `{"errors":[{"message":"line must be part of the diff"}]}`
+		}
+		return `{"data":{}}`
+	})
+	if err := submitReview("", pr, "COMMENT", "", threads); err == nil || !strings.Contains(err.Error(), "a.go") {
+		t.Errorf("err = %v", err)
+	}
+	if !strings.Contains(strings.Join(*q, "\n"), "deletePullRequestReview") {
+		t.Error("draft not deleted after a failure")
+	}
+
+	// a draft left on GitHub stops the send before anything is created
+	q = stubGH(t, func(req map[string]any) string {
+		return `{"data":{"node":{"reviews":{"nodes":[{"viewerDidAuthor":true}]}}}}`
+	})
+	if err := submitReview("", pr, "APPROVE", "", nil); err == nil || !strings.Contains(err.Error(), "下書きのレビュー") {
+		t.Errorf("err = %v", err)
+	}
+	if len(*q) != 1 {
+		t.Errorf("%d queries after finding a draft", len(*q))
+	}
+}
+
+func TestLoadReviewReadsEveryPage(t *testing.T) {
+	stubGH(t, func(req map[string]any) string {
+		vars := req["variables"].(map[string]any)
+		after, _ := vars["after"].(string)
+		if strings.Contains(req["query"].(string), "reviewThreads") {
+			if after == "" {
+				return `{"data":{"node":{"reviewThreads":{"pageInfo":{"hasNextPage":true,"endCursor":"c1"},"nodes":[{"id":"T1","path":"a","line":3,"diffSide":"RIGHT","subjectType":"LINE","comments":{"nodes":[{"body":"x","author":{"login":"u"}}]}}]}}}}`
+			}
+			return `{"data":{"node":{"reviewThreads":{"pageInfo":{"hasNextPage":false},"nodes":[{"id":"T2","path":"b","line":null,"diffSide":"RIGHT","subjectType":"FILE","comments":{"nodes":[{"body":"y","author":null}]}}]}}}}`
+		}
+		if after == "" {
+			return `{"data":{"node":{"files":{"pageInfo":{"hasNextPage":true,"endCursor":"f1"},"nodes":[{"path":"a","viewerViewedState":"VIEWED"}]}}}}`
+		}
+		return `{"data":{"node":{"files":{"pageInfo":{"hasNextPage":false},"nodes":[{"path":"b","viewerViewedState":"VIEWED"},{"path":"c","viewerViewedState":"UNVIEWED"}]}}}}`
+	})
+	d, err := loadReview("", &prInfo{ID: "PR"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.threads) != 2 || !d.threads[1].File || d.threads[1].Outdated || d.threads[1].Comments[0].Author != "ghost" {
+		t.Errorf("threads = %+v", d.threads)
+	}
+	if !d.viewed["a"] || !d.viewed["b"] || d.viewed["c"] {
+		t.Errorf("viewed = %v", d.viewed)
 	}
 }
