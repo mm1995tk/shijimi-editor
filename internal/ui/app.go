@@ -2088,8 +2088,10 @@ func (a *App) renderTabs(w int) string {
 	return sb.String()
 }
 
+const findLabel = " 検索: "
+
 func (a *App) renderFind(w int) string {
-	label := stFindLabel.Render(" 検索: ")
+	label := stFindLabel.Render(findLabel)
 	hint := stFind.Render("  Enter:次  ↑:前  Esc:閉じる ")
 	iw := w - lipgloss.Width(label) - lipgloss.Width(hint)
 	a.findInput.SetWidth(max(1, iw-1))

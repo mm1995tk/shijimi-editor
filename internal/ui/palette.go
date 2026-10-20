@@ -182,14 +182,20 @@ func (p *palette) filter(cmds []command) {
 	p.sel = clamp(p.sel, 0, max(0, len(p.items)-1))
 }
 
+// label is what precedes the input on the palette's first row.
+func (p *palette) label() string {
+	switch {
+	case p.prompt != "":
+		return " " + p.prompt + ": "
+	case p.picking:
+		return " " + p.pickTitle + " > "
+	}
+	return " > "
+}
+
 func (p *palette) render(w int) []string {
 	var out []string
-	label := " > "
-	if p.prompt != "" {
-		label = " " + p.prompt + ": "
-	} else if p.picking {
-		label = " " + p.pickTitle + " > "
-	}
+	label := p.label()
 	p.input.SetWidth(max(1, w-ansi.StringWidth(label)-2))
 	out = append(out, stPaletteBox.Render(fit("", w)))
 	out = append(out, stPaletteBox.Render(label)+fitStyled(p.input.View(), w-ansi.StringWidth(label), stPalette))
