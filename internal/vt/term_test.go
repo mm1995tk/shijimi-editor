@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -441,5 +442,33 @@ func TestOSC52TooLargeIsReported(t *testing.T) {
 	term.Write([]byte("ok"))
 	if got := rowText(snap(term), 0); got != "ok" {
 		t.Fatalf("row 0 = %q, want ok", got)
+	}
+}
+
+func TestOSC133ReportsExitCodes(t *testing.T) {
+	term := New(Options{Cols: 20, Rows: 4})
+	term.Write([]byte("\x1b]133;C\x07out\r\n\x1b]133;D;2\x07\x1b]133;D\x1b\\"))
+	if got := term.TakeCommandEnds(); !slices.Equal(got, []int{2, 0}) {
+		t.Fatalf("ends = %v", got)
+	}
+	if got := term.TakeCommandEnds(); got != nil {
+		t.Fatalf("ends taken twice: %v", got)
+	}
+}
+
+func TestLinesSinceFollowsTheScrollback(t *testing.T) {
+	term := New(Options{Cols: 20, Rows: 3, Scrollback: 100})
+	term.Write([]byte("a\r\nb\r\n"))
+	lines, next := term.LinesSince(0)
+	if !slices.Equal(lines, []string{"a", "b"}) || next != 2 {
+		t.Fatalf("lines = %q, next = %d", lines, next)
+	}
+	term.Write([]byte("c\r\nd\r\ne"))
+	lines, next = term.LinesSince(next)
+	if !slices.Equal(lines, []string{"c", "d"}) || next != 4 {
+		t.Fatalf("lines = %q, next = %d", lines, next)
+	}
+	if got := term.Tail(2); !slices.Equal(got, []string{"d", "e"}) {
+		t.Fatalf("tail = %q", got)
 	}
 }

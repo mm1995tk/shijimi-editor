@@ -2,6 +2,7 @@ package vt
 
 import (
 	"io"
+	"strings"
 	"sync"
 
 	"github.com/charmbracelet/x/ansi"
@@ -118,6 +119,8 @@ type Term struct {
 
 	title    string
 	clip     *Clip // the program's last copy (OSC 52), not yet taken
+	ends     []int // exit codes reported with OSC 133;D, not yet taken
+	dropped  int   // lines trimmed from the front of the scrollback so far
 	lastRune rune
 }
 
@@ -418,7 +421,79 @@ func (t *Term) pushScrollback(line []Cell) {
 	// Trim in batches so the copy is amortized.
 	if len(t.sb) > t.sbMax+t.sbMax/4+1 {
 		drop := len(t.sb) - t.sbMax
+		t.dropped += drop
 		t.sb = append(t.sb[:0], t.sb[drop:]...)
 		t.view = t.clampView(t.view)
 	}
+}
+
+// TakeCommandEnds returns the exit codes the shell reported with OSC 133;D
+// (shell integration) since the last call, oldest first.
+func (t *Term) TakeCommandEnds() []int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	e := t.ends
+	t.ends = nil
+	return e
+}
+
+// lineText is the characters of a line with trailing blanks removed.
+func lineText(l []Cell) string {
+	var sb strings.Builder
+	for _, c := range l {
+		switch {
+		case c.Width == 0:
+		case c.Rune == 0:
+			sb.WriteByte(' ')
+		default:
+			sb.WriteString(c.Text())
+		}
+	}
+	return strings.TrimRight(sb.String(), " ")
+}
+
+// LinesSince returns the text of the main screen's finished lines, those
+// above the cursor, from line number from on, and the number of the cursor
+// line. Lines are numbered from the first one ever written, so a caller
+// passes the returned number back to read only what came after. Lines that
+// have left the scrollback are skipped. Nothing is returned while the
+// alternate screen is shown.
+func (t *Term) LinesSince(from int) (lines []string, next int) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.altActive {
+		return nil, from
+	}
+	next = t.dropped + len(t.sb) + t.y
+	for n := max(from, t.dropped); n < next; n++ {
+		if i := n - t.dropped; i < len(t.sb) {
+			lines = append(lines, lineText(t.sb[i]))
+		} else {
+			lines = append(lines, lineText(t.main[i-len(t.sb)]))
+		}
+	}
+	return lines, next
+}
+
+// Tail returns the last n lines of the main screen up to the cursor line,
+// with trailing empty lines removed.
+func (t *Term) Tail(n int) []string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var all []string
+	end := len(t.sb) + t.y
+	if t.altActive {
+		end = len(t.sb) + len(t.main) - 1
+	}
+	for i := max(0, end-n+1); i <= end; i++ {
+		if i < len(t.sb) {
+			all = append(all, lineText(t.sb[i]))
+		} else if i-len(t.sb) < len(t.main) {
+			all = append(all, lineText(t.main[i-len(t.sb)]))
+		}
+	}
+	for len(all) > 0 && all[len(all)-1] == "" {
+		all = all[:len(all)-1]
+	}
+	return all
 }

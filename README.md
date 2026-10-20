@@ -15,6 +15,7 @@
 - **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
 - **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。もう一度押すとプレビューだけを全幅で表示します。mermaid のコードブロックは図として表示します（下記）
 - **現在の文脈をエージェントへ送る**（`Space a` / `Alt+A` / コマンドパレット）：選択範囲（なければカーソル行）を `パス:行-行`・本文・該当行の診断に整形し、プレビューで確認してからターミナルパネルへ貼り付けます（Enter は押しません）
+- **提案パネルと ACP**（`Alt+I` / `Space i`）：git・LSP・ターミナルの状態から「衝突を解消しますか」「PR を作りますか」「失敗の原因を調べますか」などの提案を右のパネルに並べます。選ぶと ACP（Agent Client Protocol）でエージェントに頼み、進み具合と返事をパネルに、変更を差分モードに出します。AI レビューのコメント案は未送信コメントとして置きます
 - **Claude Code の IDE 連携**：ターミナルパネルの Claude Code から、選択範囲・開いているファイル・診断を取得し、変更を差分で承認できます（承認後に Claude Code が書き込みます。下記「エージェント連携」）
 - タブ、シンタックスハイライト、Quick Open、プロジェクト全体の検索、ターミナルパネル、マウス操作
 
@@ -67,6 +68,16 @@ listen-host = "127.0.0.1"
 ```
 
 `[browser]` は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` にのみ書いてください。`.helix/config.toml` に書くと、Helix が未知のセクションを拒否します（`[search]` と同じ）。
+
+### エージェント（提案パネル）
+
+提案を実行する ACP エージェントのコマンドを、`~/.config/shijimi/config.toml` に書きます（プロジェクトの設定からは読みません）。
+
+```toml
+[agent]
+command = "claude-code-acp"
+args = []
+```
 
 ### LSP の設定例（`.helix/languages.toml`）
 

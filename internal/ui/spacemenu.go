@@ -36,6 +36,7 @@ var spaceItems = []spaceItem{
 	{"c", "コメント切替", true},
 	{"t", "ターミナル", false},
 	{"a", "エージェントへ送る", false},
+	{"i", "提案パネル", false},
 	{"?", "コマンド一覧", false},
 }
 
@@ -52,7 +53,7 @@ func (a *App) spaceMenuItems() []spaceItem {
 		if it.key == "v" && !a.prShown() {
 			continue
 		}
-		if full && !strings.Contains("fbkodDeEmgGvy?/ta", it.key) {
+		if full && !strings.Contains("fbkodDeEmgGvy?/tai", it.key) {
 			continue
 		}
 		out = append(out, it)

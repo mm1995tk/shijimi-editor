@@ -211,3 +211,23 @@ func TestIndentGuidesOption(t *testing.T) {
 		t.Fatal("render = false should disable indent guides")
 	}
 }
+
+func TestAgentIsReadOnlyFromTheUserConfig(t *testing.T) {
+	root := t.TempDir()
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(filepath.Join(xdg, "shijimi"), 0o755)
+	os.WriteFile(filepath.Join(xdg, "shijimi", "config.toml"), []byte(`
+[agent]
+command = "claude-code-acp"
+args = ["--x"]
+environment = { A = "1" }
+`), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[agent]\ncommand = \"evil\"\n"), 0o644)
+	c := Load(root)
+	if c.Agent.Command != "claude-code-acp" || len(c.Agent.Args) != 1 || c.Agent.Env["A"] != "1" {
+		t.Fatalf("agent = %+v", c.Agent)
+	}
+}

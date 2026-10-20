@@ -24,15 +24,16 @@ type termDoneMsg struct {
 
 // termTab is one shell running on its own PTY, drawn through a VT emulator.
 type termTab struct {
-	id    int
-	n     int // number shown in the tab label
-	vt    *vt.Term
-	ptmx  *os.File
-	cmd   *exec.Cmd
-	cols  int
-	rows  int
-	title string
-	snap  vt.Snapshot // reused by every render
+	id      int
+	n       int // number shown in the tab label
+	vt      *vt.Term
+	ptmx    *os.File
+	cmd     *exec.Cmd
+	cols    int
+	rows    int
+	title   string
+	snap    vt.Snapshot // reused by every render
+	scanned int         // line number the failure scan reads from (vt.LinesSince)
 }
 
 // terminal is the bottom panel: a set of PTY-backed login shells.
@@ -93,6 +94,7 @@ func (t *terminal) newTab() tea.Cmd {
 	cmd := exec.Command(shell(), "-l")
 	cmd.Dir = t.cwd
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
+	cmd.Env = append(cmd.Env, shellIntegration(shell())...)
 	cols, rows := max(1, t.w), max(1, t.h)
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols)})
 	if err != nil {
