@@ -269,6 +269,8 @@ func (a *App) stopAgent() {
 	s.client, s.session, s.name = nil, "", ""
 	s.gen++
 	s.run = nil
+	// the fix it proposed lives in the session that is gone
+	a.sg.fixOffer = false
 	for _, p := range s.perms {
 		p.reply <- ""
 	}
@@ -468,6 +470,10 @@ func (a *App) agentRead(r acp.ReadRequest) (string, error) {
 // is never overwritten.
 func (a *App) agentWrite(r acp.WriteRequest) error {
 	p := a.agentPath(r.Path)
+	if run := a.ag.run; run != nil && (run.kind == sgAIReview || run.kind == sgFailure) {
+		// These only read: a pull request or a log could carry instructions.
+		return errors.New("この依頼ではファイルを書き換えられません")
+	}
 	if t := a.tabFor(p); t != nil && t.dirty() {
 		return fmt.Errorf("%s には保存していない編集があるため書き込めません", a.rel(p))
 	}

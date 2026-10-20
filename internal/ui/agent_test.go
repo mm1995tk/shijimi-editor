@@ -418,8 +418,9 @@ func TestZshReportsExitCodes(t *testing.T) {
 	os.Unsetenv("ZDOTDIR") // the user's files are then read from HOME
 	home := t.TempDir()
 	os.WriteFile(filepath.Join(home, ".zshenv"), []byte("export FROM_USER_ZSHENV=1\n"), 0o644)
-	cmd := exec.Command(zsh, "-i")
-	cmd.Env = append([]string{"HOME=" + home, "TERM=dumb", "PATH=" + os.Getenv("PATH")}, shellIntegration(zsh)...)
+	args, env := shellIntegration(zsh)
+	cmd := exec.Command(zsh, append(args, "-i")...)
+	cmd.Env = append([]string{"HOME=" + home, "TERM=dumb", "PATH=" + os.Getenv("PATH")}, env...)
 	f, err := pty.Start(cmd)
 	if err != nil {
 		t.Skip(err)
@@ -444,5 +445,101 @@ func TestZshReportsExitCodes(t *testing.T) {
 	got := <-out
 	if !strings.Contains(got, "\x1b]133;D;1\a") || !strings.Contains(got, "\x1b]133;D;0\a") || !strings.Contains(got, "ok=1") {
 		t.Errorf("output = %q", got)
+	}
+}
+
+// runShell feeds input to cmd on a terminal and returns everything it printed.
+func runShell(t *testing.T, cmd *exec.Cmd, input string) string {
+	t.Helper()
+	f, err := pty.Start(cmd)
+	if err != nil {
+		t.Skip(err)
+	}
+	defer f.Close()
+	f.Write([]byte(input))
+	out := make(chan string, 1)
+	go func() {
+		var sb strings.Builder
+		buf := make([]byte, 4096)
+		for {
+			n, err := f.Read(buf)
+			sb.Write(buf[:n])
+			if err != nil {
+				break
+			}
+		}
+		out <- sb.String()
+	}()
+	cmd.Wait()
+	f.Close()
+	return <-out
+}
+
+func TestBashReportsExitCodes(t *testing.T) {
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash がありません")
+	}
+	home := t.TempDir()
+	os.WriteFile(filepath.Join(home, ".bash_profile"), []byte("export FROM_PROFILE=1\nPROMPT_COMMAND='echo user-hook'\n"), 0o644)
+	args, env := shellIntegration(bash)
+	cmd := exec.Command(bash, args...)
+	cmd.Env = append([]string{"HOME=" + home, "TERM=dumb", "PATH=" + os.Getenv("PATH")}, env...)
+	got := runShell(t, cmd, "false\n\ntrue\necho ok=$FROM_PROFILE\nexit\n")
+	if strings.Count(got, "\x1b]133;D;") != 3 || !strings.Contains(got, "\x1b]133;D;1\a") || !strings.Contains(got, "\x1b]133;D;0\a") {
+		t.Errorf("exit codes: %q", got)
+	}
+	if !strings.Contains(got, "ok=1") || !strings.Contains(got, "user-hook") {
+		t.Errorf("the user's profile was not read: %q", got)
+	}
+}
+
+func TestOnlyWritingRunsMayWrite(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	fakeAgent(t, a)
+	other := filepath.Join(a.root, "b.txt")
+	p := newPump(a)
+	p.run(a.runAgent(sgFailure, "k", "テスト", func() string { return "WRITE:" + other }))
+	p.until(t, "the permission request", func() bool { return len(a.ag.perms) == 1 })
+	a.answerPermission(true)
+	p.until(t, "the end of the turn", func() bool { return a.ag.run == nil })
+	if _, err := os.Stat(other); err == nil {
+		t.Error("the analysis wrote a file")
+	}
+	if got := logText(a); !strings.Contains(got, "書き換えられません") {
+		t.Errorf("log = %q", got)
+	}
+}
+
+func TestStoppingTheAgentDropsTheFixOffer(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	a.sg.fixOffer = true
+	a.stopAgent()
+	if a.sg.fixOffer {
+		t.Error("the fix of a gone session is still offered")
+	}
+}
+
+func TestADismissedFailureStaysHiddenWhileTheTabFails(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	tab := &termTab{id: 1, n: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
+	a.term.tabs = []*termTab{tab}
+	tab.vt.Write([]byte("--- FAIL: TestX\r\n"))
+	a.scanTerminals()
+	a.setFocus(focusAgent)
+	a.handleKey(textKey("x"))
+	// the exit code of the same command arrives a tick later
+	tab.vt.Write([]byte("\x1b]133;D;1\x07$ "))
+	a.scanTerminals()
+	if len(a.suggestions()) != 0 {
+		t.Fatalf("suggestions = %+v", a.suggestions())
+	}
+	// a redrawn line moves the cursor up: the FAIL line is not read again
+	tab.vt.Write([]byte("\x1b[A\x1b[A"))
+	a.scanTerminals()
+	tab.vt.Write([]byte("\r\n\r\n"))
+	a.scanTerminals()
+	if len(a.suggestions()) != 0 || len(a.sg.fails) != 1 {
+		t.Fatalf("fails = %+v", a.sg.fails)
 	}
 }

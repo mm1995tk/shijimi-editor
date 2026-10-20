@@ -9,6 +9,7 @@
 //	WRITE:<path>  ask permission, then write "written by agent\n" to path
 //	SAY:<text>    send text as a message chunk
 //	WAIT          wait for session/cancel and end the turn as cancelled
+//	HUGE:<n>      write a line of n bytes that is not a message
 package acptest
 
 import (
@@ -17,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -185,6 +187,11 @@ func (a *agent) handle(m msg) {
 					"sessionUpdate": "tool_call_update", "toolCallId": "t1", "status": status}})})
 			case strings.HasPrefix(line, "SAY:"):
 				a.say(p.SessionID, strings.ReplaceAll(strings.TrimPrefix(line, "SAY:"), `\n`, "\n"))
+			case strings.HasPrefix(line, "HUGE:"):
+				n, _ := strconv.Atoi(strings.TrimPrefix(line, "HUGE:"))
+				a.wmu.Lock()
+				a.out.Write([]byte(strings.Repeat("x", n) + "\n"))
+				a.wmu.Unlock()
 			case line == "WAIT":
 				<-a.cancels
 				stop = "cancelled"

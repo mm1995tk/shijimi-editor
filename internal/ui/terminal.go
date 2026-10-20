@@ -91,10 +91,11 @@ func (t *terminal) wait() tea.Cmd {
 
 // newTab starts a login shell in the current directory on a fresh PTY.
 func (t *terminal) newTab() tea.Cmd {
-	cmd := exec.Command(shell(), "-l")
+	args, env := shellIntegration(shell())
+	cmd := exec.Command(shell(), args...)
 	cmd.Dir = t.cwd
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
-	cmd.Env = append(cmd.Env, shellIntegration(shell())...)
+	cmd.Env = append(cmd.Env, env...)
 	cols, rows := max(1, t.w), max(1, t.h)
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols)})
 	if err != nil {

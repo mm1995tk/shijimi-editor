@@ -197,7 +197,8 @@ func (a *App) scanTerminals() {
 			}
 		}
 		lines, next := t.vt.LinesSince(t.scanned)
-		t.scanned = next
+		// The cursor moving up (a progress line redrawn) must not read lines again.
+		t.scanned = max(t.scanned, next)
 		for _, l := range lines {
 			if failLine.MatchString(l) {
 				a.addFailure(t, -1, strings.TrimSpace(l))
@@ -208,10 +209,20 @@ func (a *App) scanTerminals() {
 	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return !alive[f.tab] })
 }
 
+// addFailure records a failure in tab t. A tab still failing keeps its
+// record (and the key a dismissal refers to); only what is shown changes.
 func (a *App) addFailure(t *termTab, code int, line string) {
-	a.clearFailure(t.id)
+	f := termFailure{tab: t.id, n: t.n, code: code, line: line, output: t.vt.Tail(failTail)}
+	for i := range a.sg.fails {
+		if a.sg.fails[i].tab == t.id {
+			f.seq = a.sg.fails[i].seq
+			a.sg.fails[i] = f
+			return
+		}
+	}
 	a.sg.failSeq++
-	a.sg.fails = append(a.sg.fails, termFailure{seq: a.sg.failSeq, tab: t.id, n: t.n, code: code, line: line, output: t.vt.Tail(failTail)})
+	f.seq = a.sg.failSeq
+	a.sg.fails = append(a.sg.fails, f)
 }
 
 func (a *App) clearFailure(tab int) {

@@ -379,7 +379,7 @@ func lastLine(s string) string {
 }
 
 // maxLine bounds one message from the agent (a whole file may be written).
-const maxLine = 64 << 20
+var maxLine = 64 << 20
 
 func (c *Client) readLoop(r io.Reader) {
 	sc := bufio.NewScanner(r)
@@ -419,7 +419,15 @@ func (c *Client) readLoop(r io.Reader) {
 		}
 	}
 	cancel()
+	serr := sc.Err()
+	if serr != nil {
+		// A line too long to read: the stream is lost, so the agent goes too.
+		c.cmd.Process.Kill()
+	}
 	c.err = c.cmd.Wait()
+	if serr != nil {
+		c.err = fmt.Errorf("エージェントの出力を読めません: %w", serr)
+	}
 	close(c.dead)
 }
 

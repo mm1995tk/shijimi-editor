@@ -154,3 +154,20 @@ func TestStartReportsAMissingCommand(t *testing.T) {
 		t.Fatal("no error")
 	}
 }
+
+func TestTooLongLineEndsTheAgent(t *testing.T) {
+	old := maxLine
+	maxLine = 1024
+	defer func() { maxLine = old }()
+	c := start(t, &recorder{})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	sid, _ := c.NewSession(ctx, "/p")
+	if _, err := c.Prompt(ctx, sid, Text("HUGE:200000\nWAIT")); err == nil || ctx.Err() != nil {
+		t.Fatalf("err = %v, ctx = %v", err, ctx.Err())
+	}
+	<-c.Done()
+	if c.Err() == nil || !strings.Contains(c.Err().Error(), "読めません") {
+		t.Errorf("Err = %v", c.Err())
+	}
+}
