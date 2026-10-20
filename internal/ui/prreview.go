@@ -861,7 +861,11 @@ func (a *App) handleComposerKey(msg tea.KeyPressMsg) tea.Cmd {
 			a.info("suggestion は行へのコメントで使えます")
 			return nil
 		}
-		c.ta.InsertString("```suggestion\n" + strings.Join(c.orig, "\n") + "\n```\n")
+		block := "```suggestion\n" + strings.Join(c.orig, "\n") + "\n```\n"
+		if c.ta.Column() > 0 {
+			block = "\n" + block // a fence must start a line
+		}
+		c.ta.InsertString(block)
 		return nil
 	}
 	var cmd tea.Cmd

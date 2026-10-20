@@ -133,8 +133,9 @@ func TestCommentOnLines(t *testing.T) {
 	if a.composer == nil {
 		t.Fatalf("no editor: %s", a.msg)
 	}
+	a.composer.ta.InsertString("前置き")
 	a.handleComposerKey(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
-	if v := a.composer.ta.Value(); !strings.Contains(v, "```suggestion\nlinei\nchanged\nlinek\n```") {
+	if v := a.composer.ta.Value(); !strings.HasPrefix(v, "前置き\n```suggestion\nlinei\nchanged\nlinek\n```") {
 		t.Errorf("suggestion block: %q", v)
 	}
 	a.composer.ta.SetValue("見てください")

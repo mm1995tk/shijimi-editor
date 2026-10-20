@@ -1184,7 +1184,7 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +
 		bgfg(cTabBarBg, noteFg).Render(note)
 	out = append(out, fitStyled(head, max(0, l.rightW-hw), bgfg(cTabBarBg, curTheme.Strong))+
-		bgfg(cTabBarBg, curTheme.Dim).Render(fit(hint, hw)))
+		bgfg(cTabBarBg, curTheme.Dim).Render(fit(" "+hint, hw)))
 
 	opts := a.editorOpts(t, focused)
 	opts.rowBg = func(row int) string {
