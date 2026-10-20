@@ -13,23 +13,42 @@ const maxEditDistance = 2000
 
 // Lines compares two line lists and returns the changed blocks in order.
 func Lines(old, cur []string) []Block {
-	pre := 0
-	for pre < len(old) && pre < len(cur) && old[pre] == cur[pre] {
+	blocks, ok := compare(old, cur, maxEditDistance)
+	if !ok {
+		pre, suf := commonEnds(old, cur)
+		return []Block{{pre, len(old) - suf, pre, len(cur) - suf}}
+	}
+	return blocks
+}
+
+// commonEnds returns the lengths of the common prefix and suffix of a and b,
+// which do not overlap.
+func commonEnds[T comparable](a, b []T) (pre, suf int) {
+	for pre < len(a) && pre < len(b) && a[pre] == b[pre] {
 		pre++
 	}
-	suf := 0
-	for suf < len(old)-pre && suf < len(cur)-pre && old[len(old)-1-suf] == cur[len(cur)-1-suf] {
+	for suf < len(a)-pre && suf < len(b)-pre && a[len(a)-1-suf] == b[len(b)-1-suf] {
 		suf++
 	}
+	return pre, suf
+}
+
+// compare returns the changed blocks between old and cur, or false when more
+// than maxD elements have to be deleted or inserted.
+func compare[T comparable](old, cur []T, maxD int) ([]Block, bool) {
+	pre, suf := commonEnds(old, cur)
 	a, b := old[pre:len(old)-suf], cur[pre:len(cur)-suf]
 	if len(a) == 0 && len(b) == 0 {
-		return nil
+		return nil, true
 	}
 	var blocks []Block
 	if len(a) == 0 || len(b) == 0 {
+		if len(a)+len(b) > maxD {
+			return nil, false
+		}
 		blocks = []Block{{0, len(a), 0, len(b)}}
-	} else {
-		blocks = myers(a, b)
+	} else if blocks = myers(a, b, min(len(a)+len(b), maxD)); blocks == nil {
+		return nil, false
 	}
 	for i := range blocks {
 		blocks[i].OldStart += pre
@@ -37,13 +56,13 @@ func Lines(old, cur []string) []Block {
 		blocks[i].NewStart += pre
 		blocks[i].NewEnd += pre
 	}
-	return blocks
+	return blocks, true
 }
 
-// myers runs the O(ND) shortest-edit-script algorithm.
-func myers(a, b []string) []Block {
+// myers runs the O(ND) shortest-edit-script algorithm on a and b, both
+// non-empty. It returns nil when the script is longer than maxD.
+func myers[T comparable](a, b []T, maxD int) []Block {
 	n, m := len(a), len(b)
-	maxD := min(n+m, maxEditDistance)
 	off := maxD + 1
 	v := make([]int, 2*maxD+3)
 	var trace [][]int
@@ -73,7 +92,7 @@ search:
 		}
 	}
 	if found < 0 {
-		return []Block{{0, n, 0, m}}
+		return nil
 	}
 	// Walk back to recover the edit positions.
 	var dels, ins []int // indexes into a / b

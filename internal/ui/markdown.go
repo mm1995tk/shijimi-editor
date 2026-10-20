@@ -434,7 +434,7 @@ func mdCodeBlock(code []string, lang string, w int) []string {
 		out = append(out, edge.Render(strings.Repeat(" ", w)))
 	}
 	for _, l := range code {
-		out = append(out, edge.Render(" ")+fitEmpty(highlightText(l, lex, bg, w-2), w-2)+edge.Render(" "))
+		out = append(out, edge.Render(" ")+fitEmpty(highlightText(l, lex, bg, nil, "", w-2), w-2)+edge.Render(" "))
 	}
 	out = append(out, edge.Render(strings.Repeat(" ", w)))
 	return out

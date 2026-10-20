@@ -248,7 +248,7 @@ func (t *tab) mermaidBlocks() []string {
 }
 
 // fullPreview reports whether t is showing the Markdown preview alone. In
-// git-diff mode the diff takes the whole area instead, so the buffer stays
+// diff mode the diff takes the whole area instead, so the buffer stays
 // visible and editable.
 func (a *App) fullPreview(t *tab) bool {
 	return t != nil && t.preview == previewFull && a.diffFile(t) == nil

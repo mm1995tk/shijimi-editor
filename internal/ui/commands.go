@@ -63,11 +63,11 @@ func defaultCommands() []command {
 		{"LSP: 整形", ":fmt", func(a *App) tea.Cmd { return a.format(false) }},
 		{"LSP: 診断の一覧", "Space d", func(a *App) tea.Cmd { return a.diagnosticPicker() }},
 		{"LSP: 言語サーバーを再起動", ":lsp-restart", func(a *App) tea.Cmd { return a.execCommand("lsp-restart") }},
-		{"レビュー: プルリクエスト一覧", "Space g / :pr", func(a *App) tea.Cmd { return a.prPicker() }},
-		{"git-diff: モードの切替", "Ctrl+G / Space G / :gitdiff", func(a *App) tea.Cmd { return a.toggleGitDiff() }},
-		{"git-diff: 分割表示 / 統合表示の切替", ":gitdiff split|unified", func(a *App) tea.Cmd { a.toggleSplit(); return nil }},
-		{"git-diff: 比較元を HEAD / PR の base で切替", "b / :gitdiff base", func(a *App) tea.Cmd { return a.cycleGitDiffBase() }},
-		{"git-diff: 変更一覧へ移動", "", func(a *App) tea.Cmd { return a.focusChangesList() }},
+		{"差分: HEAD と比べる（開く / 閉じる）", "Ctrl+G / Space G / :gitdiff", func(a *App) tea.Cmd { return a.openDiff(baseHead) }},
+		{"差分: PR の base と比べる（開く / 閉じる）", "Space g", func(a *App) tea.Cmd { return a.openDiff(basePR) }},
+		{"差分: PR を一覧から選んで比べる", ":pr [番号]", func(a *App) tea.Cmd { return a.prPicker() }},
+		{"差分: 分割表示 / 統合表示の切替", ":gitdiff split|unified", func(a *App) tea.Cmd { a.toggleSplit(); return nil }},
+		{"差分: 変更一覧へ移動", "", func(a *App) tea.Cmd { return a.focusChangesList() }},
 		{"ファイルツリー: 最新の情報に更新", "R", func(a *App) tea.Cmd { a.explorer.refresh(); return nil }},
 		{"ファイルツリー: 新しいファイル", "a", func(a *App) tea.Cmd { return a.newFileIn(a.explorer.targetDir()) }},
 		{"ファイルツリー: 新しいフォルダー", "A", func(a *App) tea.Cmd { return a.newFolder() }},
@@ -245,7 +245,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 		return a.gitDiffCommand(arg)
 	case "pr":
 		if n, err := strconv.Atoi(strings.TrimPrefix(arg, "#")); err == nil {
-			return a.openPR(n)
+			return a.findPR(n)
 		}
 		return a.prPicker()
 	case "grep", "rg":
@@ -340,234 +340,6 @@ func parseGrepArgs(arg string, def config.Search) (q string, include, exclude []
 		}
 	}
 	return rest, include, exclude
-}
-
-// ---- review ----
-
-func (a *App) openPR(n int) tea.Cmd {
-	for i, t := range a.tabs {
-		if t.kind == tabReview && t.rev.prNumber == n {
-			a.active = i
-			a.focus = focusEditor
-			return nil
-		}
-	}
-	r := newReview(a.root, n)
-	a.addTab(&tab{kind: tabReview, rev: r})
-	a.focus = focusEditor
-	return r.load()
-}
-
-func (a *App) prPicker() tea.Cmd {
-	a.info("プルリクエストを取得しています…")
-	return listPRs(a.root)
-}
-
-func (a *App) showPRList(m prListMsg) tea.Cmd {
-	if m.err != nil {
-		a.fail(m.err)
-		return nil
-	}
-	if len(m.prs) == 0 {
-		a.info("オープンなプルリクエストはありません")
-		return nil
-	}
-	items := make([]paletteItem, len(m.prs))
-	for i, p := range m.prs {
-		draft := ""
-		if p.IsDraft {
-			draft = " [draft]"
-		}
-		items[i] = paletteItem{label: fmt.Sprintf("#%d %s%s", p.Number, p.Title, draft), detail: "@" + p.Author.Login + "  " + p.HeadRefName}
-	}
-	return a.pal.pick("プルリクエスト", items, func(i int) tea.Cmd { return a.openPR(m.prs[i].Number) })
-}
-
-func (a *App) handleSubmitted(m reviewSubmittedMsg) tea.Cmd {
-	for _, t := range a.tabs {
-		if t.kind != tabReview || t.rev.id != m.id {
-			continue
-		}
-		if m.err != nil {
-			a.fail(m.err)
-			return nil
-		}
-		var kept []*reviewComment
-		for _, c := range t.rev.comments {
-			if !c.Pending {
-				kept = append(kept, c)
-			}
-		}
-		t.rev.comments = kept
-		t.rev.rowsFor = ""
-		names := map[string]string{"APPROVE": "承認", "REQUEST_CHANGES": "変更を要求", "COMMENT": "コメント"}
-		a.info("レビューを送信しました（%s）", names[m.event])
-		t.rev.loading = true
-		return t.rev.load()
-	}
-	return nil
-}
-
-func (a *App) handleReviewKey(t *tab, msg tea.KeyPressMsg) tea.Cmd {
-	r := t.rev
-	key := msg.String()
-	if a.pending == " " {
-		a.pending = ""
-		return a.spaceMode(key)
-	}
-	half := max(1, r.pageH/2)
-	switch key {
-	case "q", "esc":
-		if r.pendingCount() > 0 && !a.confirmClose {
-			a.confirmClose = true
-			a.msg, a.msgErr = "未送信のコメントがあります。もう一度 q で破棄して閉じます", true
-			return nil
-		}
-		a.closeTab(true)
-		return nil
-	case "r":
-		r.loading = true
-		return r.load()
-	case ":":
-		return a.openCmdline(":")
-	case "space":
-		a.pending = " "
-		return nil
-	}
-	if r.loading || len(r.files) == 0 {
-		return nil
-	}
-	switch key {
-	case "tab", "h", "l", "left", "right":
-		r.focusFiles = key == "h" || key == "left" || (key == "tab" && !r.focusFiles)
-	case "j", "down":
-		if r.focusFiles {
-			r.selectFile(r.fileSel + 1)
-		} else {
-			r.moveCursor(1)
-		}
-	case "k", "up":
-		if r.focusFiles {
-			r.selectFile(r.fileSel - 1)
-		} else {
-			r.moveCursor(-1)
-		}
-	case "J":
-		r.selectFile(r.fileSel + 1)
-	case "K":
-		r.selectFile(r.fileSel - 1)
-	case "]", "n":
-		r.moveHunk(1)
-	case "[", "p":
-		r.moveHunk(-1)
-	case "ctrl+d", "pgdown":
-		r.moveCursor(half)
-	case "ctrl+u", "pgup":
-		r.moveCursor(-half)
-	case "g", "home":
-		r.cursor = 0
-	case "G", "end":
-		r.cursor = max(0, len(r.buildRows())-1)
-	case "s":
-		r.split = !r.split
-		r.rowsFor = ""
-		r.selectFile(r.fileSel)
-	case "v":
-		f := r.file()
-		r.viewed[f.Path()] = !r.viewed[f.Path()]
-		if r.viewed[f.Path()] && r.fileSel < len(r.files)-1 {
-			r.selectFile(r.fileSel + 1)
-		}
-	case "c":
-		if r.focusFiles || r.target() == nil {
-			a.fail(errString("コメントする行に移動してください"))
-			return nil
-		}
-		l := r.target()
-		_, no := lineKey(l)
-		return a.pal.ask(fmt.Sprintf("%s:%d へのコメント（\\n で改行）", r.file().Path(), no), "", func(v string) tea.Cmd {
-			v = strings.TrimSpace(strings.ReplaceAll(v, `\n`, "\n"))
-			if v != "" {
-				r.addComment(v)
-			}
-			return nil
-		})
-	case "d", "x":
-		if !r.deletePendingAtCursor() {
-			a.fail(errString("未送信のコメントの上で押してください"))
-		}
-	case "y":
-		md := r.notesMarkdown(func(p string) string { return p })
-		if md == "" {
-			a.fail(errString("コメントがありません（c で追加）"))
-			return nil
-		}
-		a.copyText(md)
-		a.info("%d 件のコメントを Markdown でコピーしました", r.pendingCount())
-	case "a":
-		md := r.notesMarkdown(a.reviewToRoot)
-		if md == "" {
-			a.fail(errString("コメントがありません（c で追加）"))
-			return nil
-		}
-		a.ctx = &ctxPreview{text: reviewPrompt + md}
-		return nil
-	case "enter", "o":
-		f := r.file()
-		l := r.target()
-		base := a.gitTop
-		if base == "" {
-			base = a.root
-		}
-		if f.Status == "deleted" || !a.openFile(filepath.Join(base, f.Path())) {
-			return nil
-		}
-		if l != nil && l.NewNo > 0 {
-			a.curText().buf.GotoLine(l.NewNo)
-		}
-		a.follow = true
-		return nil
-	case "A", "R", "S":
-		if r.pr == nil {
-			a.fail(errString("ローカルの変更はレビューを送信できません（y でコメントをコピー）"))
-			return nil
-		}
-		events := map[string]string{"A": "APPROVE", "R": "REQUEST_CHANGES", "S": "COMMENT"}
-		labels := map[string]string{"A": "承認", "R": "変更を要求", "S": "コメント"}
-		ev := events[key]
-		return a.pal.ask(fmt.Sprintf("%s して送信（未送信コメント %d 件）。本文", labels[key], r.pendingCount()), "", func(v string) tea.Cmd {
-			v = strings.ReplaceAll(v, `\n`, "\n")
-			if ev != "APPROVE" && strings.TrimSpace(v) == "" && r.pendingCount() == 0 {
-				a.fail(errString("本文かコメントが必要です"))
-				return nil
-			}
-			a.info("送信しています…")
-			return r.submit(ev, v)
-		})
-	case "C":
-		if r.pr == nil {
-			return nil
-		}
-		a.showTerm = true
-		cmd := a.setFocus(focusTerminal)
-		return tea.Batch(cmd, a.term.run(fmt.Sprintf("gh pr checkout %d", r.pr.Number)))
-	}
-	return nil
-}
-
-func (a *App) reviewClick(r *review, l layout, x, y int) {
-	if r.loading || len(r.files) == 0 {
-		return
-	}
-	listW := clamp(l.rightW/4, 20, 40)
-	row := y - l.editY - 2 // review header + pane title
-	if x-l.rightX < listW {
-		r.focusFiles = true
-		r.selectFile(r.fileScroll + row)
-		return
-	}
-	r.focusFiles = false
-	r.cursor = clamp(r.scroll+row, 0, max(0, len(r.buildRows())-1))
 }
 
 // splitGlobs splits a comma separated glob list, dropping quotes and blanks.

@@ -446,9 +446,9 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	case "m":
 		return a.togglePreview()
 	case "g":
-		return a.prPicker()
+		return a.openDiff(basePR)
 	case "G":
-		return a.toggleGitDiff()
+		return a.openDiff(baseHead)
 	case "y":
 		if t := a.cur(); t != nil && t.kind == tabText {
 			s, e := t.buf.SelectionOrChar()

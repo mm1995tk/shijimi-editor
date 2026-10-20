@@ -9,7 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
-	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -66,25 +65,6 @@ func TestSendContextLineSelection(t *testing.T) {
 	a.sendContext()
 	if want := "a.txt:1-2\n```\none\ntwo\n```\n"; a.ctx == nil || a.ctx.text != want {
 		t.Errorf("got %+v want %q", a.ctx, want)
-	}
-}
-
-func TestSendReviewComments(t *testing.T) {
-	a := New(t.TempDir(), "")
-	a.w, a.h = 100, 30
-	r := newReview(".", 0)
-	r.loading, r.files = false, []*diff.File{{}}
-	tb := &tab{kind: tabReview, rev: r}
-	key := textKey(string('a'))
-
-	if a.handleReviewKey(tb, key); a.ctx != nil {
-		t.Fatalf("preview opened without comments")
-	}
-	r.comments = append(r.comments, &reviewComment{Path: "a.go", Line: 3, Body: "直して", Pending: true})
-	a.handleReviewKey(tb, key)
-	want := reviewPrompt + "- a.go:3\n  直して\n"
-	if a.ctx == nil || a.ctx.text != want {
-		t.Errorf("ctx = %+v, want %q", a.ctx, want)
 	}
 }
 

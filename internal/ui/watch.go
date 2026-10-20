@@ -7,7 +7,7 @@ import (
 )
 
 // gitDiffRefreshTicks is how many watch ticks pass between refreshes of the
-// CHANGES list in git-diff mode.
+// CHANGES list in diff mode.
 const gitDiffRefreshTicks = 3
 
 // treeRefreshTicks is how many watch ticks pass between reloads of the file

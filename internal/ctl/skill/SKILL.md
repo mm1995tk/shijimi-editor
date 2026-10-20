@@ -1,6 +1,6 @@
 ---
 name: shijimi
-description: 実行中の shijimi（ターミナル IDE）を操作する。差分を git-diff モードで見せる、Markdown プレビューを開く、検索・テーマ変更など `:` コマンドを実行するときに使う。
+description: 実行中の shijimi（ターミナル IDE）を操作する。差分を差分モードで見せる、Markdown プレビューを開く、検索・テーマ変更など `:` コマンドを実行するときに使う。
 ---
 
 # shijimi の操作
@@ -12,17 +12,17 @@ shijimi のターミナルパネルの中、または環境変数 `SHIJIMI_SOCKE
 
 ## コマンド
 
-- `shj diff [path]`: git-diff モードにする。`path` を付けるとそのファイルを diff 表示で開く。
+- `shj diff [path]`: 差分モード（比較元 `HEAD`）にする。`path` を付けるとそのファイルを diff 表示で開く。
 - `shj exec ":<コマンド>"`: 人が shijimi で打つ `:` コマンドをそのまま実行する。先頭の `:` は省略できる。
 
 `exec` は成功すると終了コード 0 で、ステータス欄に出た文を標準出力に書く。失敗すると終了コード 1 で、エラーの文を標準エラーに書く。画面は見えないので、この返事で成否を確かめる。
 
 ## exec で使える `:` コマンド
 
-- 表示: `:preview`（Markdown プレビューの切替）、`:gitdiff [on|off|split|unified|base [head|pr]]`、`:tree`、`:sh [コマンド]`（ターミナルパネルで実行）
+- 表示: `:preview`（Markdown プレビューの切替）、`:gitdiff [on|off|split|unified]`、`:tree`、`:sh [コマンド]`（ターミナルパネルで実行）
 - ファイル: `:o <パス>`、`:n`、`:w [パス]`、`:wa`、`:bc`、`:reload`、`:<行番号>`
 - 検索: `:grep [-x 除外glob] [-i 含めるglob] <文字列>`、`:replace [...] <文字列> => <置換後>`
-- レビュー: `:pr <番号>`
+- 差分: `:pr <番号>`（プルリクエストの base と比べる差分モードにする）
 - LSP: `:fmt`、`:signature`、`:lsp-restart`
 - 設定: `:theme <名前>`、`:keymap [helix|vscode]`、`:config-reload`
 - そのほか: `:browser forward|list|stop`、`:open-url <URL>`

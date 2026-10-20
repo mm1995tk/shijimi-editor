@@ -16,6 +16,12 @@ var (
 	cIndentGuide                                                              string
 )
 
+// Diff colors; set by applyTheme.
+var (
+	cAddBg, cDelBg, cAddSign, cDelSign, cHunkFg, cHunkBg, cNoteBg string
+	cAddWordBg, cDelWordBg, cModSign, cBarView                    string
+)
+
 func bgfg(bg, fg string) lipgloss.Style {
 	return lipgloss.NewStyle().Background(lipgloss.Color(bg)).Foreground(lipgloss.Color(fg))
 }

@@ -18,7 +18,7 @@ type jumpLoc struct {
 }
 
 // curLoc returns where the cursor is now; ok is false when the active tab has
-// no file position (no tab, an image, a review, an unsaved scratch buffer).
+// no file position (no tab, an image, an unsaved scratch buffer).
 func (a *App) curLoc() (jumpLoc, bool) {
 	t := a.curText()
 	if t == nil || t.buf.Path == "" {
