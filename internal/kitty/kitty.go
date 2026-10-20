@@ -1,0 +1,87 @@
+// Package kitty implements the parts of the Kitty graphics protocol that
+// shijimi needs to show images: sending an image and drawing it with Unicode
+// placeholders, so that the TUI's own cell-based redraws (bubbletea) keep
+// working. The image data is sent out of band; the screen only ever contains
+// placeholder characters.
+package kitty
+
+import (
+	"encoding/base64"
+	"fmt"
+	"os"
+	"strings"
+
+	"golang.org/x/sys/unix"
+)
+
+// MaxCells is the largest number of rows or columns a placeholder image can
+// span (the size of the diacritics table).
+var MaxCells = len(diacritics)
+
+const placeholder = '\U0010EEEE'
+
+// Placeholders returns rows lines of cols placeholder cells for the image id.
+// The image id is carried in the foreground colour (24-bit), so every line
+// starts with that colour and ends by resetting it.
+func Placeholders(id uint32, cols, rows int) []string {
+	cols = min(max(cols, 0), MaxCells)
+	rows = min(max(rows, 0), MaxCells)
+	out := make([]string, rows)
+	fg := fmt.Sprintf("\x1b[38;2;%d;%d;%dm", id>>16&0xff, id>>8&0xff, id&0xff)
+	for r := range out {
+		var sb strings.Builder
+		sb.WriteString(fg)
+		for c := 0; c < cols; c++ {
+			sb.WriteRune(placeholder)
+			sb.WriteRune(diacritics[r])
+			sb.WriteRune(diacritics[c])
+		}
+		sb.WriteString("\x1b[39m")
+		out[r] = sb.String()
+	}
+	return out
+}
+
+// chunkSize is the largest base64 payload per escape sequence the protocol
+// allows.
+const chunkSize = 4096
+
+// Transmit returns the escape sequences that store the PNG data as image id
+// and create a virtual placement of cols x rows cells, so that placeholder
+// cells for id show it. Sending it again with the same id replaces the image.
+// Replies are suppressed (q=2): the terminal would otherwise answer on stdin.
+func Transmit(id uint32, png []byte, cols, rows int) string {
+	enc := base64.StdEncoding.EncodeToString(png)
+	var sb strings.Builder
+	for first := true; len(enc) > 0; first = false {
+		n := min(len(enc), chunkSize)
+		more := 0
+		if n < len(enc) {
+			more = 1
+		}
+		if first {
+			fmt.Fprintf(&sb, "\x1b_Ga=T,U=1,f=100,i=%d,c=%d,r=%d,C=1,q=2,m=%d;", id, cols, rows, more)
+		} else {
+			fmt.Fprintf(&sb, "\x1b_Gm=%d;", more)
+		}
+		sb.WriteString(enc[:n])
+		sb.WriteString("\x1b\\")
+		enc = enc[n:]
+	}
+	return sb.String()
+}
+
+// Delete returns the escape sequence that removes image id and frees its data.
+func Delete(id uint32) string {
+	return fmt.Sprintf("\x1b_Ga=d,d=I,i=%d,q=2\x1b\\", id)
+}
+
+// CellSize returns the size of one terminal cell in pixels, or 0, 0 when the
+// terminal does not report it.
+func CellSize(f *os.File) (w, h int) {
+	ws, err := unix.IoctlGetWinsize(int(f.Fd()), unix.TIOCGWINSZ)
+	if err != nil || ws.Col == 0 || ws.Row == 0 {
+		return 0, 0
+	}
+	return int(ws.Xpixel) / int(ws.Col), int(ws.Ypixel) / int(ws.Row)
+}

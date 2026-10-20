@@ -34,4 +34,4 @@ mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"
 
 PNG / JPEG / GIF / BMP / WebP / TIFF
 
-画像は文字（`▀`）で描くので、細かい部分は粗くなります。
+画像と mermaid の図は Kitty graphics protocol で描きます。Kitty / Ghostty / WezTerm など、これに対応した端末が必要です。

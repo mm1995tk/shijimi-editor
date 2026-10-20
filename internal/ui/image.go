@@ -4,18 +4,22 @@ import (
 	"bytes"
 	"fmt"
 	"image"
-	"image/color"
 	_ "image/gif"
 	_ "image/jpeg"
-	_ "image/png"
+	"image/png"
+	"math"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	_ "golang.org/x/image/bmp"
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
+
+	"github.com/mm1995tk/shijimi-editor/internal/kitty"
 )
 
 var imageExts = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".bmp": true, ".webp": true, ".tif": true, ".tiff": true}
@@ -24,22 +28,27 @@ func isImage(path string) bool {
 	return imageExts[strings.ToLower(filepath.Ext(path))]
 }
 
-// imageView renders an image with "▀" half blocks: each cell shows two
-// vertically stacked pixels (foreground = top, background = bottom).
+// imageView shows an image with the Kitty graphics protocol: the pixels are
+// sent to the terminal out of band (see queueGraphics) and the view itself
+// only holds Unicode placeholder cells that the terminal draws the image on.
 type imageView struct {
 	path   string
 	img    image.Image
 	format string
 	size   int64
 	err    error
+	id     uint32 // Kitty image id
+
+	sentCols, sentRows, sentPW, sentPH int // placement the terminal holds
 
 	cacheW, cacheH int
-	cacheGen       int // themeGen the cache was built for
+	cacheCell      [2]int // cell size the cache was built for
+	cacheGen       int    // themeGen the cache was built for
 	cache          []string
 }
 
 func newImageView(path string) *imageView {
-	v := &imageView{path: path}
+	v := &imageView{path: path, id: nextImageID()}
 	f, err := os.Open(path)
 	if err != nil {
 		v.err = err
@@ -56,7 +65,7 @@ func newImageView(path string) *imageView {
 // newImageViewFromData shows already-loaded image bytes (for example a
 // rendered web page) under the given display name.
 func newImageViewFromData(name string, data []byte) *imageView {
-	v := &imageView{path: name, size: int64(len(data))}
+	v := &imageView{path: name, size: int64(len(data)), id: nextImageID()}
 	v.img, v.format, v.err = image.Decode(bytes.NewReader(data))
 	return v
 }
@@ -81,65 +90,137 @@ func humanSize(n int64) string {
 	return fmt.Sprintf("%d B", n)
 }
 
+// Cell size in pixels, used to keep an image's aspect ratio and to send it at
+// the resolution it is shown at. Terminals that do not report it get a
+// typical 1:2 cell.
+var cellW, cellH = 10, 20
+
+// updateCellSize records the cell size the terminal reports; zeros (not
+// reported) keep the previous value.
+func updateCellSize(w, h int) {
+	if w > 0 && h > 0 {
+		cellW, cellH = w, h
+	}
+}
+
+var (
+	imageIDMu   sync.Mutex
+	lastImageID = uint32(rand.IntN(1<<24 - 1))
+)
+
+// nextImageID returns a fresh Kitty image id. Ids start at a random point so
+// that two shijimi in panes of one terminal do not replace each other's
+// images. The id is carried in a 24-bit colour, so it stays below 1<<24.
+func nextImageID() uint32 {
+	imageIDMu.Lock()
+	defer imageIDMu.Unlock()
+	lastImageID++
+	if lastImageID >= 1<<24 {
+		lastImageID = 1
+	}
+	return lastImageID
+}
+
+// graphics holds Kitty graphics sequences (image data, deletions) waiting to
+// be written to the terminal. Views queue them while rendering; App.View
+// sends them before the frame that shows the placeholders.
+var graphics []string
+
+func queueGraphics(s string) { graphics = append(graphics, s) }
+
+// takeGraphics returns the queued sequences and empties the queue.
+func takeGraphics() string {
+	s := strings.Join(graphics, "")
+	graphics = nil
+	return s
+}
+
+// fitImage returns the size an image of sw x sh pixels is shown at in a box
+// of w x h cells: its pixel size (never enlarged) and the cells it spans.
+func fitImage(sw, sh, w, h int) (pw, ph, cols, rows int) {
+	maxCols, maxRows := min(w, kitty.MaxCells), min(h, kitty.MaxCells)
+	scale := min(float64(maxCols*cellW)/float64(sw), float64(maxRows*cellH)/float64(sh), 1)
+	pw = max(1, int(math.Round(float64(sw)*scale)))
+	ph = max(1, int(math.Round(float64(sh)*scale)))
+	cols = clamp((pw+cellW-1)/cellW, 1, max(1, maxCols))
+	rows = clamp((ph+cellH-1)/cellH, 1, max(1, maxRows))
+	return pw, ph, cols, rows
+}
+
+// rowsFor returns the rows the image needs when it is w columns wide at most.
+func (v *imageView) rowsFor(w int) int {
+	b := v.img.Bounds()
+	_, _, _, rows := fitImage(b.Dx(), b.Dy(), w, kitty.MaxCells)
+	return rows
+}
+
+// send queues the image scaled to pw x ph pixels, placed on cols x rows cells,
+// unless the terminal already holds exactly that.
+func (v *imageView) send(pw, ph, cols, rows int) {
+	if v.sentCols == cols && v.sentRows == rows && v.sentPW == pw && v.sentPH == ph {
+		return
+	}
+	src := v.img.Bounds()
+	img := v.img
+	if pw != src.Dx() || ph != src.Dy() {
+		dst := image.NewRGBA(image.Rect(0, 0, pw, ph))
+		draw.CatmullRom.Scale(dst, dst.Bounds(), v.img, src, draw.Src, nil)
+		img = dst
+	}
+	var buf bytes.Buffer
+	if err := (&png.Encoder{CompressionLevel: png.BestSpeed}).Encode(&buf, img); err != nil {
+		return
+	}
+	queueGraphics(kitty.Transmit(v.id, buf.Bytes(), cols, rows))
+	v.sentCols, v.sentRows, v.sentPW, v.sentPH = cols, rows, pw, ph
+}
+
+// close frees the image in the terminal.
+func (v *imageView) close() {
+	if v.sentCols != 0 {
+		queueGraphics(kitty.Delete(v.id))
+		v.sentCols = 0
+	}
+}
+
 func (v *imageView) render(w, h int) []string {
-	if v.cache != nil && v.cacheW == w && v.cacheH == h && v.cacheGen == themeGen {
+	cell := [2]int{cellW, cellH}
+	if v.cache != nil && v.cacheW == w && v.cacheH == h && v.cacheCell == cell && v.cacheGen == themeGen {
 		return v.cache
 	}
 	out := make([]string, 0, h)
 	out = append(out, stPanelDim.Render(fit("  "+v.info(), w)))
 	body := h - 1
-	if v.err != nil || body <= 0 {
+	blank := stEmpty.Render(strings.Repeat(" ", w))
+	if v.err != nil || body <= 0 || w <= 0 {
 		for len(out) < h {
-			out = append(out, stEmpty.Render(strings.Repeat(" ", w)))
+			out = append(out, blank)
 		}
 		return out
 	}
 	src := v.img.Bounds()
-	// target size in pixels: w columns, 2*body rows; keep the aspect ratio.
-	pw, ph := w, body*2
-	scale := min(float64(pw)/float64(src.Dx()), float64(ph)/float64(src.Dy()))
-	tw := max(1, int(float64(src.Dx())*scale))
-	th := max(2, int(float64(src.Dy())*scale))
-	dst := image.NewRGBA(image.Rect(0, 0, tw, th))
-	draw.CatmullRom.Scale(dst, dst.Bounds(), v.img, src, draw.Src, nil)
+	pw, ph, cols, rows := fitImage(src.Dx(), src.Dy(), w, body)
+	v.send(pw, ph, cols, rows)
 
-	padL := (w - tw) / 2
-	padT := (body - (th+1)/2) / 2
-	blank := stEmpty.Render(strings.Repeat(" ", w))
+	padL := (w - cols) / 2
+	padT := (body - rows) / 2
 	for i := 0; i < padT; i++ {
 		out = append(out, blank)
 	}
-	for y := 0; y < th && len(out) < h; y += 2 {
-		var sb strings.Builder
-		sb.WriteString(stEmpty.Render(strings.Repeat(" ", padL)))
-		for x := 0; x < tw; x++ {
-			top := blend(dst.At(x, y))
-			bot := cEditorBg
-			if y+1 < th {
-				bot = blend(dst.At(x, y+1))
-			}
-			sb.WriteString(fmt.Sprintf("\x1b[38;2;%sm\x1b[48;2;%sm▀", rgbParams(top), rgbParams(bot)))
+	// The cells under a transparent image show the editor background.
+	bg := fmt.Sprintf("\x1b[48;2;%sm", rgbParams(cEditorBg))
+	for _, line := range kitty.Placeholders(v.id, cols, rows) {
+		if len(out) >= h {
+			break
 		}
-		sb.WriteString("\x1b[0m")
-		sb.WriteString(stEmpty.Render(strings.Repeat(" ", max(0, w-padL-tw))))
-		out = append(out, sb.String())
+		out = append(out, stEmpty.Render(strings.Repeat(" ", padL))+bg+line+"\x1b[0m"+
+			stEmpty.Render(strings.Repeat(" ", max(0, w-padL-cols))))
 	}
 	for len(out) < h {
 		out = append(out, blank)
 	}
-	v.cacheW, v.cacheH, v.cacheGen, v.cache = w, h, themeGen, out
+	v.cacheW, v.cacheH, v.cacheCell, v.cacheGen, v.cache = w, h, cell, themeGen, out
 	return out
-}
-
-// blend composites a pixel over the editor background and returns "#rrggbb".
-func blend(c color.Color) string {
-	r, g, b, a := c.RGBA()
-	const bg = 0x1e
-	mix := func(v uint32) uint32 {
-		// v is premultiplied 16-bit
-		return (v + bg*257*(0xffff-a)/0xffff) >> 8
-	}
-	return fmt.Sprintf("#%02x%02x%02x", mix(r), mix(g), mix(b))
 }
 
 func rgbParams(hex string) string {

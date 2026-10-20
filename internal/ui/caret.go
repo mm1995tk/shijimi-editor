@@ -11,6 +11,13 @@ import (
 // hidden and carries sequences such as the clipboard (OSC 52).
 func (a *App) SetCaret(w *caret.Writer) { a.caret = w }
 
+// SetCellSize hands the app a function that reports the terminal cell size
+// in pixels (0, 0 when unknown). Images are sized with it.
+func (a *App) SetCellSize(f func() (w, h int)) {
+	a.cellSize = f
+	updateCellSize(f())
+}
+
 // updateCaret records where the user is typing in the frame View is about to
 // return. View hands it to bubbletea as the cursor, so an IME shows its
 // composition there.
