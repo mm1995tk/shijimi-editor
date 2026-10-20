@@ -8,7 +8,6 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -589,6 +588,27 @@ func (s *searchPanel) fieldBox(i, w int) [3]string {
 	}
 }
 
+// searchCaret is the screen cell where text typed into the focused field
+// goes. It follows the layout of renderSearch and fieldBox.
+func (a *App) searchCaret() (x, y int, ok bool) {
+	s := a.search
+	if s.rect[2] == 0 {
+		return 0, 0, false
+	}
+	// window border, gap, field border, padding
+	x, y = s.rect[0]+4, s.rect[1]+2
+	if s.field == fRepl || s.field == fExclude {
+		x += (s.rect[2]-5)/2 + 1
+	}
+	if s.field == fInclude || s.field == fExclude {
+		y += 3
+	}
+	if s.in[s.field].Value() != "" {
+		x += inputCaret(s.in[s.field])
+	}
+	return x, y, true
+}
+
 // renderSearch draws the window and returns its screen position. The window
 // fills the screen except for a one-cell margin on every side.
 func (a *App) renderSearch() (x, y int, box []string) {
@@ -757,7 +777,7 @@ func (s *searchPanel) placeholderView(i int) string {
 	rs := []rune(searchPlaceholders[i])
 	first := stPaletteDim.Render(string(rs[0]))
 	if s.in[i].Focused() {
-		first = lipgloss.NewStyle().Foreground(lipgloss.Color(curTheme.Cursor)).Reverse(true).Render(string(rs[0]))
+		first = bgfg(curTheme.Cursor, curTheme.CursorFg).Render(string(rs[0]))
 	}
 	return first + stPaletteDim.Render(string(rs[1:]))
 }
