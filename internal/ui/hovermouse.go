@@ -42,6 +42,14 @@ func (a *App) passiveMotion(l layout, msg mouseEvent) tea.Cmd {
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
 	}
+	if th := a.markerAt(l, msg.X, msg.Y); th != nil && !a.hoverBlocked() && a.resizing == resizeNone {
+		// resting on a comment marker shows its thread
+		if a.card == nil || a.card.thread != th {
+			a.card = &prCard{thread: th, path: a.repoPath(a.curText().buf.Path)}
+			a.hoverText, a.hoverAt = "", nil
+		}
+		return nil
+	}
 	if !a.cfg.Editor.MouseHover || a.hoverBlocked() || a.resizing != resizeNone {
 		return nil
 	}
@@ -84,7 +92,7 @@ func (a *App) passiveMotion(l layout, msg mouseEvent) tea.Cmd {
 // project search, context menu, command line, resize mode, agent proposal), so
 // a popup must not appear over it.
 func (a *App) hoverBlocked() bool {
-	return a.ctx != nil || a.overlayOpen() || a.cmdOpen || a.resizeMode || len(a.props) > 0
+	return a.ctx != nil || a.overlayOpen() || a.cmdOpen || a.resizeMode || len(a.props) > 0 || a.composer != nil || a.confirm != nil
 }
 
 // hoverDwell asks the language server about the word under a resting pointer.

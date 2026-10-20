@@ -60,6 +60,9 @@ type App struct {
 	active    int
 	branch    string
 	gd        gitDiff
+	confirm   *yesNo    // a y/n question on the status line
+	card      *prCard   // a review thread shown like a hover
+	composer  *composer // the editor for a review comment
 
 	showSide bool
 	showTerm bool
@@ -849,6 +852,18 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.searchDone(msg)
 	case prFoundMsg:
 		return a.handlePRFound(msg)
+	case branchPRsMsg:
+		return a.handleBranchPRs(msg)
+	case prCheckedOutMsg:
+		return a.handlePRCheckedOut(msg)
+	case prPulledMsg:
+		return a.handlePRPulled(msg)
+	case prReviewMsg:
+		return a.handlePRReview(msg)
+	case viewedMsg:
+		a.handleViewed(msg)
+	case reviewSentMsg:
+		return a.handleReviewSent(msg)
 	case prListMsg:
 		return a.showPRList(msg)
 	case mouseEvent:
@@ -931,6 +946,12 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	if a.pal.open {
 		return a.handlePaletteKey(msg)
 	}
+	if a.composer != nil {
+		return a.handleComposerKey(msg)
+	}
+	if a.confirm != nil {
+		return a.handleConfirmKey(key)
+	}
 	if len(a.props) > 0 {
 		return a.handleProposalKey(msg)
 	}
@@ -942,6 +963,11 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	if a.resizeMode {
 		return a.handleResizeKey(key)
+	}
+	if a.card != nil {
+		if cmd, handled := a.handleCardKey(msg); handled {
+			return cmd
+		}
 	}
 	if a.hoverText != "" {
 		if d := hoverScrollKey(key); d != 0 {
@@ -1073,6 +1099,10 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 			}
 			return a.spaceMode(key)
 		}
+		if a.pending == "space v" {
+			a.pending = ""
+			return a.reviewKey(key)
+		}
 		switch key {
 		case "q", "esc":
 			a.closeTab(true)
@@ -1189,6 +1219,10 @@ func (a *App) submitPalette() tea.Cmd {
 func (a *App) handleExplorerKey(msg tea.KeyPressMsg) tea.Cmd {
 	e := a.explorer
 	key := msg.String()
+	if a.pending == "space v" {
+		a.pending = ""
+		return a.reviewKey(key)
+	}
 	if a.pending == " " {
 		a.pending = ""
 		return a.spaceMode(key)
@@ -1549,7 +1583,9 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		return nil
 	}
 	l := a.layout()
-	if msg.Action == mouseMotion && msg.Button == tea.MouseNone {
+	// Some terminals report a drag as motion with no button; while a border
+	// or a selection is being dragged, motion is the drag whatever it says.
+	if msg.Action == mouseMotion && msg.Button == tea.MouseNone && a.resizing == resizeNone && !a.dragging {
 		return a.passiveMotion(l, msg)
 	}
 	x, y := msg.X, msg.Y
@@ -1574,6 +1610,17 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 				a.copyHover()
 			}
 			return nil
+		}
+	}
+	if a.card != nil && msg.Action == mousePress {
+		if box, bx, by := a.cardBox(l); box != nil && x >= bx && y >= by && y < by+len(box) && x < bx+ansi.StringWidth(box[0]) {
+			if wheel != 0 {
+				a.card.scroll = max(0, a.card.scroll+wheel)
+			}
+			return nil // reading the card
+		}
+		if wheel == 0 {
+			a.card = nil
 		}
 	}
 	// Past the branches that keep the popup open: the pointer's hover is over.
@@ -1643,7 +1690,7 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		a.dragging = false
 		return nil
 	case mouseMotion:
-		if a.dragging && left {
+		if a.dragging {
 			a.mouseToCursor(l, x, y, true)
 		}
 		return nil
@@ -1710,6 +1757,10 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 				}
 				if x < g.rightX {
 					return nil // the base side is read-only
+				}
+				if th := a.markerAt(l, x, y); th != nil {
+					a.card = &prCard{thread: th, path: a.repoPath(t.buf.Path)}
+					return nil
 				}
 			} else if t.preview != previewOff && x >= l.rightX+a.editW(t, l) {
 				return nil // the preview pane is read-only
@@ -1893,8 +1944,21 @@ func (a *App) render() string {
 		rows = overlay(rows, box, x, y)
 	}
 
+	if a.card != nil && a.composer == nil {
+		if box, x, y := a.cardBox(l); box != nil {
+			rows = overlay(rows, box, x, y)
+		}
+	}
+	if a.composer != nil {
+		box, x, y := a.composerBox(l)
+		rows = overlay(rows, box, x, y)
+	}
+
 	if a.pending == " " && !a.pal.open && !a.cmdOpen {
 		rows = a.renderSpaceMenu(rows, l)
+	}
+	if a.pending == "space v" && !a.pal.open && !a.cmdOpen {
+		rows = a.renderMenu(rows, l, " Space v  レビュー", reviewItems)
 	}
 
 	if a.pal.open {
@@ -2093,13 +2157,22 @@ func (a *App) renderStatus() string {
 		}
 		right = fmt.Sprintf("%s   %s   %s   ", pos, indent, lang)
 	}
+	if n := len(a.gd.rv.pending); n > 0 && a.prShown() {
+		right = fmt.Sprintf("未送信コメント %d 件   ", n) + right
+	}
 	right += versionLabel() + " "
 	st := stStatus
-	if a.msg != "" {
+	switch {
+	case a.confirm != nil:
+		st, right = stStatusError, "" // the question must not be cut off
+		left += "   " + a.confirm.prompt
+	case a.msg != "":
 		if a.msgErr {
 			st = stStatusError
 		}
 		left += "   " + a.msg
+	case a.prShown() && a.gd.rv.sync.text() != "":
+		left += "   " + a.gd.rv.sync.text()
 	}
 	lw := a.w - prefixW - ansi.StringWidth(right)
 	return prefix + st.Render(fit(left, lw)+right)

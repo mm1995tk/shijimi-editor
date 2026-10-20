@@ -31,6 +31,8 @@ func (a *App) updateCaret(l layout) {
 // caretPos is the screen cell where typed text goes, if any.
 func (a *App) caretPos(l layout) (x, y int, ok bool) {
 	switch {
+	case a.composer != nil:
+		return a.composerCaret(l)
 	case a.cmdOpen:
 		v := []rune(a.cmdInput.Value())
 		pos := clamp(a.cmdInput.Position(), 0, len(v))

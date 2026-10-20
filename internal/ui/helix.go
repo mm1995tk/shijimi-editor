@@ -415,6 +415,8 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case " ":
 		return a.spaceMode(key)
+	case "space v":
+		return a.reviewKey(key)
 	}
 	return nil
 }
@@ -449,6 +451,8 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		return a.openDiff(basePR)
 	case "G":
 		return a.openDiff(baseHead)
+	case "v":
+		return a.openReviewMenu()
 	case "y":
 		if t := a.cur(); t != nil && t.kind == tabText {
 			s, e := t.buf.SelectionOrChar()

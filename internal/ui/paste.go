@@ -15,6 +15,11 @@ func (a *App) handlePaste(msg tea.PasteMsg) tea.Cmd {
 		return a.searchInput(msg)
 	case a.pal.open:
 		return a.paletteInput(msg)
+	case a.composer != nil:
+		a.composer.ta.InsertString(strings.ReplaceAll(msg.Content, "\r\n", "\n"))
+		return nil
+	case a.confirm != nil:
+		return nil
 	case len(a.props) > 0, a.ctx != nil, a.resizeMode:
 		return nil
 	case a.cmdOpen:

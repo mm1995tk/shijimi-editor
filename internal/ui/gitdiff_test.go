@@ -323,7 +323,7 @@ func TestOpenDiffSwitchesAndCloses(t *testing.T) {
 	if cmd := a.openDiff(basePR); cmd == nil || a.gd.base != baseHead {
 		t.Fatalf("Space g: cmd=%v base=%s", cmd, a.gd.base)
 	}
-	pr := &prInfo{Number: 12, Title: "差分モードを 1 つにする", State: "OPEN", BaseRefName: "main"}
+	pr := &prInfo{Number: 12, Title: "差分モードを 1 つにする", State: "OPEN", BaseRefName: "main", HeadRefName: a.branch}
 	pr.Author.Login = "someone"
 	a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, pr: pr})
 	if a.gd.base != basePR || a.gd.pr != pr {
@@ -347,11 +347,31 @@ func TestOpenDiffSwitchesAndCloses(t *testing.T) {
 	}
 }
 
-func TestPRNotFoundListsPRs(t *testing.T) {
+func TestBranchPRsPicksThePR(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, err: errString("no pull requests found")}); cmd == nil || a.gd.base != baseHead {
+	// none: the list of every pull request is asked for
+	if cmd := a.handleBranchPRs(branchPRsMsg{seq: a.gd.prSeq}); cmd == nil || a.gd.base != baseHead || a.pal.open {
 		t.Errorf("no PR for the branch: cmd=%v base=%s", cmd, a.gd.base)
 	}
+	// one: it is looked up at once, without a list
+	seq := a.gd.prSeq
+	if cmd := a.handleBranchPRs(branchPRsMsg{seq: seq, prs: []prSummary{{Number: 4}}}); cmd == nil || a.pal.open || a.gd.prSeq == seq {
+		t.Errorf("one PR: cmd=%v pal=%v", cmd, a.pal.open)
+	}
+	// several: a list of just those
+	a.handleBranchPRs(branchPRsMsg{seq: a.gd.prSeq, prs: []prSummary{{Number: 4}, {Number: 5}}})
+	if !a.pal.open || len(a.pal.pickAll) != 2 {
+		t.Errorf("two PRs: open=%v items=%d", a.pal.open, len(a.pal.pickAll))
+	}
+	a.pal.close()
+	// an answer for an older lookup is dropped
+	if cmd := a.handleBranchPRs(branchPRsMsg{seq: a.gd.prSeq - 1, prs: []prSummary{{Number: 4}}}); cmd != nil {
+		t.Error("stale answer used")
+	}
+}
+
+func TestPRLookupFails(t *testing.T) {
+	a, _ := gitDiffApp(t)
 	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 5, err: errString("not found")}); cmd != nil || !a.msgErr {
 		t.Errorf(":pr 5 failing: cmd=%v msgErr=%v", cmd, a.msgErr)
 	}
@@ -602,7 +622,7 @@ func TestReloadWithoutGhStillUpdatesList(t *testing.T) {
 	a.setFocus(focusChanges)
 	a.handleChangesKey(textKey("r"))
 	gen := a.gd.gen
-	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 3, err: errString("gh: offline")}); cmd == nil || a.gd.gen == gen || !a.msgErr {
+	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 3, refresh: true, err: errString("gh: offline")}); cmd == nil || a.gd.gen == gen || !a.msgErr {
 		t.Errorf("r without gh: cmd=%v gen %d→%d msgErr=%v", cmd, gen, a.gd.gen, a.msgErr)
 	}
 }
