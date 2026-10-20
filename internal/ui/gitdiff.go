@@ -333,6 +333,9 @@ func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
 	if m.err != nil {
 		if m.num > 0 {
 			a.fail(m.err)
+			if g := a.gd; g.on && g.base == basePR && g.pr != nil && g.pr.Number == m.num {
+				return a.reloadChanges() // r: the list still updates without gh
+			}
 			return nil
 		}
 		a.info("このブランチのプルリクエストが見つかりません。一覧から選んでください")

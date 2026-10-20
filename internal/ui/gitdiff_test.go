@@ -595,3 +595,14 @@ func TestBarClickOutsideTheBarRows(t *testing.T) {
 		t.Errorf("a click outside the bar scrolled to %d", tb.buf.ScrollRow)
 	}
 }
+
+func TestReloadWithoutGhStillUpdatesList(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	a.showDiff(basePR, &prInfo{Number: 3, BaseRefName: "main"})
+	a.setFocus(focusChanges)
+	a.handleChangesKey(textKey("r"))
+	gen := a.gd.gen
+	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 3, err: errString("gh: offline")}); cmd == nil || a.gd.gen == gen || !a.msgErr {
+		t.Errorf("r without gh: cmd=%v gen %d→%d msgErr=%v", cmd, gen, a.gd.gen, a.msgErr)
+	}
+}
