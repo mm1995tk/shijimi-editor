@@ -456,6 +456,8 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		return a.openDiff(baseHead)
 	case "v":
 		return a.openReviewMenu()
+	case "i":
+		return a.toggleAgentPanel()
 	case "y":
 		if t := a.cur(); t != nil && t.kind == tabText {
 			s, e := t.buf.SelectionOrChar()

@@ -3,6 +3,7 @@ package vt
 import (
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -344,6 +345,15 @@ func (t *Term) osc(cmd int, data []byte) {
 				return r
 			}, s[i+1:])
 		}
+	case 133: // shell integration: 133;D;<exit code> ends a command
+		parts := strings.Split(string(data), ";")
+		if len(parts) >= 2 && parts[1] == "D" {
+			code := 0
+			if len(parts) >= 3 {
+				code, _ = strconv.Atoi(parts[2])
+			}
+			t.ends = append(t.ends, code)
+		}
 	case 52: // clipboard: 52;Pc;Pd, where Pd is base64 or "?" for a query
 		if len(data) >= maxOSCData {
 			// The parser dropped the rest; a cut-off copy would be wrong.
@@ -602,6 +612,7 @@ func (t *Term) eraseDisplay(mode int) {
 			t.clearCells(y, 0, t.cols)
 		}
 	case 3:
+		t.dropped += len(t.sb)
 		t.sb = nil
 		t.view = 0
 	}

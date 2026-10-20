@@ -17,9 +17,10 @@
 - 実行中に `:config-reload` を実行すると、読み直します。
 
 !!! warning "shijimi だけの設定"
-    `[browser]` と `[search]` は Helix にない設定です。
+    `[browser]` と `[search]` と `[agent]` は Helix にない設定です。
     `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書いてください。
     `.helix/config.toml` に書くと、Helix が未知のセクションとして拒否します。
+    `[agent]` は `~/.config/shijimi/config.toml` からだけ読みます（[AI エージェント連携](agent.md)）。
 
 ## config.toml の例
 
@@ -49,6 +50,11 @@ include = []
 
 [browser]
 listen-host = "127.0.0.1"
+
+# ~/.config/shijimi/config.toml だけで有効
+[agent]
+command = "claude-code-acp"
+args = []
 ```
 
 ## 項目
@@ -66,6 +72,7 @@ listen-host = "127.0.0.1"
 | `editor.auto-save.after-delay` | 自動保存 | [ファイルと検索](files.md) |
 | `search.exclude` / `search.include` | 全体検索の除外 / 包含 | [ファイルと検索](files.md) |
 | `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
+| `agent.command` / `agent.args` / `agent.environment` | 提案パネルが使う ACP エージェント | [AI エージェント連携](agent.md) |
 
 ## テーマ
 

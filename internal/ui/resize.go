@@ -12,6 +12,7 @@ const (
 	resizeSide
 	resizeTerm
 	resizePreview
+	resizeAgent
 )
 
 const (
@@ -71,7 +72,7 @@ func (a *App) resizePreviewBy(deltaPct int) {
 }
 
 func (a *App) resetPanes() {
-	a.sideWPref, a.panelHPref, a.previewPct = 0, 0, 0
+	a.sideWPref, a.panelHPref, a.previewPct, a.agentWPref = 0, 0, 0, 0
 	a.follow = true
 }
 
@@ -133,6 +134,9 @@ func (a *App) dragResize(l layout, x, y int) {
 	case resizeTerm:
 		a.panelHPref = l.statusY - y
 		a.panelHPref = a.panelHeight()
+	case resizeAgent:
+		a.agentWPref = a.w - x - 1
+		a.agentWPref = a.agentWidth()
 	case resizePreview:
 		if avail := l.rightW - 1; avail > 0 {
 			a.previewPct = clamp((x-l.rightX)*100/avail, 10, 90)

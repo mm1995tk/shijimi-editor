@@ -81,11 +81,21 @@ type Browser struct {
 	ListenHost string
 }
 
+// Agent is the ACP agent (Agent Client Protocol) the suggestion panel runs.
+// It is read only from the user's own config directory, never from a
+// project: a cloned repository must not choose a program to run.
+type Agent struct {
+	Command string
+	Args    []string
+	Env     map[string]string
+}
+
 // Config is the merged configuration.
 type Config struct {
 	Editor    Editor
 	Search    Search
 	Browser   Browser
+	Agent     Agent
 	Languages map[string]*Language
 	Servers   map[string]*Server
 	Sources   []string // files that were loaded, for display
@@ -114,10 +124,14 @@ func Load(root string) *Config {
 	dirs = append(dirs, filepath.Join(root, ".helix"), filepath.Join(root, ".shijimi"))
 	for _, d := range dirs {
 		own := filepath.Base(d) == "shijimi" || filepath.Base(d) == ".shijimi"
+		user := filepath.Base(d) == "shijimi"
 		if data, err := os.ReadFile(filepath.Join(d, "config.toml")); err == nil {
 			c.mergeEditor(string(data))
 			if own {
 				c.mergeBrowser(string(data))
+			}
+			if user {
+				c.mergeAgent(string(data))
 			}
 			c.Sources = append(c.Sources, filepath.Join(d, "config.toml"))
 		}
@@ -125,6 +139,9 @@ func Load(root string) *Config {
 			c.mergeEditorRaw(raw)
 			if own {
 				c.mergeBrowserRaw(raw)
+			}
+			if user {
+				c.mergeAgentRaw(raw)
 			}
 			c.Sources = append(c.Sources, filepath.Join(d, "config.nix"))
 		}
@@ -211,6 +228,35 @@ func (c *Config) mergeBrowserRaw(raw map[string]any) {
 	if br, ok := raw["browser"].(map[string]any); ok {
 		if v, ok := br["listen-host"].(string); ok && v != "" {
 			c.Browser.ListenHost = v
+		}
+	}
+}
+
+func (c *Config) mergeAgent(data string) {
+	var raw map[string]any
+	if _, err := toml.Decode(data, &raw); err != nil {
+		return
+	}
+	c.mergeAgentRaw(raw)
+}
+
+func (c *Config) mergeAgentRaw(raw map[string]any) {
+	ag, ok := raw["agent"].(map[string]any)
+	if !ok {
+		return
+	}
+	if v, ok := ag["command"].(string); ok {
+		c.Agent.Command = v
+	}
+	if v, ok := ag["args"]; ok {
+		c.Agent.Args = stringList(v)
+	}
+	if env, ok := ag["environment"].(map[string]any); ok {
+		c.Agent.Env = map[string]string{}
+		for k, v := range env {
+			if s, ok := v.(string); ok {
+				c.Agent.Env[k] = s
+			}
 		}
 	}
 }

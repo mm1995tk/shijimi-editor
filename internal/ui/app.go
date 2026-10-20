@@ -31,6 +31,7 @@ const (
 	focusExplorer
 	focusTerminal
 	focusChanges // the CHANGES list in diff mode
+	focusAgent   // the suggestion panel on the right
 )
 
 type span struct{ x0, x1 int }
@@ -111,6 +112,13 @@ type App struct {
 	lastSel *ideSelection
 	sentSel *ideSelection
 
+	// suggestion panel and ACP agent (see suggest.go, agent.go)
+	ag          *agentState
+	sg          suggestState
+	showAgent   bool
+	agentWPref  int  // panel width picked by the user (0 = automatic)
+	agentPinned bool // the user opened the panel, so it shows even beside a narrower editor
+
 	clipboard    string
 	msg          string
 	msgErr       bool
@@ -133,18 +141,20 @@ func New(dir, file string) *App {
 	abs, _ := filepath.Abs(dir)
 	cfg := config.Load(abs)
 	a := &App{
-		root:     abs,
-		cfg:      cfg,
-		lsp:      newLSPManager(cfg, abs),
-		explorer: newExplorer(abs),
-		term:     newTerminal(abs),
-		proxy:    proxy.NewManager(),
-		pal:      newPalette(),
-		search:   newSearchPanel(cfg.Search),
-		showSide: true,
-		focus:    focusExplorer,
-		helix:    cfg.Editor.Keymap != "vscode",
-		gd:       gitDiff{split: true},
+		root:      abs,
+		cfg:       cfg,
+		lsp:       newLSPManager(cfg, abs),
+		explorer:  newExplorer(abs),
+		term:      newTerminal(abs),
+		proxy:     proxy.NewManager(),
+		pal:       newPalette(),
+		search:    newSearchPanel(cfg.Search),
+		showSide:  true,
+		focus:     focusExplorer,
+		helix:     cfg.Editor.Keymap != "vscode",
+		gd:        gitDiff{split: true},
+		ag:        newAgentState(),
+		showAgent: true,
 	}
 	a.explorer.icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
@@ -175,6 +185,10 @@ func New(dir, file string) *App {
 // Close stops language servers; call after the program exits.
 func (a *App) Close() {
 	a.lsp.stopAll()
+	if a.ag.client != nil {
+		a.stopAgent()
+	}
+	removeShellIntegration()
 }
 
 func styleInput(ti *textinput.Model, bg string) {
@@ -189,7 +203,7 @@ func styleInput(ti *textinput.Model, bg string) {
 	ti.SetStyles(s)
 }
 
-func (a *App) Init() tea.Cmd { return tea.Batch(a.lsp.wait(), watchTick()) }
+func (a *App) Init() tea.Cmd { return tea.Batch(a.lsp.wait(), watchTick(), a.probeRepo()) }
 
 // ---- layout ----
 
@@ -197,6 +211,7 @@ type layout struct {
 	top, bodyH     int // rows between the diff mode header and the help/status lines
 	sideW          int
 	rightX, rightW int
+	agentX, agentW int // the suggestion panel; agentW is 0 when it is not shown
 	editY, editH   int
 	panelY, panelH int
 	statusY        int
@@ -214,6 +229,11 @@ func (a *App) layout() layout {
 		l.rightX = l.sideW + 1
 	}
 	l.rightW = max(0, a.w-l.rightX)
+	if a.agentShown(l.sideW) {
+		l.agentW = a.agentWidth()
+		l.agentX = a.w - l.agentW
+		l.rightW = max(0, l.agentX-1-l.rightX)
+	}
 	l.editY = l.top + 1
 	if a.findOpen {
 		l.editY++
@@ -712,11 +732,15 @@ func (a *App) handleAutoSave(m autoSaveMsg) tea.Cmd {
 }
 
 func (a *App) update(msg tea.Msg) tea.Cmd {
+	if cmd, ok := a.handleAgentMsg(msg); ok {
+		return cmd
+	}
 	switch msg := msg.(type) {
 	case autoSaveMsg:
 		return a.handleAutoSave(msg)
 	case watchMsg:
 		reload := a.checkDiskChanges()
+		sg := a.suggestTick()
 		a.treeTicks++
 		if reload || a.treeTicks >= treeRefreshTicks {
 			a.treeTicks = 0
@@ -725,10 +749,10 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		if a.gd.on {
 			a.gd.ticks++
 			if reload || a.gd.ticks%gitDiffRefreshTicks == 0 {
-				return tea.Batch(watchTick(), a.reloadChanges())
+				return tea.Batch(watchTick(), sg, a.reloadChanges())
 			}
 		}
-		return watchTick()
+		return tea.Batch(watchTick(), sg)
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
 		if a.cellSize != nil {
@@ -836,6 +860,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		} else {
 			a.info("開きました: %s", msg.url)
 		}
+	case repoProbedMsg:
+		a.handleRepoProbed(msg)
 	case changesLoadedMsg:
 		a.applyChanges(msg)
 	case highlightMsg:
@@ -1006,6 +1032,8 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 			return a.quit()
 		case "ctrl+`":
 			return a.toggleTerm()
+		case "alt+i":
+			return a.toggleAgentPanel()
 		case "alt+r":
 			return a.startResize()
 		case "f1":
@@ -1065,6 +1093,8 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case "alt+a":
 		return a.sendContext()
+	case "alt+i":
+		return a.toggleAgentPanel()
 	case "alt+r":
 		return a.startResize()
 	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
@@ -1081,6 +1111,8 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		return a.handleExplorerKey(msg)
 	case focusChanges:
 		return a.handleChangesKey(msg)
+	case focusAgent:
+		return a.handleAgentKey(msg)
 	}
 	t := a.cur()
 	if t == nil {
@@ -1586,6 +1618,11 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		return nil
 	}
 	l := a.layout()
+	if a.resizing == resizeNone && !a.dragging {
+		if cmd, ok := a.agentMouse(l, msg); ok {
+			return cmd
+		}
+	}
 	// Some terminals report a drag as motion with no button; while a border
 	// or a selection is being dragged, motion is the drag whatever it says.
 	if msg.Action == mouseMotion && msg.Button == tea.MouseNone && a.resizing == resizeNone && !a.dragging {
@@ -1911,6 +1948,10 @@ func (a *App) render() string {
 			side = append(side, a.renderChanges(l.sideW, l.bodyH-a.explorerH(), a.focus == focusChanges && !a.overlayOpen())...)
 		}
 	}
+	var agent []string
+	if l.agentW > 0 {
+		agent = a.renderAgent(l.agentW, l.bodyH, a.focus == focusAgent && !a.overlayOpen())
+	}
 	for i := range rows {
 		var sb strings.Builder
 		if a.showSide {
@@ -1919,6 +1960,17 @@ func (a *App) render() string {
 		}
 		if i < len(right) {
 			sb.WriteString(right[i])
+		}
+		if agent != nil {
+			if i < len(right) {
+				if rw := ansi.StringWidth(right[i]); rw < l.rightW {
+					sb.WriteString(stEmpty.Render(strings.Repeat(" ", l.rightW-rw)))
+				}
+			} else {
+				sb.WriteString(stEmpty.Render(strings.Repeat(" ", l.rightW)))
+			}
+			sb.WriteString(stSeparator.Render("│"))
+			sb.WriteString(agent[i])
 		}
 		rows[i] = sb.String()
 	}
@@ -2126,6 +2178,8 @@ func (a *App) renderStatus() string {
 		leftParts = append(leftParts, "変更一覧")
 	case focusTerminal:
 		leftParts = append(leftParts, "ターミナル")
+	case focusAgent:
+		leftParts = append(leftParts, "提案パネル")
 	}
 	if t := a.curText(); t != nil {
 		ds := a.lsp.diagnostics(t.buf.Path)
@@ -2139,6 +2193,11 @@ func (a *App) renderStatus() string {
 		}
 		if errs+warns > 0 {
 			leftParts = append(leftParts, fmt.Sprintf("● %d  ▲ %d", errs, warns))
+		}
+	}
+	if l := a.layout(); l.agentW == 0 {
+		if n := len(a.suggestions()); n > 0 {
+			leftParts = append(leftParts, fmt.Sprintf("提案 %d（Alt+I）", n))
 		}
 	}
 	left := " " + strings.Join(leftParts, "  ")

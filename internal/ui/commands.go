@@ -52,6 +52,9 @@ func defaultCommands() []command {
 		{"編集: 行コメントの切替", "Ctrl+C / Ctrl+/", func(a *App) tea.Cmd { a.toggleComment(); return nil }},
 		{"検索: プロジェクト全体を検索 / 置換", "Space /", func(a *App) tea.Cmd { return a.openSearch(fQuery) }},
 		{"エージェント: 現在の文脈をターミナルへ送る", "Space a / Alt+A", func(a *App) tea.Cmd { return a.sendContext() }},
+		{"エージェント: 提案パネルへ移動 / 閉じる", "Space i / Alt+I / :agent", func(a *App) tea.Cmd { return a.toggleAgentPanel() }},
+		{"エージェント: 作業を中止", ":agent cancel", func(a *App) tea.Cmd { a.cancelAgent(); return nil }},
+		{"エージェント: 止める", ":agent stop", func(a *App) tea.Cmd { return a.agentCommand("stop") }},
 		{"LSP: シグネチャヘルプ（引数の表示）", ":signature", func(a *App) tea.Cmd { return a.signatureHelp(true) }},
 		{"LSP: ホバー", "Space k", func(a *App) tea.Cmd { return a.hover() }},
 		{"LSP: 定義へ移動", "gd / F12", func(a *App) tea.Cmd { return a.gotoDefinition() }},
@@ -259,6 +262,8 @@ func (a *App) execCommand(line string) tea.Cmd {
 		return a.openSearchArgs(arg, false)
 	case "browser":
 		return a.browser(arg)
+	case "agent":
+		return a.agentCommand(arg)
 	case "replace", "rep":
 		return a.openSearchArgs(arg, true)
 	case "lsp-restart":
