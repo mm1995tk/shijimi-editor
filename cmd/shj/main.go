@@ -19,11 +19,16 @@ func main() {
 	dir, file := ".", ""
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
+		if arg == "-v" || arg == "--version" {
+			fmt.Println("shijimi " + ui.VersionLabel())
+			return
+		}
 		if arg == "-h" || arg == "--help" {
 			fmt.Println("usage: shj [ディレクトリ | ファイル]")
 			fmt.Println("       shj diff [path]")
 			fmt.Println("       shj exec \":コマンド\"")
 			fmt.Println("       shj skill install [書き出し先]")
+			fmt.Println("       shj -v, --version")
 			fmt.Println("サブコマンドは実行中の shijimi へ $" + ctl.EnvSocket + " 経由で送ります。")
 			fmt.Println("同名のファイルを開くときは ./diff のようにパスで書いてください。")
 			return

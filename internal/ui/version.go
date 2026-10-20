@@ -30,6 +30,9 @@ func versionLabel() string {
 	return formatVersion(v, c)
 }
 
+// VersionLabel is versionLabel for use outside the package, such as shj --version.
+func VersionLabel() string { return versionLabel() }
+
 func buildSetting(bi *debug.BuildInfo, key string) string {
 	for _, s := range bi.Settings {
 		if s.Key == key {
