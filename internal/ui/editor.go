@@ -8,6 +8,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -16,11 +17,9 @@ type tabKind int
 const (
 	tabText tabKind = iota
 	tabImage
-	tabReview
 )
 
-// tab is one item in the editor area: a text buffer, an image preview or a
-// diff review.
+// tab is one item in the editor area: a text buffer or an image preview.
 type tab struct {
 	kind tabKind
 
@@ -32,8 +31,7 @@ type tab struct {
 	conflict   bool // changed on disk while holding unsaved edits (already reported)
 
 	img *imageView
-	rev *review
-	dv  *diffView // set while the tab is shown as a diff (git-diff mode)
+	dv  *diffView // set while the tab is shown as a diff (diff mode)
 
 	// Markdown preview beside the buffer
 	preview   previewMode
@@ -56,8 +54,6 @@ func (t *tab) title() string {
 	switch t.kind {
 	case tabImage:
 		return t.img.name()
-	case tabReview:
-		return t.rev.tabTitle()
 	}
 	return t.buf.Name()
 }
@@ -133,7 +129,9 @@ type editorOpts struct {
 	relative     bool
 	indentGuides bool // draw a faint │ at each indent level
 	diags        []lsp.Diagnostic
-	rowBg        func(row int) string // background override per buffer line (diff view)
+	rowBg        func(row int) string      // background override per buffer line (diff view)
+	marks        func(row int) []diff.Span // parts of a line drawn on markBg (diff view)
+	markBg       string
 }
 
 var severityColor map[int]string
@@ -288,12 +286,21 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 		if o.indentGuides {
 			guideW, guideU = indentGuideWidth(b, row), indentUnitWidth(b)
 		}
+		var marks []diff.Span
+		if o.marks != nil {
+			marks = o.marks(row)
+		}
 		cellBg := func(col int) string {
 			switch {
 			case inSel(col):
 				return cSelection
 			case inMatch(col):
 				return cMatch
+			}
+			for _, m := range marks {
+				if col >= m.Start && col < m.End {
+					return o.markBg
+				}
 			}
 			return lineBg
 		}
@@ -411,8 +418,8 @@ func renderWelcome(w, h int, helix bool) []string {
 			row{"Space f       ファイルを開く", false},
 			row{"Space ?       コマンドパレット", false},
 			row{"Space e       ファイルツリーへ移動", false},
-			row{"Space g       プルリクエストをレビュー", false},
-			row{"Ctrl+G        git-diff モード（変更を差分で見る）", false},
+			row{"Space g       PR の base との差分", false},
+			row{"Ctrl+G        HEAD との差分（変更を差分で見る）", false},
 			row{"Ctrl+`        ターミナル", false},
 			row{":q            終了", false},
 		)
@@ -422,7 +429,7 @@ func renderWelcome(w, h int, helix bool) []string {
 			row{"F1 / Ctrl+K   コマンドパレット", false},
 			row{"Ctrl+B        サイドバーの表示切替", false},
 			row{"Ctrl+E        ファイルツリーへ移動", false},
-			row{"Ctrl+G        git-diff モード（変更を差分で見る）", false},
+			row{"Ctrl+G        HEAD との差分（変更を差分で見る）", false},
 			row{"Ctrl+`        ターミナル", false},
 			row{"Ctrl+Q        終了", false},
 		)

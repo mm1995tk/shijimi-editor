@@ -51,7 +51,7 @@ nav:
       - 編集（VS Code モード）: editing-vscode.md
       - ファイルと検索: files.md
       - LSP: lsp.md
-      - レビュー: review.md
+      - 差分モード: review.md
       - プレビュー: preview.md
       - ターミナル: terminal.md
       - 外部ブラウザとポート転送: browser.md

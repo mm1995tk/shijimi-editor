@@ -113,7 +113,7 @@ func (a *App) handleResizeKey(key string) tea.Cmd {
 // resizeHit returns the border under (x, y), if any.
 func (a *App) resizeHit(l layout, x, y int) resizeTarget {
 	switch {
-	case a.showSide && x == l.sideW && y >= 0 && y < l.statusY:
+	case a.showSide && x == l.sideW && y >= l.top && y < l.top+l.bodyH:
 		return resizeSide
 	case a.showTerm && y == l.panelY && x >= l.rightX:
 		return resizeTerm

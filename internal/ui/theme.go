@@ -44,6 +44,9 @@ type Theme struct {
 	HoverCodeBg, HoverInline, HoverHead, HoverRule string
 
 	AddBg, DelBg, AddSign, DelSign, HunkFg, HunkBg, NoteBg string
+	// diff mode: changed parts of a line, rewrites on the change bar, and the
+	// part of the bar that is on screen
+	AddWordBg, DelWordBg, ModSign, BarView string
 
 	Syntax syntaxColors
 
@@ -69,6 +72,7 @@ var darkPlus = Theme{
 	HoverCodeBg: "#151515", HoverInline: "#ce9178", HoverHead: "#569cd6", HoverRule: "#5a5a5a",
 	AddBg: "#203a27", DelBg: "#3d2125", AddSign: "#3fb950", DelSign: "#f85149",
 	HunkFg: "#79c0ff", HunkBg: "#1d2733", NoteBg: "#2b2b31",
+	AddWordBg: "#2f6b3c", DelWordBg: "#7a2e35", ModSign: "#3794ff", BarView: "#45494e",
 	Syntax: syntaxColors{
 		Text: "#d4d4d4", Comment: "#6a9955", Preproc: "#c586c0", Keyword: "#569cd6",
 		Namespace: "#c586c0", Type: "#4ec9b0", Name: "#9cdcfe", Function: "#dcdcaa",
@@ -93,6 +97,7 @@ var githubDark = Theme{
 	HoverCodeBg: "#010409", HoverInline: "#a5d6ff", HoverHead: "#79c0ff", HoverRule: "#484f58",
 	AddBg: "#12261e", DelBg: "#2d1214", AddSign: "#3fb950", DelSign: "#f85149",
 	HunkFg: "#79c0ff", HunkBg: "#121d2f", NoteBg: "#161b22",
+	AddWordBg: "#1f5a32", DelWordBg: "#6e2027", ModSign: "#58a6ff", BarView: "#30363d",
 	Syntax: syntaxColors{
 		Text: "#c9d1d9", Comment: "#8b949e", Preproc: "#ff7b72", Keyword: "#ff7b72",
 		Namespace: "#ff7b72", Type: "#ffa657", Name: "#c9d1d9", Function: "#d2a8ff",
@@ -117,6 +122,7 @@ var lightPlus = Theme{
 	HoverCodeBg: "#ececec", HoverInline: "#a31515", HoverHead: "#0000ff", HoverRule: "#b0b0b0",
 	AddBg: "#dafbe1", DelBg: "#ffebe9", AddSign: "#1a7f37", DelSign: "#cf222e",
 	HunkFg: "#0550ae", HunkBg: "#ddf4ff", NoteBg: "#fff8c5",
+	AddWordBg: "#aceebb", DelWordBg: "#ffcecb", ModSign: "#0969da", BarView: "#d0d7de",
 	Syntax: syntaxColors{
 		Text: "#000000", Comment: "#008000", Preproc: "#af00db", Keyword: "#0000ff",
 		Namespace: "#af00db", Type: "#267f99", Name: "#001080", Function: "#795e26",
@@ -216,6 +222,7 @@ func applyTheme(t *Theme) {
 
 	cAddBg, cDelBg, cAddSign, cDelSign = t.AddBg, t.DelBg, t.AddSign, t.DelSign
 	cHunkFg, cHunkBg, cNoteBg = t.HunkFg, t.HunkBg, t.NoteBg
+	cAddWordBg, cDelWordBg, cModSign, cBarView = t.AddWordBg, t.DelWordBg, t.ModSign, t.BarView
 
 	cHoverBg, cHoverFg, cHoverCodeBg, cHoverBorder = t.PaletteBg, t.EditorFg, t.HoverCodeBg, t.Accent
 	cHoverInline, cHoverHead, cHoverRule = t.HoverInline, t.HoverHead, t.HoverRule

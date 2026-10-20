@@ -18,8 +18,8 @@ shijimi 本体だけで編集はできます。次の機能は、別のコマン
 
 | 機能 | 必要なコマンド |
 | --- | --- |
-| プルリクエストのレビュー | [gh](https://cli.github.com/)。`gh auth login` を済ませておく |
-| ファイルツリーの Git の状態、git-diff モード | `git` |
+| 差分モードでプルリクエストの base と比べる | [gh](https://cli.github.com/)。`gh auth login` を済ませておく |
+| ファイルツリーの Git の状態、差分モード | `git` |
 | LSP | 各言語のサーバー（`gopls`、`rust-analyzer` など） |
 | mermaid の図 | [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`） |
 | 設定を Nix で書く | `nix` |

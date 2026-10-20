@@ -30,7 +30,7 @@ const (
 	focusEditor focus = iota
 	focusExplorer
 	focusTerminal
-	focusChanges // the CHANGES list in git-diff mode
+	focusChanges // the CHANGES list in diff mode
 )
 
 type span struct{ x0, x1 int }
@@ -191,6 +191,7 @@ func (a *App) Init() tea.Cmd { return tea.Batch(a.lsp.wait(), watchTick()) }
 // ---- layout ----
 
 type layout struct {
+	top, bodyH     int // rows between the diff mode header and the help/status lines
 	sideW          int
 	rightX, rightW int
 	editY, editH   int
@@ -201,19 +202,23 @@ type layout struct {
 func (a *App) layout() layout {
 	var l layout
 	l.statusY = a.h - 1
+	l.bodyH = a.bodyH()
+	if a.gd.on {
+		l.top = 1
+	}
 	if a.showSide {
 		l.sideW = a.sideWidth()
 		l.rightX = l.sideW + 1
 	}
 	l.rightW = max(0, a.w-l.rightX)
-	l.editY = 1
+	l.editY = l.top + 1
 	if a.findOpen {
-		l.editY = 2
+		l.editY++
 	}
 	if a.showTerm {
 		l.panelH = a.panelHeight()
 	}
-	l.editH = max(0, a.h-1-l.editY-l.panelH)
+	l.editH = max(0, l.top+l.bodyH-l.editY-l.panelH)
 	l.panelY = l.editY + l.editH
 	return l
 }
@@ -842,14 +847,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return a.searchTick(msg)
 	case searchDoneMsg:
 		a.searchDone(msg)
-	case reviewLoadedMsg:
-		for _, t := range a.tabs {
-			if t.kind == tabReview && t.rev.id == msg.id {
-				t.rev.applyLoaded(msg)
-			}
-		}
-	case reviewSubmittedMsg:
-		return a.handleSubmitted(msg)
+	case prFoundMsg:
+		return a.handlePRFound(msg)
 	case prListMsg:
 		return a.showPRList(msg)
 	case mouseEvent:
@@ -1013,7 +1012,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 			return a.toggleTerm()
 		}
 	case "ctrl+g":
-		return a.toggleGitDiff()
+		return a.openDiff(baseHead)
 	case "ctrl+e":
 		if a.focus == focusExplorer && len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
@@ -1066,8 +1065,6 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	switch t.kind {
-	case tabReview:
-		return a.handleReviewKey(t, msg)
 	case tabImage:
 		if a.pending == " " {
 			a.pending = ""
@@ -1586,19 +1583,21 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	a.hoverText, a.hoverAt = "", nil
 	if wheel != 0 && msg.Action == mousePress {
 		switch {
+		case y < l.top || y >= l.top+l.bodyH:
+			// the diff mode header and help lines
 		case a.showSide && x < l.sideW:
 			e := a.explorer
-			if a.gd.on && y >= a.explorerH() {
+			if a.gd.on && y-l.top >= a.explorerH() {
 				g := &a.gd
-				body := a.h - 2 - a.explorerH()
-				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.files)-body))
-				g.sel = clamp(g.sel, g.scroll, g.scroll+body-1)
+				body := l.bodyH - a.explorerH() - 1
+				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.rows)-body))
+				g.keepSelVisible(body)
 			} else {
 				eh := a.explorerH()
 				e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(eh-1)))
 				e.sel = clamp(e.sel, e.scroll, e.scroll+eh-2)
 			}
-		case a.showTerm && y >= l.panelY && y < l.statusY:
+		case a.showTerm && y >= l.panelY:
 			a.term.wheel(msg, x-l.rightX, y-l.panelY-2, wheel)
 		default:
 			if t := a.cur(); t != nil {
@@ -1609,8 +1608,6 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 						break
 					}
 					t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
-				case tabReview:
-					t.rev.moveCursor(wheel)
 				}
 			}
 		}
@@ -1656,16 +1653,20 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	}
 
 	switch {
+	case y < l.top || y >= l.top+l.bodyH:
+		return nil // the diff mode header and help lines
 	case a.showSide && x < l.sideW:
-		if a.gd.on && y >= a.explorerH() {
-			if i := y - 1 - a.explorerH() + a.gd.scroll; y > a.explorerH() && i < len(a.gd.files) {
-				a.gd.sel = i
-				return a.openChange(a.gd.files[i])
+		sy := y - l.top
+		if a.gd.on && sy >= a.explorerH() {
+			g := &a.gd
+			if i := sy - 1 - a.explorerH() + g.scroll; sy > a.explorerH() && i < len(g.rows) && g.rows[i].file >= 0 {
+				g.sel = g.rows[i].file
+				return a.openChange(g.files[g.sel])
 			}
 			return a.setFocus(focusChanges)
 		}
-		row := y - 1 + a.explorer.scroll
-		if y >= 1 && row < len(a.explorer.flat) {
+		row := sy - 1 + a.explorer.scroll
+		if sy >= 1 && row < len(a.explorer.flat) {
 			a.explorer.sel = row
 			n := a.explorer.flat[row]
 			if n.isDir {
@@ -1675,7 +1676,7 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 			}
 		}
 		return a.setFocus(focusExplorer)
-	case y == 0:
+	case y == l.top:
 		for i, s := range a.tabSpans {
 			if x >= s.x0 && x < s.x1 {
 				a.active = i
@@ -1684,7 +1685,7 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 				return a.setFocus(focusEditor)
 			}
 		}
-	case a.showTerm && y >= l.panelY && y < l.statusY:
+	case a.showTerm && y >= l.panelY:
 		if y == l.panelY+1 {
 			a.term.clickTab(x - l.rightX)
 		}
@@ -1694,21 +1695,23 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		if t == nil {
 			return nil
 		}
-		if t.kind == tabReview {
-			a.reviewClick(t.rev, l, x, y)
-			return a.setFocus(focusEditor)
-		}
 		if t.kind == tabText {
 			if a.diffFile(t) != nil {
 				if y == l.editY {
 					a.toggleSplit()
 					return nil
 				}
-				if x < a.dvGeom(l).rightX {
+				g := a.dvGeom(l)
+				if x >= g.barX {
+					if dv := a.diffFor(t); dv != nil {
+						a.diffBarClick(t, dv, g, y)
+					}
+					return nil
+				}
+				if x < g.rightX {
 					return nil // the base side is read-only
 				}
-			}
-			if t.preview != previewOff && x >= l.rightX+a.editW(t, l) {
+			} else if t.preview != previewOff && x >= l.rightX+a.editW(t, l) {
 				return nil // the preview pane is read-only
 			}
 			a.comp = nil
@@ -1823,7 +1826,7 @@ func (a *App) render() string {
 		t.buf.ScrollRow = clamp(t.buf.ScrollRow, 0, max(0, len(t.buf.Lines)-1))
 	}
 
-	right := make([]string, 0, a.h-1)
+	right := make([]string, 0, l.bodyH)
 	right = append(right, a.renderTabs(l.rightW))
 	if a.findOpen {
 		right = append(right, a.renderFind(l.rightW))
@@ -1835,8 +1838,6 @@ func (a *App) render() string {
 		right = append(right, renderWelcome(l.rightW, l.editH, a.helix)...)
 	case t.kind == tabImage:
 		right = append(right, t.img.render(l.rightW, l.editH)...)
-	case t.kind == tabReview:
-		right = append(right, t.rev.render(l.rightW, l.editH, editorFocused)...)
 	default:
 		right = append(right, a.renderText(t, l, editorFocused)...)
 	}
@@ -1844,7 +1845,7 @@ func (a *App) render() string {
 		right = append(right, a.term.render(l.rightW, l.panelH, a.focus == focusTerminal && !a.overlayOpen())...)
 	}
 
-	rows := make([]string, a.h-1)
+	rows := make([]string, l.bodyH)
 	var side []string
 	activePath := ""
 	if t != nil {
@@ -1853,7 +1854,7 @@ func (a *App) render() string {
 	if a.showSide {
 		side = a.explorer.render(l.sideW, a.explorerH(), a.focus == focusExplorer && !a.overlayOpen(), activePath)
 		if a.gd.on {
-			side = append(side, a.renderChanges(l.sideW, a.h-1-a.explorerH(), a.focus == focusChanges && !a.overlayOpen())...)
+			side = append(side, a.renderChanges(l.sideW, l.bodyH-a.explorerH(), a.focus == focusChanges && !a.overlayOpen())...)
 		}
 	}
 	for i := range rows {
@@ -1866,6 +1867,10 @@ func (a *App) render() string {
 			sb.WriteString(right[i])
 		}
 		rows[i] = sb.String()
+	}
+	if a.gd.on {
+		rows = append([]string{a.renderDiffHeader(a.w)}, rows...)
+		rows = append(rows, a.renderDiffHelp(a.w))
 	}
 
 	// popups anchored at the cursor
