@@ -197,8 +197,7 @@ func (a *App) scanTerminals() {
 			}
 		}
 		lines, next := t.vt.LinesSince(t.scanned)
-		// The cursor moving up (a progress line redrawn) must not read lines again.
-		t.scanned = max(t.scanned, next)
+		t.scanned = next
 		for _, l := range lines {
 			if failLine.MatchString(l) {
 				a.addFailure(t, -1, strings.TrimSpace(l))

@@ -472,3 +472,13 @@ func TestLinesSinceFollowsTheScrollback(t *testing.T) {
 		t.Fatalf("tail = %q", got)
 	}
 }
+
+func TestLinesSinceReadsTheScreenAfterAClear(t *testing.T) {
+	term := New(Options{Cols: 20, Rows: 5, Scrollback: 100})
+	term.Write([]byte("a\r\nb\r\nc\r\n"))
+	_, next := term.LinesSince(0)
+	term.Write([]byte("\x1b[H\x1b[2Jx\r\n"))
+	if lines, _ := term.LinesSince(next); !slices.Equal(lines, []string{"x"}) {
+		t.Fatalf("lines = %q", lines)
+	}
+}

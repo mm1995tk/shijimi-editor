@@ -481,12 +481,13 @@ func TestBashReportsExitCodes(t *testing.T) {
 		t.Skip("bash がありません")
 	}
 	home := t.TempDir()
-	os.WriteFile(filepath.Join(home, ".bash_profile"), []byte("export FROM_PROFILE=1\nPROMPT_COMMAND='echo user-hook'\n"), 0o644)
+	os.WriteFile(filepath.Join(home, ".bash_profile"), []byte("export FROM_PROFILE=1\nHISTCONTROL=ignoreboth\nPROMPT_COMMAND='echo user-hook'\n"), 0o644)
 	args, env := shellIntegration(bash)
 	cmd := exec.Command(bash, args...)
 	cmd.Env = append([]string{"HOME=" + home, "TERM=dumb", "PATH=" + os.Getenv("PATH")}, env...)
-	got := runShell(t, cmd, "false\n\ntrue\necho ok=$FROM_PROFILE\nexit\n")
-	if strings.Count(got, "\x1b]133;D;") != 3 || !strings.Contains(got, "\x1b]133;D;1\a") || !strings.Contains(got, "\x1b]133;D;0\a") {
+	// a repeated command and one starting with a space stay out of the history
+	got := runShell(t, cmd, "false\nfalse\n\n true\necho ok=$FROM_PROFILE\nexit\n")
+	if strings.Count(got, "\x1b]133;D;1\a") != 2 || strings.Count(got, "\x1b]133;D;") != 4 || !strings.Contains(got, "\x1b]133;D;1\a") || !strings.Contains(got, "\x1b]133;D;0\a") {
 		t.Errorf("exit codes: %q", got)
 	}
 	if !strings.Contains(got, "ok=1") || !strings.Contains(got, "user-hook") {
@@ -534,12 +535,25 @@ func TestADismissedFailureStaysHiddenWhileTheTabFails(t *testing.T) {
 	if len(a.suggestions()) != 0 {
 		t.Fatalf("suggestions = %+v", a.suggestions())
 	}
-	// a redrawn line moves the cursor up: the FAIL line is not read again
+	// a redrawn line moves the cursor up: reading the FAIL line again keeps the same suggestion
 	tab.vt.Write([]byte("\x1b[A\x1b[A"))
 	a.scanTerminals()
 	tab.vt.Write([]byte("\r\n\r\n"))
 	a.scanTerminals()
 	if len(a.suggestions()) != 0 || len(a.sg.fails) != 1 {
 		t.Fatalf("fails = %+v", a.sg.fails)
+	}
+}
+
+func TestFailLinesAfterClearAreRead(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	tab := &termTab{id: 1, n: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
+	a.term.tabs = []*termTab{tab}
+	tab.vt.Write([]byte("a\r\nb\r\nc\r\n"))
+	a.scanTerminals()
+	tab.vt.Write([]byte("\x1b[H\x1b[2J--- FAIL: TestY\r\n"))
+	a.scanTerminals()
+	if list := a.suggestions(); len(list) != 1 || !strings.Contains(list[0].detail, "TestY") {
+		t.Fatalf("suggestions = %+v", list)
 	}
 }

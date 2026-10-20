@@ -48,13 +48,19 @@ elif [ -f ~/.bash_login ]; then . ~/.bash_login
 elif [ -f ~/.profile ]; then . ~/.profile
 elif [ -f ~/.bashrc ]; then . ~/.bashrc
 fi
-# HISTCMD moves only when a command ran, so an empty line reports nothing.
+# The command number (\# of PS1) moves when a command ran, repeated or not,
+# and stays on an empty line, which then reports nothing. Bash before 4.4
+# cannot expand it and reports on every prompt.
+__shijimi_num='\#'
 __shijimi_prompt() {
-  local s=$?
-  if [[ $HISTCMD != "${__shijimi_hist:-$HISTCMD}" ]]; then
+  local s=$? n=
+  if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 4) )); then
+    n=${__shijimi_num@P}
+  fi
+  if [[ -z $n || $n != "${__shijimi_last:-$n}" ]]; then
     printf '\e]133;D;%s\a' "$s"
   fi
-  __shijimi_hist=$HISTCMD
+  __shijimi_last=$n
   return $s
 }
 if [[ "$(declare -p PROMPT_COMMAND 2>/dev/null)" == "declare -a"* ]]; then

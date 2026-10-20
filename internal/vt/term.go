@@ -456,8 +456,9 @@ func lineText(l []Cell) string {
 // above the cursor, from line number from on, and the number of the cursor
 // line. Lines are numbered from the first one ever written, so a caller
 // passes the returned number back to read only what came after. Lines that
-// have left the scrollback are skipped. Nothing is returned while the
-// alternate screen is shown.
+// have left the scrollback are skipped. When the number went back (the
+// screen was cleared and the cursor moved up), the screen is read from its
+// top. Nothing is returned while the alternate screen is shown.
 func (t *Term) LinesSince(from int) (lines []string, next int) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -465,6 +466,9 @@ func (t *Term) LinesSince(from int) (lines []string, next int) {
 		return nil, from
 	}
 	next = t.dropped + len(t.sb) + t.y
+	if from > next {
+		from = t.dropped + len(t.sb)
+	}
 	for n := max(from, t.dropped); n < next; n++ {
 		if i := n - t.dropped; i < len(t.sb) {
 			lines = append(lines, lineText(t.sb[i]))
