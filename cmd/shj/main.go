@@ -12,6 +12,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
+	"github.com/mm1995tk/shijimi-editor/internal/kitty"
 	"github.com/mm1995tk/shijimi-editor/internal/ui"
 )
 
@@ -45,6 +46,7 @@ func main() {
 	// the text being composed there, but stays hidden while shijimi runs.
 	caretOut := caret.NewWriter(os.Stdout)
 	app.SetCaret(caretOut)
+	app.SetCellSize(func() (int, int) { return kitty.CellSize(os.Stdout) })
 	p := tea.NewProgram(app, tea.WithOutput(caretOut))
 	// The IDE integration is best-effort too: Claude Code started in the terminal
 	// panel finds this server through the environment and the lock file.

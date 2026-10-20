@@ -16,7 +16,7 @@ import (
 
 // Markdown preview: a read-only rendering shown to the right of the buffer.
 // mermaid code blocks are rendered to PNG by an external command
-// (`mermaid-command` in config.toml) and drawn with half blocks.
+// (`mermaid-command` in config.toml) and drawn with the Kitty graphics protocol.
 
 const mermaidDelay = 300 * time.Millisecond
 
@@ -201,9 +201,7 @@ func (a *App) mermaidLines(code string, w int) []string {
 	if job.cache != nil && job.cacheW == w {
 		return job.cache
 	}
-	b := job.img.img.Bounds()
-	rows := (b.Dy()*w/max(1, b.Dx()) + 1) / 2 // rows needed to fill w columns
-	rows = clamp(rows, 3, 28)
+	rows := clamp(job.img.rowsFor(w), 3, 28)
 	lines := job.img.render(w, rows+1)[1:] // drop the info line
 	job.cacheW, job.cache = w, lines
 	return lines

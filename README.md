@@ -269,7 +269,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 ## 制限
 
 - ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / ``Ctrl+` `` / `F1` / `Alt+R` のみ）。`Ctrl+J` はシェルへ渡るので、Shift+Enter を LF で送る端末でも Claude Code で改行できます。`F2` で新しいタブ、`Ctrl+PageUp/PageDown` でタブ切替、シェルが終了するとタブが閉じます。マウスのホイールで流れた出力をさかのぼれます。
-- 画像は文字（▀）で表示します。細かい部分は粗くなります。
+- 画像と mermaid の図は Kitty graphics protocol で描きます。対応した端末（Kitty / Ghostty / WezTerm など）が必要です。
 
 ## 開発
 

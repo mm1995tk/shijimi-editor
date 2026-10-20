@@ -40,8 +40,9 @@ type App struct {
 	root      string
 	gitTop    string
 	cfg       *config.Config
-	caret     *caret.Writer // the terminal output; nil in tests
-	caretAt   *tea.Cursor   // where the user is typing, for the IME
+	caret     *caret.Writer     // the terminal output; nil in tests
+	caretAt   *tea.Cursor       // where the user is typing, for the IME
+	cellSize  func() (w, h int) // terminal cell size in pixels; nil in tests
 	lsp       *lspManager
 	w, h      int
 	focus     focus
@@ -502,6 +503,9 @@ func (a *App) closeTab(force bool) {
 	if t.kind == tabText && t.lang != nil {
 		a.detachLSP(t)
 	}
+	if t.img != nil {
+		t.img.close()
+	}
 	a.tabs = append(a.tabs[:a.active], a.tabs[a.active+1:]...)
 	if a.active >= len(a.tabs) {
 		a.active = len(a.tabs) - 1
@@ -719,6 +723,9 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return watchTick()
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
+		if a.cellSize != nil {
+			updateCellSize(a.cellSize())
+		}
 		a.follow = true
 	case termOutputMsg, termDoneMsg:
 		cmd := a.term.update(msg)
@@ -1775,6 +1782,10 @@ func (a *App) renderText(t *tab, l layout, focused bool) []string {
 
 func (a *App) View() tea.View {
 	v := tea.NewView(a.render())
+	// Image data goes out before the frame whose placeholder cells show it.
+	if g := takeGraphics(); g != "" && a.caret != nil {
+		_ = a.caret.Send([]byte(g))
+	}
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	if a.MouseHover() {
