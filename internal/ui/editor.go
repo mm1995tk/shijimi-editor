@@ -132,6 +132,7 @@ type editorOpts struct {
 	rowBg        func(row int) string      // background override per buffer line (diff view)
 	marks        func(row int) []diff.Span // parts of a line drawn on markBg (diff view)
 	markBg       string
+	gutterMark   func(row int) string // color of a ● before the line number (review comments), "" = none
 }
 
 var severityColor map[int]string
@@ -192,7 +193,13 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 		}
 		var sb strings.Builder
 		d, hasDiag := lineDiag[row]
-		if hasDiag {
+		mark := ""
+		if o.gutterMark != nil {
+			mark = o.gutterMark(row)
+		}
+		if mark != "" {
+			sb.WriteString(bgfg(lineBg, mark).Render("●"))
+		} else if hasDiag {
 			sb.WriteString(bgfg(lineBg, diagColor(d.Severity)).Render("●"))
 		} else {
 			sb.WriteString(bgfg(lineBg, cLineNo).Render(" "))

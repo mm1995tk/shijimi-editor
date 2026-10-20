@@ -47,23 +47,40 @@ type gitDiff struct {
 	gen     int
 	ticks   int
 	prSeq   int // bumped when the mode changes; older PR lookups are dropped
+
+	// files (paths from the repository top) whose working tree differs from
+	// the pull request's head commit; staleAll when that commit is missing
+	stale    map[string]bool
+	staleAll bool
+	rv       prReview
 }
 
 type changesLoadedMsg struct {
-	gen   int
-	base  string
-	rev   string
-	pr    *prInfo
-	files []*diff.File
-	err   error
+	gen      int
+	base     string
+	rev      string
+	pr       *prInfo
+	files    []*diff.File
+	stale    map[string]bool
+	staleAll bool
+	err      error
 }
 
 // prFoundMsg reports the pull request looked up to compare with. num is the
-// number asked for, 0 for the current branch's.
+// number asked for, 0 for the current branch's. refresh is set for r, which
+// reloads the pull request shown without switching branches.
 type prFoundMsg struct {
+	seq     int
+	num     int
+	refresh bool
+	pr      *prInfo
+	err     error
+}
+
+// branchPRsMsg reports the open pull requests of the current branch.
+type branchPRsMsg struct {
 	seq int
-	num int
-	pr  *prInfo
+	prs []prSummary
 	err error
 }
 
@@ -114,6 +131,18 @@ func loadChanges(gen int, root, base string, pr *prInfo) tea.Msg {
 	files := diff.Parse(string(out))
 	top, _ := run(root, nil, "git", "rev-parse", "--show-toplevel")
 	topDir := strings.TrimSpace(string(top))
+	if base == basePR {
+		m.stale = map[string]bool{}
+		if names, err := run(root, nil, "git", "diff", "--name-only", "--no-renames", "-z", pr.HeadRefOid); err == nil {
+			for _, p := range strings.Split(string(names), "\x00") {
+				if p != "" {
+					m.stale[p] = true
+				}
+			}
+		} else {
+			m.staleAll = true // the head commit is not here (yet)
+		}
+	}
 	if untracked, err := run(root, nil, "git", "ls-files", "--others", "--exclude-standard", "--full-name", "-z", ":/"); err == nil {
 		for _, p := range strings.Split(string(untracked), "\x00") {
 			if p == "" {
@@ -121,6 +150,9 @@ func loadChanges(gen int, root, base string, pr *prInfo) tea.Msg {
 			}
 			if f := untrackedFile(filepath.Join(topDir, p), p); f != nil {
 				files = append(files, f)
+				if m.stale != nil {
+					m.stale[p] = true
+				}
 			}
 		}
 	}
@@ -148,6 +180,7 @@ func (a *App) applyChanges(m changesLoadedMsg) {
 	if m.pr != nil {
 		a.gd.pr = m.pr
 	}
+	a.gd.stale, a.gd.staleAll = m.stale, m.staleAll
 	sel := ""
 	if f := a.gd.file(); f != nil {
 		sel = f.Path()
@@ -272,7 +305,7 @@ func (a *App) openDiff(base string) tea.Cmd {
 		return a.closeDiff()
 	}
 	if base == basePR {
-		return a.findPR(0)
+		return a.branchPR()
 	}
 	return a.showDiff(baseHead, nil)
 }
@@ -297,7 +330,14 @@ func (a *App) toggleGitDiff() tea.Cmd {
 func (a *App) showDiff(base string, pr *prInfo) tea.Cmd {
 	a.gd.prSeq++
 	a.gd.on = true
+	a.card = nil
+	if pr != nil && a.gd.rv.num != pr.Number {
+		// another pull request: what was read or written for the last one goes.
+		// Comparing with HEAD keeps it for coming back.
+		a.gd.rv = prReview{num: pr.Number}
+	}
 	a.gd.base, a.gd.pr = base, pr
+	a.gd.stale, a.gd.staleAll = nil, false
 	a.showSide = true
 	a.follow = true
 	return a.reloadChanges()
@@ -306,6 +346,7 @@ func (a *App) showDiff(base string, pr *prInfo) tea.Cmd {
 func (a *App) closeDiff() tea.Cmd {
 	a.gd.prSeq++
 	a.gd.on = false
+	a.card = nil
 	if a.focus == focusChanges {
 		a.focus = focusExplorer
 	}
@@ -314,15 +355,49 @@ func (a *App) closeDiff() tea.Cmd {
 	return nil
 }
 
-// findPR looks up pull request num, or the current branch's when num is 0,
-// to compare with its base.
-func (a *App) findPR(num int) tea.Cmd {
+// branchPR opens the current branch's pull request: the only one at once,
+// a list of them when there are several, or the list of every open pull
+// request when there is none.
+func (a *App) branchPR() tea.Cmd {
+	a.info("プルリクエストを探しています…")
+	a.gd.prSeq++
+	root, seq, branch := a.root, a.gd.prSeq, a.branch
+	return func() tea.Msg {
+		prs, err := branchPRs(root, branch)
+		return branchPRsMsg{seq: seq, prs: prs, err: err}
+	}
+}
+
+func (a *App) handleBranchPRs(m branchPRsMsg) tea.Cmd {
+	if m.seq != a.gd.prSeq {
+		return nil
+	}
+	switch {
+	case m.err != nil:
+		a.fail(m.err)
+		return nil
+	case len(m.prs) == 1:
+		return a.findPR(m.prs[0].Number)
+	case len(m.prs) > 1:
+		return a.showPRList(prListMsg{prs: m.prs})
+	}
+	a.info("このブランチのプルリクエストが見つかりません。一覧から選んでください")
+	return listPRs(a.root)
+}
+
+// findPR looks up pull request num to compare with its base.
+func (a *App) findPR(num int) tea.Cmd { return a.lookupPR(num, false) }
+
+// refreshPR looks up the pull request shown again (r).
+func (a *App) refreshPR() tea.Cmd { return a.lookupPR(a.gd.pr.Number, true) }
+
+func (a *App) lookupPR(num int, refresh bool) tea.Cmd {
 	a.info("プルリクエストを探しています…")
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
 	return func() tea.Msg {
 		pr, err := viewPR(root, num)
-		return prFoundMsg{seq: seq, num: num, pr: pr, err: err}
+		return prFoundMsg{seq: seq, num: num, refresh: refresh, pr: pr, err: err}
 	}
 }
 
@@ -331,18 +406,163 @@ func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
 		return nil // the mode was closed or switched meanwhile
 	}
 	if m.err != nil {
-		if m.num > 0 {
-			a.fail(m.err)
-			if g := a.gd; g.on && g.base == basePR && g.pr != nil && g.pr.Number == m.num {
-				return a.reloadChanges() // r: the list still updates without gh
-			}
-			return nil
+		a.fail(m.err)
+		if g := a.gd; m.refresh && g.on && g.base == basePR && g.pr != nil && g.pr.Number == m.num {
+			return a.reloadChanges() // r: the list still updates without gh
 		}
-		a.info("このブランチのプルリクエストが見つかりません。一覧から選んでください")
-		return listPRs(a.root)
+		return nil
 	}
 	a.msg = ""
-	return a.showDiff(basePR, m.pr)
+	pr := m.pr
+	proceed := func() tea.Cmd {
+		if !m.refresh && pr.HeadRefName != a.branch {
+			return a.switchToPR(pr)
+		}
+		return a.openPR(pr)
+	}
+	if rv := a.gd.rv; len(rv.pending) > 0 && rv.num != pr.Number {
+		a.confirm = &yesNo{
+			prompt: fmt.Sprintf("PR #%d の未送信コメントが %d 件あります。破棄して PR #%d を開きますか？ (y/n)", rv.num, len(rv.pending), pr.Number),
+			yes:    proceed,
+			no:     func() tea.Cmd { a.info("PR #%d を開くのをやめました", pr.Number); return nil },
+		}
+		return nil
+	}
+	return proceed()
+}
+
+// openPR compares with the base of pr, whose branch is checked out, and
+// loads its review.
+func (a *App) openPR(pr *prInfo) tea.Cmd {
+	return tea.Batch(a.showDiff(basePR, pr), a.loadReview())
+}
+
+// switchToPR checks out the branch of pr with `gh pr checkout`, first asking
+// to stash uncommitted changes, then opens it.
+func (a *App) switchToPR(pr *prInfo) tea.Cmd {
+	if n := a.dirtyCount(); n > 0 {
+		a.fail(fmt.Errorf("未保存のファイルが %d 個あります。保存してから PR #%d に切り替えてください", n, pr.Number))
+		return nil
+	}
+	out, err := run(a.root, nil, "git", "status", "--porcelain")
+	if err != nil {
+		a.fail(err)
+		return nil
+	}
+	if strings.TrimSpace(string(out)) == "" {
+		return a.checkoutPR(pr, false)
+	}
+	a.confirm = &yesNo{
+		prompt: "未コミットの変更を stash して切り替えますか？ (y/n)",
+		yes:    func() tea.Cmd { return a.checkoutPR(pr, true) },
+		no:     func() tea.Cmd { a.info("PR #%d への切り替えを中止しました", pr.Number); return nil },
+	}
+	return nil
+}
+
+// prCheckedOutMsg reports the end of switching to a pull request's branch.
+type prCheckedOutMsg struct {
+	seq int
+	pr  *prInfo
+	err error
+}
+
+func (a *App) checkoutPR(pr *prInfo, stash bool) tea.Cmd {
+	a.info("PR #%d をチェックアウトしています…", pr.Number)
+	a.gd.prSeq++
+	root, seq := a.root, a.gd.prSeq
+	return func() tea.Msg {
+		head := func() string {
+			out, _ := run(root, nil, "git", "rev-parse", "HEAD")
+			return string(out)
+		}
+		before := head()
+		if stash {
+			msg := fmt.Sprintf("shijimi: PR #%d に切り替える前の変更", pr.Number)
+			if _, err := run(root, nil, "git", "stash", "push", "-u", "-m", msg); err != nil {
+				return prCheckedOutMsg{seq: seq, pr: pr, err: err}
+			}
+		}
+		_, err := run(root, nil, "gh", "pr", "checkout", fmt.Sprint(pr.Number))
+		if err != nil && stash {
+			// put the changes back where they were, if still there
+			popped := false
+			if head() == before {
+				_, perr := run(root, nil, "git", "stash", "pop")
+				popped = perr == nil
+			}
+			if !popped {
+				err = fmt.Errorf("%w（変更は stash の「shijimi: PR #%d に切り替える前の変更」にあります）", err, pr.Number)
+			}
+		}
+		return prCheckedOutMsg{seq: seq, pr: pr, err: err}
+	}
+}
+
+func (a *App) handlePRCheckedOut(m prCheckedOutMsg) tea.Cmd {
+	if m.seq != a.gd.prSeq {
+		return nil
+	}
+	a.refreshBranch()
+	if m.err != nil {
+		a.fail(m.err)
+		return nil
+	}
+	cmd := a.openPR(m.pr)
+	a.info("PR #%d のブランチ %s に切り替えました", m.pr.Number, a.branch)
+	return cmd
+}
+
+// refreshBranch rereads the branch name and what depends on the checkout.
+func (a *App) refreshBranch() {
+	if out, err := run(a.root, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
+		a.branch = strings.TrimSpace(string(out))
+	}
+	// the checkout rewrote files: reload the tabs without unsaved edits, even
+	// when watching files is off
+	for _, t := range a.tabs {
+		if t.kind == tabText && !t.dirty() && t.buf.DiskChanged() {
+			if err := t.buf.Reload(); err != nil {
+				a.fail(err)
+			}
+		}
+	}
+	a.explorer.refresh()
+	a.explorer.loadGitStatus()
+}
+
+// prPulledMsg reports the end of `git pull` for r.
+type prPulledMsg struct {
+	seq int
+	err error
+}
+
+// reloadPR handles r with a pull request shown: it pulls first when only
+// the pull request has moved on.
+func (a *App) reloadPR() tea.Cmd {
+	s := a.gd.rv.sync
+	if !(s.known && s.behind > 0 && s.ahead == 0) {
+		return a.refreshPR() // also refreshes the title, state and comments
+	}
+	a.info("git pull しています…")
+	a.gd.prSeq++
+	root, seq := a.root, a.gd.prSeq
+	return func() tea.Msg {
+		_, err := run(root, nil, "git", "pull", "--ff-only")
+		return prPulledMsg{seq: seq, err: err}
+	}
+}
+
+func (a *App) handlePRPulled(m prPulledMsg) tea.Cmd {
+	if m.seq != a.gd.prSeq {
+		return nil
+	}
+	if m.err != nil {
+		a.fail(m.err)
+		return nil
+	}
+	a.refreshBranch()
+	return a.refreshPR()
 }
 
 // prPicker lists the repository's pull requests to compare with.
@@ -419,6 +639,10 @@ func (a *App) openChange(f *diff.File) tea.Cmd {
 func (a *App) handleChangesKey(msg tea.KeyPressMsg) tea.Cmd {
 	g := &a.gd
 	key := msg.String()
+	if a.pending == "space v" {
+		a.pending = ""
+		return a.reviewKey(key)
+	}
 	if a.pending == " " {
 		a.pending = ""
 		return a.spaceMode(key)
@@ -440,7 +664,7 @@ func (a *App) handleChangesKey(msg tea.KeyPressMsg) tea.Cmd {
 		a.toggleSplit()
 	case "r", "R":
 		if g.base == basePR && g.pr != nil {
-			return a.findPR(g.pr.Number) // also refreshes the title and state
+			return a.reloadPR()
 		}
 		return a.reloadChanges()
 	case "space":
@@ -505,7 +729,16 @@ func (a *App) renderChanges(w, h int, focused bool) []string {
 	g := &a.gd
 	out := make([]string, 0, h)
 	title := fmt.Sprintf(" CHANGES (%d)", len(g.files))
+	pr := a.prShown()
 	chip := a.baseChip() + " "
+	if pr {
+		n := g.rv.viewedCount(g.files)
+		if long := title + fmt.Sprintf("  viewed %d/%d", n, len(g.files)); ansi.StringWidth(long+chip) <= w {
+			title = long
+		} else {
+			title += fmt.Sprintf(" ✓%d/%d", n, len(g.files))
+		}
+	}
 	tw := max(0, w-ansi.StringWidth(chip))
 	out = append(out, stSideTitle.Render(fit(title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(fit(chip, w-tw)))
 	body := h - 1
@@ -551,9 +784,21 @@ func (a *App) renderChanges(w, h int, focused bool) []string {
 		}
 		letter, col := statusLetter(f)
 		add, del := fmt.Sprintf(" +%d", f.Added), fmt.Sprintf(" -%d ", f.Deleted)
-		nameW := max(0, w-ansi.StringWidth(indent)-2-ansi.StringWidth(add+del))
-		line := bgfg(bg, cSideFg).Render(indent) + bgfg(bg, col).Bold(true).Render(letter) +
-			bgfg(bg, cSideFg).Render(" "+fit(row.name, nameW)) +
+		name, viewed, notes := row.name, " ", ""
+		if pr {
+			if g.rv.viewed[f.Path()] {
+				viewed = "✓"
+			}
+			if a.isStale(f.Path()) {
+				name += " ✎"
+			}
+			if n := len(g.rv.threadsIn(f.Path())); n > 0 {
+				notes = fmt.Sprintf(" ●%d", n)
+			}
+		}
+		nameW := max(0, w-ansi.StringWidth(indent)-2-ansi.StringWidth(notes+add+del))
+		line := bgfg(bg, cAddSign).Render(viewed) + bgfg(bg, cSideFg).Render(indent[1:]) + bgfg(bg, col).Bold(true).Render(letter) +
+			bgfg(bg, cSideFg).Render(" "+fit(name, nameW)) + bgfg(bg, curTheme.Renamed).Render(notes) +
 			bgfg(bg, cAddSign).Render(add) + bgfg(bg, cDelSign).Render(del)
 		out = append(out, fitStyled(line, w, bgfg(bg, cSideFg)))
 	}
@@ -603,13 +848,13 @@ func (a *App) renderDiffHeader(w int) string {
 func (a *App) diffHelp() string {
 	bases := " Space G:閉じる  Space g:PR の base と比べる"
 	if a.gd.base == basePR {
-		bases = " Space G:HEAD と比べる  Space g:閉じる"
+		bases = " Space G:HEAD と比べる  Space g:閉じる  Space v:レビュー（c:コメント  C:ファイル  t:スレッド  v:viewed  A/R/S:送信）"
 	}
 	if !a.helix && a.focus != focusChanges {
 		// the VS Code keymap has no Space menu in the editor
 		bases = " Ctrl+G:閉じる"
 		if a.gd.base == basePR {
-			bases = " Ctrl+G:HEAD と比べる"
+			bases = " Ctrl+G:HEAD と比べる  F1 の「レビュー:」:コメント・送信"
 		}
 	}
 	if a.focus == focusChanges {
@@ -959,12 +1204,17 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 	name := " " + a.rel(t.buf.Path)
 	stats := fmt.Sprintf("  +%d", f.Added)
 	dels := fmt.Sprintf(" -%d", f.Deleted)
+	note, noteFg := a.reviewNote(t), curTheme.Renamed
+	if a.prShown() && a.isStale(a.repoPath(t.buf.Path)) {
+		noteFg = curTheme.DiagWarn
+	}
 	hw := ansi.StringWidth(hint) + 1
-	nw := max(0, l.rightW-hw-ansi.StringWidth(stats+dels))
+	nw := max(0, min(ansi.StringWidth(name), l.rightW-hw-ansi.StringWidth(stats+dels)))
 	head := bgfg(cTabBarBg, curTheme.Strong).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
-		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels)
+		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +
+		bgfg(cTabBarBg, noteFg).Render(note)
 	out = append(out, fitStyled(head, max(0, l.rightW-hw), bgfg(cTabBarBg, curTheme.Strong))+
-		bgfg(cTabBarBg, curTheme.Dim).Render(fit(hint, hw)))
+		bgfg(cTabBarBg, curTheme.Dim).Render(fit(" "+hint, hw)))
 
 	opts := a.editorOpts(t, focused)
 	opts.rowBg = func(row int) string {
@@ -975,6 +1225,7 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 	}
 	opts.marks = func(row int) []diff.Span { return dv.newSpans[row] }
 	opts.markBg = cAddWordBg
+	opts.gutterMark = a.commentMark(t)
 	gw := len(fmt.Sprint(len(dv.old))) + 4 // same width as gutterWidth
 
 	start := dv.start(b.ScrollRow)

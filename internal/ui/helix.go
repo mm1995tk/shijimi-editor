@@ -34,7 +34,10 @@ func (m editMode) label() string {
 // ctrl chords. Anything else would edit a buffer that is not visible.
 func (a *App) fullPreviewKey(key string) bool {
 	if a.pending == " " {
-		return strings.Contains("fbkodDeEmgGy?/ta", key) && len(key) == 1
+		return strings.Contains("fbkodDeEmgGvy?/ta", key) && len(key) == 1
+	}
+	if a.pending == "space v" {
+		return true // review commands do not edit the hidden buffer
 	}
 	if a.pending != "" {
 		return a.pending == "g"
@@ -415,6 +418,8 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case " ":
 		return a.spaceMode(key)
+	case "space v":
+		return a.reviewKey(key)
 	}
 	return nil
 }
@@ -449,6 +454,8 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		return a.openDiff(basePR)
 	case "G":
 		return a.openDiff(baseHead)
+	case "v":
+		return a.openReviewMenu()
 	case "y":
 		if t := a.cur(); t != nil && t.kind == tabText {
 			s, e := t.buf.SelectionOrChar()

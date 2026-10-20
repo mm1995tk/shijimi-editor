@@ -194,6 +194,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `Space g` | 差分モード（比較元はプルリクエストの base）を開く / 閉じる |
 | `Space m` | Markdown プレビューの切替（並べて表示 → 全幅 → 閉じる） |
 | `Space G` | 差分モード（比較元は `HEAD`）を開く / 閉じる |
+| `Space v` | レビューのメニュー（比較元がプルリクエストの base のとき） |
 | `Space y` `Space p` | システムのクリップボードへコピー / 貼り付け |
 | `Space ?` | コマンドパレット |
 
@@ -232,7 +233,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | キー | 比較元 |
 | --- | --- |
 | `Space G` / `Ctrl+G` / `:gitdiff` | `HEAD`（未追跡ファイルを含む） |
-| `Space g` / `:pr [番号]` | プルリクエストの base（`git merge-base <PR の base> HEAD`）。今のブランチの PR が無ければ一覧から選ぶ（`gh` が必要） |
+| `Space g` / `:pr [番号]` | プルリクエストの base（`git merge-base <PR の base> HEAD`）。今のブランチの PR を開く。違うブランチの PR は `gh pr checkout` してから開く（`gh` が必要） |
 
 - 画面は上から、ヘッダー（比較元と比較先）、サイドバーと差分、ヘルプ行（今使えるキー）、ステータス行の順です。
 - サイドバーが上下 7:3 に分かれ、下の 3 に **CHANGES**（変更ファイルのツリー）が出ます。子が 1 つだけのフォルダは `internal/config` のようにまとめます。`Tab` でファイルツリーと行き来します。
@@ -241,7 +242,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 - **Unified** にも切り替えられます（`s`、`:gitdiff unified` / `split`、ファイル名の行のクリック）。
 - 差分の右端のバーに、変更の位置を色で出します（緑：追加、赤：削除、青：書き換え）。今表示している範囲は明るくなり、クリックするとその位置へスクロールします。
 - 行の一部だけが変わった行は、変わった部分を濃い色で強調します。
-- プルリクエストへのコメント・viewed・レビューの送信は、まだ使えません。
+- プルリクエストの base と比べているときは、`Space v` でレビューできます（行・範囲・ファイルへのコメント、返信、解決、suggestion の適用、viewed、承認などの送信）。コメントは、作業ツリーの中身が PR の最新コミットと同じファイルにだけ書けます。詳しくはマニュアルの「差分モード」を参照してください。
 
 | キー（CHANGES にフォーカス中） | 動作 |
 | --- | --- |

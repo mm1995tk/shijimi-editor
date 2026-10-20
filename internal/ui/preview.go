@@ -90,15 +90,15 @@ func (a *App) togglePreview() tea.Cmd {
 // syncPreview starts rendering for mermaid blocks of the visible preview.
 // The block list is cached per buffer version, so each call only does a few map lookups.
 func (a *App) syncPreview() tea.Cmd {
-	t := a.curText()
-	if t == nil || t.preview == previewOff {
+	blocks := a.wantedMermaid()
+	if len(blocks) == 0 {
 		return nil
 	}
 	if a.mermaid == nil {
 		a.mermaid = map[string]*mermaidJob{}
 	}
 	var cmds []tea.Cmd
-	for _, code := range t.mermaidBlocks() {
+	for _, code := range blocks {
 		key := a.mermaidKey(code)
 		if _, ok := a.mermaid[key]; ok {
 			continue
@@ -123,11 +123,9 @@ func (a *App) syncPreview() tea.Cmd {
 func (a *App) handleMermaidStart(m mermaidStartMsg) tea.Cmd {
 	// drop the job if the user kept typing and the block no longer exists
 	wanted := false
-	if t := a.curText(); t != nil && t.preview != previewOff {
-		for _, code := range t.mermaidBlocks() {
-			if a.mermaidKey(code) == m.key {
-				wanted = true
-			}
+	for _, code := range a.wantedMermaid() {
+		if a.mermaidKey(code) == m.key {
+			wanted = true
 		}
 	}
 	if !wanted {
@@ -236,6 +234,16 @@ func (a *App) previewLines(t *tab, w, h int) []string {
 		}
 	}
 	return out
+}
+
+// wantedMermaid returns the mermaid blocks on screen: in the current tab's
+// preview, and in an open review comment or comment editor.
+func (a *App) wantedMermaid() []string {
+	var out []string
+	if t := a.curText(); t != nil && t.preview != previewOff {
+		out = t.mermaidBlocks()
+	}
+	return append(append([]string(nil), out...), a.reviewMermaid()...)
 }
 
 // mermaidBlocks returns the tab's mermaid fences, rescanning only after the

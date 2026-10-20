@@ -28,6 +28,7 @@ var spaceItems = []spaceItem{
 	{"m", "プレビュー切替", false},
 	{"g", "PR の base と比較", false},
 	{"G", "HEAD と比較", false},
+	{"v", "レビュー（PR）", false},
 	{"y", "コピー", true},
 	{"p", "貼り付け(後)", true},
 	{"P", "貼り付け(前)", true},
@@ -48,7 +49,10 @@ func (a *App) spaceMenuItems() []spaceItem {
 		if it.textOnly && !text {
 			continue
 		}
-		if full && !strings.Contains("fbkodDeEmgGy?/ta", it.key) {
+		if it.key == "v" && !a.prShown() {
+			continue
+		}
+		if full && !strings.Contains("fbkodDeEmgGvy?/ta", it.key) {
 			continue
 		}
 		out = append(out, it)
@@ -59,7 +63,11 @@ func (a *App) spaceMenuItems() []spaceItem {
 // renderSpaceMenu draws the popup over the bottom-right corner of the editor
 // area while a leader key is waiting for its follow-up.
 func (a *App) renderSpaceMenu(rows []string, l layout) []string {
-	items := a.spaceMenuItems()
+	return a.renderMenu(rows, l, " Space", a.spaceMenuItems())
+}
+
+// renderMenu draws a menu of leader key items titled title.
+func (a *App) renderMenu(rows []string, l layout, title string, items []spaceItem) []string {
 	if len(items) == 0 {
 		return rows
 	}
@@ -77,7 +85,7 @@ func (a *App) renderSpaceMenu(rows []string, l layout) []string {
 		return rows
 	}
 	inner := w - 2
-	box := []string{stPaletteBox.Render(fit(" Space", w))}
+	box := []string{stPaletteBox.Render(fit(title, w))}
 	for r := 0; r < per; r++ {
 		var sb strings.Builder
 		sb.WriteString(stPalette.Render(" "))
