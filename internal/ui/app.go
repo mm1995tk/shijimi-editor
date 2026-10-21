@@ -1586,24 +1586,49 @@ func (a *App) refreshCompletion() tea.Cmd {
 
 // termMouse passes presses, drags and releases over the terminal body to a
 // program that asked for mouse input (vim, htop, tmux). Once a press went to
-// the program, its drag and release do too, wherever the pointer is. ok is
-// false when the event is not for the program.
+// the program, its drag and release do too, wherever the pointer is. Otherwise
+// (or with Shift held) a left drag selects text and copies it on release. ok
+// is false when the event is not for the terminal.
 func (a *App) termMouse(l layout, msg mouseEvent) (cmd tea.Cmd, ok bool) {
 	t := a.term
 	if !a.showTerm {
 		return nil, false
 	}
 	x, y := msg.X-l.rightX, msg.Y-l.panelY-2
+	if t.sel.dragging {
+		switch msg.Action {
+		case mouseMotion:
+			t.dragTo(x, y)
+		case mouseRelease:
+			t.dragTo(x, y)
+			if s := t.endSelect(); s != "" {
+				a.copyText(s)
+				a.info("ターミナルから %d 文字をコピーしました", utf8.RuneCountInString(s))
+			}
+		default:
+			t.sel.dragging = false // the release was lost
+			return nil, false
+		}
+		return nil, true
+	}
 	inBody := x >= 0 && x < l.rightW && y >= 0 && msg.Y < l.statusY
 	grabbed := t.grab
 	if !grabbed && !inBody {
 		return nil, false
 	}
-	sent := t.mouse(msg, x, y)
+	sent := false
+	if grabbed || !msg.Shift {
+		sent = t.mouse(msg, x, y)
+	}
 	switch msg.Action {
 	case mousePress:
 		if sent {
+			t.sel = termSel{}
 			t.grab = true
+			return a.setFocus(focusTerminal), true
+		}
+		if msg.Button == tea.MouseLeft {
+			t.selectAt(x, y)
 			return a.setFocus(focusTerminal), true
 		}
 	case mouseRelease:
@@ -1623,14 +1648,14 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		return nil
 	}
 	l := a.layout()
-	if a.resizing == resizeNone && !a.dragging {
+	if a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
 		if cmd, ok := a.agentMouse(l, msg); ok {
 			return cmd
 		}
 	}
 	// Some terminals report a drag as motion with no button; while a border
 	// or a selection is being dragged, motion is the drag whatever it says.
-	if msg.Action == mouseMotion && msg.Button == tea.MouseNone && a.resizing == resizeNone && !a.dragging {
+	if msg.Action == mouseMotion && msg.Button == tea.MouseNone && a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
 		return a.passiveMotion(l, msg)
 	}
 	x, y := msg.X, msg.Y

@@ -284,6 +284,7 @@ type Snapshot struct {
 	CursorVisible bool
 	Offset        int // lines the view is scrolled back
 	Scrollback    int
+	Top           int // number of the first row shown, counted as in Text
 	Title         string
 	Modes         Modes
 }
@@ -317,6 +318,7 @@ func (t *Term) Snapshot(dst *Snapshot) {
 	dst.CursorX, dst.CursorY = t.x, t.y
 	dst.CursorVisible = t.showCur && t.view == 0
 	dst.Offset, dst.Scrollback = t.view, len(t.sb)
+	dst.Top = t.dropped + len(t.sb) - t.view
 	dst.Title = t.title
 	dst.Modes = t.modes
 	dst.Modes.AltScreen = t.altActive
@@ -425,6 +427,47 @@ func (t *Term) pushScrollback(line []Cell) {
 		t.sb = append(t.sb[:0], t.sb[drop:]...)
 		t.view = t.clampView(t.view)
 	}
+}
+
+// line returns line n, numbered from the first one ever written, or nil when
+// it has left the scrollback or is past the screen.
+func (t *Term) line(n int) []Cell {
+	i := n - t.dropped
+	if i < 0 {
+		return nil
+	}
+	if i < len(t.sb) {
+		return t.sb[i]
+	}
+	if g := t.grid(); i-len(t.sb) < len(g) {
+		return g[i-len(t.sb)]
+	}
+	return nil
+}
+
+// Text returns the characters from column c0 of line r0 up to, but not
+// including, column c1 of line r1. Lines are numbered as in Snapshot.Top, and
+// each line loses its trailing blanks.
+func (t *Term) Text(r0, c0, r1, c1 int) string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var lines []string
+	for n := r0; n <= r1; n++ {
+		l := t.line(n)
+		from, to := 0, len(l)
+		if n == r0 {
+			from = min(max(c0, 0), len(l))
+			// Starting on the right half of a wide character takes all of it.
+			for from > 0 && from < len(l) && l[from].Width == 0 {
+				from--
+			}
+		}
+		if n == r1 {
+			to = min(max(c1, from), len(l))
+		}
+		lines = append(lines, lineText(l[from:to]))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // TakeCommandEnds returns the exit codes the shell reported with OSC 133;D
