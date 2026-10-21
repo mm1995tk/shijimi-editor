@@ -735,3 +735,35 @@ func TestLoadReviewReadsEveryPage(t *testing.T) {
 		t.Errorf("viewed = %v", d.viewed)
 	}
 }
+
+func TestCommentOnNewFileInOnePane(t *testing.T) {
+	a, _ := prApp(t)
+	b := filepath.Join(a.gitTopDir(), "b.txt")
+	if !a.openFile(b) {
+		t.Fatal("b.txt not opened")
+	}
+	tb := a.curText()
+	dv := a.diffFor(tb)
+	if dv == nil || !dv.single {
+		t.Fatalf("new file against a PR is not one pane: %+v", dv)
+	}
+	if !dv.inHunk(0) || !dv.inHunk(1) || dv.inHunk(len(dv.newIdx)) {
+		t.Error("inHunk of a one-pane file")
+	}
+	tb.buf.Anchor, tb.buf.Cur = nil, buffer.Pos{Row: 1}
+	a.reviewKey("c")
+	if a.composer == nil {
+		t.Fatalf("no editor: %s", a.msg)
+	}
+	a.composer.ta.SetValue("新規ファイルへ")
+	a.handleComposerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if len(a.gd.rv.pending) != 1 {
+		t.Fatal("comment not added")
+	}
+	if th := a.gd.rv.pending[0]; th.Path != "b.txt" || th.Line != 2 || th.Side != "RIGHT" {
+		t.Errorf("thread = %+v", th)
+	}
+	if got := a.gd.rv.lineThreads("b.txt", 2); len(got) != 1 {
+		t.Errorf("thread not found on line 2: %v", got)
+	}
+}

@@ -1079,10 +1079,9 @@ func (a *App) diffFile(t *tab) *diff.File {
 }
 
 // diffSingle reports whether f is shown in one pane: a file that is not in
-// HEAD has nothing to put on the left. Against a pull request's base it is
-// still shown as all added, as GitHub does.
+// the base (HEAD or a pull request's base) has nothing to put on the left.
 func (a *App) diffSingle(f *diff.File) bool {
-	return f != nil && f.Status == "added" && a.gd.base == baseHead
+	return f != nil && f.Status == "added"
 }
 
 // splitShown reports whether the current tab's diff has a base pane.

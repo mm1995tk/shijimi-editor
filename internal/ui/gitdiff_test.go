@@ -176,8 +176,8 @@ func TestOnePaneHidesSplitHintAndIgnoresHeaderClick(t *testing.T) {
 		t.Error("clicking the header of a one-pane file switched split")
 	}
 	a.gd.base = basePR
-	if !strings.Contains(head(), "分割 ⇄ 統合") {
-		t.Errorf("split view lost the hint: %q", head())
+	if strings.Contains(head(), "分割 ⇄ 統合") {
+		t.Errorf("one pane against a PR shows the split hint: %q", head())
 	}
 }
 
@@ -187,8 +187,9 @@ func TestSwitchingBaseRebuildsSingleView(t *testing.T) {
 		t.Fatal("not single against HEAD")
 	}
 	a.gd.base = basePR
-	if dv := a.diffFor(a.curText()); dv.single || !dv.changed[0] {
-		t.Errorf("view kept single after switching to PR: single %v", dv.single)
+	a.gd.rev = "other"
+	if dv := a.diffFor(a.curText()); !dv.single || dv.rev != "other" {
+		t.Errorf("view not rebuilt after switching to PR: %+v", dv)
 	}
 	a.gd.base = baseHead
 	if dv := a.diffFor(a.curText()); !dv.single {
@@ -196,17 +197,15 @@ func TestSwitchingBaseRebuildsSingleView(t *testing.T) {
 	}
 }
 
-func TestOpenNewFileAgainstPRShowsAllLinesAdded(t *testing.T) {
+func TestOpenNewFileAgainstPRIsOnePane(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	a.gd.base = basePR
 	dv := openNewFile(t, a)
-	for i := 0; i < 2; i++ {
-		if !dv.changed[i] {
-			t.Errorf("line %d of the new file is not marked added", i)
-		}
+	if !dv.single {
+		t.Error("new file against a PR is not one pane")
 	}
-	if g := a.dvGeom(a.layout()); g.leftW == 0 {
-		t.Error("new file against a PR is not split")
+	if g := a.dvGeom(a.layout()); g.leftW != 0 {
+		t.Errorf("new file against a PR is split: %+v", g)
 	}
 }
 
