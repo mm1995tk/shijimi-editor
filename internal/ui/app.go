@@ -69,11 +69,12 @@ type App struct {
 	showTerm bool
 
 	// pane sizes picked by the user (0 = automatic), see resize.go
-	sideWPref  int
-	panelHPref int
-	previewPct int
-	resizeMode bool
-	resizing   resizeTarget // border being dragged with the mouse
+	sideWPref   int
+	panelHPref  int
+	previewPct  int
+	diffLeftPct int // base pane share of a split diff; 0 = half
+	resizeMode  bool
+	resizing    resizeTarget // border being dragged with the mouse
 
 	// Helix modal state
 	helix          bool

@@ -139,3 +139,34 @@ func TestResizeLostRelease(t *testing.T) {
 		t.Fatal("stale drag state kept")
 	}
 }
+
+func TestDiffSplitResize(t *testing.T) {
+	a := resizeApp(t)
+	l := a.layout()
+	w := l.rightW - 1
+	if got := a.diffLeftWidth(w); got != (w-1)/2 {
+		t.Fatalf("default %d", got)
+	}
+
+	a.resizing = resizeDiff
+	a.dragResize(l, l.rightX+30, l.editY)
+	if got := a.diffLeftWidth(w); got < 29 || got > 30 {
+		t.Fatalf("drag to 30: %d", got)
+	}
+
+	a.dragResize(l, l.rightX, l.editY)
+	if got := a.diffLeftWidth(w); got != minPaneW {
+		t.Fatalf("left min: %d", got)
+	}
+	a.dragResize(l, l.rightX+w, l.editY)
+	if got := a.diffLeftWidth(w); w-1-got < minPaneW {
+		t.Fatalf("right min: left %d of %d", got, w)
+	}
+
+	a.resizing = resizeNone
+	a.startResize()
+	press(a, "=")
+	if got := a.diffLeftWidth(w); got != (w-1)/2 {
+		t.Fatalf("reset %d", got)
+	}
+}

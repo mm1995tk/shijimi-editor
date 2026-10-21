@@ -1080,7 +1080,7 @@ func (a *App) dvGeom(l layout) dvGeom {
 	w := max(0, l.rightW-1) // the last column is the change bar
 	g := dvGeom{top: l.editY + 1, h: max(0, l.editH-1), rightX: l.rightX, rightW: w, barX: l.rightX + w}
 	if a.gd.split {
-		g.leftW = (w - 1) / 2
+		g.leftW = a.diffLeftWidth(w)
 		g.rightX = l.rightX + g.leftW + 1
 		g.rightW = w - g.leftW - 1
 	}
