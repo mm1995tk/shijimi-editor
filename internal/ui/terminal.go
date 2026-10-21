@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -47,7 +48,31 @@ type terminal struct {
 	armed  bool // a wait() command is outstanding
 	w, h   int  // size of the body last rendered
 	grab   bool // a mouse press was sent to the program; its drag and release follow
+	sel    termSel
 	tabX   []int
+}
+
+// termPos is a cell of a terminal tab: row is numbered as in vt.Snapshot.Top,
+// so it stays on the same text while the view scrolls.
+type termPos struct{ row, col int }
+
+func (p termPos) less(q termPos) bool {
+	return p.row < q.row || p.row == q.row && p.col < q.col
+}
+
+// termSel is text of the active tab picked with the mouse. a is where the
+// drag started and b where it is now; both cells are included.
+type termSel struct {
+	on       bool // something is selected and drawn
+	dragging bool
+	a, b     termPos
+}
+
+func (s termSel) ordered() (termPos, termPos) {
+	if s.b.less(s.a) {
+		return s.b, s.a
+	}
+	return s.a, s.b
 }
 
 func newTerminal(cwd string) *terminal {
@@ -155,6 +180,7 @@ func (t *terminal) update(msg tea.Msg) tea.Cmd {
 		}
 		return t.wait()
 	case tea.KeyPressMsg:
+		t.sel = termSel{}
 		switch msg.String() {
 		case "f2":
 			return t.newTab()
@@ -174,6 +200,7 @@ func (t *terminal) update(msg tea.Msg) tea.Cmd {
 }
 
 func (t *terminal) switchTab(d int) {
+	t.sel = termSel{}
 	if n := len(t.tabs); n > 0 {
 		t.active = (t.active + d + n) % n
 	}
@@ -206,6 +233,9 @@ func (t *terminal) closeAll() {
 func (t *terminal) clickTab(x int) {
 	for i := 0; i+1 < len(t.tabX) && i < len(t.tabs); i++ {
 		if x >= t.tabX[i] && x < t.tabX[i+1] {
+			if i != t.active {
+				t.sel = termSel{}
+			}
 			t.active = i
 			return
 		}
@@ -265,14 +295,81 @@ func (t *terminal) render(w, h int, focused bool) []string {
 		if focused && sn.CursorVisible && sn.CursorY == y {
 			cx = sn.CursorX
 		}
-		out = append(out, renderVTRow(sn.Cells[y], w, cx))
+		s0, s1 := t.selCols(sn.Top + y)
+		out = append(out, renderVTRowSel(sn.Cells[y], w, cx, s0, s1))
 	}
 	return out[:h]
+}
+
+// selCols returns the columns [s0, s1) of row (numbered as in
+// vt.Snapshot.Top) that are selected; s0 == s1 when none are.
+func (t *terminal) selCols(row int) (s0, s1 int) {
+	if !t.sel.on {
+		return 0, 0
+	}
+	a, b := t.sel.ordered()
+	if row < a.row || row > b.row {
+		return 0, 0
+	}
+	s0, s1 = 0, math.MaxInt
+	if row == a.row {
+		s0 = a.col
+	}
+	if row == b.row {
+		s1 = b.col + 1
+	}
+	return s0, s1
+}
+
+// selectAt starts a selection at cell (x, y) of the body.
+func (t *terminal) selectAt(x, y int) {
+	tab := t.cur()
+	if tab == nil {
+		return
+	}
+	p := termPos{tab.snap.Top + clamp(y, 0, tab.rows-1), clamp(x, 0, tab.cols-1)}
+	t.sel = termSel{dragging: true, a: p, b: p}
+}
+
+// dragTo moves the end of the selection to cell (x, y) of the body. Above or
+// below the body, the view scrolls one line.
+func (t *terminal) dragTo(x, y int) {
+	tab := t.cur()
+	if tab == nil {
+		return
+	}
+	switch {
+	case y < 0:
+		tab.vt.ScrollView(1)
+	case y >= tab.rows:
+		tab.vt.ScrollView(-1)
+	}
+	tab.vt.Snapshot(&tab.snap)
+	t.sel.b = termPos{tab.snap.Top + clamp(y, 0, tab.rows-1), clamp(x, 0, tab.cols-1)}
+	t.sel.on = t.sel.a != t.sel.b
+}
+
+// endSelect finishes the drag and returns the selected text, or "" when the
+// press did not move.
+func (t *terminal) endSelect() string {
+	t.sel.dragging = false
+	tab := t.cur()
+	if tab == nil || !t.sel.on {
+		return ""
+	}
+	a, b := t.sel.ordered()
+	return tab.vt.Text(a.row, a.col, b.row, b.col+1)
 }
 
 // renderVTRow turns one emulator row into an SGR-styled string w cells wide.
 // cursorX is the column of the cursor, or -1.
 func renderVTRow(cells []vt.Cell, w, cursorX int) string {
+	return renderVTRowSel(cells, w, cursorX, 0, 0)
+}
+
+// renderVTRowSel is renderVTRow with the columns [s0, s1) drawn reversed, as
+// selected.
+func renderVTRowSel(cells []vt.Cell, w, cursorX, s0, s1 int) string {
 	var sb strings.Builder
 	type style struct {
 		fg, bg vt.Color
@@ -289,7 +386,8 @@ func renderVTRow(cells []vt.Cell, w, cursorX int) string {
 		}
 		// The cursor sits on the right half of a wide character: draw it on the whole.
 		onCursor := cursorX == x || (c.Width == 2 && cursorX == x+1)
-		s := style{c.FG, c.BG, c.Attr, onCursor}
+		inSel := x+int(c.Width) > s0 && x < s1
+		s := style{c.FG, c.BG, c.Attr, onCursor != inSel}
 		if first || s != prev {
 			sb.WriteString(sgr(s.fg, s.bg, s.attr, s.cursor))
 			prev, first = s, false
