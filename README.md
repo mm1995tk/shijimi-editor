@@ -278,7 +278,7 @@ nix develop            # または direnv allow
 go test ./...
 go build ./cmd/shj
 nix build              # パッケージをビルド（テストも実行）
-nix fmt                # alejandra / gofmt / taplo で整形
+nix fmt                # nixfmt / gofmt / taplo で整形
 nix flake check        # 整形のチェック
 ```
 
