@@ -64,3 +64,4 @@ nav:
   - 一覧:
       - ":コマンド一覧": commands.md
       - 制限: limitations.md
+      - 作らないこと: scope.md
