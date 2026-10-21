@@ -1408,6 +1408,10 @@ func (a *App) editorKey(t *tab, msg tea.KeyPressMsg) tea.Cmd {
 		return a.jumpMove(-1)
 	case "alt+right":
 		return a.jumpMove(1)
+	case "alt+pgup":
+		a.scrollHalfScreen(t, -1)
+	case "alt+pgdown":
+		a.scrollHalfScreen(t, 1)
 	case "left":
 		b.MoveCursor(buffer.Left, false)
 	case "right":
@@ -1637,6 +1641,17 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	case tea.MouseWheelDown:
 		wheel = 3
 	}
+	// Sideways: the horizontal wheel, or the vertical one with Shift held.
+	hwheel := 0
+	switch {
+	case msg.Button == tea.MouseWheelLeft:
+		hwheel = -hscrollWheel
+	case msg.Button == tea.MouseWheelRight:
+		hwheel = hscrollWheel
+	case wheel != 0 && msg.Shift:
+		hwheel = wheel / 3 * hscrollWheel
+		wheel = 0
+	}
 	// A popup the pointer opened only owns the wheel while the pointer is on it.
 	if wheel != 0 && a.hoverText != "" && (a.hoverAt == nil || a.inHoverBox(l, screenPt{x, y})) {
 		if msg.Action == mousePress {
@@ -1669,6 +1684,16 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	a.hoverWord = wordSpan{}
 	a.hoverCell = screenPt{-1, -1}
 	a.hoverText, a.hoverAt = "", nil
+	if hwheel != 0 && msg.Action == mousePress {
+		if t := a.cur(); t != nil && t.kind == tabText && !a.fullPreview(t) &&
+			y >= l.editY && y < l.editY+l.editH && x >= l.rightX && !(a.showTerm && y >= l.panelY) {
+			a.scrollCols(t, hwheel)
+			return nil
+		}
+		if msg.Button != tea.MouseWheelLeft && msg.Button != tea.MouseWheelRight {
+			return nil
+		}
+	}
 	if wheel != 0 && msg.Action == mousePress {
 		switch {
 		case y < l.top || y >= l.top+l.bodyH:
