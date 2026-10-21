@@ -15,9 +15,10 @@ import (
 // above it, cut by the panel width; space says the cut fell on a space, which
 // copying puts back.
 type logRow struct {
-	s     string // drawn, exactly the panel width
-	cont  bool
-	space bool
+	s      string // drawn, exactly the panel width
+	cont   bool
+	space  bool
+	indent int // columns of decoration that copying leaves out of a cont row
 }
 
 // agentView is where the log was drawn last: rows[start:start+n] sit at row
@@ -88,13 +89,16 @@ func (s agentSel) rowCols(i int, plain string, w int) (int, int) {
 	return snapCols(plain, c0, c1)
 }
 
-// markRow draws the columns [s0, s1) of the row reversed.
+// markRow draws the columns [s0, s1) of the row reversed, keeping its colors.
 func markRow(row string, w, s0, s1 int) string {
 	if s0 >= s1 {
 		return row
 	}
-	mid := stPanel.Reverse(true).Render(ansi.Strip(ansi.Cut(row, s0, s1)))
-	return ansi.Cut(row, 0, s0) + mid + ansi.Cut(row, s1, w)
+	mid := ansi.Cut(row, s0, s1)
+	for _, reset := range []string{"\x1b[m", "\x1b[0m"} {
+		mid = strings.ReplaceAll(mid, reset, reset+"\x1b[7m")
+	}
+	return ansi.Cut(row, 0, s0) + "\x1b[7m" + mid + "\x1b[27m" + ansi.Cut(row, s1, w)
 }
 
 // cutCols returns the characters of plain that cover columns [c0, c1).
@@ -137,7 +141,7 @@ func (s agentSel) text(rows []logRow, w int) string {
 		}
 		switch {
 		case rows[i].cont:
-			seg = strings.TrimLeft(seg, " ") // the indent of a list item's later rows
+			seg = strings.Trim(cutCols(ansi.Strip(rows[i].s), max(c0, rows[i].indent), c1), " ")
 		case c0 == 0:
 			seg = strings.TrimPrefix(seg, " ") // the margin of the panel
 		}

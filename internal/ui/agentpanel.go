@@ -261,14 +261,18 @@ func (a *App) renderLog(w int) []logRow {
 			if strings.TrimSpace(e.text) == "" {
 				continue
 			}
-			cuts := map[int]bool{} // row of the markdown -> the cut above it fell on a space
-			lines := renderMarkdown(e.text, max(1, w-1), mdOpts{wrapped: func(row int, space bool) { cuts[row] = space }})
+			type cut struct {
+				space  bool
+				indent int
+			}
+			cuts := map[int]cut{} // row of the markdown -> the cut above it
+			lines := renderMarkdown(e.text, max(1, w-1), mdOpts{wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} }})
 			for i, l := range lines {
-				space, cont := cuts[i]
+				c, cont := cuts[i]
 				if cont && len(out) > 0 {
-					out[len(out)-1].space = space
+					out[len(out)-1].space = c.space
 				}
-				out = append(out, logRow{s: stPanel.Render(" ") + l, cont: cont})
+				out = append(out, logRow{s: stPanel.Render(" ") + l, cont: cont, indent: 1 + c.indent})
 			}
 		case logTool:
 			mark := map[string]string{"pending": "○", "in_progress": "◐", "completed": "●", "failed": "✗"}[e.status]

@@ -252,8 +252,9 @@ type mdOpts struct {
 	mermaid func(code string, w int) []string
 	// wrapped, when set, is called for each output row that continues a
 	// paragraph or list item cut by the width. space says whether the cut
-	// fell on a space.
-	wrapped func(row int, space bool)
+	// fell on a space. indent is the width of the
+	// decoration before its text.
+	wrapped func(row int, space bool, indent int)
 }
 
 // renderMarkdown formats src into lines of exactly w columns.
@@ -273,7 +274,7 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 			if i > 0 {
 				p = contPrefix
 				if o.wrapped != nil && i-1 < len(seps) {
-					o.wrapped(len(out), seps[i-1])
+					o.wrapped(len(out), seps[i-1], pw)
 				}
 			}
 			line := p + mdRender(l)
@@ -366,7 +367,7 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 			bar := bgfg(cEditorBg, "#6a9955").Render("▎ ")
 			qo, base := o, len(out)
 			if o.wrapped != nil {
-				qo.wrapped = func(row int, space bool) { o.wrapped(base+row, space) }
+				qo.wrapped = func(row int, space bool, indent int) { o.wrapped(base+row, space, indent+2) }
 			}
 			for _, l := range renderMarkdown(strings.Join(q, "\n"), max(1, w-2), qo) {
 				out = append(out, bar+l)

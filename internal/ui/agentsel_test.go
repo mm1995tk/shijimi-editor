@@ -108,3 +108,27 @@ func TestAgentSelectionStaysOnTextWhenScrolled(t *testing.T) {
 		t.Fatalf("selection moved: %+v", a.ag.sel)
 	}
 }
+
+func TestAgentSelectionDropsQuoteBars(t *testing.T) {
+	long := "quoted text that is long enough to wrap around the panel more than once so we see the bar"
+	a, _ := agentSelApp(t, logEntry{kind: logAgent, text: "> " + long})
+	rows, w := a.ag.view.rows, a.ag.view.w
+	if len(rows) < 3 {
+		t.Fatalf("only %d rows", len(rows))
+	}
+	s := agentSel{on: true, a: agentPos{0, 0}, b: agentPos{len(rows) - 1, w - 1}}
+	if got, want := s.text(rows, w), "▎ "+long; got != want {
+		t.Fatalf("copied %q, want %q", got, want)
+	}
+}
+
+func TestMarkRowKeepsColors(t *testing.T) {
+	row := stStatusError.Render("abcd")
+	got := markRow(row, 4, 1, 3)
+	if ansi.Strip(got) != "abcd" || !strings.Contains(got, "\x1b[7m") || strings.Count(got, "\x1b[27m") != 1 {
+		t.Fatalf("got %q", got)
+	}
+	if !strings.Contains(ansi.Cut(got, 1, 3), "\x1b[7m") {
+		t.Fatalf("selection lost: %q", got)
+	}
+}
