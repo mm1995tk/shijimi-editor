@@ -787,9 +787,13 @@ func TestSidebarSplitDrag(t *testing.T) {
 	if got := a.resizeHit(l, 1, l.top+a.explorerH()); got != resizeExplorer {
 		t.Fatalf("hit = %v", got)
 	}
-	a.resizing = resizeExplorer
+	a.focus = focusEditor
+	a.handleMouse(mouseEvent{X: 1, Y: l.top + a.explorerH(), Action: mousePress, Button: tea.MouseLeft})
+	if a.focus != focusChanges || a.resizing != resizeExplorer {
+		t.Fatalf("press: focus %v resizing %v", a.focus, a.resizing)
+	}
 	a.dragResize(l, 1, l.top+body/2)
-	if got := a.explorerH(); got < body/2-1 || got > body/2 {
+	if got := a.explorerH(); got != body/2 {
 		t.Fatalf("drag to half: %d of %d", got, body)
 	}
 

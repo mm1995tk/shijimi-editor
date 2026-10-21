@@ -157,7 +157,7 @@ func (a *App) dragResize(l layout, x, y int) {
 		a.agentWPref = a.agentWidth()
 	case resizeExplorer:
 		if body := a.bodyH(); body > 0 {
-			a.explorerPct = clamp((y-l.top)*100/body, 1, 99)
+			a.explorerPct = clamp(((y-l.top)*100+body-1)/body, 1, 99)
 		}
 	case resizeDiff:
 		if avail := l.rightW - 2; avail > 0 {

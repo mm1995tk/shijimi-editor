@@ -1764,6 +1764,9 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	if msg.Action == mousePress && msg.Button == tea.MouseLeft {
 		if r := a.resizeHit(l, x, y); r != resizeNone {
 			a.resizing = r
+			if r == resizeExplorer {
+				return a.setFocus(focusChanges)
+			}
 			return nil
 		}
 	}
