@@ -529,6 +529,11 @@ func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
 		if !m.refresh && pr.HeadRefName != a.branch {
 			return a.switchToPR(pr)
 		}
+		if g := a.gd; m.refresh && g.on && g.base == basePR && g.pr != nil && g.pr.Number == pr.Number {
+			// r on the pull request already shown: keep the list on screen
+			g.pr = pr
+			return tea.Batch(a.reloadChanges(), a.loadReview())
+		}
 		return a.openPR(pr)
 	}
 	if rv := a.gd.rv; len(rv.pending) > 0 && rv.num != pr.Number {

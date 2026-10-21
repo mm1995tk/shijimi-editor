@@ -699,3 +699,19 @@ func TestReloadChangesKeepsEmptyListFromFlickering(t *testing.T) {
 		t.Errorf("showDiff should show loading: %q", view())
 	}
 }
+
+func TestRefreshPRKeepsEmptyListFromFlickering(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	pr := &prInfo{Number: 3, BaseRefName: "main"}
+	a.gd.base, a.gd.pr = basePR, pr
+	a.gd.files, a.gd.rows = nil, nil
+	a.gd.loading = false
+	a.gd.prSeq++
+	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 3, refresh: true, pr: pr}); cmd == nil {
+		t.Fatal("no command")
+	}
+	got := strings.Join(a.renderChanges(40, 6, true), "\n")
+	if strings.Contains(got, "読み込み中") || !strings.Contains(got, "変更はありません") {
+		t.Errorf("view = %q", got)
+	}
+}
