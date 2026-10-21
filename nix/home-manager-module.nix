@@ -1,13 +1,16 @@
 # home-manager module: programs.shijimi
-self: {
+self:
+{
   config,
   lib,
   pkgs,
   ...
-}: let
+}:
+let
   cfg = config.programs.shijimi;
-  toml = pkgs.formats.toml {};
-in {
+  toml = pkgs.formats.toml { };
+in
+{
   options.programs.shijimi = {
     enable = lib.mkEnableOption "shijimi";
 
@@ -20,7 +23,7 @@ in {
 
     settings = lib.mkOption {
       type = toml.type;
-      default = {};
+      default = { };
       example = lib.literalExpression ''
         {
           keymap = "vscode";
@@ -32,7 +35,7 @@ in {
 
     languages = lib.mkOption {
       type = toml.type;
-      default = {};
+      default = { };
       example = lib.literalExpression ''
         {
           language-server.gopls.command = "gopls";
@@ -44,11 +47,11 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [cfg.package];
-    xdg.configFile."shijimi/config.toml" = lib.mkIf (cfg.settings != {}) {
+    home.packages = [ cfg.package ];
+    xdg.configFile."shijimi/config.toml" = lib.mkIf (cfg.settings != { }) {
       source = toml.generate "shijimi-config.toml" cfg.settings;
     };
-    xdg.configFile."shijimi/languages.toml" = lib.mkIf (cfg.languages != {}) {
+    xdg.configFile."shijimi/languages.toml" = lib.mkIf (cfg.languages != { }) {
       source = toml.generate "shijimi-languages.toml" cfg.languages;
     };
   };

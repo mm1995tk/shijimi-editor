@@ -2,9 +2,11 @@
   pkgs,
   project-name,
   ...
-}: let
-  goEnv = pkgs.mkGoEnv {pwd = ./.;};
-in {
+}:
+let
+  goEnv = pkgs.mkGoEnv { pwd = ./.; };
+in
+{
   default = pkgs.mkShell {
     buildInputs = [
       goEnv
