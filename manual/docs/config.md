@@ -53,7 +53,7 @@ listen-host = "127.0.0.1"
 
 # ~/.config/shijimi/config.toml だけで有効
 [agent]
-command = "claude-code-acp"
+command = "claude-agent-acp"
 args = []
 ```
 

@@ -75,7 +75,7 @@ listen-host = "127.0.0.1"
 
 ```toml
 [agent]
-command = "claude-code-acp"
+command = "claude-agent-acp"
 args = []
 ```
 

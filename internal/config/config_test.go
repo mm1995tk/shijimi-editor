@@ -220,14 +220,14 @@ func TestAgentIsReadOnlyFromTheUserConfig(t *testing.T) {
 	os.MkdirAll(filepath.Join(xdg, "shijimi"), 0o755)
 	os.WriteFile(filepath.Join(xdg, "shijimi", "config.toml"), []byte(`
 [agent]
-command = "claude-code-acp"
+command = "claude-agent-acp"
 args = ["--x"]
 environment = { A = "1" }
 `), 0o644)
 	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[agent]\ncommand = \"evil\"\n"), 0o644)
 	c := Load(root)
-	if c.Agent.Command != "claude-code-acp" || len(c.Agent.Args) != 1 || c.Agent.Env["A"] != "1" {
+	if c.Agent.Command != "claude-agent-acp" || len(c.Agent.Args) != 1 || c.Agent.Env["A"] != "1" {
 		t.Fatalf("agent = %+v", c.Agent)
 	}
 }

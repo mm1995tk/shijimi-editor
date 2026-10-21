@@ -73,7 +73,7 @@ GitHub へは送りません。読んで、消す・直す・足すをしてか�
 
 ```toml
 [agent]
-command = "claude-code-acp"   # 例: Claude Code（@zed-industries/claude-code-acp）
+command = "claude-agent-acp"  # 例: Claude Code（npm の @agentclientprotocol/claude-agent-acp）
 args = []
 environment = { }             # エージェントに渡す環境変数
 ```
