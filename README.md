@@ -1,4 +1,4 @@
-# shijimi
+# <img src="manual/docs/assets/icon.png" alt="" width="32" align="top"> shijimi
 
 ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code、編集操作は Helix に合わせています。コマンド名は `shj` です。
 
