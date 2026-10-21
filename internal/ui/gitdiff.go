@@ -1410,9 +1410,9 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 		if r.new < 0 {
 			var line string
 			if dv.split && !dv.single {
-				line = a.diffOld(dv, r, gw, g.leftW) + stSeparator.Render("│") + bgfg(cSideBg, cLineNo).Render(fit("", g.rightW))
+				line = a.diffOld(dv, r, gw, g.leftW, b.ScrollCol) + stSeparator.Render("│") + bgfg(cSideBg, cLineNo).Render(fit("", g.rightW))
 			} else {
-				line = a.diffOldUnified(dv, r, gutterWidth(b), g.rightW)
+				line = a.diffOldUnified(dv, r, gutterWidth(b), g.rightW, b.ScrollCol)
 			}
 			out = append(out, line+bar[i])
 			i++
@@ -1427,7 +1427,7 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 		edit := renderEditor(t, g.rightW, n, opts)
 		for k := 0; k < n; k++ {
 			if dv.split && !dv.single {
-				out = append(out, a.diffOld(dv, dv.rows[idx+k], gw, g.leftW)+stSeparator.Render("│")+edit[k]+bar[i+k])
+				out = append(out, a.diffOld(dv, dv.rows[idx+k], gw, g.leftW, b.ScrollCol)+stSeparator.Render("│")+edit[k]+bar[i+k])
 			} else {
 				out = append(out, edit[k]+bar[i+k])
 			}
@@ -1440,7 +1440,7 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 func (a *App) diffBlank(w int) string { return stEmpty.Render(fit("", w)) }
 
 // diffOld draws the base side of a row in split mode.
-func (a *App) diffOld(dv *diffView, r dispRow, gw, w int) string {
+func (a *App) diffOld(dv *diffView, r dispRow, gw, w, scrollCol int) string {
 	if r.old < 0 {
 		return bgfg(cSideBg, cLineNo).Render(fit("", w))
 	}
@@ -1452,23 +1452,24 @@ func (a *App) diffOld(dv *diffView, r dispRow, gw, w int) string {
 		spans = dv.oldSpans[r.old]
 	}
 	gutter := bgfg(bg, sc).Render(sign) + bgfg(bg, cLineNo).Render(fmt.Sprintf("%*d  ", gw-3, r.old+1))
-	return gutter + highlightText(dv.old[r.old], dv.lexer, bg, spans, cDelWordBg, w-gw)
+	return gutter + highlightText(dv.old[r.old], dv.lexer, bg, spans, cDelWordBg, w-gw, scrollCol)
 }
 
 // diffOldUnified draws a deleted line between the current lines.
-func (a *App) diffOldUnified(dv *diffView, r dispRow, gw, w int) string {
+func (a *App) diffOldUnified(dv *diffView, r dispRow, gw, w, scrollCol int) string {
 	gutter := bgfg(cDelBg, cDelSign).Render("-") + bgfg(cDelBg, cLineNo).Render(fmt.Sprintf("%*d  ", gw-3, r.old+1))
-	return gutter + highlightText(dv.old[r.old], dv.lexer, cDelBg, dv.oldSpans[r.old], cDelWordBg, w-gw)
+	return gutter + highlightText(dv.old[r.old], dv.lexer, cDelBg, dv.oldSpans[r.old], cDelWordBg, w-gw, scrollCol)
 }
 
 // highlightText draws text with syntax colors on bg, w cells wide. The runes
-// inside spans get markBg instead.
-func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, markBg string, w int) string {
+// inside spans get markBg instead. The first skip cells of the line are left
+// out (a sideways scroll).
+func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, markBg string, w, skip int) string {
 	if w <= 0 {
 		return ""
 	}
 	var sb strings.Builder
-	used, idx := 0, 0 // cells drawn, rune index into text
+	used, idx, col := 0, 0, 0 // cells drawn, rune index into text, cells passed
 	var run strings.Builder
 	var runKey cellStyle
 	flush := func() {
@@ -1493,6 +1494,14 @@ func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, 
 				ch = "    "
 			}
 			cw := ansi.StringWidth(ch)
+			if col < skip { // left of the view; a wide rune cut by the edge leaves blanks
+				col += cw
+				if col <= skip {
+					continue
+				}
+				ch = strings.Repeat(" ", col-skip)
+				cw = col - skip
+			}
 			if used+cw > w {
 				return false
 			}

@@ -1408,6 +1408,10 @@ func (a *App) editorKey(t *tab, msg tea.KeyPressMsg) tea.Cmd {
 		return a.jumpMove(-1)
 	case "alt+right":
 		return a.jumpMove(1)
+	case "alt+pgup":
+		a.scrollHalfScreen(t, -1)
+	case "alt+pgdown":
+		a.scrollHalfScreen(t, 1)
 	case "left":
 		b.MoveCursor(buffer.Left, false)
 	case "right":
@@ -1637,6 +1641,14 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	case tea.MouseWheelDown:
 		wheel = 3
 	}
+	// Sideways: the horizontal wheel, or the vertical one with Shift held.
+	hwheel := 0
+	switch {
+	case msg.Button == tea.MouseWheelLeft:
+		hwheel = -hscrollWheel
+	case msg.Button == tea.MouseWheelRight:
+		hwheel = hscrollWheel
+	}
 	// A popup the pointer opened only owns the wheel while the pointer is on it.
 	if wheel != 0 && a.hoverText != "" && (a.hoverAt == nil || a.inHoverBox(l, screenPt{x, y})) {
 		if msg.Action == mousePress {
@@ -1669,6 +1681,15 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	a.hoverWord = wordSpan{}
 	a.hoverCell = screenPt{-1, -1}
 	a.hoverText, a.hoverAt = "", nil
+	if msg.Action == mousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, x, y) {
+		hwheel = wheel / 3 * hscrollWheel // Shift turns the vertical wheel sideways, over the text only
+	}
+	if hwheel != 0 && msg.Action == mousePress {
+		if a.inEditorText(l, x, y) {
+			a.scrollCols(a.cur(), hwheel)
+			return nil
+		}
+	}
 	if wheel != 0 && msg.Action == mousePress {
 		switch {
 		case y < l.top || y >= l.top+l.bodyH:
@@ -1999,10 +2020,11 @@ func (a *App) render() string {
 	}
 
 	if a.sig != nil && a.comp == nil && a.hoverText == "" && a.sigVisible() {
-		cx, cy := a.cursorScreen(a.sig.tab, l)
-		box := a.sig.render(max(10, a.w-l.rightX))
-		x, y := signaturePos(l, a.w, cx, cy, box)
-		rows = overlay(rows, box, x, y)
+		if cx, cy := a.cursorScreen(a.sig.tab, l); a.cursorShown(a.sig.tab, l, cx, cy) {
+			box := a.sig.render(max(10, a.w-l.rightX))
+			x, y := signaturePos(l, a.w, cx, cy, box)
+			rows = overlay(rows, box, x, y)
+		}
 	}
 
 	if a.card != nil && a.composer == nil {

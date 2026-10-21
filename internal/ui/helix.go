@@ -81,7 +81,7 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	b := t.buf
 	key := msg.String()
-	a.follow = true
+	a.follow = a.pending != "" || key != "z" // the z prefix alone must not pull the view back to the cursor
 	ext := a.mode == modeSelect
 
 	// pending multi-key sequences
@@ -186,6 +186,12 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 		b.MoveLines(-a.pageSize()/2, ext)
 	case "ctrl+d":
 		b.MoveLines(a.pageSize()/2, ext)
+	case "alt+pgup", "alt+pgdown": // scroll sideways; the cursor stays
+		dir := 1
+		if key == "alt+pgup" {
+			dir = -1
+		}
+		a.scrollHalfScreen(a.cur(), dir)
 	case "ctrl+o":
 		return a.jumpMove(-1)
 	case "tab", "ctrl+i": // Ctrl+I arrives as Tab unless the terminal tells them apart
@@ -316,7 +322,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 		}
 
 	// --- prefixes ---
-	case "g", "m", "]", "[", "f", "t", "F", "T", "r", "space":
+	case "g", "m", "]", "[", "f", "t", "F", "T", "r", "z", "space":
 		a.pending = key
 		if key == "space" {
 			a.pending = " "
@@ -355,6 +361,13 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 		r = ch[0]
 	}
 	switch p {
+	case "z": // view: scroll sideways, the cursor stays
+		switch key {
+		case "h", "left":
+			a.scrollHalfScreen(t, -1)
+		case "l", "right":
+			a.scrollHalfScreen(t, 1)
+		}
 	case "g":
 		switch key {
 		case "g":
