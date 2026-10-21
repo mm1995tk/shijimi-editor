@@ -73,6 +73,7 @@ type App struct {
 	panelHPref  int
 	previewPct  int
 	diffLeftPct int // base pane share of a split diff; 0 = half
+	explorerPct int // file tree share of the diff mode sidebar; 0 = 7/10
 	resizeMode  bool
 	resizing    resizeTarget // border being dragged with the mouse
 
@@ -1763,6 +1764,9 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	if msg.Action == mousePress && msg.Button == tea.MouseLeft {
 		if r := a.resizeHit(l, x, y); r != resizeNone {
 			a.resizing = r
+			if r == resizeExplorer {
+				return a.setFocus(focusChanges)
+			}
 			return nil
 		}
 	}

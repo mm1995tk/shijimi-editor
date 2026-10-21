@@ -14,6 +14,7 @@ const (
 	resizePreview
 	resizeAgent
 	resizeDiff
+	resizeExplorer
 )
 
 const (
@@ -22,6 +23,7 @@ const (
 	defaultPreviewP = 50
 	minSideW        = 10
 	minPaneW        = 10
+	minSideSectionH = 3 // header + two rows
 )
 
 // sideWidth is the sidebar width: the user's choice, or a fifth of the screen.
@@ -83,7 +85,7 @@ func (a *App) resizePreviewBy(deltaPct int) {
 }
 
 func (a *App) resetPanes() {
-	a.sideWPref, a.panelHPref, a.previewPct, a.agentWPref, a.diffLeftPct = 0, 0, 0, 0, 0
+	a.sideWPref, a.panelHPref, a.previewPct, a.agentWPref, a.diffLeftPct, a.explorerPct = 0, 0, 0, 0, 0, 0
 	a.follow = true
 }
 
@@ -129,6 +131,8 @@ func (a *App) resizeHit(l layout, x, y int) resizeTarget {
 		return resizeSide
 	case a.showTerm && y == l.panelY && x >= l.rightX:
 		return resizeTerm
+	case a.showSide && a.gd.on && x < l.sideW && y == l.top+a.explorerH():
+		return resizeExplorer
 	}
 	if t := a.curText(); t != nil && a.splitShown() && a.diffFile(t) != nil && y > l.editY && y < l.editY+l.editH && x == l.rightX+a.dvGeom(l).leftW {
 		return resizeDiff
@@ -151,6 +155,10 @@ func (a *App) dragResize(l layout, x, y int) {
 	case resizeAgent:
 		a.agentWPref = a.w - x - 1
 		a.agentWPref = a.agentWidth()
+	case resizeExplorer:
+		if body := a.bodyH(); body > 0 {
+			a.explorerPct = clamp(((y-l.top)*100+body-1)/body, 1, 99)
+		}
 	case resizeDiff:
 		if avail := l.rightW - 2; avail > 0 {
 			a.diffLeftPct = clamp((x-l.rightX)*100/avail, 1, 99)

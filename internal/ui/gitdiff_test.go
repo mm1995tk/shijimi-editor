@@ -778,3 +778,45 @@ func TestRefreshPRKeepsEmptyListFromFlickering(t *testing.T) {
 		t.Errorf("view = %q", got)
 	}
 }
+
+func TestSidebarSplitDrag(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	l := a.layout()
+	body := a.bodyH()
+
+	if got := a.resizeHit(l, 1, l.top+a.explorerH()); got != resizeExplorer {
+		t.Fatalf("hit = %v", got)
+	}
+	a.focus = focusEditor
+	a.handleMouse(mouseEvent{X: 1, Y: l.top + a.explorerH(), Action: mousePress, Button: tea.MouseLeft})
+	if a.focus != focusChanges || a.resizing != resizeExplorer {
+		t.Fatalf("press: focus %v resizing %v", a.focus, a.resizing)
+	}
+	a.dragResize(l, 1, l.top+body/2)
+	if got := a.explorerH(); got != body/2 {
+		t.Fatalf("drag to half: %d of %d", got, body)
+	}
+
+	a.dragResize(l, 1, l.top)
+	if got := a.explorerH(); got != minSideSectionH {
+		t.Fatalf("tree min: %d", got)
+	}
+	a.dragResize(l, 1, l.top+body)
+	if got := body - a.explorerH(); got != minSideSectionH {
+		t.Fatalf("changes min: %d", got)
+	}
+
+	a.dragResize(l, 1, l.top+body/2)
+	before := float64(a.explorerH()) / float64(body)
+	a.h += 20
+	if got := float64(a.explorerH()) / float64(a.bodyH()); got < before-0.05 || got > before+0.05 {
+		t.Fatalf("ratio %v -> %v", before, got)
+	}
+
+	a.resizing = resizeNone
+	a.startResize()
+	press(a, "=")
+	if got, want := a.explorerH(), a.bodyH()*7/10; got != want {
+		t.Fatalf("reset %d, want %d", got, want)
+	}
+}

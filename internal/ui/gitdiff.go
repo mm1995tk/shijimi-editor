@@ -827,11 +827,16 @@ func (a *App) bodyH() int {
 	return max(0, a.h-1)
 }
 
-// explorerH is the height of the file tree: 7/10 of the sidebar in diff
-// mode, all of it otherwise.
+// explorerH is the height of the file tree: the user's share of the sidebar
+// (7/10 by default) in diff mode, all of it otherwise. The tree and CHANGES
+// each keep at least minSideSectionH rows.
 func (a *App) explorerH() int {
 	if a.gd.on {
-		return a.bodyH() * 7 / 10
+		body := a.bodyH()
+		if a.explorerPct <= 0 {
+			return body * 7 / 10
+		}
+		return clamp(body*a.explorerPct/100, minSideSectionH, max(minSideSectionH, body-minSideSectionH))
 	}
 	return a.bodyH()
 }
