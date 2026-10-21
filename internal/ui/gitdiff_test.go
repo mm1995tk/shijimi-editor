@@ -653,3 +653,30 @@ func TestChangesFolderCollapse(t *testing.T) {
 		t.Errorf("open: vis = %v, selDir = %q", g.vis(), g.selDir)
 	}
 }
+
+func TestChangesReloadKeepsFolderState(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	g := &a.gd
+	load := func(paths ...string) {
+		var files []*diff.File
+		for _, p := range paths {
+			files = append(files, &diff.File{NewPath: p})
+		}
+		g.gen++
+		a.applyChanges(changesLoadedMsg{gen: g.gen, base: g.base, rev: g.rev, files: files})
+	}
+	load("a/x.go", "b/y.go", "c/z.go")
+	g.selectRow(g.rowOf(1)) // b/y.go
+	g.setFolder(g.folderRow("c"), false)
+	g.selectRow(g.folderRow("c"))
+	load("a/x.go", "b/y.go", "c/z.go")
+	if g.selDir != "c" || !g.closed["c"] {
+		t.Errorf("after reload: selDir = %q, closed = %v", g.selDir, g.closed)
+	}
+	// the selected file goes away and the next one is in the closed folder
+	g.selectRow(g.rowOf(1))
+	load("a/x.go", "c/z.go")
+	if vis := g.vis(); visPos(vis, g.selRow()) < 0 || vis[visPos(vis, g.selRow())] != g.selRow() {
+		t.Errorf("selection hidden: row %d, vis %v", g.selRow(), vis)
+	}
+}

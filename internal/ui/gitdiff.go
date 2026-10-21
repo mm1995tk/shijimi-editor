@@ -201,6 +201,10 @@ func (a *App) applyChanges(m changesLoadedMsg) {
 		}
 	}
 	a.gd.sel = clamp(a.gd.sel, 0, max(0, len(a.gd.files)-1))
+	// a selection that fell into a collapsed folder moves to the folder
+	if vis := a.gd.vis(); len(vis) > 0 {
+		a.gd.selectRow(vis[visPos(vis, a.gd.selRow())])
+	}
 }
 
 func (g *gitDiff) file() *diff.File {
