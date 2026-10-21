@@ -30,6 +30,10 @@ type tab struct {
 	autoVer    int  // buffer version an auto-save timer was last scheduled for
 	conflict   bool // changed on disk while holding unsaved edits (already reported)
 
+	// a transient tab (VS Code: preview) gives way to the next one until kept
+	transient    bool
+	transientVer int // buffer version when opened; an edit keeps the tab
+
 	img *imageView
 	dv  *diffView // set while the tab is shown as a diff (diff mode)
 

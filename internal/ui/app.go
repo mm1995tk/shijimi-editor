@@ -127,7 +127,8 @@ type App struct {
 	confirmClose bool
 	follow       bool // scroll to the cursor on next render
 	dragging     bool
-	keyReleases  bool // the terminal reports key releases
+	lastClick    click // the previous left press, to spot a double click
+	keyReleases  bool  // the terminal reports key releases
 	hold         holdScroll
 	holdSeq      int // tells the current hold-scroll tick chain from stale ones
 
@@ -301,6 +302,7 @@ func (a *App) openFile(path string) bool {
 	for i, t := range a.tabs {
 		if t.path() == abs {
 			a.active = i
+			t.transient = false
 			a.explorer.reveal(abs)
 			return true
 		}
@@ -330,6 +332,44 @@ func (a *App) openFile(path string) bool {
 	a.attachLSP(t)
 	a.explorer.reveal(abs)
 	return true
+}
+
+// openTransient opens path as the transient tab, which takes the place of the
+// previous transient tab. A file already open is just shown as it is.
+func (a *App) openTransient(path string) bool {
+	abs, _ := filepath.Abs(path)
+	for i, t := range a.tabs {
+		if t.path() == abs {
+			a.active = i
+			a.explorer.reveal(abs)
+			return true
+		}
+	}
+	old := slices.IndexFunc(a.tabs, func(t *tab) bool { return t.transient })
+	n := len(a.tabs)
+	if !a.openFile(abs) || len(a.tabs) == n {
+		return false
+	}
+	t := a.tabs[a.active]
+	t.transient = true
+	if t.kind == tabText {
+		t.transientVer = t.buf.Version
+	}
+	if old >= 0 {
+		a.dropTab(old)
+		a.tabs = slices.Insert(a.tabs[:len(a.tabs)-1], old, t)
+		a.active = old
+	}
+	return true
+}
+
+// keepTransients turns transient tabs that have been edited into normal tabs.
+func (a *App) keepTransients() {
+	for _, t := range a.tabs {
+		if t.transient && t.kind == tabText && t.buf.Version != t.transientVer {
+			t.transient = false
+		}
+	}
 }
 
 func (a *App) save() tea.Cmd {
@@ -529,13 +569,7 @@ func (a *App) closeTab(force bool) {
 		return
 	}
 	a.confirmClose = false
-	if t.kind == tabText && t.lang != nil {
-		a.detachLSP(t)
-	}
-	if t.img != nil {
-		t.img.close()
-	}
-	a.tabs = append(a.tabs[:a.active], a.tabs[a.active+1:]...)
+	a.dropTab(a.active)
 	if a.active >= len(a.tabs) {
 		a.active = len(a.tabs) - 1
 	}
@@ -544,6 +578,18 @@ func (a *App) closeTab(force bool) {
 	if len(a.tabs) == 0 && a.focus == focusEditor {
 		a.focus = focusExplorer
 	}
+}
+
+// dropTab removes tab i and releases what it holds; the caller fixes active.
+func (a *App) dropTab(i int) {
+	t := a.tabs[i]
+	if t.kind == tabText && t.lang != nil {
+		a.detachLSP(t)
+	}
+	if t.img != nil {
+		t.img.close()
+	}
+	a.tabs = append(a.tabs[:i], a.tabs[i+1:]...)
 }
 
 func (a *App) switchTab(d int) {
@@ -692,6 +738,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	}
 	cmd := a.update(msg)
+	a.keepTransients()
 	a.syncLSP()
 	a.notifySelection()
 	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs())
@@ -1287,7 +1334,9 @@ func (a *App) handleExplorerKey(msg tea.KeyPressMsg) tea.Cmd {
 			}
 			return nil
 		}
-		if a.openFile(n.path) && (key == "enter" || key == "o") {
+		if key != "enter" && key != "o" {
+			a.openTransient(n.path)
+		} else if a.openFile(n.path) {
 			return a.setFocus(focusEditor)
 		}
 	case "left", "h":
@@ -1785,6 +1834,7 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 	if !left {
 		return nil
 	}
+	double := a.isDoubleClick(x, y)
 
 	switch {
 	case y < l.top || y >= l.top+l.bodyH:
@@ -1808,9 +1858,12 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		if sy >= 1 && row < len(a.explorer.flat) {
 			a.explorer.sel = row
 			n := a.explorer.flat[row]
-			if n.isDir {
+			switch {
+			case n.isDir:
 				a.explorer.toggle(n)
-			} else if a.openFile(n.path) {
+			case !double:
+				a.openTransient(n.path)
+			case a.openFile(n.path):
 				return a.setFocus(focusEditor)
 			}
 		}
@@ -1819,6 +1872,9 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		for i, s := range a.tabSpans {
 			if x >= s.x0 && x < s.x1 {
 				a.active = i
+				if double {
+					a.tabs[i].transient = false
+				}
 				a.follow = true
 				a.mode = modeNormal
 				return a.setFocus(focusEditor)
@@ -1866,6 +1922,27 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		}
 	}
 	return nil
+}
+
+// click is a left press, kept to tell a double click from two single ones.
+type click struct {
+	x, y int
+	at   time.Time
+}
+
+const doubleClickTime = 400 * time.Millisecond
+
+// isDoubleClick records a left press at (x, y) and reports whether it is the
+// second press of a double click. A third press starts over.
+func (a *App) isDoubleClick(x, y int) bool {
+	now := time.Now()
+	p := a.lastClick
+	double := !p.at.IsZero() && p.x == x && p.y == y && now.Sub(p.at) < doubleClickTime
+	a.lastClick = click{x: x, y: y, at: now}
+	if double {
+		a.lastClick.at = time.Time{}
+	}
+	return double
 }
 
 func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
@@ -2154,14 +2231,18 @@ func (a *App) renderTabs(w int) string {
 		}
 		name := t.title()
 		label := " " + name + mark + " "
+		st := stTabInactive
+		if i == a.active {
+			st = stTabActive
+		}
 		var s string
 		switch {
+		case t.transient:
+			s = st.Render(" ") + st.Italic(true).Render(name) + st.Render(mark+" ")
 		case i == a.active && t.dirty():
 			s = stTabActive.Render(" "+name) + stTabDirty.Render(mark) + stTabActive.Render(" ")
-		case i == a.active:
-			s = stTabActive.Render(label)
 		default:
-			s = stTabInactive.Render(label)
+			s = st.Render(label)
 		}
 		pieces[i] = piece{s + stTabBar.Render(" "), ansi.StringWidth(label) + 1}
 	}
