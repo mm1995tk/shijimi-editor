@@ -236,7 +236,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 		return a.workspaceSymbols()
 	case "reload", "rl":
 		if t := a.curText(); t != nil && t.buf.Path != "" {
-			if err := t.buf.Reload(); err != nil {
+			if err := t.reload(); err != nil {
 				a.fail(err)
 			} else {
 				a.info("再読み込みしました")

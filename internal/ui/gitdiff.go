@@ -638,7 +638,7 @@ func (a *App) refreshBranch() {
 	// when watching files is off
 	for _, t := range a.tabs {
 		if t.kind == tabText && !t.dirty() && t.buf.DiskChanged() {
-			if err := t.buf.Reload(); err != nil {
+			if err := t.reload(); err != nil {
 				a.fail(err)
 			}
 		}

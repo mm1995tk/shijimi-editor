@@ -30,6 +30,10 @@ type tab struct {
 	autoVer    int  // buffer version an auto-save timer was last scheduled for
 	conflict   bool // changed on disk while holding unsaved edits (already reported)
 
+	// a transient tab (VS Code: preview) gives way to the next one until kept
+	transient    bool
+	transientVer int // buffer version when opened; an edit keeps the tab
+
 	img *imageView
 	dv  *diffView // set while the tab is shown as a diff (diff mode)
 
@@ -460,4 +464,14 @@ func renderWelcome(w, h int, helix bool) []string {
 		out[top+i] = st.Render(fit(strings.Repeat(" ", pad)+m.text, w))
 	}
 	return out
+}
+
+// reload re-reads the file from disk. Reload bumps the buffer version, but it
+// is not a user edit, so a transient tab stays transient.
+func (t *tab) reload() error {
+	if err := t.buf.Reload(); err != nil {
+		return err
+	}
+	t.transientVer = t.buf.Version
+	return nil
 }
