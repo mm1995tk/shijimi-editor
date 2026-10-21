@@ -574,18 +574,18 @@ func TestInlineSpansFollowEdits(t *testing.T) {
 }
 
 func TestInlineMarksAreDrawn(t *testing.T) {
-	text := highlightText("abcdef", nil, cDelBg, []diff.Span{{Start: 2, End: 4}}, cDelWordBg, 10)
+	text := highlightText("abcdef", nil, cDelBg, []diff.Span{{Start: 2, End: 4}}, cDelWordBg, 10, 0)
 	if ansi.Strip(text) != "abcdef    " {
 		t.Errorf("text = %q", ansi.Strip(text))
 	}
 	if strings.Count(text, "\x1b[") < 3 {
 		t.Errorf("marked part is not styled apart: %q", text)
 	}
-	plain := highlightText("abcdef", nil, cDelBg, nil, cDelWordBg, 10)
+	plain := highlightText("abcdef", nil, cDelBg, nil, cDelWordBg, 10, 0)
 	if plain == text {
 		t.Errorf("marks did not change the output")
 	}
-	if got := ansi.Strip(highlightText("\tx", nil, cDelBg, nil, "", 6)); got != "    x " {
+	if got := ansi.Strip(highlightText("\tx", nil, cDelBg, nil, "", 6, 0)); got != "    x " {
 		t.Errorf("tab = %q", got)
 	}
 }

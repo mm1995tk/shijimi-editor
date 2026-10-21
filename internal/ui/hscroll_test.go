@@ -1,10 +1,15 @@
 package ui
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestHScrollKeysAndBounds(t *testing.T) {
@@ -67,5 +72,59 @@ func TestHScrollZPrefixKeepsView(t *testing.T) {
 	}
 	if b.ScrollCol <= (a.editW(a.curText(), a.layout())-gutterWidth(b))/2 {
 		t.Fatalf("view did not keep moving: %d", b.ScrollCol)
+	}
+}
+
+func TestHScrollShiftWheelOutsideTextStaysVertical(t *testing.T) {
+	dir := t.TempDir()
+	for i := 0; i < 60; i++ {
+		os.WriteFile(filepath.Join(dir, fmt.Sprintf("f%02d.txt", i)), []byte(strings.Repeat("x", 300)+"\n"), 0o644)
+	}
+	a := New(dir, filepath.Join(dir, "f00.txt"))
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	l := a.layout()
+	a.handleMouse(mouseEvent{X: 2, Y: l.editY + 2, Action: mousePress, Button: tea.MouseWheelDown, Shift: true})
+	if a.explorer.scroll == 0 {
+		t.Fatalf("Shift+wheel over the explorer did not scroll it")
+	}
+	if c := a.curText().buf.ScrollCol; c != 0 {
+		t.Fatalf("the editor scrolled sideways: %d", c)
+	}
+}
+
+func TestHScrollSplitDiffMovesBaseSideAndHidesCaret(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git がありません")
+	}
+	dir := t.TempDir()
+	gitIn(t, dir, "init", "-q")
+	file := filepath.Join(dir, "a.txt")
+	long := func(s string) string { return strings.Repeat("0123456789", 20) + s + "\n" }
+	os.WriteFile(file, []byte(long("old")), 0o644)
+	gitIn(t, dir, "add", ".")
+	gitIn(t, dir, "commit", "-q", "-m", "init")
+	os.WriteFile(file, []byte(long("new")), 0o644)
+	a := New(dir, file)
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	a.gd.on = true
+	a.gd.base = baseHead
+	a.gd.split = true
+	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead, nil).(changesLoadedMsg))
+	if a.render(); !a.splitShown() {
+		t.Skip("split is not shown")
+	}
+	tab := a.curText()
+	if _, _, ok := a.caretPos(a.layout()); !ok {
+		t.Fatalf("caret hidden before scrolling")
+	}
+	for i := 0; i < 10; i++ {
+		a.scrollCols(tab, 200)
+	}
+	view := ansi.Strip(a.render())
+	if !strings.Contains(view, "oldold") && !strings.Contains(view, "9old") {
+		t.Fatalf("base side did not reach its end:\n%s", view)
+	}
+	if _, _, ok := a.caretPos(a.layout()); ok {
+		t.Fatalf("caret still drawn after the view left it")
 	}
 }

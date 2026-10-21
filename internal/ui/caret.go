@@ -66,7 +66,7 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 			return 0, 0, false
 		}
 		x, y = a.cursorScreen(t, l)
-		return x, y, x >= l.rightX && x < a.w && y >= l.editY && y < l.editY+l.editH
+		return x, y, a.cursorShown(t, l, x, y)
 	}
 	return 0, 0, false
 }
