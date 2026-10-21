@@ -213,7 +213,20 @@ func (a *App) renderAgent(w, h int, focused bool) []string {
 	a.ag.scroll = clamp(a.ag.scroll, 0, max(0, len(log)-body))
 	end := len(log) - a.ag.scroll
 	start := max(0, end-body)
-	out = append(out, log[start:end]...)
+	if a.ag.view.w != w {
+		a.ag.sel = agentSel{}
+	}
+	a.ag.view = agentView{rows: log, y0: len(out), start: start, n: end - start, w: w}
+	if a.ag.sel.a.row >= len(log) || a.ag.sel.b.row >= len(log) {
+		a.ag.sel = agentSel{}
+	}
+	for i := start; i < end; i++ {
+		row := log[i].s
+		if s0, s1 := a.ag.sel.rowCols(i, ansi.Strip(row), w); s0 < s1 {
+			row = markRow(row, w, s0, s1)
+		}
+		out = append(out, row)
+	}
 	for len(out) < h-boolInt(hint != "") {
 		out = append(out, stPanel.Render(strings.Repeat(" ", w)))
 	}
@@ -231,38 +244,46 @@ func boolInt(b bool) int {
 }
 
 // renderLog lays the log out at width w.
-func (a *App) renderLog(w int) []string {
-	var out []string
+func (a *App) renderLog(w int) []logRow {
+	var out []logRow
+	add := func(s string) { out = append(out, logRow{s: s}) }
+	addWrapped := func(text string, ww int, render func(string) string) {
+		for _, r := range wrapPlainRows(text, ww) {
+			out = append(out, logRow{s: render(r.text), cont: r.cont, space: r.space})
+		}
+	}
 	for _, e := range a.ag.log {
 		switch e.kind {
 		case logUser:
-			out = append(out, stPanel.Render(strings.Repeat(" ", w)))
-			for _, l := range wrapPlain("› "+e.text, w-1) {
-				out = append(out, stPanelCmd.Render(fit(" "+l, w)))
-			}
+			add(stPanel.Render(strings.Repeat(" ", w)))
+			addWrapped("› "+e.text, w-1, func(l string) string { return stPanelCmd.Render(fit(" "+l, w)) })
 		case logAgent:
 			if strings.TrimSpace(e.text) == "" {
 				continue
 			}
-			for _, l := range renderMarkdown(e.text, max(1, w-1), mdOpts{}) {
-				out = append(out, stPanel.Render(" ")+l)
+			type cut struct {
+				space  bool
+				indent int
+			}
+			cuts := map[int]cut{} // row of the markdown -> the cut above it
+			lines := renderMarkdown(e.text, max(1, w-1), mdOpts{wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} }})
+			for i, l := range lines {
+				c, cont := cuts[i]
+				if cont && len(out) > 0 {
+					out[len(out)-1].space = c.space
+				}
+				out = append(out, logRow{s: stPanel.Render(" ") + l, cont: cont, indent: 1 + c.indent})
 			}
 		case logTool:
 			mark := map[string]string{"pending": "○", "in_progress": "◐", "completed": "●", "failed": "✗"}[e.status]
 			if mark == "" {
 				mark = "○"
 			}
-			for _, l := range wrapPlain(mark+" "+e.text, w-1) {
-				out = append(out, stPanelDim.Render(fit(" "+l, w)))
-			}
+			addWrapped(mark+" "+e.text, w-1, func(l string) string { return stPanelDim.Render(fit(" "+l, w)) })
 		case logPlan, logInfo:
-			for _, l := range wrapPlain(strings.TrimRight(e.text, "\n"), w-1) {
-				out = append(out, stPanelDim.Render(fit(" "+l, w)))
-			}
+			addWrapped(strings.TrimRight(e.text, "\n"), w-1, func(l string) string { return stPanelDim.Render(fit(" "+l, w)) })
 		case logError:
-			for _, l := range wrapPlain(e.text, w-1) {
-				out = append(out, stStatusError.Render(fit(" "+l, w)))
-			}
+			addWrapped(e.text, w-1, func(l string) string { return stStatusError.Render(fit(" "+l, w)) })
 		}
 	}
 	return out
@@ -270,10 +291,39 @@ func (a *App) renderLog(w int) []string {
 
 // wrapPlain wraps text without styles to w columns, keeping its line breaks.
 func wrapPlain(text string, w int) []string {
-	w = max(1, w)
 	var out []string
+	for _, r := range wrapPlainRows(text, w) {
+		out = append(out, r.text)
+	}
+	return out
+}
+
+// wrapRow is a row of wrapped text. cont and space mean what they do in logRow;
+// space is set on the row above the cut.
+type wrapRow struct {
+	text        string
+	cont, space bool
+}
+
+// wrapPlainRows is wrapPlain that also says which rows continue the one above.
+func wrapPlainRows(text string, w int) []wrapRow {
+	w = max(1, w)
+	var out []wrapRow
 	for _, line := range strings.Split(text, "\n") {
-		out = append(out, strings.Split(ansi.Wrap(line, w, ""), "\n")...)
+		pos := 0
+		for i, piece := range strings.Split(ansi.Wrap(line, w, ""), "\n") {
+			if i > 0 {
+				// the wrapper drops the spaces at a cut
+				out[len(out)-1].space = pos < len(line) && line[pos] == ' ' || strings.HasSuffix(out[len(out)-1].text, " ")
+				for pos < len(line) && line[pos] == ' ' {
+					pos++
+				}
+			}
+			if strings.HasPrefix(line[pos:], piece) {
+				pos += len(piece)
+			}
+			out = append(out, wrapRow{text: piece, cont: i > 0})
+		}
 	}
 	return out
 }
@@ -325,6 +375,11 @@ func (a *App) agentMouse(l layout, msg mouseEvent) (tea.Cmd, bool) {
 			i = rows[row-1]
 		}
 		a.sg.sel = i
+	}
+	a.ag.sel = agentSel{}
+	if a.inLog(l, msg) {
+		p, _, _ := a.logPos(l, msg)
+		a.ag.sel = agentSel{dragging: true, a: p, b: p}
 	}
 	return a.setFocus(focusAgent), true
 }

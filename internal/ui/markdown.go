@@ -151,17 +151,26 @@ func inlineCells(s string, base mdStyle) []mdCell {
 
 // mdWrap breaks cells into lines of at most w columns, preferring spaces.
 func mdWrap(cells []mdCell, w int) [][]mdCell {
+	lines, _ := mdWrapSep(cells, w)
+	return lines
+}
+
+// mdWrapSep is mdWrap that also reports, for each line, whether a space was
+// dropped at the break after it (false for a word cut in the middle).
+func mdWrapSep(cells []mdCell, w int) ([][]mdCell, []bool) {
 	if w < 1 {
 		w = 1
 	}
 	var lines [][]mdCell
+	var seps []bool
 	var cur []mdCell
 	curW := 0
-	flush := func() {
+	flush := func(space bool) {
 		for len(cur) > 0 && cur[len(cur)-1].r == ' ' {
 			cur = cur[:len(cur)-1]
 		}
 		lines = append(lines, cur)
+		seps = append(seps, space)
 		cur, curW = nil, 0
 	}
 	for _, c := range cells {
@@ -178,29 +187,29 @@ func mdWrap(cells []mdCell, w int) [][]mdCell {
 				}
 			}
 			if c.r == ' ' {
-				flush()
+				flush(true)
 				continue
 			}
 			if brk >= 0 {
 				rest := append([]mdCell(nil), cur[brk+1:]...)
 				cur = cur[:brk]
-				flush()
+				flush(true)
 				cur = rest
 				curW = 0
 				for _, r := range rest {
 					curW += runewidth.RuneWidth(r.r)
 				}
 			} else {
-				flush()
+				flush(false)
 			}
 		}
 		cur = append(cur, c)
 		curW += cw
 	}
 	if len(cur) > 0 || len(lines) == 0 {
-		flush()
+		flush(false)
 	}
-	return lines
+	return lines, seps
 }
 
 func cellsWidth(cs []mdCell) int {
@@ -241,18 +250,32 @@ type mdOpts struct {
 	// mermaid returns the rendered lines (exactly w wide) for a diagram, or
 	// nil to show the source as a plain code block.
 	mermaid func(code string, w int) []string
+	// wrapped, when set, is called for each output row that continues a
+	// paragraph or list item cut by the width. space says whether the cut
+	// fell on a space. indent is the width of the
+	// decoration before its text.
+	wrapped func(row int, space bool, indent int)
 }
 
 // renderMarkdown formats src into lines of exactly w columns.
 func renderMarkdown(src string, w int, o mdOpts) []string {
 	var out []string
 	blank := stEmpty.Render(strings.Repeat(" ", w))
+	var seps []bool // of the lines wrap returned last
+	wrap := func(cells []mdCell, w int) [][]mdCell {
+		var lines [][]mdCell
+		lines, seps = mdWrapSep(cells, w)
+		return lines
+	}
 	emit := func(prefix string, cells [][]mdCell, contPrefix string) {
 		pw := lipgloss.Width(prefix)
 		for i, l := range cells {
 			p := prefix
 			if i > 0 {
 				p = contPrefix
+				if o.wrapped != nil && i-1 < len(seps) {
+					o.wrapped(len(out), seps[i-1], pw)
+				}
 			}
 			line := p + mdRender(l)
 			if rest := w - pw - cellsWidth(l); rest > 0 {
@@ -274,7 +297,7 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 			return
 		}
 		text := strings.Join(para, " ")
-		emit("", mdWrap(inlineCells(text, mdStyle{}), w), "")
+		emit("", wrap(inlineCells(text, mdStyle{}), w), "")
 		para = nil
 		gap()
 	}
@@ -325,7 +348,7 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 			if fg == "" {
 				fg = "#9cdcfe"
 			}
-			cells := mdWrap(inlineCells(m[2], mdStyle{fg: fg, bold: true}), w)
+			cells := wrap(inlineCells(m[2], mdStyle{fg: fg, bold: true}), w)
 			emit("", cells, "")
 			if level <= 2 {
 				out = append(out, bgfg(cEditorBg, cBorder).Render(strings.Repeat("─", w)))
@@ -342,7 +365,11 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 			}
 			i--
 			bar := bgfg(cEditorBg, "#6a9955").Render("▎ ")
-			for _, l := range renderMarkdown(strings.Join(q, "\n"), max(1, w-2), o) {
+			qo, base := o, len(out)
+			if o.wrapped != nil {
+				qo.wrapped = func(row int, space bool, indent int) { o.wrapped(base+row, space, indent+2) }
+			}
+			for _, l := range renderMarkdown(strings.Join(q, "\n"), max(1, w-2), qo) {
 				out = append(out, bar+l)
 			}
 			gap()
@@ -384,7 +411,7 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 				prefix += box
 				pw += 2
 			}
-			cells = mdWrap(inlineCells(text, mdStyle{}), max(1, w-pw))
+			cells = wrap(inlineCells(text, mdStyle{}), max(1, w-pw))
 			emit(mk.Render(prefix), cells, stEmpty.Render(strings.Repeat(" ", pw)))
 			if i+1 >= len(lines) || listItem(lines[i+1]) == nil {
 				gap()

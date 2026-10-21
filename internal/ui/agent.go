@@ -31,6 +31,8 @@ type agentState struct {
 	log     []logEntry
 	perms   []*permAsk // permission requests waiting for y / n
 	scroll  int        // log lines scrolled back from the bottom; 0 follows
+	view    agentView
+	sel     agentSel
 }
 
 // agentRun is the turn in progress.
