@@ -898,6 +898,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case tea.MouseMsg:
 		return a.handleMouse(toMouseEvent(msg))
 	case tea.KeyPressMsg:
+		a.ag.sel = agentSel{}
 		if a.hold.buf != nil && !(msg.Code == a.hold.code && msg.Mod.Contains(tea.ModCtrl)) {
 			a.stopHoldScroll() // another key ends the scroll
 		}
@@ -1648,6 +1649,11 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		return nil
 	}
 	l := a.layout()
+	if a.ag.sel.dragging {
+		if cmd, ok := a.agentDrag(l, msg); ok {
+			return cmd
+		}
+	}
 	if a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
 		if cmd, ok := a.agentMouse(l, msg); ok {
 			return cmd
