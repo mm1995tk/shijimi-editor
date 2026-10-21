@@ -127,8 +127,8 @@ func TestSidebarSplit7to3(t *testing.T) {
 	}
 }
 
-func TestOpenNewFileShowsAllLinesAdded(t *testing.T) {
-	a, _ := gitDiffApp(t)
+func openNewFile(t *testing.T, a *App) *diffView {
+	t.Helper()
 	for i, f := range a.gd.files {
 		if f.Path() == "new.txt" {
 			a.gd.sel = i
@@ -139,10 +139,53 @@ func TestOpenNewFileShowsAllLinesAdded(t *testing.T) {
 	if dv == nil {
 		t.Fatal("no diff view")
 	}
+	return dv
+}
+
+func TestOpenNewFileAgainstHeadIsOnePane(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	dv := openNewFile(t, a)
+	for i := range dv.changed {
+		if dv.changed[i] {
+			t.Errorf("line %d of the new file is marked", i)
+		}
+	}
+	if g := a.dvGeom(a.layout()); g.leftW != 0 || g.rightX != a.layout().rightX {
+		t.Errorf("new file is split: %+v", g)
+	}
+	for _, k := range dv.barCells(len(dv.rows)) {
+		if k != hunkAdd {
+			t.Errorf("bar cell %v, want hunkAdd", k)
+		}
+	}
+}
+
+func TestSwitchingBaseRebuildsSingleView(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	if dv := openNewFile(t, a); !dv.single {
+		t.Fatal("not single against HEAD")
+	}
+	a.gd.base = basePR
+	if dv := a.diffFor(a.curText()); dv.single || !dv.changed[0] {
+		t.Errorf("view kept single after switching to PR: single %v", dv.single)
+	}
+	a.gd.base = baseHead
+	if dv := a.diffFor(a.curText()); !dv.single {
+		t.Error("view not single after switching back to HEAD")
+	}
+}
+
+func TestOpenNewFileAgainstPRShowsAllLinesAdded(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	a.gd.base = basePR
+	dv := openNewFile(t, a)
 	for i := 0; i < 2; i++ {
 		if !dv.changed[i] {
 			t.Errorf("line %d of the new file is not marked added", i)
 		}
+	}
+	if g := a.dvGeom(a.layout()); g.leftW == 0 {
+		t.Error("new file against a PR is not split")
 	}
 }
 
