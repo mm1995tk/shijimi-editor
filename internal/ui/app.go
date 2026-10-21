@@ -1678,7 +1678,7 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 			if a.gd.on && y-l.top >= a.explorerH() {
 				g := &a.gd
 				body := l.bodyH - a.explorerH() - 1
-				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.rows)-body))
+				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.vis())-body))
 				g.keepSelVisible(body)
 			} else {
 				eh := a.explorerH()
@@ -1747,8 +1747,13 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		sy := y - l.top
 		if a.gd.on && sy >= a.explorerH() {
 			g := &a.gd
-			if i := sy - 1 - a.explorerH() + g.scroll; sy > a.explorerH() && i < len(g.rows) && g.rows[i].file >= 0 {
-				g.sel = g.rows[i].file
+			if vis, i := g.vis(), sy-1-a.explorerH()+g.scroll; sy > a.explorerH() && i < len(vis) {
+				r := vis[i]
+				g.selectRow(r)
+				if g.rows[r].file < 0 {
+					g.setFolder(r, g.closed[g.rows[r].path])
+					return a.setFocus(focusChanges)
+				}
 				return a.openChange(g.files[g.sel])
 			}
 			return a.setFocus(focusChanges)
