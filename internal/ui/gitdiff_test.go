@@ -298,13 +298,14 @@ func TestChangesWheelKeepsSelectionOnScreen(t *testing.T) {
 	g.files, g.rows = changeTree(files) // folder, file, folder, file, ...
 	g.scroll = 6
 	g.keepSelVisible(3)
-	if g.sel != 3 || g.rowOf(g.sel) != 7 {
-		t.Errorf("scrolled down: sel = %d (row %d)", g.sel, g.rowOf(g.sel))
+	if r := g.selRow(); r < 6 || r > 8 {
+		t.Errorf("scrolled down: row %d", r)
 	}
-	g.sel, g.scroll = 9, 0
+	g.selectRow(g.rowOf(9))
+	g.scroll = 0
 	g.keepSelVisible(3)
-	if g.sel != 0 {
-		t.Errorf("scrolled up: sel = %d", g.sel)
+	if r := g.selRow(); r > 2 {
+		t.Errorf("scrolled up: row %d", r)
 	}
 }
 
@@ -624,5 +625,31 @@ func TestReloadWithoutGhStillUpdatesList(t *testing.T) {
 	gen := a.gd.gen
 	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 3, refresh: true, err: errString("gh: offline")}); cmd == nil || a.gd.gen == gen || !a.msgErr {
 		t.Errorf("r without gh: cmd=%v gen %d→%d msgErr=%v", cmd, gen, a.gd.gen, a.msgErr)
+	}
+}
+
+func TestChangesFolderCollapse(t *testing.T) {
+	g := &gitDiff{}
+	var files []*diff.File
+	for _, p := range []string{"a/x.go", "a/y.go", "b/z.go"} {
+		files = append(files, &diff.File{NewPath: p})
+	}
+	g.files, g.rows = changeTree(files) // a, x, y, b, z
+	g.selectRow(g.rowOf(1))             // a/y.go
+	g.setFolder(g.folderRow("a"), false)
+	if g.selDir != "a" || len(g.vis()) != 3 {
+		t.Fatalf("selDir = %q, vis = %v", g.selDir, g.vis())
+	}
+	g.move(1) // skips the files of the closed folder
+	if g.selDir != "b" {
+		t.Errorf("j from a: selDir = %q, sel = %d", g.selDir, g.sel)
+	}
+	g.move(1)
+	if g.selDir != "" || g.file().Path() != "b/z.go" {
+		t.Errorf("j from b: selDir = %q", g.selDir)
+	}
+	g.setFolder(g.folderRow("a"), true)
+	if len(g.vis()) != 5 || g.selDir != "" {
+		t.Errorf("open: vis = %v, selDir = %q", g.vis(), g.selDir)
 	}
 }

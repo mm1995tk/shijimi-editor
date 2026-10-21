@@ -40,8 +40,10 @@ type gitDiff struct {
 	files   []*diff.File // in the order of the CHANGES tree
 	rows    []changeRow
 	byAbs   map[string]*diff.File
-	sel     int // index into files
-	scroll  int // first row of rows shown
+	sel     int             // index into files
+	selDir  string          // path of the selected folder row; "" when a file is selected
+	closed  map[string]bool // folder paths (see changeRow.path) that are collapsed
+	scroll  int             // first row of rows shown
 	loading bool
 	err     string
 	gen     int
@@ -181,16 +183,20 @@ func (a *App) applyChanges(m changesLoadedMsg) {
 		a.gd.pr = m.pr
 	}
 	a.gd.stale, a.gd.staleAll = m.stale, m.staleAll
-	sel := ""
+	sel, selDir := "", a.gd.selDir
 	if f := a.gd.file(); f != nil {
 		sel = f.Path()
 	}
 	a.gd.files, a.gd.rows = changeTree(m.files)
+	if !a.gd.hasFolder(selDir) {
+		selDir = ""
+	}
+	a.gd.selDir = selDir
 	a.gd.byAbs = map[string]*diff.File{}
 	top := a.gitTopDir()
 	for i, f := range a.gd.files {
 		a.gd.byAbs[filepath.Join(top, f.Path())] = f
-		if f.Path() == sel {
+		if f.Path() == sel && selDir == "" {
 			a.gd.sel = i
 		}
 	}
@@ -198,7 +204,7 @@ func (a *App) applyChanges(m changesLoadedMsg) {
 }
 
 func (g *gitDiff) file() *diff.File {
-	if g.sel < 0 || g.sel >= len(g.files) {
+	if g.selDir != "" || g.sel < 0 || g.sel >= len(g.files) {
 		return nil
 	}
 	return g.files[g.sel]
@@ -210,6 +216,7 @@ func (g *gitDiff) file() *diff.File {
 type changeRow struct {
 	depth int
 	name  string // folder path (single-child folders joined) or file name
+	path  string // folder path from the repository top; "" for a file
 	file  int    // index into gitDiff.files; -1 for a folder
 }
 
@@ -236,8 +243,8 @@ func changeTree(files []*diff.File) ([]*diff.File, []changeRow) {
 	}
 	var ordered []*diff.File
 	var rows []changeRow
-	var walk func(n *node, depth int)
-	walk = func(n *node, depth int) {
+	var walk func(n *node, depth int, parent string)
+	walk = func(n *node, depth int, parent string) {
 		names := make([]string, 0, len(n.dirs))
 		for d := range n.dirs {
 			names = append(names, d)
@@ -250,8 +257,9 @@ func changeTree(files []*diff.File) ([]*diff.File, []changeRow) {
 					name, c = name+"/"+sub, cc
 				}
 			}
-			rows = append(rows, changeRow{depth: depth, name: name, file: -1})
-			walk(c, depth+1)
+			path := parent + name
+			rows = append(rows, changeRow{depth: depth, name: name, path: path, file: -1})
+			walk(c, depth+1, path+"/")
 		}
 		sort.SliceStable(n.files, func(i, j int) bool { return n.files[i].Path() < n.files[j].Path() })
 		for _, f := range n.files {
@@ -259,7 +267,7 @@ func changeTree(files []*diff.File) ([]*diff.File, []changeRow) {
 			ordered = append(ordered, f)
 		}
 	}
-	walk(root, 0)
+	walk(root, 0, "")
 	return ordered, rows
 }
 
@@ -273,26 +281,122 @@ func (g *gitDiff) rowOf(i int) int {
 	return 0
 }
 
-// keepSelVisible moves the selection onto a file row inside the h rows shown
-// from scroll, after the list was scrolled.
-func (g *gitDiff) keepSelVisible(h int) {
-	r := g.rowOf(g.sel)
-	if r >= g.scroll && r < g.scroll+h {
+// hasFolder reports whether a folder row has the path.
+func (g *gitDiff) hasFolder(path string) bool {
+	return path != "" && g.folderRow(path) >= 0
+}
+
+func (g *gitDiff) folderRow(path string) int {
+	for r, row := range g.rows {
+		if row.file < 0 && row.path == path {
+			return r
+		}
+	}
+	return -1
+}
+
+// vis returns the rows shown: all rows except those inside a collapsed
+// folder.
+func (g *gitDiff) vis() []int {
+	out := make([]int, 0, len(g.rows))
+	hide := -1 // depth of the collapsed folder being skipped
+	for r, row := range g.rows {
+		if hide >= 0 {
+			if row.depth > hide {
+				continue
+			}
+			hide = -1
+		}
+		out = append(out, r)
+		if row.file < 0 && g.closed[row.path] {
+			hide = row.depth
+		}
+	}
+	return out
+}
+
+// selRow is the row of the selection.
+func (g *gitDiff) selRow() int {
+	if g.selDir != "" {
+		if r := g.folderRow(g.selDir); r >= 0 {
+			return r
+		}
+	}
+	return g.rowOf(g.sel)
+}
+
+// selectRow moves the selection onto row r.
+func (g *gitDiff) selectRow(r int) {
+	if row := g.rows[r]; row.file >= 0 {
+		g.sel, g.selDir = row.file, ""
+	} else {
+		g.selDir = row.path
+	}
+}
+
+// visPos is the position in vis of row r, or of the nearest shown row above.
+func visPos(vis []int, r int) int {
+	p := 0
+	for i, v := range vis {
+		if v <= r {
+			p = i
+		}
+	}
+	return p
+}
+
+// move moves the selection by d shown rows.
+func (g *gitDiff) move(d int) {
+	vis := g.vis()
+	if len(vis) == 0 {
 		return
 	}
-	lo, hi := g.scroll, min(len(g.rows), g.scroll+h)
-	if r >= hi {
-		lo, hi = hi-1, lo-1
+	g.selectRow(vis[clamp(visPos(vis, g.selRow())+d, 0, len(vis)-1)])
+}
+
+// setFolder opens or closes the folder at row r. When the selection was
+// inside the folder just closed, it moves to the folder.
+func (g *gitDiff) setFolder(r int, open bool) {
+	if g.closed == nil {
+		g.closed = map[string]bool{}
 	}
-	step := 1
-	if lo > hi {
-		step = -1
+	if open {
+		delete(g.closed, g.rows[r].path)
+		return
 	}
-	for i := lo; i != hi; i += step {
-		if g.rows[i].file >= 0 {
-			g.sel = g.rows[i].file
+	g.closed[g.rows[r].path] = true
+	for i := r + 1; i < len(g.rows) && g.rows[i].depth > g.rows[r].depth; i++ {
+		if i == g.selRow() {
+			g.selectRow(r)
 			return
 		}
+	}
+}
+
+// parentRow is the folder row that holds row r, or -1.
+func (g *gitDiff) parentRow(r int) int {
+	for i := r - 1; i >= 0; i-- {
+		if g.rows[i].file < 0 && g.rows[i].depth < g.rows[r].depth {
+			return i
+		}
+	}
+	return -1
+}
+
+// keepSelVisible moves the selection onto a row inside the h rows shown from
+// scroll, after the list was scrolled.
+func (g *gitDiff) keepSelVisible(h int) {
+	vis := g.vis()
+	if len(vis) == 0 {
+		return
+	}
+	p := visPos(vis, g.selRow())
+	if p >= g.scroll && p < g.scroll+h {
+		return
+	}
+	g.selectRow(vis[clamp(g.scroll+h-1, 0, len(vis)-1)])
+	if p < g.scroll {
+		g.selectRow(vis[clamp(g.scroll, 0, len(vis)-1)])
 	}
 }
 
@@ -649,15 +753,33 @@ func (a *App) handleChangesKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 	switch key {
 	case "up", "k":
-		g.sel = max(0, g.sel-1)
+		g.move(-1)
 	case "down", "j":
-		g.sel = min(max(0, len(g.files)-1), g.sel+1)
+		g.move(1)
 	case "home", "g":
-		g.sel = 0
+		g.move(-len(g.rows))
 	case "end", "G":
-		g.sel = max(0, len(g.files)-1)
-	case "enter", "l", "right", "o":
-		if f := g.file(); f != nil {
+		g.move(len(g.rows))
+	case "h", "left":
+		if len(g.rows) == 0 {
+			break
+		}
+		r := g.selRow()
+		if g.selDir != "" && !g.closed[g.selDir] {
+			g.setFolder(r, false)
+		} else if p := g.parentRow(r); p >= 0 {
+			g.selectRow(p)
+		}
+	case "l", "right":
+		if g.selDir != "" {
+			g.setFolder(g.selRow(), true)
+		} else if f := g.file(); f != nil {
+			return a.openChange(f)
+		}
+	case "enter", "o":
+		if g.selDir != "" {
+			g.setFolder(g.selRow(), g.closed[g.selDir])
+		} else if f := g.file(); f != nil {
 			return a.openChange(f)
 		}
 	case "s":
@@ -742,18 +864,19 @@ func (a *App) renderChanges(w, h int, focused bool) []string {
 	tw := max(0, w-ansi.StringWidth(chip))
 	out = append(out, stSideTitle.Render(fit(title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(fit(chip, w-tw)))
 	body := h - 1
-	if r := g.rowOf(g.sel); len(g.files) > 0 {
-		if r < g.scroll {
-			g.scroll = r
+	vis := g.vis()
+	if p := visPos(vis, g.selRow()); len(g.rows) > 0 {
+		if p < g.scroll {
+			g.scroll = p
 		}
-		if r >= g.scroll+body {
-			g.scroll = r - body + 1
+		if p >= g.scroll+body {
+			g.scroll = p - body + 1
 		}
 	}
-	g.scroll = clamp(g.scroll, 0, max(0, len(g.rows)-body))
+	g.scroll = clamp(g.scroll, 0, max(0, len(vis)-body))
 	for i := 0; i < body; i++ {
 		idx := g.scroll + i
-		if idx >= len(g.rows) {
+		if idx >= len(vis) {
 			msg := ""
 			if i == 0 && len(g.rows) == 0 {
 				switch {
@@ -768,15 +891,25 @@ func (a *App) renderChanges(w, h int, focused bool) []string {
 			out = append(out, stSide.Render(fit(msg, w)))
 			continue
 		}
-		row := g.rows[idx]
+		row := g.rows[vis[idx]]
 		indent := " " + strings.Repeat("  ", row.depth)
 		if row.file < 0 {
-			out = append(out, bgfg(cSideBg, curTheme.SubSel).Render(fit(indent+"▾ "+row.name, w)))
+			mark, bg := "▾ ", cSideBg
+			if g.closed[row.path] {
+				mark = "▸ "
+			}
+			if g.selDir == row.path {
+				bg = cListSelUnf
+				if focused {
+					bg = cListSel
+				}
+			}
+			out = append(out, bgfg(bg, curTheme.SubSel).Render(fit(indent+mark+row.name, w)))
 			continue
 		}
 		f := g.files[row.file]
 		bg := cSideBg
-		if row.file == g.sel {
+		if row.file == g.sel && g.selDir == "" {
 			bg = cListSelUnf
 			if focused {
 				bg = cListSel
