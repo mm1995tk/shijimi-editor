@@ -95,10 +95,11 @@ func (a *App) gitTopDir() string {
 	return a.root
 }
 
-// reloadChanges recomputes the CHANGES list for the current base.
+// reloadChanges recomputes the CHANGES list for the current base. The list
+// on screen stays as it is until the result arrives; only showDiff marks it
+// as loading.
 func (a *App) reloadChanges() tea.Cmd {
 	a.gd.gen++
-	a.gd.loading = true
 	gen, root, base, pr := a.gd.gen, a.root, a.gd.base, a.gd.pr
 	return func() tea.Msg { return loadChanges(gen, root, base, pr) }
 }
@@ -448,7 +449,9 @@ func (a *App) showDiff(base string, pr *prInfo) tea.Cmd {
 	a.gd.stale, a.gd.staleAll = nil, false
 	a.showSide = true
 	a.follow = true
-	return a.reloadChanges()
+	cmd := a.reloadChanges()
+	a.gd.loading = true // just opened or switched: nothing trustworthy to show yet
+	return cmd
 }
 
 func (a *App) closeDiff() tea.Cmd {

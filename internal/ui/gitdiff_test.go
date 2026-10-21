@@ -680,3 +680,22 @@ func TestChangesReloadKeepsFolderState(t *testing.T) {
 		t.Errorf("selection hidden: row %d, vis %v", g.selRow(), vis)
 	}
 }
+
+func TestReloadChangesKeepsEmptyListFromFlickering(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	a.gd.files, a.gd.rows = nil, nil
+	a.gd.loading = false
+	view := func() string { return strings.Join(a.renderChanges(40, 6, true), "\n") }
+	before := view()
+	if !strings.Contains(before, "変更はありません") {
+		t.Fatalf("before = %q", before)
+	}
+	a.reloadChanges()
+	if got := view(); got != before || strings.Contains(got, "読み込み中") {
+		t.Errorf("reload changed the view: %q", got)
+	}
+	a.showDiff(baseHead, nil)
+	if !strings.Contains(view(), "読み込み中") {
+		t.Errorf("showDiff should show loading: %q", view())
+	}
+}
