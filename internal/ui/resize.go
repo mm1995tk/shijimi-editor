@@ -13,6 +13,7 @@ const (
 	resizeTerm
 	resizePreview
 	resizeAgent
+	resizeDiff
 )
 
 const (
@@ -54,6 +55,16 @@ func (a *App) editorWidth(total int) int {
 	return clamp(avail*a.previewPercent()/100, minPaneW, max(minPaneW, avail-minPaneW))
 }
 
+// diffLeftWidth is the base pane width of a split diff whose two panes and
+// separator take w columns: the user's share, or half.
+func (a *App) diffLeftWidth(w int) int {
+	avail := w - 1
+	if a.diffLeftPct <= 0 {
+		return avail / 2
+	}
+	return clamp(avail*a.diffLeftPct/100, minPaneW, max(minPaneW, avail-minPaneW))
+}
+
 func (a *App) resizeSide(delta int) {
 	a.sideWPref = a.sideWidth() + delta
 	a.sideWPref = a.sideWidth()
@@ -72,7 +83,7 @@ func (a *App) resizePreviewBy(deltaPct int) {
 }
 
 func (a *App) resetPanes() {
-	a.sideWPref, a.panelHPref, a.previewPct, a.agentWPref = 0, 0, 0, 0
+	a.sideWPref, a.panelHPref, a.previewPct, a.agentWPref, a.diffLeftPct = 0, 0, 0, 0, 0
 	a.follow = true
 }
 
@@ -119,6 +130,9 @@ func (a *App) resizeHit(l layout, x, y int) resizeTarget {
 	case a.showTerm && y == l.panelY && x >= l.rightX:
 		return resizeTerm
 	}
+	if t := a.curText(); t != nil && a.gd.split && a.diffFile(t) != nil && y > l.editY && y < l.editY+l.editH && x == l.rightX+a.dvGeom(l).leftW {
+		return resizeDiff
+	}
 	if t := a.curText(); t != nil && t.preview == previewSplit && y >= l.editY && y < l.editY+l.editH && x == l.rightX+a.editW(t, l) {
 		return resizePreview
 	}
@@ -137,6 +151,10 @@ func (a *App) dragResize(l layout, x, y int) {
 	case resizeAgent:
 		a.agentWPref = a.w - x - 1
 		a.agentWPref = a.agentWidth()
+	case resizeDiff:
+		if avail := l.rightW - 2; avail > 0 {
+			a.diffLeftPct = clamp((x-l.rightX)*100/avail, 1, 99)
+		}
 	case resizePreview:
 		if avail := l.rightW - 1; avail > 0 {
 			a.previewPct = clamp((x-l.rightX)*100/avail, 10, 90)
