@@ -513,6 +513,9 @@ func (a *App) handleReviewSent(m reviewSentMsg) tea.Cmd {
 // inHunk reports whether buffer line row lies in a hunk of the diff GitHub
 // shows: a changed line, or one of the 3 lines of context around a change.
 func (dv *diffView) inHunk(row int) bool {
+	if dv.single {
+		return row >= 0 && row < len(dv.newIdx) // the whole file is one added hunk
+	}
 	next := 0 // buffer line the rows so far end before
 	for _, r := range dv.rows {
 		if r.new >= 0 {
