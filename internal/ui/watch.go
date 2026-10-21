@@ -48,7 +48,7 @@ func (a *App) checkDiskChanges() (reloaded bool) {
 			}
 			continue
 		}
-		if err := t.buf.Reload(); err != nil {
+		if err := t.reload(); err != nil {
 			a.fail(err)
 			continue
 		}

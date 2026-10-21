@@ -465,3 +465,13 @@ func renderWelcome(w, h int, helix bool) []string {
 	}
 	return out
 }
+
+// reload re-reads the file from disk. Reload bumps the buffer version, but it
+// is not a user edit, so a transient tab stays transient.
+func (t *tab) reload() error {
+	if err := t.buf.Reload(); err != nil {
+		return err
+	}
+	t.transientVer = t.buf.Version
+	return nil
+}

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -110,5 +111,24 @@ func TestExplorerClickTransientDoubleKeeps(t *testing.T) {
 	click()
 	if len(a.tabs) != 2 || a.tabs[1].transient || a.focus != focusEditor {
 		t.Fatalf("double click: tabs = %d focus = %v", len(a.tabs), a.focus)
+	}
+}
+
+func TestTransientTabKeptOnDiskChange(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	ps := writeFiles(t, a.root, "b.txt")
+
+	a.openTransient(ps[0])
+	if err := os.WriteFile(ps[0], []byte("changed outside\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(time.Minute)
+	os.Chtimes(ps[0], future, future)
+	if !a.checkDiskChanges() {
+		t.Fatal("the change on disk was not picked up")
+	}
+	a.keepTransients()
+	if !a.tabs[1].transient {
+		t.Fatal("a change on disk made the tab normal")
 	}
 }
