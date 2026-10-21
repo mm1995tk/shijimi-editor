@@ -160,6 +160,27 @@ func TestOpenNewFileAgainstHeadIsOnePane(t *testing.T) {
 	}
 }
 
+func TestOnePaneHidesSplitHintAndIgnoresHeaderClick(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	dv := openNewFile(t, a)
+	head := func() string {
+		return ansi.Strip(a.renderDiffText(a.curText(), a.diffFor(a.curText()), a.layout(), false)[0])
+	}
+	if strings.Contains(head(), "分割 ⇄ 統合") {
+		t.Errorf("one pane shows the split hint: %q", head())
+	}
+	split := a.gd.split
+	l := a.layout()
+	a.handleMouse(mouseEvent{X: l.rightX + 2, Y: l.editY, Action: mousePress, Button: tea.MouseLeft})
+	if a.gd.split != split || !dv.single {
+		t.Error("clicking the header of a one-pane file switched split")
+	}
+	a.gd.base = basePR
+	if !strings.Contains(head(), "分割 ⇄ 統合") {
+		t.Errorf("split view lost the hint: %q", head())
+	}
+}
+
 func TestSwitchingBaseRebuildsSingleView(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	if dv := openNewFile(t, a); !dv.single {

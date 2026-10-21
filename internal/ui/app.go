@@ -1812,7 +1812,9 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		if t.kind == tabText {
 			if a.diffFile(t) != nil {
 				if y == l.editY {
-					a.toggleSplit()
+					if !a.diffSingle(a.diffFile(t)) {
+						a.toggleSplit()
+					}
 					return nil
 				}
 				g := a.dvGeom(l)

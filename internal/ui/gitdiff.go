@@ -1366,6 +1366,9 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 	out := make([]string, 0, l.editH)
 
 	hint := "[分割 ⇄ 統合]"
+	if dv.single {
+		hint = "" // one pane: there is nothing to switch
+	}
 	f := a.diffFile(t)
 	name := " " + a.rel(t.buf.Path)
 	stats := fmt.Sprintf("  +%d", f.Added)
@@ -1374,7 +1377,10 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 	if a.prShown() && a.isStale(a.repoPath(t.buf.Path)) {
 		noteFg = curTheme.DiagWarn
 	}
-	hw := ansi.StringWidth(hint) + 1
+	hw := 0
+	if hint != "" {
+		hw = ansi.StringWidth(hint) + 1
+	}
 	nw := max(0, min(ansi.StringWidth(name), l.rightW-hw-ansi.StringWidth(stats+dels)))
 	head := bgfg(cTabBarBg, curTheme.Strong).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
 		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +
