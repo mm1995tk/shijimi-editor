@@ -951,7 +951,7 @@ func (a *App) diffFor(t *tab) *diffView {
 	if f == nil {
 		return nil
 	}
-	if t.dv == nil || t.dv.rev != a.gd.rev {
+	if t.dv == nil || t.dv.rev != a.gd.rev || t.dv.single != a.diffSingle(f) {
 		dv := &diffView{rev: a.gd.rev, single: a.diffSingle(f)}
 		dv.path = f.OldPath
 		if dv.path == "" {

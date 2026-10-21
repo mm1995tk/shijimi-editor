@@ -160,6 +160,21 @@ func TestOpenNewFileAgainstHeadIsOnePane(t *testing.T) {
 	}
 }
 
+func TestSwitchingBaseRebuildsSingleView(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	if dv := openNewFile(t, a); !dv.single {
+		t.Fatal("not single against HEAD")
+	}
+	a.gd.base = basePR
+	if dv := a.diffFor(a.curText()); dv.single || !dv.changed[0] {
+		t.Errorf("view kept single after switching to PR: single %v", dv.single)
+	}
+	a.gd.base = baseHead
+	if dv := a.diffFor(a.curText()); !dv.single {
+		t.Error("view not single after switching back to HEAD")
+	}
+}
+
 func TestOpenNewFileAgainstPRShowsAllLinesAdded(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	a.gd.base = basePR
