@@ -73,6 +73,7 @@ type App struct {
 	panelHPref  int
 	previewPct  int
 	diffLeftPct int // base pane share of a split diff; 0 = half
+	explorerPct int // file tree share of the diff mode sidebar; 0 = 7/10
 	resizeMode  bool
 	resizing    resizeTarget // border being dragged with the mouse
 
