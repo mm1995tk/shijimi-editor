@@ -904,6 +904,7 @@ type diffView struct {
 	old   []string
 	lexer chroma.Lexer
 
+	single  bool // a new file shown in one pane, with no line marked
 	ver     int
 	split   bool
 	valid   bool
@@ -932,6 +933,18 @@ func (a *App) diffFile(t *tab) *diff.File {
 	return f
 }
 
+// diffSingle reports whether f is shown in one pane: a file that is not in
+// HEAD has nothing to put on the left. Against a pull request's base it is
+// still shown as all added, as GitHub does.
+func (a *App) diffSingle(f *diff.File) bool {
+	return f != nil && f.Status == "added" && a.gd.base == baseHead
+}
+
+// splitShown reports whether the current tab's diff has a base pane.
+func (a *App) splitShown() bool {
+	return a.gd.split && !a.diffSingle(a.diffFile(a.curText()))
+}
+
 // diffFor returns the up-to-date diff view of t, or nil outside diff mode.
 func (a *App) diffFor(t *tab) *diffView {
 	f := a.diffFile(t)
@@ -939,7 +952,7 @@ func (a *App) diffFor(t *tab) *diffView {
 		return nil
 	}
 	if t.dv == nil || t.dv.rev != a.gd.rev {
-		dv := &diffView{rev: a.gd.rev}
+		dv := &diffView{rev: a.gd.rev, single: a.diffSingle(f)}
 		dv.path = f.OldPath
 		if dv.path == "" {
 			dv.path = f.Path()
@@ -987,6 +1000,14 @@ func (dv *diffView) build(t *tab, split bool) {
 			oi++
 			ni++
 		}
+	}
+	if dv.single {
+		// the whole file is an addition: the bar shows it, the lines are not marked
+		ctx(len(lines))
+		for i := range dv.rows {
+			dv.rows[i].hunk = hunkAdd
+		}
+		return
 	}
 	for _, b := range diff.Lines(dv.old, lines) {
 		ctx(b.OldStart - oi)
@@ -1079,7 +1100,7 @@ type dvGeom struct {
 func (a *App) dvGeom(l layout) dvGeom {
 	w := max(0, l.rightW-1) // the last column is the change bar
 	g := dvGeom{top: l.editY + 1, h: max(0, l.editH-1), rightX: l.rightX, rightW: w, barX: l.rightX + w}
-	if a.gd.split {
+	if a.splitShown() {
 		g.leftW = a.diffLeftWidth(w)
 		g.rightX = l.rightX + g.leftW + 1
 		g.rightW = w - g.leftW - 1
@@ -1243,7 +1264,7 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 		r := dv.rows[idx]
 		if r.new < 0 {
 			var line string
-			if a.gd.split {
+			if dv.split && !dv.single {
 				line = a.diffOld(dv, r, gw, g.leftW) + stSeparator.Render("│") + bgfg(cSideBg, cLineNo).Render(fit("", g.rightW))
 			} else {
 				line = a.diffOldUnified(dv, r, gutterWidth(b), g.rightW)
@@ -1260,7 +1281,7 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 		b.ScrollRow = r.new
 		edit := renderEditor(t, g.rightW, n, opts)
 		for k := 0; k < n; k++ {
-			if a.gd.split {
+			if dv.split && !dv.single {
 				out = append(out, a.diffOld(dv, dv.rows[idx+k], gw, g.leftW)+stSeparator.Render("│")+edit[k]+bar[i+k])
 			} else {
 				out = append(out, edit[k]+bar[i+k])
