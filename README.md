@@ -4,7 +4,7 @@ English | [日本語](README.ja.md)
 
 An integrated development environment for the terminal (TUI). The screen is laid out like VS Code. For editing you can choose between Helix-style modal editing and modeless VS Code-style keys. The command is `shj`.
 
-Manual (Japanese): <https://shijimi-manual.pages.dev/> (source in [`manual/`](manual/))
+Manual (English, with a Japanese version): <https://shijimi-manual.pages.dev/> (source in [`manual/`](manual/))
 
 The UI is in English by default. To switch it to Japanese, set `ui-language = "ja"` in `config.toml` (see [UI language](#ui-language)).
 
@@ -41,7 +41,7 @@ shj ./src      # open a directory
 shj main.go    # edit just one file (single-file mode, for $EDITOR)
 ```
 
-Given a file, shj starts in single-file mode. It does not start the file tree, LSP, terminal, diff mode or agent, and exits when you close it with `:q` or `:wq` (see [Installation and startup](manual/docs/install.md) in the manual, which is in Japanese).
+Given a file, shj starts in single-file mode. It does not start the file tree, LSP, terminal, diff mode or agent, and exits when you close it with `:q` or `:wq` (see [Installation and startup](manual/docs/install.en.md) in the manual).
 
 ## Settings
 
@@ -382,9 +382,11 @@ When the first argument is `diff` / `exec` / `skill`, it is treated as a subcomm
 
 ## Editing the manual
 
-The manual (currently Japanese only) is built from `manual/` with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). When you push to `main`, GitHub Actions publishes it to Cloudflare Pages (the repository Secrets need `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`). To preview it locally, run:
+The manual is built from `manual/` with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). When you push to `main`, GitHub Actions publishes it to Cloudflare Pages (the repository Secrets need `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`). To preview it locally, run:
 
 ```sh
 pip install -r manual/requirements.txt
 mkdocs serve --config-file manual/mkdocs.yml
 ```
+
+The manual has an English page (`name.en.md`, the default) and a Japanese page (`name.ja.md`) for each page. When you change one, change the other too. `manual/check-translations.sh` checks that every page has both languages and the same structure, and CI runs it on pull requests (it also fails when only one language of a page changed; add `[skip-i18n-check]` to the pull request title to skip that part, for a typo fix for example).
