@@ -80,6 +80,9 @@ func (a *App) currentContext() (string, bool) {
 // sendContext tells a connected IDE-integrated agent about the current
 // selection; otherwise it opens the preview of the context to paste.
 func (a *App) sendContext() tea.Cmd {
+	if a.single {
+		return nil
+	}
 	if a.mentionContext() {
 		return nil
 	}

@@ -18,6 +18,7 @@ import (
 
 func main() {
 	dir, file := ".", ""
+	single := false
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
 		if arg == "-v" || arg == "--version" {
@@ -26,6 +27,9 @@ func main() {
 		}
 		if arg == "-h" || arg == "--help" {
 			fmt.Println("usage: shj [ディレクトリ | ファイル]")
+			fmt.Println("       ファイルを渡すと、そのファイルだけを編集する単体編集モードで開きます（$EDITOR 向け）。")
+			fmt.Println("       ファイルツリー・LSP・ターミナル・差分モード・エージェントは起動せず、閉じる（:q, :wq, Ctrl+Q）と終了します。")
+			fmt.Println("       存在しないパスは空のバッファで開き、保存したときに作ります。")
 			fmt.Println("       shj diff [path]")
 			fmt.Println("       shj exec \":コマンド\"")
 			fmt.Println("       shj skill install [書き出し先]")
@@ -42,10 +46,19 @@ func main() {
 		if st, err := os.Stat(arg); err == nil && st.IsDir() {
 			dir = arg
 		} else {
-			dir, file = filepath.Dir(arg), arg
+			file, single = arg, true
 		}
 	}
-	app := ui.New(dir, file)
+	var app *ui.App
+	if single {
+		var err error
+		if app, err = ui.NewSingle(file); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	} else {
+		app = ui.New(dir, file)
+	}
 	closeSock := func() {}
 	// The terminal cursor follows the typing position so that an IME shows
 	// the text being composed there, but stays hidden while shijimi runs.
@@ -56,7 +69,8 @@ func main() {
 	// The IDE integration is best-effort too: Claude Code started in the terminal
 	// panel finds this server through the environment and the lock file.
 	closeIDE := func() {}
-	if abs, err := filepath.Abs(dir); err == nil {
+	// Single-file mode starts neither the IDE integration nor the control socket.
+	if abs, err := filepath.Abs(dir); err == nil && !single {
 		if srv, err := ide.Start(abs, ui.IDETools(), ui.IDEHandler(p)); err == nil {
 			closeIDE = srv.Close
 			app.SetIDE(srv)
@@ -66,7 +80,7 @@ func main() {
 		}
 	}
 	// The socket is best-effort: the editor still works without it.
-	if path, err := ctl.SocketPath(); err == nil {
+	if path, err := ctl.SocketPath(); err == nil && !single {
 		if srv, err := ctl.Listen(path, ui.ControlHandler(p)); err == nil {
 			closeSock = srv.Close
 			os.Setenv(ctl.EnvSocket, path)

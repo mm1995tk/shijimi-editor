@@ -141,7 +141,7 @@ func toEdits(b *buffer.Buffer, tes []lsp.TextEdit) []buffer.Edit {
 // attachLSP configures a newly opened text tab for its language and opens
 // it on the language servers.
 func (a *App) attachLSP(t *tab) {
-	if t.kind != tabText || t.buf.Path == "" {
+	if a.single || t.kind != tabText || t.buf.Path == "" {
 		return
 	}
 	t.lang = a.cfg.LanguageFor(t.buf.Path)

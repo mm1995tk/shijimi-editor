@@ -45,6 +45,9 @@ func (a *App) agentShown(sideW int) bool {
 
 // toggleAgentPanel moves to the panel, opening it, or leaves and closes it.
 func (a *App) toggleAgentPanel() tea.Cmd {
+	if a.single {
+		return nil
+	}
 	if a.focus == focusAgent {
 		a.showAgent = false
 		a.agentPinned = false
