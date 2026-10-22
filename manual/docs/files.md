@@ -133,10 +133,6 @@ exclude = ["*.lock", "dist/**"]
 include = []
 ```
 
-!!! warning "書く場所"
-    `[search]` は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書きます。
-    `.helix/config.toml` に書くと、Helix が未知のセクションとして拒否します。
-
 ### 置換
 
 置換欄に文字を入れ、`Alt+Enter` で実行します。

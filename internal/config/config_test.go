@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
-func TestProjectHelixLanguages(t *testing.T) {
+func TestProjectLanguages(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	os.MkdirAll(filepath.Join(root, ".helix"), 0o755)
-	os.WriteFile(filepath.Join(root, ".helix", "languages.toml"), []byte(`
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "languages.toml"), []byte(`
 [language-server.my-gopls]
 command = "gopls"
 args = ["serve"]
@@ -81,11 +81,6 @@ func TestBrowserConfigOnlyFromOwnDirs(t *testing.T) {
 	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	t.Setenv("HOME", t.TempDir())
-	os.MkdirAll(filepath.Join(root, ".helix"), 0o755)
-	os.WriteFile(filepath.Join(root, ".helix", "config.toml"), []byte("[browser]\nlisten-host = \"0.0.0.0\"\n"), 0o644)
-	if got := Load(root).Browser.ListenHost; got != "127.0.0.1" {
-		t.Fatalf(".helix listen-host must be ignored, got %q", got)
-	}
 	os.MkdirAll(filepath.Join(cfg, "shijimi"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi", "config.toml"), []byte("[browser]\nlisten-host = \"10.0.0.1\"\n"), 0o644)
 	if got := Load(root).Browser.ListenHost; got != "10.0.0.1" {
@@ -106,8 +101,8 @@ func TestAutoSave(t *testing.T) {
 	if !c.Editor.AutoSave || c.Editor.AutoSaveDelay != time.Second {
 		t.Fatalf("default = %+v", c.Editor)
 	}
-	os.MkdirAll(filepath.Join(root, ".helix"), 0o755)
-	os.WriteFile(filepath.Join(root, ".helix", "config.toml"), []byte(`
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte(`
 [editor.auto-save.after-delay]
 enable = false
 timeout = 2500
@@ -125,8 +120,8 @@ func TestThemeOption(t *testing.T) {
 	if Load(root).Editor.Theme != "" {
 		t.Fatal("theme should default to empty")
 	}
-	os.MkdirAll(filepath.Join(root, ".helix"), 0o755)
-	os.WriteFile(filepath.Join(root, ".helix", "config.toml"), []byte("theme = \"github_dark\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("theme = \"github_dark\"\n"), 0o644)
 	if got := Load(root).Editor.Theme; got != "github_dark" {
 		t.Fatalf("top-level theme = %q", got)
 	}
@@ -229,5 +224,24 @@ environment = { A = "1" }
 	c := Load(root)
 	if c.Agent.Command != "claude-agent-acp" || len(c.Agent.Args) != 1 || c.Agent.Env["A"] != "1" {
 		t.Fatalf("agent = %+v", c.Agent)
+	}
+}
+
+func TestHelixDirsAreIgnored(t *testing.T) {
+	root := t.TempDir()
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("HOME", t.TempDir())
+	for _, d := range []string{filepath.Join(cfg, "helix"), filepath.Join(root, ".helix")} {
+		os.MkdirAll(d, 0o755)
+		os.WriteFile(filepath.Join(d, "config.toml"), []byte("theme = \"github_dark\"\n[editor]\nfile-icons = false\n"), 0o644)
+		os.WriteFile(filepath.Join(d, "languages.toml"), []byte("[[language]]\nname = \"mylang\"\nfile-types = [\"ml2\"]\n"), 0o644)
+	}
+	c := Load(root)
+	if c.Editor.Theme != "" || !c.Editor.FileIcons {
+		t.Fatalf("helix config.toml must be ignored: %+v", c.Editor)
+	}
+	if l := c.LanguageFor("a.ml2"); l != nil {
+		t.Fatalf("helix languages.toml must be ignored: %+v", l)
 	}
 }

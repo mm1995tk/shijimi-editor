@@ -50,7 +50,3 @@ listen-host = "127.0.0.1"
 ```
 
 既定は `127.0.0.1` です。`0.0.0.0` に変えるのは、信頼できるネットワークの中だけにしてください。
-
-!!! warning "書く場所"
-    `[browser]` は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書きます。
-    `.helix/config.toml` に書くと、Helix が未知のセクションとして拒否します。
