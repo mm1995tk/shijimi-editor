@@ -338,6 +338,9 @@ func (a *App) format(save bool) tea.Cmd {
 	if t == nil || t.kind != tabText {
 		return nil
 	}
+	if t.lang != nil && t.lang.Formatter != nil {
+		return a.runFormatter(t, t.lang.Formatter, save)
+	}
 	unit := t.buf.IndentUnit()
 	return a.lspRequest("documentFormattingProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
 		edits, err := c.Format(ctx, t.buf.Path, max(1, len(unit)), unit != "\t")

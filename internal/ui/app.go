@@ -1016,6 +1016,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 			return a.saveTab(msg.tab)
 		}
 		a.info("整形しました")
+	case formatterDoneMsg:
+		return a.handleFormatterDone(msg)
 	case lspErrMsg:
 		a.fail(msg.err)
 	case openURLMsg:

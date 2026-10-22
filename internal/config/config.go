@@ -34,6 +34,16 @@ type Language struct {
 	Roots      []string
 	Servers    []string
 	IndentUnit string
+	// Formatter, when set, is what :fmt runs instead of the language server.
+	Formatter *Formatter
+}
+
+// Formatter is an external command that formats a buffer over stdin/stdout
+// (Helix's `formatter = { command, args }`). "%{buffer_name}" in Args is
+// replaced with the file path relative to the project root.
+type Formatter struct {
+	Command string
+	Args    []string
 }
 
 // Editor holds editor settings (subset of Helix's config.toml [editor]).
@@ -400,6 +410,11 @@ func (c *Config) mergeLanguagesRaw(raw map[string]any, source string) {
 						l.Servers = append(l.Servers, n)
 					}
 				}
+			}
+		}
+		if f, ok := m["formatter"].(map[string]any); ok {
+			if cmd, _ := f["command"].(string); cmd != "" {
+				l.Formatter = &Formatter{Command: cmd, Args: strings_(f["args"])}
 			}
 		}
 		if ind, ok := m["indent"].(map[string]any); ok {
