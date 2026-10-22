@@ -4,7 +4,7 @@
 
 ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code に合わせています。編集操作は、Helix 風のモード編集と、モードの無い VS Code 風の操作から選べます。コマンド名は `shj` です。
 
-説明書（日本語）: <https://shijimi-manual.pages.dev/>（ソースは [`manual/`](manual/)）
+説明書（英語と日本語）: <https://shijimi-manual.pages.dev/ja/>（ソースは [`manual/`](manual/)）
 
 ## 機能
 
@@ -39,7 +39,7 @@ shj ./src      # ディレクトリを開く
 shj main.go    # ファイルだけを編集する（単体編集モード。$EDITOR 向け）
 ```
 
-ファイルを渡すと単体編集モードになります。ファイルツリー・LSP・ターミナル・差分モード・エージェントを起動せず、`:q` `:wq` で閉じると終了します（詳しくは[インストールと起動](manual/docs/install.md)）。
+ファイルを渡すと単体編集モードになります。ファイルツリー・LSP・ターミナル・差分モード・エージェントを起動せず、`:q` `:wq` で閉じると終了します（詳しくは[インストールと起動](manual/docs/install.ja.md)）。
 
 ## 設定
 
@@ -386,3 +386,5 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 pip install -r manual/requirements.txt
 mkdocs serve --config-file manual/mkdocs.yml
 ```
+
+説明書は、ページごとに英語（`名前.en.md`、既定）と日本語（`名前.ja.md`）を置きます。片方を変えたら、もう片方も変えてください。`manual/check-translations.sh` が、全ページに両方の言語があることと構造が同じことを確かめ、CI がプルリクエストで実行します（片方の言語だけが変わったときも失敗します。誤字の修正など、翻訳が要らないときは、プルリクエストのタイトルに `[skip-i18n-check]` を入れるとその部分を飛ばせます）。

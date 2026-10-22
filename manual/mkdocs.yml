@@ -1,5 +1,5 @@
-site_name: shijimi 説明書
-site_description: ターミナルで動く統合開発環境 shijimi の説明書
+site_name: shijimi manual
+site_description: The manual for shijimi, an integrated development environment that runs in the terminal
 site_url: https://shijimi-manual.pages.dev/
 repo_url: https://github.com/mm1995tk/shijimi-editor
 repo_name: mm1995tk/shijimi-editor
@@ -7,7 +7,7 @@ edit_uri: edit/main/manual/docs/
 
 theme:
   name: material
-  language: ja
+  language: en
   logo: assets/icon.png
   favicon: assets/icon.png
   palette:
@@ -16,13 +16,11 @@ theme:
       primary: indigo
       toggle:
         icon: material/weather-night
-        name: ダークモードにする
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
       primary: indigo
       toggle:
         icon: material/weather-sunny
-        name: ライトモードにする
   features:
     - navigation.sections
     - navigation.footer
@@ -30,8 +28,42 @@ theme:
     - content.code.copy
 
 plugins:
-  - search:
-      lang: ja
+  - search
+  - i18n:
+      docs_structure: suffix
+      reconfigure_material: true
+      reconfigure_search: true
+      fallback_to_default: false
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: ja
+          name: 日本語
+          build: true
+          site_name: shijimi 説明書
+          site_description: ターミナルで動く統合開発環境 shijimi の説明書
+          nav_translations:
+            Getting started: はじめに
+            Overview: 概要
+            Installation and startup: インストールと起動
+            Understanding the screen: 画面の見方
+            Usage: 使い方
+            Editing (Helix mode): 編集（Helix モード）
+            Editing (VS Code mode): 編集（VS Code モード）
+            Files and search: ファイルと検索
+            Diff mode: 差分モード
+            Preview: プレビュー
+            Terminal: ターミナル
+            External browser and port forwarding: 外部ブラウザとポート転送
+            AI agent integration: AI エージェント連携
+            Configuration: 設定
+            Configuration files: 設定ファイル
+            Nix and home-manager: Nix と home-manager
+            Reference: 一覧
+            ":Command reference": ":コマンド一覧"
+            Limitations: 制限
 
 markdown_extensions:
   - admonition
@@ -39,28 +71,29 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify {kwds: {case: lower}}
   - pymdownx.highlight
   - pymdownx.superfences
   - pymdownx.keys
 
 nav:
-  - はじめに:
-      - 概要: index.md
-      - インストールと起動: install.md
-      - 画面の見方: screen.md
-  - 使い方:
-      - 編集（Helix モード）: editing-helix.md
-      - 編集（VS Code モード）: editing-vscode.md
-      - ファイルと検索: files.md
+  - Getting started:
+      - Overview: index.md
+      - Installation and startup: install.md
+      - Understanding the screen: screen.md
+  - Usage:
+      - Editing (Helix mode): editing-helix.md
+      - Editing (VS Code mode): editing-vscode.md
+      - Files and search: files.md
       - LSP: lsp.md
-      - 差分モード: review.md
-      - プレビュー: preview.md
-      - ターミナル: terminal.md
-      - 外部ブラウザとポート転送: browser.md
-      - AI エージェント連携: agent.md
-  - 設定:
-      - 設定ファイル: config.md
-      - Nix と home-manager: nix.md
-  - 一覧:
-      - ":コマンド一覧": commands.md
-      - 制限: limitations.md
+      - Diff mode: review.md
+      - Preview: preview.md
+      - Terminal: terminal.md
+      - External browser and port forwarding: browser.md
+      - AI agent integration: agent.md
+  - Configuration:
+      - Configuration files: config.md
+      - Nix and home-manager: nix.md
+  - Reference:
+      - ":Command reference": commands.md
+      - Limitations: limitations.md

@@ -1,4 +1,4 @@
-name: 説明書を Cloudflare Pages に公開
+name: Publish the manual to Cloudflare Pages
 
 on:
   push:
@@ -27,6 +27,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check that the Japanese and English pages are in sync
+        if: github.event_name == 'pull_request' && !contains(github.event.pull_request.title, '[skip-i18n-check]')
+        run: manual/check-translations.sh "origin/${{ github.base_ref }}"
+      - name: Check the page pairs and their structure
+        if: github.event_name != 'pull_request' || contains(github.event.pull_request.title, '[skip-i18n-check]')
+        run: manual/check-translations.sh
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -36,13 +44,13 @@ jobs:
         if: github.event_name != 'pull_request'
         with:
           node-version: "22"
-      - name: Cloudflare Pages に公開
+      - name: Deploy to Cloudflare Pages
         if: github.event_name != 'pull_request'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          # 初回だけプロジェクトを作る
+          # create the project on the first run only
           if ! npx --yes wrangler@4 pages project list | grep -q " $PROJECT_NAME "; then
             npx --yes wrangler@4 pages project create "$PROJECT_NAME" --production-branch=main
           fi
