@@ -167,19 +167,22 @@ func (a *App) renderAgent(w, h int, focused bool) []string {
 		out = append(out, stPanelDim.Render(fit("     "+s.detail, w)))
 	}
 
-	status := "未接続"
-	switch s := a.ag; {
-	case s.run != nil:
-		status = "● 作業中（c で中止）"
-	case s.client != nil:
-		status = "待機中"
+	// The agent starts only when a suggestion runs, so its status line stays
+	// hidden until then; a log left by an agent that stopped keeps the rule.
+	if s := a.ag; s.run != nil || s.client != nil {
+		status := "待機中"
+		if s.run != nil {
+			status = "● 作業中（c で中止）"
+		}
+		name := s.name
+		if name == "" {
+			name = "エージェント"
+		}
+		out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
+		out = append(out, stPanelTitle.Render(fit(" "+name+": "+status, w)))
+	} else if len(s.log) > 0 {
+		out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
 	}
-	name := a.ag.name
-	if name == "" {
-		name = "エージェント"
-	}
-	out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
-	out = append(out, stPanelTitle.Render(fit(" "+name+": "+status, w)))
 
 	var hint string
 	if focused {
