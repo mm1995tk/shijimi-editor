@@ -63,6 +63,7 @@ args = []
 | `editor.indent-guides.render` | インデントガイドを描くか（既定 true） | — |
 | `editor.mouse-hover` | マウスを乗せたときにホバーを表示するか | [LSP](lsp.md) |
 | `editor.auto-save.after-delay` | 自動保存 | [ファイルと検索](files.md) |
+| `[[language]]` の `formatter` | `:fmt` で動かす整形コマンド（languages.toml） | [LSP](lsp.md) |
 | `search.exclude` / `search.include` | 全体検索の除外 / 包含 | [ファイルと検索](files.md) |
 | `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | 提案パネルが使う ACP エージェント | [AI エージェント連携](agent.md) |

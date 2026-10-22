@@ -23,6 +23,7 @@ config = { gofumpt = true }
 name = "go"
 language-servers = ["my-gopls"]
 indent = { tab-width = 4, unit = "\t" }
+formatter = { command = "gofumpt", args = ["--path", "%{buffer_name}"] }
 
 [[language]]
 name = "mylang"
@@ -33,6 +34,9 @@ language-servers = [{ name = "my-gopls", except-features = ["format"] }]
 	l := c.LanguageFor(filepath.Join(root, "main.go"))
 	if l == nil || l.Name != "go" || len(l.Servers) != 1 || l.Servers[0] != "my-gopls" || l.IndentUnit != "\t" {
 		t.Fatalf("go = %+v", l)
+	}
+	if f := l.Formatter; f == nil || f.Command != "gofumpt" || len(f.Args) != 2 || f.Args[1] != "%{buffer_name}" {
+		t.Fatalf("formatter = %+v", f)
 	}
 	if len(l.Roots) == 0 {
 		t.Fatal("roots from defaults should be kept when not overridden")
