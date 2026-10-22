@@ -94,7 +94,30 @@ indent = { tab-width = 4, unit = "\t" }
 | セクション | キー |
 | --- | --- |
 | `[language-server.*]` | `command` `args` `config` `environment` |
-| `[[language]]` | `name` `language-id` `file-types` `roots` `language-servers` `indent.unit` |
+| `[[language]]` | `name` `language-id` `file-types` `roots` `language-servers` `indent.unit` `formatter` |
+
+## formatter で整形する
+
+`:fmt` は、ふつう言語サーバーに整形を頼みます。
+言語サーバーとして動かない整形ツール（oxfmt、nixfmt など）を使いたいときや、言語サーバーが 2 つ以上あって整形に使うものを選びたいときは、`[[language]]` に `formatter` を書きます。
+`formatter` がある言語では、言語サーバーより `formatter` を優先します。
+
+```toml
+[[language]]
+name = "typescript"
+formatter = { command = "oxfmt", args = ["--stdin-filepath", "%{buffer_name}"] }
+
+[[language]]
+name = "nix"
+formatter = { command = "nixfmt" }
+```
+
+- `args` の中の `%{buffer_name}` は、整形するファイルのパス（プロジェクトのルートからの相対パス）に置き換えます。
+- コマンドはプロジェクトのルートで動かします。
+- バッファの中身（保存前の内容も含む）を標準入力に渡し、標準出力を新しい中身にします。
+- 変わった行だけを置き換えるので、カーソルとスクロールの位置は動きません。整形は 1 回の元に戻す（`u` / `Ctrl+Z`）で戻せます。
+- コマンドが 0 以外で終わったとき、コマンドが見つからないとき、10 秒で終わらないときは、バッファを変えません。標準エラー出力の 1 行目をステータス行に出します。
+- 保存したときの自動整形はありません。自動保存のたびに入力中の文字が動くためです。整形は `:fmt` で行います。
 
 ## 再起動
 
