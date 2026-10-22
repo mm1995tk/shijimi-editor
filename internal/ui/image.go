@@ -19,6 +19,7 @@ import (
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/kitty"
 )
 
@@ -74,7 +75,7 @@ func (v *imageView) name() string { return filepath.Base(v.path) }
 
 func (v *imageView) info() string {
 	if v.err != nil {
-		return "画像を読み込めません: " + v.err.Error()
+		return i18n.T("image.cantload") + v.err.Error()
 	}
 	b := v.img.Bounds()
 	return fmt.Sprintf("%s  %d×%d  %s", strings.ToUpper(v.format), b.Dx(), b.Dy(), humanSize(v.size))

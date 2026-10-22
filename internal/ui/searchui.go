@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // searchDebounce is how long the inputs must be idle before a search starts.
@@ -26,9 +28,13 @@ const (
 	numFields
 )
 
-var searchLabels = [numFields]string{"検索", "置換", "含める", "除外"}
+func searchLabels() [numFields]string {
+	return [numFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.include"), i18n.T("search.exclude")}
+}
 
-var searchPlaceholders = [numFields]string{"検索", "置換", "含めるファイル（例: *.go）", "除外するファイル（例: vendor/**）"}
+func searchPlaceholders() [numFields]string {
+	return [numFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.includeph"), i18n.T("search.excludeph")}
+}
 
 type searchTickMsg struct{ seq int64 }
 
@@ -386,15 +392,15 @@ func (a *App) searchOpenHit() tea.Cmd {
 func (a *App) searchReplaceAll() tea.Cmd {
 	s := a.search
 	if s.busy {
-		a.fail(fmt.Errorf("検索中です。結果が出てから実行してください"))
+		a.fail(errors.New(i18n.T("search.busy")))
 		return nil
 	}
 	if s.res.truncated {
-		a.fail(fmt.Errorf("一致が %d 件を超えているため全置換できません。条件を絞ってください", maxSearchHits))
+		a.fail(fmt.Errorf(i18n.T("search.toomany"), maxSearchHits))
 		return nil
 	}
 	if n, _ := s.counts(); n == 0 {
-		a.fail(fmt.Errorf("置換する行がありません"))
+		a.fail(errors.New(i18n.T("search.nothingtoreplace")))
 		return nil
 	}
 	var hits []*searchHit
@@ -413,12 +419,12 @@ func (a *App) searchReplaceAll() tea.Cmd {
 func (a *App) searchReplaceOne() tea.Cmd {
 	s := a.search
 	if s.busy {
-		a.fail(fmt.Errorf("検索中です。結果が出てから実行してください"))
+		a.fail(errors.New(i18n.T("search.busy")))
 		return nil
 	}
 	h := s.cur()
 	if h == nil {
-		a.fail(fmt.Errorf("置換する行がありません"))
+		a.fail(errors.New(i18n.T("search.nothingtoreplace")))
 		return nil
 	}
 	if h.skip {
@@ -465,12 +471,12 @@ func (a *App) replaceHits(hits []*searchHit) bool {
 		}
 	}
 	if len(failed) > 0 {
-		a.fail(fmt.Errorf("開けなかったファイル: %s", strings.Join(failed, ", ")))
+		a.fail(fmt.Errorf(i18n.T("search.openfail"), strings.Join(failed, ", ")))
 		return false
 	}
-	msg := fmt.Sprintf("%d 行 (%d ファイル) を置換しました。保存するまでディスクは変わりません（u で元に戻せます）", done, changed)
+	msg := fmt.Sprintf(i18n.T("search.replaced"), done, changed)
 	if stale > 0 {
-		a.msg, a.msgErr = fmt.Sprintf("%s。検索後に内容が変わった %d 行はスキップしました", msg, stale), true
+		a.msg, a.msgErr = fmt.Sprintf(i18n.T("search.skipped"), msg, stale), true
 		return true
 	}
 	a.info("%s", msg)
@@ -543,17 +549,17 @@ func (s *searchPanel) statusLine() string {
 	case s.res.err != nil:
 		return bgfg(cPaletteBg, cError).Render(" " + firstLine(s.res.err.Error()))
 	case s.in[fQuery].Value() == "":
-		return stPaletteDim.Render(" 検索する文字列を入力してください")
+		return stPaletteDim.Render(i18n.T("search.needquery"))
 	case s.busy:
-		return stPaletteDim.Render(" 検索中…")
+		return stPaletteDim.Render(i18n.T("search.searching"))
 	}
 	more := ""
 	if s.res.truncated {
-		more = " 以上"
+		more = i18n.T("search.more")
 	}
-	out := fmt.Sprintf(" %d ファイル / %d 件%s", s.res.files, len(s.res.hits), more)
+	out := fmt.Sprintf(i18n.T("search.summary"), s.res.files, len(s.res.hits), more)
 	if target, skipped := s.counts(); s.in[fRepl].Value() != "" || skipped > 0 {
-		out += fmt.Sprintf(" ・ 置換対象 %d 件（%d 件を除外）", target, skipped)
+		out += fmt.Sprintf(i18n.T("search.replacetargets"), target, skipped)
 	}
 	return stPalette.Render(out)
 }
@@ -566,8 +572,8 @@ func (s *searchPanel) togglesLine() string {
 		return stPaletteDim.Render(text)
 	}
 	sp := stPalette.Render("  ")
-	return stPalette.Render(" ") + t(s.caseSens, "[Aa] 大文字小文字") + sp + t(s.word, "[ab] 単語") + sp +
-		t(s.regex, "[.*] 正規表現") + sp + t(s.keepCase, "[AB] 大文字小文字を保持")
+	return stPalette.Render(" ") + t(s.caseSens, i18n.T("search.opt.case")) + sp + t(s.word, i18n.T("search.opt.word")) + sp +
+		t(s.regex, i18n.T("search.opt.regex")) + sp + t(s.keepCase, i18n.T("search.opt.preserve"))
 }
 
 // fieldBox draws input field i as a three-row box whose top edge carries the
@@ -577,7 +583,7 @@ func (s *searchPanel) fieldBox(i, w int) [3]string {
 	if i == s.field {
 		bd = bgfg(cPaletteBg, curTheme.Strong).Bold(true)
 	}
-	title := " " + searchLabels[i] + " "
+	title := " " + searchLabels()[i] + " "
 	// View() is one cell wider than Width when the cursor sits at the end.
 	s.in[i].SetWidth(max(1, w-5))
 	body := s.in[i].View()
@@ -629,7 +635,7 @@ func (a *App) renderSearch() (x, y int, box []string) {
 	bs := func(t string) string { return stPaletteBox.Render(t) }
 	line := func(content string) string { return bs("│") + content + bs("│") }
 
-	title := " 全文検索 "
+	title := i18n.T("search.title")
 	box = append(box, bs("┌─"+title+strings.Repeat("─", max(0, pw-3-ansi.StringWidth(title)))+"┐"))
 
 	// Two columns: search | replace, then include | exclude.
@@ -645,7 +651,7 @@ func (a *App) renderSearch() (x, y int, box []string) {
 	}
 	box = append(box, line(fitStyled(s.togglesLine(), inner, stPalette)))
 
-	left, help := s.statusLine(), stPaletteDim.Render("Tab 次の欄  Alt+C/W/R/P 切替  Ctrl+X 除外  Alt+1 この行を置換  Alt+Enter 全置換")
+	left, help := s.statusLine(), stPaletteDim.Render(i18n.T("search.keys"))
 	if gap := inner - ansi.StringWidth(left) - ansi.StringWidth(help) - 1; gap > 0 {
 		left += stPalette.Render(strings.Repeat(" ", gap)) + help
 	}
@@ -674,7 +680,7 @@ func (s *searchPanel) matchedRows(a *App, w, h int) []string {
 		out = append(out, a.matchedRow(s.res.hits[i], w, i == s.cursor))
 	}
 	if len(s.res.hits) == 0 && s.in[fQuery].Value() != "" && !s.busy && s.res.err == nil {
-		out = append(out, stPaletteDim.Render(fit("  一致する行はありません", w)))
+		out = append(out, stPaletteDim.Render(fit(i18n.T("search.nolines"), w)))
 	}
 	for len(out) < h {
 		out = append(out, stPalette.Render(fit("", w)))
@@ -777,7 +783,7 @@ func (s *searchPanel) viewRows(a *App, w, h int) []string {
 // first character. textinput's own placeholder is not used: it pads with NULs
 // when the text has wide characters.
 func (s *searchPanel) placeholderView(i int) string {
-	rs := []rune(searchPlaceholders[i])
+	rs := []rune(searchPlaceholders()[i])
 	first := stPaletteDim.Render(string(rs[0]))
 	if s.in[i].Focused() {
 		first = bgfg(curTheme.Cursor, curTheme.CursorFg).Render(string(rs[0]))

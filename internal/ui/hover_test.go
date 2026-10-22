@@ -98,7 +98,7 @@ func TestHoverPlaintextFallback(t *testing.T) {
 func TestHoverBorderShowsCopyButtonAndHint(t *testing.T) {
 	v := newHoverView(goplsHover, 60, 5)
 	box := v.render(0)
-	if top := ansi.Strip(box[0]); !strings.Contains(top, hoverCopyLabel+"─╮") {
+	if top := ansi.Strip(box[0]); !strings.Contains(top, hoverCopyLabel()+"─╮") {
 		t.Fatalf("top border: %q", top)
 	}
 	bottom := ansi.Strip(box[len(box)-1])
@@ -126,7 +126,7 @@ func TestHoverCopyKeyAndButton(t *testing.T) {
 		t.Fatal("no hover position")
 	}
 	v := a.hoverView(l)
-	n := ansi.StringWidth(hoverCopyLabel)
+	n := ansi.StringWidth(hoverCopyLabel())
 	col := v.width + 2 - n/2
 	if !v.copyHit(col, 0) {
 		t.Fatalf("copyHit(%d,0) = false", col)

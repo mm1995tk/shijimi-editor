@@ -10,6 +10,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 const (
@@ -89,7 +91,7 @@ func (p *palette) show(root, initial string) tea.Cmd {
 	p.prompt = ""
 	p.onSubmit = nil
 	p.files = indexFiles(root)
-	p.input.Placeholder = "ファイル名で検索  ( > コマンド   : 行番号 )"
+	p.input.Placeholder = i18n.T("palette.placeholder")
 	p.input.SetValue(initial)
 	p.input.CursorEnd()
 	p.sel = 0
@@ -156,9 +158,9 @@ func (p *palette) filter(cmds []command) {
 		}
 	case strings.HasPrefix(v, ":"):
 		n, err := strconv.Atoi(strings.TrimSpace(v[1:]))
-		label := "行番号を入力してください"
+		label := i18n.T("palette.needline")
 		if err == nil {
-			label = strconv.Itoa(n) + " 行目へ移動"
+			label = strconv.Itoa(n) + i18n.T("palette.gotoline")
 		}
 		p.items = append(p.items, paletteItem{label: label, index: -1})
 	default:
@@ -207,7 +209,7 @@ func (p *palette) render(w int) []string {
 		out = append(out, renderItem(p.items[i], w, i == p.sel))
 	}
 	if p.prompt == "" && len(p.items) == 0 {
-		out = append(out, stPaletteDim.Render(fit("  一致する項目はありません", w)))
+		out = append(out, stPaletteDim.Render(fit(i18n.T("palette.nomatch"), w)))
 	}
 	out = append(out, stPalette.Render(fit("", w)))
 	return out
@@ -267,7 +269,7 @@ func (p *palette) pick(title string, items []paletteItem, onPick func(int) tea.C
 	}
 	p.pickAll = items
 	p.onPick = onPick
-	p.input.Placeholder = "絞り込み"
+	p.input.Placeholder = i18n.T("palette.filter")
 	p.input.SetValue("")
 	p.sel = 0
 	return p.input.Focus()
@@ -280,7 +282,7 @@ func (p *palette) pickLive(title string, onPick func(int) tea.Cmd) tea.Cmd {
 	cmd := p.pick(title, nil, onPick)
 	p.live = true
 	p.liveSeq++
-	p.input.Placeholder = "名前を入力して検索"
+	p.input.Placeholder = i18n.T("palette.typename")
 	return cmd
 }
 

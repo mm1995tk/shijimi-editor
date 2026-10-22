@@ -4,6 +4,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // gitDiffRefreshTicks is how many watch ticks pass between refreshes of the
@@ -56,9 +58,9 @@ func (a *App) checkDiskChanges() (reloaded bool) {
 	}
 	switch {
 	case len(conflicts) > 0:
-		a.msg, a.msgErr = "ディスク上で変更されました（未保存の編集あり）: "+a.rel(conflicts[0].buf.Path)+" — :reload でディスクの内容を読み込みます。保存すると上書きします", true
+		a.msg, a.msgErr = i18n.T("watch.changed1")+a.rel(conflicts[0].buf.Path)+i18n.T("watch.changed2"), true
 	case len(reloadedTabs) > 0:
-		a.info("外部の変更を反映しました: %s（Ctrl+G で差分モード）", a.rel(reloadedTabs[0].buf.Path))
+		a.info(i18n.T("watch.reflected"), a.rel(reloadedTabs[0].buf.Path))
 	}
 	return len(reloadedTabs) > 0
 }

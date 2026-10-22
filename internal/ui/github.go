@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // External commands (git, gh) and the GitHub pull request data they return.
@@ -122,11 +123,11 @@ func (s prSync) text() string {
 	case !s.known:
 		return ""
 	case s.ahead > 0 && s.behind > 0:
-		return "ローカルと PR が分岐しています"
+		return i18n.T("gh.diverged")
 	case s.behind > 0:
-		return "PR が更新されました。r で pull します"
+		return i18n.T("gh.prupdated")
 	case s.ahead > 0:
-		return fmt.Sprintf("push していないコミットが %d 個あります", s.ahead)
+		return fmt.Sprintf(i18n.T("gh.unpushed"), s.ahead)
 	}
 	return ""
 }
@@ -403,7 +404,7 @@ func submitReview(root string, pr *prInfo, event, body string, threads []*prThre
 	}
 	for _, r := range drafts.Node.Reviews.Nodes {
 		if r.ViewerDidAuthor {
-			return fmt.Errorf("GitHub に送信していない下書きのレビューがあります。%s で送信するか破棄してから、もう一度送ってください", pr.URL)
+			return fmt.Errorf(i18n.T("gh.pendingdraft"), pr.URL)
 		}
 	}
 	var created struct {
@@ -478,7 +479,7 @@ func untrackedFile(abs, rel string) *diff.File {
 	}
 	text := strings.TrimSuffix(string(data), "\n")
 	lines := strings.Split(text, "\n")
-	h := diff.Hunk{Header: fmt.Sprintf("@@ -0,0 +1,%d @@ (未追跡ファイル)", len(lines))}
+	h := diff.Hunk{Header: fmt.Sprintf(i18n.T("gh.untracked"), len(lines))}
 	for i, l := range lines {
 		h.Lines = append(h.Lines, diff.Line{Kind: diff.Add, Text: l, NewNo: i + 1})
 	}

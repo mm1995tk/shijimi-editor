@@ -8,6 +8,8 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Hover popup colors; set by applyTheme.
@@ -194,18 +196,17 @@ func renderCells(cs []hoverCell, bg string, w int) string {
 	return sb.String()
 }
 
-const (
-	// hoverCopyLabel is the click target drawn on the top border's right end.
-	hoverCopyLabel    = "[コピー]"
-	hoverHint         = " ^D/^U スクロール  y コピー "
-	hoverHintCopyOnly = " y コピー "
-)
+// hoverCopyLabel is the click target drawn on the top border's right end.
+func hoverCopyLabel() string { return i18n.T("hover.copybtn") }
+
+func hoverHint() string         { return i18n.T("hover.hint") }
+func hoverHintCopyOnly() string { return i18n.T("hover.hintcopy") }
 
 // copyHit reports whether the cell (col, row), relative to the box's top-left
-// corner, is on the [コピー] button.
+// corner, is on the [Copy] button.
 func (v hoverView) copyHit(col, row int) bool {
 	iw := v.width + 2
-	n := ansi.StringWidth(hoverCopyLabel)
+	n := ansi.StringWidth(hoverCopyLabel())
 	if row != 0 || n+2 > iw {
 		return false
 	}
@@ -249,8 +250,8 @@ func (v hoverView) render(scroll int) []string {
 	iw := v.width + 2
 	out := make([]string, 0, len(vis)+2)
 	top := strings.Repeat("─", iw)
-	if n := ansi.StringWidth(hoverCopyLabel); n+2 <= iw {
-		top = strings.Repeat("─", iw-n-1) + hoverCopyLabel + "─"
+	if n := ansi.StringWidth(hoverCopyLabel()); n+2 <= iw {
+		top = strings.Repeat("─", iw-n-1) + hoverCopyLabel() + "─"
 	}
 	out = append(out, bd.Render("╭"+top+"╮"))
 	for _, l := range vis {
@@ -269,9 +270,9 @@ func (v hoverView) render(scroll int) []string {
 		out = append(out, bd.Render("│")+pad+renderCells(cells, bg, v.width)+pad+bd.Render("│"))
 	}
 	ind := ""
-	hint := hoverHintCopyOnly
+	hint := hoverHintCopyOnly()
 	if v.maxScroll() > 0 {
-		hint = hoverHint
+		hint = hoverHint()
 		ind = fmt.Sprintf(" %d/%d ", end, len(v.lines))
 		if scroll > 0 {
 			ind = "↑" + ind

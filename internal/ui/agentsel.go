@@ -7,6 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/rivo/uniseg"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Text of the agent panel's log picked with the mouse.
@@ -208,7 +210,7 @@ func (a *App) agentDrag(l layout, msg mouseEvent) (tea.Cmd, bool) {
 		s.dragging = false
 		if txt := s.text(a.ag.view.rows, a.ag.view.w); txt != "" {
 			a.copyText(txt)
-			a.info("エージェントパネルから %d 文字をコピーしました", utf8.RuneCountInString(txt))
+			a.info(i18n.T("agentsel.copied"), utf8.RuneCountInString(txt))
 		}
 	}
 	return nil, true

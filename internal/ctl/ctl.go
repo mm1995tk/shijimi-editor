@@ -13,6 +13,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // EnvSocket is the environment variable that carries the socket path.
@@ -104,7 +106,7 @@ func (s *Server) serve(h Handler) {
 				err = json.Unmarshal(line, &req)
 			}
 			if err != nil {
-				resp = Response{Error: "リクエストを解釈できません: " + err.Error()}
+				resp = Response{Error: i18n.T("ctl.badrequest") + err.Error()}
 			} else {
 				resp = h(req)
 			}
@@ -117,11 +119,11 @@ func (s *Server) serve(h Handler) {
 func Call(req Request) (Response, error) {
 	sock := os.Getenv(EnvSocket)
 	if sock == "" {
-		return Response{}, fmt.Errorf("%s が設定されていません。shijimi のターミナルパネル内で実行してください", EnvSocket)
+		return Response{}, fmt.Errorf(i18n.T("ctl.nosocket"), EnvSocket)
 	}
 	c, err := net.DialTimeout("unix", sock, 3*time.Second)
 	if err != nil {
-		return Response{}, fmt.Errorf("shijimi に接続できません (%s): %w", sock, err)
+		return Response{}, fmt.Errorf(i18n.T("ctl.connect"), sock, err)
 	}
 	defer c.Close()
 	_ = c.SetDeadline(time.Now().Add(10 * time.Second))
@@ -155,14 +157,14 @@ func Run(args []string, stdout, stderr func(string)) int {
 		}
 	case "exec":
 		if len(args) < 2 {
-			stderr("usage: shj exec \":コマンド\"")
+			stderr(i18n.T("ctl.usage.exec"))
 			return 2
 		}
 		req = Request{Cmd: "exec", Line: strings.Join(args[1:], " ")}
 	case "skill":
 		return runSkill(args[1:], stdout, stderr)
 	default:
-		stderr("不明なサブコマンド: " + args[0])
+		stderr(i18n.T("ctl.unknownsub") + args[0])
 		return 2
 	}
 	resp, err := Call(req)

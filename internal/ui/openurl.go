@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 var urlRe = regexp.MustCompile(`https?://[^\s<>"'` + "`" + `]+`)
@@ -33,16 +35,16 @@ var openExternal = func(url string) error {
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
 			if msg := strings.TrimSpace(stderr.String()); msg != "" {
-				return fmt.Errorf("%s が失敗しました: %s", name, msg)
+				return fmt.Errorf(i18n.T("open.failed"), name, msg)
 			}
-			return fmt.Errorf("%s が失敗しました: %v", name, err)
+			return fmt.Errorf(i18n.T("open.failedv"), name, err)
 		}
 		return nil
 	}
 	if len(openers[runtime.GOOS]) == 0 {
-		return fmt.Errorf("この OS には対応していません: %s", runtime.GOOS)
+		return fmt.Errorf(i18n.T("open.unsupportedos"), runtime.GOOS)
 	}
-	return fmt.Errorf("URL を開くコマンドが見つかりません（%s をインストールしてください）", strings.Join(openers[runtime.GOOS], " / "))
+	return fmt.Errorf(i18n.T("open.noopener"), strings.Join(openers[runtime.GOOS], " / "))
 }
 
 // urlAt returns the URL in line that covers column col (a rune index).
@@ -72,19 +74,19 @@ func (a *App) openURL(arg string) tea.Cmd {
 	if url == "" {
 		t := a.curText()
 		if t == nil {
-			a.fail(errors.New("URL を指定してください"))
+			a.fail(errors.New(i18n.T("open.needurl")))
 			return nil
 		}
 		cur := t.buf.Cur
 		u, ok := urlAt(t.buf.Lines[cur.Row], cur.Col)
 		if !ok {
-			a.fail(errors.New("カーソル位置に URL がありません（:open-url <URL> で指定できます）"))
+			a.fail(errors.New(i18n.T("open.nourl")))
 			return nil
 		}
 		url = u
 	}
 	if !urlFullRe.MatchString(url) {
-		a.fail(fmt.Errorf("http:// または https:// で始まる URL を 1 つだけ指定してください: %s", url))
+		a.fail(fmt.Errorf(i18n.T("open.badurl"), url))
 		return nil
 	}
 	return func() tea.Msg { return openURLMsg{url: url, err: openExternal(url)} }

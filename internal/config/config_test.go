@@ -249,3 +249,24 @@ func TestHelixDirsAreIgnored(t *testing.T) {
 		t.Fatalf("helix languages.toml must be ignored: %+v", l)
 	}
 }
+
+func TestUILanguageOption(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	if got := Load(root).Editor.UILanguage; got != "en" {
+		t.Fatalf("ui-language should default to en, got %q", got)
+	}
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	write := func(s string) {
+		os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte(s), 0o644)
+	}
+	write("ui-language = \"ja\"\n")
+	if got := Load(root).Editor.UILanguage; got != "ja" {
+		t.Fatalf("ui-language = %q, want ja", got)
+	}
+	write("ui-language = \"fr\"\n")
+	if got := Load(root).Editor.UILanguage; got != "en" {
+		t.Fatalf("an unsupported language should keep en, got %q", got)
+	}
+}

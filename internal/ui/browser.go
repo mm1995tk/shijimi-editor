@@ -6,9 +6,11 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
-const browserUsage = "使い方: :browser forward <対象ポート> [待ち受けポート] / :browser list / :browser stop <待ち受けポート>"
+func browserUsage() string { return i18n.T("browser.usage") }
 
 // browser runs `:browser <sub> ...`.
 func (a *App) browser(arg string) tea.Cmd {
@@ -17,7 +19,7 @@ func (a *App) browser(arg string) tea.Cmd {
 	switch sub {
 	case "forward", "fwd":
 		if len(args) < 1 || len(args) > 2 {
-			a.fail(fmt.Errorf("%s", browserUsage))
+			a.fail(fmt.Errorf("%s", browserUsage()))
 			return nil
 		}
 		ports, err := parsePorts(args)
@@ -34,21 +36,21 @@ func (a *App) browser(arg string) tea.Cmd {
 			a.fail(err)
 			return nil
 		}
-		a.info("転送を開始しました: %s → localhost:%d", f.Listen, f.Target)
+		a.info(i18n.T("browser.started"), f.Listen, f.Target)
 	case "list", "ls", "":
 		fs := a.proxy.List()
 		if len(fs) == 0 {
-			a.info("ポート転送はありません（:browser forward <対象ポート> で追加）")
+			a.infoText(i18n.T("browser.none"))
 			return nil
 		}
 		items := make([]string, len(fs))
 		for i, f := range fs {
 			items[i] = fmt.Sprintf("%s → localhost:%d", f.Listen, f.Target)
 		}
-		a.info("ポート転送: %s", strings.Join(items, " / "))
+		a.info(i18n.T("browser.list"), strings.Join(items, " / "))
 	case "stop", "close":
 		if len(args) != 1 {
-			a.fail(fmt.Errorf("%s", browserUsage))
+			a.fail(fmt.Errorf("%s", browserUsage()))
 			return nil
 		}
 		ports, err := parsePorts(args)
@@ -60,9 +62,9 @@ func (a *App) browser(arg string) tea.Cmd {
 			a.fail(err)
 			return nil
 		}
-		a.info("転送を停止しました: 待ち受けポート %d", ports[0])
+		a.info(i18n.T("browser.stopped"), ports[0])
 	default:
-		a.fail(fmt.Errorf("%s", browserUsage))
+		a.fail(fmt.Errorf("%s", browserUsage()))
 	}
 	return nil
 }
@@ -72,7 +74,7 @@ func parsePorts(args []string) ([]int, error) {
 	for i, s := range args {
 		n, err := strconv.Atoi(s)
 		if err != nil || n < 1 || n > 65535 {
-			return nil, fmt.Errorf("ポート番号が正しくありません: %s", s)
+			return nil, fmt.Errorf(i18n.T("browser.badport"), s)
 		}
 		out[i] = n
 	}

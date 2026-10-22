@@ -14,13 +14,31 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/acp/acptest"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
 func TestMain(m *testing.M) {
 	acptest.Main()
-	os.Exit(m.Run())
+	// The assertions read the Japanese strings, so the tests run with
+	// ui-language = "ja" in an otherwise empty config directory (which also
+	// keeps the developer's own config out of the tests).
+	cfgDir, err := os.MkdirTemp("", "shijimi-ui-test")
+	if err != nil {
+		panic(err)
+	}
+	if err := os.MkdirAll(filepath.Join(cfgDir, "shijimi"), 0o755); err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, "shijimi", "config.toml"), []byte("ui-language = \"ja\"\n"), 0o644); err != nil {
+		panic(err)
+	}
+	os.Setenv("XDG_CONFIG_HOME", cfgDir)
+	i18n.SetLang(i18n.Japanese)
+	code := m.Run()
+	os.RemoveAll(cfgDir)
+	os.Exit(code)
 }
 
 // pump runs commands the way Bubble Tea does and feeds their messages back

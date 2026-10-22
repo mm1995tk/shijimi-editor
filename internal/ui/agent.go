@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/acp"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // The agent behind the suggestion panel, spoken to with the Agent Client
@@ -185,11 +186,11 @@ func (h agentHandler) RequestPermission(ctx context.Context, r acp.PermissionReq
 func (a *App) runAgent(kind suggestKind, key, title string, build func() string) tea.Cmd {
 	s := a.ag
 	if s.run != nil {
-		a.fail(errors.New("エージェントが作業中です（c で中止）"))
+		a.fail(errors.New(i18n.T("agent.busy")))
 		return nil
 	}
 	if a.cfg.Agent.Command == "" {
-		a.fail(errors.New("エージェントが設定されていません。~/.config/shijimi/config.toml の [agent] に command を書いてください"))
+		a.fail(errors.New(i18n.T("agent.notconfigured")))
 		return nil
 	}
 	s.run = &agentRun{kind: kind, key: key, build: build}
@@ -199,7 +200,7 @@ func (a *App) runAgent(kind suggestKind, key, title string, build func() string)
 	s.scroll = 0
 	s.add(logEntry{kind: logUser, text: title})
 	if s.client == nil {
-		s.add(logEntry{kind: logInfo, text: "エージェントを起動しています: " + a.cfg.Agent.Command})
+		s.add(logEntry{kind: logInfo, text: i18n.T("agent.starting") + a.cfg.Agent.Command})
 		return tea.Batch(a.startAgent(), s.wait())
 	}
 	return tea.Batch(a.sendPrompt(), s.wait())
@@ -252,14 +253,14 @@ func (a *App) sendPrompt() tea.Cmd {
 func (a *App) cancelAgent() {
 	s := a.ag
 	if s.run == nil || s.client == nil {
-		a.info("エージェントは作業していません")
+		a.infoText(i18n.T("agent.idle"))
 		return
 	}
 	if err := s.client.Cancel(s.session); err != nil {
 		a.fail(err)
 		return
 	}
-	a.info("中止を求めました")
+	a.infoText(i18n.T("agent.cancelrequested"))
 }
 
 // stopAgent ends the agent process; the next suggestion starts a new one.
@@ -293,8 +294,8 @@ func (a *App) handleAgentMsg(msg tea.Msg) (tea.Cmd, bool) {
 			return s.wait(), true
 		}
 		if m.err != nil {
-			s.add(logEntry{kind: logError, text: "エージェントを起動できません: " + m.err.Error()})
-			a.fail(fmt.Errorf("エージェントを起動できません: %w", m.err))
+			s.add(logEntry{kind: logError, text: i18n.T("agent.startfail") + m.err.Error()})
+			a.fail(fmt.Errorf(i18n.T("agent.startfailw"), m.err))
 			s.run = nil
 			return s.wait(), true
 		}
@@ -312,7 +313,7 @@ func (a *App) handleAgentMsg(msg tea.Msg) (tea.Cmd, bool) {
 	case agentFileMsg:
 		s.armed = false
 		if m.gen != s.gen {
-			m.reply <- agentFileReply{err: errors.New("セッションは終わりました")}
+			m.reply <- agentFileReply{err: errors.New(i18n.T("agent.sessionended"))}
 			return s.wait(), true
 		}
 		if m.read != nil {
@@ -339,7 +340,7 @@ func (a *App) handleAgentMsg(msg tea.Msg) (tea.Cmd, bool) {
 		s.perms = append(s.perms, m.ask)
 		if !a.showAgent || a.focus != focusAgent {
 			a.showAgent, a.agentPinned = true, true
-			a.info("エージェントが許可を求めています（Alt+I で右のパネルへ移り、y で許可 / n で拒否）")
+			a.infoText(i18n.T("agent.permask"))
 		}
 		return s.wait(), true
 	case agentPermCancelMsg:
@@ -362,7 +363,7 @@ func (a *App) handleAgentMsg(msg tea.Msg) (tea.Cmd, bool) {
 		if m.gen != s.gen {
 			return s.wait(), true
 		}
-		text := "エージェントが終了しました"
+		text := i18n.T("acp.exited")
 		if m.err != nil {
 			text += ": " + m.err.Error()
 		}
@@ -474,10 +475,10 @@ func (a *App) agentWrite(r acp.WriteRequest) error {
 	p := a.agentPath(r.Path)
 	if run := a.ag.run; run != nil && (run.kind == sgAIReview || run.kind == sgFailure) {
 		// These only read: a pull request or a log could carry instructions.
-		return errors.New("この依頼ではファイルを書き換えられません")
+		return errors.New(i18n.T("agent.nowrite"))
 	}
 	if t := a.tabFor(p); t != nil && t.dirty() {
-		return fmt.Errorf("%s には保存していない編集があるため書き込めません", a.rel(p))
+		return fmt.Errorf(i18n.T("agent.unsaved"), a.rel(p))
 	}
 	mode := os.FileMode(0o644)
 	if fi, err := os.Stat(p); err == nil {
@@ -520,9 +521,9 @@ func (a *App) answerPermission(allow bool) {
 		}
 	}
 	p.reply <- id
-	verb := "拒否しました"
+	verb := i18n.T("agent.denied")
 	if allow {
-		verb = "許可しました"
+		verb = i18n.T("agent.allowed")
 	}
 	s.add(logEntry{kind: logInfo, text: verb + ": " + permTitle(p.req)})
 }
@@ -550,7 +551,7 @@ func (a *App) endTurn(m agentTurnMsg) tea.Cmd {
 	}
 	if m.stop != "end_turn" {
 		s.add(logEntry{kind: logInfo, text: stopText(m.stop)})
-		a.info("エージェント: %s", stopText(m.stop))
+		a.info(i18n.T("agent.prefix"), stopText(m.stop))
 		return nil
 	}
 	if run == nil {
@@ -560,28 +561,28 @@ func (a *App) endTurn(m agentTurnMsg) tea.Cmd {
 	case sgFailure:
 		a.sg.fixOffer = true
 		a.sg.fixSeq++
-		a.info("原因と修正案を右のパネルに出しました。修正するなら「修正を適用しますか」を選んでください")
+		a.infoText(i18n.T("agent.diagnosed"))
 		return nil
 	case sgAIReview:
 		return a.placeReview(run)
 	}
-	s.add(logEntry{kind: logInfo, text: "終わりました。差分モードで変更を確かめてください"})
-	a.info("エージェントの作業が終わりました。差分モードで確かめてください")
+	s.add(logEntry{kind: logInfo, text: i18n.T("agent.donereview")})
+	a.infoText(i18n.T("agent.workdone"))
 	return a.showAgentChanges()
 }
 
 func stopText(stop string) string {
 	switch stop {
 	case "cancelled":
-		return "中止しました"
+		return i18n.T("agent.cancelled")
 	case "max_tokens":
-		return "出力の上限に達して止まりました"
+		return i18n.T("agent.maxtokens")
 	case "max_turn_requests":
-		return "1 回の依頼で使える回数の上限に達して止まりました"
+		return i18n.T("agent.maxturns")
 	case "refusal":
-		return "エージェントが依頼を断りました"
+		return i18n.T("agent.refused")
 	}
-	return "止まりました（" + stop + "）"
+	return i18n.T("agent.stopped1") + stop + i18n.T("paren.close")
 }
 
 // showAgentChanges opens diff mode so the agent's edits can be checked.

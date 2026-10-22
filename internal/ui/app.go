@@ -19,6 +19,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 	"github.com/mm1995tk/shijimi-editor/internal/proxy"
@@ -144,6 +145,7 @@ type App struct {
 func New(dir, file string) *App {
 	abs, _ := filepath.Abs(dir)
 	cfg := config.Load(abs)
+	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
 		root:      abs,
 		cfg:       cfg,
@@ -166,7 +168,7 @@ func New(dir, file string) *App {
 	}
 	a.findInput = textinput.New()
 	a.findInput.Prompt = ""
-	a.findInput.Placeholder = "検索"
+	a.findInput.Placeholder = i18n.T("app.find")
 	a.cmdInput = textinput.New()
 	a.cmdInput.Prompt = ""
 	styleInput(&a.findInput, cPaletteBg)
@@ -194,6 +196,7 @@ func NewSingle(file string) (*App, error) {
 	abs, _ := filepath.Abs(file)
 	dir := filepath.Dir(abs)
 	cfg := config.Load(dir)
+	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
 		root:      dir,
 		cfg:       cfg,
@@ -216,7 +219,7 @@ func NewSingle(file string) (*App, error) {
 	}
 	a.findInput = textinput.New()
 	a.findInput.Prompt = ""
-	a.findInput.Placeholder = "検索"
+	a.findInput.Placeholder = i18n.T("app.find")
 	a.cmdInput = textinput.New()
 	a.cmdInput.Prompt = ""
 	styleInput(&a.findInput, cPaletteBg)
@@ -226,7 +229,7 @@ func NewSingle(file string) (*App, error) {
 	// The command palette is not reachable in this mode; with no commands, it
 	// cannot open the views single-file mode leaves out even if it were.
 	if !a.openFile(abs) {
-		msg := "ファイルを開けません"
+		msg := i18n.T("app.cantopen")
 		if a.msg != "" {
 			msg = a.msg
 		}
@@ -417,7 +420,7 @@ func (a *App) openFile(path string) bool {
 			return true
 		}
 		if st.Size() > 10<<20 {
-			a.fail(fmt.Errorf("ファイルが大きすぎます (10MB 超): %s", a.rel(abs)))
+			a.fail(fmt.Errorf(i18n.T("app.toolarge"), a.rel(abs)))
 			return false
 		}
 	}
@@ -493,7 +496,7 @@ func (a *App) saveTab(t *tab) tea.Cmd {
 		c.DidSave(t.buf.Path)
 	}
 	a.explorer.loadGitStatus()
-	a.info("保存しました: %s", a.rel(t.buf.Path))
+	a.info(i18n.T("app.saved"), a.rel(t.buf.Path))
 	return a.afterSave()
 }
 
@@ -508,7 +511,7 @@ func (a *App) saveAll() tea.Cmd {
 			n++
 		}
 	}
-	a.info("%d 個のファイルを保存しました", n)
+	a.info(i18n.T("app.savedmany"), n)
 	return nil
 }
 
@@ -521,7 +524,7 @@ func (a *App) saveAs() tea.Cmd {
 	if t.buf.Path != "" {
 		initial = t.buf.Path
 	}
-	return a.pal.ask("保存先", initial, func(v string) tea.Cmd {
+	return a.pal.ask(i18n.T("app.saveas"), initial, func(v string) tea.Cmd {
 		return a.saveTo(t, v)
 	})
 }
@@ -555,7 +558,7 @@ func (a *App) newFile() tea.Cmd {
 }
 
 func (a *App) newFileIn(dir string) tea.Cmd {
-	return a.pal.ask("新しいファイル", dir+string(filepath.Separator), func(v string) tea.Cmd {
+	return a.pal.ask(i18n.T("app.newfile"), dir+string(filepath.Separator), func(v string) tea.Cmd {
 		v = strings.TrimSpace(v)
 		if v == "" || strings.HasSuffix(v, string(filepath.Separator)) {
 			return nil
@@ -582,7 +585,7 @@ func (a *App) newFileIn(dir string) tea.Cmd {
 }
 
 func (a *App) newFolder() tea.Cmd {
-	return a.pal.ask("新しいフォルダー", a.explorer.targetDir()+string(filepath.Separator), func(v string) tea.Cmd {
+	return a.pal.ask(i18n.T("app.newfolder"), a.explorer.targetDir()+string(filepath.Separator), func(v string) tea.Cmd {
 		v = strings.TrimSpace(v)
 		if v == "" {
 			return nil
@@ -606,7 +609,7 @@ func (a *App) renameFile() tea.Cmd {
 		return nil
 	}
 	old := n.path
-	return a.pal.ask("新しい名前", old, func(v string) tea.Cmd {
+	return a.pal.ask(i18n.T("app.newname"), old, func(v string) tea.Cmd {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
@@ -615,7 +618,7 @@ func (a *App) renameFile() tea.Cmd {
 			v = filepath.Join(filepath.Dir(old), v)
 		}
 		if _, err := os.Stat(v); err == nil {
-			a.fail(fmt.Errorf("既に存在します: %s", a.rel(v)))
+			a.fail(fmt.Errorf(i18n.T("app.exists"), a.rel(v)))
 			return nil
 		}
 		if err := os.Rename(old, v); err != nil {
@@ -635,7 +638,7 @@ func (a *App) renameFile() tea.Cmd {
 		}
 		a.explorer.refresh()
 		a.explorer.reveal(v)
-		a.info("名前を変更しました: %s", a.rel(v))
+		a.info(i18n.T("app.renamed"), a.rel(v))
 		return nil
 	})
 }
@@ -646,7 +649,7 @@ func (a *App) deleteFile() tea.Cmd {
 		return nil
 	}
 	target := n.path
-	return a.pal.ask(fmt.Sprintf("%s を削除しますか？ y で削除", a.rel(target)), "", func(v string) tea.Cmd {
+	return a.pal.ask(fmt.Sprintf(i18n.T("app.confirmdelete"), a.rel(target)), "", func(v string) tea.Cmd {
 		if strings.TrimSpace(strings.ToLower(v)) != "y" {
 			return nil
 		}
@@ -655,7 +658,7 @@ func (a *App) deleteFile() tea.Cmd {
 			return nil
 		}
 		a.explorer.refresh()
-		a.info("削除しました: %s", a.rel(target))
+		a.info(i18n.T("app.deleted"), a.rel(target))
 		return nil
 	})
 }
@@ -667,7 +670,7 @@ func (a *App) closeTab(force bool) tea.Cmd {
 	}
 	if !force && t.dirty() && !a.confirmClose {
 		a.confirmClose = true
-		a.msg, a.msgErr = "未保存の変更があります。もう一度 Ctrl+W（または :bc!）で破棄して閉じます", true
+		a.msg, a.msgErr = i18n.T("app.closeunsaved"), true
 		return nil
 	}
 	a.confirmClose = false
@@ -743,7 +746,7 @@ func (a *App) dirtyCount() int {
 func (a *App) quit() tea.Cmd {
 	if d := a.dirtyCount(); d > 0 && !a.confirmQuit {
 		a.confirmQuit = true
-		a.msg, a.msgErr = fmt.Sprintf("未保存のファイルが %d 個あります。もう一度 Ctrl+Q（または :q!）で破棄して終了します", d), true
+		a.msg, a.msgErr = fmt.Sprintf(i18n.T("app.quitunsaved"), d), true
 		return nil
 	}
 	a.term.closeAll()
@@ -779,7 +782,7 @@ func (a *App) findNext(from buffer.Pos, backward bool) {
 	}
 	p, ok := t.buf.Find(q, from, backward)
 	if !ok {
-		a.msg, a.msgErr = "見つかりません: "+q, true
+		a.msg, a.msgErr = i18n.T("app.notfound")+q, true
 		return
 	}
 	a.msg = ""
@@ -816,7 +819,7 @@ func (a *App) activePath() string {
 // shows what was copied.
 func (a *App) copyPath(p string, abs bool) {
 	if p == "" {
-		a.fail(errors.New("パスをコピーできるファイルがありません"))
+		a.fail(errors.New(i18n.T("app.nopathfile")))
 		return
 	}
 	if abs {
@@ -827,7 +830,7 @@ func (a *App) copyPath(p string, abs bool) {
 		p = a.rel(p)
 	}
 	a.copyText(p)
-	a.info("パスをコピーしました: %s", p)
+	a.info(i18n.T("app.pathcopied"), p)
 }
 
 func (a *App) pasteText() string {
@@ -933,10 +936,10 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 			switch {
 			case !ok:
 			case c.TooLarge:
-				a.fail(errors.New("ターミナルからのコピーが大きすぎるため、コピーしませんでした"))
+				a.fail(errors.New(i18n.T("app.termcopybig")))
 			default:
 				a.copyText(c.Text)
-				a.info("ターミナルから %d 文字をコピーしました", utf8.RuneCountInString(c.Text))
+				a.info(i18n.T("app.termcopied"), utf8.RuneCountInString(c.Text))
 			}
 		}
 		if len(a.term.tabs) == 0 && a.showTerm {
@@ -974,7 +977,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 			return nil
 		}
 		if strings.TrimSpace(msg.text) == "" {
-			a.info("ホバー情報はありません")
+			a.infoText(i18n.T("app.nohover"))
 		} else {
 			a.hoverText = msg.text
 			a.hoverScroll = 0
@@ -1015,7 +1018,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		if msg.save {
 			return a.saveTab(msg.tab)
 		}
-		a.info("整形しました")
+		a.infoText(i18n.T("app.formatted"))
 	case formatterDoneMsg:
 		return a.handleFormatterDone(msg)
 	case lspErrMsg:
@@ -1024,7 +1027,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		if msg.err != nil {
 			a.fail(msg.err)
 		} else {
-			a.info("開きました: %s", msg.url)
+			a.info(i18n.T("app.opened"), msg.url)
 		}
 	case repoProbedMsg:
 		a.handleRepoProbed(msg)
@@ -1324,7 +1327,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		return a.handleHelixKey(msg)
 	}
 	if t := a.curText(); a.fullPreview(t) && !fullPreviewEditorKey(msg) {
-		a.info("全幅プレビュー中は編集できません")
+		a.infoText(i18n.T("app.fullpreview"))
 		return nil
 	}
 	return a.handleEditorKey(msg)
@@ -1476,7 +1479,7 @@ func (a *App) handleExplorerKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case "R":
 		e.refresh()
-		a.info("ファイルツリーを更新しました")
+		a.infoText(i18n.T("app.treerefreshed"))
 	case "space":
 		a.pending = " "
 	case ":":
@@ -1657,7 +1660,7 @@ func (a *App) editorKey(t *tab, msg tea.KeyPressMsg) tea.Cmd {
 		} else {
 			a.copyText(string(b.Lines[b.Cur.Row]) + "\n")
 		}
-		a.info("コピーしました")
+		a.infoText(i18n.T("app.copied"))
 	case "ctrl+x":
 		if s := b.SelectedText(); s != "" {
 			a.copyText(s)
@@ -1773,7 +1776,7 @@ func (a *App) termMouse(l layout, msg mouseEvent) (cmd tea.Cmd, ok bool) {
 			t.dragTo(x, y)
 			if s := t.endSelect(); s != "" {
 				a.copyText(s)
-				a.info("ターミナルから %d 文字をコピーしました", utf8.RuneCountInString(s))
+				a.info(i18n.T("app.termcopied"), utf8.RuneCountInString(s))
 			}
 		default:
 			t.sel.dragging = false // the release was lost
@@ -2162,7 +2165,7 @@ func (a *App) render() string {
 	}
 	if a.w < 30 || a.h < 8 {
 		a.caretAt = nil
-		return "ウィンドウが小さすぎます"
+		return i18n.T("app.toosmall")
 	}
 	l := a.layout()
 	if t := a.curText(); t != nil {
@@ -2274,7 +2277,7 @@ func (a *App) render() string {
 		rows = a.renderSpaceMenu(rows, l)
 	}
 	if a.pending == "space v" && !a.pal.open && !a.cmdOpen {
-		rows = a.renderMenu(rows, l, " Space v  レビュー", reviewItems)
+		rows = a.renderMenu(rows, l, i18n.T("app.reviewhint"), reviewItems)
 	}
 
 	if a.pal.open {
@@ -2408,11 +2411,11 @@ func (a *App) renderTabs(w int) string {
 	return sb.String()
 }
 
-const findLabel = " 検索: "
+func findLabel() string { return i18n.T("app.findlabel") }
 
 func (a *App) renderFind(w int) string {
-	label := stFindLabel.Render(findLabel)
-	hint := stFind.Render("  Enter:次  ↑:前  Esc:閉じる ")
+	label := stFindLabel.Render(findLabel())
+	hint := stFind.Render(i18n.T("app.findhint"))
 	iw := w - lipgloss.Width(label) - lipgloss.Width(hint)
 	a.findInput.SetWidth(max(1, iw-1))
 	return label + fitStyled(a.findInput.View(), iw, stFind) + hint
@@ -2441,13 +2444,13 @@ func (a *App) renderStatus() string {
 	}
 	switch a.focus {
 	case focusExplorer:
-		leftParts = append(leftParts, "ファイルツリー")
+		leftParts = append(leftParts, i18n.T("app.pane.tree"))
 	case focusChanges:
-		leftParts = append(leftParts, "変更一覧")
+		leftParts = append(leftParts, i18n.T("app.pane.changes"))
 	case focusTerminal:
-		leftParts = append(leftParts, "ターミナル")
+		leftParts = append(leftParts, i18n.T("app.pane.terminal"))
 	case focusAgent:
-		leftParts = append(leftParts, "提案パネル")
+		leftParts = append(leftParts, i18n.T("app.pane.suggest"))
 	}
 	if t := a.curText(); t != nil {
 		ds := a.lsp.diagnostics(t.buf.Path)
@@ -2465,23 +2468,23 @@ func (a *App) renderStatus() string {
 	}
 	if l := a.layout(); l.agentW == 0 {
 		if n := len(a.suggestions()); n > 0 {
-			leftParts = append(leftParts, fmt.Sprintf("提案 %d（Alt+I）", n))
+			leftParts = append(leftParts, fmt.Sprintf(i18n.T("app.suggestions"), n))
 		}
 	}
 	left := " " + strings.Join(leftParts, "  ")
 	right := ""
 	if t := a.cur(); t != nil && t.kind == tabText {
 		b := t.buf
-		indent := fmt.Sprintf("スペース: %d", len(b.IndentUnit()))
+		indent := fmt.Sprintf(i18n.T("app.spaces"), len(b.IndentUnit()))
 		if b.IndentUnit() == "\t" {
-			indent = "タブ"
+			indent = i18n.T("app.tab")
 		}
 		pos := fmt.Sprintf("%d:%d", b.Cur.Row+1, buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col)+1)
 		if b.HasExtra() {
-			pos = fmt.Sprintf("%d カーソル ", len(b.Extra())+1) + pos
+			pos = fmt.Sprintf(i18n.T("app.cursors"), len(b.Extra())+1) + pos
 		}
 		if s := b.SelectedText(); s != "" {
-			pos += fmt.Sprintf(" (%d 文字選択)", len([]rune(s)))
+			pos += fmt.Sprintf(i18n.T("app.selected"), len([]rune(s)))
 		}
 		lang := t.hl.Language()
 		if st := a.lspStatus(); st != "" {
@@ -2490,7 +2493,7 @@ func (a *App) renderStatus() string {
 		right = fmt.Sprintf("%s   %s   %s   ", pos, indent, lang)
 	}
 	if n := len(a.gd.rv.pending); n > 0 && a.prShown() {
-		right = fmt.Sprintf("未送信コメント %d 件   ", n) + right
+		right = fmt.Sprintf(i18n.T("app.pendingcomments"), n) + right
 	}
 	right += versionLabel() + " "
 	st := stStatus
@@ -2540,7 +2543,7 @@ func (a *App) hoverPos(l layout) (x, y int, ok bool) {
 // copyHover copies the hover markdown source to the clipboard.
 func (a *App) copyHover() {
 	a.copyText(a.hoverText)
-	a.info("ホバーをコピーしました")
+	a.infoText(i18n.T("app.hovercopied"))
 }
 
 // hoverView lays out the current hover text for layout l. The box height is
@@ -2593,4 +2596,9 @@ func (a *App) renderSingleTitle(w int) string {
 		s += stTabBar.Render(strings.Repeat(" ", w-n))
 	}
 	return fitStyled(s, w, stTabBar)
+}
+
+// infoText shows an already-formatted message in the status line.
+func (a *App) infoText(s string) {
+	a.msg, a.msgErr = s, false
 }

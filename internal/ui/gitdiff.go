@@ -14,6 +14,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Diff mode: the whole editor switches to showing changes against a base,
@@ -113,7 +114,7 @@ func loadChanges(gen int, root, base string, pr *prInfo) tea.Msg {
 	}
 	if base == basePR {
 		if pr == nil {
-			m.err = errString("プルリクエストが選ばれていません")
+			m.err = errString(i18n.T("gd.nopr"))
 			return m
 		}
 		ref := "origin/" + pr.BaseRefName
@@ -466,7 +467,7 @@ func (a *App) closeDiff() tea.Cmd {
 		a.focus = focusExplorer
 	}
 	a.follow = true
-	a.info("差分モードを終了しました")
+	a.infoText(i18n.T("gd.closed"))
 	return nil
 }
 
@@ -474,7 +475,7 @@ func (a *App) closeDiff() tea.Cmd {
 // a list of them when there are several, or the list of every open pull
 // request when there is none.
 func (a *App) branchPR() tea.Cmd {
-	a.info("プルリクエストを探しています…")
+	a.infoText(i18n.T("gd.findingpr"))
 	a.gd.prSeq++
 	root, seq, branch := a.root, a.gd.prSeq, a.branch
 	return func() tea.Msg {
@@ -496,7 +497,7 @@ func (a *App) handleBranchPRs(m branchPRsMsg) tea.Cmd {
 	case len(m.prs) > 1:
 		return a.showPRList(prListMsg{prs: m.prs})
 	}
-	a.info("このブランチのプルリクエストが見つかりません。一覧から選んでください")
+	a.infoText(i18n.T("gd.nobranchpr"))
 	return listPRs(a.root)
 }
 
@@ -507,7 +508,7 @@ func (a *App) findPR(num int) tea.Cmd { return a.lookupPR(num, false) }
 func (a *App) refreshPR() tea.Cmd { return a.lookupPR(a.gd.pr.Number, true) }
 
 func (a *App) lookupPR(num int, refresh bool) tea.Cmd {
-	a.info("プルリクエストを探しています…")
+	a.infoText(i18n.T("gd.findingpr"))
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
 	return func() tea.Msg {
@@ -542,9 +543,9 @@ func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
 	}
 	if rv := a.gd.rv; len(rv.pending) > 0 && rv.num != pr.Number {
 		a.confirm = &yesNo{
-			prompt: fmt.Sprintf("PR #%d の未送信コメントが %d 件あります。破棄して PR #%d を開きますか？ (y/n)", rv.num, len(rv.pending), pr.Number),
+			prompt: fmt.Sprintf(i18n.T("gd.discardcomments"), rv.num, len(rv.pending), pr.Number),
 			yes:    proceed,
-			no:     func() tea.Cmd { a.info("PR #%d を開くのをやめました", pr.Number); return nil },
+			no:     func() tea.Cmd { a.info(i18n.T("gd.cancelopen"), pr.Number); return nil },
 		}
 		return nil
 	}
@@ -561,7 +562,7 @@ func (a *App) openPR(pr *prInfo) tea.Cmd {
 // to stash uncommitted changes, then opens it.
 func (a *App) switchToPR(pr *prInfo) tea.Cmd {
 	if n := a.dirtyCount(); n > 0 {
-		a.fail(fmt.Errorf("未保存のファイルが %d 個あります。保存してから PR #%d に切り替えてください", n, pr.Number))
+		a.fail(fmt.Errorf(i18n.T("gd.saveswitch"), n, pr.Number))
 		return nil
 	}
 	out, err := run(a.root, nil, "git", "status", "--porcelain")
@@ -573,9 +574,9 @@ func (a *App) switchToPR(pr *prInfo) tea.Cmd {
 		return a.checkoutPR(pr, false)
 	}
 	a.confirm = &yesNo{
-		prompt: "未コミットの変更を stash して切り替えますか？ (y/n)",
+		prompt: i18n.T("gd.askstash"),
 		yes:    func() tea.Cmd { return a.checkoutPR(pr, true) },
-		no:     func() tea.Cmd { a.info("PR #%d への切り替えを中止しました", pr.Number); return nil },
+		no:     func() tea.Cmd { a.info(i18n.T("gd.cancelswitch"), pr.Number); return nil },
 	}
 	return nil
 }
@@ -588,7 +589,7 @@ type prCheckedOutMsg struct {
 }
 
 func (a *App) checkoutPR(pr *prInfo, stash bool) tea.Cmd {
-	a.info("PR #%d をチェックアウトしています…", pr.Number)
+	a.info(i18n.T("gd.checkout"), pr.Number)
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
 	return func() tea.Msg {
@@ -598,7 +599,7 @@ func (a *App) checkoutPR(pr *prInfo, stash bool) tea.Cmd {
 		}
 		before := head()
 		if stash {
-			msg := fmt.Sprintf("shijimi: PR #%d に切り替える前の変更", pr.Number)
+			msg := fmt.Sprintf(i18n.T("gd.stashmsg"), pr.Number)
 			if _, err := run(root, nil, "git", "stash", "push", "-u", "-m", msg); err != nil {
 				return prCheckedOutMsg{seq: seq, pr: pr, err: err}
 			}
@@ -612,7 +613,7 @@ func (a *App) checkoutPR(pr *prInfo, stash bool) tea.Cmd {
 				popped = perr == nil
 			}
 			if !popped {
-				err = fmt.Errorf("%w（変更は stash の「shijimi: PR #%d に切り替える前の変更」にあります）", err, pr.Number)
+				err = fmt.Errorf(i18n.T("gd.stashed"), err, pr.Number)
 			}
 		}
 		return prCheckedOutMsg{seq: seq, pr: pr, err: err}
@@ -629,7 +630,7 @@ func (a *App) handlePRCheckedOut(m prCheckedOutMsg) tea.Cmd {
 		return nil
 	}
 	cmd := a.openPR(m.pr)
-	a.info("PR #%d のブランチ %s に切り替えました", m.pr.Number, a.branch)
+	a.info(i18n.T("gd.switched"), m.pr.Number, a.branch)
 	return cmd
 }
 
@@ -664,7 +665,7 @@ func (a *App) reloadPR() tea.Cmd {
 	if !(s.known && s.behind > 0 && s.ahead == 0) {
 		return a.refreshPR() // also refreshes the title, state and comments
 	}
-	a.info("git pull しています…")
+	a.infoText(i18n.T("gd.pulling"))
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
 	return func() tea.Msg {
@@ -687,7 +688,7 @@ func (a *App) handlePRPulled(m prPulledMsg) tea.Cmd {
 
 // prPicker lists the repository's pull requests to compare with.
 func (a *App) prPicker() tea.Cmd {
-	a.info("プルリクエストを取得しています…")
+	a.infoText(i18n.T("gd.fetchingprs"))
 	return listPRs(a.root)
 }
 
@@ -697,7 +698,7 @@ func (a *App) showPRList(m prListMsg) tea.Cmd {
 		return nil
 	}
 	if len(m.prs) == 0 {
-		a.info("オープンなプルリクエストはありません")
+		a.infoText(i18n.T("gd.noopenprs"))
 		return nil
 	}
 	a.msg = ""
@@ -709,7 +710,7 @@ func (a *App) showPRList(m prListMsg) tea.Cmd {
 		}
 		items[i] = paletteItem{label: fmt.Sprintf("#%d %s%s", p.Number, p.Title, draft), detail: "@" + p.Author.Login + "  " + p.HeadRefName}
 	}
-	return a.pal.pick("プルリクエスト", items, func(i int) tea.Cmd { return a.findPR(m.prs[i].Number) })
+	return a.pal.pick(i18n.T("gd.prs"), items, func(i int) tea.Cmd { return a.findPR(m.prs[i].Number) })
 }
 
 func (a *App) toggleSplit() {
@@ -737,7 +738,7 @@ func (a *App) gitDiffCommand(arg string) tea.Cmd {
 		a.gd.split = false
 		a.follow = true
 	default:
-		a.fail(errString("使い方: :gitdiff [on|off|split|unified]"))
+		a.fail(errString(i18n.T("gd.usage")))
 	}
 	return nil
 }
@@ -747,7 +748,7 @@ func (a *App) gitDiffCommand(arg string) tea.Cmd {
 func (a *App) openChange(f *diff.File) tea.Cmd {
 	abs := filepath.Join(a.gitTopDir(), f.Path())
 	if f.Status == "deleted" {
-		a.info("削除されたファイルです: %s", f.Path())
+		a.info(i18n.T("gd.deleted"), f.Path())
 		return nil
 	}
 	if !a.openFile(abs) {
@@ -902,11 +903,11 @@ func (a *App) renderChanges(w, h int, focused bool) []string {
 			if i == 0 && len(g.rows) == 0 {
 				switch {
 				case g.loading:
-					msg = " 読み込み中…"
+					msg = i18n.T("gd.loading")
 				case g.err != "":
-					msg = " エラー: " + g.err
+					msg = i18n.T("gd.error") + g.err
 				default:
-					msg = " 変更はありません"
+					msg = i18n.T("gd.nochanges")
 				}
 			}
 			out = append(out, stSide.Render(fit(msg, w)))
@@ -970,9 +971,9 @@ func (a *App) renderDiffHeader(w int) string {
 	strong := bgfg(bg, curTheme.Strong).Bold(true)
 	var sb strings.Builder
 	sb.WriteString(text.Render(" "))
-	tree := "作業ツリー"
+	tree := i18n.T("gd.worktree")
 	if a.branch != "" {
-		tree += "（" + a.branch + "）"
+		tree += i18n.T("paren.open") + a.branch + i18n.T("paren.close")
 	}
 	if pr := a.gd.pr; a.gd.base == basePR && pr != nil {
 		sb.WriteString(bgfg(curTheme.Renamed, curTheme.CursorFg).Bold(true).Render(fmt.Sprintf(" PR #%d ", pr.Number)))
@@ -990,31 +991,31 @@ func (a *App) renderDiffHeader(w int) string {
 		if pr.Author.Login != "" {
 			sb.WriteString(dim.Render("  @" + pr.Author.Login))
 		}
-		sb.WriteString(dim.Render("   比較元 ") + strong.Render(pr.BaseRefName) + text.Render("（PR の base）↔ "+tree))
+		sb.WriteString(dim.Render(i18n.T("gd.comparing")) + strong.Render(pr.BaseRefName) + text.Render(i18n.T("gd.prbase")+tree))
 	} else {
 		sb.WriteString(bgfg(cAccent, curTheme.AccentFg).Bold(true).Render(" DIFF "))
-		sb.WriteString(dim.Render("   比較元 ") + strong.Render("HEAD") + text.Render(" ↔ "+tree))
+		sb.WriteString(dim.Render(i18n.T("gd.comparing")) + strong.Render("HEAD") + text.Render(" ↔ "+tree))
 	}
 	return fitStyled(sb.String(), w, text)
 }
 
 // diffHelp lists the keys usable in diff mode right now.
 func (a *App) diffHelp() string {
-	bases := " Space G:閉じる  Space g:PR の base と比べる"
+	bases := i18n.T("gd.bar.pr")
 	if a.gd.base == basePR {
-		bases = " Space G:HEAD と比べる  Space g:閉じる  Space v:レビュー（c:コメント  C:ファイル  t:スレッド  v:viewed  A/R/S:送信）"
+		bases = i18n.T("gd.bar.prreview")
 	}
 	if !a.helix && a.focus != focusChanges {
 		// the VS Code keymap has no Space menu in the editor
-		bases = " Ctrl+G:閉じる"
+		bases = i18n.T("gd.bar.head")
 		if a.gd.base == basePR {
-			bases = " Ctrl+G:HEAD と比べる  F1 の「レビュー:」:コメント・送信"
+			bases = i18n.T("gd.bar.headvsc")
 		}
 	}
 	if a.focus == focusChanges {
-		return bases + "  j/k:移動  Enter:開く  s:分割/統合  r:再読み込み  Tab:ファイルツリー  Esc:エディタへ"
+		return bases + i18n.T("gd.bar.list")
 	}
-	return bases + "  右側は編集・保存できます  上の行のクリック:分割/統合  右端のバーのクリック:その位置へ"
+	return bases + i18n.T("gd.bar.editable")
 }
 
 func (a *App) renderDiffHelp(w int) string {
@@ -1373,7 +1374,7 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 	b := t.buf
 	out := make([]string, 0, l.editH)
 
-	hint := "[分割 ⇄ 統合]"
+	hint := i18n.T("gd.splittoggle")
 	if dv.single {
 		hint = "" // one pane: there is nothing to switch
 	}

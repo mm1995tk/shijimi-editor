@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 type editMode int
@@ -72,7 +73,7 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 		a.mode = modeNormal // e.g. after switching back to this tab from insert mode
 		if !a.fullPreviewKey(msg.String()) {
 			a.pending, a.count = "", 0
-			a.info("全幅プレビュー中は編集できません")
+			a.infoText(i18n.T("app.fullpreview"))
 			return nil
 		}
 	}
@@ -123,7 +124,7 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case "s":
 		if _, _, ok := b.Selection(); !ok && !b.HasExtra() {
-			a.info("範囲を選択してから s を押してください")
+			a.infoText(i18n.T("helix.selectfirst"))
 			return nil
 		}
 		return a.openCmdline("s")
@@ -253,7 +254,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 	case "y":
 		s, e := b.SelectionOrChar()
 		a.clipboard = b.TextRange(s, e)
-		a.info("%d 文字をヤンクしました", len([]rune(a.clipboard)))
+		a.info(i18n.T("helix.yanked"), len([]rune(a.clipboard)))
 	case "p", "P":
 		a.paste(b, a.clipboard, key == "p")
 	case "R":
@@ -318,7 +319,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 		if s := b.SelectedText(); s != "" && !strings.Contains(s, "\n") {
 			a.pushJump()
 			a.lastSearch = s
-			a.info("検索: %s", s)
+			a.info(i18n.T("helix.search"), s)
 		}
 
 	// --- prefixes ---
@@ -420,7 +421,7 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 				b.Anchor = nil
 			}
 			if !b.FindChar(r, p == "f" || p == "t", p == "t" || p == "T", true) {
-				a.info("見つかりません: %c", r)
+				a.info(i18n.T("helix.notfoundc"), r)
 			}
 		}
 	case "r":
@@ -481,7 +482,7 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		if t := a.cur(); t != nil && t.kind == tabText {
 			s, e := t.buf.SelectionOrChar()
 			a.copyText(t.buf.TextRange(s, e))
-			a.info("クリップボードにコピーしました")
+			a.infoText(i18n.T("helix.copied"))
 		}
 	case "p", "P":
 		if t := a.cur(); t != nil && t.kind == tabText {
@@ -646,7 +647,7 @@ func (a *App) searchNext(backward bool) {
 	}
 	p, ok := b.Find(a.lastSearch, from, backward)
 	if !ok {
-		a.fail(errString("見つかりません: " + a.lastSearch))
+		a.fail(errString(i18n.T("app.notfound") + a.lastSearch))
 		return
 	}
 	if a.mode == modeSelect && b.Anchor != nil {
@@ -671,7 +672,7 @@ func (a *App) bufferPicker() tea.Cmd {
 		}
 		items[i] = paletteItem{label: label, detail: a.rel(t.path())}
 	}
-	return a.pal.pick("バッファ", items, func(i int) tea.Cmd {
+	return a.pal.pick(i18n.T("helix.buffers"), items, func(i int) tea.Cmd {
 		a.pushJump()
 		a.active = i
 		a.follow = true
@@ -704,7 +705,7 @@ func (a *App) selectMatches(pattern string) {
 	}
 	a.mode = modeNormal
 	a.follow = true
-	a.info("%d 個のカーソル", len(t.buf.Extra())+1)
+	a.info(i18n.T("helix.cursors"), len(t.buf.Extra())+1)
 }
 
 // cursorCell is where a cursor is drawn: Helix draws it on the last

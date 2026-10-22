@@ -6,6 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // The right panel: suggestions at the top, then the agent's permission
@@ -115,14 +117,14 @@ func (a *App) agentCommand(arg string) tea.Cmd {
 		a.cancelAgent()
 	case "stop":
 		if a.ag.client == nil {
-			a.info("エージェントは動いていません")
+			a.infoText(i18n.T("agent.notrunning"))
 			return nil
 		}
 		a.stopAgent()
-		a.ag.add(logEntry{kind: logInfo, text: "エージェントを止めました"})
-		a.info("エージェントを止めました")
+		a.ag.add(logEntry{kind: logInfo, text: i18n.T("agent.stoppedok")})
+		a.infoText(i18n.T("agent.stoppedok"))
 	default:
-		a.fail(fmt.Errorf("不明な引数: %s（:agent / :agent cancel / :agent stop）", arg))
+		a.fail(fmt.Errorf(i18n.T("agent.badarg"), arg))
 	}
 	return nil
 }
@@ -147,9 +149,9 @@ func (a *App) renderAgent(w, h int, focused bool) []string {
 	out := make([]string, 0, h)
 	list := a.suggestions()
 	a.sg.sel = clamp(a.sg.sel, 0, max(0, len(list)-1))
-	out = append(out, stPanelTitle.Render(fit(fmt.Sprintf(" 提案 %d", len(list)), w)))
+	out = append(out, stPanelTitle.Render(fit(fmt.Sprintf(i18n.T("panel.suggestions"), len(list)), w)))
 	if len(list) == 0 {
-		out = append(out, stPanelDim.Render(fit("  今の状態に合う提案はありません", w)))
+		out = append(out, stPanelDim.Render(fit(i18n.T("panel.nosuggestions"), w)))
 	}
 	maxRows := max(2, h/2-1)
 	for _, r := range a.suggestRows(list, maxRows) {
@@ -173,13 +175,13 @@ func (a *App) renderAgent(w, h int, focused bool) []string {
 	// The agent starts only when a suggestion runs, so its status line stays
 	// hidden until then; a log left by an agent that stopped keeps the rule.
 	if s := a.ag; s.run != nil || s.client != nil {
-		status := "待機中"
+		status := i18n.T("panel.idle")
 		if s.run != nil {
-			status = "● 作業中（c で中止）"
+			status = i18n.T("panel.working")
 		}
 		name := s.name
 		if name == "" {
-			name = "エージェント"
+			name = i18n.T("panel.agent")
 		}
 		out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
 		out = append(out, stPanelTitle.Render(fit(" "+name+": "+status, w)))
@@ -189,12 +191,12 @@ func (a *App) renderAgent(w, h int, focused bool) []string {
 
 	var hint string
 	if focused {
-		hint = "Enter 実行  x 消す  j/k 選ぶ  Esc 戻る"
+		hint = i18n.T("panel.hint.suggest")
 		switch {
 		case len(a.ag.perms) > 0:
-			hint = "y 許可  n 拒否  c 中止"
+			hint = i18n.T("panel.hint.perm")
 		case a.ag.run != nil:
-			hint = "c 中止  Ctrl+U/D スクロール  Esc 戻る"
+			hint = i18n.T("panel.hint.work")
 		}
 	}
 	body := h - len(out)
@@ -203,11 +205,11 @@ func (a *App) renderAgent(w, h int, focused bool) []string {
 	}
 	var card []string
 	for _, p := range a.ag.perms {
-		card = append(card, stPaletteHi.Render(fit(" 許可を求めています", w)))
+		card = append(card, stPaletteHi.Render(fit(i18n.T("panel.permtitle"), w)))
 		for _, l := range wrapPlain(permTitle(p.req), w-2) {
 			card = append(card, stPalette.Render(fit("  "+l, w)))
 		}
-		card = append(card, stPaletteDim.Render(fit("  y 許可 / n 拒否", w)))
+		card = append(card, stPaletteDim.Render(fit(i18n.T("panel.permkeys"), w)))
 	}
 	if len(card) > body {
 		card = card[:body]

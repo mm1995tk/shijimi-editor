@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // handlePaste sends a bracketed paste to whatever has the keyboard, the same
@@ -41,7 +43,7 @@ func (a *App) handlePaste(msg tea.PasteMsg) tea.Cmd {
 		return nil
 	}
 	if a.fullPreview(t) {
-		a.info("全幅プレビュー中は編集できません")
+		a.infoText(i18n.T("app.fullpreview"))
 		return nil
 	}
 	s := strings.ReplaceAll(msg.Content, "\r\n", "\n")

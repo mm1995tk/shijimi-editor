@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // ctlMsg carries a control-socket request into the Bubble Tea loop.
@@ -35,7 +36,7 @@ func (a *App) handleCtl(m ctlMsg) tea.Cmd {
 		resp = ctl.Response{OK: true}
 		if m.req.Path != "" {
 			if !a.openFile(m.req.Path) {
-				resp = ctl.Response{Error: "開けませんでした: " + m.req.Path}
+				resp = ctl.Response{Error: i18n.T("ctl.cantopen") + m.req.Path}
 				break
 			}
 			cmd = tea.Batch(cmd, a.setFocus(focusEditor))
@@ -43,7 +44,7 @@ func (a *App) handleCtl(m ctlMsg) tea.Cmd {
 	case "exec":
 		resp, cmd = a.ctlExec(m.req.Line)
 	default:
-		resp = ctl.Response{Error: "不明なコマンド: " + m.req.Cmd}
+		resp = ctl.Response{Error: i18n.T("ctl.unknowncmd") + m.req.Cmd}
 	}
 	m.reply <- resp
 	return cmd
@@ -90,21 +91,21 @@ func agentNeedsHuman(name, arg string) bool {
 func (a *App) ctlExec(line string) (ctl.Response, tea.Cmd) {
 	line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), ":"))
 	if line == "" {
-		return ctl.Response{Error: "コマンドが空です"}, nil
+		return ctl.Response{Error: i18n.T("ctl.emptycmd")}, nil
 	}
 	name, arg, _ := strings.Cut(line, " ")
 	arg = strings.TrimSpace(arg)
 	if agentForbidden[name] {
-		return ctl.Response{Error: ":" + name + " はエージェントからは実行できません"}, nil
+		return ctl.Response{Error: ":" + name + i18n.T("ctl.noagent")}, nil
 	}
 	switch name {
 	case "reload", "rl", "bc", "bclose", "buffer-close":
 		if t := a.curText(); t != nil && t.dirty() {
-			return ctl.Response{Error: "未保存の変更があるため :" + name + " は実行できません（先に :w で保存）"}, nil
+			return ctl.Response{Error: i18n.T("ctl.unsaved1") + name + i18n.T("ctl.unsaved2")}, nil
 		}
 	}
 	if agentNeedsHuman(name, arg) {
-		return ctl.Response{Error: ":" + name + " は引数なしだと人が選ぶ画面になります。引数を付けてください"}, nil
+		return ctl.Response{Error: ":" + name + i18n.T("ctl.needarg")}, nil
 	}
 	a.msg, a.msgErr = "", false
 	cmd := a.execCommand(line)
@@ -113,7 +114,7 @@ func (a *App) ctlExec(line string) (ctl.Response, tea.Cmd) {
 	if a.pal.open || a.cmdOpen {
 		a.pal.close()
 		a.closeCmdline()
-		return ctl.Response{Error: ":" + name + " は人の入力待ちになるため実行できません"}, cmd
+		return ctl.Response{Error: ":" + name + i18n.T("ctl.needhuman")}, cmd
 	}
 	if a.msgErr {
 		return ctl.Response{Error: a.msg}, cmd

@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
@@ -201,7 +202,7 @@ func (a *App) mentionContext() bool {
 		"lineStart": sel.Selection.Start.Line,
 		"lineEnd":   end,
 	})
-	a.info("エージェントへ送りました: %s", a.rel(sel.FilePath))
+	a.info(i18n.T("ide.sent"), a.rel(sel.FilePath))
 	return true
 }
 
@@ -244,7 +245,7 @@ func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
 	}
 	if len(m.args) > 0 {
 		if err := json.Unmarshal(m.args, &args); err != nil {
-			return fail("引数を解釈できません: %v", err)
+			return fail(i18n.T("ide.badargs"), err)
 		}
 	}
 	switch m.tool {
@@ -307,14 +308,14 @@ func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
 		return ok(out)
 	case "openFile":
 		if args.FilePath == "" {
-			return fail("filePath がありません")
+			return fail("%s", i18n.T("ide.nofilepath"))
 		}
 		p := a.ideAbs(args.FilePath)
 		if _, err := os.Stat(p); err != nil {
-			return fail("ファイルがありません: %s", p)
+			return fail(i18n.T("ide.nofile"), p)
 		}
 		if !a.openFile(p) {
-			return fail("開けませんでした: %s", p)
+			return fail(i18n.T("ide.cantopen"), p)
 		}
 		a.follow = true
 		if t := a.curText(); t != nil && args.StartText != "" {
@@ -337,13 +338,13 @@ func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
 		if t.dirty() {
 			cmd = a.saveTab(t)
 			if a.msgErr {
-				return fail("保存できませんでした: %s", a.msg)
+				return fail(i18n.T("ide.cantsave"), a.msg)
 			}
 		}
 		return ideReply{content: []ide.Content{ide.JSON(map[string]any{"success": true, "filePath": p, "saved": true})}}, cmd, false
 	case "openDiff":
 		if args.NewPath == "" || args.OldPath == "" {
-			return fail("old_file_path と new_file_path が必要です")
+			return fail("%s", i18n.T("ide.needpaths"))
 		}
 		oldPath, newPath := a.ideAbs(args.OldPath), a.ideAbs(args.NewPath)
 		old, _ := os.ReadFile(oldPath)
@@ -366,7 +367,7 @@ func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
 		// diff is already gone.
 		return ideReply{content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
 	}
-	return fail("不明なツール: %s", m.tool)
+	return fail(i18n.T("ide.unknowntool"), m.tool)
 }
 
 // selectText selects from the first line containing start up to the end of

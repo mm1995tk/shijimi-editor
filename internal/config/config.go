@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Server describes how to start a language server.
@@ -52,6 +54,10 @@ type Editor struct {
 	LineNumber string // "absolute" or "relative"
 	FileIcons  bool   // Nerd Font icons in the file tree (default true)
 	Theme      string // theme name; "" = default (dark-plus)
+
+	// UILanguage is the language of the UI text: "en" (default) or "ja".
+	// It is set by ui-language in config.toml.
+	UILanguage string
 
 	// AutoSave mirrors Helix's [editor.auto-save.after-delay]; unlike Helix
 	// it is enabled by default with a 1 second timeout.
@@ -120,7 +126,7 @@ const nixEvalTimeout = 15 * time.Second
 func Load(root string) *Config {
 	c := &Config{
 		Browser:   Browser{ListenHost: "127.0.0.1"},
-		Editor:    Editor{Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
+		Editor:    Editor{UILanguage: i18n.Default, Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
 		Languages: map[string]*Language{},
 		Servers:   map[string]*Server{},
 	}
@@ -313,6 +319,9 @@ func (c *Config) mergeEditorRaw(raw map[string]any) {
 	}
 	if v, ok := raw["theme"].(string); ok {
 		c.Editor.Theme = v
+	}
+	if v, ok := raw["ui-language"].(string); ok && i18n.Valid(v) {
+		c.Editor.UILanguage = v
 	}
 	if v, ok := ed["theme"].(string); ok {
 		c.Editor.Theme = v

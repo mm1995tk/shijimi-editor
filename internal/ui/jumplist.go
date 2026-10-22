@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // maxJumps caps the jump list.
@@ -73,9 +74,9 @@ func (a *App) jumpMove(dir int) tea.Cmd {
 		i += dir
 		if i < 0 || i >= len(a.jumps) {
 			if dir < 0 {
-				a.info("これ以上戻れません")
+				a.infoText(i18n.T("jump.noback"))
 			} else {
-				a.info("これ以上進めません")
+				a.infoText(i18n.T("jump.noforward"))
 			}
 			return nil
 		}

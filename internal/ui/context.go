@@ -1,12 +1,14 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -19,7 +21,9 @@ type ctxPreview struct {
 // maxContextLines caps how much of a selection is sent; the rest is elided.
 const maxContextLines = 200
 
-var diagSeverity = map[int]string{1: "エラー", 2: "警告", 3: "情報", 4: "ヒント"}
+func diagSeverity() map[int]string {
+	return map[int]string{1: i18n.T("diag.error"), 2: i18n.T("diag.warning"), 3: i18n.T("diag.info"), 4: i18n.T("diag.hint")}
+}
 
 // formatContext renders the current selection (or cursor line) as
 // "path:行-行", the selected text in a fence, and the diagnostics that touch
@@ -36,7 +40,7 @@ func formatContext(path string, startRow, endRow int, selected string, diags []l
 		lines := strings.Split(selected, "\n")
 		if len(lines) > maxContextLines {
 			rest := len(lines) - maxContextLines
-			lines = append(lines[:maxContextLines], fmt.Sprintf("… 残り %d 行を省略", rest))
+			lines = append(lines[:maxContextLines], fmt.Sprintf(i18n.T("ctx.elided"), rest))
 		}
 		sb.WriteString("```\n" + strings.Join(lines, "\n") + "\n```\n")
 	}
@@ -44,9 +48,9 @@ func formatContext(path string, startRow, endRow int, selected string, diags []l
 		if d.Range.End.Line < startRow || d.Range.Start.Line > endRow {
 			continue
 		}
-		name := diagSeverity[sevRank(d.Severity)]
+		name := diagSeverity()[sevRank(d.Severity)]
 		if name == "" {
-			name = "診断"
+			name = i18n.T("ctx.diagnostics")
 		}
 		src := ""
 		if d.Source != "" {
@@ -88,7 +92,7 @@ func (a *App) sendContext() tea.Cmd {
 	}
 	text, ok := a.currentContext()
 	if !ok {
-		a.fail(fmt.Errorf("保存済みのファイルを開いてください"))
+		a.fail(errors.New(i18n.T("ctx.savefirst")))
 		return nil
 	}
 	a.ctx = &ctxPreview{text: text}
@@ -118,12 +122,12 @@ func (c *ctxPreview) render(w, maxH int) []string {
 	lines := strings.Split(strings.TrimRight(c.text, "\n"), "\n")
 	body := max(1, maxH-3)
 	c.scroll = clamp(c.scroll, 0, max(0, len(lines)-body))
-	out := []string{stPaletteBox.Render(fit(" エージェントへ送る内容（Enter: 貼り付け / Esc: 取消）", w))}
+	out := []string{stPaletteBox.Render(fit(i18n.T("ctx.title"), w))}
 	for _, l := range lines[c.scroll:min(len(lines), c.scroll+body)] {
 		out = append(out, stPalette.Render(fit(" "+strings.ReplaceAll(l, "\t", "    "), w)))
 	}
 	if len(lines) > body {
-		out = append(out, stPaletteDim.Render(fit(fmt.Sprintf(" %d-%d / %d 行", c.scroll+1, min(len(lines), c.scroll+body), len(lines)), w)))
+		out = append(out, stPaletteDim.Render(fit(fmt.Sprintf(i18n.T("ctx.lines"), c.scroll+1, min(len(lines), c.scroll+body), len(lines)), w)))
 	}
 	return out
 }
