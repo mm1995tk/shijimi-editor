@@ -67,6 +67,7 @@ args = []
 | `editor.auto-save.after-delay` | 自動保存 | [ファイルと検索](files.md) |
 | `[[language]]` の `formatter` | `:fmt` で動かす整形コマンド（languages.toml） | [LSP](lsp.md) |
 | `search.exclude` / `search.include` | 全体検索の除外 / 包含 | [ファイルと検索](files.md) |
+| `[keys.normal]` `[keys.insert]` `[keys.select]` | Helix モードのキーの差し替え（`~/.config/shijimi/` だけ） | [編集（Helix モード）](editing-helix.md#キーの差し替え) |
 | `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | 提案パネルが使う ACP エージェント | [AI エージェント連携](agent.md) |
 
@@ -87,3 +88,7 @@ Helix のテーマ名も使えます。`github_dark*` は `github-dark` に、`g
 - `config.toml` に `theme = "<名前>"` と書く。
 - 実行中に `:theme <名前>` を入力する。名前を省略すると一覧が出ます。
 - コマンドパレットの「設定: テーマを切り替え」を選ぶ。
+
+## キーの差し替え
+
+`[keys.normal]` `[keys.insert]` `[keys.select]` で Helix モードのキーを差し替えられます。書き方とコマンド名の一覧は [編集（Helix モード）](editing-helix.md#キーの差し替え) にあります。`~/.config/shijimi/config.toml` からだけ読みます（プロジェクトの `.shijimi/config.toml` では無効）。

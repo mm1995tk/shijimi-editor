@@ -42,6 +42,7 @@ type App struct {
 	root      string
 	gitTop    string
 	cfg       *config.Config
+	keymap    helixKeymap
 	caret     *caret.Writer     // the terminal output; nil in tests
 	caretAt   *tea.Cursor       // where the user is typing, for the IME
 	cellSize  func() (w, h int) // terminal cell size in pixels; nil in tests
@@ -185,6 +186,7 @@ func New(dir, file string) *App {
 	if file != "" && a.openFile(file) {
 		a.focus = focusEditor
 	}
+	a.loadKeymap()
 	return a
 }
 
@@ -235,6 +237,7 @@ func NewSingle(file string) (*App, error) {
 		}
 		return nil, errors.New(msg)
 	}
+	a.loadKeymap()
 	return a, nil
 }
 

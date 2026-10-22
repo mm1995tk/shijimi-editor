@@ -105,10 +105,13 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 	hadCount := a.count > 0
 	count := max(1, a.count)
 	a.count = 0
-	repeat := func(f func()) {
-		for i := 0; i < count; i++ {
-			f()
-		}
+
+	km := a.keymap.normal
+	if ext {
+		km = a.keymap.sel
+	}
+	if bd, ok := km[key]; ok {
+		return a.runBinding(bd, b, ext, count, hadCount)
 	}
 
 	switch key {
@@ -117,7 +120,9 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 		if key == "alt+C" {
 			dir = -1
 		}
-		repeat(func() { b.CopySelection(dir) })
+		for i := 0; i < count; i++ {
+			b.CopySelection(dir)
+		}
 		return nil
 	case ",":
 		b.ClearExtra()
@@ -138,173 +143,22 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 		return a.halfPage(b, dir, ext, msg)
 	}
 
-	if b.HasExtra() && helixMultiKeys[key] {
-		var cmd tea.Cmd
-		b.ForEachCursor(func() { cmd = a.helixNormalKey(b, key, ext, count, hadCount, repeat) })
-		return cmd
-	}
-	return a.helixNormalKey(b, key, ext, count, hadCount, repeat)
+	return a.helixNormalKey(b, key, ext, count, hadCount)
 }
 
-// helixMultiKeys are the normal-mode keys applied to every cursor.
-var helixMultiKeys = func() map[string]bool {
-	m := map[string]bool{}
-	for _, k := range strings.Fields("h l j k left right down up w W b B e E home end x X ; alt+; esc d alt+d c alt+c y p P R i a I A o O ~ ` alt+` f t F T r") {
-		m[k] = true
-	}
-	return m
-}()
-
-func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, hadCount bool, repeat func(func())) tea.Cmd {
+func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, hadCount bool) tea.Cmd {
 	switch key {
 	// --- movement ---
-	case "h", "left":
-		repeat(func() { b.MoveCursor(buffer.Left, ext) })
-	case "l", "right":
-		repeat(func() { b.MoveCursor(buffer.Right, ext) })
-	case "j", "down":
-		repeat(func() { b.MoveCursor(buffer.Down, ext) })
-	case "k", "up":
-		repeat(func() { b.MoveCursor(buffer.Up, ext) })
-	case "w", "W":
-		repeat(func() { b.SelectWord(true, ext) })
-	case "b", "B":
-		repeat(func() { b.SelectWord(false, ext) })
-	case "e", "E":
-		if !ext {
-			b.Anchor = nil
-		}
-		repeat(func() { b.WordEnd(true) })
-	case "home":
-		b.MoveCursor(buffer.Home, ext)
-	case "end":
-		b.MoveCursor(buffer.End, ext)
-	case "pgup", "ctrl+b":
-		b.MoveLines(-a.pageSize(), ext)
-	case "pgdown", "ctrl+f":
-		b.MoveLines(a.pageSize(), ext)
-	case "ctrl+u":
-		b.MoveLines(-a.pageSize()/2, ext)
-	case "ctrl+d":
-		b.MoveLines(a.pageSize()/2, ext)
 	case "alt+pgup", "alt+pgdown": // scroll sideways; the cursor stays
 		dir := 1
 		if key == "alt+pgup" {
 			dir = -1
 		}
 		a.scrollHalfScreen(a.cur(), dir)
-	case "ctrl+o":
-		return a.jumpMove(-1)
-	case "tab", "ctrl+i": // Ctrl+I arrives as Tab unless the terminal tells them apart
-		return a.jumpMove(1)
-	case "G":
-		a.pushJump()
-		if hadCount {
-			b.GotoLine(count)
-		} else {
-			b.MoveCursor(buffer.DocEnd, ext)
-		}
-
-	// --- selection ---
-	case "x", "X":
-		repeat(b.SelectLine)
-	case "%":
-		b.SelectAll()
-	case ";":
-		b.ClearSelection()
-	case "alt+;":
-		if b.Anchor != nil {
-			a, c := *b.Anchor, b.Cur
-			b.Anchor, b.Cur = &c, a
-		}
-	case "v":
-		if a.mode == modeSelect {
-			a.mode = modeNormal
-		} else {
-			a.mode = modeSelect
-		}
-	case "esc":
-		a.mode = modeNormal
-		b.ClearSelection()
-
-	// --- editing ---
-	case "d", "alt+d":
-		s, e, widened := b.LineDeleteRange()
-		text := b.DeleteRange(s, e)
-		if widened {
-			// the removed text starts with the preceding newline; keep the
-			// register linewise so "p" pastes whole lines
-			text = strings.TrimPrefix(text, "\n") + "\n"
-		}
-		if key == "d" {
-			a.clipboard = text
-		}
-		a.mode = modeNormal
-	case "c", "alt+c":
-		s, e := b.SelectionOrChar()
-		if _, _, ok := b.Selection(); ok {
-			text := b.DeleteRange(s, e)
-			if key == "c" {
-				a.clipboard = text
-			}
-		} else {
-			a.clipboard = b.DeleteRange(s, e)
-		}
-		return a.enterInsert()
-	case "y":
-		s, e := b.SelectionOrChar()
-		a.clipboard = b.TextRange(s, e)
-		a.info(i18n.T("helix.yanked"), len([]rune(a.clipboard)))
-	case "p", "P":
-		a.paste(b, a.clipboard, key == "p")
-	case "R":
-		if s, e, ok := b.Selection(); ok {
-			b.DeleteRange(s, e)
-			b.InsertBlock(a.clipboard)
-		}
-	case "u":
-		repeat(func() { b.Undo() })
-	case "U":
-		repeat(func() { b.Redo() })
-	case "i":
-		if s, _, ok := b.Selection(); ok {
-			b.Cur = s
-		}
-		b.ClearSelection()
-		return a.enterInsert()
-	case "a":
-		if _, e, ok := b.Selection(); ok {
-			b.Cur = e
-		} else if b.Cur.Col < len(b.Lines[b.Cur.Row]) {
-			b.Cur.Col++
-		}
-		b.ClearSelection()
-		return a.enterInsert()
-	case "I":
-		b.ClearSelection()
-		b.Cur.Col = 0
-		b.MoveCursor(buffer.Home, false)
-		return a.enterInsert()
-	case "A":
-		b.ClearSelection()
-		b.MoveCursor(buffer.End, false)
-		return a.enterInsert()
-	case "o":
-		b.OpenLine(true)
-		return a.enterInsert()
-	case "O":
-		b.OpenLine(false)
-		return a.enterInsert()
-	case ">":
-		repeat(a.indentLines(b, true))
-	case "<":
-		repeat(a.indentLines(b, false))
-	case "J":
-		b.JoinLines()
-	case "~", "`", "alt+`":
-		a.changeCase(b, key)
-	case "ctrl+c":
-		a.toggleComment()
+	case "ctrl+u":
+		b.MoveLines(-a.pageSize()/2, ext)
+	case "ctrl+d":
+		b.MoveLines(a.pageSize()/2, ext)
 
 	// --- search ---
 	case "/", "?":
@@ -507,6 +361,9 @@ func (a *App) spaceMode(key string) tea.Cmd {
 func (a *App) handleInsertKey(msg tea.KeyPressMsg) tea.Cmd {
 	t := a.cur()
 	b := t.buf
+	if bd, ok := a.keymap.insert[msg.String()]; ok {
+		return a.runBinding(bd, b, false, 1, false)
+	}
 	switch msg.String() {
 	case "esc":
 		a.mode = modeNormal
