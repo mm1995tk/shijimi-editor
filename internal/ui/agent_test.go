@@ -35,6 +35,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	os.Setenv("XDG_CONFIG_HOME", cfgDir)
+	os.Setenv("HOME", cfgDir)
 	i18n.SetLang(i18n.Japanese)
 	code := m.Run()
 	os.RemoveAll(cfgDir)

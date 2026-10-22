@@ -973,7 +973,7 @@ func (a *App) renderDiffHeader(w int) string {
 	sb.WriteString(text.Render(" "))
 	tree := i18n.T("gd.worktree")
 	if a.branch != "" {
-		tree += i18n.T("paren.open") + a.branch + i18n.T("paren.close")
+		tree = fmt.Sprintf(i18n.T("gd.worktreebranch"), a.branch)
 	}
 	if pr := a.gd.pr; a.gd.base == basePR && pr != nil {
 		sb.WriteString(bgfg(curTheme.Renamed, curTheme.CursorFg).Bold(true).Render(fmt.Sprintf(" PR #%d ", pr.Number)))

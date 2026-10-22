@@ -582,7 +582,7 @@ func stopText(stop string) string {
 	case "refusal":
 		return i18n.T("agent.refused")
 	}
-	return i18n.T("agent.stopped1") + stop + i18n.T("paren.close")
+	return fmt.Sprintf(i18n.T("agent.stopped"), stop)
 }
 
 // showAgentChanges opens diff mode so the agent's edits can be checked.

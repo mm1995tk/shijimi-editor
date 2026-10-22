@@ -376,7 +376,7 @@ func (a *App) runSuggestion() tea.Cmd {
 		return a.runAgent(s.kind, s.key, s.title, func() string {
 			out, err := run(root, nil, "git", "diff", rev, "--no-color", "--no-ext-diff", "-M")
 			if err != nil {
-				out = []byte(i18n.T("sg.diffunavailable1") + err.Error() + i18n.T("paren.close"))
+				out = []byte(fmt.Sprintf(i18n.T("sg.diffunavailable"), err.Error()))
 			}
 			return reviewPrompt(pr, string(out))
 		})

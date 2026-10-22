@@ -282,6 +282,8 @@ func (a *App) execCommand(line string) tea.Cmd {
 	case "config-reload":
 		a.cfg = config.Load(a.root)
 		i18n.SetLang(a.cfg.Editor.UILanguage)
+		a.commands = defaultCommands()
+		a.findInput.Placeholder = i18n.T("app.find")
 		a.lsp.cfg = a.cfg
 		a.explorer.icons = a.cfg.Editor.FileIcons
 		a.helix = a.cfg.Editor.Keymap != "vscode"

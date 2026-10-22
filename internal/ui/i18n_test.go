@@ -56,3 +56,31 @@ func TestTableDrivenLabelsResolve(t *testing.T) {
 		}
 	}
 }
+
+// :config-reload switches the language of the command palette and the find
+// box as well, not only of the messages drawn afterwards.
+func TestConfigReloadSwitchesLanguage(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLang(i18n.Japanese) })
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	dir := t.TempDir()
+	write := func(s string) {
+		if err := os.MkdirAll(filepath.Join(cfg, "shijimi"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(cfg, "shijimi", "config.toml"), []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("ui-language = \"ja\"\n")
+	a := New(dir, "")
+	last := func() string { return a.commands[len(a.commands)-1].name }
+	if last() != "終了" || a.findInput.Placeholder != "検索" {
+		t.Fatalf("ja: %q %q", last(), a.findInput.Placeholder)
+	}
+	write("ui-language = \"en\"\n")
+	a.execCommand("config-reload")
+	if last() != "Quit" || a.findInput.Placeholder != "Search" {
+		t.Fatalf("en after reload: %q %q", last(), a.findInput.Placeholder)
+	}
+}
