@@ -2050,7 +2050,7 @@ func (a *App) render() string {
 		if a.follow {
 			if dv := a.diffFor(t); dv != nil {
 				a.ensureDiffVisible(t, dv, a.editW(t, l), a.dvGeom(l).h)
-			} else {
+			} else if !a.fullPreview(t) { // the hidden editor is 0 wide: following it would scroll to the cursor column
 				ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
 			}
 			a.follow = false

@@ -258,3 +258,44 @@ func TestFullPreviewBlocksLeaderPasteAndVscodeKeymap(t *testing.T) {
 		t.Fatalf("vscode keymap edited the hidden buffer: version %d, want %d", b.Version, ver)
 	}
 }
+
+func TestPreviewFrontMatterAsYAML(t *testing.T) {
+	src := "---\nname: skill\ndescription: 説明\n---\n\n# 見出し\n"
+	lines := renderMarkdown(src, 40, mdOpts{frontMatter: true})
+	plain := ansi.Strip(strings.Join(lines, "\n"))
+	if !strings.Contains(plain, " yaml") || !strings.Contains(plain, "name: skill") || !strings.Contains(plain, "description: 説明") {
+		t.Fatalf("front matter not shown as YAML:\n%s", plain)
+	}
+	if strings.Contains(plain, "─") && strings.Index(plain, "─") < strings.Index(plain, "見出し") {
+		t.Fatalf("front matter fences drawn as rules:\n%s", plain)
+	}
+
+	// without the option (review comments), "---" stays a rule
+	plain = ansi.Strip(strings.Join(renderMarkdown(src, 40, mdOpts{}), "\n"))
+	if strings.Contains(plain, "yaml") {
+		t.Fatalf("front matter outside the preview:\n%s", plain)
+	}
+}
+
+func TestLeavingPreviewKeepsNoSidewaysScroll(t *testing.T) {
+	a := newTestApp(t, strings.Repeat("x", 60)+"\n")
+	tb := a.curText()
+	tb.buf.Path = "x.md"
+	tb.buf.Cur.Col = 50
+	a.follow = true
+	a.render()
+	if tb.buf.ScrollCol != 0 {
+		t.Fatalf("scrolled %d before the preview", tb.buf.ScrollCol)
+	}
+	for _, mode := range []previewMode{previewSplit, previewFull, previewOff} {
+		a.togglePreview()
+		a.follow = true // as after a cursor move
+		a.render()
+		if tb.preview != mode {
+			t.Fatalf("mode %v, want %v", tb.preview, mode)
+		}
+	}
+	if tb.buf.ScrollCol != 0 {
+		t.Fatalf("scrolled %d after leaving the preview", tb.buf.ScrollCol)
+	}
+}

@@ -255,6 +255,9 @@ type mdOpts struct {
 	// fell on a space. indent is the width of the
 	// decoration before its text.
 	wrapped func(row int, space bool, indent int)
+	// frontMatter shows a leading block fenced by "---" lines as YAML
+	// metadata instead of rules around a paragraph.
+	frontMatter bool
 }
 
 // renderMarkdown formats src into lines of exactly w columns.
@@ -291,6 +294,17 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 	}
 
 	lines := strings.Split(strings.ReplaceAll(src, "\r\n", "\n"), "\n")
+	start := 0
+	if o.frontMatter && len(lines) > 0 && strings.TrimRight(lines[0], " \t") == "---" {
+		for j := 1; j < len(lines); j++ {
+			if t := strings.TrimRight(lines[j], " \t"); t == "---" || t == "..." {
+				out = append(out, mdCodeBlock(lines[1:j], "yaml", w)...)
+				gap()
+				start = j + 1
+				break
+			}
+		}
+	}
 	var para []string
 	flushPara := func() {
 		if len(para) == 0 {
@@ -302,7 +316,7 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 		gap()
 	}
 
-	for i := 0; i < len(lines); i++ {
+	for i := start; i < len(lines); i++ {
 		line := strings.TrimRight(lines[i], " \t")
 
 		if m := mdFenceRe.FindStringSubmatch(line); m != nil {
@@ -366,6 +380,7 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 			i--
 			bar := bgfg(cEditorBg, "#6a9955").Render("▎ ")
 			qo, base := o, len(out)
+			qo.frontMatter = false
 			if o.wrapped != nil {
 				qo.wrapped = func(row int, space bool, indent int) { o.wrapped(base+row, space, indent+2) }
 			}
