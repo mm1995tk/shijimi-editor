@@ -1,16 +1,16 @@
 # <img src="manual/docs/assets/icon.png" alt="" width="32" align="top"> shijimi
 
-ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code、編集操作は Helix に合わせています。コマンド名は `shj` です。
+ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code に合わせています。編集操作は、Helix 風のモード編集と、モードの無い VS Code 風の操作から選べます。コマンド名は `shj` です。
 
 説明書: <https://shijimi-manual.pages.dev/>（ソースは [`manual/`](manual/)）
 
 ## 機能
 
-- **Helix 風のモード編集**（ノーマル / 挿入 / 選択、`:` コマンド）。VS Code 風の操作にも切り替えられます
+- **モード編集と VS Code 風の操作**：Helix 風のモード編集（ノーマル / 挿入 / 選択、`:` コマンド）と、モードの無い VS Code 風の操作から選べます
 - **マルチカーソル**（Helix 風）：`C` / `Alt+C` で下 / 上の行に複製、`s` で選択範囲を正規表現で分割、`,` で 1 つに戻す。挿入・削除・`c` などは全カーソルに適用
 - **ファイルツリー**（Git の変更状態を M / U / A で表示）
 - **LSP**：診断・補完・ホバー・シグネチャヘルプ・定義へ移動・参照・名前の変更・コードアクション・シンボル一覧・整形
-- **LSP の設定は Helix と同じ `.helix/languages.toml`** をプロジェクトのルートから読み込みます
+- **LSP の設定**は Helix と互換がある `languages.toml` で書きます（`.shijimi/languages.toml` か `~/.config/shijimi/languages.toml`）。Helix から移る人は、`languages.toml` を `~/.config/shijimi/` にコピーしてください
 - **差分モード**（`Space G` / `Ctrl+G` で `HEAD` と、`Space g` / `:pr` でプルリクエストの base と比べる）：エディター全体を差分モードに切り替えます。変更ファイルをツリー（CHANGES）で出し、変更のあるファイルは**ファイル全体**を左右分割（または統合）の diff で開きます。右側は編集できます。右端のバーで変更の位置がわかり、行の中で変わった部分を強調します（下記）
 - **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
 - **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。もう一度押すとプレビューだけを全幅で表示します。mermaid のコードブロックは図として表示します（下記）
@@ -39,17 +39,15 @@ shj main.go    # ファイルを開く
 
 ## 設定
 
-次の順に読み込み、後のものが優先されます（形式は Helix と同じです）。
+次の順に読み込み、後のものが優先されます（`languages.toml` は Helix と互換があります。Helix から移る人は、`languages.toml` を `~/.config/shijimi/` にコピーしてください）。
 
 1. 組み込みの既定値（gopls / rust-analyzer / typescript-language-server など）
-2. `~/.config/helix/languages.toml`、`~/.config/helix/config.toml`
-3. `~/.config/shijimi/languages.toml`、`~/.config/shijimi/config.toml`
-4. **プロジェクトの `.helix/languages.toml`、`.helix/config.toml`**
-5. プロジェクトの `.shijimi/languages.toml`、`.shijimi/config.toml`
+2. `~/.config/shijimi/languages.toml`、`~/.config/shijimi/config.toml`
+3. プロジェクトの `.shijimi/languages.toml`、`.shijimi/config.toml`
 
 ### テーマ
 
-`config.toml` の `theme`（Helix と同じ書き方）か、実行中の `:theme <名前>`（名前を省略すると一覧）で切り替えます。コマンドパレットの「設定: テーマを切り替え」からも選べます。
+`config.toml` の `theme` か、実行中の `:theme <名前>`（名前を省略すると一覧）で切り替えます。コマンドパレットの「設定: テーマを切り替え」からも選べます。
 
 - 組み込み: `dark-plus`（既定）、`github-dark`、`light-plus`
 - Helix の `github_dark*` は `github-dark`、`github_light*` と `light` は `light-plus` に対応付けます
@@ -67,8 +65,6 @@ theme = "github_dark"
 listen-host = "127.0.0.1"
 ```
 
-`[browser]` は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` にのみ書いてください。`.helix/config.toml` に書くと、Helix が未知のセクションを拒否します（`[search]` と同じ）。
-
 ### エージェント（提案パネル）
 
 提案を実行する ACP エージェントのコマンドを、`~/.config/shijimi/config.toml` に書きます（プロジェクトの設定からは読みません）。
@@ -79,7 +75,7 @@ command = "claude-agent-acp"
 args = []
 ```
 
-### LSP の設定例（`.helix/languages.toml`）
+### LSP の設定例（`.shijimi/languages.toml`）
 
 ```toml
 [language-server.my-gopls]
@@ -103,7 +99,7 @@ indent = { tab-width = 4, unit = "\t" }
 keymap = "helix"          # "vscode" で VS Code 風の操作
 
 [editor]
-line-number = "relative"  # Helix と同じ
+line-number = "relative"  # 行番号の表示
 file-icons = true         # ファイルツリーの Nerd Font アイコン。false で ▸/▾ 表示
 mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"  # mermaid を PNG にする外部コマンド。空で無効
 watch-files = true        # 他のプロセス（AI エージェントなど）によるファイル変更を検知して反映。未保存の編集があるファイルは :reload を待つ
@@ -307,7 +303,7 @@ nix flake check        # 整形のチェック
 
 ### 全文検索の除外・包含
 
-「含める」「除外」欄にはカンマ区切りの glob を書きます（例: `*.lock,dist/**`）。`:grep` / `:replace` では `-x` / `--exclude=`（除外）と `-i` / `--include=`（包含）でも指定できます。初期値は `[search]` 設定の値です。常に効かせたい指定は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書きます（`.helix/config.toml` などの Helix 設定には書かないでください。Helix が未知の `[search]` を拒否します）。
+「含める」「除外」欄にはカンマ区切りの glob を書きます（例: `*.lock,dist/**`）。`:grep` / `:replace` では `-x` / `--exclude=`（除外）と `-i` / `--include=`（包含）でも指定できます。初期値は `[search]` 設定の値です。常に効かせたい指定は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書きます。
 
 ```toml
 [search]

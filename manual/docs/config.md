@@ -1,26 +1,19 @@
 # 設定ファイル
 
-設定ファイルの形式は Helix と同じです。
+設定ファイルは TOML で書きます。`languages.toml` は Helix と互換があります。Helix から移る人は、`languages.toml` を `~/.config/shijimi/` にコピーしてください。
 
 ## 読み込む順番
 
 次の順に読み込みます。後のものが優先されます。
 
 1. 組み込みの既定値
-2. `~/.config/helix/languages.toml`、`~/.config/helix/config.toml`
-3. `~/.config/shijimi/languages.toml`、`~/.config/shijimi/config.toml`
-4. プロジェクトの `.helix/languages.toml`、`.helix/config.toml`
-5. プロジェクトの `.shijimi/languages.toml`、`.shijimi/config.toml`
+2. `~/.config/shijimi/languages.toml`、`~/.config/shijimi/config.toml`
+3. プロジェクトの `.shijimi/languages.toml`、`.shijimi/config.toml`
 
 - `languages.toml` には言語サーバーを書きます（[LSP](lsp.md)）。
 - `config.toml` にはそれ以外を書きます（このページ）。
 - 実行中に `:config-reload` を実行すると、読み直します。
-
-!!! warning "shijimi だけの設定"
-    `[browser]` と `[search]` と `[agent]` は Helix にない設定です。
-    `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書いてください。
-    `.helix/config.toml` に書くと、Helix が未知のセクションとして拒否します。
-    `[agent]` は `~/.config/shijimi/config.toml` からだけ読みます（[AI エージェント連携](agent.md)）。
+- `[agent]` は `~/.config/shijimi/config.toml` からだけ読みます（[AI エージェント連携](agent.md)）。
 
 ## config.toml の例
 
@@ -29,7 +22,7 @@ theme = "github_dark"
 keymap = "helix"          # "vscode" で VS Code 風の操作
 
 [editor]
-line-number = "relative"  # Helix と同じ
+line-number = "relative"  # 行番号の表示
 file-icons = true         # ファイルツリーの Nerd Font アイコン。false で ▸/▾ 表示
 mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"  # 空で無効
 watch-files = true        # 他のプロセスによるファイル変更を反映する
@@ -63,7 +56,7 @@ args = []
 | --- | --- | --- |
 | `theme` | テーマ | このページの「テーマ」 |
 | `keymap` | `helix`（既定）または `vscode` | [編集（VS Code モード）](editing-vscode.md) |
-| `editor.line-number` | 行番号の表示。Helix と同じ値 | — |
+| `editor.line-number` | 行番号の表示。`absolute` または `relative` | — |
 | `editor.file-icons` | ファイルツリーのアイコン | [ファイルと検索](files.md) |
 | `editor.mermaid-command` | mermaid を PNG にするコマンド | [プレビュー](preview.md) |
 | `editor.watch-files` | 外部での変更を反映するか | [ファイルと検索](files.md) |

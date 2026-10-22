@@ -1,6 +1,6 @@
 // Package config loads shijimi settings. Language and language-server
-// definitions use Helix's languages.toml format, so an existing
-// `.helix/languages.toml` in a project works as-is.
+// definitions use a format compatible with Helix's languages.toml, so an
+// existing Helix `languages.toml` works when copied to `~/.config/shijimi/`.
 package config
 
 import (
@@ -73,8 +73,6 @@ type Search struct {
 }
 
 // Browser holds the settings of `:browser forward` (port forwarding).
-// It is read only from shijimi's own config directories, never from
-// `.helix/`, because Helix rejects unknown sections.
 type Browser struct {
 	// ListenHost is the address `:browser forward` listens on. Set it to e.g.
 	// "0.0.0.0" only on a trusted network.
@@ -104,8 +102,9 @@ type Config struct {
 // nixEvalTimeout bounds one `nix eval`.
 const nixEvalTimeout = 15 * time.Second
 
-// Load merges built-in defaults, the user's Helix config, and the project's
-// `.helix/` and `.shijimi/` directories (later ones win). In each directory
+// Load merges built-in defaults, the user's `~/.config/shijimi/`, and the
+// project's `.shijimi/` directory (later ones win). Helix's own config
+// directories are not read. In each directory
 // `config.nix` / `languages.nix` are evaluated with `nix eval --json` and
 // applied after the TOML file of the same name.
 func Load(root string) *Config {
@@ -119,17 +118,14 @@ func Load(root string) *Config {
 
 	var dirs []string
 	if d, err := os.UserConfigDir(); err == nil {
-		dirs = append(dirs, filepath.Join(d, "helix"), filepath.Join(d, "shijimi"))
+		dirs = append(dirs, filepath.Join(d, "shijimi"))
 	}
-	dirs = append(dirs, filepath.Join(root, ".helix"), filepath.Join(root, ".shijimi"))
+	dirs = append(dirs, filepath.Join(root, ".shijimi"))
 	for _, d := range dirs {
-		own := filepath.Base(d) == "shijimi" || filepath.Base(d) == ".shijimi"
 		user := filepath.Base(d) == "shijimi"
 		if data, err := os.ReadFile(filepath.Join(d, "config.toml")); err == nil {
 			c.mergeEditor(string(data))
-			if own {
-				c.mergeBrowser(string(data))
-			}
+			c.mergeBrowser(string(data))
 			if user {
 				c.mergeAgent(string(data))
 			}
@@ -137,9 +133,7 @@ func Load(root string) *Config {
 		}
 		if raw, ok := evalNix(filepath.Join(d, "config.nix")); ok {
 			c.mergeEditorRaw(raw)
-			if own {
-				c.mergeBrowserRaw(raw)
-			}
+			c.mergeBrowserRaw(raw)
 			if user {
 				c.mergeAgentRaw(raw)
 			}
