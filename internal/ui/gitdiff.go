@@ -10,6 +10,7 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
@@ -1490,7 +1491,8 @@ func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, 
 	}
 	// emit draws s in fg and reports whether there is room for more.
 	emit := func(s, fg string) bool {
-		for _, r := range s {
+		// by grapheme cluster, measured as the terminal draws it
+		for g := uniseg.NewGraphemes(s); g.Next(); {
 			cell := bg
 			for _, sp := range spans {
 				if idx >= sp.Start && idx < sp.End {
@@ -1498,12 +1500,15 @@ func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, 
 					break
 				}
 			}
-			idx++
-			ch := string(r)
-			if r == '\t' {
+			idx += len(g.Runes())
+			ch := g.Str()
+			if ch == "\t" {
 				ch = "    "
 			}
 			cw := ansi.StringWidth(ch)
+			if cw == 0 && skip > 0 && used == 0 { // a combining mark of the rune left of the view
+				continue
+			}
 			if col < skip { // left of the view; a wide rune cut by the edge leaves blanks
 				col += cw
 				if col <= skip {

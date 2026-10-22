@@ -266,13 +266,21 @@ func (a *App) renderLog(w int) []logRow {
 				indent int
 			}
 			cuts := map[int]cut{} // row of the markdown -> the cut above it
-			lines := renderMarkdown(e.text, max(1, w-1), mdOpts{wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} }})
+			exact := map[int][2]int{}
+			lines := renderMarkdown(e.text, max(1, w-1), mdOpts{
+				wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} },
+				exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
+			})
 			for i, l := range lines {
 				c, cont := cuts[i]
 				if cont && len(out) > 0 {
 					out[len(out)-1].space = c.space
 				}
-				out = append(out, logRow{s: stPanel.Render(" ") + l, cont: cont, indent: 1 + c.indent})
+				r := logRow{s: stPanel.Render(" ") + l, cont: cont, indent: 1 + c.indent}
+				if x, ok := exact[i]; ok {
+					r.from, r.to = 1+x[0], 1+x[1]
+				}
+				out = append(out, r)
 			}
 		case logTool:
 			mark := map[string]string{"pending": "○", "in_progress": "◐", "completed": "●", "failed": "✗"}[e.status]

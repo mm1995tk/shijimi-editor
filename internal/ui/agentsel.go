@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/mattn/go-runewidth"
+	"github.com/rivo/uniseg"
 )
 
 // Text of the agent panel's log picked with the mouse.
@@ -19,6 +19,9 @@ type logRow struct {
 	cont   bool
 	space  bool
 	indent int // columns of decoration that copying leaves out of a cont row
+	// from, to, when to > 0, are the columns copied as they are, spaces
+	// included: a row of a code line cut by the width
+	from, to int
 }
 
 // agentView is where the log was drawn last: rows[start:start+n] sit at row
@@ -56,8 +59,8 @@ func (s agentSel) ordered() (agentPos, agentPos) {
 func snapCols(plain string, c0, c1 int) (int, int) {
 	x := 0
 	s0, s1 := c0, c1
-	for _, r := range plain {
-		w := runewidth.RuneWidth(r)
+	for g := uniseg.NewGraphemes(plain); g.Next(); { // by grapheme cluster, as the row is drawn
+		w := ansi.StringWidth(g.Str())
 		if x < c0 && x+w > c0 {
 			s0 = x
 		}
@@ -105,10 +108,10 @@ func markRow(row string, w, s0, s1 int) string {
 func cutCols(plain string, c0, c1 int) string {
 	var sb strings.Builder
 	x := 0
-	for _, r := range plain {
-		w := runewidth.RuneWidth(r)
+	for g := uniseg.NewGraphemes(plain); g.Next(); { // by grapheme cluster, as the row is drawn
+		w := ansi.StringWidth(g.Str())
 		if x < c1 && x+w > c0 {
-			sb.WriteRune(r)
+			sb.WriteString(g.Str())
 		}
 		x += w
 	}
@@ -140,6 +143,8 @@ func (s agentSel) text(rows []logRow, w int) string {
 			}
 		}
 		switch {
+		case rows[i].to > 0:
+			seg = cutCols(ansi.Strip(rows[i].s), max(c0, rows[i].from), min(c1, rows[i].to))
 		case rows[i].cont:
 			seg = strings.Trim(cutCols(ansi.Strip(rows[i].s), max(c0, rows[i].indent), c1), " ")
 		case c0 == 0:

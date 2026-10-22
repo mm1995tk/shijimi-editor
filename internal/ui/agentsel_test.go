@@ -132,3 +132,17 @@ func TestMarkRowKeepsColors(t *testing.T) {
 		t.Fatalf("selection lost: %q", got)
 	}
 }
+
+func TestAgentSelectionKeepsSpacesOfWrappedCode(t *testing.T) {
+	code := "x := 1" + strings.Repeat(" ", 37) + "// note\twith\ta tab and 日本語 that goes on and on past the edge"
+	a, _ := agentSelApp(t, logEntry{kind: logAgent, text: "```go\n" + code + "\n```"})
+	rows, w := a.ag.view.rows, a.ag.view.w
+	if len(rows) < 5 {
+		t.Fatalf("code not wrapped: %d rows", len(rows))
+	}
+	// the rows of the code line, between the language label and the bottom edge
+	a.ag.sel = agentSel{on: true, a: agentPos{1, 0}, b: agentPos{len(rows) - 2, w - 1}}
+	if got := a.ag.sel.text(rows, w); got != strings.ReplaceAll(code, "\t", "    ") {
+		t.Fatalf("copied\n%q\nwant\n%q", got, code)
+	}
+}
