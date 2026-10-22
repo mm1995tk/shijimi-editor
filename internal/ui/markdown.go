@@ -293,12 +293,22 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 		}
 	}
 
+	codeBlock := func(code []string, lang string) {
+		rows, cuts := mdCodeRows(code, lang, w)
+		if o.wrapped != nil {
+			for row, space := range cuts {
+				o.wrapped(len(out)+row, space, 1)
+			}
+		}
+		out = append(out, rows...)
+	}
+
 	lines := strings.Split(strings.ReplaceAll(src, "\r\n", "\n"), "\n")
 	start := 0
 	if o.frontMatter && len(lines) > 0 && strings.TrimRight(lines[0], " \t") == "---" {
 		for j := 1; j < len(lines); j++ {
 			if t := strings.TrimRight(lines[j], " \t"); t == "---" || t == "..." {
-				out = append(out, mdCodeBlock(lines[1:j], "yaml", w)...)
+				codeBlock(lines[1:j], "yaml")
 				gap()
 				start = j + 1
 				break
@@ -337,7 +347,7 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 					continue
 				}
 			}
-			out = append(out, mdCodeBlock(code, lang, w)...)
+			codeBlock(code, lang)
 			gap()
 			continue
 		}
@@ -460,6 +470,13 @@ func listItem(line string) *listMatch {
 }
 
 func mdCodeBlock(code []string, lang string, w int) []string {
+	rows, _ := mdCodeRows(code, lang, w)
+	return rows
+}
+
+// mdCodeRows draws a code block, wrapping lines longer than the block. cuts
+// maps each row that continues a line to whether the cut fell on a space.
+func mdCodeRows(code []string, lang string, w int) (rows []string, cuts map[int]bool) {
 	var lex chroma.Lexer
 	if lang != "" {
 		lex = lexers.Get(lang)
@@ -475,11 +492,32 @@ func mdCodeBlock(code []string, lang string, w int) []string {
 	} else {
 		out = append(out, edge.Render(strings.Repeat(" ", w)))
 	}
+	cuts = map[int]bool{}
+	tw := w - 2
 	for _, l := range code {
-		out = append(out, edge.Render(" ")+fitEmpty(highlightText(l, lex, bg, nil, "", w-2, 0), w-2)+edge.Render(" "))
+		// cut the line at rune boundaries into pieces of at most tw columns;
+		// each piece is highlighted with the whole line, skipping the columns before it
+		col, piece, prev := 0, 0, rune(0)
+		draw := func() {
+			out = append(out, edge.Render(" ")+fitEmpty(highlightText(l, lex, bg, nil, "", piece, col), tw)+edge.Render(" "))
+			col, piece = col+piece, 0
+		}
+		for _, r := range l {
+			cw := runewidth.RuneWidth(r)
+			if r == '\t' {
+				cw = 4
+			}
+			if tw > 0 && piece > 0 && piece+cw > tw {
+				draw()
+				cuts[len(out)] = prev == ' ' || r == ' '
+			}
+			piece += cw
+			prev = r
+		}
+		draw()
 	}
 	out = append(out, edge.Render(strings.Repeat(" ", w)))
-	return out
+	return out, cuts
 }
 
 func splitRow(line string) []string {

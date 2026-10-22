@@ -299,3 +299,40 @@ func TestLeavingPreviewKeepsNoSidewaysScroll(t *testing.T) {
 		t.Fatalf("scrolled %d after leaving the preview", tb.buf.ScrollCol)
 	}
 }
+
+func TestCodeBlockWrapsLongLines(t *testing.T) {
+	long := "description: 打ち合わせで作っておいた GitHub の Issue を並行に消化する。\tend"
+	src := "```yaml\n" + long + "\nshort\n```\n"
+	noSpace := func(s string) string { return strings.Join(strings.Fields(s), "") }
+	for _, w := range []int{12, 20, 33} {
+		cuts := map[int]bool{}
+		lines := renderMarkdown(src, w, mdOpts{wrapped: func(row int, space bool, indent int) {
+			if indent != 1 {
+				t.Errorf("w=%d indent %d", w, indent)
+			}
+			cuts[row] = space
+		}})
+		var got strings.Builder
+		for i, l := range lines {
+			if sw := ansi.StringWidth(l); sw != w {
+				t.Fatalf("w=%d line %d width %d: %q", w, i, sw, ansi.Strip(l))
+			}
+			if i == 0 || i >= len(lines)-2 { // the yaml label, "short" and the bottom edge
+				continue
+			}
+			if _, ok := cuts[i]; i > 1 && !ok {
+				t.Fatalf("w=%d row %d is not marked as a continuation", w, i)
+			}
+			got.WriteString(ansi.Strip(l))
+		}
+		if noSpace(got.String()) != noSpace(long) {
+			t.Fatalf("w=%d: rows join to %q", w, got.String())
+		}
+		if len(cuts) != len(lines)-4 { // all rows of the long line but its first
+			t.Fatalf("w=%d: %d continuation rows of %d", w, len(cuts), len(lines))
+		}
+		if !strings.Contains(ansi.Strip(lines[len(lines)-2]), "short") {
+			t.Fatalf("w=%d: short line moved: %q", w, ansi.Strip(lines[len(lines)-2]))
+		}
+	}
+}
