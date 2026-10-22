@@ -8,7 +8,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/mattn/go-runewidth"
+	"github.com/rivo/uniseg"
 )
 
 func isMarkdown(path string) bool {
@@ -255,6 +257,9 @@ type mdOpts struct {
 	// fell on a space. indent is the width of the
 	// decoration before its text.
 	wrapped func(row int, space bool, indent int)
+	// exact, when set, is called for each row of a code line cut by the
+	// width: its text is columns [from, to) as they are, spaces included.
+	exact func(row, from, to int)
 	// frontMatter shows a leading block fenced by "---" lines as YAML
 	// metadata instead of rules around a paragraph.
 	frontMatter bool
@@ -294,10 +299,13 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 	}
 
 	codeBlock := func(code []string, lang string) {
-		rows, cuts := mdCodeRows(code, lang, w)
-		if o.wrapped != nil {
-			for row, space := range cuts {
-				o.wrapped(len(out)+row, space, 1)
+		rows, pieces := mdCodeRows(code, lang, w)
+		for row, p := range pieces {
+			if p.cont && o.wrapped != nil {
+				o.wrapped(len(out)+row, false, 1)
+			}
+			if o.exact != nil {
+				o.exact(len(out)+row, 1, 1+p.width)
 			}
 		}
 		out = append(out, rows...)
@@ -394,6 +402,9 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 			if o.wrapped != nil {
 				qo.wrapped = func(row int, space bool, indent int) { o.wrapped(base+row, space, indent+2) }
 			}
+			if o.exact != nil {
+				qo.exact = func(row, from, to int) { o.exact(base+row, from+2, to+2) }
+			}
 			for _, l := range renderMarkdown(strings.Join(q, "\n"), max(1, w-2), qo) {
 				out = append(out, bar+l)
 			}
@@ -474,9 +485,15 @@ func mdCodeBlock(code []string, lang string, w int) []string {
 	return rows
 }
 
-// mdCodeRows draws a code block, wrapping lines longer than the block. cuts
-// maps each row that continues a line to whether the cut fell on a space.
-func mdCodeRows(code []string, lang string, w int) (rows []string, cuts map[int]bool) {
+// codePiece is one row of a code line cut by the width of its block.
+type codePiece struct {
+	cont  bool // continues the row above
+	width int  // columns of text after the left edge
+}
+
+// mdCodeRows draws a code block, wrapping lines longer than the block.
+// pieces holds the rows of the lines that were cut.
+func mdCodeRows(code []string, lang string, w int) (rows []string, pieces map[int]codePiece) {
 	var lex chroma.Lexer
 	if lang != "" {
 		lex = lexers.Get(lang)
@@ -492,32 +509,38 @@ func mdCodeRows(code []string, lang string, w int) (rows []string, cuts map[int]
 	} else {
 		out = append(out, edge.Render(strings.Repeat(" ", w)))
 	}
-	cuts = map[int]bool{}
+	pieces = map[int]codePiece{}
 	tw := w - 2
 	for _, l := range code {
-		// cut the line at rune boundaries into pieces of at most tw columns;
-		// each piece is highlighted with the whole line, skipping the columns before it
-		col, piece, prev := 0, 0, rune(0)
-		draw := func() {
-			out = append(out, edge.Render(" ")+fitEmpty(highlightText(l, lex, bg, nil, "", piece, col), tw)+edge.Render(" "))
-			col, piece = col+piece, 0
-		}
-		for _, r := range l {
-			cw := runewidth.RuneWidth(r)
-			if r == '\t' {
-				cw = 4
+		// cut the line into pieces of at most tw columns, measured as
+		// highlightText draws them; each piece is highlighted with the whole
+		// line, skipping the columns before it
+		var widths []int
+		piece := 0
+		for g := uniseg.NewGraphemes(l); g.Next(); {
+			cells := []int{ansi.StringWidth(g.Str())}
+			if g.Str() == "\t" {
+				cells = []int{1, 1, 1, 1} // a tab may be cut like the spaces it is drawn as
 			}
-			if tw > 0 && piece > 0 && piece+cw > tw {
-				draw()
-				cuts[len(out)] = prev == ' ' || r == ' '
+			for _, cw := range cells {
+				if tw > 0 && piece > 0 && piece+cw > tw {
+					widths, piece = append(widths, piece), 0
+				}
+				piece += cw
 			}
-			piece += cw
-			prev = r
 		}
-		draw()
+		widths = append(widths, piece)
+		col := 0
+		for i, pw := range widths {
+			if len(widths) > 1 {
+				pieces[len(out)] = codePiece{cont: i > 0, width: min(pw, tw)} // a rune wider than the block is drawn as "…"
+			}
+			out = append(out, edge.Render(" ")+fitEmpty(highlightText(l, lex, bg, nil, "", pw, col), tw)+edge.Render(" "))
+			col += pw
+		}
 	}
 	out = append(out, edge.Render(strings.Repeat(" ", w)))
-	return out, cuts
+	return out, pieces
 }
 
 func splitRow(line string) []string {

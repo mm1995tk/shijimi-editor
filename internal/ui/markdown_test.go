@@ -301,38 +301,47 @@ func TestLeavingPreviewKeepsNoSidewaysScroll(t *testing.T) {
 }
 
 func TestCodeBlockWrapsLongLines(t *testing.T) {
-	long := "description: 打ち合わせで作っておいた GitHub の Issue を並行に消化する。\tend"
-	src := "```yaml\n" + long + "\nshort\n```\n"
-	noSpace := func(s string) string { return strings.Join(strings.Fields(s), "") }
-	for _, w := range []int{12, 20, 33} {
-		cuts := map[int]bool{}
-		lines := renderMarkdown(src, w, mdOpts{wrapped: func(row int, space bool, indent int) {
-			if indent != 1 {
-				t.Errorf("w=%d indent %d", w, indent)
-			}
-			cuts[row] = space
-		}})
+	for _, tc := range []struct {
+		line string
+		w    int
+	}{
+		{"description: 打ち合わせで作っておいた GitHub の Issue を並行に消化する。\tend", 12},
+		{"description: 打ち合わせで作っておいた GitHub の Issue を並行に消化する。\tend", 33},
+		{"x := 1    // note", 10},
+		{"ab❤️cdefgh", 6}, // measured as highlightText draws it
+		{"abcdéfgh", 7},  // the combining mark stays with its letter
+		{"a\tb\tc", 3},    // a tab is cut like four spaces
+		{"aaaa日本語", 4},
+	} {
+		exact := map[int][2]int{}
+		conts := map[int]bool{}
+		lines := renderMarkdown("```\n"+tc.line+"\n```\n", tc.w, mdOpts{
+			wrapped: func(row int, space bool, indent int) { conts[row] = true },
+			exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
+		})
 		var got strings.Builder
 		for i, l := range lines {
-			if sw := ansi.StringWidth(l); sw != w {
-				t.Fatalf("w=%d line %d width %d: %q", w, i, sw, ansi.Strip(l))
+			if sw := ansi.StringWidth(l); sw != tc.w {
+				t.Fatalf("%q w=%d: line %d width %d: %q", tc.line, tc.w, i, sw, ansi.Strip(l))
 			}
-			if i == 0 || i >= len(lines)-2 { // the yaml label, "short" and the bottom edge
+			if i == 0 || i == len(lines)-1 { // the edges
 				continue
 			}
-			if _, ok := cuts[i]; i > 1 && !ok {
-				t.Fatalf("w=%d row %d is not marked as a continuation", w, i)
+			x, ok := exact[i]
+			if !ok || conts[i] != (i > 1) {
+				t.Fatalf("%q w=%d: row %d exact %v cont %v", tc.line, tc.w, i, ok, conts[i])
 			}
-			got.WriteString(ansi.Strip(l))
+			got.WriteString(cutCols(ansi.Strip(l), x[0], x[1]))
 		}
-		if noSpace(got.String()) != noSpace(long) {
-			t.Fatalf("w=%d: rows join to %q", w, got.String())
+		if want := strings.ReplaceAll(tc.line, "\t", "    "); got.String() != want {
+			t.Fatalf("w=%d: rows join to\n%q\nwant\n%q", tc.w, got.String(), want)
 		}
-		if len(cuts) != len(lines)-4 { // all rows of the long line but its first
-			t.Fatalf("w=%d: %d continuation rows of %d", w, len(cuts), len(lines))
-		}
-		if !strings.Contains(ansi.Strip(lines[len(lines)-2]), "short") {
-			t.Fatalf("w=%d: short line moved: %q", w, ansi.Strip(lines[len(lines)-2]))
-		}
+	}
+
+	// a line that fits is not reported
+	called := false
+	renderMarkdown("```\nshort\n```\n", 20, mdOpts{exact: func(int, int, int) { called = true }})
+	if called {
+		t.Fatal("a line that fits reported as cut")
 	}
 }
