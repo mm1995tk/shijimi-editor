@@ -16,7 +16,10 @@ func newSingleApp(t *testing.T, name, content string) (*App, string) {
 			t.Fatal(err)
 		}
 	}
-	a := NewSingle(p)
+	a, err := NewSingle(p)
+	if err != nil {
+		t.Fatal(err)
+	}
 	a.w, a.h = 100, 30
 	return a, p
 }
@@ -47,30 +50,23 @@ func TestSingleOpensOnlyThatFile(t *testing.T) {
 }
 
 func TestSingleBlocksOtherViews(t *testing.T) {
-	a, _ := newSingleApp(t, "a.txt", "hello\n")
-	for _, k := range []string{"ctrl+p", "ctrl+b", "ctrl+`", "ctrl+j", "ctrl+g", "ctrl+e", "ctrl+n", "alt+i"} {
-		switch k {
-		case "ctrl+p":
-			a.handleKey(tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl})
-		case "ctrl+b":
-			a.handleKey(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
-		case "ctrl+`":
-			a.handleKey(tea.KeyPressMsg{Code: '`', Mod: tea.ModCtrl})
-		case "ctrl+j":
-			a.handleKey(tea.KeyPressMsg{Code: 'j', Mod: tea.ModCtrl})
-		case "ctrl+g":
-			a.handleKey(tea.KeyPressMsg{Code: 'g', Mod: tea.ModCtrl})
-		case "ctrl+e":
-			a.handleKey(tea.KeyPressMsg{Code: 'e', Mod: tea.ModCtrl})
-		case "ctrl+n":
-			a.handleKey(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
-		case "alt+i":
-			a.handleKey(tea.KeyPressMsg{Code: 'i', Mod: tea.ModAlt})
+	ctrl := func(r rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl} }
+	keys := []tea.KeyPressMsg{ctrl('p'), ctrl('b'), ctrl('`'), ctrl('j'), ctrl('g'), ctrl('e'), ctrl('n'), ctrl('k'),
+		{Code: 'i', Mod: tea.ModAlt}, {Code: tea.KeyF1}}
+	for _, helix := range []bool{true, false} {
+		a, _ := newSingleApp(t, "a.txt", "hello\n")
+		a.helix = helix
+		for _, k := range keys {
+			a.handleKey(k)
+			if a.pal.open || a.showSide || a.showTerm || a.gd.on || a.showAgent || len(a.tabs) != 1 || a.focus != focusEditor {
+				t.Fatalf("helix=%v %s opened something", helix, k)
+			}
 		}
-		if a.pal.open || a.showSide || a.showTerm || a.gd.on || a.showAgent || len(a.tabs) != 1 || a.focus != focusEditor {
-			t.Fatalf("%s opened something", k)
+		if len(a.commands) != 0 {
+			t.Fatal("palette commands are available")
 		}
 	}
+	a, _ := newSingleApp(t, "a.txt", "hello\n")
 	for _, c := range []string{"tree", "sh", "gd", "grep x", "agent", "e other.txt", "new"} {
 		a.execCommand(c)
 		if a.pal.open || a.showSide || a.showTerm || a.gd.on || a.showAgent || a.search.open || len(a.tabs) != 1 {

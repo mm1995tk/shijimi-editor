@@ -190,7 +190,7 @@ func New(dir, file string) *App {
 // file tree, language server, terminal, diff mode or agent panel, and the app
 // ends when the file is closed. A file that does not exist opens as an empty
 // buffer, which creates the file when saved. It is meant for $EDITOR.
-func NewSingle(file string) *App {
+func NewSingle(file string) (*App, error) {
 	abs, _ := filepath.Abs(file)
 	dir := filepath.Dir(abs)
 	cfg := config.Load(dir)
@@ -223,9 +223,22 @@ func NewSingle(file string) *App {
 	styleInput(&a.cmdInput, cEditorBg)
 	styleInput(&a.pal.input, cPaletteBg)
 	a.search.restyle()
-	a.commands = defaultCommands()
-	a.openFile(abs)
-	return a
+	// The command palette is not reachable in this mode; with no commands, it
+	// cannot open the views single-file mode leaves out even if it were.
+	if !a.openFile(abs) {
+		msg := "ファイルを開けません"
+		if a.msg != "" {
+			msg = a.msg
+		}
+		return nil, errors.New(msg)
+	}
+	return a, nil
+}
+
+// typing reports whether the editor accepts typed text right now: VS Code
+// mode, or Helix insert mode.
+func (a *App) typing() bool {
+	return a.focus == focusEditor && a.curText() != nil && (!a.helix || a.mode == modeInsert)
 }
 
 // singleBlocked reports whether key opens something single-file mode does not
@@ -236,7 +249,9 @@ func singleBlocked(key string, typing bool) bool {
 		"ctrl+pgdown", "ctrl+pgup", "alt+a", "alt+i", "alt+r",
 		"alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
 		return true
-	case "ctrl+k", "ctrl+space":
+	case "ctrl+k":
+		return true
+	case "ctrl+space":
 		return !typing
 	}
 	return false
@@ -532,6 +547,9 @@ func (a *App) saveTo(t *tab, v string) tea.Cmd {
 }
 
 func (a *App) newFile() tea.Cmd {
+	if a.single {
+		return nil
+	}
 	a.addTab(newTab(buffer.New()))
 	return a.setFocus(focusEditor)
 }
@@ -691,6 +709,9 @@ func (a *App) switchTab(d int) {
 }
 
 func (a *App) toggleSide() {
+	if a.single {
+		return
+	}
 	a.showSide = !a.showSide
 	if !a.showSide && (a.focus == focusExplorer || a.focus == focusChanges) {
 		a.focus = focusEditor
@@ -698,6 +719,9 @@ func (a *App) toggleSide() {
 }
 
 func (a *App) toggleTerm() tea.Cmd {
+	if a.single {
+		return nil
+	}
 	if a.showTerm && a.focus == focusTerminal {
 		a.showTerm = false
 		return a.setFocus(focusEditor)
@@ -1184,7 +1208,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 
 	insert := a.helix && a.mode == modeInsert && a.focus == focusEditor
-	if a.single && singleBlocked(key, a.focus == focusEditor && a.curText() != nil && (!a.helix || a.mode == modeInsert)) {
+	if a.single && singleBlocked(key, a.typing()) {
 		return nil
 	}
 	switch key {
@@ -1208,7 +1232,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+j", "ctrl+space":
 		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
 		// mode, or Helix insert mode.
-		typing := a.focus == focusEditor && a.curText() != nil && (!a.helix || a.mode == modeInsert)
+		typing := a.typing()
 		if key == "ctrl+j" || !typing {
 			return a.toggleTerm()
 		}

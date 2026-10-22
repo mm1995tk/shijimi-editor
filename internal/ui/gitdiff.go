@@ -411,6 +411,9 @@ func (g *gitDiff) keepSelVisible(h int) {
 // openDiff handles Space G (base HEAD) and Space g (base PR): it opens diff
 // mode, closes it when it already compares with base, or switches the base.
 func (a *App) openDiff(base string) tea.Cmd {
+	if a.single {
+		return nil
+	}
 	if a.gd.on && a.gd.base == base {
 		return a.closeDiff()
 	}

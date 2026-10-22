@@ -161,6 +161,9 @@ func (s *searchPanel) counts() (target, skipped int) {
 
 // openSearch shows the window with the conditions of the last use.
 func (a *App) openSearch(field int) tea.Cmd {
+	if a.single {
+		return nil
+	}
 	s := a.search
 	s.open = true
 	cmds := []tea.Cmd{s.focusField(field)}

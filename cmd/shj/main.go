@@ -51,7 +51,11 @@ func main() {
 	}
 	var app *ui.App
 	if single {
-		app = ui.NewSingle(file)
+		var err error
+		if app, err = ui.NewSingle(file); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	} else {
 		app = ui.New(dir, file)
 	}
