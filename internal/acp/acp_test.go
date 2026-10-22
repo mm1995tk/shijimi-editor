@@ -9,10 +9,13 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/acp/acptest"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 func TestMain(m *testing.M) {
 	acptest.Main()
+	// The assertions below read the Japanese strings.
+	i18n.SetLang(i18n.Japanese)
 	os.Exit(m.Run())
 }
 

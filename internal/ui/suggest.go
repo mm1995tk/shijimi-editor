@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -252,34 +253,34 @@ func (a *App) allSuggestions() []offer {
 	var out []offer
 	r := a.sg.repo
 	if a.sg.fixOffer {
-		out = append(out, offer{sgApplyFix, fmt.Sprintf("apply-fix:%d", a.sg.fixSeq), "修正を適用しますか", "失敗の原因調査で出た修正案"})
+		out = append(out, offer{sgApplyFix, fmt.Sprintf("apply-fix:%d", a.sg.fixSeq), i18n.T("sg.applyfix"), i18n.T("sg.fixdetail")})
 	}
 	if n := len(r.conflicts); n > 0 {
-		out = append(out, offer{sgConflict, "conflict", "衝突を解消しますか", fmt.Sprintf("%d ファイル: %s", n, strings.Join(r.conflicts, ", "))})
+		out = append(out, offer{sgConflict, "conflict", i18n.T("sg.conflicts"), fmt.Sprintf(i18n.T("sg.files"), n, strings.Join(r.conflicts, ", "))})
 	}
 	if r.prKnown && len(r.prs) == 0 && r.ahead > 0 && r.base != "" && !isBranchOf(r.base, r.branch) {
-		out = append(out, offer{sgCreatePR, "create-pr:" + r.branch, "PR を作りますか", fmt.Sprintf("%s にコミットが %d 個", r.branch, r.ahead)})
+		out = append(out, offer{sgCreatePR, "create-pr:" + r.branch, i18n.T("sg.createpr"), fmt.Sprintf(i18n.T("sg.commits"), r.branch, r.ahead)})
 	}
 	if r.prKnown && len(r.prs) > 0 && !a.prShown() {
 		p := r.prs[0]
-		out = append(out, offer{sgReviewMode, fmt.Sprintf("review-mode:%s:%d", r.branch, p.Number), "レビューモードにしますか", fmt.Sprintf("#%d %s", p.Number, p.Title)})
+		out = append(out, offer{sgReviewMode, fmt.Sprintf("review-mode:%s:%d", r.branch, p.Number), i18n.T("sg.reviewmode"), fmt.Sprintf("#%d %s", p.Number, p.Title)})
 	}
 	for _, f := range a.sg.fails {
-		d := fmt.Sprintf("ターミナル %d: 終了コード %d", f.n, f.code)
+		d := fmt.Sprintf(i18n.T("sg.termexit"), f.n, f.code)
 		if f.code < 0 {
-			d = fmt.Sprintf("ターミナル %d: %s", f.n, f.line)
+			d = fmt.Sprintf(i18n.T("sg.term"), f.n, f.line)
 		}
-		out = append(out, offer{sgFailure, fmt.Sprintf("fail:%d", f.seq), "失敗の原因を調べますか", d})
+		out = append(out, offer{sgFailure, fmt.Sprintf("fail:%d", f.seq), i18n.T("sg.investigate"), d})
 	}
 	if paths, byPath := a.lspErrors(); len(paths) > 0 {
 		n := 0
 		for _, p := range paths {
 			n += len(byPath[p])
 		}
-		out = append(out, offer{sgLSPErrors, "lsp-errors", fmt.Sprintf("エラー %d 件を直しますか", n), fmt.Sprintf("%d ファイル: %s", len(paths), a.rel(paths[0]))})
+		out = append(out, offer{sgLSPErrors, "lsp-errors", fmt.Sprintf(i18n.T("sg.fixerrors"), n), fmt.Sprintf(i18n.T("sg.files"), len(paths), a.rel(paths[0]))})
 	}
 	if a.prShown() {
-		out = append(out, offer{sgAIReview, fmt.Sprintf("ai-review:%d", a.gd.pr.Number), "この PR を AI にレビューさせますか", fmt.Sprintf("#%d %s", a.gd.pr.Number, a.gd.pr.Title)})
+		out = append(out, offer{sgAIReview, fmt.Sprintf("ai-review:%d", a.gd.pr.Number), i18n.T("sg.aireview"), fmt.Sprintf("#%d %s", a.gd.pr.Number, a.gd.pr.Title)})
 	}
 	return out
 }
@@ -365,7 +366,7 @@ func (a *App) runSuggestion() tea.Cmd {
 			}
 		}
 	case sgApplyFix:
-		cmd := a.runAgent(s.kind, s.key, s.title, func() string { return applyFixPrompt })
+		cmd := a.runAgent(s.kind, s.key, s.title, func() string { return applyFixPrompt() })
 		if a.ag.run != nil {
 			a.sg.fixOffer = false
 		}
@@ -375,7 +376,7 @@ func (a *App) runSuggestion() tea.Cmd {
 		return a.runAgent(s.kind, s.key, s.title, func() string {
 			out, err := run(root, nil, "git", "diff", rev, "--no-color", "--no-ext-diff", "-M")
 			if err != nil {
-				out = []byte("（差分を取得できませんでした: " + err.Error() + "）")
+				out = []byte(fmt.Sprintf(i18n.T("sg.diffunavailable"), err.Error()))
 			}
 			return reviewPrompt(pr, string(out))
 		})
@@ -392,7 +393,7 @@ func (a *App) errorsText() string {
 	for _, p := range paths {
 		for _, d := range byPath[p] {
 			if n == maxErrors {
-				fmt.Fprintf(&sb, "（ほかにもあります）\n")
+				sb.WriteString(i18n.T("sg.more"))
 				return sb.String()
 			}
 			n++
@@ -410,48 +411,39 @@ func (a *App) errorsText() string {
 
 func conflictPrompt(files []string) string {
 	var sb strings.Builder
-	sb.WriteString("次のファイルに git の衝突マーカー（<<<<<<< / ======= / >>>>>>>）が残っています。両方の変更の意図を読み取って衝突を解消し、マーカーをすべて取り除いてください。コミットはしないでください。\n\n")
+	sb.WriteString(i18n.T("sg.prompt.conflict"))
 	for _, f := range files {
-		fmt.Fprintf(&sb, "- %s（リポジトリのトップから）\n", f)
+		fmt.Fprintf(&sb, i18n.T("sg.prompt.conflictfile"), f)
 	}
 	return sb.String()
 }
 
 func createPRPrompt(branch, base string) string {
-	return fmt.Sprintf("今のブランチ %s のプルリクエストを作ってください。%s..HEAD のコミットと差分を読んでタイトルと本文を書き、push していなければ push してから gh pr create で作成してください。作成したら URL を教えてください。", branch, base)
+	return fmt.Sprintf(i18n.T("sg.prompt.createpr"), branch, base)
 }
 
 func lspPrompt(errors string) string {
-	return "LSP が次のエラーを報告しています。原因を調べて直してください。\n\n" + errors
+	return i18n.T("sg.prompt.lsp") + errors
 }
 
 func failurePrompt(f termFailure) string {
-	what := fmt.Sprintf("終了コード %d", f.code)
+	what := fmt.Sprintf(i18n.T("sg.exitcode"), f.code)
 	if f.code < 0 {
-		what = "テストの失敗: " + f.line
+		what = i18n.T("sg.testfail") + f.line
 	}
-	return fmt.Sprintf("ターミナルで実行したコマンドが失敗しました（%s）。次の出力を読んで原因を調べ、原因と修正案を説明してください。この段階ではファイルを書き換えないでください。\n\n```\n%s\n```\n", what, strings.Join(f.output, "\n"))
+	return fmt.Sprintf(i18n.T("sg.prompt.fail"), what, strings.Join(f.output, "\n"))
 }
 
-const applyFixPrompt = "先ほど説明した修正案を適用してください。"
+func applyFixPrompt() string { return i18n.T("sg.prompt.applyfix") }
 
 // maxReviewDiff bounds the diff sent for a review.
 const maxReviewDiff = 200_000
 
 func reviewPrompt(pr *prInfo, d string) string {
 	if len(d) > maxReviewDiff {
-		d = d[:maxReviewDiff] + "\n（差分が長いため、ここで切りました）"
+		d = d[:maxReviewDiff] + i18n.T("sg.difftruncated")
 	}
-	return fmt.Sprintf(`プルリクエスト #%d「%s」をレビューしてください。差分は次のとおりです。
-
-指摘はコメント案として、返事の最後に次の形の JSON 配列を `+"```json"+` のコードブロックで出してください。
-GitHub には投稿しないでください。ファイルも書き換えないでください。
-
-[{"path": "リポジトリのトップからのパス", "line": 変更後の行番号, "start_line": 範囲の最初の行（1 行なら省く）, "body": "コメントの本文（Markdown）"}]
-
-ファイル全体へのコメントは line を省いてください。指摘が無ければ [] を出してください。
-
-`+"```diff\n%s\n```\n", pr.Number, pr.Title, d)
+	return fmt.Sprintf(i18n.T("sg.prompt.review1")+"```json"+i18n.T("sg.prompt.review2")+"```diff\n%s\n```\n", pr.Number, pr.Title, d)
 }
 
 // ---- AI review results ----
@@ -474,7 +466,7 @@ func parseReview(text string) ([]reviewComment, error) {
 	}
 	var out []reviewComment
 	if err := json.Unmarshal([]byte(src), &out); err != nil {
-		return nil, fmt.Errorf("コメント案の JSON を読めません: %w", err)
+		return nil, fmt.Errorf(i18n.T("sg.badjson"), err)
 	}
 	return out, nil
 }
@@ -486,7 +478,7 @@ func parseReview(text string) ([]reviewComment, error) {
 func (a *App) placeReview(run *agentRun) tea.Cmd {
 	s := a.ag
 	if !a.prShown() || a.gd.pr.Number != run.pr {
-		s.add(logEntry{kind: logError, text: "レビューした PR が表示されていないため、コメント案を置きませんでした"})
+		s.add(logEntry{kind: logError, text: i18n.T("sg.prnotshown")})
 		return nil
 	}
 	cs, err := parseReview(run.text.String())
@@ -517,7 +509,7 @@ func (a *App) placeReview(run *agentRun) tea.Cmd {
 			th.File = true
 		case !inDiff(f, c.Line):
 			th.File = true
-			body = fmt.Sprintf("**%d 行目**: %s", c.Line, body)
+			body = fmt.Sprintf(i18n.T("sg.linebold"), c.Line, body)
 		default:
 			th.Line = c.Line
 			if c.StartLine > 0 && c.StartLine < c.Line && inDiff(f, c.StartLine) {
@@ -528,9 +520,9 @@ func (a *App) placeReview(run *agentRun) tea.Cmd {
 		a.gd.rv.pending = append(a.gd.rv.pending, th)
 		placed++
 	}
-	msg := fmt.Sprintf("AI のコメント案を %d 件、未送信コメントに置きました。読んで直してから Space v A / R / S で送ります", placed)
+	msg := fmt.Sprintf(i18n.T("sg.placed"), placed)
 	if skipped > 0 {
-		msg += fmt.Sprintf("（%d 件は PR の差分に無いか手元で変更のあるファイルなので置いていません）", skipped)
+		msg += fmt.Sprintf(i18n.T("sg.skippedfiles"), skipped)
 	}
 	s.add(logEntry{kind: logInfo, text: msg})
 	a.info("%s", msg)

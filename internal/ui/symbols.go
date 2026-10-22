@@ -2,11 +2,13 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -47,14 +49,14 @@ func (a *App) documentSymbols() tea.Cmd {
 
 func (a *App) showSymbols(m symbolsMsg) tea.Cmd {
 	if len(m.syms) == 0 {
-		a.info("シンボルがありません")
+		a.infoText(i18n.T("symui.none"))
 		return nil
 	}
 	items := make([]paletteItem, len(m.syms))
 	for i, s := range m.syms {
 		items[i] = paletteItem{label: s.Name, detail: symbolDetail(s, "")}
 	}
-	return a.pal.pick("シンボル", items, func(i int) tea.Cmd {
+	return a.pal.pick(i18n.T("symui.title"), items, func(i int) tea.Cmd {
 		return a.jumpTo(lsp.Location{URI: m.syms[i].URI, Range: m.syms[i].Range})
 	})
 }
@@ -70,7 +72,7 @@ func symbolDetail(s lsp.Symbol, file string) string {
 	if file != "" {
 		return d + "  " + file + ":" + line
 	}
-	return d + "  " + line + "行目"
+	return d + "  " + fmt.Sprintf(i18n.T("symui.line"), line)
 }
 
 // workspaceSymbols opens a picker over the project's symbols. The language
@@ -81,18 +83,18 @@ func (a *App) workspaceSymbols() tea.Cmd {
 		return nil
 	}
 	if t.lang == nil {
-		a.fail(fmt.Errorf("この言語の言語サーバーは設定されていません"))
+		a.fail(errors.New(i18n.T("lspui.noserver")))
 		return nil
 	}
 	c := a.lsp.client(t, "workspaceSymbolProvider")
 	if c == nil {
-		a.fail(fmt.Errorf("言語サーバーが workspaceSymbolProvider に対応していないか、起動中です"))
+		a.fail(errors.New(i18n.T("symui.wsunsupported")))
 		return nil
 	}
 	a.syncLSP()
 	a.wsSyms = nil
 	a.wsClient = c
-	return a.pal.pickLive("プロジェクトのシンボル", func(i int) tea.Cmd {
+	return a.pal.pickLive(i18n.T("space.wsymbols"), func(i int) tea.Cmd {
 		if i >= len(a.wsSyms) {
 			return nil
 		}

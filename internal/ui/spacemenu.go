@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // spaceItem is one row of the Space menu popup. textOnly marks commands that
@@ -15,29 +17,29 @@ type spaceItem struct {
 
 // spaceItems lists the keys spaceMode understands, in display order.
 var spaceItems = []spaceItem{
-	{"f", "ファイルを開く", false},
-	{"b", "バッファ一覧", false},
-	{"k", "ホバー", true},
-	{"o", "URL を開く", false},
-	{"r", "名前の変更", true},
-	{".", "コードアクション", true},
-	{"s", "シンボル一覧", true},
-	{"S", "プロジェクトのシンボル", true},
-	{"d", "診断の一覧", false},
-	{"e", "ファイルツリー", false},
-	{"m", "プレビュー切替", false},
-	{"g", "PR の base と比較", false},
-	{"G", "HEAD と比較", false},
-	{"v", "レビュー（PR）", false},
-	{"y", "コピー", true},
-	{"p", "貼り付け(後)", true},
-	{"P", "貼り付け(前)", true},
-	{"/", "全文検索", false},
-	{"c", "コメント切替", true},
-	{"t", "ターミナル", false},
-	{"a", "エージェントへ送る", false},
-	{"i", "提案パネル", false},
-	{"?", "コマンド一覧", false},
+	{"f", "space.openfile", false},
+	{"b", "space.buffers", false},
+	{"k", "space.hover", true},
+	{"o", "space.openurl", false},
+	{"r", "space.rename", true},
+	{".", "lspui.codeactions", true},
+	{"s", "space.symbols", true},
+	{"S", "space.wsymbols", true},
+	{"d", "space.diagnostics", false},
+	{"e", "app.pane.tree", false},
+	{"m", "space.preview", false},
+	{"g", "space.diffpr", false},
+	{"G", "space.diffhead", false},
+	{"v", "space.review", false},
+	{"y", "space.copy", true},
+	{"p", "space.pasteafter", true},
+	{"P", "space.pastebefore", true},
+	{"/", "space.grep", false},
+	{"c", "space.togglecomment", true},
+	{"t", "app.pane.terminal", false},
+	{"a", "space.sendagent", false},
+	{"i", "app.pane.suggest", false},
+	{"?", "space.commands", false},
 }
 
 // spaceMenuItems returns the items usable right now.
@@ -79,7 +81,7 @@ func (a *App) renderMenu(rows []string, l layout, title string, items []spaceIte
 	per := (len(items) + cols - 1) / cols
 	cellW := 0
 	for _, it := range items {
-		cellW = max(cellW, 2+ansi.StringWidth(it.label))
+		cellW = max(cellW, 2+ansi.StringWidth(i18n.T(it.label)))
 	}
 	w := min(cols*cellW+(cols-1)*2+2, l.rightW)
 	if w < 8 {
@@ -101,10 +103,11 @@ func (a *App) renderMenu(rows []string, l layout, title string, items []spaceIte
 				used += 2
 			}
 			it := items[i]
+			lab := i18n.T(it.label)
 			sb.WriteString(stPaletteHi.Render(it.key))
-			sb.WriteString(stPalette.Render(" " + it.label))
-			used += 2 + ansi.StringWidth(it.label)
-			if pad := cellW - 2 - ansi.StringWidth(it.label); pad > 0 && c < cols-1 {
+			sb.WriteString(stPalette.Render(" " + lab))
+			used += 2 + ansi.StringWidth(lab)
+			if pad := cellW - 2 - ansi.StringWidth(lab); pad > 0 && c < cols-1 {
 				sb.WriteString(stPalette.Render(strings.Repeat(" ", pad)))
 				used += pad
 			}

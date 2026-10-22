@@ -10,6 +10,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 type command struct {
@@ -20,75 +21,75 @@ type command struct {
 
 func defaultCommands() []command {
 	return []command{
-		{"ファイル: 保存", "Ctrl+S / :w", func(a *App) tea.Cmd { return a.save() }},
-		{"ファイル: 名前を付けて保存", "", func(a *App) tea.Cmd { return a.saveAs() }},
-		{"ファイル: すべて保存", ":wa", func(a *App) tea.Cmd { return a.saveAll() }},
-		{"ファイル: 新しいファイル", "Ctrl+N", func(a *App) tea.Cmd { return a.newFile() }},
-		{"ファイル: ファイルを開く", "Ctrl+P / Space f", func(a *App) tea.Cmd { return a.pal.show(a.root, "") }},
-		{"ファイル: 相対パスをコピー", "y（ファイルツリー）", func(a *App) tea.Cmd { a.copyPath(a.activePath(), false); return nil }},
-		{"ファイル: 絶対パスをコピー", "Y（ファイルツリー）", func(a *App) tea.Cmd { a.copyPath(a.activePath(), true); return nil }},
-		{"ファイル: ディスクから再読み込み", ":reload", func(a *App) tea.Cmd { return a.execCommand("reload") }},
-		{"表示: タブを閉じる", "Ctrl+W / :bc", func(a *App) tea.Cmd { return a.closeTab(false) }},
-		{"表示: 開いているバッファ一覧", "Space b", func(a *App) tea.Cmd { return a.bufferPicker() }},
-		{"表示: サイドバー（ファイルツリー）の表示切替", "Ctrl+B", func(a *App) tea.Cmd { a.toggleSide(); return nil }},
-		{"表示: ファイルツリーへ移動", "Ctrl+E / Space e", func(a *App) tea.Cmd { a.showSide = true; return a.setFocus(focusExplorer) }},
-		{"表示: Markdown プレビューの切替（並べて表示 → 全幅 → 閉じる）", "Space m / :preview", func(a *App) tea.Cmd { return a.togglePreview() }},
-		{"表示: ターミナルの表示切替", "Ctrl+`", func(a *App) tea.Cmd { return a.toggleTerm() }},
-		{"表示: ペインのリサイズ（サイドバー・ターミナル・プレビュー）", "Alt+R", func(a *App) tea.Cmd { return a.startResize() }},
-		{"表示: ペインの大きさを初期値に戻す", "リサイズ中に =", func(a *App) tea.Cmd { a.resetPanes(); return nil }},
-		{"表示: 次のタブ", "Ctrl+PgDn / gn", func(a *App) tea.Cmd { a.switchTab(1); return nil }},
-		{"表示: 前のタブ", "Ctrl+PgUp / gp", func(a *App) tea.Cmd { a.switchTab(-1); return nil }},
-		{"編集: 検索", "Ctrl+F / /", func(a *App) tea.Cmd {
+		{i18n.T("cmd.save"), "Ctrl+S / :w", func(a *App) tea.Cmd { return a.save() }},
+		{i18n.T("cmd.saveas"), "", func(a *App) tea.Cmd { return a.saveAs() }},
+		{i18n.T("cmd.saveall"), ":wa", func(a *App) tea.Cmd { return a.saveAll() }},
+		{i18n.T("cmd.newfile"), "Ctrl+N", func(a *App) tea.Cmd { return a.newFile() }},
+		{i18n.T("cmd.openfile"), "Ctrl+P / Space f", func(a *App) tea.Cmd { return a.pal.show(a.root, "") }},
+		{i18n.T("cmd.copyrel"), i18n.T("cmd.copyrel.key"), func(a *App) tea.Cmd { a.copyPath(a.activePath(), false); return nil }},
+		{i18n.T("cmd.copyabs"), i18n.T("cmd.copyabs.key"), func(a *App) tea.Cmd { a.copyPath(a.activePath(), true); return nil }},
+		{i18n.T("cmd.reload"), ":reload", func(a *App) tea.Cmd { return a.execCommand("reload") }},
+		{i18n.T("cmd.closetab"), "Ctrl+W / :bc", func(a *App) tea.Cmd { return a.closeTab(false) }},
+		{i18n.T("cmd.buffers"), "Space b", func(a *App) tea.Cmd { return a.bufferPicker() }},
+		{i18n.T("cmd.sidebar"), "Ctrl+B", func(a *App) tea.Cmd { a.toggleSide(); return nil }},
+		{i18n.T("cmd.focustree"), "Ctrl+E / Space e", func(a *App) tea.Cmd { a.showSide = true; return a.setFocus(focusExplorer) }},
+		{i18n.T("cmd.preview"), "Space m / :preview", func(a *App) tea.Cmd { return a.togglePreview() }},
+		{i18n.T("cmd.terminal"), "Ctrl+`", func(a *App) tea.Cmd { return a.toggleTerm() }},
+		{i18n.T("cmd.resize"), "Alt+R", func(a *App) tea.Cmd { return a.startResize() }},
+		{i18n.T("cmd.resetsizes"), i18n.T("cmd.resetsizes.key"), func(a *App) tea.Cmd { a.resetPanes(); return nil }},
+		{i18n.T("cmd.nexttab"), "Ctrl+PgDn / gn", func(a *App) tea.Cmd { a.switchTab(1); return nil }},
+		{i18n.T("cmd.prevtab"), "Ctrl+PgUp / gp", func(a *App) tea.Cmd { a.switchTab(-1); return nil }},
+		{i18n.T("cmd.find"), "Ctrl+F / /", func(a *App) tea.Cmd {
 			if a.helix {
 				return a.openCmdline("/")
 			}
 			return a.openFind()
 		}},
-		{"編集: 行へ移動", ":<行番号>", func(a *App) tea.Cmd { return a.openCmdline(":") }},
-		{"編集: 戻る", "Ctrl+O / Alt+←", func(a *App) tea.Cmd { return a.jumpMove(-1) }},
-		{"編集: 進む", "Ctrl+I / Alt+→", func(a *App) tea.Cmd { return a.jumpMove(1) }},
-		{"編集: 元に戻す", "u / Ctrl+Z", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Undo() }); return nil }},
-		{"編集: やり直し", "U / Ctrl+Y", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
-		{"編集: 行コメントの切替", "Ctrl+C / Ctrl+/", func(a *App) tea.Cmd { a.toggleComment(); return nil }},
-		{"検索: プロジェクト全体を検索 / 置換", "Space /", func(a *App) tea.Cmd { return a.openSearch(fQuery) }},
-		{"エージェント: 現在の文脈をターミナルへ送る", "Space a / Alt+A", func(a *App) tea.Cmd { return a.sendContext() }},
-		{"エージェント: 提案パネルへ移動 / 閉じる", "Space i / Alt+I / :agent", func(a *App) tea.Cmd { return a.toggleAgentPanel() }},
-		{"エージェント: 作業を中止", ":agent cancel", func(a *App) tea.Cmd { a.cancelAgent(); return nil }},
-		{"エージェント: 止める", ":agent stop", func(a *App) tea.Cmd { return a.agentCommand("stop") }},
-		{"LSP: シグネチャヘルプ（引数の表示）", ":signature", func(a *App) tea.Cmd { return a.signatureHelp(true) }},
-		{"LSP: ホバー", "Space k", func(a *App) tea.Cmd { return a.hover() }},
-		{"LSP: 定義へ移動", "gd / F12", func(a *App) tea.Cmd { return a.gotoDefinition() }},
-		{"LSP: 参照を表示", "gr / Shift+F12", func(a *App) tea.Cmd { return a.references() }},
-		{"LSP: 名前の変更", "Space r / F2", func(a *App) tea.Cmd { return a.rename() }},
-		{"LSP: コードアクション（クイックフィックス・リファクタリング）", "Space . / :action", func(a *App) tea.Cmd { return a.codeAction() }},
-		{"LSP: シンボル一覧", "Space s / :symbol", func(a *App) tea.Cmd { return a.documentSymbols() }},
-		{"LSP: プロジェクト全体のシンボル検索", "Space S / :symbol-all", func(a *App) tea.Cmd { return a.workspaceSymbols() }},
-		{"LSP: 整形", ":fmt", func(a *App) tea.Cmd { return a.format(false) }},
-		{"LSP: 診断の一覧", "Space d", func(a *App) tea.Cmd { return a.diagnosticPicker() }},
-		{"LSP: 言語サーバーを再起動", ":lsp-restart", func(a *App) tea.Cmd { return a.execCommand("lsp-restart") }},
-		{"差分: HEAD と比べる（開く / 閉じる）", "Ctrl+G / Space G / :gitdiff", func(a *App) tea.Cmd { return a.openDiff(baseHead) }},
-		{"差分: PR の base と比べる（開く / 閉じる）", "Space g", func(a *App) tea.Cmd { return a.openDiff(basePR) }},
-		{"差分: PR を一覧から選んで比べる", ":pr [番号]", func(a *App) tea.Cmd { return a.prPicker() }},
-		{"差分: 分割表示 / 統合表示の切替", ":gitdiff split|unified", func(a *App) tea.Cmd { a.toggleSplit(); return nil }},
-		{"差分: 変更一覧へ移動", "", func(a *App) tea.Cmd { return a.focusChangesList() }},
-		{"レビュー: 行・範囲にコメント", "Space v c", func(a *App) tea.Cmd { return a.reviewCommand("c") }},
-		{"レビュー: ファイルにコメント", "Space v C", func(a *App) tea.Cmd { return a.reviewCommand("C") }},
-		{"レビュー: カーソル行のスレッドを開く", "Space v t", func(a *App) tea.Cmd { return a.reviewCommand("t") }},
-		{"レビュー: viewed にする / 戻す", "Space v v", func(a *App) tea.Cmd { return a.reviewCommand("v") }},
-		{"レビュー: 承認して送信", "Space v A", func(a *App) tea.Cmd { return a.reviewCommand("A") }},
-		{"レビュー: 変更を要求して送信", "Space v R", func(a *App) tea.Cmd { return a.reviewCommand("R") }},
-		{"レビュー: コメントのみで送信", "Space v S", func(a *App) tea.Cmd { return a.reviewCommand("S") }},
-		{"ファイルツリー: 最新の情報に更新", "R", func(a *App) tea.Cmd { a.explorer.refresh(); return nil }},
-		{"ファイルツリー: 新しいファイル", "a", func(a *App) tea.Cmd { return a.newFileIn(a.explorer.targetDir()) }},
-		{"ファイルツリー: 新しいフォルダー", "A", func(a *App) tea.Cmd { return a.newFolder() }},
-		{"ファイルツリー: 名前の変更", "r", func(a *App) tea.Cmd { return a.renameFile() }},
-		{"ファイルツリー: 削除", "d", func(a *App) tea.Cmd { return a.deleteFile() }},
-		{"編集: カーソル位置の URL を外部ブラウザで開く", "Space o / :open-url", func(a *App) tea.Cmd { return a.openURL("") }},
-		{"ブラウザ: ポート転送の一覧", ":browser list", func(a *App) tea.Cmd { return a.execCommand("browser list") }},
-		{"設定: テーマを切り替え", ":theme <名前>", func(a *App) tea.Cmd { return a.themePicker() }},
-		{"設定: キー操作を Helix / VS Code で切り替え", ":keymap", func(a *App) tea.Cmd { return a.execCommand("keymap") }},
-		{"設定: 設定ファイルを再読み込み", ":config-reload", func(a *App) tea.Cmd { return a.execCommand("config-reload") }},
-		{"終了", "Ctrl+Q / :q", func(a *App) tea.Cmd { return a.quit() }},
+		{i18n.T("cmd.goto"), i18n.T("cmd.goto.key"), func(a *App) tea.Cmd { return a.openCmdline(":") }},
+		{i18n.T("cmd.back"), "Ctrl+O / Alt+←", func(a *App) tea.Cmd { return a.jumpMove(-1) }},
+		{i18n.T("cmd.forward"), "Ctrl+I / Alt+→", func(a *App) tea.Cmd { return a.jumpMove(1) }},
+		{i18n.T("cmd.undo"), "u / Ctrl+Z", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Undo() }); return nil }},
+		{i18n.T("cmd.redo"), "U / Ctrl+Y", func(a *App) tea.Cmd { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
+		{i18n.T("cmd.togglecomment"), "Ctrl+C / Ctrl+/", func(a *App) tea.Cmd { a.toggleComment(); return nil }},
+		{i18n.T("cmd.grep"), "Space /", func(a *App) tea.Cmd { return a.openSearch(fQuery) }},
+		{i18n.T("cmd.sendcontext"), "Space a / Alt+A", func(a *App) tea.Cmd { return a.sendContext() }},
+		{i18n.T("cmd.agentpanel"), "Space i / Alt+I / :agent", func(a *App) tea.Cmd { return a.toggleAgentPanel() }},
+		{i18n.T("cmd.agentcancel"), ":agent cancel", func(a *App) tea.Cmd { a.cancelAgent(); return nil }},
+		{i18n.T("cmd.agentstop"), ":agent stop", func(a *App) tea.Cmd { return a.agentCommand("stop") }},
+		{i18n.T("cmd.signature"), ":signature", func(a *App) tea.Cmd { return a.signatureHelp(true) }},
+		{i18n.T("cmd.hover"), "Space k", func(a *App) tea.Cmd { return a.hover() }},
+		{i18n.T("cmd.definition"), "gd / F12", func(a *App) tea.Cmd { return a.gotoDefinition() }},
+		{i18n.T("cmd.references"), "gr / Shift+F12", func(a *App) tea.Cmd { return a.references() }},
+		{i18n.T("cmd.rename"), "Space r / F2", func(a *App) tea.Cmd { return a.rename() }},
+		{i18n.T("cmd.codeaction"), "Space . / :action", func(a *App) tea.Cmd { return a.codeAction() }},
+		{i18n.T("cmd.symbols"), "Space s / :symbol", func(a *App) tea.Cmd { return a.documentSymbols() }},
+		{i18n.T("cmd.wsymbols"), "Space S / :symbol-all", func(a *App) tea.Cmd { return a.workspaceSymbols() }},
+		{i18n.T("cmd.format"), ":fmt", func(a *App) tea.Cmd { return a.format(false) }},
+		{i18n.T("cmd.diagnostics"), "Space d", func(a *App) tea.Cmd { return a.diagnosticPicker() }},
+		{i18n.T("cmd.lsprestart"), ":lsp-restart", func(a *App) tea.Cmd { return a.execCommand("lsp-restart") }},
+		{i18n.T("cmd.diffhead"), "Ctrl+G / Space G / :gitdiff", func(a *App) tea.Cmd { return a.openDiff(baseHead) }},
+		{i18n.T("cmd.diffpr"), "Space g", func(a *App) tea.Cmd { return a.openDiff(basePR) }},
+		{i18n.T("cmd.diffprpick"), i18n.T("cmd.diffprpick.key"), func(a *App) tea.Cmd { return a.prPicker() }},
+		{i18n.T("cmd.diffsplit"), ":gitdiff split|unified", func(a *App) tea.Cmd { a.toggleSplit(); return nil }},
+		{i18n.T("cmd.diffchanges"), "", func(a *App) tea.Cmd { return a.focusChangesList() }},
+		{i18n.T("cmd.rvcomment"), "Space v c", func(a *App) tea.Cmd { return a.reviewCommand("c") }},
+		{i18n.T("cmd.rvfilecomment"), "Space v C", func(a *App) tea.Cmd { return a.reviewCommand("C") }},
+		{i18n.T("cmd.rvthread"), "Space v t", func(a *App) tea.Cmd { return a.reviewCommand("t") }},
+		{i18n.T("cmd.rvviewed"), "Space v v", func(a *App) tea.Cmd { return a.reviewCommand("v") }},
+		{i18n.T("cmd.rvapprove"), "Space v A", func(a *App) tea.Cmd { return a.reviewCommand("A") }},
+		{i18n.T("cmd.rvrequest"), "Space v R", func(a *App) tea.Cmd { return a.reviewCommand("R") }},
+		{i18n.T("cmd.rvcommentonly"), "Space v S", func(a *App) tea.Cmd { return a.reviewCommand("S") }},
+		{i18n.T("cmd.treerefresh"), "R", func(a *App) tea.Cmd { a.explorer.refresh(); return nil }},
+		{i18n.T("cmd.treenewfile"), "a", func(a *App) tea.Cmd { return a.newFileIn(a.explorer.targetDir()) }},
+		{i18n.T("cmd.treenewfolder"), "A", func(a *App) tea.Cmd { return a.newFolder() }},
+		{i18n.T("cmd.treerename"), "r", func(a *App) tea.Cmd { return a.renameFile() }},
+		{i18n.T("cmd.treedelete"), "d", func(a *App) tea.Cmd { return a.deleteFile() }},
+		{i18n.T("cmd.openurl"), "Space o / :open-url", func(a *App) tea.Cmd { return a.openURL("") }},
+		{i18n.T("cmd.browserlist"), ":browser list", func(a *App) tea.Cmd { return a.execCommand("browser list") }},
+		{i18n.T("cmd.theme"), i18n.T("cmd.theme.key"), func(a *App) tea.Cmd { return a.themePicker() }},
+		{i18n.T("cmd.keymap"), ":keymap", func(a *App) tea.Cmd { return a.execCommand("keymap") }},
+		{i18n.T("cmd.reloadconfig"), ":config-reload", func(a *App) tea.Cmd { return a.execCommand("config-reload") }},
+		{i18n.T("cmd.quit"), "Ctrl+Q / :q", func(a *App) tea.Cmd { return a.quit() }},
 	}
 }
 
@@ -172,7 +173,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 	name, arg, _ := strings.Cut(line, " ")
 	arg = strings.TrimSpace(arg)
 	if a.single && singleBlockedCommand(name) {
-		a.fail(fmt.Errorf("単体編集モードでは :%s を使えません", name))
+		a.fail(fmt.Errorf(i18n.T("cmd.nosubst"), name))
 		return nil
 	}
 	switch name {
@@ -188,7 +189,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 		return a.saveAll()
 	case "q", "quit", "qa", "quit-all":
 		if d := a.dirtyCount(); d > 0 {
-			a.fail(fmt.Errorf("未保存のファイルが %d 個あります（:q! で破棄して終了、:wq で保存して終了）", d))
+			a.fail(fmt.Errorf(i18n.T("cmd.quitunsaved"), d))
 			return nil
 		}
 		return tea.Quit
@@ -200,7 +201,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 			return nil
 		}
 		if d := a.dirtyCount(); d > 0 && !strings.HasSuffix(name, "!") {
-			a.fail(fmt.Errorf("他にも未保存のファイルが %d 個あります", d))
+			a.fail(fmt.Errorf(i18n.T("cmd.moreunsaved"), d))
 			return nil
 		}
 		return tea.Quit
@@ -243,7 +244,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 			if err := t.reload(); err != nil {
 				a.fail(err)
 			} else {
-				a.info("再読み込みしました")
+				a.infoText(i18n.T("cmd.reloaded"))
 			}
 		}
 	case "sh", "run", "!":
@@ -277,9 +278,12 @@ func (a *App) execCommand(line string) tea.Cmd {
 				a.attachLSP(t)
 			}
 		}
-		a.info("言語サーバーを再起動しました")
+		a.infoText(i18n.T("cmd.lsprestarted"))
 	case "config-reload":
 		a.cfg = config.Load(a.root)
+		i18n.SetLang(a.cfg.Editor.UILanguage)
+		a.commands = defaultCommands()
+		a.findInput.Placeholder = i18n.T("app.find")
 		a.lsp.cfg = a.cfg
 		a.explorer.icons = a.cfg.Editor.FileIcons
 		a.helix = a.cfg.Editor.Keymap != "vscode"
@@ -287,20 +291,20 @@ func (a *App) execCommand(line string) tea.Cmd {
 		if name := a.cfg.Editor.Theme; name == "" || !a.setTheme(name) {
 			a.setTheme(darkPlus.Name)
 			if name != "" {
-				a.fail(fmt.Errorf("不明なテーマ: %s（dark-plus を使います）", name))
+				a.fail(fmt.Errorf(i18n.T("cmd.unknowntheme.default"), name))
 				return nil
 			}
 		}
-		a.info("設定を再読み込みしました: %s", strings.Join(a.cfg.Sources, ", "))
+		a.info(i18n.T("cmd.configreloaded"), strings.Join(a.cfg.Sources, ", "))
 	case "theme":
 		if arg == "" {
 			return a.themePicker()
 		}
 		if !a.setTheme(arg) {
-			a.fail(fmt.Errorf("不明なテーマ: %s（選べるテーマ: %s）", arg, strings.Join(themeNames(), ", ")))
+			a.fail(fmt.Errorf(i18n.T("cmd.unknowntheme"), arg, strings.Join(themeNames(), ", ")))
 			return nil
 		}
-		a.info("テーマ: %s", curTheme.Name)
+		a.info(i18n.T("cmd.themeis"), curTheme.Name)
 	case "keymap":
 		switch arg {
 		case "helix":
@@ -312,9 +316,9 @@ func (a *App) execCommand(line string) tea.Cmd {
 		}
 		a.mode = modeNormal
 		if a.helix {
-			a.info("キー操作: Helix")
+			a.infoText(i18n.T("cmd.keymap.helix"))
 		} else {
-			a.info("キー操作: VS Code")
+			a.infoText(i18n.T("cmd.keymap.vscode"))
 		}
 	case "open-url", "browse":
 		return a.openURL(arg)
@@ -322,7 +326,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	default:
-		a.fail(fmt.Errorf("不明なコマンド: %s", name))
+		a.fail(fmt.Errorf(i18n.T("cmd.unknowncmd"), name))
 	}
 	return nil
 }

@@ -1,75 +1,89 @@
 # <img src="manual/docs/assets/icon.png" alt="" width="32" align="top"> shijimi
 
-ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code に合わせています。編集操作は、Helix 風のモード編集と、モードの無い VS Code 風の操作から選べます。コマンド名は `shj` です。
+English | [日本語](README.ja.md)
 
-説明書: <https://shijimi-manual.pages.dev/>（ソースは [`manual/`](manual/)）
+An integrated development environment for the terminal (TUI). The screen is laid out like VS Code. For editing you can choose between Helix-style modal editing and modeless VS Code-style keys. The command is `shj`.
 
-## 機能
+Manual (Japanese): <https://shijimi-manual.pages.dev/> (source in [`manual/`](manual/))
 
-- **モード編集と VS Code 風の操作**：Helix 風のモード編集（ノーマル / 挿入 / 選択、`:` コマンド）と、モードの無い VS Code 風の操作から選べます
-- **マルチカーソル**（Helix 風）：`C` / `Alt+C` で下 / 上の行に複製、`s` で選択範囲を正規表現で分割、`,` で 1 つに戻す。挿入・削除・`c` などは全カーソルに適用
-- **ファイルツリー**（Git の変更状態を M / U / A で表示）
-- **LSP**：診断・補完・ホバー・シグネチャヘルプ・定義へ移動・参照・名前の変更・コードアクション・シンボル一覧・整形
-- **LSP の設定**は Helix と互換がある `languages.toml` で書きます（`.shijimi/languages.toml` か `~/.config/shijimi/languages.toml`）。Helix から移る人は、`languages.toml` を `~/.config/shijimi/` にコピーしてください
-- **差分モード**（`Space G` / `Ctrl+G` で `HEAD` と、`Space g` / `:pr` でプルリクエストの base と比べる）：エディター全体を差分モードに切り替えます。変更ファイルをツリー（CHANGES）で出し、変更のあるファイルは**ファイル全体**を左右分割（または統合）の diff で開きます。右側は編集できます。右端のバーで変更の位置がわかり、行の中で変わった部分を強調します（下記）
-- **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
-- **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。もう一度押すとプレビューだけを全幅で表示します。mermaid のコードブロックは図として表示します（下記）
-- **現在の文脈をエージェントへ送る**（`Space a` / `Alt+A` / コマンドパレット）：選択範囲（なければカーソル行）を `パス:行-行`・本文・該当行の診断に整形し、プレビューで確認してからターミナルパネルへ貼り付けます（Enter は押しません）
-- **提案パネルと ACP**（`Alt+I` / `Space i`）：git・LSP・ターミナルの状態から「衝突を解消しますか」「PR を作りますか」「失敗の原因を調べますか」などの提案を右のパネルに並べます。選ぶと ACP（Agent Client Protocol）でエージェントに頼み、進み具合と返事をパネルに、変更を差分モードに出します。AI レビューのコメント案は未送信コメントとして置きます
-- **Claude Code の IDE 連携**：ターミナルパネルの Claude Code から、選択範囲・開いているファイル・診断を取得し、変更を差分で承認できます（承認後に Claude Code が書き込みます。下記「エージェント連携」）
-- タブ、シンタックスハイライト、Quick Open、プロジェクト全体の検索、ターミナルパネル、マウス操作
+The UI is in English by default. To switch it to Japanese, set `ui-language = "ja"` in `config.toml` (see [UI language](#ui-language)).
 
-## インストール
+## Features
+
+- **Modal editing and VS Code-style keys**: choose Helix-style modal editing (normal / insert / select, `:` commands) or modeless VS Code-style keys
+- **Multiple cursors** (Helix-style): `C` / `Alt+C` copy the cursor to the line below / above, `s` splits a selection by a regex, `,` goes back to one cursor. Inserting, deleting, `c` and so on apply to every cursor
+- **File tree** (shows Git status as M / U / A)
+- **LSP**: diagnostics, completion, hover, signature help, go to definition, references, rename, code actions, symbol list, formatting
+- **LSP configuration** is written in a `languages.toml` that is compatible with Helix's (`.shijimi/languages.toml` or `~/.config/shijimi/languages.toml`). If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi/`
+- **Diff mode** (`Space G` / `Ctrl+G` compares with `HEAD`; `Space g` / `:pr` compares with the base of a pull request): switches the whole editor to diff mode. Changed files are listed in a tree (CHANGES), and a changed file opens as the **whole file** in a split (or unified) diff. The right side is editable. The bar on the right edge shows where the changes are, and the parts that changed inside a line are highlighted (see below)
+- **Image preview** (PNG / JPEG / GIF / BMP / WebP / TIFF)
+- **Markdown preview** (`Space m` / `:preview`): renders headings, lists, code and tables, and shows them beside the buffer you are editing. Press it again to show only the preview at full width. Mermaid code blocks are shown as diagrams (see below)
+- **Send the current context to an agent** (`Space a` / `Alt+A` / command palette): formats the selection (or the cursor line) as `path:line-line`, the text, and the diagnostics on those lines, and after you check it in a preview, pastes it into the terminal panel (it does not press Enter)
+- **Suggestions panel and ACP** (`Alt+I` / `Space i`): lists suggestions such as "Resolve the conflicts?", "Create a PR?" and "Investigate the cause of the failure?" in the right panel, based on the state of git, LSP and the terminal. When you pick one, it asks an agent over ACP (Agent Client Protocol), shows the progress and the reply in the panel, and shows changes in diff mode. Comments proposed by an AI review are placed as unsent comments
+- **Claude Code IDE integration**: Claude Code running in the terminal panel can get the selection, the open files and the diagnostics, and you approve its changes as a diff (Claude Code writes the file after you approve; see "Agent integration" below)
+- Tabs, syntax highlighting, Quick Open, project-wide search, a terminal panel, mouse support
+
+## Installation
 
 ```sh
-nix run github:mm1995tk/shijimi-editor           # その場で起動
+nix run github:mm1995tk/shijimi-editor           # run it right away
 nix profile install github:mm1995tk/shijimi-editor
 go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
 ```
 
-プルリクエストの base と比べるには [gh](https://cli.github.com/) と `gh auth login` が必要です。
+To compare with the base of a pull request you need [gh](https://cli.github.com/) and `gh auth login`.
 
-## 使い方
+## Usage
 
 ```sh
-shj            # カレントディレクトリを開く
-shj ./src      # ディレクトリを開く
-shj main.go    # ファイルだけを編集する（単体編集モード。$EDITOR 向け）
+shj            # open the current directory
+shj ./src      # open a directory
+shj main.go    # edit just one file (single-file mode, for $EDITOR)
 ```
 
-ファイルを渡すと単体編集モードになります。ファイルツリー・LSP・ターミナル・差分モード・エージェントを起動せず、`:q` `:wq` で閉じると終了します（詳しくは[インストールと起動](manual/docs/install.md)）。
+Given a file, shj starts in single-file mode. It does not start the file tree, LSP, terminal, diff mode or agent, and exits when you close it with `:q` or `:wq` (see [Installation and startup](manual/docs/install.md) in the manual, which is in Japanese).
 
-## 設定
+## Settings
 
-次の順に読み込み、後のものが優先されます（`languages.toml` は Helix と互換があります。Helix から移る人は、`languages.toml` を `~/.config/shijimi/` にコピーしてください）。
+Files are read in the following order, and later ones win (`languages.toml` is compatible with Helix's. If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi/`).
 
-1. 組み込みの既定値（gopls / rust-analyzer / typescript-language-server など）
-2. `~/.config/shijimi/languages.toml`、`~/.config/shijimi/config.toml`
-3. プロジェクトの `.shijimi/languages.toml`、`.shijimi/config.toml`
+1. Built-in defaults (gopls / rust-analyzer / typescript-language-server and others)
+2. `~/.config/shijimi/languages.toml`, `~/.config/shijimi/config.toml`
+3. The project's `.shijimi/languages.toml`, `.shijimi/config.toml`
 
-### テーマ
+### UI language
 
-`config.toml` の `theme` か、実行中の `:theme <名前>`（名前を省略すると一覧）で切り替えます。コマンドパレットの「設定: テーマを切り替え」からも選べます。
+The language of the UI text (status line, command palette, suggestions panel, error messages, `shj --help`) is English by default. Set `ui-language` in `config.toml` to switch it.
 
-- 組み込み: `dark-plus`（既定）、`github-dark`、`light-plus`
-- Helix の `github_dark*` は `github-dark`、`github_light*` と `light` は `light-plus` に対応付けます
+```toml
+ui-language = "ja"   # "en" (default) or "ja"
+```
+
+shijimi does not choose the language from `LANG` or other environment variables. Any value other than `en` and `ja` is ignored. `:config-reload` applies a change without restarting.
+
+### Theme
+
+Switch with `theme` in `config.toml`, or with `:theme <name>` while running (without a name it lists the themes). You can also choose it from the command palette ("Settings: Switch theme").
+
+- Built in: `dark-plus` (default), `github-dark`, `light-plus`
+- Helix's `github_dark*` maps to `github-dark`, and `github_light*` and `light` map to `light-plus`
 
 ```toml
 theme = "github_dark"
 ```
 
-### ポート転送の待ち受けアドレス
+### Listen address of port forwarding
 
-`:browser forward` の待ち受けアドレスを設定します。
+Sets the address that `:browser forward` listens on.
 
 ```toml
 [browser]
 listen-host = "127.0.0.1"
 ```
 
-### エージェント（提案パネル）
+### Agent (suggestions panel)
 
-提案を実行する ACP エージェントのコマンドを、`~/.config/shijimi/config.toml` に書きます（プロジェクトの設定からは読みません）。
+Write the command of the ACP agent that runs the suggestions in `~/.config/shijimi/config.toml` (it is not read from a project's settings).
 
 ```toml
 [agent]
@@ -77,13 +91,13 @@ command = "claude-agent-acp"
 args = []
 ```
 
-### LSP の設定例（`.shijimi/languages.toml`）
+### Example LSP settings (`.shijimi/languages.toml`)
 
 ```toml
 [language-server.my-gopls]
 command = "gopls"
 args = ["serve"]
-config = { gofumpt = true }          # initializationOptions として送ります
+config = { gofumpt = true }          # sent as initializationOptions
 environment = { GOFLAGS = "-tags=integration" }
 
 [[language]]
@@ -93,33 +107,33 @@ roots = ["go.mod"]
 indent = { tab-width = 4, unit = "\t" }
 ```
 
-対応しているキー：`[language-server.*]` の `command` `args` `config` `environment`、`[[language]]` の `name` `language-id` `file-types` `roots` `language-servers` `indent.unit`。
+Supported keys: `command`, `args`, `config` and `environment` of `[language-server.*]`; `name`, `language-id`, `file-types`, `roots`, `language-servers` and `indent.unit` of `[[language]]`.
 
-### エディタの設定（`config.toml`）
+### Editor settings (`config.toml`)
 
 ```toml
-keymap = "helix"          # "vscode" で VS Code 風の操作
+keymap = "helix"          # "vscode" for VS Code-style keys
 
 [editor]
-line-number = "relative"  # 行番号の表示
-file-icons = true         # ファイルツリーの Nerd Font アイコン。false で ▸/▾ 表示
-mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"  # mermaid を PNG にする外部コマンド。空で無効
-watch-files = true        # 他のプロセス（AI エージェントなど）によるファイル変更を検知して反映。未保存の編集があるファイルは :reload を待つ
-mouse-hover = true        # エディタ上の単語にマウスを 0.5 秒乗せると LSP のホバーを表示。false で無効（動きだけのマウスイベントも受け取らなくなる）
+line-number = "relative"  # how line numbers are shown
+file-icons = true         # Nerd Font icons in the file tree; false shows ▸/▾
+mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"  # external command that turns mermaid into a PNG; empty disables it
+watch-files = true        # detect and reflect file changes by other processes (such as AI agents). A file with unsaved edits waits for :reload
+mouse-hover = true        # show the LSP hover when the pointer rests on a word in the editor for 0.5 seconds. false disables it (and stops receiving motion-only mouse events)
 
-# インデントガイド（インデントごとの薄い縦線）。false で無効
+# Indent guides (a faint vertical line at each indent level). false disables them
 [editor.indent-guides]
 render = true
 
-# 自動保存（既定で有効。編集が 1 秒止まると保存。名前のないファイルは対象外）
+# Auto save (on by default; saves when editing pauses for 1 second; unnamed files are not saved)
 [editor.auto-save.after-delay]
 enable = true
-timeout = 1000            # ミリ秒
+timeout = 1000            # milliseconds
 ```
 
-### Nix で書く
+### Writing settings in Nix
 
-各ディレクトリの `config.toml` / `languages.toml` と同じ場所に `config.nix` / `languages.nix` を置くと、`nix eval --json --file` で評価して TOML と同じ構造として読みます（同じディレクトリでは TOML のあとに適用）。`nix` が無い、または評価に失敗したファイルは無視します。
+If you put `config.nix` / `languages.nix` next to the `config.toml` / `languages.toml` of a directory, it is evaluated with `nix eval --json --file` and read as the same structure as TOML (in the same directory it is applied after the TOML file). A file is ignored if `nix` is missing or the evaluation fails.
 
 ```nix
 # ~/.config/shijimi/languages.nix
@@ -133,7 +147,7 @@ timeout = 1000            # ミリ秒
 
 ### home-manager
 
-flake の `homeManagerModules.default` を読み込みます。`settings` が `config.toml`、`languages` が `languages.toml` として `~/.config/shijimi/` に書き出されます。
+Import the flake's `homeManagerModules.default`. `settings` is written to `~/.config/shijimi/` as `config.toml`, and `languages` as `languages.toml`.
 
 ```nix
 {
@@ -149,163 +163,165 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
 }
 ```
 
-### Markdown プレビューと mermaid
+### Markdown preview and mermaid
 
-`.md` ファイルで `Space m`（または `:preview`、コマンドパレット）を押すと、バッファの右にプレビューが開きます。編集に追従し、カーソル位置に合わせてスクロールします。もう一度押すとプレビューだけを全幅で表示し、3 回目で閉じます。全幅のときは `j` / `k` やマウスホイールでスクロールします。
+In a `.md` file, `Space m` (or `:preview`, or the command palette) opens a preview to the right of the buffer. It follows your edits and scrolls with the cursor. Press it again to show only the preview at full width, and a third time to close it. At full width, scroll with `j` / `k` or the mouse wheel.
 
-mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`）で PNG にして表示します。`mmdc` が PATH に無い場合、または描画に失敗した場合は、図の代わりにソースとエラーを表示します。`mermaid-command` で別のコマンドに差し替えられます（`{in}` が入力、`{out}` が出力 PNG）。描画結果は `~/.cache/shijimi/mermaid` に保存します。
+Mermaid diagrams are turned into PNGs with [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) (`mmdc`) and shown. If `mmdc` is not on the PATH, or rendering fails, the source and the error are shown instead of the diagram. `mermaid-command` replaces it with another command (`{in}` is the input, `{out}` the output PNG). Rendered images are kept in `~/.cache/shijimi/mermaid`.
 
-## キー操作（Helix モード）
+## Keys (Helix mode)
 
-### ノーマルモード
+### Normal mode
 
-| キー | 動作 |
+| Key | Action |
 | --- | --- |
-| `h j k l` | 移動（数字を前に付けると回数指定） |
-| `w` `b` `e` | 単語を選択しながら移動 |
-| `x` | 行を選択（続けて押すと広がる） |
-| `%` / `;` | すべて選択 / 選択解除 |
-| `v` | 選択モード |
-| `d` `c` `y` | 削除 / 変更 / ヤンク |
-| `p` `P` | 後ろ / 前に貼り付け |
-| `i` `a` `I` `A` `o` `O` | 挿入モードへ |
-| `u` `U` | 元に戻す / やり直し |
-| `f` `t` `F` `T` + 文字 | 行内で文字を探す |
-| `r` + 文字 | 置き換え |
-| `>` `<` | インデント |
-| `J` | 行を連結 |
-| `mm` | 対応する括弧へ |
-| `gg` `ge` `gh` `gl` `gs` / `数字g` | ジャンプ |
-| `gd` `gr` | 定義へ移動 / 参照 |
-| `Ctrl+O` `Ctrl+I` | 飛ぶ前の場所へ戻る / 進む（VS Code モードは `Alt+←` `Alt+→`） |
-| `]d` `[d` | 次 / 前の診断 |
-| `gn` `gp` | 次 / 前のタブ |
-| `/` `?` `n` `N` `*` | 検索 |
-| `Ctrl+C` | 行コメントの切替 |
-| `:` | コマンド（下の表） |
+| `h j k l` | Move (a number before it gives a count) |
+| `w` `b` `e` | Move while selecting a word |
+| `x` | Select a line (press again to extend) |
+| `%` / `;` | Select all / collapse the selection |
+| `v` | Select mode |
+| `d` `c` `y` | Delete / change / yank |
+| `p` `P` | Paste after / before |
+| `i` `a` `I` `A` `o` `O` | Go to insert mode |
+| `u` `U` | Undo / redo |
+| `f` `t` `F` `T` + a character | Find a character in the line |
+| `r` + a character | Replace |
+| `>` `<` | Indent |
+| `J` | Join lines |
+| `mm` | Go to the matching bracket |
+| `gg` `ge` `gh` `gl` `gs` / `<number>g` | Jump |
+| `gd` `gr` | Go to definition / references |
+| `Ctrl+O` `Ctrl+I` | Go back / forward to where you jumped from (VS Code mode: `Alt+←` `Alt+→`) |
+| `]d` `[d` | Next / previous diagnostic |
+| `gn` `gp` | Next / previous tab |
+| `/` `?` `n` `N` `*` | Search |
+| `Ctrl+C` | Toggle a line comment |
+| `:` | Commands (table below) |
 
-### Space メニュー
+### Space menu
 
-`Space` を押すと、続けて押せるキーの一覧がエディタ領域の右下にポップアップで出ます。`Esc` か割り当てのないキーで閉じます。
+When you press `Space`, a popup at the bottom right of the editor area lists the keys you can press next. Close it with `Esc` or any key with no assignment.
 
-| キー | 動作 |
+| Key | Action |
 | --- | --- |
-| `Space f` | ファイルを開く |
-| `Space b` | 開いているバッファ |
-| `Space e` | ファイルツリーへ移動 |
-| `Space k` | ホバー。表示中は `Ctrl+D` / `Ctrl+U`（`PgDn` / `PgUp`・ホイール）でスクロール、`y` または枠の右上の `[コピー]` クリックで markdown の原文をコピー |
-| `Space o` | カーソル位置の URL を外部ブラウザで開く（Linux: `xdg-open` / macOS: `open`） |
-| `Space r` | 名前の変更 |
-| `Space .` | コードアクション（診断のヒントを適用する） |
-| `Space s` / `Space S` | シンボル一覧（ファイル内 / プロジェクト全体） |
-| `Space d` | 診断の一覧 |
-| `Space /` | プロジェクト全体を検索・置換（フローティング窓。「全文検索」の節を参照） |
-| `Space g` | 差分モード（比較元はプルリクエストの base）を開く / 閉じる |
-| `Space m` | Markdown プレビューの切替（並べて表示 → 全幅 → 閉じる） |
-| `Space G` | 差分モード（比較元は `HEAD`）を開く / 閉じる |
-| `Space v` | レビューのメニュー（比較元がプルリクエストの base のとき） |
-| `Space y` `Space p` | システムのクリップボードへコピー / 貼り付け |
-| `Space ?` | コマンドパレット |
+| `Space f` | Open a file |
+| `Space b` | Open buffers |
+| `Space e` | Go to the file tree |
+| `Space k` | Hover. While it is shown, scroll with `Ctrl+D` / `Ctrl+U` (`PgDn` / `PgUp`, wheel); copy the Markdown source with `y` or by clicking `[Copy]` at the top right of the frame |
+| `Space o` | Open the URL under the cursor in the external browser (Linux: `xdg-open` / macOS: `open`) |
+| `Space r` | Rename |
+| `Space .` | Code actions (apply a diagnostic hint) |
+| `Space s` / `Space S` | Symbol list (in the file / in the whole project) |
+| `Space d` | Diagnostics list |
+| `Space /` | Search and replace in the whole project (floating window; see "Search in files") |
+| `Space g` | Open / close diff mode (compared with the base of the pull request) |
+| `Space m` | Toggle the Markdown preview (side by side → full width → closed) |
+| `Space G` | Open / close diff mode (compared with `HEAD`) |
+| `Space v` | Review menu (when comparing with the base of a pull request) |
+| `Space y` `Space p` | Copy to / paste from the system clipboard |
+| `Space ?` | Command palette |
 
-### 挿入モード
+### Insert mode
 
-`Esc` でノーマルモードへ戻ります。補完は `.` などの入力や 2 文字入力で自動的に出ます（`Ctrl+X` で手動）。`Tab` / `Enter` で確定します。スニペット補完は穴が選択された状態で入り、`Tab` / `Shift+Tab` で穴を移れます。
+`Esc` goes back to normal mode. Completion appears automatically when you type `.` or similar, or after 2 characters (`Ctrl+X` to trigger it by hand). Confirm with `Tab` / `Enter`. A snippet completion is inserted with its placeholder selected, and `Tab` / `Shift+Tab` move between placeholders.
 
-### `:` コマンド
+### `:` commands
 
-`:w` `:w <パス>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <パス>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<行番号>` `:sh <コマンド>` `:grep [-x 除外glob] [-i 含めるglob] <文字列>` `:replace [-x 除外glob] [-i 含めるglob] <文字列> => <置換後>` `:pr [番号]` `:gitdiff [on|off|split|unified]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]` `:open-url [URL]`（省略時はカーソル位置の URL）
+`:w` `:w <path>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <path>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<line number>` `:sh <command>` `:grep [-x exclude-glob] [-i include-glob] <text>` `:replace [-x exclude-glob] [-i include-glob] <text> => <replacement>` `:pr [number]` `:gitdiff [on|off|split|unified]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]` `:open-url [URL]` (without an argument, the URL under the cursor)
 
-### 全体
+### Global
 
-| キー | 動作 |
+| Key | Action |
 | --- | --- |
-| `Ctrl+P` | ファイルを開く |
-| `F1` / `Ctrl+K` | コマンドパレット |
-| `Ctrl+B` | ファイルツリーの表示切替 |
-| `Ctrl+E` | ファイルツリーとエディタのフォーカス切替 |
-| `Ctrl+G` | 差分モード（比較元は `HEAD`）を開く / 閉じる |
-| ``Ctrl+` `` / `Ctrl+J` | ターミナルの表示切替（ターミナルの中では ``Ctrl+` `` だけ） |
-| `Alt+R` | ペインのリサイズモード（`←→` サイドバー幅、`↑↓` ターミナル高さ、`<` `>` エディタとプレビューの境界、`=` 初期値、`Esc` で終了）。境界線のマウスドラッグでも変えられます。大きさはエディタを終了するまで保たれます |
-| `Ctrl+S` | 保存 |
-| `Ctrl+W` | タブを閉じる |
-| `Ctrl+PgUp` / `Ctrl+PgDn` / `Alt+1`〜`9` | タブの切替 |
-| `Ctrl+Q` | 終了 |
+| `Ctrl+P` | Open a file |
+| `F1` / `Ctrl+K` | Command palette |
+| `Ctrl+B` | Toggle the file tree |
+| `Ctrl+E` | Switch focus between the file tree and the editor |
+| `Ctrl+G` | Open / close diff mode (compared with `HEAD`) |
+| ``Ctrl+` `` / `Ctrl+J` | Toggle the terminal (inside the terminal, only ``Ctrl+` ``) |
+| `Alt+R` | Pane resize mode (`←→` sidebar width, `↑↓` terminal height, `<` `>` boundary between the editor and the preview, `=` defaults, `Esc` to finish). You can also drag the borders with the mouse. The sizes are kept until you quit the editor |
+| `Ctrl+S` | Save |
+| `Ctrl+W` | Close the tab |
+| `Ctrl+PgUp` / `Ctrl+PgDn` / `Alt+1`-`9` | Switch tabs |
+| `Ctrl+Q` | Quit |
 
-### ファイルツリー
+### File tree
 
-`j/k` 移動、`Enter` 開く、`h/l` 閉じる / 展開、`a` 新しいファイル、`A` 新しいフォルダー、`r` 名前の変更、`d` 削除、`y` 相対パスをコピー、`Y` 絶対パスをコピー、`R` 更新、`Esc` エディタへ。
+`j/k` move, `Enter` open, `h/l` collapse / expand, `a` new file, `A` new folder, `r` rename, `d` delete, `y` copy the relative path, `Y` copy the absolute path, `R` refresh, `Esc` back to the editor.
 
-### 差分モード
+### Diff mode
 
-開き方で、何と比べるか（比較元）が決まります。開いているときに同じキーを押すと閉じ、違うキーを押すと比較元が切り替わります。
+How you open it decides what you compare with (the base). Pressing the same key while it is open closes it, and pressing a different key switches the base.
 
-| キー | 比較元 |
+| Key | Base |
 | --- | --- |
-| `Space G` / `Ctrl+G` / `:gitdiff` | `HEAD`（未追跡ファイルを含む） |
-| `Space g` / `:pr [番号]` | プルリクエストの base（`git merge-base <PR の base> HEAD`）。今のブランチの PR を開く。違うブランチの PR は `gh pr checkout` してから開く（`gh` が必要） |
+| `Space G` / `Ctrl+G` / `:gitdiff` | `HEAD` (includes untracked files) |
+| `Space g` / `:pr [number]` | The base of the pull request (`git merge-base <PR base> HEAD`). Opens the PR of the current branch. For a PR on another branch, run `gh pr checkout` first (needs `gh`) |
 
-- 画面は上から、ヘッダー（比較元と比較先）、サイドバーと差分、ヘルプ行（今使えるキー）、ステータス行の順です。
-- サイドバーが上下 7:3 に分かれ、下の 3 に **CHANGES**（変更ファイルのツリー）が出ます。子が 1 つだけのフォルダは `internal/config` のようにまとめます。`Tab` でファイルツリーと行き来します。
-- 変更のないファイルは通常のエディターで開きます。変更のあるファイルは、ファイル全体を **Split**（左が比較元、右が今のファイル）で開きます。新規ファイル（未追跡を含む）は、エディター 1 枚で開きます。行に色は付けず、右端のバーは全体が緑になり、上のファイル名の行の `+N` / `-N` は残ります。
-- 右側（今のファイル）は通常どおり編集・保存できます。編集すると diff がすぐに更新されます。
-- **Unified** にも切り替えられます（`s`、`:gitdiff unified` / `split`、ファイル名の行のクリック）。
-- 差分の右端のバーに、変更の位置を色で出します（緑：追加、赤：削除、青：書き換え）。今表示している範囲は明るくなり、クリックするとその位置へスクロールします。
-- 行の一部だけが変わった行は、変わった部分を濃い色で強調します。
-- プルリクエストの base と比べているときは、`Space v` でレビューできます（行・範囲・ファイルへのコメント、返信、解決、suggestion の適用、viewed、承認などの送信）。コメントは、作業ツリーの中身が PR の最新コミットと同じファイルにだけ書けます。詳しくはマニュアルの「差分モード」を参照してください。
+- From the top, the screen is the header (the base and what it is compared with), the sidebar and the diff, the help line (the keys you can use now), and the status line.
+- The sidebar is split 7:3 vertically, and **CHANGES** (a tree of the changed files) appears in the lower 3. A folder with a single child is collapsed like `internal/config`. `Tab` moves between it and the file tree.
+- A file without changes opens in the normal editor. A changed file opens as the whole file in **Split** (the base on the left, the current file on the right). A new file (including an untracked one) opens in a single editor. Lines are not colored, the bar on the right edge turns all green, and the `+N` / `-N` in the file name row at the top remain.
+- The right side (the current file) can be edited and saved as usual. The diff updates right away when you edit.
+- You can also switch to **Unified** (`s`, `:gitdiff unified` / `split`, or a click on the file name row).
+- The bar on the right edge of the diff shows where the changes are by color (green: added, red: deleted, blue: modified). The range now shown is brighter, and clicking scrolls to that position.
+- In a line where only a part changed, the changed part is highlighted in a darker color.
+- While comparing with the base of a pull request, you can review with `Space v` (comments on lines, ranges and files, replies, resolving, applying suggestions, viewed, and submitting an approval and so on). You can comment only on files whose working tree content is the same as the PR's latest commit. See "Diff mode" in the manual for details.
 
-| キー（CHANGES にフォーカス中） | 動作 |
+| Key (with CHANGES focused) | Action |
 | --- | --- |
-| `j/k` | 移動 |
-| `Enter` / `l` | ファイルを開く |
-| `s` | 分割 / 統合の切替 |
-| `r` | 一覧の更新 |
-| `Tab` | ファイルツリーへ |
-| `Esc` | エディタへ |
+| `j/k` | Move |
+| `Enter` / `l` | Open the file |
+| `s` | Toggle split / unified |
+| `r` | Refresh the list |
+| `Tab` | Go to the file tree |
+| `Esc` | Go to the editor |
 
-## 制限
+## Limitations
 
-- ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / ``Ctrl+` `` / `F1` / `Alt+R` のみ）。`Ctrl+J` はシェルへ渡るので、Shift+Enter を LF で送る端末でも Claude Code で改行できます。`F2` で新しいタブ、`Ctrl+PageUp/PageDown` でタブ切替、シェルが終了するとタブが閉じます。マウスのホイールで流れた出力をさかのぼれます。
-- 画像と mermaid の図は Kitty graphics protocol で描きます。対応した端末（Kitty / Ghostty / WezTerm など）が必要です。
+- The terminal panel is a login shell (`$SHELL -l`) on a PTY. `.zshrc` and the like are read, and `vim` / `top` / `lazygit` work. While it has focus, almost every key goes to the shell (the global ones are only `Ctrl+Q` / ``Ctrl+` `` / `F1` / `Alt+R`). `Ctrl+J` goes to the shell, so you can enter a newline in Claude Code even on a terminal that sends Shift+Enter as LF. `F2` opens a new tab, `Ctrl+PageUp/PageDown` switches tabs, and the tab closes when the shell exits. You can scroll back through the output with the mouse wheel.
+- Images and mermaid diagrams are drawn with the Kitty graphics protocol. You need a terminal that supports it (Kitty / Ghostty / WezTerm and others).
 
-## 開発
+## Development
 
-Nix の devShell（Go・gopls・gomod2nix・git）を使います。direnv があれば `.envrc` で自動で入ります。
+Use the Nix devShell (Go, gopls, gomod2nix, git). With direnv, `.envrc` enters it automatically.
 
 ```sh
-nix develop            # または direnv allow
+nix develop            # or: direnv allow
 go test ./...
 go build ./cmd/shj
-nix build              # パッケージをビルド（テストも実行）
-nix fmt                # nixfmt / gofmt / taplo で整形
-nix flake check        # 整形のチェック
+nix build              # build the package (also runs the tests)
+nix fmt                # format with nixfmt / gofmt / taplo
+nix flake check        # check the formatting
 ```
 
-`go.mod` を変えたら `gomod2nix` を実行して `gomod2nix.toml` を更新してください。
+After changing `go.mod`, run `gomod2nix` to update `gomod2nix.toml`.
 
-### 全文検索・置換
+User-visible strings live in one table per language, [`internal/i18n/en.go`](internal/i18n/en.go) and [`internal/i18n/ja.go`](internal/i18n/ja.go). Code asks for a string with `i18n.T("key")` and does not contain UI text. When you add a string, add the key to both tables (a test checks that they match).
 
-`Space /`、コマンドパレットの「検索: プロジェクト全体を検索 / 置換」、`:grep`、`:replace` はどれも同じフローティング窓（画面の上下左右 1 桁を残してほぼ全画面）を開きます。上部に条件（検索・置換・含める・除外の 4 欄を枠線付きの箱で 2 列に並べ、選択中の欄は枠線の色が変わります。その下にトグル）、左下に一致した行（Matched）、右下に選択行の前後（View）を出します。条件を変えると短い待ち時間のあと自動で検索し直します。置換欄に文字があると、View に `-` / `+` の差分も出ます。
+### Search in files
 
-| キー | 動作 |
+`Space /`, "Search: Search / replace in the project" in the command palette, `:grep` and `:replace` all open the same floating window (almost the full screen, leaving one column or row on each side). At the top are the conditions (four fields, Search, Replace, Include and Exclude, in bordered boxes in two columns, where the border color of the selected field changes; the toggles are below them), the matched lines (Matched) are at the lower left, and the lines around the selected one (View) at the lower right. When you change a condition, it searches again automatically after a short wait. When the Replace field has text, View also shows the `-` / `+` diff.
+
+| Key | Action |
 | --- | --- |
-| `Tab` / `Shift+Tab` | 次 / 前の欄へ |
-| `↑` `↓` / `Ctrl+P` `Ctrl+N` / `PgUp` `PgDn` | 一致した行を選ぶ |
-| `Enter` | 選んだ行をそのファイルで開く |
-| `Ctrl+X`（`Alt+X`） | 選んだ行を置換の対象から外す / 戻す（外した行は `x` で表示） |
-| `Alt+C` / `Alt+W` / `Alt+R` / `Alt+P` | 大文字小文字の区別 / 単語単位 / 正規表現 / 置換で大文字小文字を保持 |
-| `Alt+1` | 選んだ行だけを置換（パネルは閉じず、次の一致へ進む） |
-| `Alt+Enter` | 対象の行を全置換 |
-| `Esc` | 閉じる |
+| `Tab` / `Shift+Tab` | Next / previous field |
+| `↑` `↓` / `Ctrl+P` `Ctrl+N` / `PgUp` `PgDn` | Select a matched line |
+| `Enter` | Open the selected line in its file |
+| `Ctrl+X` (`Alt+X`) | Exclude the selected line from the replacement / put it back (an excluded line is marked `x`) |
+| `Alt+C` / `Alt+W` / `Alt+R` / `Alt+P` | Match case / whole word / regex / preserve case when replacing |
+| `Alt+1` | Replace only the selected line (the panel stays open and moves to the next match) |
+| `Alt+Enter` | Replace every target line |
+| `Esc` | Close |
 
-- 全置換は対象のファイルをバッファとして開いて置換します。保存するまでディスクは変わらず、`u` / `Ctrl+Z` で元に戻せます。
-- 正規表現が有効なときは、置換欄で `$1` などのキャプチャを使えます。無効なときの `$` はそのままの文字です。
-- 検索結果が 5000 件を超えたときは、条件を絞るまで全置換できません。
-- 検索対象は Git の管理下（未追跡で ignore されていないものを含む）のテキストファイルです。Git の外ではビルド用ディレクトリを除いて探します。開いているバッファの未保存の内容も検索します。
-- `:grep -x '*.lock,dist/**' -i '*.go' foo` と `:replace foo => bar` の引数は、各欄に入れた状態で窓を開きます。`:grep` / `:replace` だけを打つと前回の条件のまま開きます。
+- Replace All opens the target files as buffers and replaces in them. The disk does not change until you save, and `u` / `Ctrl+Z` undoes it.
+- When regex is on, you can use captures such as `$1` in the Replace field. When it is off, `$` is just a character.
+- When there are more than 5000 results, Replace All is unavailable until you narrow the conditions.
+- The search covers text files under Git (including untracked files that are not ignored). Outside Git it searches everything except build directories. It also searches the unsaved content of open buffers.
+- The arguments of `:grep -x '*.lock,dist/**' -i '*.go' foo` and `:replace foo => bar` open the window with those values in the fields. Typing just `:grep` / `:replace` opens it with the previous conditions.
 
-### 全文検索の除外・包含
+### Excluding and including files in search
 
-「含める」「除外」欄にはカンマ区切りの glob を書きます（例: `*.lock,dist/**`）。`:grep` / `:replace` では `-x` / `--exclude=`（除外）と `-i` / `--include=`（包含）でも指定できます。初期値は `[search]` 設定の値です。常に効かせたい指定は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書きます。
+In the Include and Exclude fields, write comma-separated globs (for example `*.lock,dist/**`). With `:grep` / `:replace` you can also give them with `-x` / `--exclude=` (exclude) and `-i` / `--include=` (include). The initial values come from the `[search]` setting. Put anything you always want applied in `~/.config/shijimi/config.toml` or `.shijimi/config.toml`.
 
 ```toml
 [search]
@@ -313,60 +329,60 @@ exclude = ["*.lock", "dist/**"]
 include = []
 ```
 
-### ポート転送（`:browser forward`）
+### Port forwarding (`:browser forward`)
 
-`:browser forward <対象ポート> [待ち受けポート]` は、shijimi が `127.0.0.1` で待ち受け、`localhost:<対象ポート>` へ TCP で転送します（HTTP も WebSocket も通ります）。待ち受けポートを省略すると空いているポートが選ばれます。`:browser list` で一覧、`:browser stop <待ち受けポート>` で停止します。shijimi を終了すると全て止まります。
+`:browser forward <target port> [listen port]` makes shijimi listen on `127.0.0.1` and forward over TCP to `localhost:<target port>` (both HTTP and WebSocket work). If you omit the listen port, a free port is chosen. `:browser list` lists the forwards, and `:browser stop <listen port>` stops one. Quitting shijimi stops them all.
 
-リモートの VM で shijimi を動かしているときは、手元で次を実行すると、手元のブラウザから `http://localhost:8080` で開発サーバーを見られます。
+When shijimi runs on a remote VM, running the following on your own machine lets your local browser see the development server at `http://localhost:8080`.
 
 ```sh
-ssh -L 8080:127.0.0.1:<待ち受けポート> vm
+ssh -L 8080:127.0.0.1:<listen port> vm
 ```
 
-直接 `ssh -L` するのに比べて、待ち受けポートを固定できること、`0.0.0.0` や IPv6 のみで待ち受けるサーバーも `127.0.0.1` で受けられることが利点です。これらが不要なら `ssh -L` を直接使ってください。
+Compared with running `ssh -L` directly, the advantages are that the listen port can be fixed, and that a server that listens only on `0.0.0.0` or IPv6 can still be reached through `127.0.0.1`. If you do not need those, use `ssh -L` directly.
 
-待ち受けアドレスは `[browser]` の `listen-host` で変えられます（設定は「ポート転送の待ち受けアドレス」節）。既定では `0.0.0.0` にバインドしません。信頼できるネットワークでのみ変えてください。
+The listen address can be changed with `listen-host` in `[browser]` (see "Listen address of port forwarding" under Settings). By default it does not bind to `0.0.0.0`. Change it only on a trusted network.
 
-## エージェント連携
+## Agent integration
 
-### Claude Code の IDE 連携
+### Claude Code IDE integration
 
-shijimi は Claude Code の IDE 連携プロトコル（VS Code 拡張や claudecode.nvim と同じもの）に対応しています。起動すると 127.0.0.1 の空きポートで WebSocket の MCP サーバーを立て、ロックファイル `~/.claude/ide/<port>.lock`（0600、`CLAUDE_CONFIG_DIR` があればその下の `ide/`）に接続先と認証トークンを書きます。終了時に消します。
+shijimi supports Claude Code's IDE integration protocol (the same one as the VS Code extension and claudecode.nvim). On startup it starts a WebSocket MCP server on a free port of 127.0.0.1, and writes the destination and an authentication token to the lock file `~/.claude/ide/<port>.lock` (0600; under `ide/` of `CLAUDE_CONFIG_DIR` if it is set). It removes the file on exit.
 
-shijimi のターミナルパネルで `claude` を起動すると、環境変数 `CLAUDE_CODE_SSE_PORT` `ENABLE_IDE_INTEGRATION=true` `FORCE_CODE_TERMINAL=true` により自動で接続します。外のターミナルで動く Claude Code は、作業ディレクトリが shijimi のルート配下なら `/ide` で選べます。
+When you start `claude` in shijimi's terminal panel, it connects automatically through the environment variables `CLAUDE_CODE_SSE_PORT`, `ENABLE_IDE_INTEGRATION=true` and `FORCE_CODE_TERMINAL=true`. A Claude Code running in another terminal can be chosen with `/ide` if its working directory is under shijimi's root.
 
-エージェントが使える道具:
+Tools the agent can use:
 
-| 道具 | 内容 |
+| Tool | What it does |
 |------|------|
-| `getCurrentSelection` / `getLatestSelection` | 選択範囲（なければカーソル位置）とファイル |
-| `getOpenEditors` / `getWorkspaceFolders` | 開いているファイル / ルート |
-| `getDiagnostics` | LSP の診断（URI 省略で全ファイル） |
-| `openFile` | ファイルを開く（`startText` / `endText` で範囲選択） |
-| `openDiff` | 変更を差分で表示。**Enter で承認、Esc で却下**。ファイルは承認後に Claude Code が書き込みます |
-| `closeAllDiffTabs` / `close_tab` | 待っている差分を却下して閉じる |
-| `checkDocumentDirty` / `saveDocument` | 未保存の確認 / 保存 |
+| `getCurrentSelection` / `getLatestSelection` | The selection (or the cursor position) and its file |
+| `getOpenEditors` / `getWorkspaceFolders` | The open files / the roots |
+| `getDiagnostics` | LSP diagnostics (all files if the URI is omitted) |
+| `openFile` | Open a file (select a range with `startText` / `endText`) |
+| `openDiff` | Show a change as a diff. **Enter approves and Esc rejects.** Claude Code writes the file after you approve |
+| `closeAllDiffTabs` / `close_tab` | Reject and close the diffs that are waiting |
+| `checkDocumentDirty` / `saveDocument` | Check for unsaved changes / save |
 
-- 選択範囲やカーソルが動くたびに `selection_changed` を送ります。
-- 接続中は `Space a` / `Alt+A`（現在の文脈をエージェントへ送る）が貼り付けではなく `at_mentioned` を送ります。接続していないときは、これまでどおりプレビューを出してターミナルへ貼り付けます。
-- 認証トークンの無い接続やブラウザ（`Origin` ヘッダー付き）からの接続は拒否します。
+- Whenever the selection or the cursor moves, it sends `selection_changed`.
+- While connected, `Space a` / `Alt+A` (send the current context to the agent) sends `at_mentioned` instead of pasting. When not connected, it shows the preview and pastes into the terminal as before.
+- Connections without an authentication token, and connections from a browser (with an `Origin` header), are refused.
 
-### 制御用ソケット
+### Control socket
 
-実行中の shijimi は Unix ソケット（0600）を作り、環境変数 `SHIJIMI_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。IDE 連携に無い操作だけを残しています。
+A running shijimi creates a Unix socket (0600) and tells its location through the environment variable `SHIJIMI_SOCKET`. From a shell in the terminal panel you can run the following. Only operations that the IDE integration lacks are kept.
 
-- `shj diff [path]`: 差分モード（比較元 `HEAD`）にする。`path` を付けるとそのファイルを diff 表示で開く
-- `shj exec ":<コマンド>"`: `:` コマンドをそのまま実行する（例: `shj exec ":preview"`）。成功するとステータス欄の文を標準出力へ、失敗するとエラーの文を標準エラーへ書き、終了コード 1 にする。`:q` `:q!` `:wq` `:bc!` などの終了・破棄するコマンド、引数なしで選択画面を開くコマンド（`:o` `:theme` `:grep` `:replace` `:symbol` `:action`、番号以外の引数の `:pr`）、未保存の変更があるファイルの `:reload` と `:bc` は実行せずエラーを返す
+- `shj diff [path]`: switch to diff mode (base `HEAD`). With `path`, opens that file as a diff
+- `shj exec ":<command>"`: run a `:` command as it is (for example `shj exec ":preview"`). On success it writes the status-line text to standard output; on failure it writes the error text to standard error and exits with code 1. It returns an error without running commands that quit or discard (`:q` `:q!` `:wq` `:bc!` and so on), commands that open a picker when given no argument (`:o` `:theme` `:grep` `:replace` `:symbol` `:action`, and `:pr` with a non-numeric argument), and `:reload` and `:bc` on a file with unsaved changes
 
-第 1 引数が `diff` / `exec` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./diff` のように書きます。
+When the first argument is `diff` / `exec` / `skill`, it is treated as a subcommand. Write a file with the same name as `./diff`.
 
-`shj skill install [書き出し先]` は、このコマンドの使い方を書いたスキル（`SKILL.md`）を書き出します。書き出し先を省略すると `~/.claude/skills/shijimi/` に書きます。
+`shj skill install [destination]` writes a skill (`SKILL.md`) that describes how to use this command. Without a destination it writes to `~/.claude/skills/shijimi/`.
 
-> `shj open` と `shj status` は IDE 連携（`openFile` / `getOpenEditors` / `getCurrentSelection`）に置き換えて削除しました。
+> `shj open` and `shj status` were removed and replaced by the IDE integration (`openFile` / `getOpenEditors` / `getCurrentSelection`).
 
-## 説明書の編集
+## Editing the manual
 
-説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `manual/` から作ります。`main` に push すると GitHub Actions が Cloudflare Pages に公開します（リポジトリの Secrets に `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` が必要です）。手元で確認するには次を実行します。
+The manual (currently Japanese only) is built from `manual/` with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). When you push to `main`, GitHub Actions publishes it to Cloudflare Pages (the repository Secrets need `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`). To preview it locally, run:
 
 ```sh
 pip install -r manual/requirements.txt

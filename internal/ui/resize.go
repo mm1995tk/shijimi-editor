@@ -1,6 +1,10 @@
 package ui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+)
 
 // Pane resizing. The sizes the user picked are kept on the App, so they
 // survive closing and reopening the pane; layout() clamps them on every draw.
@@ -93,7 +97,7 @@ func (a *App) startResize() tea.Cmd {
 	a.comp = nil
 	a.hoverText = ""
 	a.resizeMode = true
-	a.info("リサイズ: ←→ サイドバー / ↑↓ ターミナル / < > プレビュー / = 初期値 / Esc で終了")
+	a.infoText(i18n.T("resize.hint"))
 	return nil
 }
 
@@ -120,7 +124,7 @@ func (a *App) handleResizeKey(key string) tea.Cmd {
 		a.msg = ""
 		return nil
 	}
-	a.info("リサイズ: ←→ サイドバー / ↑↓ ターミナル / < > プレビュー / = 初期値 / Esc で終了")
+	a.infoText(i18n.T("resize.hint"))
 	return nil
 }
 

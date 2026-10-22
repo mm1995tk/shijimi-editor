@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 //go:embed skill/SKILL.md
@@ -33,7 +35,7 @@ func InstallSkill(dir string) (string, error) {
 
 func runSkill(args []string, stdout, stderr func(string)) int {
 	if len(args) < 1 || len(args) > 2 || args[0] != "install" {
-		stderr("usage: shj skill install [書き出し先ディレクトリ]")
+		stderr(i18n.T("skill.usage"))
 		return 2
 	}
 	var dir string
@@ -52,6 +54,6 @@ func runSkill(args []string, stdout, stderr func(string)) int {
 		stderr(err.Error())
 		return 1
 	}
-	stdout(fmt.Sprintf("書き出しました: %s", path))
+	stdout(fmt.Sprintf(i18n.T("skill.written"), path))
 	return 0
 }

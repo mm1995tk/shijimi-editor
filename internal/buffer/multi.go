@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"sort"
 	"unicode/utf8"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Range is one cursor with its optional selection anchor.
@@ -224,7 +226,7 @@ func (b *Buffer) shiftRows(r Range, dir int) (Range, bool) {
 	return nr, true
 }
 
-var errNoMatch = errors.New("一致する箇所がありません")
+func errNoMatch() error { return errors.New(i18n.T("buffer.nomatch")) }
 
 // SelectMatches replaces every selection (or the character under a cursor
 // that has none) with a cursor for each non-empty match of re inside it.
@@ -259,7 +261,7 @@ func (b *Buffer) SelectMatches(re *regexp.Regexp) error {
 		}
 	}
 	if len(out) == 0 {
-		return errNoMatch
+		return errNoMatch()
 	}
 	if primOut < 0 {
 		primOut = 0

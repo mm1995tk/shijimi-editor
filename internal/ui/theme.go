@@ -7,6 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // syntaxColors are the token colors a theme provides.
@@ -289,13 +291,13 @@ func (a *App) themePicker() tea.Cmd {
 	for _, n := range themeNames() {
 		d := ""
 		if n == curTheme.Name {
-			d = "現在のテーマ"
+			d = i18n.T("theme.current")
 		}
 		items = append(items, paletteItem{label: n, detail: d})
 	}
-	return a.pal.pick("テーマ", items, func(i int) tea.Cmd {
+	return a.pal.pick(i18n.T("theme.title"), items, func(i int) tea.Cmd {
 		a.setTheme(items[i].label)
-		a.info("テーマ: %s", curTheme.Name)
+		a.info(i18n.T("cmd.themeis"), curTheme.Name)
 		return nil
 	})
 }

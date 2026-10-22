@@ -47,7 +47,7 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 		pw := clamp(a.w*3/5, 30, 100)
 		return (a.w-pw)/2 + ansi.StringWidth(a.pal.label()) + inputCaret(a.pal.input), 2, true
 	case a.findOpen:
-		return l.rightX + ansi.StringWidth(findLabel) + inputCaret(a.findInput), l.editY - 1, true
+		return l.rightX + ansi.StringWidth(findLabel()) + inputCaret(a.findInput), l.editY - 1, true
 	case a.focus == focusTerminal && a.showTerm:
 		tab := a.term.cur()
 		if tab == nil {

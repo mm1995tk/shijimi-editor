@@ -19,6 +19,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Position is an LSP position (UTF-16 character offset).
@@ -139,11 +140,11 @@ type Client struct {
 // background. Events (diagnostics, messages) are sent to events.
 func Start(s *config.Server, root string, events chan<- Event) (*Client, error) {
 	if s.Command == "" {
-		return nil, fmt.Errorf("%s: command が設定されていません", s.Name)
+		return nil, fmt.Errorf(i18n.T("lsp.nocommand"), s.Name)
 	}
 	path, err := exec.LookPath(s.Command)
 	if err != nil {
-		return nil, fmt.Errorf("%s が見つかりません", s.Command)
+		return nil, fmt.Errorf(i18n.T("acp.notfound"), s.Command)
 	}
 	cmd := exec.Command(path, s.Args...)
 	cmd.Dir = root
@@ -236,7 +237,7 @@ func (c *Client) initialize() {
 		Capabilities map[string]any `json:"capabilities"`
 	}
 	if err := c.Call(context.Background(), "initialize", params, &res); err != nil {
-		c.events <- Event{Server: c.Name, Err: fmt.Errorf("%s の初期化に失敗: %w", c.Name, err)}
+		c.events <- Event{Server: c.Name, Err: fmt.Errorf(i18n.T("lsp.initfail"), c.Name, err)}
 		return
 	}
 	c.caps = res.Capabilities
@@ -356,7 +357,7 @@ func (c *Client) Call(ctx context.Context, method string, params any, out any) e
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-c.dead:
-			return errors.New("サーバーが終了しました")
+			return errors.New(i18n.T("lsp.exited"))
 		}
 	}
 	c.mu.Lock()
@@ -390,7 +391,7 @@ func (c *Client) Call(ctx context.Context, method string, params any, out any) e
 		c.Notify("$/cancelRequest", map[string]any{"id": id})
 		return ctx.Err()
 	case <-c.dead:
-		return errors.New("サーバーが終了しました")
+		return errors.New(i18n.T("lsp.exited"))
 	}
 }
 

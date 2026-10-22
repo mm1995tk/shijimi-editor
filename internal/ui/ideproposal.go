@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
@@ -82,7 +83,7 @@ func unifiedDiff(oldText, newText string) []propLine {
 		i = j + 1
 	}
 	if len(out) == 0 {
-		out = append(out, propLine{' ', "(変更はありません)"})
+		out = append(out, propLine{' ', i18n.T("idep.nochange")})
 	}
 	return out
 }
@@ -91,11 +92,11 @@ func unifiedDiff(oldText, newText string) []propLine {
 // writes the file: that is left to Claude Code after FILE_SAVED.
 func (a *App) resolveProposal(p *proposal, accept bool) {
 	if accept {
-		a.info("承認しました: %s", a.rel(p.newPath))
+		a.info(i18n.T("idep.accepted"), a.rel(p.newPath))
 		p.reply <- ideReply{content: []ide.Content{ide.Text("FILE_SAVED"), ide.Text(p.newText)}}
 		a.treeTicks = treeRefreshTicks - 2 // the client writes the file after this reply
 	} else {
-		a.info("却下しました: %s", a.rel(p.newPath))
+		a.info(i18n.T("idep.rejected"), a.rel(p.newPath))
 		p.reply <- ideReply{content: []ide.Content{ide.Text("DIFF_REJECTED"), ide.Text(p.name)}}
 	}
 	a.props = slices.DeleteFunc(a.props, func(q *proposal) bool { return q == p })
@@ -106,7 +107,7 @@ func (a *App) resolveProposal(p *proposal, accept bool) {
 // side. The pending request is still answered, but the editor rejected
 // nothing, so the status bar must not say so.
 func (a *App) closeProposal(p *proposal) {
-	a.info("Claude Code 側で決まったので差分を閉じました: %s", a.rel(p.newPath))
+	a.info(i18n.T("idep.decided"), a.rel(p.newPath))
 	p.reply <- ideReply{content: []ide.Content{ide.Text("DIFF_REJECTED"), ide.Text(p.name)}}
 	a.props = slices.DeleteFunc(a.props, func(q *proposal) bool { return q == p })
 }
@@ -136,9 +137,9 @@ func (a *App) handleProposalKey(msg tea.KeyPressMsg) tea.Cmd {
 func (p *proposal) render(a *App, w, maxH int) []string {
 	body := max(1, maxH-3)
 	p.scroll = clamp(p.scroll, 0, max(0, len(p.lines)-body))
-	title := fmt.Sprintf(" エージェントの変更: %s（Enter: 適用 / Esc: 却下）", a.rel(p.newPath))
+	title := fmt.Sprintf(i18n.T("idep.title"), a.rel(p.newPath))
 	if len(a.props) > 1 {
-		title += fmt.Sprintf(" 他 %d 件待ち", len(a.props)-1)
+		title += fmt.Sprintf(i18n.T("idep.waiting"), len(a.props)-1)
 	}
 	out := []string{stPaletteBox.Render(fit(title, w))}
 	for _, l := range p.lines[p.scroll:min(len(p.lines), p.scroll+body)] {
@@ -158,7 +159,7 @@ func (p *proposal) render(a *App, w, maxH int) []string {
 		}
 	}
 	if len(p.lines) > body {
-		out = append(out, stPaletteDim.Render(fit(fmt.Sprintf(" %d-%d / %d 行", p.scroll+1, min(len(p.lines), p.scroll+body), len(p.lines)), w)))
+		out = append(out, stPaletteDim.Render(fit(fmt.Sprintf(i18n.T("ctx.lines"), p.scroll+1, min(len(p.lines), p.scroll+body), len(p.lines)), w)))
 	}
 	return out
 }

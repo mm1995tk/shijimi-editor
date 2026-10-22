@@ -9,6 +9,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -426,23 +427,23 @@ func renderWelcome(w, h int, helix bool) []string {
 	msg := []row{{"shijimi", true}, {"", false}}
 	if helix {
 		msg = append(msg,
-			row{"Space f       ファイルを開く", false},
-			row{"Space ?       コマンドパレット", false},
-			row{"Space e       ファイルツリーへ移動", false},
-			row{"Space g       PR の base との差分", false},
-			row{"Ctrl+G        HEAD との差分（変更を差分で見る）", false},
-			row{"Ctrl+`        ターミナル", false},
-			row{":q            終了", false},
+			row{i18n.T("help.vs.openfile"), false},
+			row{i18n.T("help.vs.palette"), false},
+			row{i18n.T("help.vs.tree"), false},
+			row{i18n.T("help.vs.diffpr"), false},
+			row{i18n.T("help.vs.diffhead"), false},
+			row{i18n.T("help.vs.terminal"), false},
+			row{i18n.T("help.vs.quit"), false},
 		)
 	} else {
 		msg = append(msg,
-			row{"Ctrl+P        ファイルを開く", false},
-			row{"F1 / Ctrl+K   コマンドパレット", false},
-			row{"Ctrl+B        サイドバーの表示切替", false},
-			row{"Ctrl+E        ファイルツリーへ移動", false},
-			row{"Ctrl+G        HEAD との差分（変更を差分で見る）", false},
-			row{"Ctrl+`        ターミナル", false},
-			row{"Ctrl+Q        終了", false},
+			row{i18n.T("help.vsc.openfile"), false},
+			row{i18n.T("help.vsc.palette"), false},
+			row{i18n.T("help.vsc.sidebar"), false},
+			row{i18n.T("help.vsc.tree"), false},
+			row{i18n.T("help.vs.diffhead"), false},
+			row{i18n.T("help.vs.terminal"), false},
+			row{i18n.T("help.vsc.quit"), false},
 		)
 	}
 	out := make([]string, h)

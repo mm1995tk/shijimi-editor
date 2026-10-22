@@ -12,6 +12,8 @@ import (
 	"unicode"
 
 	"github.com/mattn/go-runewidth"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 const TabWidth = 4
@@ -130,7 +132,7 @@ func Open(path string) (*Buffer, error) {
 		probe = probe[:8000]
 	}
 	if bytes.IndexByte(probe, 0) >= 0 {
-		return nil, errors.New("バイナリファイルは開けません")
+		return nil, errors.New(i18n.T("buffer.binary"))
 	}
 	text := string(data)
 	if strings.Contains(text, "\r\n") {
@@ -177,7 +179,7 @@ func (b *Buffer) Text() string {
 // Save writes the buffer to its path.
 func (b *Buffer) Save() error {
 	if b.Path == "" {
-		return errors.New("ファイル名がありません")
+		return errors.New(i18n.T("buffer.noname"))
 	}
 	text := b.Text()
 	if b.crlf {

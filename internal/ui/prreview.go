@@ -13,6 +13,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Reviewing a pull request inside diff mode (base PR): comments on lines,
@@ -201,19 +202,19 @@ func (a *App) commentMark(t *tab) func(row int) string {
 // ---- the Space v menu ----
 
 var reviewItems = []spaceItem{
-	{"c", "行・範囲にコメント", true},
-	{"C", "ファイルにコメント", true},
-	{"t", "スレッドを開く", false},
-	{"v", "viewed にする / 戻す", false},
-	{"A", "承認して送信", false},
-	{"R", "変更を要求して送信", false},
-	{"S", "コメントのみで送信", false},
+	{"c", "rv.item.comment", true},
+	{"C", "rv.item.filecomment", true},
+	{"t", "rv.item.thread", false},
+	{"v", "rv.item.viewed", false},
+	{"A", "rv.item.approve", false},
+	{"R", "rv.item.request", false},
+	{"S", "rv.item.commentonly", false},
 }
 
 // openReviewMenu handles Space v.
 func (a *App) openReviewMenu() tea.Cmd {
 	if !a.prShown() {
-		a.info("レビューは PR の base と比べているときに使えます（Space g）")
+		a.infoText(i18n.T("rv.needpr"))
 		return nil
 	}
 	a.pending = "space v"
@@ -276,13 +277,13 @@ func (a *App) reviewTarget() (string, *tab) {
 // checkCommentable reports why file p of tab t cannot take comments, or nil.
 func (a *App) checkCommentable(p string, t *tab) error {
 	if p == "" || a.gd.byAbs[filepath.Join(a.gitTopDir(), p)] == nil {
-		return errors.New("PR で変更されたファイルを開いてください")
+		return errors.New(i18n.T("rv.needchanged"))
 	}
 	if a.isStale(p) {
-		return errors.New("このファイルは手元で変更があるため、行にコメントできません")
+		return errors.New(i18n.T("rv.localchanged"))
 	}
 	if t != nil && t.dirty() {
-		return errors.New("未保存の変更があります。保存してからコメントしてください")
+		return errors.New(i18n.T("rv.unsaved"))
 	}
 	return nil
 }
@@ -291,7 +292,7 @@ func (a *App) checkCommentable(p string, t *tab) error {
 func (a *App) commentLines() tea.Cmd {
 	p, t := a.reviewTarget()
 	if a.focus == focusChanges || t == nil {
-		a.fail(errors.New("エディタで行を選んでからコメントしてください"))
+		a.fail(errors.New(i18n.T("rv.selectline")))
 		return nil
 	}
 	if err := a.checkCommentable(p, t); err != nil {
@@ -307,24 +308,24 @@ func (a *App) commentLines() tea.Cmd {
 		}
 	}
 	if dv := a.diffFor(t); dv == nil || !dv.inHunk(first) || !dv.inHunk(last) {
-		a.fail(errors.New("GitHub では差分の周り（変更の前後 3 行まで）にしかコメントできません"))
+		a.fail(errors.New(i18n.T("rv.outofdiff")))
 		return nil
 	}
 	var orig []string
 	for r := first; r <= last; r++ {
 		orig = append(orig, string(b.Lines[r]))
 	}
-	where := fmt.Sprintf("%s の %d 行目", p, last+1)
+	where := fmt.Sprintf(i18n.T("rv.lineof"), p, last+1)
 	if last > first {
-		where = fmt.Sprintf("%s の %d〜%d 行目", p, first+1, last+1)
+		where = fmt.Sprintf(i18n.T("rv.rangeof"), p, first+1, last+1)
 	}
-	return a.compose("コメント: "+where, "", orig, func(body string) tea.Cmd {
-		th := &prThread{Path: p, Line: last + 1, Side: "RIGHT", Pending: true, Comments: []prComment{{Author: "あなた", Body: body, Created: time.Now()}}}
+	return a.compose(i18n.T("rv.commentlabel")+where, "", orig, func(body string) tea.Cmd {
+		th := &prThread{Path: p, Line: last + 1, Side: "RIGHT", Pending: true, Comments: []prComment{{Author: i18n.T("rv.you"), Body: body, Created: time.Now()}}}
 		if last > first {
 			th.StartLine = first + 1
 		}
 		a.gd.rv.pending = append(a.gd.rv.pending, th)
-		a.info("コメントを追加しました。Space v A / R / S で送信します")
+		a.infoText(i18n.T("rv.commentadded"))
 		return nil
 	})
 }
@@ -336,10 +337,10 @@ func (a *App) commentFile() tea.Cmd {
 		a.fail(err)
 		return nil
 	}
-	return a.compose("ファイルへのコメント: "+p, "", nil, func(body string) tea.Cmd {
+	return a.compose(i18n.T("rv.filecommentlabel")+p, "", nil, func(body string) tea.Cmd {
 		a.gd.rv.pending = append(a.gd.rv.pending, &prThread{Path: p, Side: "RIGHT", File: true, Pending: true,
-			Comments: []prComment{{Author: "あなた", Body: body, Created: time.Now()}}})
-		a.info("ファイルへのコメントを追加しました。Space v A / R / S で送信します")
+			Comments: []prComment{{Author: i18n.T("rv.you"), Body: body, Created: time.Now()}}})
+		a.infoText(i18n.T("rv.filecommentadded"))
 		return nil
 	})
 }
@@ -349,7 +350,7 @@ func (a *App) commentFile() tea.Cmd {
 func (a *App) openThread() tea.Cmd {
 	p, t := a.reviewTarget()
 	if p == "" {
-		a.fail(errors.New("ファイルを開いてください"))
+		a.fail(errors.New(i18n.T("rv.openfile")))
 		return nil
 	}
 	if t != nil && a.focus != focusChanges && !a.isStale(p) {
@@ -360,7 +361,7 @@ func (a *App) openThread() tea.Cmd {
 	}
 	all := a.gd.rv.threadsIn(p)
 	if len(all) == 0 {
-		a.info("このファイルにコメントはありません")
+		a.infoText(i18n.T("rv.nocomments"))
 		return nil
 	}
 	if len(all) == 1 {
@@ -371,7 +372,7 @@ func (a *App) openThread() tea.Cmd {
 	for i, th := range all {
 		items[i] = paletteItem{label: threadWhere(th) + "  " + firstLine(th.Comments[0].Body), detail: "@" + th.Comments[0].Author + threadState(th)}
 	}
-	return a.pal.pick("コメント: "+p, items, func(i int) tea.Cmd {
+	return a.pal.pick(i18n.T("rv.commentlabel")+p, items, func(i int) tea.Cmd {
 		a.card = &prCard{thread: all[i], path: p}
 		return nil
 	})
@@ -379,27 +380,27 @@ func (a *App) openThread() tea.Cmd {
 
 // threadWhere names what a thread is about: "右 99 行目", "ファイル", ….
 func threadWhere(t *prThread) string {
-	side := "右"
+	side := i18n.T("rv.right")
 	if t.Side == "LEFT" {
-		side = "左"
+		side = i18n.T("rv.left")
 	}
 	switch {
 	case t.File:
-		return "ファイル"
+		return i18n.T("sym.file")
 	case t.Outdated:
-		return "古いコメント"
+		return i18n.T("rv.outdated")
 	case t.StartLine > 0:
-		return fmt.Sprintf("%s %d〜%d 行目", side, t.StartLine, t.Line)
+		return fmt.Sprintf(i18n.T("rv.range"), side, t.StartLine, t.Line)
 	}
-	return fmt.Sprintf("%s %d 行目", side, t.Line)
+	return fmt.Sprintf(i18n.T("rv.line"), side, t.Line)
 }
 
 func threadState(t *prThread) string {
 	switch {
 	case t.Pending:
-		return "  未送信"
+		return i18n.T("rv.unsent")
 	case t.Resolved:
-		return "  解決済み"
+		return i18n.T("rv.resolvedtag")
 	}
 	return ""
 }
@@ -415,7 +416,7 @@ type viewedMsg struct {
 func (a *App) toggleViewed() tea.Cmd {
 	p, _ := a.reviewTarget()
 	if p == "" {
-		a.fail(errors.New("ファイルを開いてください"))
+		a.fail(errors.New(i18n.T("rv.openfile")))
 		return nil
 	}
 	if a.gd.pr.ID == "" {
@@ -439,9 +440,9 @@ func (a *App) handleViewed(m viewedMsg) {
 	}
 	a.gd.rv.viewed[m.path] = m.viewed
 	if m.viewed {
-		a.info("viewed にしました: %s", m.path)
+		a.info(i18n.T("rv.viewedon"), m.path)
 	} else {
-		a.info("viewed を外しました: %s", m.path)
+		a.info(i18n.T("rv.viewedoff"), m.path)
 	}
 }
 
@@ -456,24 +457,26 @@ type reviewSentMsg struct {
 	err  error
 }
 
-var eventNames = map[string]string{"APPROVE": "承認", "REQUEST_CHANGES": "変更を要求", "COMMENT": "コメントのみ"}
+func eventNames() map[string]string {
+	return map[string]string{"APPROVE": i18n.T("rv.event.approve"), "REQUEST_CHANGES": i18n.T("rv.event.request"), "COMMENT": i18n.T("rv.event.comment")}
+}
 
 func (a *App) startSubmit(event string) tea.Cmd {
 	if a.gd.pr.ID == "" {
 		return nil
 	}
 	n := len(a.gd.rv.pending)
-	title := fmt.Sprintf("レビューを送信（%s、コメント %d 件）: 本文（空でも可）", eventNames[event], n)
+	title := fmt.Sprintf(i18n.T("rv.submitprompt"), eventNames()[event], n)
 	cmd := a.compose(title, "", nil, func(body string) tea.Cmd {
 		if event != "APPROVE" && body == "" && n == 0 {
-			a.fail(errors.New("本文かコメントを書いてから送信してください"))
+			a.fail(errors.New(i18n.T("rv.needbody")))
 			return nil
 		}
-		a.info("レビューを送信しています…")
+		a.infoText(i18n.T("rv.submitting"))
 		root, pr, threads := a.root, a.gd.pr, append([]*prThread(nil), a.gd.rv.pending...)
 		return func() tea.Msg {
 			err := submitReview(root, pr, event, body, threads)
-			return reviewSentMsg{num: pr.Number, done: fmt.Sprintf("レビューを送信しました（%s）", eventNames[event]), sent: threads, err: err}
+			return reviewSentMsg{num: pr.Number, done: fmt.Sprintf(i18n.T("rv.submitted"), eventNames()[event]), sent: threads, err: err}
 		}
 	})
 	a.composer.empty = true
@@ -573,13 +576,13 @@ func relTime(t time.Time) string {
 	case t.IsZero():
 		return ""
 	case d < time.Minute:
-		return "たった今"
+		return i18n.T("rv.justnow")
 	case d < time.Hour:
-		return fmt.Sprintf("%d 分前", int(d.Minutes()))
+		return fmt.Sprintf(i18n.T("rv.minago"), int(d.Minutes()))
 	case d < 24*time.Hour:
-		return fmt.Sprintf("%d 時間前", int(d.Hours()))
+		return fmt.Sprintf(i18n.T("rv.hourago"), int(d.Hours()))
 	case d < 30*24*time.Hour:
-		return fmt.Sprintf("%d 日前", int(d.Hours()/24))
+		return fmt.Sprintf(i18n.T("rv.dayago"), int(d.Hours()/24))
 	}
 	return t.Local().Format("2006-01-02")
 }
@@ -588,17 +591,17 @@ func relTime(t time.Time) string {
 func (a *App) cardHint(c *prCard) string {
 	t := c.thread
 	if t.Pending {
-		return " r 編集  x 削除  Enter その行へ  Esc 閉じる "
+		return i18n.T("rv.hint.own")
 	}
-	resolve := "解決"
+	resolve := i18n.T("rv.resolve")
 	if t.Resolved {
-		resolve = "未解決に戻す"
+		resolve = i18n.T("rv.unresolve")
 	}
 	s := ""
 	if suggestion(t) != nil {
-		s = "  s suggestion を適用"
+		s = i18n.T("rv.applysuggestion")
 	}
-	return " r 返信  x " + resolve + s + "  Enter その行へ  Esc 閉じる "
+	return i18n.T("rv.hint.reply1") + resolve + s + i18n.T("rv.hint.reply2")
 }
 
 // box draws lines in a bordered popup w cells wide (content w-4), showing h
@@ -671,17 +674,17 @@ func (a *App) handleCardKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 		return a.gotoThread(c), true
 	case "r":
 		if t.Pending {
-			return a.compose("コメントを編集: "+threadWhere(t), t.Comments[0].Body, a.threadLines(c), func(body string) tea.Cmd {
+			return a.compose(i18n.T("rv.editlabel")+threadWhere(t), t.Comments[0].Body, a.threadLines(c), func(body string) tea.Cmd {
 				t.Comments[0].Body = body
 				return nil
 			}), true
 		}
-		return a.compose("返信: "+threadWhere(t), "", nil, func(body string) tea.Cmd {
-			a.info("返信を送信しています…")
+		return a.compose(i18n.T("rv.replylabel")+threadWhere(t), "", nil, func(body string) tea.Cmd {
+			a.infoText(i18n.T("rv.replying"))
 			root, id := a.root, t.ID
 			num := a.gd.pr.Number
 			return func() tea.Msg {
-				return reviewSentMsg{num: num, done: "返信しました", err: replyThread(root, id, body)}
+				return reviewSentMsg{num: num, done: i18n.T("rv.replied"), err: replyThread(root, id, body)}
 			}
 		}), true
 	case "x":
@@ -693,13 +696,13 @@ func (a *App) handleCardKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 				}
 			}
 			a.card = nil
-			a.info("未送信のコメントを削除しました")
+			a.infoText(i18n.T("rv.deletedunsent"))
 			return nil, true
 		}
 		root, id, resolve := a.root, t.ID, !t.Resolved
-		done := "解決しました"
+		done := i18n.T("rv.resolved")
 		if !resolve {
-			done = "未解決に戻しました"
+			done = i18n.T("rv.reopened")
 		}
 		num := a.gd.pr.Number
 		return func() tea.Msg { return reviewSentMsg{num: num, done: done, err: resolveThread(root, id, resolve)} }, true
@@ -785,7 +788,7 @@ func suggestion(t *prThread) []string {
 // applySuggestion replaces the thread's lines with its suggestion and saves.
 func (a *App) applySuggestion(c *prCard) tea.Cmd {
 	if err := a.checkCommentable(c.path, nil); err != nil {
-		a.fail(errors.New("このファイルは手元で変更があるため、suggestion を適用できません"))
+		a.fail(errors.New(i18n.T("rv.sugglocal")))
 		return nil
 	}
 	lines := suggestion(c.thread)
@@ -795,12 +798,12 @@ func (a *App) applySuggestion(c *prCard) tea.Cmd {
 	t := a.curText()
 	b := t.buf
 	if t.dirty() {
-		a.fail(errors.New("未保存の変更があります。保存してから適用してください"))
+		a.fail(errors.New(i18n.T("rv.suggunsaved")))
 		return nil
 	}
 	first, last := c.thread.first()-1, c.thread.Line-1
 	if first < 0 || last >= len(b.Lines) {
-		a.fail(errors.New("コメントの行がファイルにありません"))
+		a.fail(errors.New(i18n.T("rv.nolinefile")))
 		return nil
 	}
 	start, end := buffer.Pos{Row: first}, buffer.Pos{Row: last, Col: len(b.Lines[last])}
@@ -820,7 +823,7 @@ func (a *App) applySuggestion(c *prCard) tea.Cmd {
 	a.follow = true
 	cmd := a.saveTab(t)
 	if !a.msgErr {
-		a.info("suggestion を適用して保存しました: %s", c.path)
+		a.info(i18n.T("rv.suggapplied"), c.path)
 	}
 	return tea.Batch(cmd, a.setFocus(focusEditor))
 }
@@ -850,7 +853,7 @@ func (a *App) compose(title, initial string, orig []string, onSubmit func(string
 	st.Focused = textarea.StyleState{Base: base, Text: base, CursorLine: base, Placeholder: bgfg(cPaletteBg, curTheme.Dim), EndOfBuffer: base, Prompt: base}
 	st.Blurred = st.Focused
 	ta.SetStyles(st)
-	ta.Placeholder = "Markdown で書けます"
+	ta.Placeholder = i18n.T("rv.markdownok")
 	ta.SetValue(initial)
 	a.comp, a.hoverText = nil, ""
 	a.composer = &composer{title: title, ta: ta, orig: orig, onSubmit: onSubmit}
@@ -862,7 +865,7 @@ func (a *App) handleComposerKey(msg tea.KeyPressMsg) tea.Cmd {
 	switch msg.String() {
 	case "esc":
 		a.composer = nil
-		a.info("入力を取り消しました")
+		a.infoText(i18n.T("rv.inputcancelled"))
 		return nil
 	case "enter":
 		body := strings.TrimSpace(c.ta.Value())
@@ -876,7 +879,7 @@ func (a *App) handleComposerKey(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case "ctrl+s":
 		if c.orig == nil {
-			a.info("suggestion は行へのコメントで使えます")
+			a.infoText(i18n.T("rv.suggestonline"))
 			return nil
 		}
 		block := "```suggestion\n" + strings.Join(c.orig, "\n") + "\n```\n"
@@ -912,15 +915,15 @@ func (a *App) composerBox(l layout) (rows []string, x, y int) {
 	for _, l := range strings.Split(c.ta.View(), "\n") {
 		rows = append(rows, line(l))
 	}
-	hint := " Enter 送信  Shift+Enter 改行  Esc 取消 "
+	hint := i18n.T("rv.hint.input")
 	if c.orig != nil {
-		hint = " Enter 送信  Shift+Enter 改行  Ctrl+S suggestion  Esc 取消 "
+		hint = i18n.T("rv.hint.inputsugg")
 	}
 	rows = append(rows, bd.Render("├"+fit(hint, w-2)+"┤"))
 	prevH := max(0, l.editH-len(rows)-1)
 	if prevH > 0 {
 		text := c.ta.Value()
-		prev := []string{stPanelDim.Render(fit(" プレビュー", iw))}
+		prev := []string{stPanelDim.Render(fit(i18n.T("rv.preview"), iw))}
 		if strings.TrimSpace(text) != "" {
 			prev = append(prev, renderMarkdown(text, iw, mdOpts{mermaid: a.mermaidLines})...)
 		}
@@ -987,14 +990,14 @@ func (a *App) reviewNote(t *tab) string {
 	}
 	p := a.repoPath(t.buf.Path)
 	if a.isStale(p) {
-		s := "  ✎ 手元で変更あり（PR の最新コミットと違う）"
+		s := i18n.T("rv.localdiff")
 		if n := len(a.gd.rv.threadsIn(p)); n > 0 {
-			s += fmt.Sprintf("  ● コメント %d（行には表示しません。Space v t で一覧）", n)
+			s += fmt.Sprintf(i18n.T("rv.threadcount"), n)
 		}
 		return s
 	}
 	if n := len(a.gd.rv.fileThreads(p)); n > 0 {
-		return fmt.Sprintf("  ● ファイルへのコメント %d", n)
+		return fmt.Sprintf(i18n.T("rv.filethreadcount"), n)
 	}
 	return ""
 }

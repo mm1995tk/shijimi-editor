@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/creack/pty"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
@@ -267,7 +268,7 @@ func (t *terminal) render(w, h int, focused bool) []string {
 		x += ansi.StringWidth(s)
 	}
 	t.tabX = append(t.tabX, x)
-	bar += stPanelDim.Render(" F2:新規")
+	bar += stPanelDim.Render(i18n.T("term.new"))
 	out = append(out, fitStyled(bar, w, stPanel))
 
 	body := h - 2

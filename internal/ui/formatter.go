@@ -13,6 +13,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // formatterTimeout bounds one run of an external formatter.
@@ -51,7 +52,7 @@ func (a *App) runFormatter(t *tab, f *config.Formatter, save bool) tea.Cmd {
 		msg := formatterDoneMsg{tab: t, in: in, save: save}
 		switch {
 		case errors.Is(ctx.Err(), context.DeadlineExceeded):
-			msg.err = fmt.Errorf("%s が %d 秒で終わりませんでした", cmdName, int(formatterTimeout.Seconds()))
+			msg.err = fmt.Errorf(i18n.T("fmt.timeout"), cmdName, int(formatterTimeout.Seconds()))
 		case err != nil:
 			msg.err = errors.New(firstNonEmptyLine(stderr.String(), err.Error()))
 		default:
@@ -80,7 +81,7 @@ func (a *App) handleFormatterDone(msg formatterDoneMsg) tea.Cmd {
 	}
 	b := msg.tab.buf
 	if b.Text() != msg.in {
-		a.fail(errors.New("整形中にバッファが変わったため、整形結果を捨てました"))
+		a.fail(errors.New(i18n.T("fmt.stale")))
 		return nil
 	}
 	if edit, ok := lineDiffEdit(b, msg.out); ok {
@@ -89,7 +90,7 @@ func (a *App) handleFormatterDone(msg formatterDoneMsg) tea.Cmd {
 	if msg.save {
 		return a.saveTab(msg.tab)
 	}
-	a.info("整形しました")
+	a.infoText(i18n.T("app.formatted"))
 	return nil
 }
 

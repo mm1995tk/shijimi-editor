@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -69,7 +70,7 @@ func (a *App) showSignature(m signatureMsg) {
 	if m.help == nil {
 		a.sig = nil
 		if m.manual {
-			a.info("シグネチャ情報はありません")
+			a.infoText(i18n.T("sig.none"))
 		}
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,6 +13,8 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Markdown preview: a read-only rendering shown to the right of the buffer.
@@ -75,7 +78,7 @@ const (
 func (a *App) togglePreview() tea.Cmd {
 	t := a.curText()
 	if t == nil || !isMarkdown(t.buf.Path) {
-		a.fail(fmt.Errorf("Markdown ファイル（.md）を開いてください"))
+		a.fail(errors.New(i18n.T("preview.needmd")))
 		return nil
 	}
 	t.preview = (t.preview + 1) % (previewFull + 1)
@@ -114,7 +117,7 @@ func (a *App) syncPreview() tea.Cmd {
 			continue
 		}
 		if strings.TrimSpace(a.cfg.Editor.MermaidCommand) == "" {
-			job.done, job.err = true, "mermaid-command が未設定のため図を描画できません"
+			job.done, job.err = true, i18n.T("preview.nomermaid")
 			continue
 		}
 		code := code
@@ -195,7 +198,7 @@ func (a *App) mermaidLines(code string, w int) []string {
 	}
 	switch {
 	case job == nil || !job.done:
-		return note("⏳ mermaid を描画中…", false)
+		return note(i18n.T("preview.rendering"), false)
 	case job.err != "":
 		return note("mermaid: "+job.err, true)
 	}

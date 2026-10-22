@@ -10,7 +10,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
+	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/kitty"
 	"github.com/mm1995tk/shijimi-editor/internal/ui"
@@ -26,19 +28,21 @@ func main() {
 			return
 		}
 		if arg == "-h" || arg == "--help" {
-			fmt.Println("usage: shj [ディレクトリ | ファイル]")
-			fmt.Println("       ファイルを渡すと、そのファイルだけを編集する単体編集モードで開きます（$EDITOR 向け）。")
-			fmt.Println("       ファイルツリー・LSP・ターミナル・差分モード・エージェントは起動せず、閉じる（:q, :wq, Ctrl+Q）と終了します。")
-			fmt.Println("       存在しないパスは空のバッファで開き、保存したときに作ります。")
+			i18n.SetLang(config.Load(dir).Editor.UILanguage)
+			fmt.Println(i18n.T("help.usage"))
+			fmt.Println(i18n.T("help.single1"))
+			fmt.Println(i18n.T("help.single2"))
+			fmt.Println(i18n.T("help.single3"))
 			fmt.Println("       shj diff [path]")
-			fmt.Println("       shj exec \":コマンド\"")
-			fmt.Println("       shj skill install [書き出し先]")
+			fmt.Println(i18n.T("help.exec"))
+			fmt.Println(i18n.T("help.skill"))
 			fmt.Println("       shj -v, --version")
-			fmt.Println("サブコマンドは実行中の shijimi へ $" + ctl.EnvSocket + " 経由で送ります。")
-			fmt.Println("同名のファイルを開くときは ./diff のようにパスで書いてください。")
+			fmt.Println(i18n.T("help.sub1") + ctl.EnvSocket + i18n.T("help.sub2"))
+			fmt.Println(i18n.T("help.samename"))
 			return
 		}
 		if ctl.IsSubcommand(arg) {
+			i18n.SetLang(config.Load(dir).Editor.UILanguage)
 			os.Exit(ctl.Run(os.Args[1:],
 				func(s string) { fmt.Println(s) },
 				func(s string) { fmt.Fprintln(os.Stderr, s) }))

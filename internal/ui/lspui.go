@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -68,7 +70,7 @@ func (m *lspManager) clientsFor(t *tab) ([]*lsp.Client, []error) {
 		s := m.cfg.Servers[name]
 		if s == nil {
 			m.failed[key] = true
-			errs = append(errs, fmt.Errorf("言語サーバー %q の設定がありません", name))
+			errs = append(errs, fmt.Errorf(i18n.T("lspui.noconfig"), name))
 			continue
 		}
 		c, err := lsp.Start(s, root, m.events)
@@ -211,12 +213,12 @@ func (a *App) lspRequest(capability string, f func(ctx context.Context, c *lsp.C
 		return nil
 	}
 	if t.lang == nil {
-		a.fail(fmt.Errorf("この言語の言語サーバーは設定されていません"))
+		a.fail(errors.New(i18n.T("lspui.noserver")))
 		return nil
 	}
 	c := a.lsp.client(t, capability)
 	if c == nil {
-		a.fail(fmt.Errorf("言語サーバーが %s に対応していないか、起動中です", capability))
+		a.fail(fmt.Errorf(i18n.T("lspui.unsupported"), capability))
 		return nil
 	}
 	a.syncLSP()
@@ -250,9 +252,9 @@ func (a *App) gotoDefinition() tea.Cmd {
 			if err != nil {
 				return lspErrMsg{err}
 			}
-			return locationsMsg{"参照", withoutLocation(refs, t.buf.Path, pos)}
+			return locationsMsg{i18n.T("lspui.references"), withoutLocation(refs, t.buf.Path, pos)}
 		}
-		return locationsMsg{"定義", locs}
+		return locationsMsg{i18n.T("lspui.definition"), locs}
 	})
 }
 
@@ -286,7 +288,7 @@ func (a *App) references() tea.Cmd {
 		if err != nil {
 			return lspErrMsg{err}
 		}
-		return locationsMsg{"参照", locs}
+		return locationsMsg{i18n.T("lspui.references"), locs}
 	})
 }
 
@@ -318,7 +320,7 @@ func (a *App) rename() tea.Cmd {
 	for line := t.buf.Lines[s.Row]; e.Col < len(line) && isIdent(line[e.Col]); e.Col++ {
 	}
 	old := t.buf.TextRange(s, e)
-	return a.pal.ask("新しい名前", old, func(v string) tea.Cmd {
+	return a.pal.ask(i18n.T("app.newname"), old, func(v string) tea.Cmd {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
@@ -412,7 +414,7 @@ func codeActionRange(b *buffer.Buffer, all []lsp.Diagnostic) (lsp.Range, []lsp.D
 
 func (a *App) showCodeActions(m codeActionsMsg) tea.Cmd {
 	if len(m.actions) == 0 {
-		a.info("ここで使えるコードアクションはありません")
+		a.infoText(i18n.T("lspui.noactions"))
 		return nil
 	}
 	actions := slices.Clone(m.actions)
@@ -431,7 +433,7 @@ func (a *App) showCodeActions(m codeActionsMsg) tea.Cmd {
 	for i, act := range actions {
 		items[i] = paletteItem{label: act.Title, detail: act.Kind}
 	}
-	return a.pal.pick("コードアクション", items, func(i int) tea.Cmd {
+	return a.pal.pick(i18n.T("lspui.codeactions"), items, func(i int) tea.Cmd {
 		act := actions[i]
 		return func() tea.Msg {
 			ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
@@ -454,7 +456,7 @@ func (a *App) runCodeAction(m codeActionResolvedMsg) tea.Cmd {
 	cmd := m.action.Command
 	if cmd == nil {
 		if len(m.action.Edit) == 0 {
-			a.info("このコードアクションには変更がありません")
+			a.infoText(i18n.T("lspui.noedit"))
 		}
 		return nil
 	}
@@ -481,12 +483,12 @@ func (a *App) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
 		files++
 		n += len(edits)
 	}
-	a.info("%d 個のファイルで %d 箇所を変更しました（未保存）", files, n)
+	a.info(i18n.T("lspui.applied"), files, n)
 }
 
 func (a *App) showLocations(m locationsMsg) tea.Cmd {
 	if len(m.locs) == 0 {
-		a.fail(fmt.Errorf("%sが見つかりません", m.title))
+		a.fail(fmt.Errorf(i18n.T("lspui.notfound"), m.title))
 		return nil
 	}
 	jump := a.jumpTo
@@ -536,16 +538,16 @@ func (a *App) diagnosticPicker() tea.Cmd {
 		}
 	}
 	if len(all) == 0 {
-		a.info("診断はありません")
+		a.infoText(i18n.T("lspui.nodiag"))
 		return nil
 	}
 	items := make([]paletteItem, len(all))
-	sevName := map[int]string{1: "エラー", 2: "警告", 3: "情報", 4: "ヒント"}
+	sevName := map[int]string{1: i18n.T("diag.error"), 2: i18n.T("diag.warning"), 3: i18n.T("diag.info"), 4: i18n.T("diag.hint")}
 	for i, e := range all {
 		items[i] = paletteItem{label: fmt.Sprintf("%s:%d %s", a.rel(e.path), e.d.Range.Start.Line+1, firstLine(e.d.Message)), detail: sevName[sevRank(e.d.Severity)]}
 	}
-	return a.pal.pick("診断", items, func(i int) tea.Cmd {
-		return a.showLocations(locationsMsg{"診断", []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}})
+	return a.pal.pick(i18n.T("ctx.diagnostics"), items, func(i int) tea.Cmd {
+		return a.showLocations(locationsMsg{i18n.T("ctx.diagnostics"), []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}})
 	})
 }
 
@@ -557,7 +559,7 @@ func (a *App) gotoDiagnostic(dir int) {
 	}
 	ds := a.lsp.diagnostics(t.buf.Path)
 	if len(ds) == 0 {
-		a.info("このファイルに診断はありません")
+		a.infoText(i18n.T("lspui.nodiagfile"))
 		return
 	}
 	cur := t.buf.Cur

@@ -3,6 +3,7 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,6 +12,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // DefaultListenHost is where forwards listen unless configured otherwise.
@@ -44,11 +47,11 @@ func NewManager() *Manager {
 // connection to localhost:target. An empty host means DefaultListenHost.
 func (m *Manager) Start(host string, target, listenPort int) (*Forward, error) {
 	if target < 1 || target > 65535 || listenPort < 0 || listenPort > 65535 {
-		return nil, fmt.Errorf("ポート番号は 1〜65535 で指定してください")
+		return nil, errors.New(i18n.T("proxy.portrange"))
 	}
 	if listenPort == target {
 		// The forward would connect to itself.
-		return nil, fmt.Errorf("待ち受けポートと対象ポートは別の番号にしてください: %d", target)
+		return nil, fmt.Errorf(i18n.T("proxy.sameport"), target)
 	}
 	if host == "" {
 		host = DefaultListenHost
@@ -67,7 +70,7 @@ func (m *Manager) Start(host string, target, listenPort int) (*Forward, error) {
 		// The OS picked the target port; pick again.
 		l.Close()
 		if try >= 5 {
-			return nil, fmt.Errorf("空いている待ち受けポートが見つかりません")
+			return nil, errors.New(i18n.T("proxy.nofree"))
 		}
 	}
 	f := &Forward{Target: target, Listen: ln.Addr().String(), Port: port, ln: ln, conns: map[net.Conn]struct{}{}}
@@ -87,7 +90,7 @@ func (m *Manager) Stop(port int) error {
 	delete(m.forwards, port)
 	m.mu.Unlock()
 	if !ok {
-		return fmt.Errorf("待ち受けポート %d の転送はありません", port)
+		return fmt.Errorf(i18n.T("proxy.notforwarded"), port)
 	}
 	f.close()
 	return nil

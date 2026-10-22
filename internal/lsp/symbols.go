@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"sort"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Symbol is one entry of a document or workspace symbol list. Range is the
@@ -101,17 +103,17 @@ func parseSymbolInformation(raw json.RawMessage, uri string) []Symbol {
 }
 
 var symbolKinds = [...]string{
-	1: "ファイル", 2: "モジュール", 3: "名前空間", 4: "パッケージ", 5: "クラス",
-	6: "メソッド", 7: "プロパティ", 8: "フィールド", 9: "コンストラクタ", 10: "列挙型",
-	11: "インターフェース", 12: "関数", 13: "変数", 14: "定数", 15: "文字列",
-	16: "数値", 17: "真偽値", 18: "配列", 19: "オブジェクト", 20: "キー",
-	21: "null", 22: "列挙値", 23: "構造体", 24: "イベント", 25: "演算子", 26: "型引数",
+	1: "sym.file", 2: "sym.module", 3: "sym.namespace", 4: "sym.package", 5: "sym.class",
+	6: "sym.method", 7: "sym.property", 8: "sym.field", 9: "sym.constructor", 10: "sym.enum",
+	11: "sym.interface", 12: "sym.function", 13: "sym.variable", 14: "sym.constant", 15: "sym.string",
+	16: "sym.number", 17: "sym.boolean", 18: "sym.array", 19: "sym.object", 20: "sym.key",
+	21: "sym.null", 22: "sym.enummember", 23: "sym.struct", 24: "sym.event", 25: "sym.operator", 26: "sym.typeparam",
 }
 
-// SymbolKindName is the Japanese name of an LSP SymbolKind.
+// SymbolKindName is the localized name of an LSP SymbolKind.
 func SymbolKindName(kind int) string {
 	if kind > 0 && kind < len(symbolKinds) {
-		return symbolKinds[kind]
+		return i18n.T(symbolKinds[kind])
 	}
-	return "その他"
+	return i18n.T("sym.other")
 }
