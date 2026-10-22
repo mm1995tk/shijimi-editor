@@ -104,9 +104,24 @@ type Agent struct {
 	Env     map[string]string
 }
 
+// Keys holds the key bindings of config.toml's [keys.normal], [keys.insert]
+// and [keys.select]: Helix-style key names mapped to a command name
+// ("move_char_left") or a ":" command (":write"). Like Agent, it is read only
+// from the user's own config directory: a ":sh ..." binding in a cloned
+// repository's config would run a program the user never chose.
+type Keys struct {
+	Normal map[string]string
+	Insert map[string]string
+	Select map[string]string
+	// Invalid lists entries that could not be read (a value that is not a
+	// string, such as a Helix sub-table), as "keys.normal.g".
+	Invalid []string
+}
+
 // Config is the merged configuration.
 type Config struct {
 	Editor    Editor
+	Keys      Keys
 	Search    Search
 	Browser   Browser
 	Agent     Agent
@@ -144,6 +159,7 @@ func Load(root string) *Config {
 			c.mergeBrowser(string(data))
 			if user {
 				c.mergeAgent(string(data))
+				c.mergeKeys(string(data))
 			}
 			c.Sources = append(c.Sources, filepath.Join(d, "config.toml"))
 		}
@@ -152,6 +168,7 @@ func Load(root string) *Config {
 			c.mergeBrowserRaw(raw)
 			if user {
 				c.mergeAgentRaw(raw)
+				c.mergeKeysRaw(raw)
 			}
 			c.Sources = append(c.Sources, filepath.Join(d, "config.nix"))
 		}
@@ -240,6 +257,46 @@ func (c *Config) mergeBrowserRaw(raw map[string]any) {
 			c.Browser.ListenHost = v
 		}
 	}
+}
+
+func (c *Config) mergeKeys(data string) {
+	var raw map[string]any
+	if _, err := toml.Decode(data, &raw); err != nil {
+		return
+	}
+	c.mergeKeysRaw(raw)
+}
+
+func (c *Config) mergeKeysRaw(raw map[string]any) {
+	keys, ok := raw["keys"].(map[string]any)
+	if !ok {
+		return
+	}
+	for _, mode := range []string{"normal", "insert", "select"} {
+		tbl, ok := keys[mode].(map[string]any)
+		if !ok {
+			continue
+		}
+		dst := &c.Keys.Normal
+		switch mode {
+		case "insert":
+			dst = &c.Keys.Insert
+		case "select":
+			dst = &c.Keys.Select
+		}
+		for k, v := range tbl {
+			s, ok := v.(string)
+			if !ok {
+				c.Keys.Invalid = append(c.Keys.Invalid, "keys."+mode+"."+k)
+				continue
+			}
+			if *dst == nil {
+				*dst = map[string]string{}
+			}
+			(*dst)[k] = strings.TrimSpace(s)
+		}
+	}
+	sort.Strings(c.Keys.Invalid)
 }
 
 func (c *Config) mergeAgent(data string) {

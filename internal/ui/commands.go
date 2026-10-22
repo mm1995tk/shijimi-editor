@@ -296,6 +296,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 			}
 		}
 		a.info(i18n.T("cmd.configreloaded"), strings.Join(a.cfg.Sources, ", "))
+		a.loadKeymap()
 	case "theme":
 		if arg == "" {
 			return a.themePicker()

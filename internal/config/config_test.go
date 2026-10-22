@@ -270,3 +270,44 @@ func TestUILanguageOption(t *testing.T) {
 		t.Fatalf("an unsupported language should keep en, got %q", got)
 	}
 }
+
+func TestMergeKeys(t *testing.T) {
+	c := &Config{}
+	c.mergeKeys(`
+[keys.normal]
+"C-s" = ":write"
+h = "move_char_right"
+[keys.normal.g]
+a = "no_op"
+[keys.insert]
+"A-x" = "normal_mode"
+[keys.select]
+j = "extend_line_below"
+`)
+	if c.Keys.Normal["C-s"] != ":write" || c.Keys.Normal["h"] != "move_char_right" {
+		t.Fatalf("normal = %v", c.Keys.Normal)
+	}
+	if c.Keys.Insert["A-x"] != "normal_mode" || c.Keys.Select["j"] != "extend_line_below" {
+		t.Fatalf("insert = %v, select = %v", c.Keys.Insert, c.Keys.Select)
+	}
+	if len(c.Keys.Invalid) != 1 || c.Keys.Invalid[0] != "keys.normal.g" {
+		t.Fatalf("invalid = %v", c.Keys.Invalid)
+	}
+}
+
+func TestKeysReadOnlyFromUserConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", home)
+	root := t.TempDir()
+	os.MkdirAll(filepath.Join(home, "shijimi"), 0o755)
+	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.WriteFile(filepath.Join(home, "shijimi", "config.toml"), []byte("[keys.normal]\nh = \"move_char_right\"\n"), 0o644)
+	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[keys.normal]\nl = \":sh evil\"\n"), 0o644)
+	c := Load(root)
+	if c.Keys.Normal["h"] != "move_char_right" {
+		t.Fatalf("user keys not read: %v", c.Keys.Normal)
+	}
+	if _, ok := c.Keys.Normal["l"]; ok {
+		t.Fatalf("project keys must not be read: %v", c.Keys.Normal)
+	}
+}

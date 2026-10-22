@@ -142,3 +142,86 @@ Helix と同じく「先に選択し、次に操作する」順で編集しま�
 関数の引数などの穴埋め（スニペット）を確定すると、最初の穴が選択されます。そのまま入力すると置き換わります。`Tab` で次の穴、`Shift+Tab` で前の穴へ移ります。最後の穴（または `$0`）に着くか `Esc` で終わります。同じ番号の穴は同時に書き換わります。穴の外へカーソルを動かしても終わります。
 
 その他のキー（矢印キー、`Ctrl+Z` など）は [VS Code モード](editing-vscode.md) と同じ動作です。
+
+## キーの差し替え
+
+`~/.config/shijimi/config.toml` の `[keys.normal]` `[keys.insert]` `[keys.select]` で、キーを差し替えられます。書き方は Helix の `config.toml` と同じです。
+
+```toml
+[keys.normal]
+"C-s" = ":write"           # : コマンドも書ける
+"H" = "goto_line_start"
+"A-j" = "move_visual_line_down"
+"d" = "delete_selection_noyank"
+"q" = "no_op"              # キーを無効にする
+
+[keys.select]
+"j" = "extend_line_below"  # 選択モードだけで差し替える
+
+[keys.insert]
+"A-j" = "normal_mode"
+```
+
+- キーは `C-s`（Ctrl）、`A-x`（Alt）、`S-tab`（Shift）のように書きます。`C-A-x` のように重ねられます。特別なキーは Helix と同じ名前（`ret` `space` `tab` `esc` `backspace` `del` `ins` `left` `right` `up` `down` `home` `end` `pageup` `pagedown` `F1`〜`F12`）です。`-` は `minus`、`<` は `lt`、`>` は `gt`、`+` は `plus` と書きます。
+- 値は、下の表のコマンド名か、`:` から始まるコマンド（`":write"` など。[:コマンド一覧](commands.md)）です。
+- `[keys.select]` は、`[keys.normal]` を土台にして、その上に重ねます。
+- 名前の無いキー（`g` で始まる系列、`/` `n`、`Space` メニューなど）は、今のまま動きます。また `[keys.normal.g]` のような、キーを続けて押す系列の書き方はまだ使えません。
+- `Ctrl+S` `Ctrl+Q` `Ctrl+P` など、どのモードでも効く操作のキーは差し替えられません。
+- 知らないコマンド名やキー名を書くと、起動時（と `:config-reload`）にステータス行で知らせます。そのキーは既定のまま動きます。
+- 安全のため、`[keys.*]` は `~/.config/shijimi/config.toml`（と `config.nix`）からだけ読みます。プロジェクトの `.shijimi/config.toml` に書いても無視します（`:sh` などを割り当てたリポジトリを開くだけで、プログラムが動くのを防ぐため）。
+- `[keys.insert]` には、同じコマンド名か `:` コマンドを書けます。そのキーでは文字が入力されなくなります。
+
+### 使えるコマンド名
+
+「既定のキー」は差し替えないときのキーです。
+
+移動：
+
+| コマンド名 | 既定のキー |
+| --- | --- |
+| `move_char_left` / `move_char_right` | `h` `←` / `l` `→` |
+| `move_visual_line_down` / `move_visual_line_up` | `j` `↓` / `k` `↑` |
+| `move_line_down` / `move_line_up` | 上の 2 つと同じ動き（Helix と同じ名前で書けるように） |
+| `move_next_word_start` / `move_next_long_word_start` | `w` / `W` |
+| `move_prev_word_start` / `move_prev_long_word_start` | `b` / `B` |
+| `move_next_word_end` / `move_next_long_word_end` | `e` / `E` |
+| `goto_line_start` / `goto_line_end` | `Home` / `End` |
+| `page_up` / `page_down` | `PgUp` `Ctrl+B` / `PgDn` `Ctrl+F` |
+| `jump_backward` / `jump_forward` | `Ctrl+O` / `Tab` `Ctrl+I` |
+| `goto_last_line` | `G` |
+
+`move_*` は、選択モードのときだけ選択を広げます。`extend_*` は、いつでも選択を広げます（`extend_char_left` `extend_char_right` `extend_visual_line_down` `extend_visual_line_up` `extend_line_down` `extend_line_up` `extend_next_word_start` `extend_next_long_word_start` `extend_prev_word_start` `extend_prev_long_word_start` `extend_next_word_end` `extend_next_long_word_end` `extend_to_line_start` `extend_to_line_end`）。
+
+選択：
+
+| コマンド名 | 既定のキー |
+| --- | --- |
+| `extend_line_below` | `x` |
+| `extend_to_line_bounds` | `X` |
+| `select_all` | `%` |
+| `collapse_selection` | `;` |
+| `flip_selections` | `Alt+;` |
+| `select_mode` | `v`（選択モードの切替） |
+| `normal_mode` | `Esc` |
+| `no_op` | なし（キーを無効にする） |
+
+編集：
+
+| コマンド名 | 既定のキー |
+| --- | --- |
+| `delete_selection` / `delete_selection_noyank` | `d` / `Alt+D` |
+| `change_selection` / `change_selection_noyank` | `c` / `Alt+c` |
+| `yank` | `y` |
+| `paste_after` / `paste_before` | `p` / `P` |
+| `replace_with_yanked` | `R` |
+| `undo` / `redo` | `u` / `U` |
+| `insert_mode` / `append_mode` | `i` / `a` |
+| `insert_at_line_start` / `insert_at_line_end` | `I` / `A` |
+| `open_below` / `open_above` | `o` / `O` |
+| `indent` / `unindent` | `>` / `<` |
+| `join_selections` | `J` |
+| `switch_case` | `~` |
+| `switch_to_lowercase` / `switch_to_uppercase` | `` ` `` / `` Alt+` `` |
+| `toggle_comments` | `Ctrl+C` |
+
+数字を前に付ける回数指定と、複数のカーソルへの適用は、差し替えたキーでも同じように働きます。
