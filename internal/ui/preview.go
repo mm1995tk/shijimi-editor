@@ -80,6 +80,9 @@ func (a *App) togglePreview() tea.Cmd {
 	}
 	t.preview = (t.preview + 1) % (previewFull + 1)
 	t.scanned = false
+	// the editor width changed: follow the cursor again from the left edge,
+	// or a column scrolled to in the narrower view stays scrolled when it widens
+	t.buf.ScrollCol, a.follow = 0, true
 	a.comp, a.hoverText = nil, "" // popups are anchored to the hidden buffer
 	if t.preview == previewFull && a.mode == modeInsert {
 		a.mode = modeNormal // keystrokes must not edit a buffer that is not visible
@@ -216,7 +219,7 @@ func (a *App) previewLines(t *tab, w, h int) []string {
 		}
 	}
 	if t.prevCache == nil || t.prevW != w || t.prevVer != t.buf.Version || t.prevGen != gen {
-		t.prevCache = renderMarkdown(text, w, mdOpts{mermaid: a.mermaidLines})
+		t.prevCache = renderMarkdown(text, w, mdOpts{mermaid: a.mermaidLines, frontMatter: true})
 		t.prevW, t.prevVer, t.prevGen = w, t.buf.Version, gen
 	}
 	all := t.prevCache
