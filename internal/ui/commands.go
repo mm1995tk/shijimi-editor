@@ -28,7 +28,7 @@ func defaultCommands() []command {
 		{"ファイル: 相対パスをコピー", "y（ファイルツリー）", func(a *App) tea.Cmd { a.copyPath(a.activePath(), false); return nil }},
 		{"ファイル: 絶対パスをコピー", "Y（ファイルツリー）", func(a *App) tea.Cmd { a.copyPath(a.activePath(), true); return nil }},
 		{"ファイル: ディスクから再読み込み", ":reload", func(a *App) tea.Cmd { return a.execCommand("reload") }},
-		{"表示: タブを閉じる", "Ctrl+W / :bc", func(a *App) tea.Cmd { a.closeTab(false); return nil }},
+		{"表示: タブを閉じる", "Ctrl+W / :bc", func(a *App) tea.Cmd { return a.closeTab(false) }},
 		{"表示: 開いているバッファ一覧", "Space b", func(a *App) tea.Cmd { return a.bufferPicker() }},
 		{"表示: サイドバー（ファイルツリー）の表示切替", "Ctrl+B", func(a *App) tea.Cmd { a.toggleSide(); return nil }},
 		{"表示: ファイルツリーへ移動", "Ctrl+E / Space e", func(a *App) tea.Cmd { a.showSide = true; return a.setFocus(focusExplorer) }},
@@ -171,6 +171,10 @@ func (a *App) execCommand(line string) tea.Cmd {
 	}
 	name, arg, _ := strings.Cut(line, " ")
 	arg = strings.TrimSpace(arg)
+	if a.single && singleBlockedCommand(name) {
+		a.fail(fmt.Errorf("単体編集モードでは :%s を使えません", name))
+		return nil
+	}
 	switch name {
 	case "w", "write", "w!", "write!":
 		if arg != "" {
@@ -221,9 +225,9 @@ func (a *App) execCommand(line string) tea.Cmd {
 	case "n", "new":
 		return a.newFile()
 	case "bc", "bclose", "buffer-close":
-		a.closeTab(false)
+		return a.closeTab(false)
 	case "bc!", "bclose!", "buffer-close!":
-		a.closeTab(true)
+		return a.closeTab(true)
 	case "fmt", "format":
 		return a.format(false)
 	case "signature", "sig":

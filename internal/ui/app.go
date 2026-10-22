@@ -133,6 +133,7 @@ type App struct {
 	hold         holdScroll
 	holdSeq      int // tells the current hold-scroll tick chain from stale ones
 
+	single    bool // 単体編集モード: 1 つのファイルだけを開き、閉じたら終了する
 	tabSpans  []span
 	tabOffset int
 	commands  []command
@@ -185,6 +186,73 @@ func New(dir, file string) *App {
 	return a
 }
 
+// NewSingle creates the app in single-file mode: only file is edited, with no
+// file tree, language server, terminal, diff mode or agent panel, and the app
+// ends when the file is closed. A file that does not exist opens as an empty
+// buffer, which creates the file when saved. It is meant for $EDITOR.
+func NewSingle(file string) *App {
+	abs, _ := filepath.Abs(file)
+	dir := filepath.Dir(abs)
+	cfg := config.Load(dir)
+	a := &App{
+		root:      dir,
+		cfg:       cfg,
+		lsp:       newLSPManager(cfg, dir),
+		explorer:  &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
+		term:      newTerminal(dir),
+		proxy:     proxy.NewManager(),
+		pal:       newPalette(),
+		search:    newSearchPanel(cfg.Search),
+		focus:     focusEditor,
+		helix:     cfg.Editor.Keymap != "vscode",
+		gd:        gitDiff{split: true},
+		ag:        newAgentState(),
+		single:    true,
+		showSide:  false,
+		showAgent: false,
+	}
+	if cfg.Editor.Theme != "" {
+		applyTheme(themeOrDefault(cfg.Editor.Theme))
+	}
+	a.findInput = textinput.New()
+	a.findInput.Prompt = ""
+	a.findInput.Placeholder = "検索"
+	a.cmdInput = textinput.New()
+	a.cmdInput.Prompt = ""
+	styleInput(&a.findInput, cPaletteBg)
+	styleInput(&a.cmdInput, cEditorBg)
+	styleInput(&a.pal.input, cPaletteBg)
+	a.search.restyle()
+	a.commands = defaultCommands()
+	a.openFile(abs)
+	return a
+}
+
+// singleBlocked reports whether key opens something single-file mode does not
+// have: the file palette, tree, terminal, diff mode, agent panel, or tabs.
+func singleBlocked(key string, typing bool) bool {
+	switch key {
+	case "ctrl+p", "f1", "ctrl+b", "ctrl+`", "ctrl+j", "ctrl+g", "ctrl+e", "ctrl+n",
+		"ctrl+pgdown", "ctrl+pgup", "alt+a", "alt+i", "alt+r",
+		"alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
+		return true
+	case "ctrl+k", "ctrl+space":
+		return !typing
+	}
+	return false
+}
+
+// singleBlockedCommand reports whether the ":" command is unavailable in
+// single-file mode.
+func singleBlockedCommand(name string) bool {
+	switch name {
+	case "o", "open", "e", "edit", "n", "new", "sh", "run", "!", "gitdiff", "gd", "review",
+		"pr", "grep", "rg", "replace", "rep", "browser", "agent", "tree", "explorer", "lsp-restart":
+		return true
+	}
+	return false
+}
+
 // Close stops language servers; call after the program exits.
 func (a *App) Close() {
 	a.lsp.stopAll()
@@ -206,7 +274,12 @@ func styleInput(ti *textinput.Model, bg string) {
 	ti.SetStyles(s)
 }
 
-func (a *App) Init() tea.Cmd { return tea.Batch(a.lsp.wait(), watchTick(), a.probeRepo()) }
+func (a *App) Init() tea.Cmd {
+	if a.single {
+		return watchTick()
+	}
+	return tea.Batch(a.lsp.wait(), watchTick(), a.probeRepo())
+}
 
 // ---- layout ----
 
@@ -281,6 +354,9 @@ func (a *App) fail(err error) {
 }
 
 func (a *App) setFocus(f focus) tea.Cmd {
+	if a.single {
+		f = focusEditor
+	}
 	a.focus = f
 	a.term.blur()
 	if f == focusTerminal {
@@ -298,24 +374,31 @@ func (a *App) addTab(t *tab) {
 	a.mode = modeNormal
 }
 
+// reveal selects path in the file tree, which single-file mode does not have.
+func (a *App) reveal(path string) {
+	if !a.single {
+		a.explorer.reveal(path)
+	}
+}
+
 func (a *App) openFile(path string) bool {
 	abs, _ := filepath.Abs(path)
 	for i, t := range a.tabs {
 		if t.path() == abs {
 			a.active = i
 			t.transient = false
-			a.explorer.reveal(abs)
+			a.reveal(abs)
 			return true
 		}
 	}
 	if st, err := os.Stat(abs); err == nil {
 		if st.IsDir() {
-			a.explorer.reveal(abs)
+			a.reveal(abs)
 			return false
 		}
 		if isImage(abs) {
 			a.addTab(&tab{kind: tabImage, img: newImageView(abs)})
-			a.explorer.reveal(abs)
+			a.reveal(abs)
 			return true
 		}
 		if st.Size() > 10<<20 {
@@ -331,7 +414,7 @@ func (a *App) openFile(path string) bool {
 	t := newTab(b)
 	a.addTab(t)
 	a.attachLSP(t)
-	a.explorer.reveal(abs)
+	a.reveal(abs)
 	return true
 }
 
@@ -342,7 +425,7 @@ func (a *App) openTransient(path string) bool {
 	for i, t := range a.tabs {
 		if t.path() == abs {
 			a.active = i
-			a.explorer.reveal(abs)
+			a.reveal(abs)
 			return true
 		}
 	}
@@ -559,15 +642,15 @@ func (a *App) deleteFile() tea.Cmd {
 	})
 }
 
-func (a *App) closeTab(force bool) {
+func (a *App) closeTab(force bool) tea.Cmd {
 	t := a.cur()
 	if t == nil {
-		return
+		return nil
 	}
 	if !force && t.dirty() && !a.confirmClose {
 		a.confirmClose = true
 		a.msg, a.msgErr = "未保存の変更があります。もう一度 Ctrl+W（または :bc!）で破棄して閉じます", true
-		return
+		return nil
 	}
 	a.confirmClose = false
 	a.dropTab(a.active)
@@ -576,9 +659,13 @@ func (a *App) closeTab(force bool) {
 	}
 	a.comp = nil
 	a.mode = modeNormal
+	if a.single {
+		return a.quit()
+	}
 	if len(a.tabs) == 0 && a.focus == focusEditor {
 		a.focus = focusExplorer
 	}
+	return nil
 }
 
 // dropTab removes tab i and releases what it holds; the caller fixes active.
@@ -788,6 +875,10 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case autoSaveMsg:
 		return a.handleAutoSave(msg)
 	case watchMsg:
+		if a.single {
+			a.checkDiskChanges()
+			return watchTick()
+		}
 		reload := a.checkDiskChanges()
 		sg := a.suggestTick()
 		a.treeTicks++
@@ -1093,6 +1184,9 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 
 	insert := a.helix && a.mode == modeInsert && a.focus == focusEditor
+	if a.single && singleBlocked(key, a.focus == focusEditor && a.curText() != nil && (!a.helix || a.mode == modeInsert)) {
+		return nil
+	}
 	switch key {
 	case "ctrl+q":
 		return a.quit()
@@ -1132,8 +1226,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 	case "ctrl+w":
 		if !insert {
-			a.closeTab(false)
-			return nil
+			return a.closeTab(false)
 		}
 	case "ctrl+pgdown":
 		a.switchTab(1)
@@ -1190,7 +1283,7 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		}
 		switch key {
 		case "q", "esc":
-			a.closeTab(true)
+			return a.closeTab(true)
 		case ":":
 			return a.openCmdline(":")
 		case "space":
@@ -2229,6 +2322,9 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 }
 
 func (a *App) renderTabs(w int) string {
+	if a.single {
+		return a.renderSingleTitle(w)
+	}
 	type piece struct {
 		text string
 		w    int
@@ -2453,3 +2549,22 @@ func (a *App) scrollHover(d int) {
 // overlayOpen reports whether a floating window (palette or project search)
 // has the keyboard.
 func (a *App) overlayOpen() bool { return a.pal.open || a.search.open }
+
+// renderSingleTitle is the bar above the editor in single-file mode: the name
+// of the file being edited, with no tabs to switch between.
+func (a *App) renderSingleTitle(w int) string {
+	a.tabSpans = nil
+	t := a.cur()
+	if t == nil {
+		return stTabBar.Render(strings.Repeat(" ", w))
+	}
+	mark := "  "
+	if t.dirty() {
+		mark = " ●"
+	}
+	s := stTabActive.Render(" " + t.title() + mark + " ")
+	if n := ansi.StringWidth(s); n < w {
+		s += stTabBar.Render(strings.Repeat(" ", w-n))
+	}
+	return fitStyled(s, w, stTabBar)
+}

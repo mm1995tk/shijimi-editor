@@ -439,6 +439,9 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 
 // spaceMode handles "Space <key>" commands (Helix's space menu).
 func (a *App) spaceMode(key string) tea.Cmd {
+	if a.single && strings.Contains("fbdDeEgGvi?/tas", key) && key != "" {
+		return nil
+	}
 	switch key {
 	case "f":
 		return a.pal.show(a.root, "")

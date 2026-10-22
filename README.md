@@ -34,8 +34,10 @@ go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
 ```sh
 shj            # カレントディレクトリを開く
 shj ./src      # ディレクトリを開く
-shj main.go    # ファイルを開く
+shj main.go    # ファイルだけを編集する（単体編集モード。$EDITOR 向け）
 ```
+
+ファイルを渡すと単体編集モードになります。ファイルツリー・LSP・ターミナル・差分モード・エージェントを起動せず、`:q` `:wq` で閉じると終了します（詳しくは[インストールと起動](manual/docs/install.md)）。
 
 ## 設定
 
