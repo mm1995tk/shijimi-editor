@@ -47,6 +47,10 @@
                 self.shortRev or self.dirtyShortRev or ""
               }"
             ];
+            # The same binary also answers to "shijimi".
+            postInstall = ''
+              ln -s shj $out/bin/shijimi
+            '';
             meta.mainProgram = "shj";
           };
         in
@@ -68,6 +72,6 @@
     perSystem
     // {
       homeManagerModules.default = import ./nix/home-manager-module.nix self;
-      homeManagerModules.shijimi = self.homeManagerModules.default;
+      homeManagerModules.shijimi-editor = self.homeManagerModules.default;
     };
 }

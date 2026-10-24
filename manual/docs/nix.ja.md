@@ -28,7 +28,7 @@ flake の `homeManagerModules.default` を読み込みます。
 ```nix
 {
   imports = [ inputs.shijimi.homeManagerModules.default ];
-  programs.shijimi = {
+  programs.shijimi-editor = {
     enable = true;
     settings = { keymap = "vscode"; editor.line-number = "relative"; };
     languages = {

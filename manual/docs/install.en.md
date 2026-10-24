@@ -7,7 +7,8 @@ Run one of the following.
 ```sh
 nix run github:mm1995tk/shijimi-editor           # run it right away without installing
 nix profile install github:mm1995tk/shijimi-editor
-go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
+go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # installs the shj command
+go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # installs the same thing as shijimi
 ```
 
 To install it with home-manager, see [Nix and home-manager](nix.md).
@@ -34,6 +35,8 @@ shj            # open the current directory
 shj ./src      # open a directory
 shj main.go    # edit only that file (single-file mode)
 ```
+
+`shijimi` works the same as `shj` (installing with Nix gives you both).
 
 When you give it a file, shijimi opens in single-file mode, which edits only that file. It is meant to be called from `$EDITOR`. It does not start the file tree, LSP, terminal, diff mode, suggestions panel or the Claude Code IDE integration, and it does not use tabs. When you close the file with `:q` or `:wq` (`Ctrl+W` or `Ctrl+Q` in VS Code mode), shijimi exits, so the caller can wait for it to finish and move on. A path that does not exist is opened as an empty buffer, and the file is created when you save. Giving a directory behaves as before.
 

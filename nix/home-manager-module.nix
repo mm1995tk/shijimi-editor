@@ -1,4 +1,4 @@
-# home-manager module: programs.shijimi
+# home-manager module: programs.shijimi-editor
 self:
 {
   config,
@@ -7,11 +7,11 @@ self:
   ...
 }:
 let
-  cfg = config.programs.shijimi;
+  cfg = config.programs.shijimi-editor;
   toml = pkgs.formats.toml { };
 in
 {
-  options.programs.shijimi = {
+  options.programs.shijimi-editor = {
     enable = lib.mkEnableOption "shijimi";
 
     package = lib.mkOption {
