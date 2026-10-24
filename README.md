@@ -28,7 +28,8 @@ The UI is in English by default. To switch it to Japanese, set `ui-language = "j
 ```sh
 nix run github:mm1995tk/shijimi-editor           # run it right away
 nix profile install github:mm1995tk/shijimi-editor
-go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
+go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # installs the shj command
+go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # installs the same thing as shijimi
 ```
 
 To compare with the base of a pull request you need [gh](https://cli.github.com/) and `gh auth login`.
@@ -40,6 +41,8 @@ shj            # open the current directory
 shj ./src      # open a directory
 shj main.go    # edit just one file (single-file mode, for $EDITOR)
 ```
+
+`shijimi` works the same as `shj` (installing with Nix gives you both).
 
 Given a file, shj starts in single-file mode. It does not start the file tree, LSP, terminal, diff mode or agent, and exits when you close it with `:q` or `:wq` (see [Installation and startup](manual/docs/install.en.md) in the manual).
 
@@ -152,7 +155,7 @@ Import the flake's `homeManagerModules.default`. `settings` is written to `~/.co
 ```nix
 {
   imports = [ inputs.shijimi.homeManagerModules.default ];
-  programs.shijimi = {
+  programs.shijimi-editor = {
     enable = true;
     settings = { keymap = "vscode"; editor.line-number = "relative"; };
     languages = {

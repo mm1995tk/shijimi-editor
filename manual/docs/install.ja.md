@@ -7,7 +7,8 @@
 ```sh
 nix run github:mm1995tk/shijimi-editor           # インストールせずにその場で起動
 nix profile install github:mm1995tk/shijimi-editor
-go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
+go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # shj コマンドとして入れる
+go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # 同じものを shijimi コマンドとして入れる
 ```
 
 home-manager で入れる方法は [Nix と home-manager](nix.md) にあります。
@@ -34,6 +35,8 @@ shj            # カレントディレクトリを開く
 shj ./src      # ディレクトリを開く
 shj main.go    # ファイルだけを編集する（単体編集モード）
 ```
+
+`shj` の代わりに `shijimi` と打っても同じです（Nix で入れたときは両方入ります）。
 
 ファイルを渡すと、そのファイルだけを編集する単体編集モードで開きます。`$EDITOR` から呼ぶ使い方を想定しています。ファイルツリー・LSP・ターミナル・差分モード・提案パネル・Claude Code の IDE 連携は起動せず、タブも使いません。`:q` `:wq`（VS Code モードでは `Ctrl+W` か `Ctrl+Q`）でファイルを閉じると shijimi を終了するので、呼び出し元は終了を待って次へ進めます。存在しないパスは空のバッファで開き、保存したときにファイルを作ります。ディレクトリを渡したときの動作は変わりません。
 

@@ -26,7 +26,8 @@
 ```sh
 nix run github:mm1995tk/shijimi-editor           # その場で起動
 nix profile install github:mm1995tk/shijimi-editor
-go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
+go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # shj コマンドとして入れる
+go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # 同じものを shijimi コマンドとして入れる
 ```
 
 プルリクエストの base と比べるには [gh](https://cli.github.com/) と `gh auth login` が必要です。
@@ -38,6 +39,8 @@ shj            # カレントディレクトリを開く
 shj ./src      # ディレクトリを開く
 shj main.go    # ファイルだけを編集する（単体編集モード。$EDITOR 向け）
 ```
+
+`shj` の代わりに `shijimi` と打っても同じです（Nix で入れたときは両方入ります）。
 
 ファイルを渡すと単体編集モードになります。ファイルツリー・LSP・ターミナル・差分モード・エージェントを起動せず、`:q` `:wq` で閉じると終了します（詳しくは[インストールと起動](manual/docs/install.ja.md)）。
 
@@ -150,7 +153,7 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
 ```nix
 {
   imports = [ inputs.shijimi.homeManagerModules.default ];
-  programs.shijimi = {
+  programs.shijimi-editor = {
     enable = true;
     settings = { keymap = "vscode"; editor.line-number = "relative"; };
     languages = {
