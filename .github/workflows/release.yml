@@ -29,6 +29,10 @@ jobs:
           exit 1
 
       - uses: actions/checkout@v4
+        with:
+          # release ブランチを早送りで進めるとき、git が今の release が新しいコミットの祖先だと確かめられるよう、
+          # 履歴を全部取る（1 コミット分だけだと push が拒否される）。
+          fetch-depth: 0
 
       - name: バージョンを上げる
         id: ver
