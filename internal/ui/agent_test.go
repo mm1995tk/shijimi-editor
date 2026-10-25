@@ -285,11 +285,12 @@ func TestTerminalFailuresAreSuggested(t *testing.T) {
 func TestPanelOpensBesideTheEditor(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.lsp.diags[a.curText().buf.Path] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}}}
-	// closed at startup, even on a wide screen: the status line counts the suggestions
+	// closed at startup, even on a wide screen
 	a.Update(tea.WindowSizeMsg{Width: 200, Height: 30})
 	if l := a.layout(); l.agentW != 0 {
 		t.Fatalf("panel shown at startup: %+v", l)
 	}
+	// while it is closed, the status line counts the suggestions
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	if !strings.Contains(ansi.Strip(a.renderStatus()), "提案 1（Alt+I）") {
 		t.Errorf("status = %q", ansi.Strip(a.renderStatus()))

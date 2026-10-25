@@ -198,21 +198,20 @@ func NewSingle(file string) (*App, error) {
 	cfg := config.Load(dir)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
-		root:      dir,
-		cfg:       cfg,
-		lsp:       newLSPManager(cfg, dir),
-		explorer:  &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
-		term:      newTerminal(dir),
-		proxy:     proxy.NewManager(),
-		pal:       newPalette(),
-		search:    newSearchPanel(cfg.Search),
-		focus:     focusEditor,
-		helix:     cfg.Editor.Keymap != "vscode",
-		gd:        gitDiff{split: true},
-		ag:        newAgentState(),
-		single:    true,
-		showSide:  false,
-		showAgent: false,
+		root:     dir,
+		cfg:      cfg,
+		lsp:      newLSPManager(cfg, dir),
+		explorer: &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
+		term:     newTerminal(dir),
+		proxy:    proxy.NewManager(),
+		pal:      newPalette(),
+		search:   newSearchPanel(cfg.Search),
+		focus:    focusEditor,
+		helix:    cfg.Editor.Keymap != "vscode",
+		gd:       gitDiff{split: true},
+		ag:       newAgentState(),
+		single:   true,
+		showSide: false,
 	}
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
