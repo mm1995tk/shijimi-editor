@@ -17,7 +17,7 @@ in
       pkgs.gopls
       pkgs.git
       # npm/pack.sh needs node and npm
-      pkgs.nodejs_24
+      pkgs.nodejs_26
     ];
 
     CGO_ENABLED = "0";

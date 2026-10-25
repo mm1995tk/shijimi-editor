@@ -96,7 +96,7 @@ jobs:
           go-version-file: go.mod
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 26.12.1
       - name: パッケージを作る
         env:
           NEXT: ${{ needs.release.outputs.next }}
@@ -120,8 +120,8 @@ jobs:
     steps:
       - uses: actions/setup-node@v4
         with:
-          # OIDC での認証には npm 11.5.1 以降が要る。Node.js 24 には npm 11 が付いてくる
-          node-version: 24
+          # OIDC での認証には npm 11.5.1 以降が要る。Node.js 26.12.1 に付いてくる npm はそれより新しい
+          node-version: 26.12.1
       - uses: actions/download-artifact@v4
         with:
           name: npm
