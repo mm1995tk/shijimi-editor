@@ -9,7 +9,7 @@ If you put `config.nix` / `languages.nix` in the same directory as `config.toml`
 - If `nix` is not available, or evaluation fails, that file is ignored.
 
 ```nix
-# ~/.config/shijimi/languages.nix
+# ~/.config/shijimi-editor/languages.nix
 {
   language-server.nil.command = "nil";
   language = [
@@ -22,8 +22,8 @@ If you put `config.nix` / `languages.nix` in the same directory as `config.toml`
 
 Import the flake's `homeManagerModules.default`.
 
-- `settings` is written to `~/.config/shijimi/config.toml`.
-- `languages` is written to `~/.config/shijimi/languages.toml`.
+- `settings` is written to `~/.config/shijimi-editor/config.toml`.
+- `languages` is written to `~/.config/shijimi-editor/languages.toml`.
 
 ```nix
 {

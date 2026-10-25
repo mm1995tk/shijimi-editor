@@ -1,6 +1,6 @@
 // Package config loads shijimi settings. Language and language-server
 // definitions use a format compatible with Helix's languages.toml, so an
-// existing Helix `languages.toml` works when copied to `~/.config/shijimi/`.
+// existing Helix `languages.toml` works when copied to `~/.config/shijimi-editor/`.
 package config
 
 import (
@@ -133,8 +133,8 @@ type Config struct {
 // nixEvalTimeout bounds one `nix eval`.
 const nixEvalTimeout = 15 * time.Second
 
-// Load merges built-in defaults, the user's `~/.config/shijimi/`, and the
-// project's `.shijimi/` directory (later ones win). Helix's own config
+// Load merges built-in defaults, the user's `~/.config/shijimi-editor/`, and the
+// project's `.shijimi-editor/` directory (later ones win). Helix's own config
 // directories are not read. In each directory
 // `config.nix` / `languages.nix` are evaluated with `nix eval --json` and
 // applied after the TOML file of the same name.
@@ -149,11 +149,11 @@ func Load(root string) *Config {
 
 	var dirs []string
 	if d, err := os.UserConfigDir(); err == nil {
-		dirs = append(dirs, filepath.Join(d, "shijimi"))
+		dirs = append(dirs, filepath.Join(d, "shijimi-editor"))
 	}
-	dirs = append(dirs, filepath.Join(root, ".shijimi"))
+	dirs = append(dirs, filepath.Join(root, ".shijimi-editor"))
 	for _, d := range dirs {
-		user := filepath.Base(d) == "shijimi"
+		user := filepath.Base(d) == "shijimi-editor"
 		if data, err := os.ReadFile(filepath.Join(d, "config.toml")); err == nil {
 			c.mergeEditor(string(data))
 			c.mergeBrowser(string(data))

@@ -71,11 +71,11 @@
 ## 設定の書き方
 
 設定は、Helix と互換がある `languages.toml` に書きます。
-Helix から移る人は、`languages.toml` を `~/.config/shijimi/` にコピーしてください。
+Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーしてください。
 読み込む場所と順番は [設定ファイル](config.md) にあります。
 
 ```toml
-# .shijimi/languages.toml
+# .shijimi-editor/languages.toml
 [language-server.my-gopls]
 command = "gopls"
 args = ["serve"]

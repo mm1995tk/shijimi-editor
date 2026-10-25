@@ -17,7 +17,7 @@ var ja = map[string]string{
 	"agent.idle":               "エージェントは作業していません",
 	"agent.maxtokens":          "出力の上限に達して止まりました",
 	"agent.maxturns":           "1 回の依頼で使える回数の上限に達して止まりました",
-	"agent.notconfigured":      "エージェントが設定されていません。~/.config/shijimi/config.toml の [agent] に command を書いてください",
+	"agent.notconfigured":      "エージェントが設定されていません。~/.config/shijimi-editor/config.toml の [agent] に command を書いてください",
 	"agent.notrunning":         "エージェントは動いていません",
 	"agent.nowrite":            "この依頼ではファイルを書き換えられません",
 	"agent.permask":            "エージェントが許可を求めています（Alt+I で右のパネルへ移り、y で許可 / n で拒否）",

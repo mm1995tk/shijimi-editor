@@ -14,7 +14,7 @@ The UI is in English by default. To switch it to Japanese, set `ui-language = "j
 - **Multiple cursors** (Helix-style): `C` / `Alt+C` copy the cursor to the line below / above, `s` splits a selection by a regex, `,` goes back to one cursor. Inserting, deleting, `c` and so on apply to every cursor
 - **File tree** (shows Git status as M / U / A)
 - **LSP**: diagnostics, completion, hover, signature help, go to definition, references, rename, code actions, symbol list, formatting
-- **LSP configuration** is written in a `languages.toml` that is compatible with Helix's (`.shijimi/languages.toml` or `~/.config/shijimi/languages.toml`). If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi/`
+- **LSP configuration** is written in a `languages.toml` that is compatible with Helix's (`.shijimi-editor/languages.toml` or `~/.config/shijimi-editor/languages.toml`). If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/`
 - **Diff mode** (`Space G` / `Ctrl+G` compares with `HEAD`; `Space g` / `:pr` compares with the base of a pull request): switches the whole editor to diff mode. Changed files are listed in a tree (CHANGES), and a changed file opens as the **whole file** in a split (or unified) diff. The right side is editable. The bar on the right edge shows where the changes are, and the parts that changed inside a line are highlighted (see below)
 - **Image preview** (PNG / JPEG / GIF / BMP / WebP / TIFF)
 - **Markdown preview** (`Space m` / `:preview`): renders headings, lists, code and tables, and shows them beside the buffer you are editing. Press it again to show only the preview at full width. Mermaid code blocks are shown as diagrams (see below)
@@ -50,11 +50,11 @@ Given a file, shj starts in single-file mode. It does not start the file tree, L
 
 ## Settings
 
-Files are read in the following order, and later ones win (`languages.toml` is compatible with Helix's. If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi/`).
+Files are read in the following order, and later ones win (`languages.toml` is compatible with Helix's. If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/`).
 
 1. Built-in defaults (gopls / rust-analyzer / typescript-language-server and others)
-2. `~/.config/shijimi/languages.toml`, `~/.config/shijimi/config.toml`
-3. The project's `.shijimi/languages.toml`, `.shijimi/config.toml`
+2. `~/.config/shijimi-editor/languages.toml`, `~/.config/shijimi-editor/config.toml`
+3. The project's `.shijimi-editor/languages.toml`, `.shijimi-editor/config.toml`
 
 ### UI language
 
@@ -88,7 +88,7 @@ listen-host = "127.0.0.1"
 
 ### Agent (suggestions panel)
 
-Write the command of the ACP agent that runs the suggestions in `~/.config/shijimi/config.toml` (it is not read from a project's settings).
+Write the command of the ACP agent that runs the suggestions in `~/.config/shijimi-editor/config.toml` (it is not read from a project's settings).
 
 ```toml
 [agent]
@@ -96,7 +96,7 @@ command = "claude-agent-acp"
 args = []
 ```
 
-### Example LSP settings (`.shijimi/languages.toml`)
+### Example LSP settings (`.shijimi-editor/languages.toml`)
 
 ```toml
 [language-server.my-gopls]
@@ -141,7 +141,7 @@ timeout = 1000            # milliseconds
 If you put `config.nix` / `languages.nix` next to the `config.toml` / `languages.toml` of a directory, it is evaluated with `nix eval --json --file` and read as the same structure as TOML (in the same directory it is applied after the TOML file). A file is ignored if `nix` is missing or the evaluation fails.
 
 ```nix
-# ~/.config/shijimi/languages.nix
+# ~/.config/shijimi-editor/languages.nix
 {
   language-server.nil.command = "nil";
   language = [
@@ -152,7 +152,7 @@ If you put `config.nix` / `languages.nix` next to the `config.toml` / `languages
 
 ### home-manager
 
-Import the flake's `homeManagerModules.default`. `settings` is written to `~/.config/shijimi/` as `config.toml`, and `languages` as `languages.toml`.
+Import the flake's `homeManagerModules.default`. `settings` is written to `~/.config/shijimi-editor/` as `config.toml`, and `languages` as `languages.toml`.
 
 ```nix
 {
@@ -327,7 +327,7 @@ User-visible strings live in one table per language, [`internal/i18n/en.go`](int
 
 ### Excluding and including files in search
 
-In the Include and Exclude fields, write comma-separated globs (for example `*.lock,dist/**`). With `:grep` / `:replace` you can also give them with `-x` / `--exclude=` (exclude) and `-i` / `--include=` (include). The initial values come from the `[search]` setting. Put anything you always want applied in `~/.config/shijimi/config.toml` or `.shijimi/config.toml`.
+In the Include and Exclude fields, write comma-separated globs (for example `*.lock,dist/**`). With `:grep` / `:replace` you can also give them with `-x` / `--exclude=` (exclude) and `-i` / `--include=` (include). The initial values come from the `[search]` setting. Put anything you always want applied in `~/.config/shijimi-editor/config.toml` or `.shijimi-editor/config.toml`.
 
 ```toml
 [search]

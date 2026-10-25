@@ -81,7 +81,7 @@ The agent starts the first time you run a suggestion, and the same session is us
 
 ### Configuration
 
-Write the command that starts the agent in `~/.config/shijimi/config.toml`.
+Write the command that starts the agent in `~/.config/shijimi-editor/config.toml`.
 
 ```toml
 [agent]
@@ -91,7 +91,7 @@ environment = { }             # Environment variables passed to the agent
 ```
 
 - For example, for Gemini CLI, use `command = "gemini"` and `args = ["--experimental-acp"]`.
-- `[agent]` is read only from `~/.config/shijimi/`. It is not used if written in a project's `.shijimi/`. This prevents a cloned repository from deciding which program is launched.
+- `[agent]` is read only from `~/.config/shijimi-editor/`. It is not used if written in a project's `.shijimi-editor/`. This prevents a cloned repository from deciding which program is launched.
 - If it is not configured, running a suggestion shows the location of the setting in the status line.
 
 ### What the agent does

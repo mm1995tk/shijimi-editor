@@ -1,19 +1,19 @@
 # Configuration files
 
-Configuration files are written in TOML. `languages.toml` is compatible with Helix. If you are moving from Helix, copy your `languages.toml` to `~/.config/shijimi/`.
+Configuration files are written in TOML. `languages.toml` is compatible with Helix. If you are moving from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/`.
 
 ## Load order
 
 They are loaded in the following order. Later ones take precedence.
 
 1. Built-in defaults
-2. `~/.config/shijimi/languages.toml`, `~/.config/shijimi/config.toml`
-3. The project's `.shijimi/languages.toml`, `.shijimi/config.toml`
+2. `~/.config/shijimi-editor/languages.toml`, `~/.config/shijimi-editor/config.toml`
+3. The project's `.shijimi-editor/languages.toml`, `.shijimi-editor/config.toml`
 
 - Write language servers in `languages.toml` ([LSP](lsp.md)).
 - Write everything else in `config.toml` (this page).
 - Run `:config-reload` while running to reload them.
-- `[agent]` is read only from `~/.config/shijimi/config.toml` ([AI agent integration](agent.md)).
+- `[agent]` is read only from `~/.config/shijimi-editor/config.toml` ([AI agent integration](agent.md)).
 
 ## Example config.toml
 
@@ -45,7 +45,7 @@ include = []
 [browser]
 listen-host = "127.0.0.1"
 
-# Effective only in ~/.config/shijimi/config.toml
+# Effective only in ~/.config/shijimi-editor/config.toml
 [agent]
 command = "claude-agent-acp"
 args = []
@@ -67,7 +67,7 @@ args = []
 | `editor.auto-save.after-delay` | Auto save | [Files and search](files.md) |
 | `formatter` in `[[language]]` | The formatter command that `:fmt` runs (languages.toml) | [LSP](lsp.md) |
 | `search.exclude` / `search.include` | Exclude / include for project-wide search | [Files and search](files.md) |
-| `[keys.normal]` `[keys.insert]` `[keys.select]` | Remap keys in Helix mode (only in `~/.config/shijimi/`) | [Editing (Helix mode)](editing-helix.md#remapping-keys) |
+| `[keys.normal]` `[keys.insert]` `[keys.select]` | Remap keys in Helix mode (only in `~/.config/shijimi-editor/`) | [Editing (Helix mode)](editing-helix.md#remapping-keys) |
 | `browser.listen-host` | Listen address for port forwarding | [External browser and port forwarding](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | The ACP agent used by the suggestions panel | [AI agent integration](agent.md) |
 
@@ -91,4 +91,4 @@ There are three ways to switch.
 
 ## Remapping keys
 
-With `[keys.normal]` `[keys.insert]` `[keys.select]` you can remap keys in Helix mode. The syntax and the list of command names are in [Editing (Helix mode)](editing-helix.md#remapping-keys). They are read only from `~/.config/shijimi/config.toml` (they have no effect in a project's `.shijimi/config.toml`).
+With `[keys.normal]` `[keys.insert]` `[keys.select]` you can remap keys in Helix mode. The syntax and the list of command names are in [Editing (Helix mode)](editing-helix.md#remapping-keys). They are read only from `~/.config/shijimi-editor/config.toml` (they have no effect in a project's `.shijimi-editor/config.toml`).

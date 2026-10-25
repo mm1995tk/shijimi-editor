@@ -12,7 +12,7 @@
 - **マルチカーソル**（Helix 風）：`C` / `Alt+C` で下 / 上の行に複製、`s` で選択範囲を正規表現で分割、`,` で 1 つに戻す。挿入・削除・`c` などは全カーソルに適用
 - **ファイルツリー**（Git の変更状態を M / U / A で表示）
 - **LSP**：診断・補完・ホバー・シグネチャヘルプ・定義へ移動・参照・名前の変更・コードアクション・シンボル一覧・整形
-- **LSP の設定**は Helix と互換がある `languages.toml` で書きます（`.shijimi/languages.toml` か `~/.config/shijimi/languages.toml`）。Helix から移る人は、`languages.toml` を `~/.config/shijimi/` にコピーしてください
+- **LSP の設定**は Helix と互換がある `languages.toml` で書きます（`.shijimi-editor/languages.toml` か `~/.config/shijimi-editor/languages.toml`）。Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーしてください
 - **差分モード**（`Space G` / `Ctrl+G` で `HEAD` と、`Space g` / `:pr` でプルリクエストの base と比べる）：エディター全体を差分モードに切り替えます。変更ファイルをツリー（CHANGES）で出し、変更のあるファイルは**ファイル全体**を左右分割（または統合）の diff で開きます。右側は編集できます。右端のバーで変更の位置がわかり、行の中で変わった部分を強調します（下記）
 - **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
 - **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。もう一度押すとプレビューだけを全幅で表示します。mermaid のコードブロックは図として表示します（下記）
@@ -48,11 +48,11 @@ shj main.go    # ファイルだけを編集する（単体編集モード。$ED
 
 ## 設定
 
-次の順に読み込み、後のものが優先されます（`languages.toml` は Helix と互換があります。Helix から移る人は、`languages.toml` を `~/.config/shijimi/` にコピーしてください）。
+次の順に読み込み、後のものが優先されます（`languages.toml` は Helix と互換があります。Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーしてください）。
 
 1. 組み込みの既定値（gopls / rust-analyzer / typescript-language-server など）
-2. `~/.config/shijimi/languages.toml`、`~/.config/shijimi/config.toml`
-3. プロジェクトの `.shijimi/languages.toml`、`.shijimi/config.toml`
+2. `~/.config/shijimi-editor/languages.toml`、`~/.config/shijimi-editor/config.toml`
+3. プロジェクトの `.shijimi-editor/languages.toml`、`.shijimi-editor/config.toml`
 
 ### 画面の言語
 
@@ -86,7 +86,7 @@ listen-host = "127.0.0.1"
 
 ### エージェント（提案パネル）
 
-提案を実行する ACP エージェントのコマンドを、`~/.config/shijimi/config.toml` に書きます（プロジェクトの設定からは読みません）。
+提案を実行する ACP エージェントのコマンドを、`~/.config/shijimi-editor/config.toml` に書きます（プロジェクトの設定からは読みません）。
 
 ```toml
 [agent]
@@ -94,7 +94,7 @@ command = "claude-agent-acp"
 args = []
 ```
 
-### LSP の設定例（`.shijimi/languages.toml`）
+### LSP の設定例（`.shijimi-editor/languages.toml`）
 
 ```toml
 [language-server.my-gopls]
@@ -139,7 +139,7 @@ timeout = 1000            # ミリ秒
 各ディレクトリの `config.toml` / `languages.toml` と同じ場所に `config.nix` / `languages.nix` を置くと、`nix eval --json --file` で評価して TOML と同じ構造として読みます（同じディレクトリでは TOML のあとに適用）。`nix` が無い、または評価に失敗したファイルは無視します。
 
 ```nix
-# ~/.config/shijimi/languages.nix
+# ~/.config/shijimi-editor/languages.nix
 {
   language-server.nil.command = "nil";
   language = [
@@ -150,7 +150,7 @@ timeout = 1000            # ミリ秒
 
 ### home-manager
 
-flake の `homeManagerModules.default` を読み込みます。`settings` が `config.toml`、`languages` が `languages.toml` として `~/.config/shijimi/` に書き出されます。
+flake の `homeManagerModules.default` を読み込みます。`settings` が `config.toml`、`languages` が `languages.toml` として `~/.config/shijimi-editor/` に書き出されます。
 
 ```nix
 {
@@ -325,7 +325,7 @@ nix flake check        # 整形のチェック
 
 ### 全文検索の除外・包含
 
-「含める」「除外」欄にはカンマ区切りの glob を書きます（例: `*.lock,dist/**`）。`:grep` / `:replace` では `-x` / `--exclude=`（除外）と `-i` / `--include=`（包含）でも指定できます。初期値は `[search]` 設定の値です。常に効かせたい指定は `~/.config/shijimi/config.toml` か `.shijimi/config.toml` に書きます。
+「含める」「除外」欄にはカンマ区切りの glob を書きます（例: `*.lock,dist/**`）。`:grep` / `:replace` では `-x` / `--exclude=`（除外）と `-i` / `--include=`（包含）でも指定できます。初期値は `[search]` 設定の値です。常に効かせたい指定は `~/.config/shijimi-editor/config.toml` か `.shijimi-editor/config.toml` に書きます。
 
 ```toml
 [search]

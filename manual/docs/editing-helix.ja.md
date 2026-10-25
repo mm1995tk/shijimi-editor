@@ -145,7 +145,7 @@ Helix と同じく「先に選択し、次に操作する」順で編集しま�
 
 ## キーの差し替え
 
-`~/.config/shijimi/config.toml` の `[keys.normal]` `[keys.insert]` `[keys.select]` で、キーを差し替えられます。書き方は Helix の `config.toml` と同じです。
+`~/.config/shijimi-editor/config.toml` の `[keys.normal]` `[keys.insert]` `[keys.select]` で、キーを差し替えられます。書き方は Helix の `config.toml` と同じです。
 
 ```toml
 [keys.normal]
@@ -168,7 +168,7 @@ Helix と同じく「先に選択し、次に操作する」順で編集しま�
 - 名前の無いキー（`g` で始まる系列、`/` `n`、`Space` メニューなど）は、今のまま動きます。また `[keys.normal.g]` のような、キーを続けて押す系列の書き方はまだ使えません。
 - `Ctrl+S` `Ctrl+Q` `Ctrl+P` など、どのモードでも効く操作のキーは差し替えられません。
 - 知らないコマンド名やキー名を書くと、起動時（と `:config-reload`）にステータス行で知らせます。そのキーは既定のまま動きます。
-- 安全のため、`[keys.*]` は `~/.config/shijimi/config.toml`（と `config.nix`）からだけ読みます。プロジェクトの `.shijimi/config.toml` に書いても無視します（`:sh` などを割り当てたリポジトリを開くだけで、プログラムが動くのを防ぐため）。
+- 安全のため、`[keys.*]` は `~/.config/shijimi-editor/config.toml`（と `config.nix`）からだけ読みます。プロジェクトの `.shijimi-editor/config.toml` に書いても無視します（`:sh` などを割り当てたリポジトリを開くだけで、プログラムが動くのを防ぐため）。
 - `[keys.insert]` には、同じコマンド名か `:` コマンドを書けます。そのキーでは文字が入力されなくなります。
 
 ### 使えるコマンド名

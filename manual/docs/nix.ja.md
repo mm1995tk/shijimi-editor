@@ -9,7 +9,7 @@
 - `nix` が無いとき、または評価に失敗したときは、そのファイルを無視します。
 
 ```nix
-# ~/.config/shijimi/languages.nix
+# ~/.config/shijimi-editor/languages.nix
 {
   language-server.nil.command = "nil";
   language = [
@@ -22,8 +22,8 @@
 
 flake の `homeManagerModules.default` を読み込みます。
 
-- `settings` は `~/.config/shijimi/config.toml` に書き出します。
-- `languages` は `~/.config/shijimi/languages.toml` に書き出します。
+- `settings` は `~/.config/shijimi-editor/config.toml` に書き出します。
+- `languages` は `~/.config/shijimi-editor/languages.toml` に書き出します。
 
 ```nix
 {

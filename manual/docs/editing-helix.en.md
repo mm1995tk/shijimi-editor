@@ -145,7 +145,7 @@ Other keys (arrow keys, `Ctrl+Z`, and so on) behave the same as in [VS Code mode
 
 ## Remapping keys
 
-You can remap keys with `[keys.normal]` `[keys.insert]` `[keys.select]` in `~/.config/shijimi/config.toml`. The syntax is the same as Helix's `config.toml`.
+You can remap keys with `[keys.normal]` `[keys.insert]` `[keys.select]` in `~/.config/shijimi-editor/config.toml`. The syntax is the same as Helix's `config.toml`.
 
 ```toml
 [keys.normal]
@@ -168,7 +168,7 @@ You can remap keys with `[keys.normal]` `[keys.insert]` `[keys.select]` in `~/.c
 - Keys without a name (sequences starting with `g`, `/` `n`, the `Space` menu, and so on) keep working as they are. Sequences of consecutive keys such as `[keys.normal.g]` cannot be written yet.
 - Keys for operations that work in every mode, such as `Ctrl+S` `Ctrl+Q` `Ctrl+P`, cannot be remapped.
 - If you write an unknown command name or key name, the status line reports it at startup (and on `:config-reload`). That key keeps its default behavior.
-- For safety, `[keys.*]` is read only from `~/.config/shijimi/config.toml` (and `config.nix`). It is ignored in a project's `.shijimi/config.toml` (so that just opening a repository that binds `:sh` or similar cannot run a program).
+- For safety, `[keys.*]` is read only from `~/.config/shijimi-editor/config.toml` (and `config.nix`). It is ignored in a project's `.shijimi-editor/config.toml` (so that just opening a repository that binds `:sh` or similar cannot run a program).
 - In `[keys.insert]` you can write the same command names or `:` commands. That key no longer types a character.
 
 ### Available command names
