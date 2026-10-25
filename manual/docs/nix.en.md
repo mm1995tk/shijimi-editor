@@ -27,6 +27,7 @@ Import the flake's `homeManagerModules.default`.
 
 ```nix
 {
+  # inputs.shijimi.url = "github:mm1995tk/shijimi-editor/release";
   imports = [ inputs.shijimi.homeManagerModules.default ];
   programs.shijimi-editor = {
     enable = true;

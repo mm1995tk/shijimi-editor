@@ -5,11 +5,13 @@
 次のどれか 1 つを実行します。
 
 ```sh
-nix run github:mm1995tk/shijimi-editor           # インストールせずにその場で起動
-nix profile install github:mm1995tk/shijimi-editor
+nix run github:mm1995tk/shijimi-editor/release   # インストールせずにその場で起動
+nix profile install github:mm1995tk/shijimi-editor/release
 go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # shj コマンドとして入れる
 go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # 同じものを shijimi コマンドとして入れる
 ```
+
+どちらも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを取ります。`main` のリリース前の変更は入りません。
 
 home-manager で入れる方法は [Nix と home-manager](nix.md) にあります。
 

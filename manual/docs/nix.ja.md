@@ -27,6 +27,7 @@ flake の `homeManagerModules.default` を読み込みます。
 
 ```nix
 {
+  # inputs.shijimi.url = "github:mm1995tk/shijimi-editor/release";
   imports = [ inputs.shijimi.homeManagerModules.default ];
   programs.shijimi-editor = {
     enable = true;
