@@ -162,7 +162,7 @@ var ja = map[string]string{
 	"cmd.undo":                 "編集: 元に戻す",
 	"cmd.unknowncmd":           "不明なコマンド: %s",
 	"cmd.unknowntheme":         "不明なテーマ: %s（選べるテーマ: %s）",
-	"cmd.unknowntheme.default": "不明なテーマ: %s（dark-plus を使います）",
+	"cmd.unknowntheme.default": "不明なテーマ: %s（github-dark を使います）",
 	"cmd.wsymbols":             "LSP: プロジェクト全体のシンボル検索",
 	"ctl.badrequest":           "リクエストを解釈できません: ",
 	"ctl.cantopen":             "開けませんでした: ",

@@ -162,7 +162,7 @@ var en = map[string]string{
 	"cmd.undo":                 "Edit: Undo",
 	"cmd.unknowncmd":           "Unknown command: %s",
 	"cmd.unknowntheme":         "Unknown theme: %s (available themes: %s)",
-	"cmd.unknowntheme.default": "Unknown theme: %s (using dark-plus)",
+	"cmd.unknowntheme.default": "Unknown theme: %s (using github-dark)",
 	"cmd.wsymbols":             "LSP: Search symbols in the project",
 	"ctl.badrequest":           "Cannot parse the request: ",
 	"ctl.cantopen":             "Could not open: ",

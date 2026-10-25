@@ -68,11 +68,11 @@ ui-language = "ja"   # "en"（既定）または "ja"
 
 `config.toml` の `theme` か、実行中の `:theme <名前>`（名前を省略すると一覧）で切り替えます。コマンドパレットの「設定: テーマを切り替え」からも選べます。
 
-- 組み込み: `dark-plus`（既定）、`github-dark`、`light-plus`
+- 組み込み: `github-dark`（既定）、`dark-plus`、`light-plus`
 - Helix の `github_dark*` は `github-dark`、`github_light*` と `light` は `light-plus` に対応付けます
 
 ```toml
-theme = "github_dark"
+theme = "github_light"
 ```
 
 ### ポート転送の待ち受けアドレス

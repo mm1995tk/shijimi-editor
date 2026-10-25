@@ -287,9 +287,9 @@ func (a *App) execCommand(line string) tea.Cmd {
 		a.lsp.cfg = a.cfg
 		a.explorer.icons = a.cfg.Editor.FileIcons
 		a.helix = a.cfg.Editor.Keymap != "vscode"
-		// No theme (or an unknown one) falls back to dark-plus, as at startup.
+		// No theme (or an unknown one) falls back to the default theme, as at startup.
 		if name := a.cfg.Editor.Theme; name == "" || !a.setTheme(name) {
-			a.setTheme(darkPlus.Name)
+			a.setTheme(defaultTheme.Name)
 			if name != "" {
 				a.fail(fmt.Errorf(i18n.T("cmd.unknowntheme.default"), name))
 				return nil

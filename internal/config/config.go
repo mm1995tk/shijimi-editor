@@ -53,7 +53,7 @@ type Editor struct {
 	Keymap     string // "helix" (default) or "vscode"
 	LineNumber string // "absolute" or "relative"
 	FileIcons  bool   // Nerd Font icons in the file tree (default true)
-	Theme      string // theme name; "" = default (dark-plus)
+	Theme      string // theme name; "" = default (github-dark)
 
 	// UILanguage is the language of the UI text: "en" (default) or "ja".
 	// It is set by ui-language in config.toml.
