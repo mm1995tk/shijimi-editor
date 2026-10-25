@@ -4,8 +4,10 @@
 set -euo pipefail
 
 dir=$1
+here=$(cd "$(dirname "$0")" && pwd)
 rm -rf "$dir"
-mkdir -p "$dir/internal/store"
+mkdir -p "$dir/internal/store" "$dir/docs"
+cp "$here/../../manual/docs/assets/icon.png" "$dir/docs/icon.png"
 cd "$dir"
 
 cat >go.mod <<'EOF'
@@ -101,6 +103,22 @@ s.Add("Write the README")
 ```
 
 > Keep it small. This project exists only for the screenshots.
+EOF
+
+cat >docs/design.md <<'EOF'
+# Design
+
+The program keeps the tasks in memory and prints them in order.
+
+```mermaid
+flowchart LR
+    main[main.go] -->|Add / Done| store[(store.Store)]
+    store -->|List| main
+```
+
+- `main.go` adds the tasks and prints the list
+- `store.Store` keeps the tasks in the order they were added
+
 EOF
 
 git init -q -b main

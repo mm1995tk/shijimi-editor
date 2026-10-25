@@ -75,10 +75,22 @@
             <p><code>Space m</code> shows the rendered Markdown next to the buffer you are editing. Press it again to show only the preview.</p>
             <ul>
               <li>Headings, lists, tables, code and quotes</li>
-              <li>Mermaid diagrams and images in terminals with the Kitty graphics protocol</li>
+              <li>Mermaid code blocks are drawn as diagrams</li>
             </ul>
           </div>
-          <img class="shot" src="images/preview.png" alt="A README file on the left and its rendered preview on the right" loading="lazy" width="1440" height="860">
+          <img class="shot" src="images/mermaid.png" alt="A Markdown file on the left and its preview on the right, with a mermaid flowchart drawn as a diagram" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>Images open in a tab</h2>
+            <p>Open an image file from the file tree or Quick Open, and it is shown as an image, not as bytes.</p>
+            <ul>
+              <li>PNG, JPEG, GIF, BMP, WebP and TIFF</li>
+              <li>Images and mermaid diagrams need a terminal with the Kitty graphics protocol, such as Kitty, Ghostty or WezTerm</li>
+            </ul>
+          </div>
+          <img class="shot" src="images/image.png" alt="A PNG file opened in a tab and shown as an image" loading="lazy" width="1440" height="860">
         </div>
 
         <div class="feature">
@@ -131,7 +143,8 @@
         <h2>Install</h2>
 <pre><code>nix run github:mm1995tk/shijimi-editor/release   # run it right away
 nix profile install github:mm1995tk/shijimi-editor/release
-go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest</code></pre>
+go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
+npm install -g shijimi-editor   # Linux and macOS</code></pre>
         <p>Then run <code>shj</code> in your project. See <a href="manual/install/">Installation and startup</a> in the manual for details.</p>
       </div>
     </section>

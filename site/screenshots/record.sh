@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Records the screenshots and the demo video of the home page with vhs.
-# usage: site/screenshots/record.sh [TAPE...]   (default: every tape in tapes/)
+# Records the screenshots and the demo video of the home page.
+# The tapes in tapes/ are recorded with vhs, and the scenes in kitty/ are taken
+# in kitty, because images and mermaid diagrams need the Kitty graphics protocol.
+# usage: site/screenshots/record.sh [TAPE_OR_SCENE...]   (default: all of them)
 # Needs Nix. The results go to site/images/.
 set -euo pipefail
 
@@ -13,12 +15,13 @@ out() { nix build --no-link --print-out-paths "$1" | grep -v -e '-man$' -e '-doc
 
 shj=$(nix build --no-link --print-out-paths "$repo#default")
 bash_bin=$(out nixpkgs#bashInteractive)/bin/bash
+mesa=$(out nixpkgs#mesa)
 
 # A home of its own, so that the user's shell prompt and settings do not show up.
 mkdir -p "$work/home" "$work/config"
 printf 'PS1="\\[\\e[36m\\]todo\\[\\e[0m\\] \\$ "\n' >"$work/home/.bashrc"
 
-# The fonts that the browser inside vhs draws with.
+# The fonts that vhs and kitty draw with.
 cat >"$work/fonts.conf" <<EOF
 <?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
@@ -33,24 +36,34 @@ EOF
 export HOME=$work/home SHELL=$bash_bin XDG_CONFIG_HOME=$work/config
 export GOPATH=$work/go GOCACHE=$work/go-cache GOFLAGS=-modcacherw
 export FONTCONFIG_FILE=$work/fonts.conf
-export PATH=$shj/bin:$(out nixpkgs#go)/bin:$(out nixpkgs#gopls)/bin:$PATH
+export PATH=$shj/bin:$(out nixpkgs#go)/bin:$(out nixpkgs#gopls)/bin:$(out nixpkgs#mermaid-cli)/bin:$PATH
 export DEMO=$work/todo
 
 if [ $# -eq 0 ]; then
-  set -- "$here"/tapes/*.tape
+  set -- "$here"/tapes/*.tape "$here"/kitty/*.sh
 fi
-tapes=()
-for tape in "$@"; do
-  tapes+=("$(cd "$(dirname "$tape")" && pwd)/$(basename "$tape")")
+files=()
+for f in "$@"; do
+  files+=("$(cd "$(dirname "$f")" && pwd)/$(basename "$f")")
 done
 
 mkdir -p "$work/out"
 cd "$work/out"
-for tape in "${tapes[@]}"; do
-  # Each tape starts from the same project, because some of them save files.
+for f in "${files[@]}"; do
+  # Each one starts from the same project, because some of them save files.
   "$here/demo.sh" "$DEMO"
-  echo "recording $tape"
-  nix shell nixpkgs#vhs nixpkgs#ttyd nixpkgs#ffmpeg nixpkgs#chromium -c vhs "$tape"
+  echo "recording $f"
+  case $f in
+  *.tape)
+    nix shell nixpkgs#vhs nixpkgs#ttyd nixpkgs#ffmpeg nixpkgs#chromium -c vhs "$f"
+    ;;
+  *.sh)
+    # kitty needs OpenGL, which Xvfb gets from mesa's software renderer.
+    LD_LIBRARY_PATH=$mesa/lib LIBGL_DRIVERS_PATH=$mesa/lib/dri __GLX_VENDOR_LIBRARY_NAME=mesa \
+      nix shell nixpkgs#kitty nixpkgs#xvfb-run nixpkgs#xdotool nixpkgs#imagemagick -c \
+      xvfb-run -a -s "-screen 0 1440x860x24 +extension GLX" "$here/kitty.sh" "$f" "$work/out"
+    ;;
+  esac
 done
 
 # The tapes that only take screenshots also write a GIF; keep just what the page uses.

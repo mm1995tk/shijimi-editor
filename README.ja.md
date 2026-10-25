@@ -396,7 +396,7 @@ mkdocs serve --config-file manual/mkdocs.yml
 
 説明書は、ページごとに英語（`名前.en.md`、既定）と日本語（`名前.ja.md`）を置きます。片方を変えたら、もう片方も変えてください。`manual/check-translations.sh` が、全ページに両方の言語があることと構造が同じことを確かめ、CI がプルリクエストで実行します（片方の言語だけが変わったときも失敗します。誤字の修正など、翻訳が要らないときは、プルリクエストのタイトルに `[skip-i18n-check]` を入れるとその部分を飛ばせます）。
 
-ホームページのスクリーンショットとデモ動画（`site/images/`）は [vhs](https://github.com/charmbracelet/vhs) で撮ります。画面を変えたら `site/screenshots/record.sh`（Nix が要ります）を実行して撮り直してください。場面は `site/screenshots/tapes/` のテープに書いてあります。
+ホームページのスクリーンショットとデモ動画（`site/images/`）は [vhs](https://github.com/charmbracelet/vhs) で撮ります。画像と mermaid の図は Kitty graphics protocol が要るので、kitty で撮ります。画面を変えたら `site/screenshots/record.sh`（Nix が要ります）を実行して撮り直してください。場面は `site/screenshots/tapes/`（vhs）と `site/screenshots/kitty/`（kitty）に書いてあります。
 
 ## ライセンス
 
