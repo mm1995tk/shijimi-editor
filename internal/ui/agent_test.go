@@ -28,10 +28,10 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
-	if err := os.MkdirAll(filepath.Join(cfgDir, "shijimi"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(cfgDir, "shijimi-editor"), 0o755); err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfgDir, "shijimi", "config.toml"), []byte("ui-language = \"ja\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(cfgDir, "shijimi-editor", "config.toml"), []byte("ui-language = \"ja\"\n"), 0o644); err != nil {
 		panic(err)
 	}
 	os.Setenv("XDG_CONFIG_HOME", cfgDir)

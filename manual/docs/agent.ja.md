@@ -81,7 +81,7 @@ GitHub へは送りません。読んで、消す・直す・足すをしてか�
 
 ### 設定
 
-`~/.config/shijimi/config.toml` に、エージェントを起動するコマンドを書きます。
+`~/.config/shijimi-editor/config.toml` に、エージェントを起動するコマンドを書きます。
 
 ```toml
 [agent]
@@ -91,7 +91,7 @@ environment = { }             # エージェントに渡す環境変数
 ```
 
 - 例えば Gemini CLI なら `command = "gemini"`、`args = ["--experimental-acp"]` です。
-- `[agent]` は `~/.config/shijimi/` からだけ読みます。プロジェクトの `.shijimi/` に書いても使いません。clone したリポジトリが、起動するプログラムを決められないようにするためです。
+- `[agent]` は `~/.config/shijimi-editor/` からだけ読みます。プロジェクトの `.shijimi-editor/` に書いても使いません。clone したリポジトリが、起動するプログラムを決められないようにするためです。
 - 設定が無いときは、提案を実行するとステータス行に設定の場所を出します。
 
 ### エージェントの動き

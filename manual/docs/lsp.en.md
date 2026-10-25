@@ -71,11 +71,11 @@ The settings for the following language servers are built in. If the server is o
 ## Writing settings
 
 Settings go in `languages.toml`, which is compatible with Helix.
-If you are moving from Helix, copy your `languages.toml` to `~/.config/shijimi/`.
+If you are moving from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/`.
 Where files are read from and in what order is described in [Configuration files](config.md).
 
 ```toml
-# .shijimi/languages.toml
+# .shijimi-editor/languages.toml
 [language-server.my-gopls]
 command = "gopls"
 args = ["serve"]

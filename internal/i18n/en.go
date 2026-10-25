@@ -17,7 +17,7 @@ var en = map[string]string{
 	"agent.idle":               "The agent is not working",
 	"agent.maxtokens":          "Stopped because the output limit was reached",
 	"agent.maxturns":           "Stopped because the per-request turn limit was reached",
-	"agent.notconfigured":      "No agent is configured. Set command under [agent] in ~/.config/shijimi/config.toml",
+	"agent.notconfigured":      "No agent is configured. Set command under [agent] in ~/.config/shijimi-editor/config.toml",
 	"agent.notrunning":         "The agent is not running",
 	"agent.nowrite":            "This request cannot modify files",
 	"agent.permask":            "The agent is asking for permission (Alt+I to move to the right panel, y to allow / n to deny)",

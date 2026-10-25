@@ -25,10 +25,10 @@ func TestNewSelectsTheConfiguredLanguage(t *testing.T) {
 		t.Fatalf("cmd.quit = %q", got)
 	}
 
-	if err := os.MkdirAll(filepath.Join(cfg, "shijimi"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(cfg, "shijimi-editor"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfg, "shijimi", "config.toml"), []byte("ui-language = \"ja\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("ui-language = \"ja\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	New(dir, "")
@@ -65,10 +65,10 @@ func TestConfigReloadSwitchesLanguage(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	dir := t.TempDir()
 	write := func(s string) {
-		if err := os.MkdirAll(filepath.Join(cfg, "shijimi"), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(cfg, "shijimi-editor"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(cfg, "shijimi", "config.toml"), []byte(s), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte(s), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -30,7 +30,7 @@ in
           editor.line-number = "relative";
         }
       '';
-      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi/config.toml` (same structure as Helix's config.toml).";
+      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/config.toml` (same structure as Helix's config.toml).";
     };
 
     languages = lib.mkOption {
@@ -42,16 +42,16 @@ in
           language = [{ name = "go"; language-servers = ["gopls"]; }];
         }
       '';
-      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi/languages.toml` (same structure as Helix's languages.toml).";
+      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/languages.toml` (same structure as Helix's languages.toml).";
     };
   };
 
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package ];
-    xdg.configFile."shijimi/config.toml" = lib.mkIf (cfg.settings != { }) {
+    xdg.configFile."shijimi-editor/config.toml" = lib.mkIf (cfg.settings != { }) {
       source = toml.generate "shijimi-config.toml" cfg.settings;
     };
-    xdg.configFile."shijimi/languages.toml" = lib.mkIf (cfg.languages != { }) {
+    xdg.configFile."shijimi-editor/languages.toml" = lib.mkIf (cfg.languages != { }) {
       source = toml.generate "shijimi-languages.toml" cfg.languages;
     };
   };

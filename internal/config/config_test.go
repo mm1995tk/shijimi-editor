@@ -12,8 +12,8 @@ func TestProjectLanguages(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "languages.toml"), []byte(`
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "languages.toml"), []byte(`
 [language-server.my-gopls]
 command = "gopls"
 args = ["serve"]
@@ -57,8 +57,8 @@ func TestFileIconsOption(t *testing.T) {
 	if !Load(root).Editor.FileIcons {
 		t.Fatal("file-icons should default to true")
 	}
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[editor]\nfile-icons = false\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[editor]\nfile-icons = false\n"), 0o644)
 	if Load(root).Editor.FileIcons {
 		t.Fatal("file-icons = false should disable icons")
 	}
@@ -68,8 +68,8 @@ func TestSearchConfig(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte(`
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte(`
 [search]
 exclude = ["*.lock", "dist/**"]
 include = ["*.go"]
@@ -85,13 +85,13 @@ func TestBrowserConfigOnlyFromOwnDirs(t *testing.T) {
 	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	t.Setenv("HOME", t.TempDir())
-	os.MkdirAll(filepath.Join(cfg, "shijimi"), 0o755)
-	os.WriteFile(filepath.Join(cfg, "shijimi", "config.toml"), []byte("[browser]\nlisten-host = \"10.0.0.1\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(cfg, "shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("[browser]\nlisten-host = \"10.0.0.1\"\n"), 0o644)
 	if got := Load(root).Browser.ListenHost; got != "10.0.0.1" {
 		t.Fatalf("user = %q", got)
 	}
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[browser]\nlisten-host = \"::1\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[browser]\nlisten-host = \"::1\"\n"), 0o644)
 	if got := Load(root).Browser.ListenHost; got != "::1" {
 		t.Fatalf("listen-host = %q", got)
 	}
@@ -105,8 +105,8 @@ func TestAutoSave(t *testing.T) {
 	if !c.Editor.AutoSave || c.Editor.AutoSaveDelay != time.Second {
 		t.Fatalf("default = %+v", c.Editor)
 	}
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte(`
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte(`
 [editor.auto-save.after-delay]
 enable = false
 timeout = 2500
@@ -124,13 +124,13 @@ func TestThemeOption(t *testing.T) {
 	if Load(root).Editor.Theme != "" {
 		t.Fatal("theme should default to empty")
 	}
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("theme = \"github_dark\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("theme = \"github_dark\"\n"), 0o644)
 	if got := Load(root).Editor.Theme; got != "github_dark" {
 		t.Fatalf("top-level theme = %q", got)
 	}
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[editor]\ntheme = \"light\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[editor]\ntheme = \"light\"\n"), 0o644)
 	if got := Load(root).Editor.Theme; got != "light" {
 		t.Fatalf("editor.theme = %q", got)
 	}
@@ -143,8 +143,8 @@ func TestNixConfig(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.nix"), []byte(`{
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.nix"), []byte(`{
   keymap = "vscode";
   search.exclude = [ "*.lock" ];
   editor = {
@@ -152,7 +152,7 @@ func TestNixConfig(t *testing.T) {
     auto-save.after-delay = { enable = true; timeout = 250; };
   };
 }`), 0o644)
-	os.WriteFile(filepath.Join(root, ".shijimi", "languages.nix"), []byte(`{
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "languages.nix"), []byte(`{
   language-server.my-gopls = {
     command = "gopls";
     args = [ "serve" ];
@@ -191,8 +191,8 @@ func TestMouseHoverOption(t *testing.T) {
 	if !Load(root).Editor.MouseHover {
 		t.Fatal("mouse-hover should default to true")
 	}
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[editor]\nmouse-hover = false\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[editor]\nmouse-hover = false\n"), 0o644)
 	if Load(root).Editor.MouseHover {
 		t.Fatal("mouse-hover = false should disable it")
 	}
@@ -204,8 +204,8 @@ func TestIndentGuidesOption(t *testing.T) {
 	if !Load(root).Editor.IndentGuides {
 		t.Fatal("indent-guides should default to true")
 	}
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[editor.indent-guides]\nrender = false\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[editor.indent-guides]\nrender = false\n"), 0o644)
 	if Load(root).Editor.IndentGuides {
 		t.Fatal("render = false should disable indent guides")
 	}
@@ -216,15 +216,15 @@ func TestAgentIsReadOnlyFromTheUserConfig(t *testing.T) {
 	xdg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", xdg)
 	t.Setenv("HOME", t.TempDir())
-	os.MkdirAll(filepath.Join(xdg, "shijimi"), 0o755)
-	os.WriteFile(filepath.Join(xdg, "shijimi", "config.toml"), []byte(`
+	os.MkdirAll(filepath.Join(xdg, "shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(xdg, "shijimi-editor", "config.toml"), []byte(`
 [agent]
 command = "claude-agent-acp"
 args = ["--x"]
 environment = { A = "1" }
 `), 0o644)
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[agent]\ncommand = \"evil\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[agent]\ncommand = \"evil\"\n"), 0o644)
 	c := Load(root)
 	if c.Agent.Command != "claude-agent-acp" || len(c.Agent.Args) != 1 || c.Agent.Env["A"] != "1" {
 		t.Fatalf("agent = %+v", c.Agent)
@@ -257,9 +257,9 @@ func TestUILanguageOption(t *testing.T) {
 	if got := Load(root).Editor.UILanguage; got != "en" {
 		t.Fatalf("ui-language should default to en, got %q", got)
 	}
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	write := func(s string) {
-		os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte(s), 0o644)
+		os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte(s), 0o644)
 	}
 	write("ui-language = \"ja\"\n")
 	if got := Load(root).Editor.UILanguage; got != "ja" {
@@ -299,10 +299,10 @@ func TestKeysReadOnlyFromUserConfig(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", home)
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(home, "shijimi"), 0o755)
-	os.MkdirAll(filepath.Join(root, ".shijimi"), 0o755)
-	os.WriteFile(filepath.Join(home, "shijimi", "config.toml"), []byte("[keys.normal]\nh = \"move_char_right\"\n"), 0o644)
-	os.WriteFile(filepath.Join(root, ".shijimi", "config.toml"), []byte("[keys.normal]\nl = \":sh evil\"\n"), 0o644)
+	os.MkdirAll(filepath.Join(home, "shijimi-editor"), 0o755)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(home, "shijimi-editor", "config.toml"), []byte("[keys.normal]\nh = \"move_char_right\"\n"), 0o644)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[keys.normal]\nl = \":sh evil\"\n"), 0o644)
 	c := Load(root)
 	if c.Keys.Normal["h"] != "move_char_right" {
 		t.Fatalf("user keys not read: %v", c.Keys.Normal)

@@ -1,19 +1,19 @@
 # 設定ファイル
 
-設定ファイルは TOML で書きます。`languages.toml` は Helix と互換があります。Helix から移る人は、`languages.toml` を `~/.config/shijimi/` にコピーしてください。
+設定ファイルは TOML で書きます。`languages.toml` は Helix と互換があります。Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーしてください。
 
 ## 読み込む順番
 
 次の順に読み込みます。後のものが優先されます。
 
 1. 組み込みの既定値
-2. `~/.config/shijimi/languages.toml`、`~/.config/shijimi/config.toml`
-3. プロジェクトの `.shijimi/languages.toml`、`.shijimi/config.toml`
+2. `~/.config/shijimi-editor/languages.toml`、`~/.config/shijimi-editor/config.toml`
+3. プロジェクトの `.shijimi-editor/languages.toml`、`.shijimi-editor/config.toml`
 
 - `languages.toml` には言語サーバーを書きます（[LSP](lsp.md)）。
 - `config.toml` にはそれ以外を書きます（このページ）。
 - 実行中に `:config-reload` を実行すると、読み直します。
-- `[agent]` は `~/.config/shijimi/config.toml` からだけ読みます（[AI エージェント連携](agent.md)）。
+- `[agent]` は `~/.config/shijimi-editor/config.toml` からだけ読みます（[AI エージェント連携](agent.md)）。
 
 ## config.toml の例
 
@@ -45,7 +45,7 @@ include = []
 [browser]
 listen-host = "127.0.0.1"
 
-# ~/.config/shijimi/config.toml だけで有効
+# ~/.config/shijimi-editor/config.toml だけで有効
 [agent]
 command = "claude-agent-acp"
 args = []
@@ -67,7 +67,7 @@ args = []
 | `editor.auto-save.after-delay` | 自動保存 | [ファイルと検索](files.md) |
 | `[[language]]` の `formatter` | `:fmt` で動かす整形コマンド（languages.toml） | [LSP](lsp.md) |
 | `search.exclude` / `search.include` | 全体検索の除外 / 包含 | [ファイルと検索](files.md) |
-| `[keys.normal]` `[keys.insert]` `[keys.select]` | Helix モードのキーの差し替え（`~/.config/shijimi/` だけ） | [編集（Helix モード）](editing-helix.md#キーの差し替え) |
+| `[keys.normal]` `[keys.insert]` `[keys.select]` | Helix モードのキーの差し替え（`~/.config/shijimi-editor/` だけ） | [編集（Helix モード）](editing-helix.md#キーの差し替え) |
 | `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | 提案パネルが使う ACP エージェント | [AI エージェント連携](agent.md) |
 
@@ -91,4 +91,4 @@ Helix のテーマ名も使えます。`github_dark*` は `github-dark` に、`g
 
 ## キーの差し替え
 
-`[keys.normal]` `[keys.insert]` `[keys.select]` で Helix モードのキーを差し替えられます。書き方とコマンド名の一覧は [編集（Helix モード）](editing-helix.md#キーの差し替え) にあります。`~/.config/shijimi/config.toml` からだけ読みます（プロジェクトの `.shijimi/config.toml` では無効）。
+`[keys.normal]` `[keys.insert]` `[keys.select]` で Helix モードのキーを差し替えられます。書き方とコマンド名の一覧は [編集（Helix モード）](editing-helix.md#キーの差し替え) にあります。`~/.config/shijimi-editor/config.toml` からだけ読みます（プロジェクトの `.shijimi-editor/config.toml` では無効）。
