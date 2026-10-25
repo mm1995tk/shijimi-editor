@@ -30,7 +30,7 @@ jobs:
           echo "::error::main ブランチで実行してください（現在: $GITHUB_REF）"
           exit 1
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # release ブランチを早送りで進めるとき、git が今の release が新しいコミットの祖先だと確かめられるよう、
           # 履歴を全部取る（1 コミット分だけだと push が拒否される）。
@@ -87,14 +87,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: v${{ needs.release.outputs.next }}
           persist-credentials: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 26.12.1
       - name: パッケージを作る
@@ -102,7 +102,7 @@ jobs:
           NEXT: ${{ needs.release.outputs.next }}
         run: npm/pack.sh "$NEXT" "$RUNNER_TEMP/npm"
       # tarball のまま渡す（upload-artifact は zip にするとき実行権限を落とすので、bin/shj の権限は tarball の中に残す）
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: npm
           path: ${{ runner.temp }}/npm/*.tgz
@@ -118,11 +118,11 @@ jobs:
       # npm の Trusted Publishing（OIDC）に使う。トークンは Secrets に置かない
       id-token: write
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           # OIDC での認証には npm 11.5.1 以降が要る。Node.js 26.12.1 に付いてくる npm はそれより新しい
           node-version: 26.12.1
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: npm
           path: ${{ runner.temp }}/npm
