@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"os/exec"
@@ -25,13 +26,33 @@ import (
 
 const mermaidDelay = 300 * time.Millisecond
 
-type mermaidJob struct {
+// previewJob is a mermaid diagram or an image of the preview being loaded,
+// or the result.
+type previewJob struct {
 	done bool
 	err  string
 	img  *imageView
 
+	// stamp is the size and modification time of an image file when it was
+	// last read; a change makes it read again.
+	stamp fileStamp
+
 	cacheW int
 	cache  []string
+}
+
+// fileStamp tells whether a file changed. The zero value is a missing file.
+type fileStamp struct {
+	size int64
+	mod  time.Time
+}
+
+func statStamp(path string) fileStamp {
+	st, err := os.Stat(path)
+	if err != nil {
+		return fileStamp{}
+	}
+	return fileStamp{st.Size(), st.ModTime()}
 }
 
 type mermaidStartMsg struct{ key, code string }
@@ -82,8 +103,9 @@ func mdImagePath(mdPath, src string) string {
 }
 
 type mdImageDoneMsg struct {
-	path string
-	img  *imageView
+	path  string
+	stamp fileStamp
+	img   *imageView
 }
 
 func (a *App) mermaidKey(code string) string {
@@ -127,8 +149,9 @@ func (a *App) togglePreview() tea.Cmd {
 	return nil
 }
 
-// syncPreview starts rendering for mermaid blocks of the visible preview.
-// The block list is cached per buffer version, so each call only does a few map lookups.
+// syncPreview starts rendering for mermaid blocks and loading the images of
+// the visible preview. The lists are cached per buffer version, so each call
+// only does a few map lookups and a stat of each image.
 func (a *App) syncPreview() tea.Cmd {
 	cmds := []tea.Cmd{a.syncMDImages()}
 	blocks := a.wantedMermaid()
@@ -136,14 +159,14 @@ func (a *App) syncPreview() tea.Cmd {
 		return tea.Batch(cmds...)
 	}
 	if a.mermaid == nil {
-		a.mermaid = map[string]*mermaidJob{}
+		a.mermaid = map[string]*previewJob{}
 	}
 	for _, code := range blocks {
 		key := a.mermaidKey(code)
 		if _, ok := a.mermaid[key]; ok {
 			continue
 		}
-		job := &mermaidJob{}
+		job := &previewJob{}
 		a.mermaid[key] = job
 		png := filepath.Join(mermaidCacheDir(), key+".png")
 		if _, err := os.Stat(png); err == nil {
@@ -205,6 +228,7 @@ func (a *App) handleMermaidDone(m mermaidDoneMsg) {
 		return
 	}
 	job.done, job.cache = true, nil
+	a.previewGen++
 	if m.err != nil {
 		job.err = m.err.Error()
 		return
@@ -216,40 +240,67 @@ func (a *App) handleMermaidDone(m mermaidDoneMsg) {
 	}
 }
 
-// syncMDImages starts loading the images of the visible preview. Decoding
-// runs off the UI loop, so a large image does not stall typing.
+// syncMDImages starts loading the images of the visible preview, and loads
+// an image again when its file changed. Decoding runs off the UI loop, so a
+// large image does not stall typing. Images no longer in the preview are
+// freed.
 func (a *App) syncMDImages() tea.Cmd {
 	t := a.curText()
 	if t == nil || t.preview == previewOff {
 		return nil
 	}
-	t.mermaidBlocks() // rescans the images too
+	wanted := map[string]bool{}
 	var cmds []tea.Cmd
-	for _, src := range t.scanImages {
+	for _, src := range t.images() {
 		path := mdImagePath(t.buf.Path, src)
-		if path == "" {
+		if path == "" || wanted[path] {
 			continue
 		}
-		if _, ok := a.mdImages[path]; ok {
+		wanted[path] = true
+		stamp := statStamp(path)
+		job, ok := a.mdImages[path]
+		if ok && job.stamp == stamp {
 			continue
 		}
-		if a.mdImages == nil {
-			a.mdImages = map[string]*mermaidJob{}
+		if !ok {
+			if a.mdImages == nil {
+				a.mdImages = map[string]*previewJob{}
+			}
+			job = &previewJob{}
+			a.mdImages[path] = job
 		}
-		a.mdImages[path] = &mermaidJob{}
-		cmds = append(cmds, func() tea.Msg { return mdImageDoneMsg{path, newImageView(path)} })
+		// a job being read again keeps showing the old result until the new one arrives
+		job.stamp = stamp
+		cmds = append(cmds, func() tea.Msg { return mdImageDoneMsg{path, stamp, newImageView(path)} })
+	}
+	for path, job := range a.mdImages {
+		if !wanted[path] {
+			if job.img != nil {
+				job.img.close()
+			}
+			delete(a.mdImages, path)
+		}
 	}
 	return tea.Batch(cmds...)
 }
 
 func (a *App) handleMDImageDone(m mdImageDoneMsg) {
 	job := a.mdImages[m.path]
-	if job == nil {
-		return
+	if job == nil || job.stamp != m.stamp {
+		return // dropped, or the file changed again while it was read
 	}
-	job.done, job.cache = true, nil
-	if m.img.err != nil {
-		job.err = m.img.err.Error()
+	if job.img != nil {
+		job.img.close()
+	}
+	job.done, job.cache, job.img, job.err = true, nil, nil, ""
+	a.previewGen++
+	if err := m.img.err; err != nil {
+		// the path is shown already; keep only the reason
+		var pe *fs.PathError
+		if errors.As(err, &pe) {
+			err = pe.Err
+		}
+		job.err = err.Error()
 		return
 	}
 	job.img = m.img
@@ -264,50 +315,29 @@ func (a *App) mdImageLines(mdPath string) func(alt, src string, w int) []string 
 		if path == "" {
 			return nil
 		}
-		job := a.mdImages[path]
-		note := func(text string, err bool) []string {
-			st := stPanelDim
-			if err {
-				st = bgfg(cEditorBg, cError)
-			}
-			label := mdRender(inlineCells("🖼 "+alt, mdStyle{fg: "#6e6e6e"}))
-			return []string{fitEmpty(label, w), st.Render(fit(" "+text, w))}
+		label := func() []string {
+			return []string{fitEmpty(mdRender(inlineCells("🖼 "+alt, mdStyle{fg: "#6e6e6e"})), w)}
 		}
-		switch {
-		case job == nil || !job.done:
-			return note(i18n.T("preview.loadingimage"), false)
-		case job.err != "":
-			return note(src+": "+job.err, true)
-		}
-		if job.cache != nil && job.cacheW == w {
-			return job.cache
-		}
-		rows := clamp(job.img.rowsFor(w), 3, 28)
-		lines := job.img.render(w, rows+1)[1:] // drop the info line
-		job.cacheW, job.cache = w, lines
-		return lines
+		return jobLines(a.mdImages[path], w, i18n.T("preview.loadingimage"), src+": ", label)
 	}
 }
 
-func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
-
-// mermaidLines draws one diagram (or its placeholder) for the preview.
-func (a *App) mermaidLines(code string, w int) []string {
-	job := a.mermaid[a.mermaidKey(code)]
-	src := strings.Split(code, "\n")
+// jobLines draws a mermaid diagram or an image when it is ready. Until then,
+// or when it failed, it draws above (the source, or the image's alt text)
+// with a line that says it is loading or what went wrong.
+func jobLines(job *previewJob, w int, loading, errPrefix string, above func() []string) []string {
 	note := func(text string, err bool) []string {
-		out := mdCodeBlock(src, "mermaid", w)
 		st := stPanelDim
 		if err {
 			st = bgfg(cEditorBg, cError)
 		}
-		return append(out, st.Render(fit(" "+text, w)))
+		return append(above(), st.Render(fit(" "+text, w)))
 	}
 	switch {
 	case job == nil || !job.done:
-		return note(i18n.T("preview.rendering"), false)
+		return note(loading, false)
 	case job.err != "":
-		return note("mermaid: "+job.err, true)
+		return note(errPrefix+job.err, true)
 	}
 	if job.cache != nil && job.cacheW == w {
 		return job.cache
@@ -318,21 +348,21 @@ func (a *App) mermaidLines(code string, w int) []string {
 	return lines
 }
 
+func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
+
+// mermaidLines draws one diagram (or its placeholder) for the preview.
+func (a *App) mermaidLines(code string, w int) []string {
+	source := func() []string { return mdCodeBlock(strings.Split(code, "\n"), "mermaid", w) }
+	return jobLines(a.mermaid[a.mermaidKey(code)], w, i18n.T("preview.rendering"), "mermaid: ", source)
+}
+
 // previewLines renders the document in the preview pane, scrolled so the
 // part around the editor cursor is visible.
 func (a *App) previewLines(t *tab, w, h int) []string {
 	text := t.buf.Text()
-	gen := 0
-	for _, jobs := range []map[string]*mermaidJob{a.mermaid, a.mdImages} {
-		for _, j := range jobs {
-			if j.done {
-				gen++
-			}
-		}
-	}
-	if t.prevCache == nil || t.prevW != w || t.prevVer != t.buf.Version || t.prevGen != gen {
+	if t.prevCache == nil || t.prevW != w || t.prevVer != t.buf.Version || t.prevGen != a.previewGen {
 		t.prevCache = renderMarkdown(text, w, mdOpts{mermaid: a.mermaidLines, image: a.mdImageLines(t.buf.Path), frontMatter: true})
-		t.prevW, t.prevVer, t.prevGen = w, t.buf.Version, gen
+		t.prevW, t.prevVer, t.prevGen = w, t.buf.Version, a.previewGen
 	}
 	all := t.prevCache
 	top := 0
@@ -361,14 +391,24 @@ func (a *App) wantedMermaid() []string {
 	return append(append([]string(nil), out...), a.reviewMermaid()...)
 }
 
-// mermaidBlocks returns the tab's mermaid fences, rescanning them and the
-// images only after the buffer changed.
+// mermaidBlocks returns the tab's mermaid fences.
 func (t *tab) mermaidBlocks() []string {
+	t.scan()
+	return t.scanBlocks
+}
+
+// images returns the sources of the tab's images that have a line of their own.
+func (t *tab) images() []string {
+	t.scan()
+	return t.scanImages
+}
+
+// scan finds the mermaid fences and images again, only after the buffer changed.
+func (t *tab) scan() {
 	if !t.scanned || t.scanVer != t.buf.Version {
 		t.scanBlocks, t.scanImages = previewSources(t.buf.Text())
 		t.scanVer, t.scanned = t.buf.Version, true
 	}
-	return t.scanBlocks
 }
 
 // fullPreview reports whether t is showing the Markdown preview alone. In

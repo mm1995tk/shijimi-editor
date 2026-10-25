@@ -138,8 +138,11 @@ type App struct {
 	tabSpans  []span
 	tabOffset int
 	commands  []command
-	mermaid   map[string]*mermaidJob
-	mdImages  map[string]*mermaidJob // images in the Markdown preview, by file path
+	mermaid   map[string]*previewJob
+	mdImages  map[string]*previewJob // images in the Markdown preview, by file path
+	// previewGen counts finished jobs, so the preview is drawn again when one
+	// finishes
+	previewGen int
 }
 
 // New creates the app rooted at dir, optionally opening file.
