@@ -393,3 +393,7 @@ mkdocs serve --config-file manual/mkdocs.yml
 ```
 
 The manual has an English page (`name.en.md`, the default) and a Japanese page (`name.ja.md`) for each page. When you change one, change the other too. `manual/check-translations.sh` checks that every page has both languages and the same structure, and CI runs it on pull requests (it also fails when only one language of a page changed; add `[skip-i18n-check]` to the pull request title to skip that part, for a typo fix for example).
+
+## License
+
+[MIT](LICENSE)

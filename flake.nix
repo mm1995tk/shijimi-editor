@@ -51,7 +51,11 @@
             postInstall = ''
               ln -s shj $out/bin/shijimi
             '';
-            meta.mainProgram = "shj";
+            meta = {
+              description = "VS Code-style terminal IDE with Helix keybindings";
+              license = pkgs.lib.licenses.mit;
+              mainProgram = "shj";
+            };
           };
         in
         {
