@@ -26,11 +26,13 @@ The UI is in English by default. To switch it to Japanese, set `ui-language = "j
 ## Installation
 
 ```sh
-nix run github:mm1995tk/shijimi-editor           # run it right away
-nix profile install github:mm1995tk/shijimi-editor
+nix run github:mm1995tk/shijimi-editor/release   # run it right away
+nix profile install github:mm1995tk/shijimi-editor/release
 go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # installs the shj command
 go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # installs the same thing as shijimi
 ```
+
+Both get the latest release: the Nix commands follow the `release` branch, and `go install` takes the newest tag. Unreleased changes on `main` are not included.
 
 To compare with the base of a pull request you need [gh](https://cli.github.com/) and `gh auth login`.
 
@@ -154,6 +156,7 @@ Import the flake's `homeManagerModules.default`. `settings` is written to `~/.co
 
 ```nix
 {
+  # inputs.shijimi.url = "github:mm1995tk/shijimi-editor/release";
   imports = [ inputs.shijimi.homeManagerModules.default ];
   programs.shijimi-editor = {
     enable = true;

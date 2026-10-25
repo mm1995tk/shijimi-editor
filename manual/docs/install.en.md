@@ -5,11 +5,13 @@
 Run one of the following.
 
 ```sh
-nix run github:mm1995tk/shijimi-editor           # run it right away without installing
-nix profile install github:mm1995tk/shijimi-editor
+nix run github:mm1995tk/shijimi-editor/release   # run it right away without installing
+nix profile install github:mm1995tk/shijimi-editor/release
 go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # installs the shj command
 go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # installs the same thing as shijimi
 ```
+
+Both get the latest release: the Nix commands follow the `release` branch, and `go install` takes the newest tag. Unreleased changes on `main` are not included.
 
 To install it with home-manager, see [Nix and home-manager](nix.md).
 

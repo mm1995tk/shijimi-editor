@@ -24,11 +24,13 @@
 ## インストール
 
 ```sh
-nix run github:mm1995tk/shijimi-editor           # その場で起動
-nix profile install github:mm1995tk/shijimi-editor
+nix run github:mm1995tk/shijimi-editor/release   # その場で起動
+nix profile install github:mm1995tk/shijimi-editor/release
 go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # shj コマンドとして入れる
 go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # 同じものを shijimi コマンドとして入れる
 ```
+
+どちらも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを取ります。`main` のリリース前の変更は入りません。
 
 プルリクエストの base と比べるには [gh](https://cli.github.com/) と `gh auth login` が必要です。
 
@@ -152,6 +154,7 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
 
 ```nix
 {
+  # inputs.shijimi.url = "github:mm1995tk/shijimi-editor/release";
   imports = [ inputs.shijimi.homeManagerModules.default ];
   programs.shijimi-editor = {
     enable = true;
