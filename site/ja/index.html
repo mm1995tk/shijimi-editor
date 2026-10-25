@@ -75,10 +75,22 @@
             <p><code>Space m</code> で、編集中のバッファの横に Markdown を整形して表示します。もう一度押すと、プレビューだけを表示します。</p>
             <ul>
               <li>見出し、リスト、表、コード、引用</li>
-              <li>Kitty graphics protocol に対応したターミナルでは、mermaid の図と画像も表示します</li>
+              <li>mermaid のコードブロックは図にして表示します</li>
             </ul>
           </div>
-          <img class="shot" src="../images/preview.png" alt="左に README、右にそのプレビュー" loading="lazy" width="1440" height="860">
+          <img class="shot" src="../images/mermaid.png" alt="左に Markdown、右にそのプレビュー。mermaid のフローチャートが図になっている" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>画像をタブで開く</h2>
+            <p>ファイルツリーや Quick Open で画像ファイルを開くと、中身のバイト列ではなく画像として表示します。</p>
+            <ul>
+              <li>PNG、JPEG、GIF、BMP、WebP、TIFF</li>
+              <li>画像と mermaid の図には、Kitty、Ghostty、WezTerm のような Kitty graphics protocol に対応したターミナルが要ります</li>
+            </ul>
+          </div>
+          <img class="shot" src="../images/image.png" alt="PNG ファイルをタブで開き、画像として表示している" loading="lazy" width="1440" height="860">
         </div>
 
         <div class="feature">
@@ -131,7 +143,8 @@
         <h2>インストール</h2>
 <pre><code>nix run github:mm1995tk/shijimi-editor/release   # すぐに動かす
 nix profile install github:mm1995tk/shijimi-editor/release
-go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest</code></pre>
+go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
+npm install -g shijimi-editor   # Linux と macOS</code></pre>
         <p>入れたら、プロジェクトで <code>shj</code> を実行します。詳しくは説明書の<a href="../manual/ja/install/">インストールと起動</a>を見てください。画面の文言を日本語にするには、<code>config.toml</code> に <code>ui-language = "ja"</code> と書きます。</p>
       </div>
     </section>
