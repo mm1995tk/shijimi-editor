@@ -139,6 +139,7 @@ type App struct {
 	tabOffset int
 	commands  []command
 	mermaid   map[string]*mermaidJob
+	mdImages  map[string]*mermaidJob // images in the Markdown preview, by file path
 }
 
 // New creates the app rooted at dir, optionally opening file.
@@ -964,6 +965,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return a.handleMermaidStart(msg)
 	case mermaidDoneMsg:
 		a.handleMermaidDone(msg)
+	case mdImageDoneMsg:
+		a.handleMDImageDone(msg)
 	case hoverMsg:
 		if t := a.curText(); a.fullPreview(t) {
 			return nil // the popup would be anchored to the hidden buffer

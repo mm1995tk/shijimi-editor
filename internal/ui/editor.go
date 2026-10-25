@@ -45,10 +45,12 @@ type tab struct {
 	prevVer   int
 	prevGen   int
 
-	// mermaid fences found at scanVer (scanned reports whether that is valid)
+	// mermaid fences and image sources found at scanVer (scanned reports
+	// whether that is valid)
 	scanned    bool
 	scanVer    int
 	scanBlocks []string
+	scanImages []string
 }
 
 func newTab(b *buffer.Buffer) *tab {

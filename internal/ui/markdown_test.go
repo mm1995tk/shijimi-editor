@@ -345,3 +345,75 @@ func TestCodeBlockWrapsLongLines(t *testing.T) {
 		t.Fatal("a line that fits reported as cut")
 	}
 }
+
+func TestPreviewSourcesFindsSoleImages(t *testing.T) {
+	src := "![図](img/a.png)\n\n文の中の ![b](b.png) は文字のまま\n\n> ![c](c.png)\n"
+	_, images := previewSources(src)
+	if strings.Join(images, "|") != "img/a.png|c.png" {
+		t.Fatalf("images = %q", images)
+	}
+}
+
+func TestMDImagePath(t *testing.T) {
+	cases := map[string]string{
+		"a.png":                 "/doc/a.png",
+		"../img/a%20b.png":      "/img/a b.png",
+		"/abs/a.png":            "/abs/a.png",
+		"https://example.com/a": "",
+		"data:image/png;base64": "",
+		"":                      "",
+	}
+	for src, want := range cases {
+		if got := mdImagePath("/doc/x.md", src); got != want {
+			t.Errorf("%q: got %q want %q", src, got, want)
+		}
+	}
+}
+
+func TestMarkdownImageInPreview(t *testing.T) {
+	dir := t.TempDir()
+	f, _ := os.Create(filepath.Join(dir, "a.png"))
+	png.Encode(f, image.NewRGBA(image.Rect(0, 0, 40, 20)))
+	f.Close()
+
+	b := buffer.New()
+	b.Insert("# t\n\n![図](a.png)\n\n![無い](missing.png)\n\n![外](https://example.com/x.png)\n")
+	b.Path = filepath.Join(dir, "x.md")
+	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}
+	a.tabs[0].preview = previewSplit
+	const w = 30
+
+	plain := func() string { return ansi.Strip(strings.Join(a.previewLines(a.tabs[0], w, 40), "\n")) }
+	if got := plain(); !strings.Contains(got, "読み込み中") || !strings.Contains(got, "🖼 図") {
+		t.Fatalf("pending placeholder expected:\n%s", got)
+	}
+	cmd := a.syncPreview()
+	if cmd == nil {
+		t.Fatal("expected images to load")
+	}
+	if len(a.mdImages) != 2 {
+		t.Fatalf("only local images should load: %v", a.mdImages)
+	}
+	for path := range a.mdImages {
+		a.handleMDImageDone(mdImageDoneMsg{path, newImageView(path)})
+	}
+	lines := a.previewLines(a.tabs[0], w, 40)
+	for _, l := range lines {
+		if ansi.StringWidth(l) != w {
+			t.Fatalf("width %d: %q", ansi.StringWidth(l), ansi.Strip(l))
+		}
+	}
+	got := plain()
+	if strings.Contains(got, "🖼 図") || strings.Contains(got, "読み込み中") {
+		t.Fatalf("image expected instead of the placeholder:\n%s", got)
+	}
+	if !strings.Contains(got, "missing.png:") || !strings.Contains(got, "🖼 無い") {
+		t.Fatalf("error for the missing image expected:\n%s", got)
+	}
+	if !strings.Contains(got, "🖼 外") {
+		t.Fatalf("remote image should stay text:\n%s", got)
+	}
+	if a.syncPreview() != nil {
+		t.Fatal("loaded images must not load again")
+	}
+}

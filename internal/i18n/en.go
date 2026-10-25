@@ -319,6 +319,7 @@ var en = map[string]string{
 	"preview.needmd":           "Open a Markdown file (.md)",
 	"preview.nomermaid":        "Cannot render the diagram because mermaid-command is not set",
 	"preview.rendering":        "⏳ Rendering mermaid…",
+	"preview.loadingimage":     "⏳ Loading the image…",
 	"proxy.nofree":             "No free listen port found",
 	"proxy.notforwarded":       "Listen port %d is not forwarded",
 	"proxy.portrange":          "Port numbers must be between 1 and 65535",

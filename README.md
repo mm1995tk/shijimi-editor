@@ -17,7 +17,7 @@ The UI is in English by default. To switch it to Japanese, set `ui-language = "j
 - **LSP configuration** is written in a `languages.toml` that is compatible with Helix's (`.shijimi-editor/languages.toml` or `~/.config/shijimi-editor/languages.toml`). If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/`
 - **Diff mode** (`Space G` / `Ctrl+G` compares with `HEAD`; `Space g` / `:pr` compares with the base of a pull request): switches the whole editor to diff mode. Changed files are listed in a tree (CHANGES), and a changed file opens as the **whole file** in a split (or unified) diff. The right side is editable. The bar on the right edge shows where the changes are, and the parts that changed inside a line are highlighted (see below)
 - **Image preview** (PNG / JPEG / GIF / BMP / WebP / TIFF)
-- **Markdown preview** (`Space m` / `:preview`): renders headings, lists, code and tables, and shows them beside the buffer you are editing. Press it again to show only the preview at full width. Mermaid code blocks are shown as diagrams (see below)
+- **Markdown preview** (`Space m` / `:preview`): renders headings, lists, code and tables, and shows them beside the buffer you are editing. Press it again to show only the preview at full width. Mermaid code blocks are shown as diagrams, and an image written alone on a line is shown as an image (see below)
 - **Send the current context to an agent** (`Space a` / `Alt+A` / command palette): formats the selection (or the cursor line) as `path:line-line`, the text, and the diagnostics on those lines, and after you check it in a preview, pastes it into the terminal panel (it does not press Enter)
 - **Suggestions panel and ACP** (`Alt+I` / `Space i`): lists suggestions such as "Resolve the conflicts?", "Create a PR?" and "Investigate the cause of the failure?" in the right panel, based on the state of git, LSP and the terminal. When you pick one, it asks an agent over ACP (Agent Client Protocol), shows the progress and the reply in the panel, and shows changes in diff mode. Comments proposed by an AI review are placed as unsent comments
 - **Claude Code IDE integration**: Claude Code running in the terminal panel can get the selection, the open files and the diagnostics, and you approve its changes as a diff (Claude Code writes the file after you approve; see "Agent integration" below)
@@ -175,6 +175,8 @@ Import the flake's `homeManagerModules.default`. `settings` is written to `~/.co
 In a `.md` file, `Space m` (or `:preview`, or the command palette) opens a preview to the right of the buffer. It follows your edits and scrolls with the cursor. Press it again to show only the preview at full width, and a third time to close it. At full width, scroll with `j` / `k` or the mouse wheel.
 
 Mermaid diagrams are turned into PNGs with [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) (`mmdc`) and shown. If `mmdc` is not on the PATH, or rendering fails, the source and the error are shown instead of the diagram. `mermaid-command` replaces it with another command (`{in}` is the input, `{out}` the output PNG). Rendered images are kept in `~/.cache/shijimi/mermaid`.
+
+An image written alone on a line, `![alt](path)`, is shown as an image in the same way. The path is relative to the Markdown file. Images in the middle of a sentence, and images that are not files (such as `https://`), are shown as text.
 
 ## Keys (Helix mode)
 
