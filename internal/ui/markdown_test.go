@@ -478,8 +478,12 @@ func TestMarkdownImageReloadedWhenFileChanges(t *testing.T) {
 	// removing the image from the document frees it
 	b.Undo()
 	b.Insert("text\n")
+	gen := a.previewGen
 	a.syncPreview()
 	if len(a.mdImages) != 0 {
 		t.Fatalf("unused image should be dropped: %v", a.mdImages)
+	}
+	if a.previewGen == gen {
+		t.Fatal("previews drawn with the freed image must be drawn again")
 	}
 }

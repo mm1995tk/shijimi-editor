@@ -279,6 +279,9 @@ func (a *App) syncMDImages() tea.Cmd {
 				job.img.close()
 			}
 			delete(a.mdImages, path)
+			// a preview drawn before (another tab's) still refers to the
+			// freed image; draw it again so it says the image is loading
+			a.previewGen++
 		}
 	}
 	return tea.Batch(cmds...)
