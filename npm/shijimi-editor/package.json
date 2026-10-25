@@ -17,11 +17,5 @@
   ],
   "engines": {
     "node": ">=18"
-  },
-  "optionalDependencies": {
-    "shijimi-editor-darwin-arm64": "0.0.0",
-    "shijimi-editor-darwin-x64": "0.0.0",
-    "shijimi-editor-linux-arm64": "0.0.0",
-    "shijimi-editor-linux-x64": "0.0.0"
   }
 }

@@ -111,7 +111,7 @@ jobs:
 
   # npm-pack が作った tarball を publish する。ここではビルドもパッケージのスクリプトの実行もしない
   npm-publish:
-    needs: npm-pack
+    needs: [release, npm-pack]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -127,10 +127,17 @@ jobs:
           name: npm
           path: ${{ runner.temp }}/npm
       - name: npm に publish する
-        # shijimi-editor は OS と CPU ごとのパッケージに依存するので、それらを先に publish する
+        # shijimi-editor は OS と CPU ごとのパッケージに依存するので、それらを先に publish する。
+        # npm にもうあるバージョンは飛ばすので、途中で失敗してもこのジョブの再実行だけで残りを publish できる
+        env:
+          NEXT: ${{ needs.release.outputs.next }}
         run: |
           cd "$RUNNER_TEMP/npm"
-          for f in shijimi-editor-*-*-*.tgz; do
+          for f in shijimi-editor-*-*-*.tgz shijimi-editor-[0-9]*.tgz; do
+            name="${f%-"$NEXT".tgz}"
+            if npm view "$name@$NEXT" version >/dev/null 2>&1; then
+              echo "$name@$NEXT はもう npm にあるので飛ばす"
+              continue
+            fi
             npm publish "$f" --access public --ignore-scripts
           done
-          npm publish shijimi-editor-[0-9]*.tgz --access public --ignore-scripts

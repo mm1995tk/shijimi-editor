@@ -40,9 +40,11 @@ targets=(
   "darwin arm64 darwin arm64"
 )
 
+names=()
 for t in "${targets[@]}"; do
   read -r goos goarch os cpu <<<"$t"
   name="shijimi-editor-$os-$cpu"
+  names+=("$name")
   dir="$work/$name"
   mkdir -p "$dir/bin"
   (cd "$root" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
@@ -70,14 +72,15 @@ done
 dir="$work/shijimi-editor"
 cp -R "$root/npm/shijimi-editor" "$dir"
 cp "$root/LICENSE" "$root/README.md" "$dir/"
-VERSION="$version" node -e '
+# optionalDependencies is made from targets, so the list of platforms is only there.
+VERSION="$version" NAMES="${names[*]}" node -e '
   const fs = require("fs");
   const file = process.argv[1];
   const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
   pkg.version = process.env.VERSION;
-  for (const dep of Object.keys(pkg.optionalDependencies)) {
-    pkg.optionalDependencies[dep] = process.env.VERSION;
-  }
+  pkg.optionalDependencies = Object.fromEntries(
+    process.env.NAMES.split(" ").map((name) => [name, process.env.VERSION]),
+  );
   fs.writeFileSync(file, JSON.stringify(pkg, null, 2) + "\n");
 ' "$dir/package.json"
 (cd "$dir" && npm pack --pack-destination "$out" --loglevel warn >/dev/null)

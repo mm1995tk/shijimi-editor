@@ -13,6 +13,8 @@ in
       pkgs.gomod2nix
       pkgs.gopls
       pkgs.git
+      # npm/pack.sh needs node and npm
+      pkgs.nodejs_24
     ];
 
     CGO_ENABLED = "0";
