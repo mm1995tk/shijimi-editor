@@ -4,7 +4,7 @@ English | [日本語](README.ja.md)
 
 An integrated development environment for the terminal (TUI). The screen is laid out like VS Code. For editing you can choose between Helix-style modal editing and modeless VS Code-style keys. The command is `shj`.
 
-Manual (English, with a Japanese version): <https://shijimi-manual.pages.dev/> (source in [`manual/`](manual/))
+Home page: <https://mm1995tk.github.io/shijimi-editor/> / Manual (English, with a Japanese version): <https://mm1995tk.github.io/shijimi-editor/manual/> (source in [`site/`](site/) and [`manual/`](manual/))
 
 The UI is in English by default. To switch it to Japanese, set `ui-language = "ja"` in `config.toml` (see [UI language](#ui-language)).
 
@@ -387,9 +387,9 @@ When the first argument is `diff` / `exec` / `skill`, it is treated as a subcomm
 
 > `shj open` and `shj status` were removed and replaced by the IDE integration (`openFile` / `getOpenEditors` / `getCurrentSelection`).
 
-## Editing the manual
+## Editing the manual and the home page
 
-The manual is built from `manual/` with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). When you push to `main`, GitHub Actions publishes it to Cloudflare Pages (the repository Secrets need `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`). To preview it locally, run:
+The manual is built from `manual/` with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). The home page is the plain HTML in `site/`. When you push to `main`, GitHub Actions publishes both to GitHub Pages: the home page at the root and the manual under `/manual/`. To preview the manual locally, run:
 
 ```sh
 pip install -r manual/requirements.txt
@@ -397,6 +397,8 @@ mkdocs serve --config-file manual/mkdocs.yml
 ```
 
 The manual has an English page (`name.en.md`, the default) and a Japanese page (`name.ja.md`) for each page. When you change one, change the other too. `manual/check-translations.sh` checks that every page has both languages and the same structure, and CI runs it on pull requests (it also fails when only one language of a page changed; add `[skip-i18n-check]` to the pull request title to skip that part, for a typo fix for example).
+
+The screenshots and the demo video of the home page (`site/images/`) are recorded with [vhs](https://github.com/charmbracelet/vhs). After a change to the screen, run `site/screenshots/record.sh` (it needs Nix) to record them again. The scenes are the tapes in `site/screenshots/tapes/`.
 
 ## License
 

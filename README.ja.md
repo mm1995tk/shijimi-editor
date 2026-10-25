@@ -4,7 +4,7 @@
 
 ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code に合わせています。編集操作は、Helix 風のモード編集と、モードの無い VS Code 風の操作から選べます。コマンド名は `shj` です。
 
-説明書（英語と日本語）: <https://shijimi-manual.pages.dev/ja/>（ソースは [`manual/`](manual/)）
+ホームページ: <https://mm1995tk.github.io/shijimi-editor/ja/> / 説明書（英語と日本語）: <https://mm1995tk.github.io/shijimi-editor/manual/ja/>（ソースは [`site/`](site/) と [`manual/`](manual/)）
 
 ## 機能
 
@@ -385,9 +385,9 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 
 > `shj open` と `shj status` は IDE 連携（`openFile` / `getOpenEditors` / `getCurrentSelection`）に置き換えて削除しました。
 
-## 説明書の編集
+## 説明書とホームページの編集
 
-説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `manual/` から作ります。`main` に push すると GitHub Actions が Cloudflare Pages に公開します（リポジトリの Secrets に `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` が必要です）。手元で確認するには次を実行します。
+説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `manual/` から作ります。ホームページは `site/` の素の HTML です。`main` に push すると GitHub Actions が両方を GitHub Pages に公開します。ホームページは一番上に、説明書は `/manual/` の下に置きます。説明書を手元で確認するには次を実行します。
 
 ```sh
 pip install -r manual/requirements.txt
@@ -395,6 +395,8 @@ mkdocs serve --config-file manual/mkdocs.yml
 ```
 
 説明書は、ページごとに英語（`名前.en.md`、既定）と日本語（`名前.ja.md`）を置きます。片方を変えたら、もう片方も変えてください。`manual/check-translations.sh` が、全ページに両方の言語があることと構造が同じことを確かめ、CI がプルリクエストで実行します（片方の言語だけが変わったときも失敗します。誤字の修正など、翻訳が要らないときは、プルリクエストのタイトルに `[skip-i18n-check]` を入れるとその部分を飛ばせます）。
+
+ホームページのスクリーンショットとデモ動画（`site/images/`）は [vhs](https://github.com/charmbracelet/vhs) で撮ります。画面を変えたら `site/screenshots/record.sh`（Nix が要ります）を実行して撮り直してください。場面は `site/screenshots/tapes/` のテープに書いてあります。
 
 ## ライセンス
 
