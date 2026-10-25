@@ -33,6 +33,7 @@
           version = "0.4.1";
 
           appDrv = pkgs.buildGoApplication {
+            go = pkgs.go_1_27;
             pname = "shijimi";
             inherit version;
             pwd = ./.;
