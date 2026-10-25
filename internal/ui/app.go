@@ -117,11 +117,10 @@ type App struct {
 	sentSel *ideSelection
 
 	// suggestion panel and ACP agent (see suggest.go, agent.go)
-	ag          *agentState
-	sg          suggestState
-	showAgent   bool
-	agentWPref  int  // panel width picked by the user (0 = automatic)
-	agentPinned bool // the user opened the panel, so it shows even beside a narrower editor
+	ag         *agentState
+	sg         suggestState
+	showAgent  bool
+	agentWPref int // panel width picked by the user (0 = automatic)
 
 	clipboard    string
 	msg          string
@@ -148,20 +147,19 @@ func New(dir, file string) *App {
 	cfg := config.Load(abs)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
-		root:      abs,
-		cfg:       cfg,
-		lsp:       newLSPManager(cfg, abs),
-		explorer:  newExplorer(abs),
-		term:      newTerminal(abs),
-		proxy:     proxy.NewManager(),
-		pal:       newPalette(),
-		search:    newSearchPanel(cfg.Search),
-		showSide:  true,
-		focus:     focusExplorer,
-		helix:     cfg.Editor.Keymap != "vscode",
-		gd:        gitDiff{split: true},
-		ag:        newAgentState(),
-		showAgent: true,
+		root:     abs,
+		cfg:      cfg,
+		lsp:      newLSPManager(cfg, abs),
+		explorer: newExplorer(abs),
+		term:     newTerminal(abs),
+		proxy:    proxy.NewManager(),
+		pal:      newPalette(),
+		search:   newSearchPanel(cfg.Search),
+		showSide: true,
+		focus:    focusExplorer,
+		helix:    cfg.Editor.Keymap != "vscode",
+		gd:       gitDiff{split: true},
+		ag:       newAgentState(),
 	}
 	a.explorer.icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
@@ -200,21 +198,20 @@ func NewSingle(file string) (*App, error) {
 	cfg := config.Load(dir)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
-		root:      dir,
-		cfg:       cfg,
-		lsp:       newLSPManager(cfg, dir),
-		explorer:  &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
-		term:      newTerminal(dir),
-		proxy:     proxy.NewManager(),
-		pal:       newPalette(),
-		search:    newSearchPanel(cfg.Search),
-		focus:     focusEditor,
-		helix:     cfg.Editor.Keymap != "vscode",
-		gd:        gitDiff{split: true},
-		ag:        newAgentState(),
-		single:    true,
-		showSide:  false,
-		showAgent: false,
+		root:     dir,
+		cfg:      cfg,
+		lsp:      newLSPManager(cfg, dir),
+		explorer: &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
+		term:     newTerminal(dir),
+		proxy:    proxy.NewManager(),
+		pal:      newPalette(),
+		search:   newSearchPanel(cfg.Search),
+		focus:    focusEditor,
+		helix:    cfg.Editor.Keymap != "vscode",
+		gd:       gitDiff{split: true},
+		ag:       newAgentState(),
+		single:   true,
+		showSide: false,
 	}
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))

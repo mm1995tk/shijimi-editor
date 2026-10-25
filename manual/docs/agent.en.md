@@ -17,7 +17,7 @@ Suggestions are decided by rules. No AI is used, so they appear instantly and co
 | `Alt+I` / `Space i` / `:agent` | Move to the panel (opening it if closed). Closes it when you are already in the panel |
 | `Esc` / `Tab` | Return to the editor (the panel stays open) |
 
-- On a wide screen, it is open from the start. If the editor would have fewer than 80 columns left, it is not shown until you open it with `Alt+I`.
+- It is closed at startup. Open it with `Alt+I`.
 - When the panel is not shown and there are suggestions, the status line shows "Suggestions N (Alt+I)".
 - Dragging the border between the panel and the editor with the mouse changes the width.
 
