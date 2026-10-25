@@ -21,6 +21,8 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      next: ${{ steps.ver.outputs.next }}
     steps:
       - name: main 以外では実行しない
         if: github.ref != 'refs/heads/main'
@@ -77,3 +79,58 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NEXT: ${{ steps.ver.outputs.next }}
         run: gh release create "v$NEXT" --title "v$NEXT" --generate-notes --verify-tag
+
+  # 打ったタグから OS と CPU ごとの shj をビルドし、npm のパッケージ（tarball）にする。publish はしない
+  npm-pack:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.next }}
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: パッケージを作る
+        env:
+          NEXT: ${{ needs.release.outputs.next }}
+        run: npm/pack.sh "$NEXT" "$RUNNER_TEMP/npm"
+      # tarball のまま渡す（upload-artifact は zip にするとき実行権限を落とすので、bin/shj の権限は tarball の中に残す）
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm
+          path: ${{ runner.temp }}/npm/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  # npm-pack が作った tarball を publish する。ここではビルドもパッケージのスクリプトの実行もしない
+  npm-publish:
+    needs: npm-pack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # npm の Trusted Publishing（OIDC）に使う。トークンは Secrets に置かない
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          # OIDC での認証には npm 11.5.1 以降が要る。Node.js 24 には npm 11 が付いてくる
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: npm
+          path: ${{ runner.temp }}/npm
+      - name: npm に publish する
+        # shijimi-editor は OS と CPU ごとのパッケージに依存するので、それらを先に publish する
+        run: |
+          cd "$RUNNER_TEMP/npm"
+          for f in shijimi-editor-*-*-*.tgz; do
+            npm publish "$f" --access public --ignore-scripts
+          done
+          npm publish shijimi-editor-[0-9]*.tgz --access public --ignore-scripts

@@ -1,0 +1,27 @@
+{
+  "name": "shijimi-editor",
+  "version": "0.0.0",
+  "description": "VS Code-style terminal IDE with Helix keybindings",
+  "license": "MIT",
+  "homepage": "https://github.com/mm1995tk/shijimi-editor",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mm1995tk/shijimi-editor.git"
+  },
+  "bin": {
+    "shj": "bin/shj.js",
+    "shijimi": "bin/shj.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "shijimi-editor-darwin-arm64": "0.0.0",
+    "shijimi-editor-darwin-x64": "0.0.0",
+    "shijimi-editor-linux-arm64": "0.0.0",
+    "shijimi-editor-linux-x64": "0.0.0"
+  }
+}
