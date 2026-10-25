@@ -77,8 +77,8 @@ args = []
 
 | 名前 | 説明 |
 | --- | --- |
-| `dark-plus` | 既定 |
-| `github-dark` | — |
+| `dark-plus` | — |
+| `github-dark` | 既定 |
 | `light-plus` | — |
 
 Helix のテーマ名も使えます。`github_dark*` は `github-dark` に、`github_light*` と `light` は `light-plus` に対応付けます。

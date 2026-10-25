@@ -152,6 +152,9 @@ var lightPlus = Theme{
 
 var themes = []*Theme{&darkPlus, &githubDark, &lightPlus}
 
+// defaultTheme is used when no theme (or an unknown one) is configured.
+var defaultTheme = &githubDark
+
 // themeAliases maps other names (notably Helix theme names) to built-ins.
 var themeAliases = map[string]string{
 	"dark":         "dark-plus",
@@ -159,7 +162,7 @@ var themeAliases = map[string]string{
 	"github":       "github-dark",
 	"github-light": "light-plus",
 	"light":        "light-plus",
-	"default":      "dark-plus",
+	"default":      "github-dark",
 }
 
 // themeNames lists the built-in theme names, sorted.
@@ -204,7 +207,7 @@ var (
 	themeGen int
 )
 
-func init() { applyTheme(&darkPlus) }
+func init() { applyTheme(defaultTheme) }
 
 // applyTheme makes t the active theme: it rewrites the palette variables,
 // rebuilds precomputed styles, and invalidates color caches.
@@ -306,5 +309,5 @@ func themeOrDefault(name string) *Theme {
 	if t, ok := lookupTheme(name); ok {
 		return t
 	}
-	return &darkPlus
+	return defaultTheme
 }

@@ -70,11 +70,11 @@ shijimi does not choose the language from `LANG` or other environment variables.
 
 Switch with `theme` in `config.toml`, or with `:theme <name>` while running (without a name it lists the themes). You can also choose it from the command palette ("Settings: Switch theme").
 
-- Built in: `dark-plus` (default), `github-dark`, `light-plus`
+- Built in: `github-dark` (default), `dark-plus`, `light-plus`
 - Helix's `github_dark*` maps to `github-dark`, and `github_light*` and `light` map to `light-plus`
 
 ```toml
-theme = "github_dark"
+theme = "github_light"
 ```
 
 ### Listen address of port forwarding

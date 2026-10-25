@@ -77,8 +77,8 @@ There are three built-in themes.
 
 | Name | Description |
 | --- | --- |
-| `dark-plus` | Default |
-| `github-dark` | — |
+| `dark-plus` | — |
+| `github-dark` | Default |
 | `light-plus` | — |
 
 Helix theme names also work. `github_dark*` maps to `github-dark`, and `github_light*` and `light` map to `light-plus`.

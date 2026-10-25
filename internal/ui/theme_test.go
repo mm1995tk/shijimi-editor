@@ -29,7 +29,7 @@ func TestLookupTheme(t *testing.T) {
 }
 
 func TestApplyThemeChangesColors(t *testing.T) {
-	defer applyTheme(&darkPlus)
+	defer applyTheme(defaultTheme)
 	applyTheme(&darkPlus)
 	dark := cEditorBg
 	applyTheme(&lightPlus)
@@ -45,7 +45,7 @@ func TestApplyThemeChangesColors(t *testing.T) {
 }
 
 func TestTerminalDefaultColorsFollowTheme(t *testing.T) {
-	defer applyTheme(&darkPlus)
+	defer applyTheme(defaultTheme)
 	for _, th := range []*Theme{&darkPlus, &lightPlus} {
 		applyTheme(th)
 		bg := hexRGB(th.EditorBg)
