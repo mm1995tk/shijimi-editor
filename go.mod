@@ -1,6 +1,6 @@
 module github.com/mm1995tk/shijimi-editor
 
-go 1.26.8
+go 1.27.3
 
 require (
 	charm.land/bubbles/v2 v2.2.1
