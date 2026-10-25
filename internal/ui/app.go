@@ -138,7 +138,11 @@ type App struct {
 	tabSpans  []span
 	tabOffset int
 	commands  []command
-	mermaid   map[string]*mermaidJob
+	mermaid   map[string]*previewJob
+	mdImages  map[string]*previewJob // images in the Markdown preview, by file path
+	// previewGen counts finished jobs, so the preview is drawn again when one
+	// finishes
+	previewGen int
 }
 
 // New creates the app rooted at dir, optionally opening file.
@@ -964,6 +968,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return a.handleMermaidStart(msg)
 	case mermaidDoneMsg:
 		a.handleMermaidDone(msg)
+	case mdImageDoneMsg:
+		a.handleMDImageDone(msg)
 	case hoverMsg:
 		if t := a.curText(); a.fullPreview(t) {
 			return nil // the popup would be anchored to the hidden buffer
