@@ -17,6 +17,7 @@ While in [diff mode](review.md), a header is added at the top and a help line ab
 
 - `Ctrl+E`: move focus between the file tree and the editor.
 - `Space e` (Helix mode): move to the file tree.
+- `Space E` (Helix mode): in diff mode, move to CHANGES. Outside diff mode, move to the file tree.
 - `Esc` in the file tree: go back to the editor.
 - `Alt+I` (also `Space i` in Helix mode): move to the suggestions panel. Press it again to close.
 - Clicking with the mouse also moves focus there.

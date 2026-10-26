@@ -108,6 +108,7 @@ Press `Space`, then one of the following keys.
 | `Space f` | Open a file (Quick Open) |
 | `Space b` | List of open buffers |
 | `Space e` | Move to the file tree |
+| `Space E` | Move to CHANGES (in diff mode; outside diff mode, move to the file tree) |
 | `Space k` | Hover |
 | `Space r` | Rename (LSP) |
 | `Space .` | Code actions (LSP. Apply diagnostic hints) |
