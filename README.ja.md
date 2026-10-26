@@ -55,6 +55,8 @@ shj main.go    # ファイルだけを編集する（単体編集モード。$ED
 2. `~/.config/shijimi-editor/languages.toml`、`~/.config/shijimi-editor/config.toml`
 3. プロジェクトの `.shijimi-editor/languages.toml`、`.shijimi-editor/config.toml`
 
+`~/.config` は、`$XDG_CONFIG_HOME` があればその場所です。macOS も含めて、OS を問わずこの場所から読みます（`~/Library/Application Support` からは読みません）。
+
 ### 画面の言語
 
 画面の文字（ステータス行・コマンドパレット・提案パネル・エラーメッセージ・`shj --help`）の言語は、既定が英語です。`config.toml` の `ui-language` で切り替えます。

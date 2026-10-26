@@ -182,8 +182,8 @@ func Load(root string) *Config {
 	return c
 }
 
-// userConfigDir returns $XDG_CONFIG_HOME, or ~/.config when it is unset, on
-// every OS. Unlike os.UserConfigDir it does not use ~/Library/Application
+// userConfigDir returns $XDG_CONFIG_HOME, or ~/.config when it is unset or not
+// an absolute path, on every OS. Unlike os.UserConfigDir it does not use ~/Library/Application
 // Support on macOS, so it matches Helix and the files the home-manager module
 // writes with xdg.configFile.
 func userConfigDir() (string, bool) {
