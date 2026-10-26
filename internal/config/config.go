@@ -148,7 +148,7 @@ func Load(root string) *Config {
 	c.mergeLanguages(defaultLanguages, "")
 
 	var dirs []string
-	if d, err := os.UserConfigDir(); err == nil {
+	if d, ok := userConfigDir(); ok {
 		dirs = append(dirs, filepath.Join(d, "shijimi-editor"))
 	}
 	dirs = append(dirs, filepath.Join(root, ".shijimi-editor"))
@@ -180,6 +180,21 @@ func Load(root string) *Config {
 		}
 	}
 	return c
+}
+
+// userConfigDir returns $XDG_CONFIG_HOME, or ~/.config when it is unset or not
+// an absolute path, on every OS. Unlike os.UserConfigDir it does not use ~/Library/Application
+// Support on macOS, so it matches Helix and the files the home-manager module
+// writes with xdg.configFile.
+func userConfigDir() (string, bool) {
+	if d := os.Getenv("XDG_CONFIG_HOME"); filepath.IsAbs(d) {
+		return d, true
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", false
+	}
+	return filepath.Join(home, ".config"), true
 }
 
 // evalNix evaluates a Nix file to JSON and returns it in the shape the TOML

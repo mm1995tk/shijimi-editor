@@ -10,6 +10,8 @@
 2. `~/.config/shijimi-editor/languages.toml`、`~/.config/shijimi-editor/config.toml`
 3. プロジェクトの `.shijimi-editor/languages.toml`、`.shijimi-editor/config.toml`
 
+`~/.config` は、`$XDG_CONFIG_HOME` があればその場所です。macOS も含めて、OS を問わずこの場所から読みます（`~/Library/Application Support` からは読みません）。
+
 - `languages.toml` には言語サーバーを書きます（[LSP](lsp.md)）。
 - `config.toml` にはそれ以外を書きます（このページ）。
 - 実行中に `:config-reload` を実行すると、読み直します。

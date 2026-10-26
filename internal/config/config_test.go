@@ -97,6 +97,25 @@ func TestBrowserConfigOnlyFromOwnDirs(t *testing.T) {
 	}
 }
 
+func TestUserConfigDirFallsBackToDotConfig(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", home)
+	os.MkdirAll(filepath.Join(home, ".config", "shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(home, ".config", "shijimi-editor", "languages.toml"), []byte(`
+[language-server.nixd]
+command = "nixd"
+
+[[language]]
+name = "nix"
+language-servers = ["nixd"]
+`), 0o644)
+	if got := Load(root).Languages["nix"].Servers; len(got) != 1 || got[0] != "nixd" {
+		t.Fatalf("nix servers = %v", got)
+	}
+}
+
 func TestAutoSave(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())

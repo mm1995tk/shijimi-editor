@@ -57,6 +57,8 @@ Files are read in the following order, and later ones win (`languages.toml` is c
 2. `~/.config/shijimi-editor/languages.toml`, `~/.config/shijimi-editor/config.toml`
 3. The project's `.shijimi-editor/languages.toml`, `.shijimi-editor/config.toml`
 
+`~/.config` means `$XDG_CONFIG_HOME` when it is set. It is read from there on every OS, macOS included (not from `~/Library/Application Support`).
+
 ### UI language
 
 The language of the UI text (status line, command palette, suggestions panel, error messages, `shj --help`) is English by default. Set `ui-language` in `config.toml` to switch it.
