@@ -319,7 +319,13 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		return a.workspaceSymbols()
 	case "d", "D":
 		return a.diagnosticPicker()
-	case "e", "E":
+	case "e":
+		a.showSide = true
+		return a.setFocus(focusExplorer)
+	case "E":
+		if a.gd.on {
+			return a.focusChangesList()
+		}
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	case "m":

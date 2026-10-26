@@ -47,6 +47,8 @@
 
 見出しの右端に、今の比較元を出します。`DIFF` は `HEAD`、`PR` はプルリクエストの base です。
 
+Helix モードでは、`Space E` で CHANGES へ移ります。ファイルツリーからは `Tab` でも移ります。
+
 ### Split と Unified
 
 次のどれかで切り替えます。

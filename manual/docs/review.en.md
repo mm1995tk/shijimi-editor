@@ -47,6 +47,8 @@ A file row shows a status letter, the file name, the number of added lines `+N` 
 
 The right end of the heading shows the current base. `DIFF` is `HEAD`, and `PR` is the base of a pull request.
 
+In Helix mode, `Space E` moves to CHANGES. From the file tree, `Tab` also moves there.
+
 ### Split and Unified
 
 Switch with any of these:
