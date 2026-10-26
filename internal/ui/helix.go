@@ -323,10 +323,10 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	case "E":
-		a.showSide = true
 		if a.gd.on {
-			return a.setFocus(focusChanges)
+			return a.focusChangesList()
 		}
+		a.showSide = true
 		return a.setFocus(focusExplorer)
 	case "m":
 		return a.togglePreview()
