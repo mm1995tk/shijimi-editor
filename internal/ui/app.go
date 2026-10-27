@@ -863,7 +863,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	a.keepTransients()
 	a.syncLSP()
 	a.notifySelection()
-	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs())
+	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs(), a.semanticTabs())
 }
 
 // autoSaveMsg fires when a tab has been idle for the auto-save delay.
@@ -1044,6 +1044,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.applyChanges(msg)
 	case highlightMsg:
 		msg.h.apply(msg)
+	case semanticMsg:
+		msg.h.sem.apply(msg)
 	case holdScrollMsg:
 		return a.holdScrollTick(msg.seq)
 	case tea.KeyboardEnhancementsMsg:

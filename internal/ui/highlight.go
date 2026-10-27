@@ -34,6 +34,8 @@ type highlighter struct {
 	// colors mapped onto the buffer at viewVersion.
 	viewVersion int
 	view        [][]string
+
+	sem semanticState
 }
 
 // highlightMsg carries the result of a lexCmd.
@@ -94,12 +96,22 @@ func (h *highlighter) apply(m highlightMsg) {
 	}
 	h.version, h.gen, h.lines, h.colors = m.version, m.gen, m.lines, m.colors
 	h.viewVersion = -1
+	h.sem.stamp++
 }
 
 // Colors returns per-rune colors ("" = default) for b, or nil before the first
 // lexing. Until the latest edit is lexed, lines left unchanged keep their
 // colors and edited lines have none.
 func (h *highlighter) Colors(b *buffer.Buffer) [][]string {
+	base := h.chromaColors(b)
+	if h.sem.roles == nil {
+		return base
+	}
+	return h.sem.overlay(b, base)
+}
+
+// chromaColors is Colors without the semantic tokens.
+func (h *highlighter) chromaColors(b *buffer.Buffer) [][]string {
 	if h.colors == nil || h.version == b.Version {
 		return h.colors
 	}
