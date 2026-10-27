@@ -38,7 +38,7 @@
 
           treefmtEval = treefmt-nix.lib.evalModule pkgs ./flake-treefmt.nix;
 
-          version = "0.5.0";
+          version = "0.5.1";
 
           appDrv = pkgs.buildGoApplication {
             go = pkgs.go_1_27;
