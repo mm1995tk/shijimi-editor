@@ -67,6 +67,7 @@ For example, select a word with `w`, then delete it with `d`.
 | `u` / `U` | Undo / redo |
 | `>` / `<` | Increase / decrease indentation |
 | `J` | Join lines |
+| `.` | Repeat the last insert: run again the command that entered insert mode (`i` `a` `I` `A` `o` `O` `c`, ...) and the keys pressed until `Esc`. Changes that do not go through insert mode, such as `d`, are not repeated. A completion you accepted is repeated; snippets are not expanded |
 | `~` | Swap upper and lower case |
 | `` ` `` / `` Alt+` `` | Convert to lowercase / uppercase |
 | `Ctrl+C` | Toggle line comment |
@@ -219,6 +220,7 @@ Editing:
 | `insert_mode` / `append_mode` | `i` / `a` |
 | `insert_at_line_start` / `insert_at_line_end` | `I` / `A` |
 | `open_below` / `open_above` | `o` / `O` |
+| `repeat_last_insert` | `.` |
 | `indent` / `unindent` | `>` / `<` |
 | `join_selections` | `J` |
 | `switch_case` | `~` |

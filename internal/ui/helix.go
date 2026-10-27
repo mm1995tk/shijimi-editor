@@ -199,6 +199,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 func (a *App) pageSize() int { return max(1, a.layout().editH-2) }
 
 func (a *App) enterInsert() tea.Cmd {
+	a.recIns = nil
 	a.mode = modeInsert
 	return nil
 }
@@ -365,6 +366,18 @@ func (a *App) spaceMode(key string) tea.Cmd {
 }
 
 func (a *App) handleInsertKey(msg tea.KeyPressMsg) tea.Cmd {
+	cmd := a.insertKey(msg)
+	if a.recIns != nil && !a.replaying {
+		if a.mode == modeInsert {
+			a.recIns.steps = append(a.recIns.steps, insertStep{key: msg})
+		} else {
+			a.lastIns, a.recIns = a.recIns, nil // left insert mode: the record is complete
+		}
+	}
+	return cmd
+}
+
+func (a *App) insertKey(msg tea.KeyPressMsg) tea.Cmd {
 	t := a.cur()
 	b := t.buf
 	if bd, ok := a.keymap.insert[msg.String()]; ok {

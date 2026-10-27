@@ -43,6 +43,9 @@ type App struct {
 	gitTop    string
 	cfg       *config.Config
 	keymap    helixKeymap
+	lastIns   *insertRecord     // what "." repeats
+	recIns    *insertRecord     // the insert being recorded, until Esc
+	replaying bool              // "." is running; do not record
 	caret     *caret.Writer     // the terminal output; nil in tests
 	caretAt   *tea.Cursor       // where the user is typing, for the IME
 	cellSize  func() (w, h int) // terminal cell size in pixels; nil in tests
