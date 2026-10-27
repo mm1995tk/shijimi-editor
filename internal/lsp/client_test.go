@@ -1,7 +1,9 @@
 package lsp
 
 import (
+	"context"
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -109,5 +111,38 @@ func TestParseSignatureHelp(t *testing.T) {
 		if h := parseSignatureHelp(json.RawMessage(in)); h != nil {
 			t.Errorf("%s: got %+v, want nil", in, h)
 		}
+	}
+}
+
+func TestDecodeSemanticTokens(t *testing.T) {
+	types := []string{"type", "function", "variable"}
+	mods := []string{"declaration", "readonly"}
+	data := []int{
+		0, 5, 3, 1, 1, // line 0, col 5
+		0, 4, 2, 2, 3, // same line: col 9, both modifiers
+		2, 1, 4, 0, 0, // two lines down: col is absolute (1)
+		0, 0, 1, 9, 0, // unknown type index
+	}
+	got := decodeSemanticTokens(data, types, mods)
+	want := []SemanticToken{
+		{0, 5, 3, "function", []string{"declaration"}},
+		{0, 9, 2, "variable", []string{"declaration", "readonly"}},
+		{2, 1, 4, "type", nil},
+		{2, 1, 1, "", nil},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v\nwant %+v", got, want)
+	}
+	if decodeSemanticTokens([]int{1, 2, 3}, types, mods) != nil {
+		t.Fatal("incomplete data should yield nothing")
+	}
+}
+
+func TestSemanticTokensUnsupported(t *testing.T) {
+	c := &Client{ready: make(chan struct{}), caps: map[string]any{}}
+	close(c.ready)
+	got, err := c.SemanticTokens(context.Background(), "/x.go")
+	if got != nil || err != nil {
+		t.Fatalf("got %v, %v", got, err)
 	}
 }
