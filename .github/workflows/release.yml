@@ -143,7 +143,8 @@ jobs:
           done
 
   # 打ったタグから Nix のパッケージをシステムごとにビルドし、Cachix の shijimi-editor キャッシュに push する。
-  # 認証には Secrets の CACHIX_AUTH_TOKEN を使う
+  # Cachix のトークンは 1Password に置き、Secrets には 1Password のサービスアカウントのトークン
+  # （OP_SERVICE_ACCOUNT_TOKEN）だけを置く
   cachix:
     needs: release
     strategy:
@@ -168,10 +169,19 @@ jobs:
           ref: v${{ needs.release.outputs.next }}
           persist-credentials: false
       - uses: cachix/install-nix-action@v31
+      - name: 1Password から Cachix のトークンを読む
+        id: op
+        uses: 1password/load-secrets-action@v5
+        with:
+          # 環境変数にせず、このステップの出力として cachix-action にだけ渡す
+          export-env: false
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          CACHIX_AUTH_TOKEN: op://shijimi-editor/cachix/credential
       - uses: cachix/cachix-action@v17
         with:
           name: shijimi-editor
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          authToken: ${{ steps.op.outputs.CACHIX_AUTH_TOKEN }}
           # ビルドに使った依存まで全部 push しないよう、自動の push は切って下で成果物の closure だけを push する
           skipPush: true
       - name: ビルドして push する
