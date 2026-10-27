@@ -229,6 +229,7 @@ func init() {
 	}, "A")
 	def("open_below", true, func(a *App, c *helixCtx) tea.Cmd { c.b.OpenLine(true); return a.enterInsert() }, "o")
 	def("open_above", true, func(a *App, c *helixCtx) tea.Cmd { c.b.OpenLine(false); return a.enterInsert() }, "O")
+	def("repeat_last_insert", false, func(a *App, c *helixCtx) tea.Cmd { return a.repeatLastInsert(c.b, c.ext) }, ".")
 	def("indent", false, func(a *App, c *helixCtx) tea.Cmd { c.repeat(a.indentLines(c.b, true)); return nil }, ">")
 	def("unindent", false, func(a *App, c *helixCtx) tea.Cmd { c.repeat(a.indentLines(c.b, false)); return nil }, "<")
 	def("join_selections", false, func(a *App, c *helixCtx) tea.Cmd { c.b.JoinLines(); return nil }, "J")
@@ -322,12 +323,72 @@ func (a *App) runBinding(bd binding, b *buffer.Buffer, ext bool, count int, hadC
 	}
 	cmd := helixCommands[bd.name]
 	c := &helixCtx{b: b, ext: ext, count: count, hadCount: hadCount}
+	var out tea.Cmd
 	if cmd.multi && b.HasExtra() {
-		var out tea.Cmd
 		b.ForEachCursor(func() { out = cmd.run(a, c) })
-		return out
+	} else {
+		out = cmd.run(a, c)
 	}
-	return cmd.run(a, c)
+	if insertCommands[bd.name] && a.mode == modeInsert && !a.replaying {
+		a.recIns = &insertRecord{bd: bd, count: count, hadCount: hadCount}
+	}
+	return out
+}
+
+// insertCommands are the commands that enter insert mode; "." repeats the
+// last of them together with the keys typed until Esc.
+var insertCommands = map[string]bool{
+	"insert_mode": true, "append_mode": true, "insert_at_line_start": true, "insert_at_line_end": true,
+	"open_below": true, "open_above": true, "change_selection": true, "change_selection_noyank": true,
+}
+
+// insertRecord is one insert: the command that began it and what followed.
+type insertRecord struct {
+	bd       binding
+	count    int
+	hadCount bool
+	steps    []insertStep
+}
+
+// insertStep is a key typed in insert mode, or a completion that was accepted
+// (it replaces the back characters before the cursor with text).
+type insertStep struct {
+	key        tea.KeyPressMsg
+	completion bool
+	text       string
+	back       int
+}
+
+// repeatLastInsert replays the last insert: the command that entered insert
+// mode, the keys typed, and Esc. Nothing happens before the first insert.
+func (a *App) repeatLastInsert(b *buffer.Buffer, ext bool) tea.Cmd {
+	r := a.lastIns
+	if r == nil || a.replaying {
+		return nil
+	}
+	a.replaying = true
+	defer func() { a.replaying = false }()
+	cmds := []tea.Cmd{a.runBinding(r.bd, b, ext, r.count, r.hadCount)}
+	for _, s := range r.steps {
+		if a.mode != modeInsert {
+			break
+		}
+		if !s.completion {
+			cmds = append(cmds, a.handleInsertKey(s.key))
+			continue
+		}
+		b.ForEachCursor(func() {
+			from := b.Cur
+			from.Col = max(0, from.Col-s.back)
+			b.SelectRange(from, b.Cur)
+			b.InsertBlock(s.text)
+		})
+		a.follow = true
+	}
+	if a.mode == modeInsert {
+		cmds = append(cmds, a.handleInsertKey(tea.KeyPressMsg{Code: tea.KeyEscape}))
+	}
+	return tea.Batch(cmds...)
 }
 
 // normalizeHelixKey turns a Helix key name ("C-s", "A-x", "S-tab", "ret")
