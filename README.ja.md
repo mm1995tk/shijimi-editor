@@ -33,13 +33,6 @@ npm install -g shijimi-editor                                     # shj と shij
 
 どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。`main` のリリース前の変更は入りません。
 
-Nix はリリースのビルドを、自分でビルドせずにバイナリキャッシュ [shijimi-editor.cachix.org](https://shijimi-editor.cachix.org) から取ります。flake の `nixConfig` が使うかどうかを聞いてきます。聞かれずに使うには（自分の flake の input に入れるときなど）、`nix.conf` に次を足してください。
-
-```
-extra-substituters = https://shijimi-editor.cachix.org
-extra-trusted-public-keys = shijimi-editor.cachix.org-1:mTqBpCN7bFxfOnrqp+VLX3LnEqyI/YfGcsFjR3zqAHU=
-```
-
 プルリクエストの base と比べるには [gh](https://cli.github.com/) と `gh auth login` が必要です。
 
 ## 使い方

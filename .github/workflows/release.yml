@@ -141,38 +141,3 @@ jobs:
             fi
             npm publish "$f" --access public --ignore-scripts
           done
-
-  # 打ったタグから Nix のパッケージをシステムごとにビルドし、Cachix の shijimi-editor キャッシュに push する。
-  # 認証には Secrets の CACHIX_AUTH_TOKEN を使う
-  cachix:
-    needs: release
-    strategy:
-      # あるシステムで失敗しても、ほかのシステムの push は続ける
-      fail-fast: false
-      matrix:
-        include:
-          - system: x86_64-linux
-            runner: ubuntu-latest
-          - system: aarch64-linux
-            runner: ubuntu-24.04-arm
-          - system: aarch64-darwin
-            runner: macos-latest
-          - system: x86_64-darwin
-            runner: macos-15-intel
-    runs-on: ${{ matrix.runner }}
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: v${{ needs.release.outputs.next }}
-          persist-credentials: false
-      - uses: cachix/install-nix-action@v31
-      - uses: cachix/cachix-action@v17
-        with:
-          name: shijimi-editor
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          # ビルドに使った依存まで全部 push しないよう、自動の push は切って下で成果物の closure だけを push する
-          skipPush: true
-      - name: ビルドして push する
-        run: nix build .#default --print-build-logs --print-out-paths --no-link | cachix push shijimi-editor
