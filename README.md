@@ -35,6 +35,13 @@ npm install -g shijimi-editor                                     # installs bot
 
 All of them get the latest release: the Nix commands follow the `release` branch, `go install` takes the newest tag, and npm takes the binaries published at release time. Unreleased changes on `main` are not included.
 
+Nix fetches release builds from the [shijimi-editor.cachix.org](https://shijimi-editor.cachix.org) binary cache instead of building them. The flake's `nixConfig` asks you whether to use it; to use it without being asked (for example when you add the flake as an input of your own flake), add this to `nix.conf`:
+
+```
+extra-substituters = https://shijimi-editor.cachix.org
+extra-trusted-public-keys = shijimi-editor.cachix.org-1:mTqBpCN7bFxfOnrqp+VLX3LnEqyI/YfGcsFjR3zqAHU=
+```
+
 To compare with the base of a pull request you need [gh](https://cli.github.com/) and `gh auth login`.
 
 ## Usage
