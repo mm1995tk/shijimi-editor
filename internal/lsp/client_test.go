@@ -146,3 +146,14 @@ func TestSemanticTokensUnsupported(t *testing.T) {
 		t.Fatalf("got %v, %v", got, err)
 	}
 }
+
+func TestSemanticTokensNoFull(t *testing.T) {
+	for _, p := range []map[string]any{{"range": true}, {"full": false}} {
+		c := &Client{ready: make(chan struct{}), caps: map[string]any{"semanticTokensProvider": p}}
+		close(c.ready)
+		got, err := c.SemanticTokens(context.Background(), "/x.go")
+		if got != nil || err != nil {
+			t.Fatalf("%v: got %v, %v", p, got, err)
+		}
+	}
+}

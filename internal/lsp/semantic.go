@@ -40,7 +40,7 @@ func (c *Client) SemanticTokens(ctx context.Context, path string) ([]SemanticTok
 		return nil, nil
 	}
 	provider, _ := c.caps["semanticTokensProvider"].(map[string]any)
-	if full, ok := provider["full"]; ok && full == false {
+	if full, ok := provider["full"]; !ok || full == false {
 		return nil, nil
 	}
 	types, mods := semanticLegend(provider)
