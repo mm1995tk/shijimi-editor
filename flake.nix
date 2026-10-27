@@ -1,14 +1,6 @@
 {
   description = "shijimi: VS Code-style terminal IDE with Helix keybindings";
 
-  # The release workflow pushes the built package to this Cachix cache.
-  nixConfig = {
-    extra-substituters = [ "https://shijimi-editor.cachix.org" ];
-    extra-trusted-public-keys = [
-      "shijimi-editor.cachix.org-1:mTqBpCN7bFxfOnrqp+VLX3LnEqyI/YfGcsFjR3zqAHU="
-    ];
-  };
-
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
