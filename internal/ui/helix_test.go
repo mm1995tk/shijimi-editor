@@ -232,3 +232,59 @@ func TestAutoCloseBracketVSCode(t *testing.T) {
 		t.Fatalf("text = %q cur = %v", got, b.Cur)
 	}
 }
+
+func TestHelixMatchTextObjects(t *testing.T) {
+	a := newTestApp(t, "foo (bar baz) \"q r\"\n")
+	b := a.curText().buf
+	b.SetCursor(0, 6, false)
+	keys(a, "m", "i", "(")
+	if got := b.SelectedText(); got != "bar baz" {
+		t.Fatalf("mi( = %q", got)
+	}
+	keys(a, "esc")
+	b.SetCursor(0, 6, false)
+	keys(a, "m", "a", ")")
+	if got := b.SelectedText(); got != "(bar baz)" {
+		t.Fatalf("ma) = %q", got)
+	}
+	keys(a, "esc")
+	b.SetCursor(0, 16, false)
+	keys(a, "m", "i", "\"")
+	if got := b.SelectedText(); got != "q r" {
+		t.Fatalf("mi\" = %q", got)
+	}
+	keys(a, "esc")
+	b.SetCursor(0, 1, false)
+	keys(a, "m", "a", "w")
+	if got := b.SelectedText(); got != "foo " {
+		t.Fatalf("maw = %q", got)
+	}
+	// select mode works too
+	keys(a, "esc")
+	b.SetCursor(0, 6, false)
+	keys(a, "v", "m", "i", "w")
+	if got := b.SelectedText(); got != "bar" {
+		t.Fatalf("v miw = %q", got)
+	}
+	// not found keeps the selection and reports it
+	keys(a, "m", "i", "[")
+	if got := b.SelectedText(); got != "bar" || a.msg == "" {
+		t.Fatalf("mi[ = %q msg %q", got, a.msg)
+	}
+}
+
+func TestHelixMatchTextObjectMultiCursor(t *testing.T) {
+	a := newTestApp(t, "ab cd\nef gh\n")
+	b := a.curText().buf
+	b.SetCursor(0, 0, false)
+	b.CopySelection(1)
+	keys(a, "m", "i", "w")
+	if !b.HasExtra() {
+		t.Fatal("lost the extra cursor")
+	}
+	var got []string
+	b.ForEachCursor(func() { got = append(got, b.SelectedText()) })
+	if len(got) != 2 || got[0] != "ab" && got[0] != "ef" || got[1] != "ab" && got[1] != "ef" || got[0] == got[1] {
+		t.Fatalf("selections = %q", got)
+	}
+}
