@@ -419,6 +419,29 @@ func (c *Config) mergeLanguages(data, source string) {
 	c.mergeLanguagesRaw(raw, source)
 }
 
+// mergeConfig merges a language server's config key by key; values in over
+// win. Nested tables are merged recursively, and anything else (including
+// arrays) is replaced.
+func mergeConfig(base, over any) any {
+	b, ok1 := base.(map[string]any)
+	o, ok2 := over.(map[string]any)
+	if !ok1 || !ok2 {
+		return over
+	}
+	out := make(map[string]any, len(b)+len(o))
+	for k, v := range b {
+		out[k] = v
+	}
+	for k, v := range o {
+		if old, ok := out[k]; ok {
+			out[k] = mergeConfig(old, v)
+		} else {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 func (c *Config) mergeLanguagesRaw(raw map[string]any, source string) {
 	if source != "" {
 		c.Sources = append(c.Sources, source)
@@ -446,7 +469,7 @@ func (c *Config) mergeLanguagesRaw(raw map[string]any, source string) {
 				}
 			}
 			if cfg, ok := m["config"]; ok {
-				s.Config = cfg
+				s.Config = mergeConfig(s.Config, cfg)
 			}
 		}
 	}
@@ -586,6 +609,7 @@ func (l *Language) FindRoot(file, workspace string) string {
 const defaultLanguages = `
 [language-server.gopls]
 command = "gopls"
+config = { semanticTokens = true }
 
 [language-server.rust-analyzer]
 command = "rust-analyzer"

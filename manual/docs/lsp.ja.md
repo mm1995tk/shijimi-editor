@@ -68,6 +68,10 @@
 | YAML | `yaml-language-server` |
 | JSON | `vscode-json-language-server` |
 
+組み込みの `gopls` には `config = { semanticTokens = true }` が入っていて、semantic tokens は初期値で有効です。止めるときは、設定に `[language-server.gopls.config]` を書いて `semanticTokens = false` にします。
+
+`config` は組み込みの設定とキー単位でマージされ、書いた値が優先されます。入れ子の表は再帰的にマージし、配列は置き換えます。たとえば `config = { gofumpt = true }` だけを書いても、`semanticTokens = true` は残ります。
+
 ## 設定の書き方
 
 設定は、Helix と互換がある `languages.toml` に書きます。

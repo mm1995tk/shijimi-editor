@@ -68,6 +68,10 @@ The settings for the following language servers are built in. If the server is o
 | YAML | `yaml-language-server` |
 | JSON | `vscode-json-language-server` |
 
+Built-in `gopls` has `config = { semanticTokens = true }`, so semantic tokens are on by default. To turn them off, write `[language-server.gopls.config]` with `semanticTokens = false` in your settings.
+
+`config` is merged key by key with the built-in one, and your values win. Nested tables are merged recursively; arrays are replaced. For example, `config = { gofumpt = true }` keeps `semanticTokens = true`.
+
 ## Writing settings
 
 Settings go in `languages.toml`, which is compatible with Helix.

@@ -330,3 +330,64 @@ func TestKeysReadOnlyFromUserConfig(t *testing.T) {
 		t.Fatalf("project keys must not be read: %v", c.Keys.Normal)
 	}
 }
+
+func goplsConfig(t *testing.T, root string) map[string]any {
+	t.Helper()
+	s := Load(root).Servers["gopls"]
+	if s == nil {
+		t.Fatal("no gopls server")
+	}
+	m, ok := s.Config.(map[string]any)
+	if !ok {
+		t.Fatalf("gopls config = %#v", s.Config)
+	}
+	return m
+}
+
+func TestGoplsSemanticTokensDefault(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	if m := goplsConfig(t, root); m["semanticTokens"] != true {
+		t.Fatalf("config = %#v", m)
+	}
+}
+
+func TestServerConfigMergesByKey(t *testing.T) {
+	cases := []struct {
+		name, toml string
+		want       map[string]any
+	}{
+		{"add key", `config = { gofumpt = true }`, map[string]any{"gofumpt": true, "semanticTokens": true}},
+		{"override", `config = { semanticTokens = false }`, map[string]any{"semanticTokens": false}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+			t.Setenv("HOME", t.TempDir())
+			os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+			os.WriteFile(filepath.Join(root, ".shijimi-editor", "languages.toml"),
+				[]byte("[language-server.gopls]\n"+tc.toml+"\n"), 0o644)
+			m := goplsConfig(t, root)
+			if len(m) != len(tc.want) {
+				t.Fatalf("config = %#v, want %#v", m, tc.want)
+			}
+			for k, v := range tc.want {
+				if m[k] != v {
+					t.Fatalf("config = %#v, want %#v", m, tc.want)
+				}
+			}
+		})
+	}
+}
+
+func TestMergeConfigNested(t *testing.T) {
+	base := map[string]any{"a": map[string]any{"x": 1, "y": 2}, "l": []any{1, 2}}
+	over := map[string]any{"a": map[string]any{"y": 3}, "l": []any{9}}
+	m := mergeConfig(base, over).(map[string]any)
+	a := m["a"].(map[string]any)
+	if a["x"] != 1 || a["y"] != 3 || len(m["l"].([]any)) != 1 {
+		t.Fatalf("merged = %#v", m)
+	}
+}
