@@ -15,6 +15,7 @@ import (
 type syntaxColors struct {
 	Text, Comment, Preproc, Keyword, Namespace, Type, Name, Function string
 	Const, String, Escape, Number                                    string
+	Control                                                          string // if, return, ... (semantic tokens); "" = Keyword
 }
 
 // Theme is a complete color scheme for the UI and syntax highlighting.
@@ -78,7 +79,7 @@ var darkPlus = Theme{
 	Syntax: syntaxColors{
 		Text: "#d4d4d4", Comment: "#6a9955", Preproc: "#c586c0", Keyword: "#569cd6",
 		Namespace: "#c586c0", Type: "#4ec9b0", Name: "#9cdcfe", Function: "#dcdcaa",
-		Const: "#4fc1ff", String: "#ce9178", Escape: "#d7ba7d", Number: "#b5cea8",
+		Const: "#4fc1ff", String: "#ce9178", Escape: "#d7ba7d", Number: "#b5cea8", Control: "#c586c0",
 	},
 }
 
@@ -128,7 +129,7 @@ var lightPlus = Theme{
 	Syntax: syntaxColors{
 		Text: "#000000", Comment: "#008000", Preproc: "#af00db", Keyword: "#0000ff",
 		Namespace: "#af00db", Type: "#267f99", Name: "#001080", Function: "#795e26",
-		Const: "#0070c1", String: "#a31515", Escape: "#ee0000", Number: "#098658",
+		Const: "#0070c1", String: "#a31515", Escape: "#ee0000", Number: "#098658", Control: "#af00db",
 	},
 	// The default icon colors are tuned for dark backgrounds; darken the ones
 	// that wash out on white.
