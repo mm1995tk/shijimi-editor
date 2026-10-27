@@ -29,6 +29,7 @@ For example, select a word with `w`, then delete it with `d`.
 | `G` | Last line |
 | `f` `t` `F` `T` + character | Find a character in the line (`f` `t` forward, `F` `T` backward) |
 | `mm` | Go to the matching bracket |
+| `mi` / `ma` + object | Select the inside (`mi`) or the outside (`ma`) of a text object. Objects: `w` word, `W` word split by spaces, `p` paragraph, brackets `(` `)` `[` `]` `{` `}` `<` `>` (either side of the pair works), quotes `'` `"` `` ` ``. `maw` includes the space after the word, and `ma(` includes the brackets. Each cursor selects its own. Tree-sitter objects (`f` `t` `a` `c` ...) are not supported |
 
 ### Jumps starting with `g`
 

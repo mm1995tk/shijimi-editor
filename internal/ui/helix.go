@@ -89,7 +89,7 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 	if a.pending != "" {
 		p := a.pending
 		a.pending = ""
-		if b.HasExtra() && (strings.Contains("ftFTr", p) || p == "g" && strings.Contains("hls", key)) {
+		if b.HasExtra() && (strings.Contains("ftFTr", p) || p == "g" && strings.Contains("hls", key) || p == "m i" || p == "m a") {
 			var cmd tea.Cmd
 			b.ForEachCursor(func() { cmd = a.helixPending(p, key, msg) })
 			return cmd
@@ -257,8 +257,15 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 			b.SetCursor(b.ScrollRow+a.layout().editH/2, 0, ext)
 		}
 	case "m":
-		if key == "m" {
+		switch key {
+		case "m":
 			b.MatchBracket(ext)
+		case "i", "a":
+			a.pending = "m " + key // wait for the text object
+		}
+	case "m i", "m a":
+		if single && !b.SelectTextObject(r, p == "m a") {
+			a.info(i18n.T("helix.notfoundc"), r)
 		}
 	case "]":
 		switch key {
