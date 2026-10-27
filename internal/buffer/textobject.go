@@ -74,7 +74,7 @@ func (b *Buffer) wordObject(long, around bool) (Pos, Pos, bool) {
 			}
 		} else if e < len(l) && objectClass(l[e], long) == 0 {
 			_, e = run(e, 0)
-		} else if s > 0 {
+		} else if s > 0 && objectClass(l[s-1], long) == 0 {
 			s, _ = run(s-1, 0) // no trailing space: take the leading space
 		}
 	}
@@ -141,94 +141,106 @@ func (b *Buffer) quoteObject(q rune, around bool) (Pos, Pos, bool) {
 	return Pos{}, Pos{}, false
 }
 
-func (b *Buffer) bracketObject(k rune, around bool) (Pos, Pos, bool) {
-	var open, close rune
+func bracketPair(k rune) (open, close rune, ok bool) {
 	switch k {
 	case '(', ')':
-		open, close = '(', ')'
+		return '(', ')', true
 	case '[', ']':
-		open, close = '[', ']'
+		return '[', ']', true
 	case '{', '}':
-		open, close = '{', '}'
+		return '{', '}', true
 	case '<', '>':
-		open, close = '<', '>'
-	default:
-		return Pos{}, Pos{}, false
+		return '<', '>', true
 	}
-	at := func(p Pos) rune { return b.Lines[p.Row][p.Col] }
-	prev := func(p Pos) (Pos, bool) {
-		p.Col--
-		for p.Col < 0 {
-			p.Row--
-			if p.Row < 0 {
-				return p, false
-			}
-			p.Col = len(b.Lines[p.Row]) - 1
+	return 0, 0, false
+}
+
+// prevPos returns the position of the character before p, crossing lines.
+func (b *Buffer) prevPos(p Pos) (Pos, bool) {
+	p.Col--
+	for p.Col < 0 {
+		p.Row--
+		if p.Row < 0 {
+			return p, false
 		}
-		return p, true
+		p.Col = len(b.Lines[p.Row]) - 1
 	}
-	next := func(p Pos) (Pos, bool) {
-		p.Col++
-		for p.Col >= len(b.Lines[p.Row]) {
-			p.Row++
-			p.Col = 0
-			if p.Row >= len(b.Lines) {
-				return p, false
-			}
+	return p, true
+}
+
+// nextPos returns the position of the character after p, crossing lines.
+func (b *Buffer) nextPos(p Pos) (Pos, bool) {
+	p.Col++
+	for p.Col >= len(b.Lines[p.Row]) {
+		p.Row++
+		p.Col = 0
+		if p.Row >= len(b.Lines) {
+			return p, false
 		}
-		return p, true
 	}
-	// find the opening bracket: under the cursor, or the nearest unmatched
-	// one before it
+	return p, true
+}
+
+func (b *Buffer) runeAt(p Pos) rune { return b.Lines[p.Row][p.Col] }
+
+// findOpenBracket returns the opening bracket at the cursor, or the nearest
+// unmatched one before it.
+func (b *Buffer) findOpenBracket(open, close rune) (Pos, bool) {
 	p := b.Cur
-	var os Pos
-	found := false
-	if p.Col < len(b.Lines[p.Row]) && at(p) == open {
-		os, found = p, true
-	} else {
-		depth := 0
-		for q, ok := prev(p); ok; q, ok = prev(q) {
-			switch at(q) {
-			case close:
-				depth++
-			case open:
-				if depth == 0 {
-					os, found = q, true
-				} else {
-					depth--
-				}
-			}
-			if found {
-				break
-			}
-		}
-	}
-	if !found {
-		return Pos{}, Pos{}, false
+	if p.Col < len(b.Lines[p.Row]) && b.runeAt(p) == open {
+		return p, true
 	}
 	depth := 0
-	for q, ok := next(os); ok; q, ok = next(q) {
-		switch at(q) {
+	for q, ok := b.prevPos(p); ok; q, ok = b.prevPos(q) {
+		switch b.runeAt(q) {
+		case close:
+			depth++
+		case open:
+			if depth == 0 {
+				return q, true
+			}
+			depth--
+		}
+	}
+	return Pos{}, false
+}
+
+// findCloseBracket returns the bracket closing the one at from.
+func (b *Buffer) findCloseBracket(from Pos, open, close rune) (Pos, bool) {
+	depth := 0
+	for q, ok := b.nextPos(from); ok; q, ok = b.nextPos(q) {
+		switch b.runeAt(q) {
 		case open:
 			depth++
 		case close:
-			if depth > 0 {
-				depth--
-				continue
+			if depth == 0 {
+				return q, true
 			}
-			// the pair must contain the cursor (it may end at the cursor)
-			if q.Less(b.Cur) {
-				return Pos{}, Pos{}, false
-			}
-			if around {
-				return os, Pos{q.Row, q.Col + 1}, true
-			}
-			in := Pos{os.Row, os.Col + 1}
-			if in == q {
-				return Pos{}, Pos{}, false
-			}
-			return in, q, true
+			depth--
 		}
 	}
-	return Pos{}, Pos{}, false
+	return Pos{}, false
+}
+
+func (b *Buffer) bracketObject(k rune, around bool) (Pos, Pos, bool) {
+	open, close, ok := bracketPair(k)
+	if !ok {
+		return Pos{}, Pos{}, false
+	}
+	s, ok := b.findOpenBracket(open, close)
+	if !ok {
+		return Pos{}, Pos{}, false
+	}
+	e, ok := b.findCloseBracket(s, open, close)
+	if !ok || e.Less(b.Cur) { // the pair must contain the cursor
+		return Pos{}, Pos{}, false
+	}
+	if around {
+		return s, Pos{e.Row, e.Col + 1}, true
+	}
+	in := Pos{s.Row, s.Col + 1}
+	if in == e {
+		return Pos{}, Pos{}, false
+	}
+	return in, e, true
 }

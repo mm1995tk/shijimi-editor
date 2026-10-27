@@ -15,6 +15,8 @@ func TestSelectTextObject(t *testing.T) {
 		{"iw", "foo bar baz", Pos{0, 5}, 'w', false, "bar", true},
 		{"aw trailing space", "foo bar baz", Pos{0, 5}, 'w', true, "bar ", true},
 		{"aw leading space at end", "foo bar", Pos{0, 5}, 'w', true, " bar", true},
+		{"aw no space either side", "(foo)", Pos{0, 2}, 'w', true, "foo", true},
+		{"aw after punctuation", "foo.bar", Pos{0, 5}, 'w', true, "bar", true},
 		{"iw punctuation", "foo.bar", Pos{0, 3}, 'w', false, ".", true},
 		{"iW", "foo.bar baz", Pos{0, 1}, 'W', false, "foo.bar", true},
 		{"aW", "foo.bar baz", Pos{0, 1}, 'W', true, "foo.bar ", true},
