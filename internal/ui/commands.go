@@ -79,6 +79,8 @@ func defaultCommands() []command {
 		{i18n.T("cmd.rvapprove"), "Space v A", func(a *App) tea.Cmd { return a.reviewCommand("A") }},
 		{i18n.T("cmd.rvrequest"), "Space v R", func(a *App) tea.Cmd { return a.reviewCommand("R") }},
 		{i18n.T("cmd.rvcommentonly"), "Space v S", func(a *App) tea.Cmd { return a.reviewCommand("S") }},
+		{i18n.T("cmd.rvcopyurl"), "Space v y", func(a *App) tea.Cmd { return a.reviewCommand("y") }},
+		{i18n.T("cmd.rvopenurl"), "Space v o", func(a *App) tea.Cmd { return a.reviewCommand("o") }},
 		{i18n.T("cmd.treerefresh"), "R", func(a *App) tea.Cmd { a.explorer.refresh(); return nil }},
 		{i18n.T("cmd.treenewfile"), "a", func(a *App) tea.Cmd { return a.newFileIn(a.explorer.targetDir()) }},
 		{i18n.T("cmd.treenewfolder"), "A", func(a *App) tea.Cmd { return a.newFolder() }},

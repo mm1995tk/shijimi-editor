@@ -276,7 +276,7 @@ How you open it decides what you compare with (the base). Pressing the same key 
 - You can also switch to **Unified** (`s`, `:gitdiff unified` / `split`, or a click on the file name row).
 - The bar on the right edge of the diff shows where the changes are by color (green: added, red: deleted, blue: modified). The range now shown is brighter, and clicking scrolls to that position.
 - In a line where only a part changed, the changed part is highlighted in a darker color.
-- While comparing with the base of a pull request, you can review with `Space v` (comments on lines, ranges and files, replies, resolving, applying suggestions, viewed, and submitting an approval and so on). You can comment only on files whose working tree content is the same as the PR's latest commit. See "Diff mode" in the manual for details.
+- While comparing with the base of a pull request, you can review with `Space v` (comments on lines, ranges and files, replies, resolving, applying suggestions, viewed, submitting an approval and so on, and copying or opening the PR URL with `Space v y` / `Space v o`). You can comment only on files whose working tree content is the same as the PR's latest commit. See "Diff mode" in the manual for details.
 
 | Key (with CHANGES focused) | Action |
 | --- | --- |

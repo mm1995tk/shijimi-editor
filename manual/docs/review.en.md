@@ -142,6 +142,8 @@ The right side is an editor, so review operations are gathered in this menu to a
 | `Space v A` | Approve and submit |
 | `Space v R` | Request changes and submit |
 | `Space v S` | Submit as comments only |
+| `Space v y` | Copy the PR URL |
+| `Space v o` | Open the PR in the external browser. Over SSH, or if it cannot be opened, the URL is copied instead |
 
 - The range is the editor selection (made with `x` and so on) as is.
 - With the VS Code keymap, the same operations are available in the command palette (`F1`) under "Review:".
