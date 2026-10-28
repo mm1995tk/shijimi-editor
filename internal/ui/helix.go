@@ -135,6 +135,11 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 		return a.openCmdline("s")
 	}
 
+	if key == string(lineFlipKey) {
+		a.flipLineNumbers()
+		return nil
+	}
+
 	if (key == "ctrl+d" || key == "ctrl+u") && !b.HasExtra() {
 		dir := 1
 		if key == "ctrl+u" {
