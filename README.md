@@ -33,7 +33,7 @@ go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # installs the
 npm install -g shijimi-editor                                     # installs both shj and shijimi (Linux and macOS)
 ```
 
-All of them get the latest release: the Nix commands follow the `release` branch, `go install` takes the newest tag, and npm takes the binaries published at release time. Unreleased changes on `main` are not included.
+All of them get the latest release: the Nix commands follow the `release` branch, `go install` takes the newest tag, and npm takes the binaries published at release time. The same binaries are also attached to each [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) as `shj-<os>-<cpu>`. Unreleased changes on `main` are not included.
 
 To compare with the base of a pull request you need [gh](https://cli.github.com/) and `gh auth login`.
 

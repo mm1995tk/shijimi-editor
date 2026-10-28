@@ -31,10 +31,6 @@ jobs:
           exit 1
 
       - uses: actions/checkout@v7
-        with:
-          # release ブランチを早送りで進めるとき、git が今の release が新しいコミットの祖先だと確かめられるよう、
-          # 履歴を全部取る（1 コミット分だけだと push が拒否される）。
-          fetch-depth: 0
 
       - name: バージョンを上げる
         id: ver
@@ -69,10 +65,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "v$NEXT"
           git tag "v$NEXT"
-          # コミット・タグ・release ブランチを同時に push する（どれかが失敗したら全部失敗する）。
-          # release ブランチは最新のリリースを指し、Nix の利用者は github:mm1995tk/shijimi-editor/release で
-          # main の未リリースの変更を取らずに済む。
-          git push --atomic origin HEAD:main HEAD:refs/heads/release "v$NEXT"
+          # コミットとタグを同時に push する（どちらかが失敗したら両方失敗する）。release ブランチは
+          # release-branch ジョブが最後に進める。
+          git push --atomic origin HEAD:main "v$NEXT"
 
       - name: GitHub Release を作る
         env:
@@ -141,3 +136,45 @@ jobs:
             fi
             npm publish "$f" --access public --ignore-scripts
           done
+
+  # npm-pack がビルドした shj を、そのまま GitHub Release にも置く。Go のモジュールを取りに行けない
+  # プロキシの内側でも、github.com からダウンロードするだけで入れられるようにするため
+  release-assets:
+    needs: [release, npm-pack]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm
+          path: ${{ runner.temp }}/npm
+      - name: GitHub Release に上げる
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEXT: ${{ needs.release.outputs.next }}
+        run: |
+          cd "$RUNNER_TEMP"
+          mkdir assets
+          # shijimi-editor-<os>-<cpu>-X.Y.Z.tgz の package/bin/shj を shj-<os>-<cpu> にする
+          for f in npm/shijimi-editor-*-*-"$NEXT".tgz; do
+            platform="$(basename "${f%-"$NEXT".tgz}")"
+            platform="${platform#shijimi-editor-}"
+            tar -xzf "$f" -O package/bin/shj > "assets/shj-$platform"
+          done
+          # 再実行で上げ直せるよう、同じ名前のアセットは置き換える
+          gh release upload "v$NEXT" assets/* --clobber --repo "$GITHUB_REPOSITORY"
+
+  # release ブランチは最新のリリースを指し、Nix の利用者は github:mm1995tk/shijimi-editor/release で
+  # main の未リリースの変更を取らずに済む。release ブランチを見てバイナリを取りに来る利用者がいるので、
+  # GitHub Release にバイナリを置き終えてから進める
+  release-branch:
+    needs: [release, release-assets]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.release.outputs.next }}
+          # 早送りで進めるとき、git が今の release が新しいコミットの祖先だと確かめられるよう、
+          # 履歴を全部取る（1 コミット分だけだと push が拒否される）。
+          fetch-depth: 0
+      - name: release ブランチを進める
+        run: git push origin HEAD:refs/heads/release

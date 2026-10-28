@@ -31,7 +31,7 @@ go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # 同じもの
 npm install -g shijimi-editor                                     # shj と shijimi の両方を入れる（Linux と macOS）
 ```
 
-どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。`main` のリリース前の変更は入りません。
+どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。同じバイナリを `shj-<os>-<cpu>` として各 [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) にも置いています。`main` のリリース前の変更は入りません。
 
 プルリクエストの base と比べるには [gh](https://cli.github.com/) と `gh auth login` が必要です。
 
