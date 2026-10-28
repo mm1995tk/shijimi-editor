@@ -170,3 +170,54 @@ func TestDiffSplitResize(t *testing.T) {
 		t.Fatalf("reset %d", got)
 	}
 }
+
+func TestResizeKeysFollowFocus(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	a.gd.split = true
+	a.showTerm = true
+	if a.render(); !a.splitShown() || a.diffFile(a.curText()) == nil {
+		t.Skip("split is not shown")
+	}
+	l := a.layout()
+	w := a.dvGeom(l).rightW + a.dvGeom(l).leftW + 1
+	side, panel, left, tree := l.sideW, l.panelH, a.diffLeftWidth(w), a.explorerH()
+
+	// the editor: ← → move the │ of the split diff, ↑ ↓ the terminal
+	a.focus = focusEditor
+	a.startResize()
+	press(a, "l")
+	press(a, "k")
+	if got := a.diffLeftWidth(w); got <= left {
+		t.Fatalf("diff left %d -> %d", left, got)
+	}
+	if l := a.layout(); l.sideW != side || l.panelH != panel+resizeStep {
+		t.Fatalf("side %d->%d panel %d->%d", side, l.sideW, panel, l.panelH)
+	}
+	press(a, "h")
+	press(a, "h")
+	if got := a.diffLeftWidth(w); got >= left {
+		t.Fatalf("diff left %d -> %d", left, got)
+	}
+
+	// CHANGES: ← → move the sidebar edge, ↑ ↓ the border above CHANGES
+	a.focus = focusChanges
+	press(a, "right")
+	press(a, "up")
+	if got := a.layout().sideW; got != side+resizeStep {
+		t.Fatalf("side %d -> %d", side, got)
+	}
+	if got := a.explorerH(); got != tree-resizeStep {
+		t.Fatalf("tree %d -> %d", tree, got)
+	}
+	press(a, "down")
+	if got := a.explorerH(); got != tree {
+		t.Fatalf("tree back %d -> %d", tree, got)
+	}
+
+	// the terminal: ← → move the sidebar edge
+	a.focus = focusTerminal
+	press(a, "left")
+	if got := a.layout().sideW; got != side {
+		t.Fatalf("side back %d -> %d", side, got)
+	}
+}

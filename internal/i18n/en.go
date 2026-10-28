@@ -324,7 +324,7 @@ var en = map[string]string{
 	"proxy.notforwarded":       "Listen port %d is not forwarded",
 	"proxy.portrange":          "Port numbers must be between 1 and 65535",
 	"proxy.sameport":           "The listen port and the target port must differ: %d",
-	"resize.hint":              "Resize: ←→ sidebar / ↑↓ terminal / < > preview / = defaults / Esc to finish",
+	"resize.hint":              "Resize: ←→↑↓ borders of the focused pane / < > preview / = defaults / Esc to finish",
 	"rv.applysuggestion":       "  s apply suggestion",
 	"rv.commentadded":          "Added the comment. Submit with Space v A / R / S",
 	"rv.commentlabel":          "Comment: ",

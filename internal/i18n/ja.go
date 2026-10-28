@@ -324,7 +324,7 @@ var ja = map[string]string{
 	"proxy.notforwarded":       "待ち受けポート %d の転送はありません",
 	"proxy.portrange":          "ポート番号は 1〜65535 で指定してください",
 	"proxy.sameport":           "待ち受けポートと対象ポートは別の番号にしてください: %d",
-	"resize.hint":              "リサイズ: ←→ サイドバー / ↑↓ ターミナル / < > プレビュー / = 初期値 / Esc で終了",
+	"resize.hint":              "リサイズ: ←→↑↓ フォーカスのあるペインの境界 / < > プレビュー / = 初期値 / Esc で終了",
 	"rv.applysuggestion":       "  s suggestion を適用",
 	"rv.commentadded":          "コメントを追加しました。Space v A / R / S で送信します",
 	"rv.commentlabel":          "コメント: ",

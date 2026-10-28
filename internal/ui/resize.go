@@ -101,18 +101,72 @@ func (a *App) startResize() tea.Cmd {
 	return nil
 }
 
+// keyBorder is the border the arrow keys move in resize mode: the one beside
+// the focused pane, a vertical border for ← → and a horizontal one for ↑ ↓.
+func (a *App) keyBorder(l layout, across bool) resizeTarget {
+	if !across {
+		if (a.focus == focusExplorer || a.focus == focusChanges) && a.showSide && a.gd.on {
+			return resizeExplorer
+		}
+		return resizeTerm
+	}
+	switch a.focus {
+	case focusEditor:
+		t := a.curText()
+		switch {
+		case t != nil && a.splitShown() && a.diffFile(t) != nil:
+			return resizeDiff
+		case t != nil && a.diffFile(t) == nil && t.preview == previewSplit:
+			return resizePreview
+		case l.agentW > 0:
+			return resizeAgent
+		}
+	case focusAgent:
+		if l.agentW > 0 {
+			return resizeAgent
+		}
+	}
+	return resizeSide
+}
+
+// moveBorder moves a border by d columns (or rows): right or down when d > 0.
+func (a *App) moveBorder(target resizeTarget, d int) {
+	l := a.layout()
+	x, y := 0, 0
+	switch target {
+	case resizeSide:
+		a.resizeSide(d)
+		return
+	case resizeTerm:
+		a.resizeTerm(-d)
+		return
+	case resizeAgent:
+		x = l.agentX - 1 + d
+	case resizeDiff:
+		x = l.rightX + a.dvGeom(l).leftW + d
+	case resizePreview:
+		x = l.rightX + a.editW(a.curText(), l) + d
+	case resizeExplorer:
+		y = l.top + a.explorerH() + d
+	}
+	prev := a.resizing
+	a.resizing = target
+	a.dragResize(l, x, y)
+	a.resizing = prev
+}
+
 // handleResizeKey runs while resize mode is on; every key either resizes or
 // leaves the mode.
 func (a *App) handleResizeKey(key string) tea.Cmd {
 	switch key {
 	case "left", "h":
-		a.resizeSide(-resizeStep)
+		a.moveBorder(a.keyBorder(a.layout(), true), -resizeStep)
 	case "right", "l":
-		a.resizeSide(resizeStep)
+		a.moveBorder(a.keyBorder(a.layout(), true), resizeStep)
 	case "up", "k":
-		a.resizeTerm(resizeStep)
+		a.moveBorder(a.keyBorder(a.layout(), false), -resizeStep)
 	case "down", "j":
-		a.resizeTerm(-resizeStep)
+		a.moveBorder(a.keyBorder(a.layout(), false), resizeStep)
 	case "<", ",":
 		a.resizePreviewBy(-previewStepPct)
 	case ">", ".":

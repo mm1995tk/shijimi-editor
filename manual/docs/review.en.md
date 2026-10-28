@@ -234,5 +234,5 @@ The body of a comment, reply or review is written in an input box. Below the inp
 
 - Clicking a folder row in CHANGES toggles it (`▾` when open, `▸` when closed). The open/closed state is kept across list refreshes and base switches.
 - Dragging the border between the sidebar and the diff changes the sidebar width.
-- Dragging the border between the file tree and CHANGES (the CHANGES heading row) changes the ratio of their heights. Pressing `=` in the `Alt+R` resize mode restores 7:3.
-- In split view, dragging the `│` between left and right changes the widths of the base and the working tree. The widths are kept until you quit the editor, and pressing `=` in the `Alt+R` resize mode restores an even split. It has no effect in unified view.
+- Dragging the border between the file tree and CHANGES (the CHANGES heading row) changes the ratio of their heights. In the `Alt+R` resize mode, `↑` `↓` also move it while the explorer or CHANGES has focus. Pressing `=` restores 7:3.
+- In split view, dragging the `│` between left and right changes the widths of the base and the working tree. In the `Alt+R` resize mode, `←` `→` also move it while the editor has focus. The widths are kept until you quit the editor, and pressing `=` in resize mode restores an even split. It has no effect in unified view.
