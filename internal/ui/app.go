@@ -135,7 +135,8 @@ type App struct {
 	lastClick    click // the previous left press, to spot a double click
 	keyReleases  bool  // the terminal reports key releases
 	hold         holdScroll
-	holdSeq      int // tells the current hold-scroll tick chain from stale ones
+	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
+	lineFlip     bool // line numbers shown the other way while \ is held
 
 	single    bool // 単体編集モード: 1 つのファイルだけを開き、閉じたら終了する
 	tabSpans  []span
@@ -1052,6 +1053,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.keyReleases = msg.SupportsEventTypes()
 	case tea.KeyReleaseMsg:
 		a.holdScrollRelease(msg)
+		a.lineFlipRelease(msg)
 	case searchTickMsg:
 		return a.searchTick(msg)
 	case searchDoneMsg:
@@ -1080,6 +1082,9 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.ag.sel = agentSel{}
 		if a.hold.buf != nil && !(msg.Code == a.hold.code && msg.Mod.Contains(tea.ModCtrl)) {
 			a.stopHoldScroll() // another key ends the scroll
+		}
+		if a.keyReleases && msg.Code != lineFlipKey {
+			a.lineFlip = false
 		}
 		a.hoverSeq++ // a pending mouse hover is stale once the user types
 		a.hoverWord = wordSpan{}
@@ -2324,7 +2329,7 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 		focused:      focused && !a.findOpen && !a.cmdOpen,
 		cursorColor:  curTheme.Cursor,
 		cursorAt:     t.buf.Cur,
-		relative:     a.cfg.Editor.LineNumber == "relative",
+		relative:     a.relativeLineNumbers(),
 		indentGuides: a.cfg.Editor.IndentGuides,
 		diags:        a.lsp.diagnostics(t.buf.Path),
 	}

@@ -60,7 +60,7 @@ args = []
 | `theme` | Theme | "Themes" on this page |
 | `keymap` | `helix` (default) or `vscode` | [Editing (VS Code mode)](editing-vscode.md) |
 | `ui-language` | Language of the UI text (status line, command palette, suggestions panel, errors, `shj --help`). `en` (English, default) or `ja` (Japanese). It is not chosen from environment variables such as `LANG`. Other values are ignored and English is used. `:config-reload` switches it | — |
-| `editor.line-number` | How line numbers are shown. `absolute` or `relative` | — |
+| `editor.line-number` | How line numbers are shown. `absolute` or `relative`. With the Helix keymap, `\` shows the other way | — |
 | `editor.file-icons` | Icons in the file tree | [Files and search](files.md) |
 | `editor.mermaid-command` | Command that converts mermaid to PNG | [Preview](preview.md) |
 | `editor.watch-files` | Whether to reflect external changes | [Files and search](files.md) |

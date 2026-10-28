@@ -60,7 +60,7 @@ args = []
 | `theme` | テーマ | このページの「テーマ」 |
 | `keymap` | `helix`（既定）または `vscode` | [編集（VS Code モード）](editing-vscode.md) |
 | `ui-language` | 画面の文字（ステータス行・コマンドパレット・提案パネル・エラー・`shj --help`）の言語。`en`（英語、既定）または `ja`（日本語）。`LANG` などの環境変数からは選びません。ほかの値は無視して英語になります。`:config-reload` で切り替わります | — |
-| `editor.line-number` | 行番号の表示。`absolute` または `relative` | — |
+| `editor.line-number` | 行番号の表示。`absolute` または `relative`。Helix のキー操作では `\` で反対の方式を出せる | — |
 | `editor.file-icons` | ファイルツリーのアイコン | [ファイルと検索](files.md) |
 | `editor.mermaid-command` | mermaid を PNG にするコマンド | [プレビュー](preview.md) |
 | `editor.watch-files` | 外部での変更を反映するか | [ファイルと検索](files.md) |
