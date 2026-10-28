@@ -98,9 +98,9 @@ var githubDark = Theme{
 	GitAdded: "#3fb950", GitDeleted: "#f85149", Renamed: "#d2a8ff",
 	DiagError: "#f85149", DiagWarn: "#d29922", DiagInfo: "#58a6ff",
 	HoverCodeBg: "#010409", HoverInline: "#a5d6ff", HoverHead: "#79c0ff", HoverRule: "#484f58",
-	AddBg: "#12261e", DelBg: "#2d1214", AddSign: "#3fb950", DelSign: "#f85149",
+	AddBg: "#1a3b2a", DelBg: "#2d1214", AddSign: "#3fb950", DelSign: "#f85149",
 	HunkFg: "#79c0ff", HunkBg: "#121d2f", NoteBg: "#161b22",
-	AddWordBg: "#1f5a32", DelWordBg: "#6e2027", ModSign: "#58a6ff", BarView: "#30363d",
+	AddWordBg: "#287140", DelWordBg: "#6e2027", ModSign: "#58a6ff", BarView: "#30363d",
 	Syntax: syntaxColors{
 		Text: "#c9d1d9", Comment: "#8b949e", Preproc: "#ff7b72", Keyword: "#ff7b72",
 		Namespace: "#ff7b72", Type: "#ffa657", Name: "#c9d1d9", Function: "#d2a8ff",
