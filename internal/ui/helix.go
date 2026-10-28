@@ -140,9 +140,9 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 
-	if (key == "ctrl+d" || key == "ctrl+u") && !b.HasExtra() {
+	if (key == "ctrl+d" || key == "ctrl+u" || key == "ctrl+alt+d" || key == "ctrl+alt+u") && !b.HasExtra() {
 		dir := 1
-		if key == "ctrl+u" {
+		if key == "ctrl+u" || key == "ctrl+alt+u" {
 			dir = -1
 		}
 		return a.halfPage(b, dir, ext, msg)
