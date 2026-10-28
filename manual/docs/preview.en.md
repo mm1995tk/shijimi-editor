@@ -36,4 +36,10 @@ Opening an image file in one of the following formats shows it as an image.
 
 PNG / JPEG / GIF / BMP / WebP / TIFF
 
+In the Markdown preview, an image `![alt](path)` written alone on a line is shown as an image.
+
+- The path is relative to the directory of the Markdown file. Absolute paths also work.
+- Images in the middle of a sentence, and images that are not files (such as `https://`), are shown as the text "🖼 alt".
+- If the image cannot be loaded, the error is shown instead of the image.
+
 Images and mermaid diagrams are drawn with the Kitty graphics protocol. You need a terminal that supports it, such as Kitty, Ghostty or WezTerm.

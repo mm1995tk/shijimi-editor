@@ -1,0 +1,62 @@
+name: Publish the home page and the manual to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "manual/**"
+      - ".github/workflows/site.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "manual/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Check that the Japanese and English pages are in sync
+        if: github.event_name == 'pull_request' && !contains(github.event.pull_request.title, '[skip-i18n-check]')
+        run: manual/check-translations.sh "origin/${{ github.base_ref }}"
+      - name: Check the page pairs and their structure
+        if: github.event_name != 'pull_request' || contains(github.event.pull_request.title, '[skip-i18n-check]')
+        run: manual/check-translations.sh
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install -r manual/requirements.txt
+      # The home page is at the root and the manual is under /manual/.
+      - run: mkdocs build --strict --config-file manual/mkdocs.yml --site-dir ../_site/manual
+      - name: Copy the home page
+        run: cp -r site/index.html site/style.css site/ja site/images _site/
+      - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
+        with:
+          path: _site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

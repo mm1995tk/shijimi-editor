@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-site-verification" content="nmSVirUeoo-sFTsxtWA9CcqVshvZG61-kVSgQlb9Dp8" />
+  <title>shijimi-editor</title>
+  <meta name="description" content="An integrated development environment for the terminal. A VS Code-like layout, Helix-style or VS Code-style editing, LSP, diff mode, Markdown preview and a terminal panel.">
+  <meta property="og:title" content="shijimi-editor">
+  <meta property="og:description" content="An integrated development environment for the terminal.">
+  <meta property="og:image" content="https://mm1995tk.github.io/shijimi-editor/images/diff.png">
+  <link rel="icon" href="manual/assets/icon.png">
+  <link rel="alternate" hreflang="ja" href="ja/">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="manual/assets/icon.png" alt="">shijimi-editor</a>
+      <nav>
+        <a href="manual/">Manual</a>
+        <a class="hide-narrow" href="https://github.com/mm1995tk/shijimi-editor">GitHub</a>
+        <a href="ja/" hreflang="ja">日本語</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <h1>An IDE that lives in your terminal</h1>
+        <p class="lead">shijimi-editor puts a file tree, tabs, LSP, a diff view and a terminal panel on one screen, laid out like VS Code. Edit with Helix-style modal keys or with VS Code-style keys. The command is <code>shj</code>.</p>
+        <div class="actions">
+          <a class="button primary" href="#install">Install</a>
+          <a class="button" href="manual/">Read the manual</a>
+          <a class="button" href="https://github.com/mm1995tk/shijimi-editor">GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo">
+      <div class="wrap">
+        <video class="shot" src="images/demo.mp4" autoplay muted loop playsinline aria-label="A short demo: completing code, running it in the terminal panel, reviewing the change in diff mode and previewing a Markdown file"></video>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="wrap">
+        <div class="feature">
+          <div class="text">
+            <h2>Review changes as whole files</h2>
+            <p><code>Space G</code> (or <code>Ctrl+G</code>) switches the whole editor to diff mode against <code>HEAD</code>. <code>Space g</code> compares with the base of a pull request.</p>
+            <ul>
+              <li>Changed files are listed in CHANGES</li>
+              <li>A changed file opens as the whole file, split or unified</li>
+              <li>The right side is editable, so you can fix things while you review</li>
+            </ul>
+          </div>
+          <img class="shot" src="images/diff.png" alt="Diff mode: the file before the change on the left and after the change on the right" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>LSP out of the box</h2>
+            <p>Diagnostics, completion, hover, go to definition, references, rename, code actions and formatting. gopls, rust-analyzer, typescript-language-server and others are set up by default.</p>
+            <ul>
+              <li>Configured with a <code>languages.toml</code> that is compatible with Helix's</li>
+            </ul>
+          </div>
+          <img class="shot" src="images/lsp.png" alt="The completion menu listing the methods of a Go struct, and a diagnostic shown at the end of a line" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>Markdown preview beside the source</h2>
+            <p><code>Space m</code> shows the rendered Markdown next to the buffer you are editing. Press it again to show only the preview.</p>
+            <ul>
+              <li>Headings, lists, tables, code and quotes</li>
+              <li>Mermaid code blocks are drawn as diagrams</li>
+            </ul>
+          </div>
+          <img class="shot" src="images/mermaid.png" alt="A Markdown file on the left and its preview on the right, with a mermaid flowchart drawn as a diagram" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>Images open in a tab</h2>
+            <p>Open an image file from the file tree or Quick Open, and it is shown as an image, not as bytes.</p>
+            <ul>
+              <li>PNG, JPEG, GIF, BMP, WebP and TIFF</li>
+              <li>Images and mermaid diagrams need a terminal with the Kitty graphics protocol, such as Kitty, Ghostty or WezTerm</li>
+            </ul>
+          </div>
+          <img class="shot" src="images/image.png" alt="A PNG file opened in a tab and shown as an image" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>A terminal panel at the bottom</h2>
+            <p><code>Ctrl+`</code> opens a terminal under the editor. Run tests and servers without leaving the editor, and open several in tabs.</p>
+            <ul>
+              <li>Claude Code running there can read your selection and send you changes as diffs to approve</li>
+            </ul>
+          </div>
+          <img class="shot" src="images/terminal.png" alt="The terminal panel under the editor, showing the output of go run" loading="lazy" width="1440" height="860">
+        </div>
+      </div>
+    </section>
+
+    <section class="more">
+      <div class="wrap">
+        <h2>And more</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>Two ways to edit</h3>
+            <p>Helix-style normal / insert / select modes with multiple cursors, or modeless VS Code-style keys.</p>
+          </div>
+          <div class="card">
+            <h3>Find anything</h3>
+            <p>Quick Open, a command palette and search and replace across the whole project.</p>
+          </div>
+          <div class="card">
+            <h3>Suggestions panel</h3>
+            <p>Suggests the next step from git, LSP and the terminal, and asks an agent over ACP when you pick one.</p>
+          </div>
+          <div class="card">
+            <h3>File tree with Git status</h3>
+            <p>Modified, untracked and added files are marked in the tree.</p>
+          </div>
+          <div class="card">
+            <h3>Single-file mode</h3>
+            <p><code>shj file</code> opens just that file and exits on <code>:wq</code>, so it works as your <code>$EDITOR</code>.</p>
+          </div>
+          <div class="card">
+            <h3>English and Japanese</h3>
+            <p>The UI and the manual are available in both languages.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="install" id="install">
+      <div class="wrap">
+        <h2>Install</h2>
+<pre><code>nix run github:mm1995tk/shijimi-editor/release   # run it right away
+nix profile install github:mm1995tk/shijimi-editor/release
+go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
+npm install -g shijimi-editor   # Linux and macOS</code></pre>
+        <p>Then run <code>shj</code> in your project. See <a href="manual/install/">Installation and startup</a> in the manual for details.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      shijimi-editor is open source under the MIT License. <a href="https://github.com/mm1995tk/shijimi-editor">Source on GitHub</a>
+    </div>
+  </footer>
+</body>
+</html>

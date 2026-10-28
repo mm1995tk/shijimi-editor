@@ -230,6 +230,12 @@ func (c *Client) initialize() {
 					"resolveSupport":     map[string]any{"properties": []string{"edit"}},
 				},
 				"publishDiagnostics": map[string]any{},
+				"semanticTokens": map[string]any{
+					"requests":       map[string]any{"full": true},
+					"tokenTypes":     semanticTokenTypes,
+					"tokenModifiers": semanticTokenModifiers,
+					"formats":        []string{"relative"},
+				},
 			},
 		},
 	}

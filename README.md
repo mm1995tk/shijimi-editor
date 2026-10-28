@@ -4,7 +4,7 @@ English | [日本語](README.ja.md)
 
 An integrated development environment for the terminal (TUI). The screen is laid out like VS Code. For editing you can choose between Helix-style modal editing and modeless VS Code-style keys. The command is `shj`.
 
-Manual (English, with a Japanese version): <https://shijimi-manual.pages.dev/> (source in [`manual/`](manual/))
+Home page: <https://mm1995tk.github.io/shijimi-editor/> / Manual (English, with a Japanese version): <https://mm1995tk.github.io/shijimi-editor/manual/> (source in [`site/`](site/) and [`manual/`](manual/))
 
 The UI is in English by default. To switch it to Japanese, set `ui-language = "ja"` in `config.toml` (see [UI language](#ui-language)).
 
@@ -17,7 +17,7 @@ The UI is in English by default. To switch it to Japanese, set `ui-language = "j
 - **LSP configuration** is written in a `languages.toml` that is compatible with Helix's (`.shijimi-editor/languages.toml` or `~/.config/shijimi-editor/languages.toml`). If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/`
 - **Diff mode** (`Space G` / `Ctrl+G` compares with `HEAD`; `Space g` / `:pr` compares with the base of a pull request): switches the whole editor to diff mode. Changed files are listed in a tree (CHANGES), and a changed file opens as the **whole file** in a split (or unified) diff. The right side is editable. The bar on the right edge shows where the changes are, and the parts that changed inside a line are highlighted (see below)
 - **Image preview** (PNG / JPEG / GIF / BMP / WebP / TIFF)
-- **Markdown preview** (`Space m` / `:preview`): renders headings, lists, code and tables, and shows them beside the buffer you are editing. Press it again to show only the preview at full width. Mermaid code blocks are shown as diagrams (see below)
+- **Markdown preview** (`Space m` / `:preview`): renders headings, lists, code and tables, and shows them beside the buffer you are editing. Press it again to show only the preview at full width. Mermaid code blocks are shown as diagrams, and an image written alone on a line is shown as an image (see below)
 - **Send the current context to an agent** (`Space a` / `Alt+A` / command palette): formats the selection (or the cursor line) as `path:line-line`, the text, and the diagnostics on those lines, and after you check it in a preview, pastes it into the terminal panel (it does not press Enter)
 - **Suggestions panel and ACP** (`Alt+I` / `Space i`): lists suggestions such as "Resolve the conflicts?", "Create a PR?" and "Investigate the cause of the failure?" in the right panel, based on the state of git, LSP and the terminal. When you pick one, it asks an agent over ACP (Agent Client Protocol), shows the progress and the reply in the panel, and shows changes in diff mode. Comments proposed by an AI review are placed as unsent comments
 - **Claude Code IDE integration**: Claude Code running in the terminal panel can get the selection, the open files and the diagnostics, and you approve its changes as a diff (Claude Code writes the file after you approve; see "Agent integration" below)
@@ -33,7 +33,7 @@ go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # installs the
 npm install -g shijimi-editor                                     # installs both shj and shijimi (Linux and macOS)
 ```
 
-All of them get the latest release: the Nix commands follow the `release` branch, `go install` takes the newest tag, and npm takes the binaries published at release time. Unreleased changes on `main` are not included.
+All of them get the latest release: the Nix commands follow the `release` branch, `go install` takes the newest tag, and npm takes the binaries published at release time. The same binaries are also attached to each [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) as `shj-<os>-<cpu>`. Unreleased changes on `main` are not included.
 
 To compare with the base of a pull request you need [gh](https://cli.github.com/) and `gh auth login`.
 
@@ -56,6 +56,8 @@ Files are read in the following order, and later ones win (`languages.toml` is c
 1. Built-in defaults (gopls / rust-analyzer / typescript-language-server and others)
 2. `~/.config/shijimi-editor/languages.toml`, `~/.config/shijimi-editor/config.toml`
 3. The project's `.shijimi-editor/languages.toml`, `.shijimi-editor/config.toml`
+
+`~/.config` means `$XDG_CONFIG_HOME` when it is set. It is read from there on every OS, macOS included (not from `~/Library/Application Support`).
 
 ### UI language
 
@@ -175,6 +177,8 @@ Import the flake's `homeManagerModules.default`. `settings` is written to `~/.co
 In a `.md` file, `Space m` (or `:preview`, or the command palette) opens a preview to the right of the buffer. It follows your edits and scrolls with the cursor. Press it again to show only the preview at full width, and a third time to close it. At full width, scroll with `j` / `k` or the mouse wheel.
 
 Mermaid diagrams are turned into PNGs with [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) (`mmdc`) and shown. If `mmdc` is not on the PATH, or rendering fails, the source and the error are shown instead of the diagram. `mermaid-command` replaces it with another command (`{in}` is the input, `{out}` the output PNG). Rendered images are kept in `~/.cache/shijimi/mermaid`.
+
+An image written alone on a line, `![alt](path)`, is shown as an image in the same way. The path is relative to the Markdown file. Images in the middle of a sentence, and images that are not files (such as `https://`), are shown as text.
 
 ## Keys (Helix mode)
 
@@ -387,9 +391,9 @@ When the first argument is `diff` / `exec` / `skill`, it is treated as a subcomm
 
 > `shj open` and `shj status` were removed and replaced by the IDE integration (`openFile` / `getOpenEditors` / `getCurrentSelection`).
 
-## Editing the manual
+## Editing the manual and the home page
 
-The manual is built from `manual/` with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). When you push to `main`, GitHub Actions publishes it to Cloudflare Pages (the repository Secrets need `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`). To preview it locally, run:
+The manual is built from `manual/` with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). The home page is the plain HTML in `site/`. When you push to `main`, GitHub Actions publishes both to GitHub Pages: the home page at the root and the manual under `/manual/`. To preview the manual locally, run:
 
 ```sh
 pip install -r manual/requirements.txt
@@ -397,6 +401,8 @@ mkdocs serve --config-file manual/mkdocs.yml
 ```
 
 The manual has an English page (`name.en.md`, the default) and a Japanese page (`name.ja.md`) for each page. When you change one, change the other too. `manual/check-translations.sh` checks that every page has both languages and the same structure, and CI runs it on pull requests (it also fails when only one language of a page changed; add `[skip-i18n-check]` to the pull request title to skip that part, for a typo fix for example).
+
+The screenshots and the demo video of the home page (`site/images/`) are recorded with [vhs](https://github.com/charmbracelet/vhs), and the ones with images and mermaid diagrams are taken in kitty, because they need the Kitty graphics protocol. After a change to the screen, run `site/screenshots/record.sh` (it needs Nix) to record them again. The scenes are in `site/screenshots/tapes/` (vhs) and `site/screenshots/kitty/` (kitty).
 
 ## License
 

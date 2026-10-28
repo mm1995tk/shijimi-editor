@@ -43,6 +43,9 @@ type App struct {
 	gitTop    string
 	cfg       *config.Config
 	keymap    helixKeymap
+	lastIns   *insertRecord     // what "." repeats
+	recIns    *insertRecord     // the insert being recorded, until Esc
+	replaying bool              // "." is running; do not record
 	caret     *caret.Writer     // the terminal output; nil in tests
 	caretAt   *tea.Cursor       // where the user is typing, for the IME
 	cellSize  func() (w, h int) // terminal cell size in pixels; nil in tests
@@ -117,11 +120,10 @@ type App struct {
 	sentSel *ideSelection
 
 	// suggestion panel and ACP agent (see suggest.go, agent.go)
-	ag          *agentState
-	sg          suggestState
-	showAgent   bool
-	agentWPref  int  // panel width picked by the user (0 = automatic)
-	agentPinned bool // the user opened the panel, so it shows even beside a narrower editor
+	ag         *agentState
+	sg         suggestState
+	showAgent  bool
+	agentWPref int // panel width picked by the user (0 = automatic)
 
 	clipboard    string
 	msg          string
@@ -139,7 +141,11 @@ type App struct {
 	tabSpans  []span
 	tabOffset int
 	commands  []command
-	mermaid   map[string]*mermaidJob
+	mermaid   map[string]*previewJob
+	mdImages  map[string]*previewJob // images in the Markdown preview, by file path
+	// previewGen counts finished jobs, so the preview is drawn again when one
+	// finishes
+	previewGen int
 }
 
 // New creates the app rooted at dir, optionally opening file.
@@ -148,20 +154,19 @@ func New(dir, file string) *App {
 	cfg := config.Load(abs)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
-		root:      abs,
-		cfg:       cfg,
-		lsp:       newLSPManager(cfg, abs),
-		explorer:  newExplorer(abs),
-		term:      newTerminal(abs),
-		proxy:     proxy.NewManager(),
-		pal:       newPalette(),
-		search:    newSearchPanel(cfg.Search),
-		showSide:  true,
-		focus:     focusExplorer,
-		helix:     cfg.Editor.Keymap != "vscode",
-		gd:        gitDiff{split: true},
-		ag:        newAgentState(),
-		showAgent: true,
+		root:     abs,
+		cfg:      cfg,
+		lsp:      newLSPManager(cfg, abs),
+		explorer: newExplorer(abs),
+		term:     newTerminal(abs),
+		proxy:    proxy.NewManager(),
+		pal:      newPalette(),
+		search:   newSearchPanel(cfg.Search),
+		showSide: true,
+		focus:    focusExplorer,
+		helix:    cfg.Editor.Keymap != "vscode",
+		gd:       gitDiff{split: true},
+		ag:       newAgentState(),
 	}
 	a.explorer.icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
@@ -200,21 +205,20 @@ func NewSingle(file string) (*App, error) {
 	cfg := config.Load(dir)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
-		root:      dir,
-		cfg:       cfg,
-		lsp:       newLSPManager(cfg, dir),
-		explorer:  &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
-		term:      newTerminal(dir),
-		proxy:     proxy.NewManager(),
-		pal:       newPalette(),
-		search:    newSearchPanel(cfg.Search),
-		focus:     focusEditor,
-		helix:     cfg.Editor.Keymap != "vscode",
-		gd:        gitDiff{split: true},
-		ag:        newAgentState(),
-		single:    true,
-		showSide:  false,
-		showAgent: false,
+		root:     dir,
+		cfg:      cfg,
+		lsp:      newLSPManager(cfg, dir),
+		explorer: &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
+		term:     newTerminal(dir),
+		proxy:    proxy.NewManager(),
+		pal:      newPalette(),
+		search:   newSearchPanel(cfg.Search),
+		focus:    focusEditor,
+		helix:    cfg.Editor.Keymap != "vscode",
+		gd:       gitDiff{split: true},
+		ag:       newAgentState(),
+		single:   true,
+		showSide: false,
 	}
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
@@ -859,7 +863,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	a.keepTransients()
 	a.syncLSP()
 	a.notifySelection()
-	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs())
+	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs(), a.semanticTabs())
 }
 
 // autoSaveMsg fires when a tab has been idle for the auto-save delay.
@@ -967,6 +971,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return a.handleMermaidStart(msg)
 	case mermaidDoneMsg:
 		a.handleMermaidDone(msg)
+	case mdImageDoneMsg:
+		a.handleMDImageDone(msg)
 	case hoverMsg:
 		if t := a.curText(); a.fullPreview(t) {
 			return nil // the popup would be anchored to the hidden buffer
@@ -1038,6 +1044,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.applyChanges(msg)
 	case highlightMsg:
 		msg.h.apply(msg)
+	case semanticMsg:
+		msg.h.sem.apply(msg)
 	case holdScrollMsg:
 		return a.holdScrollTick(msg.seq)
 	case tea.KeyboardEnhancementsMsg:

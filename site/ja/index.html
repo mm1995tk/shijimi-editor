@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>shijimi-editor</title>
+  <meta name="description" content="ターミナルで動く統合開発環境。VS Code に似た画面で、Helix 風か VS Code 風のキーで編集できます。LSP、差分モード、Markdown プレビュー、ターミナルパネルを備えています。">
+  <meta property="og:title" content="shijimi-editor">
+  <meta property="og:description" content="ターミナルで動く統合開発環境。">
+  <meta property="og:image" content="https://mm1995tk.github.io/shijimi-editor/images/diff.png">
+  <link rel="icon" href="../manual/assets/icon.png">
+  <link rel="alternate" hreflang="en" href="../">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="../manual/assets/icon.png" alt="">shijimi-editor</a>
+      <nav>
+        <a href="../manual/ja/">説明書</a>
+        <a class="hide-narrow" href="https://github.com/mm1995tk/shijimi-editor">GitHub</a>
+        <a href="../" hreflang="en">English</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <h1>ターミナルの中の IDE</h1>
+        <p class="lead">shijimi-editor は、ファイルツリー、タブ、LSP、差分の画面、ターミナルパネルを 1 つの画面に並べます。並び方は VS Code と同じです。編集には Helix 風のモード付きのキーか、VS Code 風のキーを選べます。コマンドは <code>shj</code> です。</p>
+        <div class="actions">
+          <a class="button primary" href="#install">インストール</a>
+          <a class="button" href="../manual/ja/">説明書を読む</a>
+          <a class="button" href="https://github.com/mm1995tk/shijimi-editor">GitHub</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="demo">
+      <div class="wrap">
+        <video class="shot" src="../images/demo.mp4" autoplay muted loop playsinline aria-label="短いデモ。コードを補完し、ターミナルパネルで動かし、差分モードで変更を見て、Markdown をプレビューする"></video>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="wrap">
+        <div class="feature">
+          <div class="text">
+            <h2>変更をファイル全体で見る</h2>
+            <p><code>Space G</code>（または <code>Ctrl+G</code>）で、エディタ全体が <code>HEAD</code> との差分モードに切り替わります。<code>Space g</code> ではプルリクエストのベースと比べます。</p>
+            <ul>
+              <li>変更のあるファイルは CHANGES に並びます</li>
+              <li>変更のあるファイルは、ファイル全体を左右（または 1 列）の差分で開きます</li>
+              <li>右側は編集できます。見ながらその場で直せます</li>
+            </ul>
+          </div>
+          <img class="shot" src="../images/diff.png" alt="差分モード。左に変更前、右に変更後のファイルが並ぶ" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>LSP がすぐ使える</h2>
+            <p>診断、補完、ホバー、定義へ移動、参照、リネーム、コードアクション、フォーマットに対応します。gopls、rust-analyzer、typescript-language-server などは最初から設定済みです。</p>
+            <ul>
+              <li>設定は Helix と互換の <code>languages.toml</code> に書きます</li>
+            </ul>
+          </div>
+          <img class="shot" src="../images/lsp.png" alt="Go の構造体のメソッドを並べた補完の一覧と、行の末尾に出た診断" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>Markdown をソースの横でプレビュー</h2>
+            <p><code>Space m</code> で、編集中のバッファの横に Markdown を整形して表示します。もう一度押すと、プレビューだけを表示します。</p>
+            <ul>
+              <li>見出し、リスト、表、コード、引用</li>
+              <li>mermaid のコードブロックは図にして表示します</li>
+            </ul>
+          </div>
+          <img class="shot" src="../images/mermaid.png" alt="左に Markdown、右にそのプレビュー。mermaid のフローチャートが図になっている" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>画像をタブで開く</h2>
+            <p>ファイルツリーや Quick Open で画像ファイルを開くと、中身のバイト列ではなく画像として表示します。</p>
+            <ul>
+              <li>PNG、JPEG、GIF、BMP、WebP、TIFF</li>
+              <li>画像と mermaid の図には、Kitty、Ghostty、WezTerm のような Kitty graphics protocol に対応したターミナルが要ります</li>
+            </ul>
+          </div>
+          <img class="shot" src="../images/image.png" alt="PNG ファイルをタブで開き、画像として表示している" loading="lazy" width="1440" height="860">
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h2>画面の下にターミナルパネル</h2>
+            <p><code>Ctrl+`</code> でエディタの下にターミナルを開きます。エディタを離れずにテストやサーバーを動かせます。タブで複数開けます。</p>
+            <ul>
+              <li>そこで動かした Claude Code は、選択範囲を読み、変更を差分で見せて承認を求めます</li>
+            </ul>
+          </div>
+          <img class="shot" src="../images/terminal.png" alt="エディタの下のターミナルパネルに go run の出力が出ている" loading="lazy" width="1440" height="860">
+        </div>
+      </div>
+    </section>
+
+    <section class="more">
+      <div class="wrap">
+        <h2>ほかにも</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>2 つの編集方式</h3>
+            <p>マルチカーソル付きの Helix 風のノーマル・挿入・選択モードか、モードの無い VS Code 風のキー。</p>
+          </div>
+          <div class="card">
+            <h3>すぐに探せる</h3>
+            <p>Quick Open、コマンドパレット、プロジェクト全体の検索と置換。</p>
+          </div>
+          <div class="card">
+            <h3>提案パネル</h3>
+            <p>git、LSP、ターミナルの状態から次の作業を提案します。選ぶと ACP でエージェントに頼みます。</p>
+          </div>
+          <div class="card">
+            <h3>Git の状態が見えるファイルツリー</h3>
+            <p>変更・未追跡・追加のファイルに印が付きます。</p>
+          </div>
+          <div class="card">
+            <h3>単一ファイルモード</h3>
+            <p><code>shj ファイル</code> はそのファイルだけを開き、<code>:wq</code> で終わります。<code>$EDITOR</code> に使えます。</p>
+          </div>
+          <div class="card">
+            <h3>英語と日本語</h3>
+            <p>画面の文言と説明書は、両方の言語で読めます。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="install" id="install">
+      <div class="wrap">
+        <h2>インストール</h2>
+<pre><code>nix run github:mm1995tk/shijimi-editor/release   # すぐに動かす
+nix profile install github:mm1995tk/shijimi-editor/release
+go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest
+npm install -g shijimi-editor   # Linux と macOS</code></pre>
+        <p>入れたら、プロジェクトで <code>shj</code> を実行します。詳しくは説明書の<a href="../manual/ja/install/">インストールと起動</a>を見てください。画面の文言を日本語にするには、<code>config.toml</code> に <code>ui-language = "ja"</code> と書きます。</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      shijimi-editor は MIT ライセンスのオープンソースです。<a href="https://github.com/mm1995tk/shijimi-editor">GitHub のソース</a>
+    </div>
+  </footer>
+</body>
+</html>

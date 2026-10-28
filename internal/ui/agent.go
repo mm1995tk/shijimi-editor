@@ -339,7 +339,7 @@ func (a *App) handleAgentMsg(msg tea.Msg) (tea.Cmd, bool) {
 		}
 		s.perms = append(s.perms, m.ask)
 		if !a.showAgent || a.focus != focusAgent {
-			a.showAgent, a.agentPinned = true, true
+			a.showAgent = true
 			a.infoText(i18n.T("agent.permask"))
 		}
 		return s.wait(), true

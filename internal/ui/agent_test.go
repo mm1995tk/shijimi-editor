@@ -111,7 +111,7 @@ func TestAgentReadsTheBufferAndWritesAfterPermission(t *testing.T) {
 		return "READ:" + open.buf.Path + "\nWRITE:" + other
 	}))
 	p.until(t, "the permission request", func() bool { return len(a.ag.perms) == 1 })
-	if !a.showAgent || !a.agentPinned {
+	if !a.showAgent {
 		t.Error("the panel did not open for the permission request")
 	}
 	a.Update(tea.WindowSizeMsg{Width: 160, Height: 30})
@@ -285,10 +285,13 @@ func TestTerminalFailuresAreSuggested(t *testing.T) {
 func TestPanelOpensBesideTheEditor(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.lsp.diags[a.curText().buf.Path] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}}}
-	// too narrow for the panel by default: the status line counts the suggestions
+	// closed at startup, even on a wide screen
+	a.Update(tea.WindowSizeMsg{Width: 200, Height: 30})
 	if l := a.layout(); l.agentW != 0 {
-		t.Fatalf("panel shown at width 100: %+v", l)
+		t.Fatalf("panel shown at startup: %+v", l)
 	}
+	// while it is closed, the status line counts the suggestions
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	if !strings.Contains(ansi.Strip(a.renderStatus()), "提案 1（Alt+I）") {
 		t.Errorf("status = %q", ansi.Strip(a.renderStatus()))
 	}
@@ -313,17 +316,12 @@ func TestPanelOpensBesideTheEditor(t *testing.T) {
 	if a.focus != focusEditor || a.layout().agentW != 0 {
 		t.Error("Alt+I did not close the panel")
 	}
-	// wide screens show it without asking
-	a.Update(tea.WindowSizeMsg{Width: 200, Height: 30})
-	a.showAgent = true
-	if a.layout().agentW == 0 {
-		t.Error("panel hidden at width 200")
-	}
 }
 
 func TestPanelMouse(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.Update(tea.WindowSizeMsg{Width: 200, Height: 30})
+	a.showAgent = true
 	p := a.curText().buf.Path
 	a.lsp.diags[p] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}}}
 	a.sg.fixOffer = true

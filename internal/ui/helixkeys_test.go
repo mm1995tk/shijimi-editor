@@ -79,3 +79,38 @@ func TestHelixCommandsAllBound(t *testing.T) {
 		}
 	}
 }
+
+func TestRepeatLastInsert(t *testing.T) {
+	a := newTestApp(t, "one\ntwo\nthree\n")
+	b := a.curText().buf
+	keys(a, ".") // nothing recorded yet
+	if a.mode != modeNormal || string(b.Lines[0]) != "one" || len(b.Lines) != 4 {
+		t.Fatalf("a first . should do nothing: %q", b.Lines)
+	}
+	keys(a, "o", "f", "o", "o", "esc")
+	keys(a, "j", "j", ".")
+	if got := b.Lines; len(got) != 6 || string(got[1]) != "foo" || string(got[4]) != "foo" || a.mode != modeNormal {
+		t.Fatalf("o foo then . : %q mode %v", got, a.mode)
+	}
+}
+
+func TestRepeatLastInsertChange(t *testing.T) {
+	a := newTestApp(t, "ab\ncd\n")
+	b := a.curText().buf
+	keys(a, "c", "b", "a", "r", "esc")
+	keys(a, "j", "g", "h", ".")
+	if string(b.Lines[0]) != "barb" || string(b.Lines[1]) != "bard" {
+		t.Fatalf("c bar then . = %q", b.Lines)
+	}
+}
+
+func TestRepeatLastInsertRemap(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	a.cfg.Keys = config.Keys{Normal: map[string]string{"q": "repeat_last_insert"}}
+	a.loadKeymap()
+	b := a.curText().buf
+	keys(a, "A", "!", "esc", "q")
+	if string(b.Lines[0]) != "x!!" {
+		t.Fatalf("got %q", string(b.Lines[0]))
+	}
+}

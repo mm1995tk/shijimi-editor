@@ -29,6 +29,7 @@ For example, select a word with `w`, then delete it with `d`.
 | `G` | Last line |
 | `f` `t` `F` `T` + character | Find a character in the line (`f` `t` forward, `F` `T` backward) |
 | `mm` | Go to the matching bracket |
+| `mi` / `ma` + object | Select the inside (`mi`) or the outside (`ma`) of a text object. Objects: `w` word, `W` word split by spaces, `p` paragraph, brackets `(` `)` `[` `]` `{` `}` `<` `>` (either side of the pair works), quotes `'` `"` `` ` ``. `maw` includes the space after the word, and `ma(` includes the brackets. Each cursor selects its own. Tree-sitter objects (`f` `t` `a` `c` ...) are not supported |
 
 ### Jumps starting with `g`
 
@@ -67,6 +68,7 @@ For example, select a word with `w`, then delete it with `d`.
 | `u` / `U` | Undo / redo |
 | `>` / `<` | Increase / decrease indentation |
 | `J` | Join lines |
+| `.` | Repeat the last insert: run again the command that entered insert mode (`i` `a` `I` `A` `o` `O` `c`, ...) and the keys pressed until `Esc`. Changes that do not go through insert mode, such as `d`, are not repeated. A completion you accepted is repeated; snippets are not expanded |
 | `~` | Swap upper and lower case |
 | `` ` `` / `` Alt+` `` | Convert to lowercase / uppercase |
 | `Ctrl+C` | Toggle line comment |
@@ -108,6 +110,7 @@ Press `Space`, then one of the following keys.
 | `Space f` | Open a file (Quick Open) |
 | `Space b` | List of open buffers |
 | `Space e` | Move to the file tree |
+| `Space E` | Move to CHANGES (in diff mode; outside diff mode, move to the file tree) |
 | `Space k` | Hover |
 | `Space r` | Rename (LSP) |
 | `Space .` | Code actions (LSP. Apply diagnostic hints) |
@@ -218,6 +221,7 @@ Editing:
 | `insert_mode` / `append_mode` | `i` / `a` |
 | `insert_at_line_start` / `insert_at_line_end` | `I` / `A` |
 | `open_below` / `open_above` | `o` / `O` |
+| `repeat_last_insert` | `.` |
 | `indent` / `unindent` | `>` / `<` |
 | `join_selections` | `J` |
 | `switch_case` | `~` |

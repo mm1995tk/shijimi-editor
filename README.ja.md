@@ -4,7 +4,7 @@
 
 ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code に合わせています。編集操作は、Helix 風のモード編集と、モードの無い VS Code 風の操作から選べます。コマンド名は `shj` です。
 
-説明書（英語と日本語）: <https://shijimi-manual.pages.dev/ja/>（ソースは [`manual/`](manual/)）
+ホームページ: <https://mm1995tk.github.io/shijimi-editor/ja/> / 説明書（英語と日本語）: <https://mm1995tk.github.io/shijimi-editor/manual/ja/>（ソースは [`site/`](site/) と [`manual/`](manual/)）
 
 ## 機能
 
@@ -15,7 +15,7 @@
 - **LSP の設定**は Helix と互換がある `languages.toml` で書きます（`.shijimi-editor/languages.toml` か `~/.config/shijimi-editor/languages.toml`）。Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーしてください
 - **差分モード**（`Space G` / `Ctrl+G` で `HEAD` と、`Space g` / `:pr` でプルリクエストの base と比べる）：エディター全体を差分モードに切り替えます。変更ファイルをツリー（CHANGES）で出し、変更のあるファイルは**ファイル全体**を左右分割（または統合）の diff で開きます。右側は編集できます。右端のバーで変更の位置がわかり、行の中で変わった部分を強調します（下記）
 - **画像のプレビュー**（PNG / JPEG / GIF / BMP / WebP / TIFF）
-- **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。もう一度押すとプレビューだけを全幅で表示します。mermaid のコードブロックは図として表示します（下記）
+- **Markdown のプレビュー**（`Space m` / `:preview`）：見出し・リスト・コード・表を整形し、編集中のバッファの右に並べて表示します。もう一度押すとプレビューだけを全幅で表示します。mermaid のコードブロックは図として、1 行に画像だけを書いた `![説明](パス)` は画像として表示します（下記）
 - **現在の文脈をエージェントへ送る**（`Space a` / `Alt+A` / コマンドパレット）：選択範囲（なければカーソル行）を `パス:行-行`・本文・該当行の診断に整形し、プレビューで確認してからターミナルパネルへ貼り付けます（Enter は押しません）
 - **提案パネルと ACP**（`Alt+I` / `Space i`）：git・LSP・ターミナルの状態から「衝突を解消しますか」「PR を作りますか」「失敗の原因を調べますか」などの提案を右のパネルに並べます。選ぶと ACP（Agent Client Protocol）でエージェントに頼み、進み具合と返事をパネルに、変更を差分モードに出します。AI レビューのコメント案は未送信コメントとして置きます
 - **Claude Code の IDE 連携**：ターミナルパネルの Claude Code から、選択範囲・開いているファイル・診断を取得し、変更を差分で承認できます（承認後に Claude Code が書き込みます。下記「エージェント連携」）
@@ -31,7 +31,7 @@ go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # 同じもの
 npm install -g shijimi-editor                                     # shj と shijimi の両方を入れる（Linux と macOS）
 ```
 
-どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。`main` のリリース前の変更は入りません。
+どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。同じバイナリを `shj-<os>-<cpu>` として各 [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) にも置いています。`main` のリリース前の変更は入りません。
 
 プルリクエストの base と比べるには [gh](https://cli.github.com/) と `gh auth login` が必要です。
 
@@ -54,6 +54,8 @@ shj main.go    # ファイルだけを編集する（単体編集モード。$ED
 1. 組み込みの既定値（gopls / rust-analyzer / typescript-language-server など）
 2. `~/.config/shijimi-editor/languages.toml`、`~/.config/shijimi-editor/config.toml`
 3. プロジェクトの `.shijimi-editor/languages.toml`、`.shijimi-editor/config.toml`
+
+`~/.config` は、`$XDG_CONFIG_HOME` があればその場所です。macOS も含めて、OS を問わずこの場所から読みます（`~/Library/Application Support` からは読みません）。
 
 ### 画面の言語
 
@@ -173,6 +175,8 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
 `.md` ファイルで `Space m`（または `:preview`、コマンドパレット）を押すと、バッファの右にプレビューが開きます。編集に追従し、カーソル位置に合わせてスクロールします。もう一度押すとプレビューだけを全幅で表示し、3 回目で閉じます。全幅のときは `j` / `k` やマウスホイールでスクロールします。
 
 mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`）で PNG にして表示します。`mmdc` が PATH に無い場合、または描画に失敗した場合は、図の代わりにソースとエラーを表示します。`mermaid-command` で別のコマンドに差し替えられます（`{in}` が入力、`{out}` が出力 PNG）。描画結果は `~/.cache/shijimi/mermaid` に保存します。
+
+1 行に画像だけを書いた `![説明](パス)` も、同じように画像として表示します。パスは Markdown ファイルからの相対パスです。文の途中の画像と、`https://` などのファイルでない画像は文字で表示します。
 
 ## キー操作（Helix モード）
 
@@ -385,9 +389,9 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 
 > `shj open` と `shj status` は IDE 連携（`openFile` / `getOpenEditors` / `getCurrentSelection`）に置き換えて削除しました。
 
-## 説明書の編集
+## 説明書とホームページの編集
 
-説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `manual/` から作ります。`main` に push すると GitHub Actions が Cloudflare Pages に公開します（リポジトリの Secrets に `CLOUDFLARE_API_TOKEN` と `CLOUDFLARE_ACCOUNT_ID` が必要です）。手元で確認するには次を実行します。
+説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `manual/` から作ります。ホームページは `site/` の素の HTML です。`main` に push すると GitHub Actions が両方を GitHub Pages に公開します。ホームページは一番上に、説明書は `/manual/` の下に置きます。説明書を手元で確認するには次を実行します。
 
 ```sh
 pip install -r manual/requirements.txt
@@ -395,6 +399,8 @@ mkdocs serve --config-file manual/mkdocs.yml
 ```
 
 説明書は、ページごとに英語（`名前.en.md`、既定）と日本語（`名前.ja.md`）を置きます。片方を変えたら、もう片方も変えてください。`manual/check-translations.sh` が、全ページに両方の言語があることと構造が同じことを確かめ、CI がプルリクエストで実行します（片方の言語だけが変わったときも失敗します。誤字の修正など、翻訳が要らないときは、プルリクエストのタイトルに `[skip-i18n-check]` を入れるとその部分を飛ばせます）。
+
+ホームページのスクリーンショットとデモ動画（`site/images/`）は [vhs](https://github.com/charmbracelet/vhs) で撮ります。画像と mermaid の図は Kitty graphics protocol が要るので、kitty で撮ります。画面を変えたら `site/screenshots/record.sh`（Nix が要ります）を実行して撮り直してください。場面は `site/screenshots/tapes/`（vhs）と `site/screenshots/kitty/`（kitty）に書いてあります。
 
 ## ライセンス
 

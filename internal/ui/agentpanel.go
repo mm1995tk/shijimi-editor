@@ -15,10 +15,8 @@ import (
 
 const (
 	minAgentW = 24
-	// The editor keeps this many columns beside the panel: more while the
-	// panel is open by default, fewer once the user has opened it.
-	autoEditorBeside   = 80
-	pinnedEditorBeside = 30
+	// The editor keeps this many columns beside the panel.
+	minEditorBeside = 30
 )
 
 // agentWidth is the panel width: the user's choice, or a quarter of the screen.
@@ -38,11 +36,7 @@ func (a *App) agentShown(sideW int) bool {
 	if a.showSide {
 		used = sideW + 1
 	}
-	need := autoEditorBeside
-	if a.agentPinned || a.focus == focusAgent {
-		need = pinnedEditorBeside
-	}
-	return a.w-used-a.agentWidth()-1 >= need
+	return a.w-used-a.agentWidth()-1 >= minEditorBeside
 }
 
 // toggleAgentPanel moves to the panel, opening it, or leaves and closes it.
@@ -52,7 +46,6 @@ func (a *App) toggleAgentPanel() tea.Cmd {
 	}
 	if a.focus == focusAgent {
 		a.showAgent = false
-		a.agentPinned = false
 		a.follow = true
 		if len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
@@ -60,7 +53,6 @@ func (a *App) toggleAgentPanel() tea.Cmd {
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	}
-	a.agentPinned = true
 	a.showAgent = true
 	a.follow = true
 	return a.setFocus(focusAgent)

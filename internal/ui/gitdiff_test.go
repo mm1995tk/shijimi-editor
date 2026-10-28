@@ -288,6 +288,25 @@ func TestChangesListClickAndTab(t *testing.T) {
 	}
 }
 
+func TestSpaceEFocusesChanges(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	a.setFocus(focusEditor)
+	a.showSide = false
+	a.spaceMode("E")
+	if a.focus != focusChanges || !a.showSide {
+		t.Errorf("Space E in diff mode: focus=%v showSide=%v", a.focus, a.showSide)
+	}
+	a.spaceMode("e")
+	if a.focus != focusExplorer {
+		t.Errorf("Space e in diff mode: focus=%v", a.focus)
+	}
+	a.toggleGitDiff()
+	a.spaceMode("E")
+	if a.focus != focusExplorer {
+		t.Errorf("Space E outside diff mode: focus=%v", a.focus)
+	}
+}
+
 func TestFullPreviewDoesNotBlockEditingInGitDiff(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git がありません")

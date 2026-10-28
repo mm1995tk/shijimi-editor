@@ -89,7 +89,7 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 	if a.pending != "" {
 		p := a.pending
 		a.pending = ""
-		if b.HasExtra() && (strings.Contains("ftFTr", p) || p == "g" && strings.Contains("hls", key)) {
+		if b.HasExtra() && (strings.Contains("ftFTr", p) || p == "g" && strings.Contains("hls", key) || p == "m i" || p == "m a") {
 			var cmd tea.Cmd
 			b.ForEachCursor(func() { cmd = a.helixPending(p, key, msg) })
 			return cmd
@@ -199,6 +199,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 func (a *App) pageSize() int { return max(1, a.layout().editH-2) }
 
 func (a *App) enterInsert() tea.Cmd {
+	a.recIns = nil
 	a.mode = modeInsert
 	return nil
 }
@@ -256,8 +257,15 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 			b.SetCursor(b.ScrollRow+a.layout().editH/2, 0, ext)
 		}
 	case "m":
-		if key == "m" {
+		switch key {
+		case "m":
 			b.MatchBracket(ext)
+		case "i", "a":
+			a.pending = "m " + key // wait for the text object
+		}
+	case "m i", "m a":
+		if single && !b.SelectTextObject(r, p == "m a") {
+			a.info(i18n.T("helix.notfoundc"), r)
 		}
 	case "]":
 		switch key {
@@ -319,7 +327,13 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		return a.workspaceSymbols()
 	case "d", "D":
 		return a.diagnosticPicker()
-	case "e", "E":
+	case "e":
+		a.showSide = true
+		return a.setFocus(focusExplorer)
+	case "E":
+		if a.gd.on {
+			return a.focusChangesList()
+		}
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	case "m":
@@ -359,6 +373,18 @@ func (a *App) spaceMode(key string) tea.Cmd {
 }
 
 func (a *App) handleInsertKey(msg tea.KeyPressMsg) tea.Cmd {
+	cmd := a.insertKey(msg)
+	if a.recIns != nil && !a.replaying {
+		if a.mode == modeInsert {
+			a.recIns.steps = append(a.recIns.steps, insertStep{key: msg})
+		} else {
+			a.lastIns, a.recIns = a.recIns, nil // left insert mode: the record is complete
+		}
+	}
+	return cmd
+}
+
+func (a *App) insertKey(msg tea.KeyPressMsg) tea.Cmd {
 	t := a.cur()
 	b := t.buf
 	if bd, ok := a.keymap.insert[msg.String()]; ok {

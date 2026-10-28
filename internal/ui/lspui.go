@@ -668,6 +668,9 @@ func (a *App) acceptCompletion() {
 		a.startSnippet(c.tab, start, text)
 		return
 	}
+	if r := a.recIns; r != nil && !a.replaying && start.Row == b.Cur.Row {
+		r.steps = append(r.steps, insertStep{completion: true, text: text, back: b.Cur.Col - start.Col})
+	}
 	b.SelectRange(start, b.Cur)
 	b.InsertBlock(text)
 }

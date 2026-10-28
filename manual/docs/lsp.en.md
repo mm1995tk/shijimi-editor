@@ -68,6 +68,19 @@ The settings for the following language servers are built in. If the server is o
 | YAML | `yaml-language-server` |
 | JSON | `vscode-json-language-server` |
 
+Built-in `gopls` has `config = { semanticTokens = true }`, so semantic tokens are on by default. To turn them off, write `[language-server.gopls.config]` with `semanticTokens = false` in your settings.
+
+`config` is merged key by key with the built-in one, and your values win. Nested tables are merged recursively; arrays are replaced. For example, `config = { gofumpt = true }` keeps `semanticTokens = true`.
+
+## Colors from semantic tokens
+
+When the language server returns semantic tokens, their colors are drawn over the editor's colors (from lexical analysis). Type names and variable names, and control keywords such as `return` and `if` and other keywords, get different colors, as in VS Code's Dark+ / Light+.
+
+- The lexical colors are always there. They do not disappear while the language server is starting or while the result is being fetched again after an edit. Lines you have not edited keep the colors of the previous result.
+- Without a language server, or with one that does not support semantic tokens, only the lexical colors are used.
+- The same mechanism works with any language server. The mapping of colors is part of each theme, so switching the theme also changes the semantic token colors. Kinds that are not in the mapping (strings, numbers, comments, and so on) keep the lexical colors.
+- To turn semantic tokens off, use the setting of each language server. For gopls, it is `semanticTokens = false` (see above).
+
 ## Writing settings
 
 Settings go in `languages.toml`, which is compatible with Helix.

@@ -27,6 +27,7 @@ var spaceItems = []spaceItem{
 	{"S", "space.wsymbols", true},
 	{"d", "space.diagnostics", false},
 	{"e", "app.pane.tree", false},
+	{"E", "app.pane.changes", false},
 	{"m", "space.preview", false},
 	{"g", "space.diffpr", false},
 	{"G", "space.diffhead", false},
@@ -53,6 +54,9 @@ func (a *App) spaceMenuItems() []spaceItem {
 			continue
 		}
 		if it.key == "v" && !a.prShown() {
+			continue
+		}
+		if it.key == "E" && !a.gd.on {
 			continue
 		}
 		if full && !strings.Contains("fbkodDeEmgGvy?/tai", it.key) {

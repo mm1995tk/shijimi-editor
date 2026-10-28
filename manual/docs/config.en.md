@@ -10,6 +10,8 @@ They are loaded in the following order. Later ones take precedence.
 2. `~/.config/shijimi-editor/languages.toml`, `~/.config/shijimi-editor/config.toml`
 3. The project's `.shijimi-editor/languages.toml`, `.shijimi-editor/config.toml`
 
+`~/.config` means `$XDG_CONFIG_HOME` when it is set. It is read from there on every OS, macOS included (not from `~/Library/Application Support`).
+
 - Write language servers in `languages.toml` ([LSP](lsp.md)).
 - Write everything else in `config.toml` (this page).
 - Run `:config-reload` while running to reload them.

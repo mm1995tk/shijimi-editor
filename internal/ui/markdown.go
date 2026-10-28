@@ -252,6 +252,9 @@ type mdOpts struct {
 	// mermaid returns the rendered lines (exactly w wide) for a diagram, or
 	// nil to show the source as a plain code block.
 	mermaid func(code string, w int) []string
+	// image returns the rendered lines (exactly w wide) for a paragraph that
+	// is a single image, or nil to show it as text.
+	image func(alt, src string, w int) []string
 	// wrapped, when set, is called for each output row that continues a
 	// paragraph or list item cut by the width. space says whether the cut
 	// fell on a space. indent is the width of the
@@ -329,6 +332,14 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 			return
 		}
 		text := strings.Join(para, " ")
+		if alt, src, ok := soleImage(text); ok && o.image != nil {
+			if rendered := o.image(alt, src, w); rendered != nil {
+				out = append(out, rendered...)
+				para = nil
+				gap()
+				return
+			}
+		}
 		emit("", wrap(inlineCells(text, mdStyle{}), w), "")
 		para = nil
 		gap()
@@ -462,6 +473,19 @@ func renderMarkdown(src string, w int, o mdOpts) []string {
 		out = out[:len(out)-1]
 	}
 	return out
+}
+
+// soleImage reports whether a paragraph is one image and nothing else, and
+// returns its alt text and source.
+func soleImage(text string) (alt, src string, ok bool) {
+	if !strings.HasPrefix(text, "![") {
+		return "", "", false
+	}
+	m := mdLinkRe.FindStringSubmatch(text[1:])
+	if m == nil || len(m[0]) != len(text)-1 {
+		return "", "", false
+	}
+	return m[1], m[2], true
 }
 
 type listMatch struct {

@@ -319,6 +319,7 @@ var ja = map[string]string{
 	"preview.needmd":           "Markdown ファイル（.md）を開いてください",
 	"preview.nomermaid":        "mermaid-command が未設定のため図を描画できません",
 	"preview.rendering":        "⏳ mermaid を描画中…",
+	"preview.loadingimage":     "⏳ 画像を読み込み中…",
 	"proxy.nofree":             "空いている待ち受けポートが見つかりません",
 	"proxy.notforwarded":       "待ち受けポート %d の転送はありません",
 	"proxy.portrange":          "ポート番号は 1〜65535 で指定してください",

@@ -36,4 +36,10 @@ mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"
 
 PNG / JPEG / GIF / BMP / WebP / TIFF
 
+Markdown のプレビューでは、1 行に画像だけを書いた `![説明](パス)` を画像として表示します。
+
+- パスは Markdown ファイルのあるディレクトリからの相対パスです。絶対パスも使えます。
+- 文の途中の画像と、`https://` などのファイルでない画像は、「🖼 説明」という文字で表示します。
+- 画像を読み込めないときは、画像の代わりにエラーを表示します。
+
 画像と mermaid の図は Kitty graphics protocol で描きます。Kitty / Ghostty / WezTerm など、これに対応した端末が必要です。
