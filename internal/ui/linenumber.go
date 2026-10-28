@@ -19,6 +19,14 @@ func (a *App) flipLineNumbers() {
 	a.lineFlip = true // a repeat while held changes nothing
 }
 
+// lineFlipOtherKey ends the flip when a key other than \ is pressed while
+// the terminal reports key releases.
+func (a *App) lineFlipOtherKey(msg tea.KeyPressMsg) {
+	if a.keyReleases && msg.Code != lineFlipKey {
+		a.lineFlip = false
+	}
+}
+
 // lineFlipRelease ends the flip when \ is let go.
 func (a *App) lineFlipRelease(msg tea.KeyReleaseMsg) {
 	if msg.Code == lineFlipKey {
