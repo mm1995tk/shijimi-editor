@@ -203,6 +203,7 @@ An image written alone on a line, `![alt](path)`, is shown as an image in the sa
 | `gg` `ge` `gh` `gl` `gs` / `<number>g` | Jump |
 | `gd` `gr` | Go to definition / references |
 | `Ctrl+O` `Ctrl+I` | Go back / forward to where you jumped from (VS Code mode: `Alt+←` `Alt+→`) |
+| `Ctrl+Alt+D` `Ctrl+Alt+U` | Scroll down / up while the cursor stays on its line (like `Ctrl+D` / `Ctrl+U` otherwise: line by line while held on terminals that report key release, half a screen per press elsewhere). At the top or bottom edge of the screen the cursor stays on the edge and is pushed along |
 | `]d` `[d` | Next / previous diagnostic |
 | `gn` `gp` | Next / previous tab |
 | `/` `?` `n` `N` `*` | Search |

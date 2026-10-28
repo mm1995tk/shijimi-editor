@@ -201,6 +201,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `gg` `ge` `gh` `gl` `gs` / `数字g` | ジャンプ |
 | `gd` `gr` | 定義へ移動 / 参照 |
 | `Ctrl+O` `Ctrl+I` | 飛ぶ前の場所へ戻る / 進む（VS Code モードは `Alt+←` `Alt+→`） |
+| `Ctrl+Alt+D` `Ctrl+Alt+U` | カーソルを元の行に残したまま画面だけを下 / 上へスクロール（動き方は `Ctrl+D` / `Ctrl+U` と同じ。キーを離したことを伝える端末では押している間 1 行ずつ、それ以外は 1 回で半画面）。画面の端に来たらカーソルは端に留まり、押し出される |
 | `]d` `[d` | 次 / 前の診断 |
 | `gn` `gp` | 次 / 前のタブ |
 | `/` `?` `n` `N` `*` | 検索 |

@@ -23,21 +23,27 @@ type holdScroll struct {
 	dir  int            // +1 down, -1 up
 	ext  bool           // extend the selection (select mode)
 	code rune           // the held key: 'd' or 'u'
+	keep bool           // Ctrl+Alt: scroll the view only, the cursor stays on its line
 }
 
 type holdScrollMsg struct{ seq int }
 
 // halfPage handles Ctrl+D (dir = 1) and Ctrl+U (dir = -1).
 func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg tea.KeyPressMsg) tea.Cmd {
+	keep := msg.Mod.Contains(tea.ModAlt)
+	if !a.keyReleases && keep {
+		a.scrollKeepCursor(b, dir*a.pageSize()/2, ext)
+		return nil
+	}
 	if !a.keyReleases {
 		b.MoveLines(dir*a.pageSize()/2, ext)
 		b.ScrollRow = max(0, b.Cur.Row-a.layout().editH/2)
 		return nil
 	}
-	if msg.IsRepeat || a.hold.buf != nil && a.hold.dir == dir {
+	if msg.IsRepeat || a.hold.buf != nil && a.hold.dir == dir && a.hold.keep == keep {
 		return nil // already scrolling until the release
 	}
-	a.hold = holdScroll{buf: b, dir: dir, ext: ext, code: msg.Code}
+	a.hold = holdScroll{buf: b, dir: dir, ext: ext, code: msg.Code, keep: keep}
 	a.holdSeq++
 	return a.holdScrollTick(a.holdSeq)
 }
@@ -48,6 +54,13 @@ func (a *App) holdScrollTick(seq int) tea.Cmd {
 	h := a.hold
 	if h.buf == nil || seq != a.holdSeq {
 		return nil
+	}
+	if h.keep {
+		if !a.scrollKeepCursor(h.buf, h.dir, h.ext) { // the start or end of the file
+			a.stopHoldScroll()
+			return nil
+		}
+		return tea.Tick(holdScrollFrame, func(time.Time) tea.Msg { return holdScrollMsg{seq} })
 	}
 	row := h.buf.Cur.Row
 	h.buf.MoveLines(h.dir, h.ext)
@@ -76,4 +89,30 @@ func (a *App) holdScrollRelease(msg tea.KeyReleaseMsg) {
 func (a *App) wantKeyReleases() bool {
 	return a.helix && a.mode != modeInsert && a.focus == focusEditor && a.curText() != nil &&
 		!a.overlayOpen() && !a.cmdOpen && !a.findOpen && len(a.props) == 0 && a.ctx == nil
+}
+
+// scrollKeepCursor scrolls the view by n lines (Ctrl+Alt+D / Ctrl+Alt+U) and
+// leaves the cursor on its line. Once the line would leave the screen (within
+// the same margin that keeps the cursor in view) the cursor is pushed along
+// the edge. It reports whether the view moved; the view stops when the first
+// or the last line is at the edge of the screen.
+func (a *App) scrollKeepCursor(b *buffer.Buffer, n int, ext bool) bool {
+	h := a.layout().editH
+	if h <= 0 {
+		return false
+	}
+	old := b.ScrollRow
+	b.ScrollRow = clamp(old+n, 0, max(0, len(b.Lines)-h))
+	moved := b.ScrollRow != old
+	margin := min(3, (h-1)/2)
+	lo, hi := b.ScrollRow+margin, b.ScrollRow+h-1-margin
+	if b.ScrollRow == 0 {
+		lo = 0 // the top of the file has no line above to keep in view
+	}
+	row := min(clamp(b.Cur.Row, lo, max(lo, hi)), len(b.Lines)-1)
+	if row != b.Cur.Row {
+		b.MoveLines(row-b.Cur.Row, ext)
+	}
+	a.follow = false // the view must not be pulled back to the cursor
+	return moved
 }

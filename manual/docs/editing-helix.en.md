@@ -25,6 +25,7 @@ For example, select a word with `w`, then delete it with `d`.
 | `Home` / `End` | Start / end of line |
 | `PgUp` `Ctrl+B` / `PgDn` `Ctrl+F` | Page up / down |
 | `Ctrl+U` / `Ctrl+D` | Move up / down. In terminals that report key release (those supporting the kitty keyboard protocol), it scrolls one line at a time while the key is held. Otherwise it moves half a screen and puts the cursor line in the middle of the screen |
+| `Ctrl+Alt+U` / `Ctrl+Alt+D` | Scroll the screen up / down, leaving the cursor on its line. Same timing as above (one line at a time while held, or half a screen per press). When the cursor reaches the top or bottom edge, it stays on the edge and is pushed along |
 | `\` | Show line numbers the other way from the setting (`editor.line-number`): absolute ⇄ relative. In terminals that report key release, only while the key is held. Otherwise each press switches between the two |
 | `zh` / `zl` (`Alt+PgUp` / `Alt+PgDn`) | Scroll the view half a screen left / right without moving the cursor. It stops at the left edge and where the end of the longest line is visible. The horizontal mouse wheel and `Shift` + wheel do the same |
 | `G` | Last line |
