@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -219,5 +221,72 @@ func TestResizeKeysFollowFocus(t *testing.T) {
 	press(a, "left")
 	if got := a.layout().sideW; got != side {
 		t.Fatalf("side back %d -> %d", side, got)
+	}
+}
+
+// On a wide screen one percent is more than a key step; the border still moves.
+func TestResizeKeysWideScreen(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	a.gd.split = true
+	a.Update(tea.WindowSizeMsg{Width: 300, Height: 300})
+	if a.render(); !a.splitShown() || a.diffFile(a.curText()) == nil {
+		t.Skip("split is not shown")
+	}
+	a.focus = focusEditor
+	a.startResize()
+	for _, k := range []string{"l", "h"} {
+		before := a.dvGeom(a.layout()).leftW
+		press(a, k)
+		if got := a.dvGeom(a.layout()).leftW; got == before {
+			t.Fatalf("%s: diff left stays %d", k, got)
+		}
+	}
+	a.focus = focusChanges
+	for _, k := range []string{"j", "k"} {
+		before := a.explorerH()
+		press(a, k)
+		if got := a.explorerH(); got == before {
+			t.Fatalf("%s: tree stays %d", k, got)
+		}
+	}
+}
+
+func TestResizeKeysEditorBorders(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "a.md")
+	os.WriteFile(file, []byte("# a\n"), 0o644)
+	a := New(dir, file)
+	a.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
+	a.focus = focusEditor
+	a.startResize()
+
+	// nothing on the right: the sidebar edge
+	side := a.layout().sideW
+	press(a, "l")
+	if got := a.layout().sideW; got != side+resizeStep {
+		t.Fatalf("side %d -> %d", side, got)
+	}
+
+	// the suggestions panel: its left edge
+	a.showAgent = true
+	agent := a.layout().agentW
+	if agent == 0 {
+		t.Fatal("panel not shown")
+	}
+	press(a, "h")
+	if got := a.layout().agentW; got != agent+resizeStep {
+		t.Fatalf("panel %d -> %d", agent, got)
+	}
+
+	// the Markdown preview comes before the panel
+	a.curText().preview = previewSplit
+	l := a.layout()
+	edit := a.editW(a.curText(), l)
+	press(a, "l")
+	if got := a.editW(a.curText(), a.layout()); got <= edit {
+		t.Fatalf("editor %d -> %d", edit, got)
+	}
+	if got := a.layout().agentW; got != agent+resizeStep {
+		t.Fatalf("panel moved: %d", got)
 	}
 }

@@ -101,6 +101,21 @@ func (a *App) startResize() tea.Cmd {
 	return nil
 }
 
+// editorBorder is the border inside the editor area of t: the │ of a split
+// diff or the one beside the Markdown preview.
+func (a *App) editorBorder(t *tab) resizeTarget {
+	switch {
+	case t == nil:
+	case a.diffFile(t) != nil:
+		if a.splitShown() {
+			return resizeDiff
+		}
+	case t.preview == previewSplit:
+		return resizePreview
+	}
+	return resizeNone
+}
+
 // keyBorder is the border the arrow keys move in resize mode: the one beside
 // the focused pane, a vertical border for ← → and a horizontal one for ↑ ↓.
 func (a *App) keyBorder(l layout, across bool) resizeTarget {
@@ -112,13 +127,10 @@ func (a *App) keyBorder(l layout, across bool) resizeTarget {
 	}
 	switch a.focus {
 	case focusEditor:
-		t := a.curText()
-		switch {
-		case t != nil && a.splitShown() && a.diffFile(t) != nil:
-			return resizeDiff
-		case t != nil && a.diffFile(t) == nil && t.preview == previewSplit:
-			return resizePreview
-		case l.agentW > 0:
+		if b := a.editorBorder(a.curText()); b != resizeNone {
+			return b
+		}
+		if l.agentW > 0 {
 			return resizeAgent
 		}
 	case focusAgent:
@@ -129,44 +141,57 @@ func (a *App) keyBorder(l layout, across bool) resizeTarget {
 	return resizeSide
 }
 
+// pctToward is the share that gives n cells of avail, or failing that the
+// nearest width past n in the direction d, so a key press always moves a
+// border (one percent may be more than a cell).
+func pctToward(n, avail, d int) int {
+	if d > 0 {
+		return (n*100 + avail - 1) / avail
+	}
+	return ((n+1)*100 - 1) / avail
+}
+
 // moveBorder moves a border by d columns (or rows): right or down when d > 0.
-func (a *App) moveBorder(target resizeTarget, d int) {
-	l := a.layout()
-	x, y := 0, 0
+func (a *App) moveBorder(l layout, target resizeTarget, d int) {
 	switch target {
 	case resizeSide:
 		a.resizeSide(d)
-		return
 	case resizeTerm:
 		a.resizeTerm(-d)
-		return
 	case resizeAgent:
-		x = l.agentX - 1 + d
+		a.agentWPref = a.agentWidth() - d
+		a.agentWPref = a.agentWidth()
+		a.follow = true
 	case resizeDiff:
-		x = l.rightX + a.dvGeom(l).leftW + d
+		if avail := l.rightW - 2; avail > 0 {
+			a.diffLeftPct = clamp(pctToward(a.dvGeom(l).leftW+d, avail, d), 1, 99)
+			a.follow = true
+		}
 	case resizePreview:
-		x = l.rightX + a.editW(a.curText(), l) + d
+		if avail := l.rightW - 1; avail > 0 {
+			a.previewPct = clamp(pctToward(a.editW(a.curText(), l)+d, avail, d), 10, 90)
+			a.follow = true
+		}
 	case resizeExplorer:
-		y = l.top + a.explorerH() + d
+		if body := a.bodyH(); body > 0 {
+			a.explorerPct = clamp(pctToward(a.explorerH()+d, body, d), 1, 99)
+		}
 	}
-	prev := a.resizing
-	a.resizing = target
-	a.dragResize(l, x, y)
-	a.resizing = prev
 }
 
 // handleResizeKey runs while resize mode is on; every key either resizes or
 // leaves the mode.
 func (a *App) handleResizeKey(key string) tea.Cmd {
+	l := a.layout()
 	switch key {
 	case "left", "h":
-		a.moveBorder(a.keyBorder(a.layout(), true), -resizeStep)
+		a.moveBorder(l, a.keyBorder(l, true), -resizeStep)
 	case "right", "l":
-		a.moveBorder(a.keyBorder(a.layout(), true), resizeStep)
+		a.moveBorder(l, a.keyBorder(l, true), resizeStep)
 	case "up", "k":
-		a.moveBorder(a.keyBorder(a.layout(), false), -resizeStep)
+		a.moveBorder(l, a.keyBorder(l, false), -resizeStep)
 	case "down", "j":
-		a.moveBorder(a.keyBorder(a.layout(), false), resizeStep)
+		a.moveBorder(l, a.keyBorder(l, false), resizeStep)
 	case "<", ",":
 		a.resizePreviewBy(-previewStepPct)
 	case ">", ".":
@@ -192,11 +217,16 @@ func (a *App) resizeHit(l layout, x, y int) resizeTarget {
 	case a.showSide && a.gd.on && x < l.sideW && y == l.top+a.explorerH():
 		return resizeExplorer
 	}
-	if t := a.curText(); t != nil && a.splitShown() && a.diffFile(t) != nil && y > l.editY && y < l.editY+l.editH && x == l.rightX+a.dvGeom(l).leftW {
-		return resizeDiff
-	}
-	if t := a.curText(); t != nil && t.preview == previewSplit && y >= l.editY && y < l.editY+l.editH && x == l.rightX+a.editW(t, l) {
-		return resizePreview
+	t := a.curText()
+	switch a.editorBorder(t) {
+	case resizeDiff:
+		if y > l.editY && y < l.editY+l.editH && x == l.rightX+a.dvGeom(l).leftW {
+			return resizeDiff
+		}
+	case resizePreview:
+		if y >= l.editY && y < l.editY+l.editH && x == l.rightX+a.editW(t, l) {
+			return resizePreview
+		}
 	}
 	return resizeNone
 }
