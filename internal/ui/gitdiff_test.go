@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -818,5 +819,57 @@ func TestSidebarSplitDrag(t *testing.T) {
 	press(a, "=")
 	if got, want := a.explorerH(), a.bodyH()*7/10; got != want {
 		t.Fatalf("reset %d, want %d", got, want)
+	}
+}
+
+func TestOpenChangePutsCursorOnFirstChange(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git がありません")
+	}
+	dir := t.TempDir()
+	gitIn(t, dir, "init", "-q")
+	var lines []string
+	for i := range 40 {
+		lines = append(lines, fmt.Sprint(i))
+	}
+	write := func(name string, ls []string) {
+		os.WriteFile(filepath.Join(dir, name), []byte(strings.Join(ls, "\n")+"\n"), 0o644)
+	}
+	write("mod.txt", lines)
+	write("del.txt", lines)
+	gitIn(t, dir, "add", ".")
+	gitIn(t, dir, "commit", "-q", "-m", "init")
+	mod := slices.Clone(lines)
+	mod[30], mod[35] = "x", "y"
+	write("mod.txt", mod)
+	write("del.txt", slices.Delete(slices.Clone(lines), 20, 22))
+	a := New(dir, "")
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	a.gd.on = true
+	a.gd.base = baseHead
+	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead, nil).(changesLoadedMsg))
+	open := func(name string) *tab {
+		t.Helper()
+		f := a.gd.byAbs[filepath.Join(dir, name)]
+		if f == nil {
+			t.Fatalf("%s is not in the changes", name)
+		}
+		a.openChange(f)
+		return a.curText()
+	}
+
+	// the cursor is on the first changed line, a few rows below the top
+	tb := open("mod.txt")
+	if tb.buf.Cur.Row != 30 || tb.buf.ScrollRow != 27 {
+		t.Errorf("mod.txt: cur=%d scroll=%d", tb.buf.Cur.Row, tb.buf.ScrollRow)
+	}
+	// a change that only deletes puts the cursor on the line after it
+	if tb := open("del.txt"); tb.buf.Cur.Row != 20 {
+		t.Errorf("del.txt: cur=%d", tb.buf.Cur.Row)
+	}
+	// a file already open keeps its cursor
+	tb.buf.Cur.Row = 5
+	if open("mod.txt"); tb.buf.Cur.Row != 5 {
+		t.Errorf("reopened mod.txt: cur=%d", tb.buf.Cur.Row)
 	}
 }
