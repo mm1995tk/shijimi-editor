@@ -15,6 +15,9 @@ import (
 //     soon as the key is let go.
 //   - Otherwise the cursor jumps half a page and its line is put in the middle
 //     of the screen, so the eye always looks at the same place.
+//
+// Ctrl+Alt+D / Ctrl+Alt+U scroll the same way, but only the view: the cursor
+// stays on its line until the screen edge pushes it.
 
 const holdScrollFrame = 16 * time.Millisecond // one line per frame
 
@@ -28,19 +31,27 @@ type holdScroll struct {
 
 type holdScrollMsg struct{ seq int }
 
-// halfPage handles Ctrl+D (dir = 1) and Ctrl+U (dir = -1).
+// continues reports whether a key press is the held key itself (or its repeat),
+// so the running scroll goes on. Ctrl+D and Ctrl+Alt+D share a code but are
+// different scrolls.
+func (h holdScroll) continues(msg tea.KeyPressMsg) bool {
+	return h.buf != nil && msg.Code == h.code && msg.Mod.Contains(tea.ModCtrl) && msg.Mod.Contains(tea.ModAlt) == h.keep
+}
+
+// halfPage handles Ctrl+D (dir = 1) and Ctrl+U (dir = -1), and with Alt added
+// (Ctrl+Alt+D / Ctrl+Alt+U) the same scroll that leaves the cursor on its line.
 func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg tea.KeyPressMsg) tea.Cmd {
 	keep := msg.Mod.Contains(tea.ModAlt)
-	if !a.keyReleases && keep {
-		a.scrollKeepCursor(b, dir*a.pageSize()/2, ext)
+	if !a.keyReleases { // one press, half a page
+		if keep {
+			a.scrollKeepCursor(b, dir*a.pageSize()/2, ext)
+		} else {
+			b.MoveLines(dir*a.pageSize()/2, ext)
+			b.ScrollRow = max(0, b.Cur.Row-a.layout().editH/2)
+		}
 		return nil
 	}
-	if !a.keyReleases {
-		b.MoveLines(dir*a.pageSize()/2, ext)
-		b.ScrollRow = max(0, b.Cur.Row-a.layout().editH/2)
-		return nil
-	}
-	if msg.IsRepeat || a.hold.buf != nil && a.hold.dir == dir && a.hold.keep == keep {
+	if msg.IsRepeat || a.hold.continues(msg) {
 		return nil // already scrolling until the release
 	}
 	a.hold = holdScroll{buf: b, dir: dir, ext: ext, code: msg.Code, keep: keep}
@@ -109,7 +120,10 @@ func (a *App) scrollKeepCursor(b *buffer.Buffer, n int, ext bool) bool {
 	if b.ScrollRow == 0 {
 		lo = 0 // the top of the file has no line above to keep in view
 	}
-	row := min(clamp(b.Cur.Row, lo, max(lo, hi)), len(b.Lines)-1)
+	if b.ScrollRow == max(0, len(b.Lines)-h) {
+		hi = len(b.Lines) - 1 // nor does the bottom have a line below
+	}
+	row := clamp(b.Cur.Row, lo, max(lo, hi))
 	if row != b.Cur.Row {
 		b.MoveLines(row-b.Cur.Row, ext)
 	}

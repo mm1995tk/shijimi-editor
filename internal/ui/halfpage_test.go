@@ -111,12 +111,13 @@ func TestScrollKeepCursorHalfPage(t *testing.T) {
 	b := a.curText().buf
 	keys(a, "1", "0", "0", "g")
 	a.render()
-	// Put the cursor in the middle of the screen so a half page does not reach an edge.
-	b.ScrollRow = b.Cur.Row - a.layout().editH/2
+	// Put the cursor near the bottom of the screen (below the margin) so a
+	// half page leaves it where it is.
+	b.ScrollRow = b.Cur.Row - (a.layout().editH - 1 - 3)
 	row, scroll := b.Cur.Row, b.ScrollRow
 	a.Update(ctrlAltD)
 	a.render()
-	if b.Cur.Row < row || b.ScrollRow != scroll+a.pageSize()/2 {
+	if b.Cur.Row != row || b.ScrollRow != scroll+a.pageSize()/2 {
 		t.Fatalf("cursor row %d (was %d), scroll %d (was %d)", b.Cur.Row, row, b.ScrollRow, scroll)
 	}
 	// Keep going: the cursor is pushed along the top edge.

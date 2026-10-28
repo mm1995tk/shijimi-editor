@@ -1083,7 +1083,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return a.handleMouse(toMouseEvent(msg))
 	case tea.KeyPressMsg:
 		a.ag.sel = agentSel{}
-		if a.hold.buf != nil && !(msg.Code == a.hold.code && msg.Mod.Contains(tea.ModCtrl) && msg.Mod.Contains(tea.ModAlt) == a.hold.keep) {
+		if a.hold.buf != nil && !a.hold.continues(msg) {
 			a.stopHoldScroll() // another key ends the scroll
 		}
 		if a.keyReleases && msg.Code != lineFlipKey {
