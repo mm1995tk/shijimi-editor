@@ -44,15 +44,23 @@ Press `Alt+R` to enter resize mode.
 
 | Key | Action |
 | --- | --- |
-| `←` / `→` | Width of the sidebar |
-| `↑` / `↓` | Height of the terminal |
+| `←` / `→` (`h` / `l`) | Move the left/right border of the focused pane 2 columns left / right |
+| `↑` / `↓` (`k` / `j`) | Move the top/bottom border of the focused pane 2 rows up / down |
 | `<` / `>` | Boundary between the editor and the preview |
 | `=` | Reset to the initial values |
 | `Esc` | Leave resize mode |
 
+The focused pane decides which border the arrow keys move.
+
+| Focused pane | `←` / `→` | `↑` / `↓` |
+| --- | --- | --- |
+| Explorer / CHANGES | Right edge of the sidebar | In diff mode, the boundary between the explorer and CHANGES. Otherwise the top of the terminal |
+| Editor | In a split diff, the `│` between left and right. Otherwise the border with the preview or the suggestions panel. If there is neither, the right edge of the sidebar | Top of the terminal |
+| Terminal | Right edge of the sidebar | Top of the terminal |
+| Suggestions panel | Left edge of the suggestions panel | Top of the terminal |
+
 You can also change them by dragging the border with the mouse.
 In diff mode, dragging the boundary between the explorer and CHANGES (the CHANGES heading row) changes the height ratio of the top and bottom. Neither becomes smaller than 3 rows. `=` resets it to 7:3. The ratio is kept when you change the height of the terminal.
-Change the width of the suggestions panel by dragging its border.
 The sizes are kept until you quit shijimi.
 
 ## Switching tabs

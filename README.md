@@ -250,7 +250,7 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 | `Ctrl+E` | Switch focus between the file tree and the editor |
 | `Ctrl+G` | Open / close diff mode (compared with `HEAD`) |
 | ``Ctrl+` `` / `Ctrl+J` | Toggle the terminal (inside the terminal, only ``Ctrl+` ``) |
-| `Alt+R` | Pane resize mode (`←→` sidebar width, `↑↓` terminal height, `<` `>` boundary between the editor and the preview, `=` defaults, `Esc` to finish). You can also drag the borders with the mouse. The sizes are kept until you quit the editor |
+| `Alt+R` | Pane resize mode (`←→` `↑↓` (`hjkl`) move the borders of the focused pane, `<` `>` boundary between the editor and the preview, `=` defaults, `Esc` to finish). You can also drag the borders with the mouse. The sizes are kept until you quit the editor |
 | `Ctrl+S` | Save |
 | `Ctrl+W` | Close the tab |
 | `Ctrl+PgUp` / `Ctrl+PgDn` / `Alt+1`-`9` | Switch tabs |
