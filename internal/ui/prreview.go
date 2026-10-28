@@ -209,6 +209,8 @@ var reviewItems = []spaceItem{
 	{"A", "rv.item.approve", false},
 	{"R", "rv.item.request", false},
 	{"S", "rv.item.commentonly", false},
+	{"y", "rv.item.copyurl", false},
+	{"o", "rv.item.openurl", false},
 }
 
 // openReviewMenu handles Space v.
@@ -249,6 +251,10 @@ func (a *App) reviewKey(key string) tea.Cmd {
 		return a.startSubmit("REQUEST_CHANGES")
 	case "S":
 		return a.startSubmit("COMMENT")
+	case "y":
+		return a.copyPRURL()
+	case "o":
+		return a.openPRURL()
 	}
 	return nil
 }

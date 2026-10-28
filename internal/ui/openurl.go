@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -64,6 +65,9 @@ func urlAt(line []rune, col int) (string, bool) {
 type openURLMsg struct {
 	url string
 	err error
+	// copyOnFail copies url to the clipboard when opening failed, instead of
+	// showing the error.
+	copyOnFail bool
 }
 
 var urlFullRe = regexp.MustCompile(`^https?://\S+$`)
@@ -90,4 +94,29 @@ func (a *App) openURL(arg string) tea.Cmd {
 		return nil
 	}
 	return func() tea.Msg { return openURLMsg{url: url, err: openExternal(url)} }
+}
+
+// isRemoteSession reports whether the editor runs over SSH, where a browser
+// opened here would not appear on the user's screen. It is replaced in tests.
+var isRemoteSession = func() bool {
+	return os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_TTY") != ""
+}
+
+// copyPRURL copies the URL of the pull request being reviewed.
+func (a *App) copyPRURL() tea.Cmd {
+	a.copyText(a.gd.pr.URL)
+	a.info(i18n.T("rv.urlcopied"), a.gd.pr.URL)
+	return nil
+}
+
+// openPRURL opens the pull request in the browser. Over SSH, or when the
+// opener fails, it copies the URL instead and says so.
+func (a *App) openPRURL() tea.Cmd {
+	url := a.gd.pr.URL
+	if isRemoteSession() {
+		a.copyText(url)
+		a.info(i18n.T("rv.sshcopied"), url)
+		return nil
+	}
+	return func() tea.Msg { return openURLMsg{url: url, err: openExternal(url), copyOnFail: true} }
 }

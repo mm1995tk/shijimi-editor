@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 func gitOut(t *testing.T, dir string, args ...string) string {
@@ -765,5 +766,65 @@ func TestCommentOnNewFileInOnePane(t *testing.T) {
 	}
 	if got := a.gd.rv.lineThreads("b.txt", 2); len(got) != 1 {
 		t.Errorf("thread not found on line 2: %v", got)
+	}
+}
+
+func TestReviewPRURLCommands(t *testing.T) {
+	a, _ := prApp(t)
+	a.gd.pr.URL = "https://github.com/o/r/pull/7"
+	oldOpen, oldSSH := openExternal, isRemoteSession
+	defer func() { openExternal, isRemoteSession = oldOpen, oldSSH }()
+	var opened string
+	var openErr error
+	openExternal = func(u string) error { opened = u; return openErr }
+	remote := false
+	isRemoteSession = func() bool { return remote }
+	reset := func() { opened, a.clipboard, a.msg, a.msgErr = "", "", "", false }
+	const url = "https://github.com/o/r/pull/7"
+
+	reset()
+	runCmd(a, a.reviewKey("y"))
+	if a.clipboard != url || a.msgErr || !strings.Contains(a.msg, url) {
+		t.Fatalf("copy: clip %q msg %q", a.clipboard, a.msg)
+	}
+	reset()
+	runCmd(a, a.reviewKey("o"))
+	if opened != url || a.clipboard != "" || a.msgErr {
+		t.Fatalf("open: opened %q clip %q msg %q", opened, a.clipboard, a.msg)
+	}
+	reset()
+	remote = true
+	runCmd(a, a.reviewKey("o"))
+	if opened != "" || a.clipboard != url || a.msgErr || !strings.Contains(a.msg, "SSH") {
+		t.Fatalf("ssh: opened %q clip %q msg %q", opened, a.clipboard, a.msg)
+	}
+	remote = false
+	reset()
+	openErr = fmt.Errorf("boom")
+	runCmd(a, a.reviewKey("o"))
+	if a.clipboard != url || a.msgErr || strings.Contains(a.msg, "boom") {
+		t.Fatalf("fallback: clip %q msg %q err %v", a.clipboard, a.msg, a.msgErr)
+	}
+	// Not comparing with a PR base: palette commands only say so.
+	reset()
+	a.gd.base = baseHead
+	runCmd(a, a.reviewCommand("y"))
+	runCmd(a, a.reviewCommand("o"))
+	if opened != "" || a.clipboard != "" || a.msg != i18n.T("rv.needpr") {
+		t.Fatalf("needpr: opened %q clip %q msg %q", opened, a.clipboard, a.msg)
+	}
+}
+
+func TestSSHDetection(t *testing.T) {
+	for _, k := range []string{"SSH_CONNECTION", "SSH_TTY"} {
+		t.Setenv("SSH_CONNECTION", "")
+		t.Setenv("SSH_TTY", "")
+		if isRemoteSession() {
+			t.Fatal("not remote")
+		}
+		t.Setenv(k, "x")
+		if !isRemoteSession() {
+			t.Fatalf("%s must mean remote", k)
+		}
 	}
 }

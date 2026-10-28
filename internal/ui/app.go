@@ -1034,7 +1034,10 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 	case lspErrMsg:
 		a.fail(msg.err)
 	case openURLMsg:
-		if msg.err != nil {
+		if msg.err != nil && msg.copyOnFail {
+			a.copyText(msg.url)
+			a.info(i18n.T("rv.openfailedcopied"), msg.url)
+		} else if msg.err != nil {
 			a.fail(msg.err)
 		} else {
 			a.info(i18n.T("app.opened"), msg.url)
