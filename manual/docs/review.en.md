@@ -47,6 +47,10 @@ A file row shows a status letter, the file name, the number of added lines `+N` 
 
 The right end of the heading shows the current base. `DIFF` is `HEAD`, and `PR` is the base of a pull request.
 
+When you open a file from CHANGES, the cursor is placed on the first changed line of the file.
+For a change that only removes lines, it is placed on the line after it.
+A file already open in a tab keeps its cursor position.
+
 In Helix mode, `Space E` moves to CHANGES. From the file tree, `Tab` also moves there.
 
 ### Split and Unified

@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -751,10 +752,38 @@ func (a *App) openChange(f *diff.File) tea.Cmd {
 		a.info(i18n.T("gd.deleted"), f.Path())
 		return nil
 	}
+	n := len(a.tabs)
 	if !a.openFile(abs) {
 		return nil
 	}
+	if len(a.tabs) > n {
+		// a file already open keeps where the cursor was
+		a.showFirstChange(a.curText())
+	}
 	return a.setFocus(focusEditor)
+}
+
+// showFirstChange puts the cursor on the first change of t, with a few rows
+// above it on screen. A change that only deletes lines puts the cursor on
+// the line after it.
+func (a *App) showFirstChange(t *tab) {
+	dv := a.diffFor(t)
+	if dv == nil {
+		return
+	}
+	first := slices.IndexFunc(dv.rows, func(r dispRow) bool { return r.changed })
+	if first < 0 {
+		return
+	}
+	row := len(dv.newIdx) - 1
+	if j := slices.IndexFunc(dv.rows[first:], func(r dispRow) bool { return r.new >= 0 }); j >= 0 {
+		row = dv.rows[first+j].new
+	}
+	b := t.buf
+	b.Anchor = nil
+	b.Cur = b.ClampPos(buffer.Pos{Row: row})
+	b.ScrollRow = dv.scrollFor(first - 3)
+	a.follow = true
 }
 
 func (a *App) handleChangesKey(msg tea.KeyPressMsg) tea.Cmd {
