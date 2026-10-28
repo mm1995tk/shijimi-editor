@@ -136,7 +136,7 @@ type App struct {
 	keyReleases  bool  // the terminal reports key releases
 	hold         holdScroll
 	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
-	lineFlip     bool // line numbers shown the other way while \ is held
+	lineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
 
 	single    bool // 単体編集モード: 1 つのファイルだけを開き、閉じたら終了する
 	tabSpans  []span
@@ -1086,9 +1086,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		if a.hold.buf != nil && !a.hold.continues(msg) {
 			a.stopHoldScroll() // another key ends the scroll
 		}
-		if a.keyReleases && msg.Code != lineFlipKey {
-			a.lineFlip = false
-		}
+		a.lineFlipOtherKey(msg)
 		a.hoverSeq++ // a pending mouse hover is stale once the user types
 		a.hoverWord = wordSpan{}
 		// Fast typing can deliver several runes in one message; Helix-style
