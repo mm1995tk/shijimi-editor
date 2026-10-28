@@ -858,7 +858,8 @@ func TestOpenChangePutsCursorOnFirstChange(t *testing.T) {
 		return a.curText()
 	}
 
-	// the cursor is on the first changed line, a few rows below the top
+	tb := open("mod.txt")
+	a.render() // the scroll stays where it was put
 	tb := open("mod.txt")
 	if tb.buf.Cur.Row != 30 || tb.buf.ScrollRow != 27 {
 		t.Errorf("mod.txt: cur=%d scroll=%d", tb.buf.Cur.Row, tb.buf.ScrollRow)
