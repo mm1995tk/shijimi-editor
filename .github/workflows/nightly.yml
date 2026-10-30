@@ -1,0 +1,192 @@
+name: nightly 版を配る
+
+# main の最新を nightly 版として毎日配る（#252, #254）。
+#
+# - npm：npm/pack.sh で作った tarball を dist-tag `nightly` で publish する。`latest` には触らない。
+# - GitHub：`nightly` という名前の pre-release を 1 つ持ち、毎回その assets（shj-nightly-<os>-<cpu>）と
+#   本文（版・コミット・日付）を差し替える。
+# - 前の nightly から main にコミットが無ければ何もしない（workflow_dispatch の force で作り直せる）。
+#
+# 版は X.Y.Z-nightly.<yyyymmdd>.<sha>。X.Y.Z は flake.nix の version で、flake.nix は書き換えない。
+# vX.Y.Z のタグは打たない（pre-release が持つタグ `nightly` だけを、そのコミットに付け直す）。
+# release.yml（通常のリリース）と「毎日のリリース判定」は変えない。
+
+on:
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "前の nightly からコミットが無くても作り直す"
+        type: boolean
+        default: false
+  schedule:
+    # 15:00 UTC（日本時間 0:00）。update-flake.yml（21:00 UTC）と「毎日のリリース判定」（19:23 UTC）に重ねない
+    - cron: "0 15 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+
+jobs:
+  # 版を決め、前の nightly から進んでいなければ後のジョブを飛ばす
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      skip: ${{ steps.ver.outputs.skip }}
+    steps:
+      - name: main 以外では実行しない
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::main ブランチで実行してください（現在: $GITHUB_REF）"
+          exit 1
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: 版を決める
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          base=$(sed -n 's/^ *version = "\([0-9]*\.[0-9]*\.[0-9]*\)";$/\1/p' flake.nix)
+          if [ "$(printf '%s\n' "$base" | wc -l)" != 1 ] || [ -z "$base" ]; then
+            echo "::error::flake.nix から X.Y.Z 形式の version を1つ読めませんでした"
+            exit 1
+          fi
+          # 日付はコミットの日付（UTC）。flake.nix の nightly の版（lastModifiedDate）と同じ付け方
+          date=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d)
+          sha=$(git rev-parse --short HEAD)
+          version="$base-nightly.$date.$sha"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          # 前の nightly のコミットは pre-release の本文の「Commit: <sha>」から読む。
+          # pre-release が無い（最初の実行・手で消した）ときは作る
+          prev=$(gh release view nightly --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null \
+            | sed -n 's/^Commit: \([0-9a-f]\{40\}\)$/\1/p' || true)
+          if [ "$prev" = "$GITHUB_SHA" ] && [ "$FORCE" != "true" ]; then
+            echo "前の nightly（$prev）から main にコミットが無いので何もしない"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "nightly $version を作る（前の nightly: ${prev:-なし}）"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # OS と CPU ごとの shj-nightly をビルドし、npm のパッケージ（tarball）にする。publish はしない
+  npm-pack:
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26.12.1
+      - name: パッケージを作る
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: npm/pack.sh "$VERSION" "$RUNNER_TEMP/npm"
+      # tarball のまま渡す（upload-artifact は zip にするとき実行権限を落とすので、bin/shj の権限は tarball の中に残す）
+      - uses: actions/upload-artifact@v7
+        with:
+          name: npm-nightly
+          path: ${{ runner.temp }}/npm/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  # npm-pack が作った tarball を dist-tag nightly で publish する。ここではビルドもパッケージのスクリプトの実行もしない
+  npm-publish:
+    needs: [check, npm-pack]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # npm の Trusted Publishing（OIDC）に使う。トークンは Secrets に置かない。
+      # npm 側で、この workflow（nightly.yml）を shijimi-editor-nightly と shijimi-editor-<os>-<cpu> の
+      # Trusted Publisher に登録しておく
+      id-token: write
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          # OIDC での認証には npm 11.5.1 以降が要る。Node.js 26.12.1 に付いてくる npm はそれより新しい
+          node-version: 26.12.1
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-nightly
+          path: ${{ runner.temp }}/npm
+      - name: npm に publish する
+        # OS と CPU ごとのパッケージ（名前は安定版と同じ）を先に publish し、それに依存する shijimi-editor-nightly を最後にする。
+        # どれも --tag nightly で publish する（付けないと latest が nightly の版を指してしまう）。
+        # npm にもうあるバージョンは飛ばすので、途中で失敗してもこのジョブの再実行だけで残りを publish できる
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          cd "$RUNNER_TEMP/npm"
+          for f in shijimi-editor-*-*-"$VERSION".tgz shijimi-editor-nightly-"$VERSION".tgz; do
+            name="${f%-"$VERSION".tgz}"
+            if npm view "$name@$VERSION" version >/dev/null 2>&1; then
+              echo "$name@$VERSION はもう npm にあるので飛ばす"
+              continue
+            fi
+            npm publish "$f" --access public --ignore-scripts --tag nightly
+          done
+          echo "shijimi-editor の dist-tags:"
+          npm view shijimi-editor dist-tags
+
+  # npm-pack がビルドした shj-nightly を、GitHub の pre-release「nightly」にも置く。
+  # pre-release は作り直す（古い assets を残さず、公開日時もその日になる）。タグ nightly はそのコミットに付け直す
+  release:
+    needs: [check, npm-pack]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: npm-nightly
+          path: ${{ runner.temp }}/npm
+      - name: pre-release を作り直す
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          cd "$RUNNER_TEMP"
+          mkdir assets
+          # shijimi-editor-<os>-<cpu>-VERSION.tgz の package/bin/shj を shj-nightly-<os>-<cpu> にする
+          for f in npm/shijimi-editor-*-*-"$VERSION".tgz; do
+            platform="$(basename "${f%-"$VERSION".tgz}")"
+            platform="${platform#shijimi-editor-}"
+            tar -xzf "$f" -O package/bin/shj > "assets/shj-nightly-$platform"
+          done
+          date=$(date -u +%Y-%m-%d)
+          # check ジョブは本文の「Commit: <sha>」の行で前の nightly を見分けるので、形を変えない
+          {
+            echo "main の最新を nightly 版として毎日ビルドしたものです。安定版は [Releases](https://github.com/$GITHUB_REPOSITORY/releases/latest) を見てください。"
+            echo
+            echo "- Version: \`$VERSION\`"
+            echo "- Commit: https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA"
+            echo "- Date: $date (UTC)"
+            echo
+            echo '```sh'
+            echo "npm install -g shijimi-editor-nightly   # shj-nightly と shijimi-nightly を入れる"
+            echo "npx shijimi-editor-nightly"
+            echo '```'
+            echo
+            echo "Commit: $GITHUB_SHA"
+          } > notes.md
+          if gh release view nightly --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete nightly --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          fi
+          gh release create nightly assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "nightly ($VERSION)" \
+            --notes-file notes.md

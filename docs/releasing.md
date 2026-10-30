@@ -39,10 +39,20 @@
 - nightly 版は安定版と同じプログラムで、ビルド時の `-X github.com/mm1995tk/shijimi-editor/internal/channel.Channel=nightly` だけが違います。バイナリ名は `shj-nightly`（`shijimi-nightly` も）、設定は `~/.config/shijimi-editor-nightly/`、ソケットのディレクトリも別なので、安定版と並べて入れられます。設定の `[experimental]` の既定値は nightly 版だけ `true` です。
 - Nix：`nix build .#shj-nightly`。`version` は `flake.nix` の `X.Y.Z` に `-nightly.<yyyymmdd>.<sha>` を付けたものです（`X.Y.Z` はまだ出ていない次のリリースの番号ではなく、`flake.nix` にある今の番号です）。`shj-nightly --version` は `vX.Y.Z-nightly (<sha>)` と出ます。
 - npm：`npm/pack.sh X.Y.Z-nightly.<yyyymmdd>.<sha> <dir>` で、本体のパッケージ `shijimi-editor-nightly`（コマンドは `shj-nightly` と `shijimi-nightly`）と、OS / CPU ごとのパッケージ（名前は安定版と同じ `shijimi-editor-<os>-<cpu>`、版だけ nightly の版）の tarball ができます。
-- 毎日ビルドして npm の `nightly` の dist-tag と GitHub の pre-release に置く workflow は #254 で作ります。
+- 毎日ビルドして配るのは `nightly.yml`（次の節）です。
+
+### nightly.yml がすること
+
+`.github/workflows/nightly.yml` は、毎日 15:00 UTC（日本時間 0:00）の `schedule` と、`gh workflow run nightly.yml` などの `workflow_dispatch` で main で動きます。`update-flake.yml`（21:00 UTC）と「毎日のリリース判定」（19:23 UTC）とは重ねていません。
+
+1. 版 `X.Y.Z-nightly.<yyyymmdd>.<sha>` を決めます。`X.Y.Z` は `flake.nix` の `version`、日付はコミットの日付（UTC）、`<sha>` は短い形です。`flake.nix` は書き換えず、`vX.Y.Z` のタグも打ちません。
+2. pre-release `nightly` の本文の `Commit: <sha>` を読み、main のコミットが前の nightly から進んでいなければ、何もせずに成功します（`workflow_dispatch` の `force` を `true` にすると、進んでいなくても作り直します）。
+3. `npm/pack.sh` で OS と CPU ごとの `shj-nightly` をビルドし、npm に dist-tag `nightly` で publish します（`--tag nightly` を付けるので `latest` は動きません）。認証は `release.yml` と同じ Trusted Publishing（OIDC）で、npm 側で `nightly.yml` を `shijimi-editor-nightly` と `shijimi-editor-<os>-<cpu>` の Trusted Publisher に登録しておく必要があります（`release.yml` の登録とは別です）。
+4. pre-release `nightly` を作り直します（タグ `nightly` をそのコミットに付け直し、`shj-nightly-<os>-<cpu>` を assets に置き、本文に版・コミット・日付を書きます）。
 
 ## 止める・変える
 
 - 自動のリリースを止めるには、リポジトリオーナーが claude.ai の Claude Code のスケジュールした作業から「shijimi-editor 毎日のリリース判定」を無効にします。
 - 桁の決め方を変えるときは、そのスケジュールした作業のプロンプトを書き換え、この文書も直します。
 - 手でリリースするときは、Actions の「リリース」を main で起動し、桁を選びます。
+- nightly を止めるには、Actions の「nightly 版を配る」（`nightly.yml`）を無効にします（`gh workflow disable nightly.yml`）。`schedule` だけ止めて手で動かせるようにしておくなら、`nightly.yml` の `schedule` を消します。npm の `nightly` の dist-tag と pre-release は残るので、消すなら `npm dist-tag rm` と `gh release delete nightly --cleanup-tag` で消します。
