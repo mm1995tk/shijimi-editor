@@ -387,6 +387,8 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 
 実行中の shijimi は Unix ソケット（0600）を作り、環境変数 `SHIJIMI_SOCKET` で場所を伝えます。ターミナルパネル内のシェルから次を実行できます。IDE 連携に無い操作だけを残しています。
 
+`SHIJIMI_SOCKET` が無いとき（ターミナルマルチプレクサ herdr のキーに割り当てたシェルコマンドなど。herdr は自分の変数しか渡しません）は、`shj` が起動中の shijimi を自分で探します。ソケットは `$XDG_RUNTIME_DIR/shijimi-<uid>/<pid>.sock`（nightly 版は `shijimi-nightly-<uid>`。`XDG_RUNTIME_DIR` が無ければ一時ディレクトリの下）にあり、herdr の中（`HERDR_ENV=1`）で起動した shijimi は、同じディレクトリに `herdr-<HERDR_WORKSPACE_ID>/<HERDR_PANE_ID>.sock` というリンクも作ります。herdr のワークスペースの中（`HERDR_WORKSPACE_ID` あり）の `shj` は、自分のペイン `HERDR_PANE_ID` のリンクか、そのワークスペースで 1 つだけ起動している shijimi を使います。herdr の外では、そのユーザーで 1 つだけ起動している shijimi を使います。接続できなくなったソケットは飛ばし、shijimi は終了時に自分のファイルを消します。見つからないときと複数あるときは、`shj` はエラーを書いて終了コード 1 で終わります（`SHIJIMI_SOCKET` で 1 つを指定してください）。
+
 - `shj diff [path]`: 差分モード（比較元 `HEAD`）にする。`path` を付けるとそのファイルを diff 表示で開く
 - `shj exec ":<コマンド>"`: `:` コマンドをそのまま実行する（例: `shj exec ":preview"`）。成功するとステータス欄の文を標準出力へ、失敗するとエラーの文を標準エラーへ書き、終了コード 1 にする。`:q` `:q!` `:wq` `:bc!` などの終了・破棄するコマンド、引数なしで選択画面を開くコマンド（`:o` `:theme` `:grep` `:replace` `:symbol` `:action`、番号以外の引数の `:pr`）、未保存の変更があるファイルの `:reload` と `:bc` は実行せずエラーを返す
 

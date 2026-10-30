@@ -173,6 +173,15 @@ On startup, shijimi creates a Unix socket (permission 0600).
 Its location is placed in the environment variable `SHIJIMI_SOCKET` of the shell in the terminal panel.
 The following command is available in that shell. Only operations that the IDE integration lacks are kept.
 
+When `SHIJIMI_SOCKET` is not set, `shj` looks for a running shijimi by itself.
+The socket is `$XDG_RUNTIME_DIR/shijimi-<uid>/<pid>.sock` (`shijimi-nightly-<uid>` for the nightly build; under the temporary directory when `XDG_RUNTIME_DIR` is not set).
+shijimi started inside the herdr terminal multiplexer (`HERDR_ENV=1`) also links it as `herdr-<HERDR_WORKSPACE_ID>/<HERDR_PANE_ID>.sock` in that directory.
+Inside a herdr workspace (`HERDR_WORKSPACE_ID` set), `shj` uses the link of its pane `HERDR_PANE_ID`, or the only shijimi running in the workspace.
+Outside herdr, it uses the only shijimi running for your user.
+Sockets that no longer accept a connection are skipped, and shijimi removes its own files when it quits.
+When none is found, or more than one, `shj` writes an error and exits with code 1. Set `SHIJIMI_SOCKET` to choose one.
+This lets a shell command bound to a key of herdr run `shj exec ":sh hide"`, for example.
+
 | Command | Action |
 | --- | --- |
 | `shj diff [path]` | Switch to diff mode (base `HEAD`). With a path, opens that file in diff view |

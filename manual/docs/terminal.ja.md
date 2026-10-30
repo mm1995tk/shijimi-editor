@@ -56,5 +56,6 @@ shijimi が受け取るキーは次のとおりです。
 
 ターミナルパネルのシェルには `SHIJIMI_SOCKET` が設定されます。
 これを使って、シェルから shijimi を操作できます。
+無いときは、`shj` が起動中の shijimi を自分で探します（[AI エージェント連携](agent.md#シェルから-shijimi-を操作する) にあります）。
 Claude Code の IDE 連携のために、`CLAUDE_CODE_SSE_PORT`、`ENABLE_IDE_INTEGRATION=true`、`FORCE_CODE_TERMINAL=true` も設定されます。
 詳しくは [AI エージェント連携](agent.md) にあります。

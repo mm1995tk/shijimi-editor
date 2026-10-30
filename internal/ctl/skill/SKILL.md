@@ -6,7 +6,7 @@ description: 実行中の shijimi（ターミナル IDE）を操作する。差�
 # shijimi の操作
 
 shijimi のターミナルパネルの中、または環境変数 `SHIJIMI_SOCKET` が設定されたシェルで使えます。
-`SHIJIMI_SOCKET` が無いときは shijimi が動いていないので、このスキルは使いません。
+`SHIJIMI_SOCKET` が無いときは shijimi のターミナルパネルの外なので、このスキルは使いません。
 
 ファイルを開く・選択範囲や診断を知る・変更の承認は、Claude Code の IDE 連携（MCP）で行います。`/ide` で shijimi に接続されていれば、そちらの道具を使ってください。このスキルはそれらに無い操作だけを扱います。
 
