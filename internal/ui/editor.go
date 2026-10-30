@@ -179,15 +179,17 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 		}
 		isCur := row == b.Cur.Row
 		lineBg := cEditorBg
+		if isCur && !hasSel {
+			lineBg = cCurLine
+		}
+		// a diff row keeps its own background under the cursor, so an added
+		// line stays green when the cursor is on it
 		if o.rowBg != nil {
 			if c := o.rowBg(row); c != "" {
 				lineBg = c
 			}
 		}
 		numSt := stLineNo
-		if isCur && !hasSel {
-			lineBg = cCurLine
-		}
 		if isCur {
 			numSt = bgfg(lineBg, cLineNoCur)
 		}
