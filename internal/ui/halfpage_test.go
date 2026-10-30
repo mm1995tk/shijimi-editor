@@ -101,6 +101,24 @@ func TestKeyReleasesOnlyInNormalMode(t *testing.T) {
 	}
 }
 
+// Closing the command line with :q would ask for key releases again, which
+// makes Bubble Tea query the terminal on the way out; the reply could then
+// reach the shell as typed text. So the request stays as it was.
+func TestKeyReleasesFrozenWhileQuitting(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	keys(a, ":")
+	if a.View().KeyboardEnhancements.ReportEventTypes {
+		t.Fatal("the command line should not ask for key releases")
+	}
+	keys(a, "q", "enter")
+	if !a.quitting {
+		t.Fatal(":q should be quitting")
+	}
+	if a.View().KeyboardEnhancements.ReportEventTypes {
+		t.Fatal("quitting must not change the key-release request")
+	}
+}
+
 var (
 	ctrlAltD = tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl | tea.ModAlt}
 	ctrlAltU = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl | tea.ModAlt}

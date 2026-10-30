@@ -194,9 +194,9 @@ func (a *App) execCommand(line string) tea.Cmd {
 			a.fail(fmt.Errorf(i18n.T("cmd.quitunsaved"), d))
 			return nil
 		}
-		return tea.Quit
+		return a.exit()
 	case "q!", "quit!", "qa!", "quit-all!":
-		return tea.Quit
+		return a.exit()
 	case "wq", "x", "write-quit", "x!", "wq!":
 		a.save()
 		if a.msgErr {
@@ -206,13 +206,13 @@ func (a *App) execCommand(line string) tea.Cmd {
 			a.fail(fmt.Errorf(i18n.T("cmd.moreunsaved"), d))
 			return nil
 		}
-		return tea.Quit
+		return a.exit()
 	case "wqa", "xa", "write-quit-all":
 		a.saveAll()
 		if a.msgErr {
 			return nil
 		}
-		return tea.Quit
+		return a.exit()
 	case "o", "open", "e", "edit":
 		if arg == "" {
 			return a.pal.show(a.root, "")
