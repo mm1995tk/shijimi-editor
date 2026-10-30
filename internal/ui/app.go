@@ -134,6 +134,8 @@ type App struct {
 	dragging     bool
 	lastClick    click // the previous left press, to spot a double click
 	keyReleases  bool  // the terminal reports key releases
+	askReleases  bool  // key releases were asked for in the last View
+	quitting     bool  // tea.Quit was returned (see exit)
 	hold         holdScroll
 	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
 	lineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
@@ -759,6 +761,15 @@ func (a *App) quit() tea.Cmd {
 	}
 	a.term.closeAll()
 	a.proxy.StopAll()
+	return a.exit()
+}
+
+// exit ends the program. From here on the View keeps asking the terminal for
+// the same keyboard enhancements: when they change, Bubble Tea queries the
+// terminal, and the reply (CSI ? flags u) can arrive after input is no longer
+// read, so the shell would get it as typed text such as "3u".
+func (a *App) exit() tea.Cmd {
+	a.quitting = true
 	return tea.Quit
 }
 
@@ -2168,8 +2179,12 @@ func (a *App) View() tea.View {
 	}
 	// Key releases let Ctrl+D / Ctrl+U scroll only while held. Some terminals
 	// (herdr 0.9.5) then drop text committed by an IME, so they are asked
-	// for only where those keys scroll.
-	v.KeyboardEnhancements.ReportEventTypes = a.wantKeyReleases()
+	// for only where those keys scroll. The request is frozen once quitting
+	// (see exit).
+	if !a.quitting {
+		a.askReleases = a.wantKeyReleases()
+	}
+	v.KeyboardEnhancements.ReportEventTypes = a.askReleases
 	// The terminal cursor stays hidden (see package caret), but an IME shows
 	// its composition where it is.
 	v.Cursor = a.caretAt
