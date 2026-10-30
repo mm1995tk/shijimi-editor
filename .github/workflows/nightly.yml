@@ -2,7 +2,8 @@ name: nightly 版を配る
 
 # main の最新を nightly 版として毎日配る（#252, #254）。
 #
-# - npm：npm/pack.sh で作った tarball を dist-tag `nightly` で publish する。`latest` には触らない。
+# - npm：npm/pack.sh で作った tarball を publish する。shijimi-editor-<os>-<cpu>（安定版と共有）は dist-tag `nightly` で、
+#   `latest` には触らない。nightly 専用の shijimi-editor-nightly は `latest` だけを今回の版に合わせる（#260）。dist-tag `nightly` は使わない。
 # - GitHub：`nightly` という名前の pre-release を 1 つ持ち、毎回その assets（shj-nightly-<os>-<cpu>）と
 #   本文（版・コミット・日付）を差し替える。
 # - 前の nightly から main にコミットが無ければ何もしない（workflow_dispatch の force で作り直せる）。
@@ -102,7 +103,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # npm-pack が作った tarball を dist-tag nightly で publish する。ここではビルドもパッケージのスクリプトの実行もしない
+  # npm-pack が作った tarball を publish する（dist-tag は下の step の説明のとおり）。ここではビルドもパッケージのスクリプトの実行もしない
   npm-publish:
     needs: [check, npm-pack]
     runs-on: ubuntu-latest
@@ -123,7 +124,10 @@ jobs:
           path: ${{ runner.temp }}/npm
       - name: npm に publish する
         # OS と CPU ごとのパッケージ（名前は安定版と同じ）を先に publish し、それに依存する shijimi-editor-nightly を最後にする。
-        # どれも --tag nightly で publish する（付けないと latest が nightly の版を指してしまう）。
+        # OS と CPU ごとのパッケージは --tag nightly で publish する（付けないと安定版と共有の latest が nightly の版を指してしまう）。
+        # shijimi-editor-nightly は nightly 専用なので --tag latest で publish し、npm install -g shijimi-editor-nightly が今回の版を入れるようにする。
+        # Trusted Publishing（OIDC）は publish にしか使えず、dist-tag add には npm のトークンが要る（トークンは Secrets に置かない方針）ので、latest は publish の --tag で動かす。
+        # そのため shijimi-editor-nightly の dist-tag は latest だけを使う（過去に付いた nightly タグは使わない）。
         # npm にもうあるバージョンは飛ばすので、途中で失敗してもこのジョブの再実行だけで残りを publish できる
         env:
           VERSION: ${{ needs.check.outputs.version }}
@@ -135,8 +139,14 @@ jobs:
               echo "$name@$VERSION はもう npm にあるので飛ばす"
               continue
             fi
-            npm publish "$f" --access public --ignore-scripts --tag nightly
+            tag=nightly
+            if [ "$name" = shijimi-editor-nightly ]; then
+              tag=latest
+            fi
+            npm publish "$f" --access public --ignore-scripts --tag "$tag"
           done
+          echo "shijimi-editor-nightly の dist-tags:"
+          npm view shijimi-editor-nightly dist-tags
           echo "shijimi-editor の dist-tags:"
           npm view shijimi-editor dist-tags
 
