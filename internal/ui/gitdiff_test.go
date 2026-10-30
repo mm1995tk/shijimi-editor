@@ -893,3 +893,29 @@ func TestOpenChangePutsCursorOnFirstChange(t *testing.T) {
 		t.Errorf("reopened mod.txt: cur=%d", tb.buf.Cur.Row)
 	}
 }
+
+func TestAddedLineKeepsGreenUnderCursor(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	tb := a.curText()
+	dv := a.diffFor(tb)
+	if dv == nil {
+		t.Fatal("no diff view")
+	}
+	// row 3 of the new file is the added line "x"
+	tb.buf.SetCursor(3, 0, false)
+	lines := a.renderDiffText(tb, dv, a.layout(), true)
+	rgb := hexRGB(cAddBg)
+	want := fmt.Sprintf("48;2;%d;%d;%d", rgb[0], rgb[1], rgb[2])
+	var line string
+	for _, l := range lines {
+		if strings.Contains(ansi.Strip(l), "x") {
+			line = l
+		}
+	}
+	if line == "" {
+		t.Fatal("added line not rendered")
+	}
+	if !strings.Contains(line, want) {
+		t.Errorf("added line under the cursor lost its background: %q", line)
+	}
+}
