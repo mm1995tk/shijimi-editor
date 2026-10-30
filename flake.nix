@@ -68,6 +68,20 @@
 
           apps.default = flake-utils.lib.mkApp { drv = appDrv; };
 
+          # リポジトリを整える（scripts/tidy.sh）。devShell に入らなくても nix run .#tidy で動かせる。
+          # nix fmt は $PATH の nix を使う（runtimeInputs は PATH の前に足されるだけなので、システムの nix が見える）。
+          apps.tidy = flake-utils.lib.mkApp {
+            drv = pkgs.writeShellApplication {
+              name = "tidy";
+              runtimeInputs = [
+                pkgs.go_1_27
+                pkgs.gomod2nix
+                pkgs.git
+              ];
+              text = "exec ${./scripts/tidy.sh}";
+            };
+          };
+
           devShells = import ./flake-shell.nix { inherit pkgs project-name; };
           formatter = treefmtEval.config.build.wrapper;
           checks.formatting = treefmtEval.config.build.check self;

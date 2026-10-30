@@ -22,12 +22,12 @@ jobs:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
       - name: scripts/tidy.sh を動かす
-        run: nix develop -c scripts/tidy.sh
+        run: nix run .#tidy
       - name: 差分が無いことを確かめる
         run: |
           if [ -n "$(git status --porcelain)" ]; then
             git --no-pager diff
             git status --porcelain
-            echo "::error::scripts/tidy.sh を動かすと差分が出ます。手元で nix develop -c scripts/tidy.sh を実行して、結果をコミットしてください"
+            echo "::error::scripts/tidy.sh を動かすと差分が出ます。手元で nix run .#tidy を実行して、結果をコミットしてください"
             exit 1
           fi

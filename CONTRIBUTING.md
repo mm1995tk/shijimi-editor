@@ -20,7 +20,7 @@ scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
 nix build              # build the package (also runs the tests)
 ```
 
-- Run `scripts/tidy.sh` before you push. CI runs it and fails if it changes anything (it also updates `gomod2nix.toml` after you change `go.mod`).
+- Run `scripts/tidy.sh` before you push (outside the devShell: `nix run .#tidy`). CI runs it and fails if it changes anything (it also updates `gomod2nix.toml` after you change `go.mod`).
 - User-visible strings go in both [`internal/i18n/en.go`](internal/i18n/en.go) and [`internal/i18n/ja.go`](internal/i18n/ja.go). A test checks that the keys match.
 - The manual has an English page (`name.en.md`) and a Japanese page (`name.ja.md`). When you change one, change the other too. If you cannot write one of the languages, say so in the pull request.
 
