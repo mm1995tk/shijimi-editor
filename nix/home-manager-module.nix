@@ -44,6 +44,35 @@ in
       '';
       description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/languages.toml` (same structure as Helix's languages.toml).";
     };
+
+    herdr = {
+      enable = lib.mkEnableOption "the herdr key entry (`keysCommand`) that hides the pane; shijimi-editor never writes herdr's config.toml";
+
+      hideKey = lib.mkOption {
+        type = lib.types.str;
+        default = "prefix+t";
+        example = "prefix+h";
+        description = "Key in herdr's notation that runs `shj exec ':sh hide'`.";
+      };
+
+      keysCommand = lib.mkOption {
+        type = lib.types.listOf lib.types.attrs;
+        readOnly = true;
+        default =
+          if cfg.herdr.enable then
+            [
+              {
+                key = cfg.herdr.hideKey;
+                type = "shell";
+                command = "${cfg.package}/bin/shj exec ':sh hide'";
+              }
+            ]
+          else
+            [ ];
+        defaultText = lib.literalExpression "[ ] when herdr.enable is false, otherwise one `shell` entry";
+        description = "Read-only. A list for herdr's `[[keys.command]]`. Put it into your own herdr config.toml (e.g. `keys.command = config.programs.shijimi-editor.herdr.keysCommand;`). Empty unless `herdr.enable` is true.";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {

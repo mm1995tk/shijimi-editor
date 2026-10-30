@@ -179,6 +179,16 @@ flake の `homeManagerModules.default` を読み込みます。`settings` が `c
 }
 ```
 
+herdr を使う場合は、`programs.shijimi-editor.herdr.enable = true` にすると、`programs.shijimi-editor.herdr.keysCommand` が herdr の `[[keys.command]]` 用のリストになります。`herdr.hideKey`（既定 `prefix+t`）のキーで `shj exec ':sh hide'`（ペインを隠す）を実行します。shijimi-editor は herdr の `config.toml` を書きません。このリストを自分の herdr の設定に差し込んでください。`herdr.enable` が `false` の間は空のリストです。
+
+```nix
+programs.shijimi-editor.herdr.enable = true;
+xdg.configFile."herdr/config.toml".source = toml.generate "herdr-config.toml" {
+  # ...自分の herdr の設定...
+  keys.command = config.programs.shijimi-editor.herdr.keysCommand;
+};
+```
+
 ### Markdown プレビューと mermaid
 
 `.md` ファイルで `Space m`（または `:preview`、コマンドパレット）を押すと、バッファの右にプレビューが開きます。編集に追従し、カーソル位置に合わせてスクロールします。もう一度押すとプレビューだけを全幅で表示し、3 回目で閉じます。全幅のときは `j` / `k` やマウスホイールでスクロールします。
