@@ -28,7 +28,10 @@ type explorer struct {
 	sel    int
 	scroll int
 	git    map[string]string
-	icons  bool // Nerd Font icons; off falls back to ▸/▾
+	// ignored holds paths matched by .gitignore; the tree shows them dimmed.
+	// A directory entry stands for everything under it.
+	ignored map[string]bool
+	icons   bool // Nerd Font icons; off falls back to ▸/▾
 }
 
 func newExplorer(root string) *explorer {
@@ -274,7 +277,9 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 		}
 		letter := e.git[n.path]
 		textSt, tail, avail := st, "", w
-		if letter != "" {
+		if e.isIgnored(n) {
+			textSt = st.Foreground(lipgloss.Color(curTheme.Dim))
+		} else if letter != "" {
 			col := gitColor(letter)
 			if letter == "•" {
 				col = cDirty
@@ -284,7 +289,7 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 			avail = w - 2
 		}
 		iconSt := textSt
-		if iconColor != "" {
+		if iconColor != "" && !e.isIgnored(n) {
 			iconSt = st.Foreground(lipgloss.Color(iconColor))
 		}
 		// Segments are styled separately so each keeps the row background.
@@ -299,18 +304,35 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 	return lines
 }
 
+// isIgnored reports whether n or one of its ancestors is matched by .gitignore.
+func (e *explorer) isIgnored(n *node) bool {
+	for ; n != nil; n = n.parent {
+		if e.ignored[n.path] {
+			return true
+		}
+	}
+	return false
+}
+
 // loadGitStatus records git status letters for files under the root,
-// shown as VS Code-style decorations in the tree.
+// shown as VS Code-style decorations in the tree, and the paths that
+// .gitignore matches.
 func (e *explorer) loadGitStatus() {
 	e.git = map[string]string{}
+	e.ignored = map[string]bool{}
 	top, err := run(e.root.path, nil, "git", "rev-parse", "--show-toplevel")
 	if err != nil {
 		return
 	}
 	topDir := strings.TrimSpace(string(top))
-	out, err := run(e.root.path, nil, "git", "status", "--porcelain", "--untracked-files=all", "-z")
+	// --ignored=matching lists an ignored directory as one entry instead of
+	// every file under it. Git before 2.18 lacks it; fall back to no ignores.
+	out, err := run(e.root.path, nil, "git", "status", "--porcelain", "--untracked-files=all", "--ignored=matching", "-z")
 	if err != nil {
-		return
+		out, err = run(e.root.path, nil, "git", "status", "--porcelain", "--untracked-files=all", "-z")
+		if err != nil {
+			return
+		}
 	}
 	parts := strings.Split(string(out), "\x00")
 	for i := 0; i < len(parts); i++ {
@@ -321,6 +343,10 @@ func (e *explorer) loadGitStatus() {
 		xy, path := p[:2], p[3:]
 		if xy[0] == 'R' || xy[0] == 'C' {
 			i++ // the original path follows
+		}
+		if xy == "!!" {
+			e.ignored[filepath.Join(topDir, strings.TrimSuffix(path, "/"))] = true
+			continue
 		}
 		letter := "M"
 		switch {
