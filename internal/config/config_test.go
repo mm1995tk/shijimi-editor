@@ -394,14 +394,6 @@ func TestMergeConfigNested(t *testing.T) {
 	}
 }
 
-// setChannel makes the rest of the test run as a build of channel ch.
-func setChannel(t *testing.T, ch string) {
-	t.Helper()
-	old := channel.Channel
-	channel.Channel = ch
-	t.Cleanup(func() { channel.Channel = old })
-}
-
 func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 	root := t.TempDir()
 	cfg := t.TempDir()
@@ -411,7 +403,7 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("theme = \"stable\"\n[agent]\ncommand = \"a\"\n"), 0o644)
 
 	// A nightly build without its own directory reads the stable one, [agent] included.
-	setChannel(t, channel.Nightly)
+	channel.SetForTest(t, channel.Nightly)
 	c := Load(root)
 	if c.Editor.Theme != "stable" || c.Agent.Command != "a" {
 		t.Fatalf("nightly without its own dir must read shijimi-editor: %+v %+v", c.Editor, c.Agent)
@@ -432,7 +424,7 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 	}
 
 	// The stable build never looks at the nightly directory.
-	setChannel(t, "")
+	channel.SetForTest(t, "")
 	c = Load(root)
 	if c.Editor.Theme != "stable" || c.Agent.Command != "a" || c.Experimental.Default {
 		t.Fatalf("stable must read shijimi-editor: %+v %+v %+v", c.Editor, c.Agent, c.Experimental)

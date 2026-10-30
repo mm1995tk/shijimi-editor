@@ -114,15 +114,12 @@ func TestRunExec(t *testing.T) {
 
 func TestSocketPathIsSeparatePerChannel(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	old := channel.Channel
-	t.Cleanup(func() { channel.Channel = old })
-
-	channel.Channel = ""
+	channel.SetForTest(t, "")
 	stable, err := SocketPath()
 	if err != nil {
 		t.Fatal(err)
 	}
-	channel.Channel = channel.Nightly
+	channel.SetForTest(t, channel.Nightly)
 	nightly, err := SocketPath()
 	if err != nil {
 		t.Fatal(err)

@@ -46,18 +46,19 @@
               suffix = pkgs.lib.optionalString (channel != "") "-${channel}";
               bin = "shj${suffix}";
               alias = "shijimi${suffix}";
-            in
-            pkgs.buildGoApplication {
-              go = pkgs.go_1_27;
-              pname = alias;
               # A nightly is the stable X.Y.Z plus "-nightly", the date of the
               # commit and its hash, like the npm version (see npm/pack.sh). The
               # binary itself gets X.Y.Z and the channel, and shows "vX.Y.Z-nightly".
-              version =
+              pkgVersion =
                 version
                 +
                   pkgs.lib.optionalString (channel != "")
                     "${suffix}.${builtins.substring 0 8 (self.lastModifiedDate or "00000000")}.${commit}";
+            in
+            pkgs.buildGoApplication {
+              go = pkgs.go_1_27;
+              pname = alias;
+              version = pkgVersion;
               pwd = ./.;
               src = ./.;
               modules = ./gomod2nix.toml;

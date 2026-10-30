@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/acp"
+	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -190,7 +191,8 @@ func (a *App) runAgent(kind suggestKind, key, title string, build func() string)
 		return nil
 	}
 	if a.cfg.Agent.Command == "" {
-		a.fail(errors.New(i18n.T("agent.notconfigured")))
+		dir, _ := config.UserDir()
+		a.fail(fmt.Errorf(i18n.T("agent.notconfigured"), filepath.Join(dir, "config.toml")))
 		return nil
 	}
 	s.run = &agentRun{kind: kind, key: key, build: build}

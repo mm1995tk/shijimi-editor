@@ -204,6 +204,16 @@ func Load(root string) *Config {
 	return c
 }
 
+// UserDir returns the user's own configuration directory, such as
+// ~/.config/shijimi-editor, for messages that tell where to write a setting.
+func UserDir() (string, bool) {
+	d, ok := userConfigDir()
+	if !ok {
+		return "", false
+	}
+	return userDir(d), true
+}
+
 // userDir returns the user's own configuration directory under the config
 // home: `shijimi-editor`, or `shijimi-editor-nightly` for a nightly build. A
 // nightly build that has no `shijimi-editor-nightly` directory reads

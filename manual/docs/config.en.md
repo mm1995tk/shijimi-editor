@@ -15,7 +15,7 @@ They are loaded in the following order. Later ones take precedence.
 - Write language servers in `languages.toml` ([LSP](lsp.md)).
 - Write everything else in `config.toml` (this page).
 - Run `:config-reload` while running to reload them.
-- `[agent]` is read only from `~/.config/shijimi-editor/config.toml` ([AI agent integration](agent.md)).
+- `[agent]` is read only from the user's own `config.toml` (`~/.config/shijimi-editor/config.toml`, or the nightly build's directory below) ([AI agent integration](agent.md)).
 
 ## Nightly build
 

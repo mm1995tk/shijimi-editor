@@ -15,7 +15,7 @@
 - `languages.toml` には言語サーバーを書きます（[LSP](lsp.md)）。
 - `config.toml` にはそれ以外を書きます（このページ）。
 - 実行中に `:config-reload` を実行すると、読み直します。
-- `[agent]` は `~/.config/shijimi-editor/config.toml` からだけ読みます（[AI エージェント連携](agent.md)）。
+- `[agent]` はユーザー自身の `config.toml`（`~/.config/shijimi-editor/config.toml`、または下の nightly 版のディレクトリ）からだけ読みます（[AI エージェント連携](agent.md)）。
 
 ## nightly 版
 

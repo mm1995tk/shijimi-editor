@@ -5,6 +5,8 @@
 // version label and the defaults of the [experimental] settings.
 package channel
 
+import "testing"
+
 // Channel is set at build time with
 // -ldflags "-X github.com/mm1995tk/shijimi-editor/internal/channel.Channel=nightly".
 // Empty means the stable channel.
@@ -24,4 +26,13 @@ func Suffix() string {
 		return ""
 	}
 	return "-" + Channel
+}
+
+// SetForTest makes the rest of a test run as a build of channel ch and
+// restores the real channel when the test ends.
+func SetForTest(t testing.TB, ch string) {
+	t.Helper()
+	old := Channel
+	Channel = ch
+	t.Cleanup(func() { Channel = old })
 }
