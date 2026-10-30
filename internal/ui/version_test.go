@@ -18,8 +18,20 @@ func TestFormatVersion(t *testing.T) {
 		{"v0.2.0", "", "v0.2.0"},
 		{"0.2.0", "1dfbcec", "v0.2.0 (1dfbcec)"},
 	} {
-		if got := formatVersion(c.v, c.commit); got != c.want {
-			t.Errorf("formatVersion(%q, %q) = %q, want %q", c.v, c.commit, got, c.want)
+		if got := formatChannelVersion(c.v, c.commit, ""); got != c.want {
+			t.Errorf("formatChannelVersion(%q, %q, \"\") = %q, want %q", c.v, c.commit, got, c.want)
+		}
+	}
+}
+
+func TestFormatVersionNightly(t *testing.T) {
+	for _, c := range []struct{ v, commit, want string }{
+		{"0.6.1", "be64521", "v0.6.1-nightly (be64521)"},
+		{"0.6.1", "", "v0.6.1-nightly"},
+		{"", "be64521", "dev-nightly (be64521)"},
+	} {
+		if got := formatChannelVersion(c.v, c.commit, "nightly"); got != c.want {
+			t.Errorf("formatChannelVersion(%q, %q, \"nightly\") = %q, want %q", c.v, c.commit, got, c.want)
 		}
 	}
 }

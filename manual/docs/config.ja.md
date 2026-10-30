@@ -15,7 +15,13 @@
 - `languages.toml` には言語サーバーを書きます（[LSP](lsp.md)）。
 - `config.toml` にはそれ以外を書きます（このページ）。
 - 実行中に `:config-reload` を実行すると、読み直します。
-- `[agent]` は `~/.config/shijimi-editor/config.toml` からだけ読みます（[AI エージェント連携](agent.md)）。
+- `[agent]` はユーザー自身の `config.toml`（`~/.config/shijimi-editor/config.toml`、または下の nightly 版のディレクトリ）からだけ読みます（[AI エージェント連携](agent.md)）。
+
+## nightly 版
+
+`shj-nightly`（[インストール](install.md)）は `~/.config/shijimi-editor/` の代わりに `~/.config/shijimi-editor-nightly/` を読むので、2 つの版で設定を分けられます。`~/.config/shijimi-editor-nightly/` が無い間は、代わりに `~/.config/shijimi-editor/` を読みます。nightly 版だけの設定にしたくなったら、ディレクトリを作ってください。プロジェクトの `.shijimi-editor/` は両方で同じです。
+
+`[experimental]` には、リリースの前に試している途中の機能を置きます。キーの既定値は nightly 版では `true`、安定版では `false` です。まだキーはありません。
 
 ## config.toml の例
 

@@ -33,6 +33,13 @@ npm install -g shijimi-editor                                     # shj と shij
 
 どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。同じバイナリを `shj-<os>-<cpu>` として各 [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) にも置いています。`main` のリリース前の変更は入りません。
 
+`main` のリリース前の変更を試すには、nightly 版を入れます。`shj` と並べて `shj-nightly`（と `shijimi-nightly`）として入り、設定は `~/.config/shijimi-editor-nightly/` を読み（そのディレクトリが無い間は `~/.config/shijimi-editor/` を読みます）、ソケットのディレクトリも別で、設定の `[experimental]`（試している途中の機能。まだ項目はありません）が既定で有効です。Nix は入れる時点の最新の `main` からビルドします。npm と GitHub の pre-release はこれから用意します。
+
+```sh
+nix run github:mm1995tk/shijimi-editor#shj-nightly
+nix profile install github:mm1995tk/shijimi-editor#shj-nightly
+```
+
 プルリクエストの base と比べるには [gh](https://cli.github.com/) と `gh auth login` が必要です。
 
 ## 使い方

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/channel"
 )
 
 func TestIsSubcommand(t *testing.T) {
@@ -107,5 +109,28 @@ func TestRunExec(t *testing.T) {
 	}
 	if Run([]string{"exec"}, o, e) != 2 {
 		t.Fatal("exec without a command is a usage error")
+	}
+}
+
+func TestSocketPathIsSeparatePerChannel(t *testing.T) {
+	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
+	channel.SetForTest(t, "")
+	stable, err := SocketPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	channel.SetForTest(t, channel.Nightly)
+	nightly, err := SocketPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Dir(stable) == filepath.Dir(nightly) {
+		t.Fatalf("stable and nightly share the directory %s", filepath.Dir(stable))
+	}
+	if base := filepath.Base(filepath.Dir(nightly)); !strings.HasPrefix(base, "shijimi-nightly-") {
+		t.Fatalf("nightly dir = %s", base)
+	}
+	if base := filepath.Base(filepath.Dir(stable)); !strings.HasPrefix(base, "shijimi-") || strings.Contains(base, "nightly") {
+		t.Fatalf("stable dir = %s", base)
 	}
 }

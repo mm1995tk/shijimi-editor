@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mm1995tk/shijimi-editor/internal/channel"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -52,13 +53,15 @@ type Server struct {
 	ln   net.Listener
 }
 
-// SocketPath returns a fresh socket path inside a private (0700) directory.
+// SocketPath returns a fresh socket path inside a private (0700) directory:
+// $XDG_RUNTIME_DIR/shijimi-<uid>/<pid>.sock, or shijimi-nightly-<uid> for a
+// nightly build, so that shj and shj-nightly do not touch each other's sockets.
 func SocketPath() (string, error) {
 	base := os.Getenv("XDG_RUNTIME_DIR")
 	if base == "" {
 		base = os.TempDir()
 	}
-	dir := filepath.Join(base, fmt.Sprintf("shijimi-%d", os.Getuid()))
+	dir := filepath.Join(base, fmt.Sprintf("shijimi%s-%d", channel.Suffix(), os.Getuid()))
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}

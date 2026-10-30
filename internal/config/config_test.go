@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/mm1995tk/shijimi-editor/internal/channel"
 )
 
 func TestProjectLanguages(t *testing.T) {
@@ -389,5 +391,42 @@ func TestMergeConfigNested(t *testing.T) {
 	a := m["a"].(map[string]any)
 	if a["x"] != 1 || a["y"] != 3 || len(m["l"].([]any)) != 1 {
 		t.Fatalf("merged = %#v", m)
+	}
+}
+
+func TestNightlyReadsItsOwnUserDir(t *testing.T) {
+	root := t.TempDir()
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(filepath.Join(cfg, "shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("theme = \"stable\"\n[agent]\ncommand = \"a\"\n"), 0o644)
+
+	// A nightly build without its own directory reads the stable one, [agent] included.
+	channel.SetForTest(t, channel.Nightly)
+	c := Load(root)
+	if c.Editor.Theme != "stable" || c.Agent.Command != "a" {
+		t.Fatalf("nightly without its own dir must read shijimi-editor: %+v %+v", c.Editor, c.Agent)
+	}
+	if !c.Experimental.Default {
+		t.Fatal("experimental must default to true on nightly")
+	}
+
+	// Once shijimi-editor-nightly exists, the stable directory is not read at all.
+	os.MkdirAll(filepath.Join(cfg, "shijimi-editor-nightly"), 0o755)
+	os.WriteFile(filepath.Join(cfg, "shijimi-editor-nightly", "config.toml"), []byte("[agent]\ncommand = \"b\"\n"), 0o644)
+	c = Load(root)
+	if c.Editor.Theme != "" || c.Agent.Command != "b" {
+		t.Fatalf("nightly must read only shijimi-editor-nightly: %+v %+v", c.Editor, c.Agent)
+	}
+	if want := filepath.Join(cfg, "shijimi-editor-nightly", "config.toml"); len(c.Sources) != 1 || c.Sources[0] != want {
+		t.Fatalf("sources = %v", c.Sources)
+	}
+
+	// The stable build never looks at the nightly directory.
+	channel.SetForTest(t, "")
+	c = Load(root)
+	if c.Editor.Theme != "stable" || c.Agent.Command != "a" || c.Experimental.Default {
+		t.Fatalf("stable must read shijimi-editor: %+v %+v %+v", c.Editor, c.Agent, c.Experimental)
 	}
 }

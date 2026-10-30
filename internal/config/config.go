@@ -17,6 +17,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"github.com/mm1995tk/shijimi-editor/internal/channel"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -120,42 +121,61 @@ type Keys struct {
 	Invalid []string
 }
 
+// Experimental is the [experimental] section of config.toml: switches for
+// features that are being tried out before they reach the stable channel.
+// It has no keys yet. Each key that is added defaults to Default.
+type Experimental struct {
+	// Default is the value of every key the configuration files do not set:
+	// true on the nightly channel, false on the stable channel. A nightly user
+	// sees the features without turning them on; a stable user does not see
+	// them without asking.
+	Default bool
+}
+
 // Config is the merged configuration.
 type Config struct {
-	Editor    Editor
-	Keys      Keys
-	Search    Search
-	Browser   Browser
-	Agent     Agent
-	Languages map[string]*Language
-	Servers   map[string]*Server
-	Sources   []string // files that were loaded, for display
+	Editor       Editor
+	Keys         Keys
+	Search       Search
+	Browser      Browser
+	Agent        Agent
+	Experimental Experimental
+	Languages    map[string]*Language
+	Servers      map[string]*Server
+	Sources      []string // files that were loaded, for display
 }
 
 // nixEvalTimeout bounds one `nix eval`.
 const nixEvalTimeout = 15 * time.Second
 
-// Load merges built-in defaults, the user's `~/.config/shijimi-editor/`, and the
-// project's `.shijimi-editor/` directory (later ones win). Helix's own config
+// Load merges built-in defaults, the user's `~/.config/shijimi-editor/`
+// (`~/.config/shijimi-editor-nightly/` for a nightly build, see userDir), and
+// the project's `.shijimi-editor/` directory (later ones win). Helix's own config
 // directories are not read. In each directory
 // `config.nix` / `languages.nix` are evaluated with `nix eval --json` and
 // applied after the TOML file of the same name.
 func Load(root string) *Config {
 	c := &Config{
-		Browser:   Browser{ListenHost: "127.0.0.1"},
-		Editor:    Editor{UILanguage: i18n.Default, Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
-		Languages: map[string]*Language{},
-		Servers:   map[string]*Server{},
+		Browser:      Browser{ListenHost: "127.0.0.1"},
+		Experimental: Experimental{Default: channel.IsNightly()},
+		Editor:       Editor{UILanguage: i18n.Default, Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
+		Languages:    map[string]*Language{},
+		Servers:      map[string]*Server{},
 	}
 	c.mergeLanguages(defaultLanguages, "")
 
-	var dirs []string
-	if d, ok := userConfigDir(); ok {
-		dirs = append(dirs, filepath.Join(d, "shijimi-editor"))
+	// user marks the user's own directory, the only one [agent] and [keys] are read from.
+	type configDir struct {
+		path string
+		user bool
 	}
-	dirs = append(dirs, filepath.Join(root, ".shijimi-editor"))
-	for _, d := range dirs {
-		user := filepath.Base(d) == "shijimi-editor"
+	var dirs []configDir
+	if d, ok := userConfigDir(); ok {
+		dirs = append(dirs, configDir{userDir(d), true})
+	}
+	dirs = append(dirs, configDir{filepath.Join(root, ".shijimi-editor"), false})
+	for _, dir := range dirs {
+		d, user := dir.path, dir.user
 		if data, err := os.ReadFile(filepath.Join(d, "config.toml")); err == nil {
 			c.mergeEditor(string(data))
 			c.mergeBrowser(string(data))
@@ -182,6 +202,31 @@ func Load(root string) *Config {
 		}
 	}
 	return c
+}
+
+// UserDir returns the user's own configuration directory, such as
+// ~/.config/shijimi-editor, for messages that tell where to write a setting.
+func UserDir() (string, bool) {
+	d, ok := userConfigDir()
+	if !ok {
+		return "", false
+	}
+	return userDir(d), true
+}
+
+// userDir returns the user's own configuration directory under the config
+// home: `shijimi-editor`, or `shijimi-editor-nightly` for a nightly build. A
+// nightly build that has no `shijimi-editor-nightly` directory reads
+// `shijimi-editor` instead, so that trying the nightly needs no copying of the
+// settings; creating the directory makes the two builds independent.
+func userDir(configHome string) string {
+	d := filepath.Join(configHome, "shijimi-editor"+channel.Suffix())
+	if channel.Suffix() != "" {
+		if st, err := os.Stat(d); err != nil || !st.IsDir() {
+			return filepath.Join(configHome, "shijimi-editor")
+		}
+	}
+	return d
 }
 
 // userConfigDir returns $XDG_CONFIG_HOME, or ~/.config when it is unset or not

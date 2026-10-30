@@ -5,15 +5,19 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+
+	"github.com/mm1995tk/shijimi-editor/internal/channel"
 )
 
 // Version and Commit are set at build time with
 // -ldflags "-X github.com/mm1995tk/shijimi-editor/internal/ui.Version=... -X github.com/mm1995tk/shijimi-editor/internal/ui.Commit=...".
+// The channel (stable or nightly) is channel.Channel, set the same way.
 var Version, Commit = "", ""
 
 // versionLabel is the build's version as shown on the status line, such as
-// "v0.1 (be64521)". Values missing from ldflags come from the build info:
-// the module version recorded by go install and the commit recorded by go build.
+// "v0.1 (be64521)", or "v0.1-nightly (be64521)" on the nightly channel.
+// Values missing from ldflags come from the build info: the module version
+// recorded by go install and the commit recorded by go build.
 func versionLabel() string {
 	v, c := Version, Commit
 	if bi, ok := debug.ReadBuildInfo(); ok {
@@ -47,6 +51,12 @@ func buildSetting(bi *debug.BuildInfo, key string) string {
 var pseudoVersion = regexp.MustCompile(`(-0\.|\.0\.|-)\d{14}-([0-9a-f]{12})$`)
 
 func formatVersion(v, commit string) string {
+	return formatChannelVersion(v, commit, channel.Channel)
+}
+
+// formatChannelVersion is formatVersion for the given channel. A channel
+// name is appended to the version, as in "v0.1-nightly (be64521)".
+func formatChannelVersion(v, commit, ch string) string {
 	// A pseudo-version names a commit after the latest tag, so it is shown as
 	// that tag plus "+", such as "v0.2.0+ (a2c02cb)".
 	if m := pseudoVersion.FindStringSubmatch(v); m != nil {
@@ -61,6 +71,9 @@ func formatVersion(v, commit string) string {
 	label := "dev"
 	if v != "" {
 		label = "v" + strings.TrimPrefix(v, "v")
+	}
+	if ch != "" {
+		label += "-" + ch
 	}
 	if commit == "" {
 		return label
