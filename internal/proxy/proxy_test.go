@@ -83,7 +83,7 @@ func TestStartRejectsSelfLoop(t *testing.T) {
 	if _, err := m.Start("", 3000, 3000); err == nil {
 		t.Fatal("listen == target should fail")
 	}
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		f, err := m.Start("", 3000, 0)
 		if err != nil {
 			t.Fatal(err)

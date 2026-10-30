@@ -141,7 +141,7 @@ func (a *agent) handle(m msg) {
 		}
 		a.say(p.SessionID, "受け取りました\n")
 		stop := "end_turn"
-		for _, line := range strings.Split(text.String(), "\n") {
+		for line := range strings.SplitSeq(text.String(), "\n") {
 			switch {
 			case strings.HasPrefix(line, "READ:"):
 				r := a.call("fs/read_text_file", map[string]any{"sessionId": p.SessionID, "path": strings.TrimPrefix(line, "READ:")})

@@ -299,8 +299,7 @@ func (a *App) handleMDImageDone(m mdImageDoneMsg) {
 	a.previewGen++
 	if err := m.img.err; err != nil {
 		// the path is shown already; keep only the reason
-		var pe *fs.PathError
-		if errors.As(err, &pe) {
+		if pe, ok := errors.AsType[*fs.PathError](err); ok {
 			err = pe.Err
 		}
 		job.err = err.Error()
@@ -374,7 +373,7 @@ func (a *App) previewLines(t *tab, w, h int) []string {
 		top = clamp(t.buf.Cur.Row*span/n, 0, span)
 	}
 	out := make([]string, 0, h)
-	for i := 0; i < h; i++ {
+	for i := range h {
 		if top+i < len(all) {
 			out = append(out, all[top+i])
 		} else {

@@ -302,11 +302,10 @@ nix develop            # or: direnv allow
 go test ./...
 go build ./cmd/shj
 nix build              # build the package (also runs the tests)
-nix fmt                # format with nixfmt / gofmt / taplo
-nix flake check        # check the formatting
+scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
 ```
 
-After changing `go.mod`, run `gomod2nix` to update `gomod2nix.toml`.
+Run `scripts/tidy.sh` before you push; CI runs it and fails if it changes anything. It also updates `gomod2nix.toml` after you change `go.mod`.
 
 User-visible strings live in one table per language, [`internal/i18n/en.go`](internal/i18n/en.go) and [`internal/i18n/ja.go`](internal/i18n/ja.go). Code asks for a string with `i18n.T("key")` and does not contain UI text. When you add a string, add the key to both tables (a test checks that they match).
 

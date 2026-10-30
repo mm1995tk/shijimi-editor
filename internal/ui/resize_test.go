@@ -55,14 +55,14 @@ func TestResizeClamp(t *testing.T) {
 	a := resizeApp(t)
 	a.showTerm = true
 	a.startResize()
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		a.handleKey(tea.KeyPressMsg{Code: tea.KeyLeft})
 		a.handleKey(tea.KeyPressMsg{Code: tea.KeyDown})
 	}
 	if l := a.layout(); l.sideW != minSideW || l.panelH != 6 {
 		t.Fatalf("min: %d %d", l.sideW, l.panelH)
 	}
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		a.handleKey(tea.KeyPressMsg{Code: tea.KeyRight})
 		a.handleKey(tea.KeyPressMsg{Code: tea.KeyUp})
 	}
@@ -90,7 +90,7 @@ func TestResizePreviewRatio(t *testing.T) {
 	if a.editorWidth(l.rightW) <= def {
 		t.Fatal("editor should grow")
 	}
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		press(a, "<")
 	}
 	if w := a.editorWidth(l.rightW); w < minPaneW {

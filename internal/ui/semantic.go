@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -171,12 +172,7 @@ var controlKeywords = map[string]bool{
 // comments stay as chroma colors them (it knows escapes).
 func semanticRole(t lsp.SemanticToken, text string) string {
 	has := func(m string) bool {
-		for _, x := range t.Modifiers {
-			if x == m {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(t.Modifiers, m)
 	}
 	switch t.Type {
 	case "namespace", "type", "class", "enum", "interface", "struct", "typeParameter":

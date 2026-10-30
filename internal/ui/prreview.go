@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -764,10 +765,10 @@ func suggestion(t *prThread) []string {
 	if t.File || t.Outdated || t.Side != "RIGHT" || t.Line <= 0 {
 		return nil
 	}
-	for i := len(t.Comments) - 1; i >= 0; i-- {
+	for _, v := range slices.Backward(t.Comments) {
 		var block []string
 		in, found := false, false
-		for _, l := range strings.Split(strings.ReplaceAll(t.Comments[i].Body, "\r\n", "\n"), "\n") {
+		for l := range strings.SplitSeq(strings.ReplaceAll(v.Body, "\r\n", "\n"), "\n") {
 			trim := strings.TrimSpace(l)
 			switch {
 			case !in && strings.HasPrefix(trim, "```suggestion"):
@@ -918,7 +919,7 @@ func (a *App) composerBox(l layout) (rows []string, x, y int) {
 	top := "╭─" + ansi.Truncate(title, w-4, "…")
 	top += strings.Repeat("─", max(0, w-1-ansi.StringWidth(top))) + "╮"
 	rows = []string{bd.Render(top)}
-	for _, l := range strings.Split(c.ta.View(), "\n") {
+	for l := range strings.SplitSeq(c.ta.View(), "\n") {
 		rows = append(rows, line(l))
 	}
 	hint := i18n.T("rv.hint.input")

@@ -317,7 +317,7 @@ type wrapRow struct {
 func wrapPlainRows(text string, w int) []wrapRow {
 	w = max(1, w)
 	var out []wrapRow
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		pos := 0
 		for i, piece := range strings.Split(ansi.Wrap(line, w, ""), "\n") {
 			if i > 0 {

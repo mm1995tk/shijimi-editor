@@ -98,7 +98,7 @@ func TestWatchRefreshesTreeAfterExternalChange(t *testing.T) {
 		t.Fatalf("clean file marked: %q", a.explorer.git[path])
 	}
 	tick := func(n int) {
-		for i := 0; i < n; i++ {
+		for range n {
 			a.Update(watchMsg{})
 		}
 	}

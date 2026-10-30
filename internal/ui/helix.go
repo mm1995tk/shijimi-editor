@@ -120,7 +120,7 @@ func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
 		if key == "alt+C" {
 			dir = -1
 		}
-		for i := 0; i < count; i++ {
+		for range count {
 			b.CopySelection(dir)
 		}
 		return nil
@@ -433,7 +433,7 @@ func (a *App) paste(b *buffer.Buffer, text string, after bool) {
 		}
 	}
 	var at buffer.Pos
-	if strings.HasSuffix(text, "\n") {
+	if body, linewise := strings.CutSuffix(text, "\n"); linewise {
 		// linewise
 		if after {
 			row := e.Row
@@ -444,7 +444,7 @@ func (a *App) paste(b *buffer.Buffer, text string, after bool) {
 				at = buffer.Pos{Row: row + 1}
 			} else {
 				at = buffer.Pos{Row: row, Col: len(b.Lines[row])}
-				text = "\n" + strings.TrimSuffix(text, "\n")
+				text = "\n" + body
 			}
 		} else {
 			at = buffer.Pos{Row: s.Row}

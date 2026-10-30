@@ -94,7 +94,7 @@ func TestAgentClickDoesNotCopy(t *testing.T) {
 
 func TestAgentSelectionStaysOnTextWhenScrolled(t *testing.T) {
 	var log []logEntry
-	for i := 0; i < 60; i++ {
+	for i := range 60 {
 		log = append(log, logEntry{kind: logInfo, text: strings.Repeat("a", i%9+1)})
 	}
 	a, l := agentSelApp(t, log...)

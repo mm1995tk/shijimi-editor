@@ -205,7 +205,7 @@ func (v *imageView) render(w, h int) []string {
 
 	padL := (w - cols) / 2
 	padT := (body - rows) / 2
-	for i := 0; i < padT; i++ {
+	for range padT {
 		out = append(out, blank)
 	}
 	// The cells under a transparent image show the editor background.

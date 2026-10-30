@@ -38,15 +38,15 @@ func hoverLines(text string, w int) []hoverLine {
 	var fence []string
 	fenceLang := ""
 	inFence := false
-	for _, l := range strings.Split(strings.TrimSpace(strings.ReplaceAll(text, "\r", "")), "\n") {
+	for l := range strings.SplitSeq(strings.TrimSpace(strings.ReplaceAll(text, "\r", "")), "\n") {
 		l = strings.ReplaceAll(l, "\t", "    ")
 		trim := strings.TrimSpace(l)
-		if strings.HasPrefix(trim, "```") {
+		if after, ok := strings.CutPrefix(trim, "```"); ok {
 			if inFence {
 				out = append(out, wrapCells(codeCells(fenceLang, fence), w, true)...)
 				fence = nil
 			} else {
-				fenceLang = strings.TrimSpace(strings.TrimPrefix(trim, "```"))
+				fenceLang = strings.TrimSpace(after)
 			}
 			inFence = !inFence
 			continue

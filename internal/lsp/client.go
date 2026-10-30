@@ -492,7 +492,7 @@ func lookupSection(cfg any, section string) any {
 		return cfg
 	}
 	cur := cfg
-	for _, part := range strings.Split(section, ".") {
+	for part := range strings.SplitSeq(section, ".") {
 		m, ok := cur.(map[string]any)
 		if !ok {
 			return nil

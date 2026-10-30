@@ -78,9 +78,9 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 func inputCaret(ti textinput.Model) int {
 	ti.SetStyles(textinput.Styles{})
 	v := ti.View()
-	i := strings.Index(v, "\x1b[7m")
-	if i < 0 {
+	before, _, ok := strings.Cut(v, "\x1b[7m")
+	if !ok {
 		return 0
 	}
-	return ansi.StringWidth(v[:i])
+	return ansi.StringWidth(before)
 }

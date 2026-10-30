@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"maps"
 	"sort"
 	"strings"
 
@@ -185,9 +186,7 @@ func lookupTheme(name string) (*Theme, bool) {
 	for _, t := range themes {
 		keys[t.Name] = t.Name
 	}
-	for k, v := range themeAliases {
-		keys[k] = v
-	}
+	maps.Copy(keys, themeAliases)
 	best := ""
 	for k := range keys {
 		if (n == k || strings.HasPrefix(n, k+"-")) && len(k) > len(best) {

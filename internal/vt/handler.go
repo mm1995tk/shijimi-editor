@@ -337,13 +337,13 @@ func (t *Term) osc(cmd int, data []byte) {
 	switch cmd {
 	case 0, 2:
 		s := string(data)
-		if i := strings.IndexByte(s, ';'); i >= 0 {
+		if _, after, ok := strings.Cut(s, ";"); ok {
 			t.title = strings.Map(func(r rune) rune {
 				if r < 0x20 || r == 0x7f {
 					return -1
 				}
 				return r
-			}, s[i+1:])
+			}, after)
 		}
 	case 133: // shell integration: 133;D;<exit code> ends a command
 		parts := strings.Split(string(data), ";")
@@ -428,7 +428,7 @@ func (t *Term) csi(cmd ansi.Cmd, p ansi.Params) {
 		t.editLine(func(line []Cell) {
 			n := min(count(p, 0), t.cols-t.x)
 			copy(line[t.x+n:], line[t.x:])
-			for i := 0; i < n; i++ {
+			for i := range n {
 				line[t.x+i] = blank(t.pen.bg)
 			}
 		})
@@ -478,7 +478,7 @@ func (t *Term) csi(cmd ansi.Cmd, p ansi.Params) {
 			g := t.grid()
 			n := min(count(p, 0), t.bot-t.y+1)
 			copy(g[t.y+n:t.bot+1], g[t.y:t.bot+1])
-			for i := 0; i < n; i++ {
+			for i := range n {
 				g[t.y+i] = blankLine(t.cols, t.pen.bg)
 			}
 			t.x, t.wrapNext = 0, false
@@ -488,7 +488,7 @@ func (t *Term) csi(cmd ansi.Cmd, p ansi.Params) {
 			g := t.grid()
 			n := min(count(p, 0), t.bot-t.y+1)
 			copy(g[t.y:t.bot+1-n], g[t.y+n:t.bot+1])
-			for i := 0; i < n; i++ {
+			for i := range n {
 				g[t.bot-i] = blankLine(t.cols, t.pen.bg)
 			}
 			t.x, t.wrapNext = 0, false

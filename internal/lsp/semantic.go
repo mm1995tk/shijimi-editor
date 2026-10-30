@@ -87,7 +87,7 @@ func decodeSemanticTokens(data []int, types, mods []string) []SemanticToken {
 		if ti := data[i+3]; ti >= 0 && ti < len(types) {
 			t.Type = types[ti]
 		}
-		for b := 0; b < len(mods); b++ {
+		for b := range mods {
 			if data[i+4]&(1<<b) != 0 {
 				t.Modifiers = append(t.Modifiers, mods[b])
 			}

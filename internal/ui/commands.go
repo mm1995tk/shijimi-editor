@@ -368,7 +368,7 @@ func parseGrepArgs(arg string, def config.Search) (q string, include, exclude []
 // splitGlobs splits a comma separated glob list, dropping quotes and blanks.
 func splitGlobs(v string) []string {
 	var out []string
-	for _, g := range strings.Split(v, ",") {
+	for g := range strings.SplitSeq(v, ",") {
 		if g = strings.Trim(strings.TrimSpace(g), `'"`); g != "" {
 			out = append(out, g)
 		}

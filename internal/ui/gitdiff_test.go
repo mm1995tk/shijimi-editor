@@ -375,7 +375,7 @@ func TestChangeTreeJoinsSingleChildFolders(t *testing.T) {
 func TestChangesWheelKeepsSelectionOnScreen(t *testing.T) {
 	g := &gitDiff{}
 	var files []*diff.File
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		files = append(files, &diff.File{NewPath: fmt.Sprintf("d%d/f.go", i)})
 	}
 	g.files, g.rows = changeTree(files) // folder, file, folder, file, ...
@@ -507,7 +507,7 @@ func TestBarRange(t *testing.T) {
 	}
 	// 100 rows on 10 cells: 10 each, covering every row once
 	next := 0
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		lo, hi := barRange(i, 10, 100)
 		if lo != next || hi-lo != 10 {
 			t.Errorf("cell %d: %d %d", i, lo, hi)
@@ -546,14 +546,14 @@ func TestDiffRowsHunkKinds(t *testing.T) {
 func TestChangeBarClickScrolls(t *testing.T) {
 	a, file := gitDiffApp(t)
 	var sb strings.Builder
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		fmt.Fprintf(&sb, "line %d\n", i)
 	}
 	os.WriteFile(file, []byte(sb.String()), 0o644)
 	gitIn(t, a.root, "commit", "-qam", "long")
 	tb := a.curText()
 	tb.buf.Lines = nil
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		tb.buf.Lines = append(tb.buf.Lines, []rune(fmt.Sprintf("line %d", i)))
 	}
 	tb.buf.Lines[150] = []rune("changed")
@@ -635,7 +635,7 @@ func TestInlineBudgetBoundsOneBuild(t *testing.T) {
 	tb := a.curText()
 	var oldLines []string
 	tb.buf.Lines = nil
-	for i := 0; i < 5000; i++ {
+	for i := range 5000 {
 		s := fmt.Sprintf("%03d %s", i, strings.Repeat("abcdefghij", 10))
 		oldLines = append(oldLines, s)
 		tb.buf.Lines = append(tb.buf.Lines, []rune(s+"X"))

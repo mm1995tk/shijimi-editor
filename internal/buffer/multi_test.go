@@ -10,7 +10,7 @@ func multiBuf(text string, n int) *Buffer {
 	b.Insert(text)
 	b.undo = nil
 	b.Cur = Pos{}
-	for i := 0; i < n; i++ {
+	for range n {
 		b.CopySelection(1)
 	}
 	return b
