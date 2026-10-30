@@ -206,15 +206,20 @@ func (a *App) scanTerminals() {
 			}
 		}
 	}
-	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return !alive[f.tab] })
+	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return f.tab != herdrFailTab && !alive[f.tab] })
 }
 
 // addFailure records a failure in tab t. A tab still failing keeps its
 // record (and the key a dismissal refers to); only what is shown changes.
 func (a *App) addFailure(t *termTab, code int, line string) {
-	f := termFailure{tab: t.id, n: t.n, code: code, line: line, output: t.vt.Tail(failTail)}
+	a.addFailureTab(t.id, t.n, code, line, t.vt.Tail(failTail))
+}
+
+// addFailureTab is addFailure for a terminal that is not a termTab.
+func (a *App) addFailureTab(tab, n, code int, line string, output []string) {
+	f := termFailure{tab: tab, n: n, code: code, line: line, output: output}
 	for i := range a.sg.fails {
-		if a.sg.fails[i].tab == t.id {
+		if a.sg.fails[i].tab == tab {
 			f.seq = a.sg.fails[i].seq
 			a.sg.fails[i] = f
 			return

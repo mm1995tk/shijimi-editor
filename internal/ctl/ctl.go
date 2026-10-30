@@ -34,7 +34,7 @@ const (
 
 // Subcommands are matched before file paths; write "./diff" to open a file
 // with the same name.
-var Subcommands = []string{"diff", "exec", "skill"}
+var Subcommands = []string{"diff", "exec", "command-end", "skill"}
 
 // IsSubcommand reports whether arg selects a subcommand.
 func IsSubcommand(arg string) bool {
@@ -43,9 +43,9 @@ func IsSubcommand(arg string) bool {
 
 // Request is sent by the CLI to the editor.
 type Request struct {
-	Cmd  string `json:"cmd"` // diff | exec
+	Cmd  string `json:"cmd"` // diff | exec | command-end
 	Path string `json:"path,omitempty"`
-	Line string `json:"line,omitempty"` // exec: the ":" command to run
+	Line string `json:"line,omitempty"` // exec: the ":" command to run; command-end: the exit code
 }
 
 // Response is the editor's reply.
@@ -308,6 +308,12 @@ func Run(args []string, stdout, stderr func(string)) int {
 			return 2
 		}
 		req = Request{Cmd: "exec", Line: strings.Join(args[1:], " ")}
+	case "command-end":
+		if len(args) != 2 {
+			stderr(i18n.T("ctl.usage.commandend"))
+			return 2
+		}
+		req = Request{Cmd: "command-end", Line: args[1]}
 	case "skill":
 		return runSkill(args[1:], stdout, stderr)
 	default:

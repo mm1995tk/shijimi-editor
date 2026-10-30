@@ -250,6 +250,15 @@ func (a *App) execCommand(line string) tea.Cmd {
 			}
 		}
 	case "sh", "run", "!":
+		if a.herdrOn() {
+			switch arg {
+			case "":
+				return a.herdrToggle()
+			case "hide":
+				return a.herdrResult(a.herdrHide())
+			}
+			return a.herdrSend(arg, true)
+		}
 		if arg == "" {
 			return a.toggleTerm()
 		}

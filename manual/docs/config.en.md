@@ -21,7 +21,11 @@ They are loaded in the following order. Later ones take precedence.
 
 `shj-nightly` ([Installation](install.md)) reads `~/.config/shijimi-editor-nightly/` instead of `~/.config/shijimi-editor/`, so the two builds can be set up differently. While `~/.config/shijimi-editor-nightly/` does not exist, it reads `~/.config/shijimi-editor/` instead; create the directory when you want the nightly to have its own settings. The project's `.shijimi-editor/` is the same for both.
 
-`[experimental]` holds features that are being tried out before they reach a release. Its keys default to `true` in the nightly build and to `false` in the stable build. There are no keys yet.
+`[experimental]` holds features that are being tried out before they reach a release. Its keys default to `true` in the nightly build and to `false` in the stable build. The keys are:
+
+| Key | Meaning |
+| --- | --- |
+| `herdr` | Inside herdr (`HERDR_ENV=1`), use a herdr pane instead of the terminal panel ([Terminal](terminal.md#inside-herdr)) |
 
 ## Example config.toml
 

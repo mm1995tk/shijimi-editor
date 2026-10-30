@@ -43,6 +43,13 @@ func (a *App) handleCtl(m ctlMsg) tea.Cmd {
 		}
 	case "exec":
 		resp, cmd = a.ctlExec(m.req.Line)
+	case "command-end":
+		if code, err := strconv.Atoi(strings.TrimSpace(m.req.Line)); err != nil {
+			resp = ctl.Response{Error: i18n.T("ctl.usage.commandend")}
+		} else {
+			a.commandEnded(code)
+			resp = ctl.Response{OK: true}
+		}
 	default:
 		resp = ctl.Response{Error: i18n.T("ctl.unknowncmd") + m.req.Cmd}
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 func TestIsSubcommand(t *testing.T) {
-	for _, s := range []string{"diff", "exec", "skill"} {
+	for _, s := range []string{"diff", "exec", "command-end", "skill"} {
 		if !IsSubcommand(s) {
 			t.Errorf("%s should be a subcommand", s)
 		}

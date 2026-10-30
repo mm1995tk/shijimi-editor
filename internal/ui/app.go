@@ -55,6 +55,7 @@ type App struct {
 	explorer  *explorer
 	treeTicks int // watch ticks since the tree was last reloaded
 	term      *terminal
+	hd        herdrPane // the herdr pane that replaces term inside herdr
 	proxy     *proxy.Manager
 	pal       *palette
 	wsSyms    []lsp.Symbol // rows of the project symbol picker
@@ -287,7 +288,9 @@ func (a *App) Close() {
 	if a.ag.client != nil {
 		a.stopAgent()
 	}
+	a.herdrClose()
 	removeShellIntegration()
+	removeHerdrShellIntegration()
 }
 
 func styleInput(ti *textinput.Model, bg string) {
@@ -735,6 +738,9 @@ func (a *App) toggleTerm() tea.Cmd {
 	if a.single {
 		return nil
 	}
+	if a.herdrOn() {
+		return a.herdrToggle()
+	}
 	if a.showTerm && a.focus == focusTerminal {
 		a.showTerm = false
 		return a.setFocus(focusEditor)
@@ -760,6 +766,7 @@ func (a *App) quit() tea.Cmd {
 		return nil
 	}
 	a.term.closeAll()
+	a.herdrClose()
 	a.proxy.StopAll()
 	return a.exit()
 }
@@ -1265,6 +1272,9 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+j", "ctrl+space":
 		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
 		// mode, or Helix insert mode.
+		if key == "ctrl+j" && a.herdrOn() {
+			return a.herdrResult(a.herdrOpen())
+		}
 		typing := a.typing()
 		if key == "ctrl+j" || !typing {
 			return a.toggleTerm()
