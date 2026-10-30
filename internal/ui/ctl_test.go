@@ -65,7 +65,7 @@ func TestCtlExec(t *testing.T) {
 		t.Errorf("empty: %+v", r)
 	}
 	a.curText().buf.Dirty = true
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: ":bc"}); r.OK {
 			t.Errorf("bc with unsaved changes: %+v", r)
 		}

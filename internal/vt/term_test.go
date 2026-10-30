@@ -129,7 +129,7 @@ func TestScrollbackKeepsLinesThatScrolledOff(t *testing.T) {
 
 func TestScrollbackLimit(t *testing.T) {
 	term := New(Options{Cols: 5, Rows: 2, Scrollback: 10})
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		fmt.Fprintf(term, "%d\r\n", i)
 	}
 	if n := term.Scrollback(); n < 10 || n > 13 {

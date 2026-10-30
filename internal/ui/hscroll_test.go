@@ -30,7 +30,7 @@ func TestHScrollKeysAndBounds(t *testing.T) {
 	if b.ScrollCol != 0 {
 		t.Fatalf("past the left edge: %d", b.ScrollCol)
 	}
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		keys(a, "z", "l")
 	}
 	if want := 300 - (a.editW(a.curText(), l) - gutterWidth(b)); b.ScrollCol != want {
@@ -64,7 +64,7 @@ func TestHScrollWheelAndAltPgDn(t *testing.T) {
 func TestHScrollZPrefixKeepsView(t *testing.T) {
 	a := newTestApp(t, strings.Repeat("x", 300)+"\n")
 	b := a.curText().buf
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		keys(a, "z")
 		a.render()
 		keys(a, "l")
@@ -77,7 +77,7 @@ func TestHScrollZPrefixKeepsView(t *testing.T) {
 
 func TestHScrollShiftWheelOutsideTextStaysVertical(t *testing.T) {
 	dir := t.TempDir()
-	for i := 0; i < 60; i++ {
+	for i := range 60 {
 		os.WriteFile(filepath.Join(dir, fmt.Sprintf("f%02d.txt", i)), []byte(strings.Repeat("x", 300)+"\n"), 0o644)
 	}
 	a := New(dir, filepath.Join(dir, "f00.txt"))
@@ -117,7 +117,7 @@ func TestHScrollSplitDiffMovesBaseSideAndHidesCaret(t *testing.T) {
 	if _, _, ok := a.caretPos(a.layout()); !ok {
 		t.Fatalf("caret hidden before scrolling")
 	}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		a.scrollCols(tab, 200)
 	}
 	view := ansi.Strip(a.render())

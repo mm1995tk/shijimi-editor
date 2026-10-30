@@ -11,7 +11,7 @@ import (
 func guideRows(src string, on bool) []string {
 	b := buffer.New()
 	b.Lines = nil
-	for _, l := range strings.Split(src, "\n") {
+	for l := range strings.SplitSeq(src, "\n") {
 		b.Lines = append(b.Lines, []rune(l))
 	}
 	rows := renderEditor(newTab(b), 40, len(b.Lines), editorOpts{indentGuides: on})

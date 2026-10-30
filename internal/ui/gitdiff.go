@@ -140,7 +140,7 @@ func loadChanges(gen int, root, base string, pr *prInfo) tea.Msg {
 	if base == basePR {
 		m.stale = map[string]bool{}
 		if names, err := run(root, nil, "git", "diff", "--name-only", "--no-renames", "-z", pr.HeadRefOid); err == nil {
-			for _, p := range strings.Split(string(names), "\x00") {
+			for p := range strings.SplitSeq(string(names), "\x00") {
 				if p != "" {
 					m.stale[p] = true
 				}
@@ -150,7 +150,7 @@ func loadChanges(gen int, root, base string, pr *prInfo) tea.Msg {
 		}
 	}
 	if untracked, err := run(root, nil, "git", "ls-files", "--others", "--exclude-standard", "--full-name", "-z", ":/"); err == nil {
-		for _, p := range strings.Split(string(untracked), "\x00") {
+		for p := range strings.SplitSeq(string(untracked), "\x00") {
 			if p == "" {
 				continue
 			}
@@ -925,7 +925,7 @@ func (a *App) renderChanges(w, h int, focused bool) []string {
 		}
 	}
 	g.scroll = clamp(g.scroll, 0, max(0, len(vis)-body))
-	for i := 0; i < body; i++ {
+	for i := range body {
 		idx := g.scroll + i
 		if idx >= len(vis) {
 			msg := ""
@@ -1241,10 +1241,10 @@ func (dv *diffView) build(t *tab, split bool) {
 				add(o, n)
 			}
 		} else {
-			for k := 0; k < dels; k++ {
+			for k := range dels {
 				add(b.OldStart+k, -1)
 			}
-			for k := 0; k < adds; k++ {
+			for k := range adds {
 				add(-1, b.NewStart+k)
 			}
 		}

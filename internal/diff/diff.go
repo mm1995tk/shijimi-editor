@@ -50,8 +50,8 @@ func Parse(text string) []*File {
 	var f *File
 	var h *Hunk
 	oldNo, newNo := 0, 0
-	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
-	for _, l := range lines {
+	lines := strings.SplitSeq(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
+	for l := range lines {
 		switch {
 		case strings.HasPrefix(l, "diff --git "):
 			f = &File{Status: "modified"}

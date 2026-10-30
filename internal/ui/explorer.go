@@ -171,7 +171,7 @@ func (e *explorer) reveal(path string) {
 		return
 	}
 	cur := e.root
-	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+	for part := range strings.SplitSeq(rel, string(filepath.Separator)) {
 		if !cur.loaded {
 			e.load(cur)
 		}
@@ -230,7 +230,7 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 	lines = append(lines, stSideTitle.Render(fit(title, w)))
 	body := h - 1
 	e.ensureVisible(body)
-	for i := 0; i < body; i++ {
+	for i := range body {
 		idx := e.scroll + i
 		if idx >= len(e.flat) {
 			lines = append(lines, stSide.Render(fit("", w)))

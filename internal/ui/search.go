@@ -150,7 +150,7 @@ func planHit(re *regexp.Regexp, o searchOpts, line string) (h *searchHit, ok boo
 func projectFiles(root string) []string {
 	if out, err := run(root, nil, "git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"); err == nil {
 		var files []string
-		for _, f := range strings.Split(string(out), "\x00") {
+		for f := range strings.SplitSeq(string(out), "\x00") {
 			if f != "" {
 				files = append(files, f)
 			}
@@ -340,7 +340,7 @@ func splitReplaceArgs(arg string) (query, repl string, ok bool) {
 	q, r, ok := strings.Cut(arg, replaceSep)
 	if !ok {
 		// allow an empty replacement: `query =>`
-		if t := strings.TrimSuffix(strings.TrimRight(arg, " "), " =>"); t != strings.TrimRight(arg, " ") {
+		if t, ok := strings.CutSuffix(strings.TrimRight(arg, " "), " =>"); ok {
 			return t, "", true
 		}
 	}

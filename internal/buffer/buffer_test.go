@@ -205,7 +205,7 @@ func TestSelectLineDeleteLastLine(t *testing.T) {
 func TestSelectLineExtendToLastLine(t *testing.T) {
 	b := fromText("a\nb\nc")
 	b.Cur = Pos{1, 0}
-	for i := 0; i < 3; i++ { // third x keeps the selection
+	for range 3 { // third x keeps the selection
 		b.SelectLine()
 	}
 	s, e, _ := b.LineDeleteRange()

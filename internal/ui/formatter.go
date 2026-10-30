@@ -64,7 +64,7 @@ func (a *App) runFormatter(t *tab, f *config.Formatter, save bool) tea.Cmd {
 
 // firstNonEmptyLine returns the first non-empty line of s, or def when there is none.
 func firstNonEmptyLine(s, def string) string {
-	for _, l := range strings.Split(s, "\n") {
+	for l := range strings.SplitSeq(s, "\n") {
 		if l = strings.TrimSpace(l); l != "" {
 			return l
 		}

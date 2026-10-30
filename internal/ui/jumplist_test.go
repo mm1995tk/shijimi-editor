@@ -45,7 +45,7 @@ func TestJumpListSkipsDuplicatesAndCaps(t *testing.T) {
 	if len(a.jumps) != 1 {
 		t.Fatalf("same position pushed twice: %d entries", len(a.jumps))
 	}
-	for i := 0; i < maxJumps+20; i++ {
+	for i := range maxJumps + 20 {
 		a.curText().buf.Cur.Row = i % 3
 		a.curText().buf.Cur.Col = i % 2
 		a.pushJump()

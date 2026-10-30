@@ -254,7 +254,8 @@ func (t *terminal) render(w, h int, focused bool) []string {
 	out := make([]string, 0, h)
 	out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
 
-	bar := stPanelTitle.Render(" ") + stPanelTab.Render("TERMINAL")
+	var bar strings.Builder
+	bar.WriteString(stPanelTitle.Render(" ") + stPanelTab.Render("TERMINAL"))
 	x := 9
 	t.tabX = t.tabX[:0]
 	for i, tab := range t.tabs {
@@ -264,12 +265,12 @@ func (t *terminal) render(w, h int, focused bool) []string {
 		if i == t.active {
 			st = stPanelCmd
 		}
-		bar += st.Render(s)
+		bar.WriteString(st.Render(s))
 		x += ansi.StringWidth(s)
 	}
 	t.tabX = append(t.tabX, x)
-	bar += stPanelDim.Render(i18n.T("term.new"))
-	out = append(out, fitStyled(bar, w, stPanel))
+	bar.WriteString(stPanelDim.Render(i18n.T("term.new")))
+	out = append(out, fitStyled(bar.String(), w, stPanel))
 
 	body := h - 2
 	if body < 0 {
@@ -291,7 +292,7 @@ func (t *terminal) render(w, h int, focused bool) []string {
 	sn := &tab.snap
 	tab.vt.Snapshot(sn)
 	tab.title = sn.Title
-	for y := 0; y < body; y++ {
+	for y := range body {
 		cx := -1
 		if focused && sn.CursorVisible && sn.CursorY == y {
 			cx = sn.CursorX

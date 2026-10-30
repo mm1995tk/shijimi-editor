@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"unicode"
@@ -289,9 +290,7 @@ func buildHelixKeymap(k config.Keys) (km helixKeymap, warnings []string) {
 	}
 	overlay(km.normal, "keys.normal", k.Normal)
 	km.sel = make(map[string]binding, len(km.normal))
-	for key, b := range km.normal {
-		km.sel[key] = b
-	}
+	maps.Copy(km.sel, km.normal)
 	overlay(km.sel, "keys.select", k.Select)
 	km.insert = map[string]binding{}
 	overlay(km.insert, "keys.insert", k.Insert)

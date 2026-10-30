@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -866,9 +867,9 @@ func (b *Buffer) Find(query string, from Pos, backward bool) (Pos, bool) {
 		}
 		cols := MatchCols(b.Lines[r], q)
 		if backward {
-			for j := len(cols) - 1; j >= 0; j-- {
-				if i > 0 || cols[j] < from.Col {
-					return Pos{r, cols[j]}, true
+			for _, col := range slices.Backward(cols) {
+				if i > 0 || col < from.Col {
+					return Pos{r, col}, true
 				}
 			}
 		} else {

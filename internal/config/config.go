@@ -6,9 +6,11 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -429,9 +431,7 @@ func mergeConfig(base, over any) any {
 		return over
 	}
 	out := make(map[string]any, len(b)+len(o))
-	for k, v := range b {
-		out[k] = v
-	}
+	maps.Copy(out, b)
 	for k, v := range o {
 		if old, ok := out[k]; ok {
 			out[k] = mergeConfig(old, v)
@@ -555,10 +555,8 @@ func (c *Config) LanguageFor(path string) *Language {
 	sort.Strings(names)
 	// exact file names beat extensions
 	for _, n := range names {
-		for _, ft := range c.Languages[n].FileTypes {
-			if ft == base {
-				return c.Languages[n]
-			}
+		if slices.Contains(c.Languages[n].FileTypes, base) {
+			return c.Languages[n]
 		}
 	}
 	for _, n := range names {

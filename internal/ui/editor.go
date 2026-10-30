@@ -171,7 +171,7 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 	}
 
 	out := make([]string, 0, h)
-	for i := 0; i < h; i++ {
+	for i := range h {
 		row := b.ScrollRow + i
 		if row >= len(b.Lines) {
 			out = append(out, stEmpty.Render(strings.Repeat(" ", w)))
@@ -415,8 +415,8 @@ func sevRank(s int) int {
 }
 
 func firstLine(s string) string {
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		return s[:i]
+	if before, _, ok := strings.Cut(s, "\n"); ok {
+		return before
 	}
 	return s
 }

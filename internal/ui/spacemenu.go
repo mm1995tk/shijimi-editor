@@ -93,7 +93,7 @@ func (a *App) renderMenu(rows []string, l layout, title string, items []spaceIte
 	}
 	inner := w - 2
 	box := []string{stPaletteBox.Render(fit(title, w))}
-	for r := 0; r < per; r++ {
+	for r := range per {
 		var sb strings.Builder
 		sb.WriteString(stPalette.Render(" "))
 		used := 1
