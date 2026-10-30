@@ -27,6 +27,8 @@ To turn it off, see [Configuration files](config.md).
 
 The sort order is: folders starting with a dot, other folders, files starting with a dot, other files. Within each group, names are sorted by letters, ignoring case.
 
+Files and folders matched by `.gitignore` are shown dimmed. They get no Git status letter (M / U / A).
+
 | Key | Action |
 | --- | --- |
 | `j` / `k` | Move down / up |
