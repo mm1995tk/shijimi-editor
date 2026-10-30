@@ -68,6 +68,14 @@ func herdrExec(args ...string) ([]byte, error) {
 	out, err := cmd.Output()
 	if err != nil {
 		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			var e struct {
+				Error struct {
+					Message string `json:"message"`
+				} `json:"error"`
+			}
+			if json.Unmarshal([]byte(msg), &e) == nil && e.Error.Message != "" {
+				msg = e.Error.Message
+			}
 			err = errors.New(msg)
 		}
 		return out, err
@@ -180,7 +188,7 @@ func (a *App) herdrSend(text string, enter bool) tea.Cmd {
 	if enter {
 		verb = "run"
 	}
-	_, err := a.hd.do("pane", verb, a.hd.id, "--", text)
+	_, err := a.hd.do("pane", verb, a.hd.id, text)
 	return a.herdrResult(err)
 }
 
@@ -212,7 +220,7 @@ func (a *App) commandEnded(code int) {
 	default:
 		var tail []string
 		if a.hd.id != "" {
-			if out, err := a.hd.do("pane", "read", a.hd.id, "--lines", fmt.Sprint(failTail)); err == nil {
+			if out, err := a.hd.do("pane", "read", a.hd.id, "--source", "recent", "--lines", fmt.Sprint(failTail)); err == nil {
 				tail = strings.Split(strings.TrimRight(string(out), "\n"), "\n")
 			}
 		}

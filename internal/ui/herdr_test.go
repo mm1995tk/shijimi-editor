@@ -103,7 +103,7 @@ func TestHerdrToggle(t *testing.T) {
 func TestHerdrCommands(t *testing.T) {
 	a, f := herdrApp(t)
 	a.execCommand("sh make test")
-	if !f.has("pane run w1-p2 -- make test") {
+	if !f.has("pane run w1-p2 make test") {
 		t.Fatalf("calls: %v", f.calls)
 	}
 	a.execCommand("sh hide")
@@ -112,7 +112,7 @@ func TestHerdrCommands(t *testing.T) {
 	}
 	a.ctx = &ctxPreview{text: "ctx"}
 	a.handleContextKey(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if !f.has("pane send-text w1-p2 -- ctx") || f.has("pane run w1-p2 -- ctx") {
+	if !f.has("pane send-text w1-p2 ctx") || f.has("pane run w1-p2 ctx") {
 		t.Fatalf("context must be pasted without Enter: %v", f.calls)
 	}
 	f.fail = "pane zoom"
