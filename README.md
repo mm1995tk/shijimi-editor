@@ -35,6 +35,13 @@ npm install -g shijimi-editor                                     # installs bot
 
 All of them get the latest release: the Nix commands follow the `release` branch, `go install` takes the newest tag, and npm takes the binaries published at release time. The same binaries are also attached to each [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) as `shj-<os>-<cpu>`. Unreleased changes on `main` are not included.
 
+To try the unreleased changes on `main`, install the nightly build. It installs as `shj-nightly` (and `shijimi-nightly`) next to `shj`, reads `~/.config/shijimi-editor-nightly/` (falling back to `~/.config/shijimi-editor/` while that directory does not exist), uses its own socket directory, and has the `[experimental]` settings (features being tried out; none yet) on by default. Nix builds it from the newest `main` at install time; npm and a GitHub pre-release are planned.
+
+```sh
+nix run github:mm1995tk/shijimi-editor#shj-nightly
+nix profile install github:mm1995tk/shijimi-editor#shj-nightly
+```
+
 To compare with the base of a pull request you need [gh](https://cli.github.com/) and `gh auth login`.
 
 ## Usage

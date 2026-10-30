@@ -32,37 +32,63 @@
 
           version = "0.6.1";
 
-          appDrv = pkgs.buildGoApplication {
-            go = pkgs.go_1_27;
-            pname = "shijimi";
-            inherit version;
-            pwd = ./.;
-            src = ./.;
-            modules = ./gomod2nix.toml;
-            subPackages = [ "cmd/shj" ];
-            CGO_ENABLED = 0;
-            ldflags = [
-              "-X github.com/mm1995tk/shijimi-editor/internal/ui.Version=${version}"
-              # dirtyShortRev ends in "-dirty" when built from uncommitted changes
-              "-X github.com/mm1995tk/shijimi-editor/internal/ui.Commit=${
-                self.shortRev or self.dirtyShortRev or ""
-              }"
-            ];
-            # The same binary also answers to "shijimi".
-            postInstall = ''
-              ln -s shj $out/bin/shijimi
-            '';
-            meta = {
-              description = "VS Code-style terminal IDE with Helix keybindings";
-              license = pkgs.lib.licenses.mit;
-              mainProgram = "shj";
+          # dirtyShortRev ends in "-dirty" when built from uncommitted changes
+          commit = self.shortRev or self.dirtyShortRev or "";
+
+          # One build for both channels. The stable shj and the nightly shj-nightly
+          # are the same program; the channel is compiled in and only changes the
+          # names that let the two be installed side by side (see internal/channel).
+          mkApp =
+            {
+              channel ? "",
+            }:
+            let
+              suffix = pkgs.lib.optionalString (channel != "") "-${channel}";
+              bin = "shj${suffix}";
+              alias = "shijimi${suffix}";
+            in
+            pkgs.buildGoApplication {
+              go = pkgs.go_1_27;
+              pname = alias;
+              # A nightly is the stable X.Y.Z plus "-nightly", the date of the
+              # commit and its hash, like the npm version (see npm/pack.sh). The
+              # binary itself gets X.Y.Z and the channel, and shows "vX.Y.Z-nightly".
+              version =
+                version
+                +
+                  pkgs.lib.optionalString (channel != "")
+                    "${suffix}.${builtins.substring 0 8 (self.lastModifiedDate or "00000000")}.${commit}";
+              pwd = ./.;
+              src = ./.;
+              modules = ./gomod2nix.toml;
+              subPackages = [ "cmd/shj" ];
+              CGO_ENABLED = 0;
+              ldflags = [
+                "-X github.com/mm1995tk/shijimi-editor/internal/ui.Version=${version}"
+                "-X github.com/mm1995tk/shijimi-editor/internal/ui.Commit=${commit}"
+                "-X github.com/mm1995tk/shijimi-editor/internal/channel.Channel=${channel}"
+              ];
+              # The same binary also answers to "shijimi" (or "shijimi-nightly").
+              postInstall = ''
+                ${pkgs.lib.optionalString (bin != "shj") "mv $out/bin/shj $out/bin/${bin}"}
+                ln -s ${bin} $out/bin/${alias}
+              '';
+              meta = {
+                description = "VS Code-style terminal IDE with Helix keybindings";
+                license = pkgs.lib.licenses.mit;
+                mainProgram = bin;
+              };
             };
-          };
+
+          appDrv = mkApp { };
+          # The nightly build of main, installed as shj-nightly so it can sit next to shj.
+          nightlyDrv = mkApp { channel = "nightly"; };
         in
         {
           packages = {
             default = appDrv;
             shijimi = appDrv;
+            shj-nightly = nightlyDrv;
             treefmt = treefmtEval.config.build.configFile;
           };
 
