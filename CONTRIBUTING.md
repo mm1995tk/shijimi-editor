@@ -16,11 +16,11 @@ Use the Nix devShell. With direnv, `.envrc` enters it automatically.
 ```sh
 nix develop            # or: direnv allow
 go test ./...
-nix fmt                # format with nixfmt / gofmt / taplo
+scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
 nix build              # build the package (also runs the tests)
 ```
 
-- After changing `go.mod`, run `gomod2nix` to update `gomod2nix.toml`.
+- Run `scripts/tidy.sh` before you push. CI runs it and fails if it changes anything (it also updates `gomod2nix.toml` after you change `go.mod`).
 - User-visible strings go in both [`internal/i18n/en.go`](internal/i18n/en.go) and [`internal/i18n/ja.go`](internal/i18n/ja.go). A test checks that the keys match.
 - The manual has an English page (`name.en.md`) and a Japanese page (`name.ja.md`). When you change one, change the other too. If you cannot write one of the languages, say so in the pull request.
 
@@ -29,7 +29,7 @@ See "Development" and "Editing the manual" in the [README](README.md) for detail
 ## Pull requests
 
 - Keep one pull request to one change.
-- Make sure `go test ./...` passes and `nix fmt` leaves no changes.
+- Make sure `go test ./...` passes and `scripts/tidy.sh` leaves no changes.
 - Describe what changed and why, and link the issue if there is one.
 
 By sending a pull request, you agree that your contribution is licensed under the [MIT License](LICENSE).
