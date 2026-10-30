@@ -181,6 +181,16 @@ Import the flake's `homeManagerModules.default`. `settings` is written to `~/.co
 }
 ```
 
+With herdr, `programs.shijimi-editor.herdr.enable = true` makes `programs.shijimi-editor.herdr.keysCommand` a list for herdr's `[[keys.command]]` that runs `shj exec ':sh hide'` (hide the pane) on `herdr.hideKey` (default `prefix+t`). shijimi-editor does not write herdr's `config.toml`; put the list into your own herdr config. It is an empty list while `herdr.enable` is `false`.
+
+```nix
+programs.shijimi-editor.herdr.enable = true;
+xdg.configFile."herdr/config.toml".source = toml.generate "herdr-config.toml" {
+  # ...your herdr settings...
+  keys.command = config.programs.shijimi-editor.herdr.keysCommand;
+};
+```
+
 ### Markdown preview and mermaid
 
 In a `.md` file, `Space m` (or `:preview`, or the command palette) opens a preview to the right of the buffer. It follows your edits and scrolls with the cursor. Press it again to show only the preview at full width, and a third time to close it. At full width, scroll with `j` / `k` or the mouse wheel.
