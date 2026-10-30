@@ -173,6 +173,15 @@ shijimi は起動すると Unix ソケット（権限 0600）を作ります。
 ソケットの場所は、ターミナルパネルのシェルの環境変数 `SHIJIMI_SOCKET` に入ります。
 そのシェルで次のコマンドが使えます。IDE 連携にない操作だけを残しています。
 
+`SHIJIMI_SOCKET` が無いときは、`shj` が起動中の shijimi を自分で探します。
+ソケットは `$XDG_RUNTIME_DIR/shijimi-<uid>/<pid>.sock` にあります（nightly 版は `shijimi-nightly-<uid>`。`XDG_RUNTIME_DIR` が無ければ一時ディレクトリの下）。
+ターミナルマルチプレクサ herdr の中（`HERDR_ENV=1`）で起動した shijimi は、同じディレクトリに `herdr-<HERDR_WORKSPACE_ID>/<HERDR_PANE_ID>.sock` というリンクも作ります。
+herdr のワークスペースの中（`HERDR_WORKSPACE_ID` あり）の `shj` は、自分のペイン `HERDR_PANE_ID` のリンクか、そのワークスペースで 1 つだけ起動している shijimi を使います。
+herdr の外では、そのユーザーで 1 つだけ起動している shijimi を使います。
+接続できなくなったソケットは飛ばし、shijimi は終了時に自分のファイルを消します。
+見つからないときと複数あるときは、`shj` はエラーを書いて終了コード 1 で終わります。`SHIJIMI_SOCKET` で 1 つを指定してください。
+これで、herdr のキーに割り当てたシェルコマンドから `shj exec ":sh hide"` などを実行できます。
+
 | コマンド | 動作 |
 | --- | --- |
 | `shj diff [パス]` | 差分モード（比較元 `HEAD`）にする。パスを付けるとそのファイルを diff 表示で開く |

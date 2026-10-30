@@ -56,5 +56,6 @@ When a program in the terminal (Claude Code, tmux and so on) copies with OSC 52,
 
 `SHIJIMI_SOCKET` is set in the shell of the terminal panel.
 You can use it to control shijimi from the shell.
+When it is not set, `shj` looks for the running shijimi by itself (see [AI agent integration](agent.md#controlling-shijimi-from-the-shell)).
 `CLAUDE_CODE_SSE_PORT`, `ENABLE_IDE_INTEGRATION=true` and `FORCE_CODE_TERMINAL=true` are also set, for the Claude Code IDE integration.
 For details, see [AI agent integration](agent.md).
