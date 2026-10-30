@@ -35,7 +35,7 @@ npm install -g shijimi-editor                                     # installs bot
 
 All of them get the latest release: the Nix commands follow the `release` branch, `go install` takes the newest tag, and npm takes the binaries published at release time. The same binaries are also attached to each [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) as `shj-<os>-<cpu>`. Unreleased changes on `main` are not included.
 
-To try the unreleased changes on `main`, install the nightly build. It installs as `shj-nightly` (and `shijimi-nightly`) next to `shj`, reads `~/.config/shijimi-editor-nightly/` (falling back to `~/.config/shijimi-editor/` while that directory does not exist), uses its own socket directory, and has the `[experimental]` settings (features being tried out; none yet) on by default. Nix builds it from the newest `main` at install time; npm takes the build published every day (the `nightly` dist-tag, version `X.Y.Z-nightly.<yyyymmdd>.<sha>`), and the same binaries are attached to the [`nightly` pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/nightly) as `shj-nightly-<os>-<cpu>`.
+To try the unreleased changes on `main`, install the nightly build. It installs as `shj-nightly` (and `shijimi-nightly`) next to `shj`, reads `~/.config/shijimi-editor-nightly/` (falling back to `~/.config/shijimi-editor/` while that directory does not exist), uses its own socket directory, and has the `[experimental]` settings (features being tried out) on by default. Nix builds it from the newest `main` at install time; npm takes the build published every day (the `nightly` dist-tag, version `X.Y.Z-nightly.<yyyymmdd>.<sha>`), and the same binaries are attached to the [`nightly` pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/nightly) as `shj-nightly-<os>-<cpu>`.
 
 ```sh
 nix run github:mm1995tk/shijimi-editor#shj-nightly
@@ -396,11 +396,20 @@ When `SHIJIMI_SOCKET` is not set (for example in a shell command bound to a key 
 - `shj diff [path]`: switch to diff mode (base `HEAD`). With `path`, opens that file as a diff
 - `shj exec ":<command>"`: run a `:` command as it is (for example `shj exec ":preview"`). On success it writes the status-line text to standard output; on failure it writes the error text to standard error and exits with code 1. It returns an error without running commands that quit or discard (`:q` `:q!` `:wq` `:bc!` and so on), commands that open a picker when given no argument (`:o` `:theme` `:grep` `:replace` `:symbol` `:action`, and `:pr` with a non-numeric argument), and `:reload` and `:bc` on a file with unsaved changes
 
-When the first argument is `diff` / `exec` / `skill`, it is treated as a subcommand. Write a file with the same name as `./diff`.
+When the first argument is `diff` / `exec` / `command-end` / `skill`, it is treated as a subcommand. Write a file with the same name as `./diff`.
 
 `shj skill install [destination]` writes a skill (`SKILL.md`) that describes how to use this command. Without a destination it writes to `~/.claude/skills/shijimi/`.
 
 > `shj open` and `shj status` were removed and replaced by the IDE integration (`openFile` / `getOpenEditors` / `getCurrentSelection`).
+
+### Inside herdr
+
+When shijimi runs in the [herdr](https://herdr.dev) terminal multiplexer (`HERDR_ENV=1`) and `[experimental]` `herdr` is `true` in `config.toml` (the default is `true` in the nightly build and `false` in the stable build), ``Ctrl+` ``, `Space t`, `:sh`, `:sh <command>`, `:run` and `:!` use a pane of herdr instead of the terminal panel. herdr then detects the state of the agents run in the pane, notifies you and restores them. Without `HERDR_ENV=1`, or with `herdr = false`, the terminal panel is used as before.
+
+- The first time, a pane is created right below shijimi's pane (`herdr pane split`) in the workspace root, with `SHIJIMI_SOCKET` and the IDE integration variables, and gets focus. The next time, the same pane is shown again; when it has ended, a new one is created. Pressing the key again hides it (zooms shijimi's pane), and `shj exec ":sh hide"` in the pane does the same. `Ctrl+J` shows the pane and moves focus there; to come back, use herdr's key (`Ctrl+B` `k` by default).
+- `:sh <command>` runs the command in the pane. `Space a` / `Alt+A` pastes the context into the pane without Enter (`at_mentioned` is unchanged while the IDE integration is connected).
+- The shell of the pane (zsh, bash) reports each exit code with `shj command-end <code>`, so the suggestion to investigate a failed command appears as before. The pane ends with `exit` or herdr's `Ctrl+B x`, and shijimi closes the pane it created when it quits.
+- The screen, scrolling, copying with the mouse and OSC 52 of the pane are herdr's, and shijimi's own keys (`Ctrl+Q`, ``Ctrl+` ``, `Alt+R`, `F1`, `F2`, `Ctrl+PgUp` / `Ctrl+PgDn`) do not work in it.
 
 ## Editing the manual and the home page
 

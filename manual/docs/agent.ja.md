@@ -189,6 +189,12 @@ herdr の外では、そのユーザーで 1 つだけ起動している shijimi
 !!! note "削除したコマンド"
     `shj open` と `shj status` は、IDE 連携の `openFile` と `getOpenEditors` / `getCurrentSelection` に置き換えて削除しました。
 
+## herdr の中で
+
+herdr の中（`HERDR_ENV=1`）で shijimi を動かしていて、`[experimental]` の `herdr` が `true` のとき、``Ctrl+` ``・`Space t`・`:sh`・`Space a`・`Alt+A` はターミナルパネルの代わりに herdr のペインを使います（[ターミナル](terminal.md#herdr-の中で)）。
+ペインにも同じ環境変数が入るので、そこで起動した `claude` は IDE 連携につながります。`Space a` / `Alt+A` はペインに文脈を貼り（Enter は送りません）、接続中の `at_mentioned` は今までどおりです。
+ペインのシェルは、コマンドごとの終了コードを `shj command-end <終了コード>` で知らせるので、失敗したコマンドを調べる提案は今までどおり出ます。
+
 ## スキルを書き出す
 
 ```sh

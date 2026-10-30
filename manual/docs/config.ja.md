@@ -21,7 +21,11 @@
 
 `shj-nightly`（[インストール](install.md)）は `~/.config/shijimi-editor/` の代わりに `~/.config/shijimi-editor-nightly/` を読むので、2 つの版で設定を分けられます。`~/.config/shijimi-editor-nightly/` が無い間は、代わりに `~/.config/shijimi-editor/` を読みます。nightly 版だけの設定にしたくなったら、ディレクトリを作ってください。プロジェクトの `.shijimi-editor/` は両方で同じです。
 
-`[experimental]` には、リリースの前に試している途中の機能を置きます。キーの既定値は nightly 版では `true`、安定版では `false` です。まだキーはありません。
+`[experimental]` には、リリースの前に試している途中の機能を置きます。キーの既定値は nightly 版では `true`、安定版では `false` です。キーは次のとおりです。
+
+| キー | 意味 |
+| --- | --- |
+| `herdr` | herdr の中（`HERDR_ENV=1`）で、ターミナルパネルの代わりに herdr のペインを使う（[ターミナル](terminal.md#herdr-の中で)） |
 
 ## config.toml の例
 

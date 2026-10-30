@@ -105,6 +105,9 @@ func (a *App) handleContextKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "enter":
 		text := a.ctx.text
 		a.ctx = nil
+		if a.herdrOn() {
+			return a.herdrSend(text, false)
+		}
 		a.showTerm = true
 		cmd := a.setFocus(focusTerminal)
 		return tea.Batch(cmd, a.term.paste(text))

@@ -123,13 +123,17 @@ type Keys struct {
 
 // Experimental is the [experimental] section of config.toml: switches for
 // features that are being tried out before they reach the stable channel.
-// It has no keys yet. Each key that is added defaults to Default.
+// Each key defaults to Default.
 type Experimental struct {
 	// Default is the value of every key the configuration files do not set:
 	// true on the nightly channel, false on the stable channel. A nightly user
 	// sees the features without turning them on; a stable user does not see
 	// them without asking.
 	Default bool
+	// Herdr makes the terminal commands (Ctrl+`, :sh, ...) use a pane of the
+	// herdr multiplexer instead of the built-in terminal panel. It takes
+	// effect only inside herdr (HERDR_ENV=1).
+	Herdr bool
 }
 
 // Config is the merged configuration.
@@ -157,7 +161,7 @@ const nixEvalTimeout = 15 * time.Second
 func Load(root string) *Config {
 	c := &Config{
 		Browser:      Browser{ListenHost: "127.0.0.1"},
-		Experimental: Experimental{Default: channel.IsNightly()},
+		Experimental: Experimental{Default: channel.IsNightly(), Herdr: channel.IsNightly()},
 		Editor:       Editor{UILanguage: i18n.Default, Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
 		Languages:    map[string]*Language{},
 		Servers:      map[string]*Server{},
@@ -179,6 +183,7 @@ func Load(root string) *Config {
 		if data, err := os.ReadFile(filepath.Join(d, "config.toml")); err == nil {
 			c.mergeEditor(string(data))
 			c.mergeBrowser(string(data))
+			c.mergeExperimental(string(data))
 			if user {
 				c.mergeAgent(string(data))
 				c.mergeKeys(string(data))
@@ -188,6 +193,7 @@ func Load(root string) *Config {
 		if raw, ok := evalNix(filepath.Join(d, "config.nix")); ok {
 			c.mergeEditorRaw(raw)
 			c.mergeBrowserRaw(raw)
+			c.mergeExperimentalRaw(raw)
 			if user {
 				c.mergeAgentRaw(raw)
 				c.mergeKeysRaw(raw)
@@ -317,6 +323,22 @@ func (c *Config) mergeBrowserRaw(raw map[string]any) {
 	if br, ok := raw["browser"].(map[string]any); ok {
 		if v, ok := br["listen-host"].(string); ok && v != "" {
 			c.Browser.ListenHost = v
+		}
+	}
+}
+
+func (c *Config) mergeExperimental(data string) {
+	var raw map[string]any
+	if _, err := toml.Decode(data, &raw); err != nil {
+		return
+	}
+	c.mergeExperimentalRaw(raw)
+}
+
+func (c *Config) mergeExperimentalRaw(raw map[string]any) {
+	if ex, ok := raw["experimental"].(map[string]any); ok {
+		if v, ok := ex["herdr"].(bool); ok {
+			c.Experimental.Herdr = v
 		}
 	}
 }

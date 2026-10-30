@@ -33,7 +33,7 @@ npm install -g shijimi-editor                                     # shj と shij
 
 どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。同じバイナリを `shj-<os>-<cpu>` として各 [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) にも置いています。`main` のリリース前の変更は入りません。
 
-`main` のリリース前の変更を試すには、nightly 版を入れます。`shj` と並べて `shj-nightly`（と `shijimi-nightly`）として入り、設定は `~/.config/shijimi-editor-nightly/` を読み（そのディレクトリが無い間は `~/.config/shijimi-editor/` を読みます）、ソケットのディレクトリも別で、設定の `[experimental]`（試している途中の機能。まだ項目はありません）が既定で有効です。Nix は入れる時点の最新の `main` からビルドします。npm は毎日 publish したビルド（dist-tag `nightly`、版は `X.Y.Z-nightly.<yyyymmdd>.<sha>`）を取り、同じバイナリを `shj-nightly-<os>-<cpu>` として [`nightly` の pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/nightly) にも置いています。
+`main` のリリース前の変更を試すには、nightly 版を入れます。`shj` と並べて `shj-nightly`（と `shijimi-nightly`）として入り、設定は `~/.config/shijimi-editor-nightly/` を読み（そのディレクトリが無い間は `~/.config/shijimi-editor/` を読みます）、ソケットのディレクトリも別で、設定の `[experimental]`（試している途中の機能）が既定で有効です。Nix は入れる時点の最新の `main` からビルドします。npm は毎日 publish したビルド（dist-tag `nightly`、版は `X.Y.Z-nightly.<yyyymmdd>.<sha>`）を取り、同じバイナリを `shj-nightly-<os>-<cpu>` として [`nightly` の pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/nightly) にも置いています。
 
 ```sh
 nix run github:mm1995tk/shijimi-editor#shj-nightly
@@ -394,11 +394,20 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 - `shj diff [path]`: 差分モード（比較元 `HEAD`）にする。`path` を付けるとそのファイルを diff 表示で開く
 - `shj exec ":<コマンド>"`: `:` コマンドをそのまま実行する（例: `shj exec ":preview"`）。成功するとステータス欄の文を標準出力へ、失敗するとエラーの文を標準エラーへ書き、終了コード 1 にする。`:q` `:q!` `:wq` `:bc!` などの終了・破棄するコマンド、引数なしで選択画面を開くコマンド（`:o` `:theme` `:grep` `:replace` `:symbol` `:action`、番号以外の引数の `:pr`）、未保存の変更があるファイルの `:reload` と `:bc` は実行せずエラーを返す
 
-第 1 引数が `diff` / `exec` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./diff` のように書きます。
+第 1 引数が `diff` / `exec` / `command-end` / `skill` のときはサブコマンドとして扱います。同名のファイルは `./diff` のように書きます。
 
 `shj skill install [書き出し先]` は、このコマンドの使い方を書いたスキル（`SKILL.md`）を書き出します。書き出し先を省略すると `~/.claude/skills/shijimi/` に書きます。
 
 > `shj open` と `shj status` は IDE 連携（`openFile` / `getOpenEditors` / `getCurrentSelection`）に置き換えて削除しました。
+
+### herdr の中で
+
+ターミナルマルチプレクサ [herdr](https://herdr.dev) の中（`HERDR_ENV=1`）で shijimi を動かしていて、`config.toml` の `[experimental]` の `herdr` が `true` のとき（既定値は nightly 版が `true`、安定版が `false`）、``Ctrl+` ``・`Space t`・`:sh`・`:sh <コマンド>`・`:run`・`:!` はターミナルパネルの代わりに herdr のペインを使います。ペインの中で動かしたエージェントの状態検出・通知・復元は herdr に任せられます。`HERDR_ENV=1` が無いとき、または `herdr = false` のときは、今までどおりターミナルパネルを使います。
+
+- 初回は、shijimi のペインの真下（`herdr pane split`）にワークスペースの root でペインを作り、`SHIJIMI_SOCKET` と IDE 連携の環境変数を渡して、焦点を移します。2 回目以降は同じペインを再表示し、終わっていたら新しく作ります。もう一度キーを押すと隠れ（shijimi のペインをズーム）、ペインの中で `shj exec ":sh hide"` を実行しても隠れます。`Ctrl+J` はペインを表示して焦点を移します。戻るには herdr のキー（既定は `Ctrl+B` `k`）を使います。
+- `:sh <コマンド>` はペインでコマンドを実行します。`Space a` / `Alt+A` はペインに文脈を Enter 無しで貼ります（IDE 連携がつながっているときの `at_mentioned` は今のままです）。
+- ペインのシェル（zsh、bash）は、終了コードを `shj command-end <終了コード>` で知らせるので、失敗したコマンドを調べる提案は今までどおり出ます。ペインは `exit` か herdr の `Ctrl+B x` で終わり、shijimi は終了時に自分が作ったペインを閉じます。
+- ペインの画面・スクロール・マウスでのコピー・OSC 52 は herdr のもので、shijimi 自身のキー（`Ctrl+Q`・``Ctrl+` ``・`Alt+R`・`F1`・`F2`・`Ctrl+PgUp` / `Ctrl+PgDn`）はペインの中では効きません。
 
 ## 説明書とホームページの編集
 

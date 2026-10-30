@@ -430,3 +430,28 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 		t.Fatalf("stable must read shijimi-editor: %+v %+v %+v", c.Editor, c.Agent, c.Experimental)
 	}
 }
+
+func TestExperimentalHerdr(t *testing.T) {
+	root := t.TempDir()
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("HOME", t.TempDir())
+	if Load(root).Experimental.Herdr {
+		t.Fatal("herdr must default to false on the stable channel")
+	}
+	channel.SetForTest(t, channel.Nightly)
+	if !Load(root).Experimental.Herdr {
+		t.Fatal("herdr must default to true on the nightly channel")
+	}
+	os.MkdirAll(filepath.Join(cfg, "shijimi-editor-nightly"), 0o755)
+	os.WriteFile(filepath.Join(cfg, "shijimi-editor-nightly", "config.toml"), []byte("[experimental]\nherdr = false\n"), 0o644)
+	if Load(root).Experimental.Herdr {
+		t.Fatal("herdr = false must win over the nightly default")
+	}
+	channel.SetForTest(t, "")
+	os.MkdirAll(filepath.Join(cfg, "shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("[experimental]\nherdr = true\n"), 0o644)
+	if !Load(root).Experimental.Herdr {
+		t.Fatal("herdr = true must win over the stable default")
+	}
+}
