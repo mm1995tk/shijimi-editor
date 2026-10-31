@@ -276,6 +276,7 @@ var en = map[string]string{
 	"help.vsc.sidebar":         "Ctrl+B        Toggle the sidebar",
 	"help.vsc.tree":            "Ctrl+E        Go to the file tree",
 	"herdr.badreply":           "herdr returned an unexpected reply",
+	"tmux.badreply":            "tmux returned an unexpected reply",
 	"mux.failed":               "%s failed: %w",
 	"mux.unsupported":          "[terminal] multiplexer = \"%s\" is not supported yet; using the built-in terminal",
 	"mux.unavailable":          "Not running in %s; using the built-in terminal",

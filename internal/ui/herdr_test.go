@@ -168,14 +168,14 @@ func TestHerdrCommandEnd(t *testing.T) {
 }
 
 func TestHerdrShellIntegration(t *testing.T) {
-	z := herdrZshEnv("/opt/it's/shj")
+	z := muxZshEnv("/opt/it's/shj")
 	if strings.Contains(z, "print -n") || !strings.Contains(z, `'/opt/it'\''s/shj' command-end $s`) {
 		t.Fatalf("zsh hook:\n%s", z)
 	}
-	if env := herdrShellIntegration("/bin/bash", "/bin/shj"); len(env) != 1 || !strings.HasPrefix(env[0], "PROMPT_COMMAND=") || !strings.Contains(env[0], "'/bin/shj' command-end") {
+	if env := muxShellIntegration("/bin/bash", "/bin/shj"); len(env) != 1 || !strings.HasPrefix(env[0], "PROMPT_COMMAND=") || !strings.Contains(env[0], "'/bin/shj' command-end") {
 		t.Fatalf("bash: %v", env)
 	}
-	if env := herdrShellIntegration("/bin/fish", "/bin/shj"); env != nil {
+	if env := muxShellIntegration("/bin/fish", "/bin/shj"); env != nil {
 		t.Fatalf("fish: %v", env)
 	}
 }
@@ -203,7 +203,8 @@ func TestMuxAutoFollowsParents(t *testing.T) {
 }
 
 func TestMuxAutoInnerWins(t *testing.T) {
-	// herdr -> tmux -> zsh -> shj: tmux is inner, and it is not supported yet.
+	// herdr -> tmux -> zsh -> shj: tmux is inner (here it is not usable: TMUX is unset), so herdr must not be used.
+	t.Setenv("TMUX", "")
 	a, f := herdrApp(t)
 	a.cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "tmux: server", "herdr", "systemd")

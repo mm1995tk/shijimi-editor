@@ -8,9 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -131,67 +129,4 @@ func (h *herdrBackend) tail(id string, n int) []string {
 
 func (h *herdrBackend) close(id string) { _, _ = h.do("pane", "close", id) }
 
-func (*herdrBackend) shellEnv(sh, exe string) []string { return herdrShellIntegration(sh, exe) }
-
-// ---- shell integration for the pane ----
-
-var (
-	herdrShellOnce sync.Once
-	herdrShellDir  string
-)
-
-// The hooks of shellint.go print OSC 133;D, which herdr does not pass on to
-// the editor. In the pane they run "shj command-end <code>" in the background
-// instead.
-const zshReportOSC = `print -n "\e]133;D;$s\a"`
-
-func shQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
-
-func herdrZshEnv(exe string) string {
-	return strings.ReplaceAll(zshEnv, zshReportOSC, "{ "+shQuote(exe)+` command-end $s >/dev/null 2>&1 &! }`)
-}
-
-// herdrBashPrompt is the PROMPT_COMMAND of a bash in the pane. A herdr pane
-// takes no arguments, so bash cannot be given an rcfile; the hook is
-// handed over through the environment instead, and a startup file that
-// replaces PROMPT_COMMAND (instead of extending it) drops it.
-func herdrBashPrompt(exe string) string {
-	return `__shijimi_s=$?;( ` + shQuote(exe) + ` command-end "$__shijimi_s" >/dev/null 2>&1 & );(exit $__shijimi_s)`
-}
-
-// herdrShellIntegration returns the environment that makes shell sh report
-// its exit codes through exe (the shj that runs the editor). Unsupported
-// shells get none.
-func herdrShellIntegration(sh, exe string) []string {
-	switch filepath.Base(sh) {
-	case "zsh":
-		herdrShellOnce.Do(func() {
-			d, err := os.MkdirTemp("", "shijimi-herdr-shell-")
-			if err != nil {
-				return
-			}
-			if os.WriteFile(filepath.Join(d, ".zshenv"), []byte(herdrZshEnv(exe)), 0o600) != nil {
-				os.RemoveAll(d)
-				return
-			}
-			herdrShellDir = d
-		})
-		if herdrShellDir == "" {
-			return nil
-		}
-		env := []string{"ZDOTDIR=" + herdrShellDir}
-		if v, ok := os.LookupEnv("ZDOTDIR"); ok {
-			env = append(env, "SHIJIMI_ZDOTDIR="+v)
-		}
-		return env
-	case "bash":
-		return []string{"PROMPT_COMMAND=" + herdrBashPrompt(exe)}
-	}
-	return nil
-}
-
-func removeHerdrShellIntegration() {
-	if herdrShellDir != "" {
-		os.RemoveAll(herdrShellDir)
-	}
-}
+func (*herdrBackend) shellEnv(sh, exe string) []string { return muxShellIntegration(sh, exe) }

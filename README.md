@@ -418,14 +418,16 @@ When the first argument is `diff` / `exec` / `command-end` / `skill`, it is trea
 
 When shijimi runs in a terminal multiplexer, `[experimental]` `multiplexer` is `true` in `config.toml` (the default is `true` in the nightly build and `false` in the stable build; the old key `herdr` is read as the same key) and the multiplexer is supported, ``Ctrl+` ``, `Space t`, `:sh`, `:sh <command>`, `:run` and `:!` use a pane of the multiplexer instead of the terminal panel. The multiplexer then detects the state of the agents run in the pane, notifies you and restores them.
 
-Which multiplexer is used is set by `multiplexer` in `[terminal]`: `"auto"` (default), `"herdr"`, `"tmux"`, `"zellij"`, `"cmux"` or `"none"`. `"auto"` follows the parent processes of shijimi and takes the first multiplexer it finds, that is the innermost one when several are nested (for example tmux inside herdr); with none, the terminal panel is used. `"none"` always uses the terminal panel. Only herdr is supported so far; with `"tmux"`, `"zellij"` or `"cmux"` the terminal panel is used, with a message. Without a supported multiplexer, or with `multiplexer = false`, the terminal panel is used as before.
+Which multiplexer is used is set by `multiplexer` in `[terminal]`: `"auto"` (default), `"herdr"`, `"tmux"`, `"zellij"`, `"cmux"` or `"none"`. `"auto"` follows the parent processes of shijimi and takes the first multiplexer it finds, that is the innermost one when several are nested (for example tmux inside herdr); with none, the terminal panel is used. `"none"` always uses the terminal panel. herdr and tmux are supported so far; with `"zellij"` or `"cmux"` the terminal panel is used, with a message. Without a supported multiplexer, or with `multiplexer = false`, the terminal panel is used as before.
 
-The rest of this section describes [herdr](https://herdr.dev) (`HERDR_ENV=1`).
+The rest of this section describes [herdr](https://herdr.dev) (`HERDR_ENV=1`); tmux is described at the end.
 
 - The first time, a pane is created right below shijimi's pane (`herdr pane split`) in the workspace root, with `SHIJIMI_SOCKET` and the IDE integration variables, and gets focus. The next time, the same pane is shown again; when it has ended, a new one is created. Pressing the key again hides it (zooms shijimi's pane), and `shj exec ":sh hide"` in the pane does the same. `Ctrl+J` shows the pane and moves focus there; to come back, use herdr's key (`Ctrl+B` `k` by default).
 - `:sh <command>` runs the command in the pane. `Space a` / `Alt+A` pastes the context into the pane without Enter (`at_mentioned` is unchanged while the IDE integration is connected).
 - The shell of the pane (zsh, bash) reports each exit code with `shj command-end <code>`, so the suggestion to investigate a failed command appears as before. The pane ends with `exit` or herdr's `Ctrl+B x`, and shijimi closes the pane it created when it quits.
 - The screen, scrolling, copying with the mouse and OSC 52 of the pane are herdr's, and shijimi's own keys (`Ctrl+Q`, ``Ctrl+` ``, `Alt+R`, `F1`) do not work in it.
+
+tmux 3.1 or later (`TMUX` set) works the same way. The pane is created with `tmux split-window -v -l 30%` below shijimi's pane (the one in `TMUX_PANE`), with the variables passed by `-e`; it is hidden and shown again by zooming shijimi's pane (`resize-pane -Z`), text is sent with `send-keys`, and the pane is closed with `kill-pane` when shijimi quits. To go back from the pane, use tmux's own keys (prefix, then an arrow key). shijimi does not set up tmux keys.
 
 ## Editing the manual and the home page
 
