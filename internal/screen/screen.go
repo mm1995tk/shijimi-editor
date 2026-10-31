@@ -213,9 +213,8 @@ type Status struct {
 	Warnings    int    `json:"warnings,omitempty"`    // 診断の数
 	Suggestions string `json:"suggestions,omitempty"` // エージェントの提案の数（提案の欄が見えていないときだけ）
 
-	Msg      string `json:"msg,omitempty"`      // メッセージ（保存の結果、同期の状況など）
-	MsgErr   bool   `json:"msgErr,omitempty"`   // Msg がエラー
-	Question string `json:"question,omitempty"` // 確認の問い。あれば Msg より優先し、右側を隠す
+	Msg    string `json:"msg,omitempty"`    // メッセージ（保存の結果、同期の状況など）
+	MsgErr bool   `json:"msgErr,omitempty"` // Msg がエラー
 
 	Cursor   Pos    `json:"cursor"`             // カーソルの位置
 	Position string `json:"position,omitempty"` // 「行:桁」に複数カーソルと選択の文字数を足したもの

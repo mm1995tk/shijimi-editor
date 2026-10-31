@@ -125,8 +125,8 @@ func (a *App) statusOf() screen.Status {
 	}
 	s.Version = versionLabel()
 	switch {
-	case a.confirm != nil:
-		s.Question = a.confirm.prompt
+	case a.confirmOverlay() != nil:
+		// the confirmation is an Overlay, drawn over the status line
 	case a.msg != "":
 		s.Msg, s.MsgErr = a.msg, a.msgErr
 	case a.prShown() && a.gd.rv.sync.text() != "":
@@ -135,8 +135,27 @@ func (a *App) statusOf() screen.Status {
 	return s
 }
 
-// drawStatus draws s as a row of width w.
-func drawStatus(s screen.Status, w int) string {
+// confirmOverlay is the confirmation now asked, as a screen.Overlay, or nil.
+// A y/n question (confirm) has the two answers as Items; "press again to
+// discard" (confirmQuit, confirmClose) has none, as the same key answers it.
+// It has no place in a pane. It changes nothing. Drawing it is drawStatus's work.
+func (a *App) confirmOverlay() *screen.Overlay {
+	ov := screen.Overlay{Kind: screen.OverlayConfirm}
+	switch {
+	case a.confirm != nil:
+		ov.Lines = []screen.Line{{Spans: []screen.Span{{Text: a.confirm.prompt}}}}
+		ov.Items = []screen.Item{{Label: "y"}, {Label: "n"}}
+	case (a.confirmQuit || a.confirmClose) && a.msg != "":
+		ov.Lines = []screen.Line{{Spans: []screen.Span{{Text: a.msg}}}}
+	default:
+		return nil
+	}
+	return &ov
+}
+
+// drawStatus draws s as a row of width w, with the confirmation ov (if any)
+// in the place of the message.
+func drawStatus(s screen.Status, ov *screen.Overlay, w int) string {
 	var prefix string
 	prefixW := 0
 	if s.Mode != "" {
@@ -171,9 +190,12 @@ func drawStatus(s screen.Status, w int) string {
 	right += s.Version + " "
 	st := stStatus
 	switch {
-	case s.Question != "":
-		st, right = stStatusError, "" // the question must not be cut off
-		left += "   " + s.Question
+	case ov != nil && ov.Kind == screen.OverlayConfirm:
+		st = stStatusError
+		if len(ov.Items) > 0 {
+			right = "" // the question must not be cut off
+		}
+		left += "   " + ov.Lines[0].Spans[0].Text
 	case s.Msg != "":
 		if s.MsgErr {
 			st = stStatusError
