@@ -2362,7 +2362,7 @@ func (a *App) renderFind(w int) string {
 
 var modeStyles map[editMode]lipgloss.Style
 
-func (a *App) renderStatus() string { return drawStatus(a.statusOf(), a.w) }
+func (a *App) renderStatus() string { return drawStatus(a.statusOf(), a.confirmOverlay(), a.w) }
 
 // popupPos places box below the cursor cell (cx, cy), or above it when there
 // is no room below, clamped to the editor area of a screen w cells wide.

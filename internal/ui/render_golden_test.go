@@ -190,7 +190,7 @@ func TestLineStates(t *testing.T) {
 		t.Errorf("pane title = %+v", p.Title)
 	}
 	s := a.statusOf()
-	if s.Mode != "NOR" || s.Msg != "失敗" || !s.MsgErr || s.Position != "1:2" || s.Question != "" {
+	if s.Mode != "NOR" || s.Msg != "失敗" || !s.MsgErr || s.Position != "1:2" {
 		t.Errorf("status = %+v", s)
 	}
 	if a.cmdlineState() != nil || a.findState() != nil {
