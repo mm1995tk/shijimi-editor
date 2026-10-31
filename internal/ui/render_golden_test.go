@@ -126,6 +126,39 @@ func TestRenderGolden(t *testing.T) {
 		checkGolden(t, "confirm", a)
 	})
 
+	t.Run("palette-commands", func(t *testing.T) {
+		a := goldenApp(t)
+		a.commands = []command{{name: "Save", key: "Ctrl+S"}, {name: "Save As", key: "Ctrl+Shift+S"}, {name: "Quit", key: "Ctrl+Q"}}
+		a.pal.show(a.root, ">")
+		keys(a, "s", "a")
+		checkGolden(t, "palette-commands", a)
+	})
+
+	t.Run("palette-files", func(t *testing.T) {
+		a := goldenApp(t)
+		a.pal.show(a.root, "")
+		checkGolden(t, "palette-files", a)
+	})
+
+	t.Run("palette-prompt", func(t *testing.T) {
+		a := goldenApp(t)
+		a.pal.ask("名前", "abc", func(string) tea.Cmd { return nil })
+		checkGolden(t, "palette-prompt", a)
+	})
+
+	t.Run("palette-pick", func(t *testing.T) {
+		a := goldenApp(t)
+		a.pal.pick("テーマ", []paletteItem{{label: "dark", detail: "ダーク"}, {label: "light"}, {label: "solar"}}, func(int) tea.Cmd { return nil })
+		keys(a, "l")
+		checkGolden(t, "palette-pick", a)
+	})
+
+	t.Run("palette-nomatch", func(t *testing.T) {
+		a := goldenApp(t)
+		a.pal.show(a.root, "zzzzqqq")
+		checkGolden(t, "palette-nomatch", a)
+	})
+
 	t.Run("search", func(t *testing.T) {
 		a := goldenApp(t)
 		drive(a, a.openSearchArgs("fmt", false))
