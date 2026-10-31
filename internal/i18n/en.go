@@ -278,6 +278,7 @@ var en = map[string]string{
 	"herdr.badreply":           "herdr returned an unexpected reply",
 	"mux.failed":               "%s failed: %w",
 	"mux.unsupported":          "[terminal] multiplexer = \"%s\" is not supported yet; using the built-in terminal",
+	"mux.unavailable":          "Not running in %s; using the built-in terminal",
 	"hover.copybtn":            "[Copy]",
 	"hover.hint":               " ^D/^U scroll  y copy ",
 	"hover.hintcopy":           " y copy ",

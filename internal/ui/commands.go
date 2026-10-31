@@ -299,6 +299,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 		a.infoText(i18n.T("cmd.lsprestarted"))
 	case "config-reload":
 		a.cfg = config.Load(a.root)
+		a.mux.resolved = false // [terminal] multiplexer may have changed
 		i18n.SetLang(a.cfg.Editor.UILanguage)
 		a.commands = defaultCommands()
 		a.findInput.Placeholder = i18n.T("app.find")

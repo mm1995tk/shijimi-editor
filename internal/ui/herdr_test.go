@@ -49,7 +49,12 @@ func herdrApp(t *testing.T) (*App, *fakeHerdr) {
 	a := newTestApp(t, "hello")
 	a.cfg.Experimental.Multiplexer = true
 	f := &fakeHerdr{}
-	a.mux.herdrCall = f.call
+	a.mux.newBackend = func(kind string) muxBackend {
+		if kind == "herdr" {
+			return &herdrBackend{call: f.call}
+		}
+		return nil
+	}
 	a.cfg.Terminal.Multiplexer = "herdr"
 	return a, f
 }
@@ -146,7 +151,7 @@ func TestHerdrOffKeepsBuiltinTerminal(t *testing.T) {
 func TestHerdrCommandEnd(t *testing.T) {
 	a, _ := herdrApp(t)
 	a.mux.id = "w1-p2"
-	a.muxOn()
+	a.resolveMux() // commandEnded needs the backend that a created pane would have
 	a.commandEnded(1)
 	if len(a.sg.fails) != 1 || a.sg.fails[0].code != 1 || len(a.sg.fails[0].output) == 0 {
 		t.Fatalf("fails: %+v", a.sg.fails)
@@ -252,5 +257,29 @@ func TestMuxKindOf(t *testing.T) {
 		if got := muxKindOf(comm); got != want {
 			t.Errorf("muxKindOf(%q) = %q, want %q", comm, got, want)
 		}
+	}
+}
+
+func TestMuxHerdrWithoutEnv(t *testing.T) {
+	a, _ := herdrApp(t)
+	t.Setenv("HERDR_ENV", "")
+	if a.muxOn() || strings.Contains(a.msg, "not supported") || !strings.Contains(a.msg, "herdr") {
+		t.Fatalf("expected the unavailable message: %q", a.msg)
+	}
+}
+
+func TestMuxConfigReload(t *testing.T) {
+	a, f := herdrApp(t)
+	if !a.muxOn() {
+		t.Fatal("herdr expected")
+	}
+	a.mux.id, a.mux.visible = "w1-p2", true
+	a.cfg.Terminal.Multiplexer = "none"
+	a.mux.resolved = false // what :config-reload does
+	if a.muxOn() {
+		t.Fatal("none must take effect after a reload")
+	}
+	if !f.has("pane close w1-p2") || a.mux.id != "" {
+		t.Fatalf("old pane not closed: %v", f.calls)
 	}
 }

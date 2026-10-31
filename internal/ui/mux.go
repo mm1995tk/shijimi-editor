@@ -55,19 +55,61 @@ type muxPane struct {
 	visible  bool
 
 	// Tests replace these.
-	herdrCall func(args ...string) ([]byte, error)
-	parents   func(pid int) (ppid int, comm string, ok bool)
+	newBackend func(kind string) muxBackend
+	parents    func(pid int) (ppid int, comm string, ok bool)
 }
 
-// newMuxBackend returns the backend for a supported multiplexer, or nil.
-func (a *App) newMuxBackend(kind string) muxBackend {
-	switch kind {
-	case "herdr":
-		if os.Getenv(envHerdr) == "1" {
-			return &herdrBackend{call: a.mux.herdrCall}
-		}
+// makeBackend returns the backend of a multiplexer that is supported, or nil.
+func (m *muxPane) makeBackend(kind string) muxBackend {
+	if m.newBackend != nil {
+		return m.newBackend(kind)
+	}
+	if kind == "herdr" {
+		return &herdrBackend{}
 	}
 	return nil
+}
+
+// muxUsable reports whether the editor can use the supported multiplexer kind
+// in this environment.
+func muxUsable(kind string) bool {
+	return kind != "herdr" || os.Getenv(envHerdr) == "1"
+}
+
+// resolveMux decides which multiplexer the terminal commands use from the
+// current configuration. It runs on first use and again after
+// :config-reload. A pane of a multiplexer that is no longer used is closed.
+func (a *App) resolveMux() {
+	m := &a.mux
+	m.resolved = true
+	old := m.b
+	m.b = nil
+	want := a.cfg.Terminal.Multiplexer
+	explicit := want != "auto" && want != "" && want != "none"
+	kind := want
+	if want == "auto" || want == "" {
+		kind = detectMultiplexer(os.Getpid(), m.parents)
+	}
+	if kind != "" && kind != "none" {
+		switch b := m.makeBackend(kind); {
+		case b == nil:
+			if explicit {
+				a.infoText(fmt.Sprintf(i18n.T("mux.unsupported"), want))
+			}
+		case !muxUsable(kind):
+			if explicit {
+				a.infoText(fmt.Sprintf(i18n.T("mux.unavailable"), want))
+			}
+		default:
+			m.b = b
+		}
+	}
+	if old != nil && m.id != "" && (m.b == nil || m.b.name() != old.name()) {
+		if old.alive(m.id) {
+			old.close(m.id)
+		}
+		m.id, m.visible = "", false
+	}
 }
 
 // muxOn reports whether the terminal commands should use a multiplexer pane.
@@ -76,21 +118,13 @@ func (a *App) muxOn() bool {
 		return false
 	}
 	if !a.mux.resolved {
-		a.mux.resolved = true
-		want := a.cfg.Terminal.Multiplexer
-		kind := want
-		if want == "auto" || want == "" {
-			kind = detectMultiplexer(os.Getpid(), a.mux.parents)
-		}
-		a.mux.b = a.newMuxBackend(kind)
-		if a.mux.b == nil && want != "auto" && want != "" && want != "none" {
-			a.infoText(fmt.Sprintf(i18n.T("mux.unsupported"), want))
-		}
+		a.resolveMux()
 	}
 	return a.mux.b != nil
 }
 
-func (a *App) muxDo(err error) error {
+// muxError names the multiplexer in an error of one of its commands.
+func (a *App) muxError(err error) error {
 	if err != nil {
 		return fmt.Errorf(i18n.T("mux.failed"), a.mux.b.name(), err)
 	}
@@ -177,7 +211,7 @@ func (a *App) muxClose() {
 
 func (a *App) muxResult(err error) tea.Cmd {
 	if err != nil {
-		a.fail(a.muxDo(err))
+		a.fail(a.muxError(err))
 	}
 	return nil
 }

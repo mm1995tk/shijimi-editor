@@ -199,6 +199,7 @@ func Load(root string) *Config {
 			c.mergeEditor(string(data))
 			c.mergeBrowser(string(data))
 			c.mergeExperimental(string(data))
+			c.mergeTerminal(string(data))
 			if user {
 				c.mergeAgent(string(data))
 				c.mergeKeys(string(data))
@@ -209,6 +210,7 @@ func Load(root string) *Config {
 			c.mergeEditorRaw(raw)
 			c.mergeBrowserRaw(raw)
 			c.mergeExperimentalRaw(raw)
+			c.mergeTerminalRaw(raw)
 			if user {
 				c.mergeAgentRaw(raw)
 				c.mergeKeysRaw(raw)
@@ -360,6 +362,17 @@ func (c *Config) mergeExperimentalRaw(raw map[string]any) {
 			c.Experimental.Multiplexer = v
 		}
 	}
+}
+
+func (c *Config) mergeTerminal(data string) {
+	var raw map[string]any
+	if _, err := toml.Decode(data, &raw); err != nil {
+		return
+	}
+	c.mergeTerminalRaw(raw)
+}
+
+func (c *Config) mergeTerminalRaw(raw map[string]any) {
 	if t, ok := raw["terminal"].(map[string]any); ok {
 		if v, ok := t["multiplexer"].(string); ok {
 			v = strings.ToLower(strings.TrimSpace(v))

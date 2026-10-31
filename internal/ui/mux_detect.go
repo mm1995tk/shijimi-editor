@@ -37,21 +37,18 @@ func detectMultiplexer(pid int, parents func(pid int) (int, string, bool)) strin
 	if parents == nil {
 		parents = systemParent
 	}
+	cur, _, ok := parents(pid) // the parent of pid
 	seen := map[int]bool{}
-	for pid > 1 && !seen[pid] {
-		seen[pid] = true
-		ppid, _, ok := parents(pid)
-		if !ok {
-			return ""
-		}
-		_, comm, ok := parents(ppid)
-		if !ok {
+	for ok && cur > 1 && !seen[cur] {
+		seen[cur] = true
+		next, comm, ok2 := parents(cur) // the name of cur, and its parent
+		if !ok2 {
 			return ""
 		}
 		if k := muxKindOf(comm); k != "" {
 			return k
 		}
-		pid = ppid
+		cur = next
 	}
 	return ""
 }
