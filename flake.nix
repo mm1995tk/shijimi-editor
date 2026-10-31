@@ -30,7 +30,7 @@
 
           treefmtEval = treefmt-nix.lib.evalModule pkgs ./flake-treefmt.nix;
 
-          version = "0.7.0";
+          version = "1.0.0";
 
           # dirtyShortRev ends in "-dirty" when built from uncommitted changes
           commit = self.shortRev or self.dirtyShortRev or "";
