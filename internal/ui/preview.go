@@ -462,7 +462,7 @@ func (a *App) drawMdRows(lines []screen.Line, top int, images []screen.PreviewIm
 		if rows[idx] == nil {
 			iw := max(0, w-im.Col)
 			if iv := a.previewImage(im.Image.Blob); iv != nil {
-				rows[idx] = iv.render(iw, im.Rows+1)[1:] // drop the info line
+				rows[idx] = iv.body(iw, im.Rows)
 			} else { // gone: drawn again when the preview is made again
 				blank := stEmpty.Render(strings.Repeat(" ", iw))
 				rows[idx] = slices.Repeat([]string{blank}, im.Rows)
