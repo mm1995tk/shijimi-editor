@@ -71,7 +71,7 @@ type repoProbe struct {
 type termFailure struct {
 	seq    int
 	tab    int // termTab.id
-	n      int // number shown on the terminal tab
+	n      int // number shown for the terminal
 	code   int // exit code, or -1 when a test reported FAIL
 	line   string
 	output []string // the end of the terminal at the time
