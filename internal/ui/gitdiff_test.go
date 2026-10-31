@@ -486,11 +486,6 @@ func TestDiffModeLayout(t *testing.T) {
 	if l.top != 1 || l.bodyH != a.h-3 || l.editY != 2 {
 		t.Errorf("layout %+v", l)
 	}
-	// the tab bar moved below the header
-	a.handleMouse(mouseEvent{X: l.rightX + 1, Y: 1, Action: mousePress, Button: tea.MouseLeft})
-	if a.focus != focusEditor {
-		t.Errorf("tab bar click: focus=%v", a.focus)
-	}
 	a.gd.on = false
 	if l := a.layout(); l.top != 0 || l.editY != 1 || l.bodyH != a.h-1 {
 		t.Errorf("layout off %+v", l)

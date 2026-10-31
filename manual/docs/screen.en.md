@@ -5,8 +5,8 @@ The screen has the same layout as VS Code.
 | Place | Contents | Toggle |
 | --- | --- | --- |
 | Left | File tree | `Ctrl+B` |
-| Top | Tabs | — |
-| Center | The contents of a tab: editor, preview, browser, and so on | — |
+| Top | Title line (the path of the open file, and ● when unsaved) | — |
+| Center | The contents of the open file: editor, preview, browser, and so on | — |
 | Bottom | Terminal panel | ``Ctrl+` `` |
 | Right | Suggestions panel ([AI agent integration](agent.md)) | `Alt+I` |
 | Very bottom | Status bar | — |
@@ -63,14 +63,18 @@ You can also change them by dragging the border with the mouse.
 In diff mode, dragging the boundary between the explorer and CHANGES (the CHANGES heading row) changes the height ratio of the top and bottom. Neither becomes smaller than 3 rows. `=` resets it to 7:3. The ratio is kept when you change the height of the terminal.
 The sizes are kept until you quit shijimi.
 
-## Switching tabs
+## Switching files
+
+There is no tab bar. The files you have opened are kept in a list, and only the current one is shown, with its path on the title line.
 
 | Key | Action |
 | --- | --- |
-| `Ctrl+PgUp` / `Ctrl+PgDn` | Previous / next tab |
-| `Alt+1` to `Alt+9` | The 1st to 9th tab |
-| `gn` / `gp` (Helix mode) | Next / previous tab |
-| `Ctrl+W` | Close the tab |
+| `Space b` (Helix mode) / Quick Open | Pick from the open files / any file |
+| `ga` (Helix mode) / `Ctrl+Tab` | Go back and forth between the last file and this one |
+| `Ctrl+O` / `Ctrl+I` | Go back / forward to where you jumped from |
+| `Ctrl+W` | Close the current file (remove it from the list) |
+
+`Ctrl+Tab` only reaches shijimi on terminals that support the kitty keyboard protocol. Elsewhere use `ga` or `Space b`.
 
 ## Command palette
 
