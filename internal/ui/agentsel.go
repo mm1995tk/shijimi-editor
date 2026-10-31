@@ -161,8 +161,8 @@ func (s agentSel) text(rows []logRow, w int) string {
 // drawn. above and below say the pointer is off them.
 func (a *App) logPos(l layout, msg Mouse) (p agentPos, above, below bool) {
 	v := a.ag.view
-	y := msg.Y - (l.top + v.y0)
-	p.col = clamp(msg.X-l.agentX, 0, max(0, v.w-1))
+	y := msg.Row - v.y0
+	p.col = clamp(msg.Col, 0, max(0, v.w-1))
 	switch {
 	case y < 0:
 		above = true
@@ -180,8 +180,8 @@ func (a *App) logPos(l layout, msg Mouse) (p agentPos, above, below bool) {
 // inLog reports whether screen cell (x, y) is on a drawn log row.
 func (a *App) inLog(l layout, msg Mouse) bool {
 	v := a.ag.view
-	y := msg.Y - (l.top + v.y0)
-	return v.n > 0 && y >= 0 && y < v.n && msg.X >= l.agentX
+	y := msg.Row - v.y0
+	return v.n > 0 && y >= 0 && y < v.n && msg.Col >= 0
 }
 
 // agentDrag follows a drag that began on the log, wherever the pointer goes.

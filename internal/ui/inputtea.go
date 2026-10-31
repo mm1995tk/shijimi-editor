@@ -137,8 +137,55 @@ func (a *App) mouseFromTea(msg tea.MouseMsg) Mouse {
 	case tea.MouseMotionMsg:
 		e.Action = MouseMotion
 	}
-	e.Region, e.Row, e.Col = a.hitTest(a.layout(), m.X, m.Y)
-	return e
+	return a.locate(e)
+}
+
+// locate fills in Region, Row and Col from the screen cell X, Y.
+//
+// While a button is held, the pointer is captured by the region the press was
+// in (as a browser does with setPointerCapture): the drag and the release keep
+// that Region, and Row and Col go on counting from its corner, so they may be
+// negative or past its edge. A GUI sends its events the same way.
+func (a *App) locate(m Mouse) Mouse {
+	l := a.layout()
+	button := m.Button != MouseNone && m.Button < MouseWheelUp || m.Button == MouseOther
+	switch {
+	case m.Action == MousePress && button:
+		m.Region, m.Row, m.Col = a.hitTest(l, m.X, m.Y)
+		a.capture = m.Region
+	case m.Action != MousePress && a.capture != RegionNone && (m.Action == MouseRelease || m.Button != MouseNone || a.pointerHeld()):
+		x0, y0 := a.regionOrigin(l, a.capture)
+		m.Region, m.Row, m.Col = a.capture, m.Y-y0, m.X-x0
+		if m.Action == MouseRelease {
+			a.capture = RegionNone
+		}
+	default:
+		m.Region, m.Row, m.Col = a.hitTest(l, m.X, m.Y)
+	}
+	return m
+}
+
+// pointerHeld reports whether something is being dragged, for the terminals
+// that report a drag as motion with no button.
+func (a *App) pointerHeld() bool {
+	return a.resizing != resizeNone || a.dragging || a.term.sel.dragging || a.term.grab || a.ag.sel.dragging
+}
+
+// regionOrigin is the screen cell that is row 0, column 0 of a region.
+func (a *App) regionOrigin(l layout, r Region) (x, y int) {
+	switch r {
+	case RegionExplorer:
+		return 0, l.top
+	case RegionAgent:
+		return l.agentX, l.top
+	case RegionTerminal:
+		return l.fullX, l.panelY + 2
+	case RegionOther:
+		return l.otherX, l.top
+	case RegionEditor:
+		return l.rightX, l.top
+	}
+	return 0, 0
 }
 
 // hitTest says which part of the screen a cell is in, and where inside it.
