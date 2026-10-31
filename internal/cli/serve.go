@@ -8,11 +8,13 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/mm1995tk/shijimi-editor/internal/channel"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/server"
 	"github.com/mm1995tk/shijimi-editor/internal/ui"
 )
@@ -60,6 +62,30 @@ func runServe(args []string) int {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		return 1
+	}
+	// Like the TUI, the control socket and the Claude Code connection are best
+	// effort. The server has one of each for all workspaces; requests go to the
+	// focused workspace. The socket is <pid>.sock as in the TUI, so shj finds it
+	// by the same rules; the environment is set before any terminal is created,
+	// so shells in the server's terminals reach this server directly.
+	if path, err := ctl.SocketPath(); err == nil {
+		if err := srv.StartControl(path); err == nil {
+			os.Setenv(ctl.EnvSocket, path)
+		} else {
+			logger.Warn("control socket", "err", err)
+		}
+	}
+	// The lock file names the home directory as the workspace folder: Claude
+	// Code connects when its directory is inside one, and the server does not
+	// know the workspaces' roots when it starts.
+	if home, err := os.UserHomeDir(); err == nil {
+		if is, err := srv.StartIDE(home, ui.IDETools()); err == nil {
+			os.Setenv(ide.EnvPort, strconv.Itoa(is.Port()))
+			os.Setenv(ide.EnvEnable, "true")
+			os.Setenv(ide.EnvForceTerminal, "true")
+		} else {
+			logger.Warn("ide", "err", err)
+		}
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

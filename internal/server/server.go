@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mm1995tk/shijimi-editor/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/rpc"
 )
 
@@ -60,6 +62,9 @@ type Server struct {
 	owner      *session  // いま受けつけている GUI（session.hello を済ませた最新の接続）。無ければ nil
 	wg         sync.WaitGroup
 	terms      *termManager
+	focus      Workspace   // ctl と ide の届け先。無ければ nil
+	ctlSrv     *ctl.Server // StartControl で開く
+	ideSrv     *ide.Server // StartIDE で開く
 }
 
 // ErrRunning はすでに別の shj serve が動いているときのエラー。
@@ -133,6 +138,8 @@ func (s *Server) shutdown() {
 	_ = os.Remove(s.opts.SocketPath)
 	s.mu.Lock()
 	s.closed = true
+	cs, is := s.ctlSrv, s.ideSrv
+	s.ctlSrv, s.ideSrv = nil, nil
 	var open []*session
 	for ss := range s.sessions {
 		open = append(open, ss)
@@ -140,6 +147,12 @@ func (s *Server) shutdown() {
 	s.mu.Unlock()
 	for _, ss := range open {
 		ss.conn.Close()
+	}
+	if cs != nil {
+		cs.Close()
+	}
+	if is != nil {
+		is.Close()
 	}
 	s.terms.shutdown()
 	s.wg.Wait()

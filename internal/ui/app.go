@@ -47,6 +47,7 @@ type App struct {
 	recIns    *insertRecord     // the insert being recorded, until Esc
 	replaying bool              // "." is running; do not record
 	caret     *caret.Writer     // the terminal output; nil in tests
+	host      Host              // the GUI of `shj serve`; nil in the TUI
 	cellSize  func() (w, h int) // terminal cell size in pixels; nil in tests
 	lsp       *lspManager
 	w, h      int
@@ -859,6 +860,10 @@ func (a *App) toggleComment() {
 
 func (a *App) copyText(s string) {
 	a.clipboard = s
+	if a.host != nil {
+		a.host.WriteClipboard(s)
+		return
+	}
 	writeSystemClipboard(s)
 	// Over SSH there is no local helper tool; the outer terminal can still
 	// take the text through OSC 52.
