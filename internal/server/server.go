@@ -55,6 +55,7 @@ type Server struct {
 
 	mu         sync.Mutex
 	sessions   map[*session]struct{}
+	closed     bool      // shutdown が始まった。以後の接続は受けずに閉じる
 	lastClient time.Time // 最後に GUI がつながっていた時刻。ゼロなら一度も無い
 	wg         sync.WaitGroup
 }
@@ -127,6 +128,7 @@ func (s *Server) Close() {
 func (s *Server) shutdown() {
 	_ = os.Remove(s.opts.SocketPath)
 	s.mu.Lock()
+	s.closed = true
 	var open []*session
 	for ss := range s.sessions {
 		open = append(open, ss)
@@ -142,9 +144,13 @@ func (s *Server) accept(c net.Conn) {
 	ss := &session{srv: s}
 	ss.conn = rpc.NewConn(c, rpc.JSON{}, ss.handle)
 	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		ss.conn.Close()
+		return
+	}
 	s.sessions[ss] = struct{}{}
-	s.mu.Unlock()
-	s.log.Info("client connected")
+	// Add と Wait の順はこのロックで決まる。
 	s.wg.Go(func() {
 		<-ss.conn.Done()
 		s.mu.Lock()
@@ -155,6 +161,8 @@ func (s *Server) accept(c net.Conn) {
 		s.log.Info("client gone", "reason", fmt.Sprint(ss.conn.Err()))
 		ss.conn.Close() // fd と Handler の終わりを待つ。Done のあとなので詰まらない
 	})
+	s.mu.Unlock()
+	s.log.Info("client connected")
 }
 
 // lastClientAt は GUI が最後につながっていた時刻。つながっている間は今。一度も無ければ nil。
