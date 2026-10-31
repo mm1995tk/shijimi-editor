@@ -7,7 +7,7 @@ package server
 // GUI が term.ack で返した seq から 256 KiB より先は送らない。止まっても PTY は読み続け、
 // 溢れた分は捨てる。捨てた分は term.attach で（残っている分だけ）取り直す。
 //
-// command-end（OSC 133;D）の印はサーバーでは取り出さない。理由は Terminals の説明を見る。
+// command-end（OSC 133;D）の印はサーバーでは取り出さない。理由は docs/design/gui-protocol.md の「ターミナル」を見る。
 
 import (
 	"encoding/base64"
@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 	"unicode/utf8"
 
 	"github.com/creack/pty"
@@ -33,14 +34,8 @@ const (
 	maxTitle   = 256
 )
 
-// Terminals の補足（B6 で確かめたこと）：
-//
-// command-end は TUI の「失敗したコマンドの解析を勧める」ための印で、ターミナルの中身を読む
-// internal/ui（vt）が OSC 133;D を拾って ctl に流している。GUI ではバイト列が xterm.js に
-// そのまま届くので、印が要るのは GUI の側（xterm.js の OSC ハンドラ）で、サーバーが出力から
-// 取り出す必要はない。そのため B6 ではサーバーは印を取り出さず、シェルへの組み込み
-// （shellint）も足さない。印を使う機能（GUI 版の失敗コマンド解析）が出てきたときに、
-// その Issue で組み込みを足す。サーバーが読むのはタイトル（OSC 0 / 2）だけ。
+// termManager はサーバー全体のターミナル。
+// command-end（OSC 133;D）をサーバーで取り出さない理由は docs/design/gui-protocol.md の「ターミナル」を見る。
 type termManager struct {
 	srv    *Server
 	mu     sync.Mutex
@@ -90,40 +85,38 @@ type terminal struct {
 	cols, rows int
 	title      string
 	alive      bool
-	ring       []byte // 循環バッファ。total の下 len(ring) バイトが入っている
+	ring       []byte // 循環バッファ。直近 ringSize バイトが入っている
 	total      int64  // これまでに読んだバイト数（seq）
 	sent       int64  // ここまで送った
 	acked      int64  // GUI が処理したと言ったところ
 	osc        oscScan
 }
 
-// ringBytes は seq が [from, total) の範囲のバイト列を返す。from が捨てられた分なら残っている先頭から。
+// ringBytes は seq が [from, to) の範囲のバイト列を返す。from が捨てられた分なら残っている先頭から。
 // mu を持って呼ぶ。
 func (t *terminal) ringBytes(from, to int64) (int64, []byte) {
-	oldest := max(0, t.total-int64(len(t.ring)))
+	oldest := t.oldest()
 	from = max(from, oldest)
 	to = min(to, t.total)
 	if from >= to {
 		return max(from, to), nil
 	}
 	out := make([]byte, to-from)
-	n := int64(cap(t.ring))
-	for i := range out {
-		out[i] = t.ring[(from+int64(i))%n]
-	}
+	pos := int(from % ringSize)
+	n := copy(out, t.ring[pos:])
+	copy(out[n:], t.ring)
 	return from, out
 }
 
-// ringAppend は mu を持って呼ぶ。ring は len == 溜まっている量、cap == ringSize の循環バッファ。
+// oldest はリングに残っている一番古い seq。mu を持って呼ぶ。
+func (t *terminal) oldest() int64 { return max(0, t.total-ringSize) }
+
+// ringAppend は mu を持って呼ぶ。ring は常に ringSize バイトの循環バッファで、seq s は ring[s%ringSize] に入る。
 func (t *terminal) ringAppend(b []byte) {
-	for _, c := range b {
-		pos := t.total % ringSize
-		if len(t.ring) < ringSize {
-			t.ring = append(t.ring, c)
-		} else {
-			t.ring[pos] = c
-		}
-		t.total++
+	for len(b) > 0 {
+		n := copy(t.ring[t.total%ringSize:], b)
+		t.total += int64(n)
+		b = b[n:]
 	}
 }
 
@@ -137,6 +130,11 @@ func (t *terminal) info() map[string]any {
 }
 
 func (t *terminal) hangup() {
+	// SIGHUP を無視するシェルで shutdown が止まらないように、少し待って SIGKILL。
+	if t.cmd.Process != nil {
+		p := t.cmd.Process
+		time.AfterFunc(3*time.Second, func() { _ = p.Kill() })
+	}
 	if t.cmd.Process != nil {
 		_ = t.cmd.Process.Signal(syscall.SIGHUP)
 	}
@@ -190,7 +188,7 @@ func (m *termManager) create(p termCreateParams) (any, error) {
 	t := &terminal{
 		mgr: m, id: fmt.Sprintf("t%d", m.next), pid: cmd.Process.Pid, cwd: cwd,
 		ptmx: ptmx, cmd: cmd, cols: p.Cols, rows: p.Rows, alive: true,
-		ring: make([]byte, 0, ringSize),
+		ring: make([]byte, ringSize),
 	}
 	m.terms[t.id] = t
 	m.wg.Go(t.pump)
@@ -254,7 +252,11 @@ func (t *terminal) flush() {
 	defer t.sendMu.Unlock()
 	for {
 		t.mu.Lock()
-		from, data := t.ringBytes(t.sent, min(t.total, t.acked+ackWindow, t.sent+chunkSize))
+		// 窓は ack 済みか、リングに残っている先頭のどちらか進んだ方から数える。溢れて捨てられた分は
+		// GUI が受け取れず ack も進められないので、ack だけを基準にすると永久に止まる。
+		// 捨てられた分は seq が飛んで届くので、GUI は欠けを知って term.attach で取り直せる。
+		base := max(t.acked, t.oldest())
+		from, data := t.ringBytes(t.sent, min(t.total, base+ackWindow, t.sent+chunkSize))
 		// 溢れて捨てられた分は送れないので、送った扱いにして先へ進む。
 		if len(data) == 0 {
 			t.sent = max(t.sent, from)

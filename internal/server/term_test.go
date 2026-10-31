@@ -214,8 +214,8 @@ func TestTermFlowControlAndAttach(t *testing.T) {
 	ctx := context.Background()
 	id := createTerm(t, c, nil)
 
-	// 2 MiB 出して止まる。リングバッファ（1 MiB）が溢れる量。
-	c.Call(ctx, "term.input", map[string]any{"termId": id, "data": b64("head -c 2097152 /dev/zero | tr '\\0' 'a'; printf END\n")}, nil)
+	// 600 KiB 出して止まる（リングには収まる量）。
+	c.Call(ctx, "term.input", map[string]any{"termId": id, "data": b64("head -c 614400 /dev/zero | tr '\\0' 'a'; printf END\n")}, nil)
 
 	waitFor(t, "first window", func() bool { _, last := nt.output(t, id); return last >= ackWindow })
 	time.Sleep(300 * time.Millisecond)
@@ -233,11 +233,11 @@ func TestTermFlowControlAndAttach(t *testing.T) {
 		if err := c.Call(ctx, "term.attach", map[string]any{"termId": id}, &a); err != nil {
 			t.Fatal(err)
 		}
-		return a.Seq >= 2<<20
+		return a.Seq >= 614400
 	})
 	rep, _ := base64.StdEncoding.DecodeString(a.Replay)
-	if len(rep) != ringSize {
-		t.Fatalf("replay %d bytes, want %d", len(rep), ringSize)
+	if len(rep) != 614400+3 && len(rep) < 614400 {
+		t.Fatalf("replay %d bytes", len(rep))
 	}
 	if !bytes.HasSuffix(rep, []byte("END")) && !bytes.Contains(rep[len(rep)-64:], []byte("END")) {
 		t.Errorf("replay tail: %q", rep[len(rep)-32:])
@@ -312,4 +312,40 @@ func TestOSCScan(t *testing.T) {
 			t.Errorf("feed(%q) = %q, %v; want %q", c.in, got, ok, c.want)
 		}
 	}
+}
+
+// リングが溢れたあとも、ack すれば続きが流れる（捨てられた分は seq が飛ぶ）。
+func TestTermResumesAfterOverflow(t *testing.T) {
+	_, sock := start(t)
+	c, nt := termClient(t, sock)
+	ctx := context.Background()
+	id := createTerm(t, c, nil)
+	c.Call(ctx, "term.input", map[string]any{"termId": id, "data": b64("head -c 2097152 /dev/zero | tr '\\0' 'a'; printf END\n")}, nil)
+	waitFor(t, "first window", func() bool { _, last := nt.output(t, id); return last >= ackWindow })
+	var a struct{ Seq int64 }
+	waitFor(t, "overflow", func() bool {
+		var r struct {
+			Seq    int64
+			Replay string
+		}
+		c.Call(ctx, "term.attach", map[string]any{"termId": id, "fromSeq": 0}, &r)
+		a.Seq = r.Seq
+		if rep, _ := base64.StdEncoding.DecodeString(r.Replay); a.Seq >= 2<<20 && len(rep) != ringSize {
+			t.Fatalf("replay %d bytes, want %d", len(rep), ringSize)
+		}
+		return a.Seq >= 2<<20
+	})
+	// attach は末尾まで進めてしまうので、溢れを作り直す: もう 2 MiB 出して ack 無しで待つ。
+	c.Call(ctx, "term.input", map[string]any{"termId": id, "data": b64("head -c 2097152 /dev/zero | tr '\\0' 'c'; printf FIN\n")}, nil)
+	waitFor(t, "window", func() bool { _, last := nt.output(t, id); return last > a.Seq })
+	time.Sleep(300 * time.Millisecond)
+	var acked int64
+	waitFor(t, "FIN after acks", func() bool {
+		out, last := nt.output(t, id)
+		if last > acked {
+			acked = last
+			c.Notify("term.ack", map[string]any{"termId": id, "seq": last})
+		}
+		return bytes.Contains(out, []byte("FIN\r\n")) || bytes.HasSuffix(out, []byte("FIN"))
+	})
 }
