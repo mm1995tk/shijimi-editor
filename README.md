@@ -21,7 +21,7 @@ The UI is in English by default. To switch it to Japanese, set `ui-language = "j
 - **Send the current context to an agent** (`Space a` / `Alt+A` / command palette): formats the selection (or the cursor line) as `path:line-line`, the text, and the diagnostics on those lines, and after you check it in a preview, pastes it into the terminal panel (it does not press Enter)
 - **Suggestions panel and ACP** (`Alt+I` / `Space i`): lists suggestions such as "Resolve the conflicts?", "Create a PR?" and "Investigate the cause of the failure?" in the right panel, based on the state of git, LSP and the terminal. When you pick one, it asks an agent over ACP (Agent Client Protocol), shows the progress and the reply in the panel, and shows changes in diff mode. Comments proposed by an AI review are placed as unsent comments
 - **Claude Code IDE integration**: Claude Code running in the terminal panel can get the selection, the open files and the diagnostics, and you approve its changes as a diff (Claude Code writes the file after you approve; see "Agent integration" below)
-- Tabs, syntax highlighting, Quick Open, project-wide search, a terminal panel, mouse support
+- A title line with the open file, syntax highlighting, Quick Open, project-wide search, a terminal panel, mouse support
 
 ## Installation
 
@@ -224,7 +224,7 @@ An image written alone on a line, `![alt](path)`, is shown as an image in the sa
 | `Ctrl+O` `Ctrl+I` | Go back / forward to where you jumped from (VS Code mode: `Alt+←` `Alt+→`) |
 | `Ctrl+Alt+D` `Ctrl+Alt+U` | Scroll down / up while the cursor stays on its line (like `Ctrl+D` / `Ctrl+U` otherwise: line by line while held on terminals that report key release, half a screen per press elsewhere). At the top or bottom edge of the screen the cursor stays on the edge and is pushed along |
 | `]d` `[d` | Next / previous diagnostic |
-| `gn` `gp` | Next / previous tab |
+| `ga` | Go back and forth between the last file and this one (VS Code mode: `Ctrl+Tab`) |
 | `/` `?` `n` `N` `*` | Search |
 | `Ctrl+C` | Toggle a line comment |
 | `:` | Commands (table below) |
@@ -272,8 +272,8 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 | ``Ctrl+` `` / `Ctrl+J` | Toggle the terminal (inside the terminal, only ``Ctrl+` ``) |
 | `Alt+R` | Pane resize mode (`←→` `↑↓` (`hjkl`) move the borders of the focused pane, `<` `>` boundary between the editor and the preview, `=` defaults, `Esc` to finish). You can also drag the borders with the mouse. The sizes are kept until you quit the editor |
 | `Ctrl+S` | Save |
-| `Ctrl+W` | Close the tab |
-| `Ctrl+PgUp` / `Ctrl+PgDn` / `Alt+1`-`9` | Switch tabs |
+| `Ctrl+W` | Close the current file (remove it from the list of open files) |
+| `Ctrl+Tab` | Go back and forth between the last file and this one. It needs a terminal that supports the kitty keyboard protocol; elsewhere use `ga` in Helix mode, or `Space b` |
 | `Ctrl+Q` | Quit |
 
 ### File tree

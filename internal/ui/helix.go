@@ -250,10 +250,8 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 			return a.gotoDefinition()
 		case "r":
 			return a.references()
-		case "n":
-			a.switchTab(1)
-		case "p":
-			a.switchTab(-1)
+		case "a":
+			a.switchLast()
 		case "t":
 			b.SetCursor(b.ScrollRow, 0, ext)
 		case "b":

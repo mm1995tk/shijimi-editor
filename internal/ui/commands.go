@@ -37,8 +37,7 @@ func defaultCommands() []command {
 		{i18n.T("cmd.terminal"), "Ctrl+`", func(a *App) tea.Cmd { return a.toggleTerm() }},
 		{i18n.T("cmd.resize"), "Alt+R", func(a *App) tea.Cmd { return a.startResize() }},
 		{i18n.T("cmd.resetsizes"), i18n.T("cmd.resetsizes.key"), func(a *App) tea.Cmd { a.resetPanes(); return nil }},
-		{i18n.T("cmd.nexttab"), "Ctrl+PgDn / gn", func(a *App) tea.Cmd { a.switchTab(1); return nil }},
-		{i18n.T("cmd.prevtab"), "Ctrl+PgUp / gp", func(a *App) tea.Cmd { a.switchTab(-1); return nil }},
+		{i18n.T("cmd.lastfile"), "ga / Ctrl+Tab", func(a *App) tea.Cmd { a.switchLast(); return nil }},
 		{i18n.T("cmd.find"), "Ctrl+F / /", func(a *App) tea.Cmd {
 			if a.helix {
 				return a.openCmdline("/")

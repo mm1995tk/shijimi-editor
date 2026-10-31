@@ -44,7 +44,7 @@ For example, select a word with `w`, then delete it with `d`.
 | `<number>g` | The given line (for example `42g`) |
 | `gd` / `gr` | Go to definition / list references |
 | `Ctrl+O` / `Ctrl+I` | Go back / forward to where you jumped from (up to 100 entries. `gd` `gg` `ge` `<number>g` `:<line number>` `/` `n` `N` and the pickers add to the history) |
-| `gn` / `gp` | Next / previous tab |
+| `ga` | Go back and forth between the last file and this one |
 
 ### Selection
 
