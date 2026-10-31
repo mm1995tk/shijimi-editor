@@ -880,18 +880,18 @@ func (a *App) explorerH() int {
 	return a.bodyH()
 }
 
-func statusLetter(f *diff.File) (string, string) {
+func statusLetter(f *diff.File) (string, screen.Style) {
 	switch f.Status {
 	case "added":
-		return "A", cAddSign
+		return "A", screen.StyleDiffAddSign
 	case "deleted":
-		return "D", cDelSign
+		return "D", screen.StyleDiffDelSign
 	case "renamed":
-		return "R", curTheme.Renamed
+		return "R", screen.StyleGitRenamed
 	case "binary":
-		return "B", cLineNo
+		return "B", screen.StyleLineNo
 	}
-	return "M", cDirty
+	return "M", screen.StyleDirty
 }
 
 // baseChip is the short name of the base: DIFF for HEAD, PR for a pull
@@ -903,23 +903,11 @@ func (a *App) baseChip() string {
 	return "DIFF"
 }
 
-func (a *App) renderChanges(w, h int, focused bool) []string {
+// fitChanges scrolls the list so that the selected row is in view, in a list
+// whose body is body rows high. It is the part of drawing the list that
+// changes state, so it runs before drawing (fit).
+func (a *App) fitChanges(body int) {
 	g := &a.gd
-	out := make([]string, 0, h)
-	title := fmt.Sprintf(" CHANGES (%d)", len(g.files))
-	pr := a.prShown()
-	chip := a.baseChip() + " "
-	if pr {
-		n := g.rv.viewedCount(g.files)
-		if long := title + fmt.Sprintf("  viewed %d/%d", n, len(g.files)); ansi.StringWidth(long+chip) <= w {
-			title = long
-		} else {
-			title += fmt.Sprintf(" ✓%d/%d", n, len(g.files))
-		}
-	}
-	tw := max(0, w-ansi.StringWidth(chip))
-	out = append(out, stSideTitle.Render(fit(title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(fit(chip, w-tw)))
-	body := h - 1
 	vis := g.vis()
 	if p := visPos(vis, g.selRow()); len(g.rows) > 0 {
 		if p < g.scroll {
@@ -930,64 +918,108 @@ func (a *App) renderChanges(w, h int, focused bool) []string {
 		}
 	}
 	g.scroll = clamp(g.scroll, 0, max(0, len(vis)-body))
-	for i := range body {
+}
+
+// changesScreen is the list of changed files as a screen.Changes, w columns
+// wide and h rows high with the title, scrolled as fitChanges left it. It
+// changes nothing.
+func (a *App) changesScreen(w, h int) screen.Changes {
+	g := &a.gd
+	title := fmt.Sprintf(" CHANGES (%d)", len(g.files))
+	pr := a.prShown()
+	if pr {
+		n := g.rv.viewedCount(g.files)
+		if long := title + fmt.Sprintf("  viewed %d/%d", n, len(g.files)); ansi.StringWidth(long+a.baseChip()+" ") <= w {
+			title = long
+		} else {
+			title += fmt.Sprintf(" ✓%d/%d", n, len(g.files))
+		}
+	}
+	vis := g.vis()
+	ch := screen.Changes{Title: title, Chip: a.baseChip() + " ", Top: g.scroll, Total: len(vis)}
+	if len(g.rows) == 0 {
+		switch {
+		case g.loading:
+			ch.Empty = i18n.T("gd.loading")
+		case g.err != "":
+			ch.Empty = i18n.T("gd.error") + g.err
+		default:
+			ch.Empty = i18n.T("gd.nochanges")
+		}
+	}
+	for i := range max(0, h-1) {
 		idx := g.scroll + i
 		if idx >= len(vis) {
+			break
+		}
+		row := g.rows[vis[idx]]
+		r := screen.ChangesRow{Depth: row.depth, Name: row.name}
+		if row.file < 0 {
+			r.Dir, r.Closed = true, g.closed[row.path]
+			r.Selected = g.selDir == row.path
+			ch.Rows = append(ch.Rows, r)
+			continue
+		}
+		f := g.files[row.file]
+		r.Selected = row.file == g.sel && g.selDir == ""
+		r.Letter, r.LetterStyle = statusLetter(f)
+		r.Added, r.Deleted = f.Added, f.Deleted
+		if pr {
+			r.Viewed = g.rv.viewed[f.Path()]
+			if a.isStale(f.Path()) {
+				r.Name += " ✎"
+			}
+			r.Threads = len(g.rv.threadsIn(f.Path()))
+		}
+		ch.Rows = append(ch.Rows, r)
+	}
+	return ch
+}
+
+// drawChanges draws the list of changed files as h lines of w cells.
+func drawChanges(ch screen.Changes, w, h int, focused bool) []string {
+	out := make([]string, 0, h)
+	chip := ch.Chip
+	tw := max(0, w-ansi.StringWidth(chip))
+	out = append(out, stSideTitle.Render(fit(ch.Title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(fit(chip, w-tw)))
+	for i := range max(0, h-1) {
+		if i >= len(ch.Rows) {
 			msg := ""
-			if i == 0 && len(g.rows) == 0 {
-				switch {
-				case g.loading:
-					msg = i18n.T("gd.loading")
-				case g.err != "":
-					msg = i18n.T("gd.error") + g.err
-				default:
-					msg = i18n.T("gd.nochanges")
-				}
+			if i == 0 {
+				msg = ch.Empty
 			}
 			out = append(out, stSide.Render(fit(msg, w)))
 			continue
 		}
-		row := g.rows[vis[idx]]
-		indent := " " + strings.Repeat("  ", row.depth)
-		if row.file < 0 {
-			mark, bg := "▾ ", cSideBg
-			if g.closed[row.path] {
-				mark = "▸ "
-			}
-			if g.selDir == row.path {
-				bg = cListSelUnf
-				if focused {
-					bg = cListSel
-				}
-			}
-			out = append(out, bgfg(bg, curTheme.SubSel).Render(fit(indent+mark+row.name, w)))
-			continue
-		}
-		f := g.files[row.file]
+		row := ch.Rows[i]
+		indent := " " + strings.Repeat("  ", row.Depth)
 		bg := cSideBg
-		if row.file == g.sel && g.selDir == "" {
+		if row.Selected {
 			bg = cListSelUnf
 			if focused {
 				bg = cListSel
 			}
 		}
-		letter, col := statusLetter(f)
-		add, del := fmt.Sprintf(" +%d", f.Added), fmt.Sprintf(" -%d ", f.Deleted)
-		name, viewed, notes := row.name, " ", ""
-		if pr {
-			if g.rv.viewed[f.Path()] {
-				viewed = "✓"
+		if row.Dir {
+			mark := "▾ "
+			if row.Closed {
+				mark = "▸ "
 			}
-			if a.isStale(f.Path()) {
-				name += " ✎"
-			}
-			if n := len(g.rv.threadsIn(f.Path())); n > 0 {
-				notes = fmt.Sprintf(" ●%d", n)
-			}
+			out = append(out, bgfg(bg, curTheme.SubSel).Render(fit(indent+mark+row.Name, w)))
+			continue
+		}
+		col := styleColor(row.LetterStyle)
+		add, del := fmt.Sprintf(" +%d", row.Added), fmt.Sprintf(" -%d ", row.Deleted)
+		viewed, notes := " ", ""
+		if row.Viewed {
+			viewed = "✓"
+		}
+		if row.Threads > 0 {
+			notes = fmt.Sprintf(" ●%d", row.Threads)
 		}
 		nameW := max(0, w-ansi.StringWidth(indent)-2-ansi.StringWidth(notes+add+del))
-		line := bgfg(bg, cAddSign).Render(viewed) + bgfg(bg, cSideFg).Render(indent[1:]) + bgfg(bg, col).Bold(true).Render(letter) +
-			bgfg(bg, cSideFg).Render(" "+fit(name, nameW)) + bgfg(bg, curTheme.Renamed).Render(notes) +
+		line := bgfg(bg, cAddSign).Render(viewed) + bgfg(bg, cSideFg).Render(indent[1:]) + bgfg(bg, col).Bold(true).Render(row.Letter) +
+			bgfg(bg, cSideFg).Render(" "+fit(row.Name, nameW)) + bgfg(bg, curTheme.Renamed).Render(notes) +
 			bgfg(bg, cAddSign).Render(add) + bgfg(bg, cDelSign).Render(del)
 		out = append(out, fitStyled(line, w, bgfg(bg, cSideFg)))
 	}

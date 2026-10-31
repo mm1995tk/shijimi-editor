@@ -134,9 +134,17 @@ func (a *App) handleProposalKey(msg Key) tea.Cmd {
 	return nil
 }
 
+// proposalH is the height the proposal box is given.
+func (a *App) proposalH() int { return max(4, a.h-4) }
+
+// fit keeps the scroll of the proposal inside its lines. It is the part of
+// drawing the proposal that changes state, so it runs before drawing (App.fit).
+func (p *proposal) fit(a *App) {
+	p.scroll = clamp(p.scroll, 0, max(0, len(p.lines)-max(1, a.proposalH()-3)))
+}
+
 func (p *proposal) render(a *App, w, maxH int) []string {
 	body := max(1, maxH-3)
-	p.scroll = clamp(p.scroll, 0, max(0, len(p.lines)-body))
 	title := fmt.Sprintf(i18n.T("idep.title"), a.rel(p.newPath))
 	if len(a.props) > 1 {
 		title += fmt.Sprintf(i18n.T("idep.waiting"), len(a.props)-1)
@@ -166,7 +174,7 @@ func (p *proposal) render(a *App, w, maxH int) []string {
 
 func (a *App) renderProposal(rows []string) []string {
 	w := clamp(a.w*4/5, 30, 140)
-	box := a.props[0].render(a, w, max(4, a.h-4))
+	box := a.props[0].render(a, w, a.proposalH())
 	if ansi.StringWidth(box[0]) > w {
 		box[0] = ansi.Truncate(box[0], w, "")
 	}

@@ -100,10 +100,10 @@ func TestAgentSelectionStaysOnTextWhenScrolled(t *testing.T) {
 	y := agentRowY(a, l, a.ag.view.start+2)
 	a.handleMouse(a.locate(Mouse{X: l.agentX + 1, Y: y, Action: MousePress, Button: MouseLeft}))
 	a.handleMouse(a.locate(Mouse{X: l.agentX + 3, Y: y, Action: MouseRelease, Button: MouseLeft}))
-	before := ansi.Strip(a.ag.view.rows[a.ag.sel.a.row].s)
+	before := ansi.Strip(a.ag.view.rows[a.ag.sel.a.row].plain)
 	a.handleMouse(a.locate(Mouse{X: l.agentX + 3, Y: y, Action: MousePress, Button: MouseWheelUp}))
 	a.render()
-	if !a.ag.sel.on || ansi.Strip(a.ag.view.rows[a.ag.sel.a.row].s) != before {
+	if !a.ag.sel.on || ansi.Strip(a.ag.view.rows[a.ag.sel.a.row].plain) != before {
 		t.Fatalf("selection moved: %+v", a.ag.sel)
 	}
 }
@@ -144,4 +144,9 @@ func TestAgentSelectionKeepsSpacesOfWrappedCode(t *testing.T) {
 	if got := a.ag.sel.text(rows, w); got != strings.ReplaceAll(code, "\t", "    ") {
 		t.Fatalf("copied\n%q\nwant\n%q", got, code)
 	}
+}
+
+// renderAgent draws the panel from the state fit left, the way View does.
+func (a *App) renderAgent(w, h int, focused bool) []string {
+	return drawAgent(a.agentScreen(w, h, focused), w, h, focused)
 }

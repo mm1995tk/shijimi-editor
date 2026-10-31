@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // The right panel: suggestions at the top, then the agent's permission
@@ -136,34 +137,99 @@ func (a *App) suggestRows(list []offer, limit int) []int {
 	return rows
 }
 
-// renderAgent draws the panel, h rows of w columns.
-func (a *App) renderAgent(w, h int, focused bool) []string {
-	out := make([]string, 0, h)
-	list := a.suggestions()
-	a.sg.sel = clamp(a.sg.sel, 0, max(0, len(list)-1))
-	out = append(out, stPanelTitle.Render(fit(fmt.Sprintf(i18n.T("panel.suggestions"), len(list)), w)))
-	if len(list) == 0 {
-		out = append(out, stPanelDim.Render(fit(i18n.T("panel.nosuggestions"), w)))
+// agentLay is how the panel is laid out in an area of w x h: what draws it
+// and what fits the scroll to it (fitAgent) both read it.
+type agentLay struct {
+	list     []offer
+	sel      int    // the selected suggestion, clamped to list
+	rows     []int  // suggestRows of list
+	head     int    // rows above the card: the title, the suggestions, the status
+	hint     string // the line at the foot, only while the panel has the keys
+	body     int    // rows between head and the hint
+	cardRows int    // rows of the permission cards that fit in body
+	logRows  int    // rows left for the log
+	perms    []screen.AgentPerm
+}
+
+// agentLayout lays the panel out. It changes nothing.
+func (a *App) agentLayout(w, h int, focused bool) agentLay {
+	var lay agentLay
+	lay.list = a.suggestions()
+	lay.sel = clamp(a.sg.sel, 0, max(0, len(lay.list)-1))
+	lay.rows = a.suggestRows(lay.list, max(2, h/2-1))
+	lay.head = 1 + len(lay.rows)
+	if len(lay.list) == 0 {
+		lay.head++
 	}
-	maxRows := max(2, h/2-1)
-	for _, r := range a.suggestRows(list, maxRows) {
+	if s := a.ag; s.run != nil || s.client != nil {
+		lay.head += 2
+	} else if len(s.log) > 0 {
+		lay.head++
+	}
+	if focused {
+		lay.hint = i18n.T("panel.hint.suggest")
+		switch {
+		case len(a.ag.perms) > 0:
+			lay.hint = i18n.T("panel.hint.perm")
+		case a.ag.run != nil:
+			lay.hint = i18n.T("panel.hint.work")
+		}
+	}
+	lay.body = h - lay.head - boolInt(lay.hint != "")
+	cards := 0
+	for _, p := range a.ag.perms {
+		lines := wrapPlain(permTitle(p.req), w-2)
+		lay.perms = append(lay.perms, screen.AgentPerm{Title: i18n.T("panel.permtitle"), Lines: lines, Keys: i18n.T("panel.permkeys")})
+		cards += 2 + len(lines)
+	}
+	lay.cardRows = min(cards, max(0, lay.body))
+	lay.logRows = lay.body - lay.cardRows
+	return lay
+}
+
+// fitAgent fits the panel's state to the area it is drawn in: the selected
+// suggestion, the scroll and the selection of the log, and where the log
+// sits (agentView, which the mouse reads). It is the part of drawing the
+// panel that changes state, so it runs before drawing (fit).
+func (a *App) fitAgent(l layout) {
+	if l.agentW <= 0 {
+		return
+	}
+	w := l.agentW
+	lay := a.agentLayout(w, l.bodyH, a.focus == focusAgent && !a.overlayOpen())
+	a.sg.sel = lay.sel
+	log := a.renderLog(w)
+	a.ag.scroll = clamp(a.ag.scroll, 0, max(0, len(log)-lay.logRows))
+	end := len(log) - a.ag.scroll
+	start := max(0, end-lay.logRows)
+	if a.ag.view.w != w {
+		a.ag.sel = agentSel{}
+	}
+	a.ag.view = agentView{rows: log, y0: lay.head + lay.cardRows, start: start, n: end - start, w: w}
+	if a.ag.sel.a.row >= len(log) || a.ag.sel.b.row >= len(log) {
+		a.ag.sel = agentSel{}
+	}
+}
+
+// agentScreen is the panel as a screen.Agent, w columns wide and h rows
+// high. The log is the part of it that fitAgent put in view. It changes
+// nothing.
+func (a *App) agentScreen(w, h int, focused bool) screen.Agent {
+	lay := a.agentLayout(w, h, focused)
+	ag := screen.Agent{
+		Title: fmt.Sprintf(i18n.T("panel.suggestions"), len(lay.list)),
+		Hint:  lay.hint,
+		Perms: lay.perms,
+	}
+	if len(lay.list) == 0 {
+		ag.Empty = i18n.T("panel.nosuggestions")
+	}
+	for _, r := range lay.rows {
 		if r < 0 {
 			continue
 		}
-		s := list[r]
-		st := stPanel
-		mark := "   "
-		if r == a.sg.sel {
-			mark = " ▸ "
-			st = stSideSel
-			if focused {
-				st = stSideSelFocus
-			}
-		}
-		out = append(out, st.Render(fit(mark+s.title, w)))
-		out = append(out, stPanelDim.Render(fit("     "+s.detail, w)))
+		ag.Items = append(ag.Items, screen.AgentItem{Title: lay.list[r].title, Detail: lay.list[r].detail, Selected: r == lay.sel})
 	}
-
 	// The agent starts only when a suggestion runs, so its status line stays
 	// hidden until then; a log left by an agent that stopped keeps the rule.
 	if s := a.ag; s.run != nil || s.client != nil {
@@ -175,63 +241,70 @@ func (a *App) renderAgent(w, h int, focused bool) []string {
 		if name == "" {
 			name = i18n.T("panel.agent")
 		}
-		out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
-		out = append(out, stPanelTitle.Render(fit(" "+name+": "+status, w)))
+		ag.Rule, ag.Status = true, " "+name+": "+status
 	} else if len(s.log) > 0 {
+		ag.Rule = true
+	}
+	v := a.ag.view
+	for i := v.start; i < v.start+v.n && i < len(v.rows); i++ {
+		r := screen.AgentRow{Line: v.rows[i].line}
+		r.SelFrom, r.SelTo = a.ag.sel.rowCols(i, v.rows[i].plain, w)
+		ag.Log = append(ag.Log, r)
+	}
+	return ag
+}
+
+// drawAgent draws the panel as h lines of w cells.
+func drawAgent(ag screen.Agent, w, h int, focused bool) []string {
+	out := make([]string, 0, h)
+	out = append(out, stPanelTitle.Render(fit(ag.Title, w)))
+	if ag.Empty != "" {
+		out = append(out, stPanelDim.Render(fit(ag.Empty, w)))
+	}
+	for _, s := range ag.Items {
+		st := stPanel
+		mark := "   "
+		if s.Selected {
+			mark = " ▸ "
+			st = stSideSel
+			if focused {
+				st = stSideSelFocus
+			}
+		}
+		out = append(out, st.Render(fit(mark+s.Title, w)))
+		out = append(out, stPanelDim.Render(fit("     "+s.Detail, w)))
+	}
+	if ag.Rule {
 		out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
 	}
-
-	var hint string
-	if focused {
-		hint = i18n.T("panel.hint.suggest")
-		switch {
-		case len(a.ag.perms) > 0:
-			hint = i18n.T("panel.hint.perm")
-		case a.ag.run != nil:
-			hint = i18n.T("panel.hint.work")
-		}
+	if ag.Status != "" {
+		out = append(out, stPanelTitle.Render(fit(ag.Status, w)))
 	}
-	body := h - len(out)
-	if hint != "" {
-		body--
-	}
+	body := h - len(out) - boolInt(ag.Hint != "")
 	var card []string
-	for _, p := range a.ag.perms {
-		card = append(card, stPaletteHi.Render(fit(i18n.T("panel.permtitle"), w)))
-		for _, l := range wrapPlain(permTitle(p.req), w-2) {
+	for _, p := range ag.Perms {
+		card = append(card, stPaletteHi.Render(fit(p.Title, w)))
+		for _, l := range p.Lines {
 			card = append(card, stPalette.Render(fit("  "+l, w)))
 		}
-		card = append(card, stPaletteDim.Render(fit(i18n.T("panel.permkeys"), w)))
+		card = append(card, stPaletteDim.Render(fit(p.Keys, w)))
 	}
 	if len(card) > body {
-		card = card[:body]
+		card = card[:max(0, body)]
 	}
 	out = append(out, card...)
-	body -= len(card)
-
-	log := a.renderLog(w)
-	a.ag.scroll = clamp(a.ag.scroll, 0, max(0, len(log)-body))
-	end := len(log) - a.ag.scroll
-	start := max(0, end-body)
-	if a.ag.view.w != w {
-		a.ag.sel = agentSel{}
-	}
-	a.ag.view = agentView{rows: log, y0: len(out), start: start, n: end - start, w: w}
-	if a.ag.sel.a.row >= len(log) || a.ag.sel.b.row >= len(log) {
-		a.ag.sel = agentSel{}
-	}
-	for i := start; i < end; i++ {
-		row := log[i].s
-		if s0, s1 := a.ag.sel.rowCols(i, ansi.Strip(row), w); s0 < s1 {
-			row = markRow(row, w, s0, s1)
+	for _, r := range ag.Log {
+		row := drawMdLine(r.Line, w)
+		if r.SelFrom < r.SelTo {
+			row = markRow(row, w, r.SelFrom, r.SelTo)
 		}
 		out = append(out, row)
 	}
-	for len(out) < h-boolInt(hint != "") {
+	for len(out) < h-boolInt(ag.Hint != "") {
 		out = append(out, stPanel.Render(strings.Repeat(" ", w)))
 	}
-	if hint != "" {
-		out = append(out, stPanelDim.Render(fit(" "+hint, w)))
+	if ag.Hint != "" {
+		out = append(out, stPanelDim.Render(fit(" "+ag.Hint, w)))
 	}
 	return out[:h]
 }
@@ -243,20 +316,38 @@ func boolInt(b bool) int {
 	return 0
 }
 
+// logSpanRow is a row of the log made of spans, padded to w columns.
+func logSpanRow(w int, spans ...screen.Span) logRow {
+	var sb strings.Builder
+	for _, sp := range spans {
+		sb.WriteString(sp.Text)
+	}
+	plain := sb.String()
+	if pad := w - ansi.StringWidth(plain); pad > 0 {
+		plain += strings.Repeat(" ", pad)
+	}
+	if spans == nil {
+		spans = []screen.Span{}
+	}
+	return logRow{line: screen.Line{Spans: spans}, plain: plain}
+}
+
 // renderLog lays the log out at width w.
 func (a *App) renderLog(w int) []logRow {
 	var out []logRow
-	add := func(s string) { out = append(out, logRow{s: s}) }
-	addWrapped := func(text string, ww int, render func(string) string) {
+	// styled rows are padded to w in the text, so that their background reaches the edge
+	addWrapped := func(text string, ww int, style, bg screen.Style) {
 		for _, r := range wrapPlainRows(text, ww) {
-			out = append(out, logRow{s: render(r.text), cont: r.cont, space: r.space})
+			row := logSpanRow(w, screen.Span{Text: fit(" "+r.text, w), Style: style, Bg: bg})
+			row.cont, row.space = r.cont, r.space
+			out = append(out, row)
 		}
 	}
 	for _, e := range a.ag.log {
 		switch e.kind {
 		case logUser:
-			add(stPanel.Render(strings.Repeat(" ", w)))
-			addWrapped("› "+e.text, w-1, func(l string) string { return stPanelCmd.Render(fit(" "+l, w)) })
+			out = append(out, logSpanRow(w))
+			addWrapped("› "+e.text, w-1, screen.StylePanelCmd, "")
 		case logAgent:
 			if strings.TrimSpace(e.text) == "" {
 				continue
@@ -267,16 +358,17 @@ func (a *App) renderLog(w int) []logRow {
 			}
 			cuts := map[int]cut{} // row of the markdown -> the cut above it
 			exact := map[int][2]int{}
-			lines := a.markdownLines(e.text, max(1, w-1), mdOpts{
+			doc := renderMarkdown(e.text, max(1, w-1), mdOpts{
 				wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} },
 				exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
 			})
-			for i, l := range lines {
+			for i, l := range doc.Lines {
 				c, cont := cuts[i]
 				if cont && len(out) > 0 {
 					out[len(out)-1].space = c.space
 				}
-				r := logRow{s: stPanel.Render(" ") + l, cont: cont, indent: 1 + c.indent}
+				r := logSpanRow(w, append([]screen.Span{plainSpan(" ")}, l.Spans...)...)
+				r.cont, r.indent = cont, 1+c.indent
 				if x, ok := exact[i]; ok {
 					r.from, r.to = 1+x[0], 1+x[1]
 				}
@@ -287,11 +379,11 @@ func (a *App) renderLog(w int) []logRow {
 			if mark == "" {
 				mark = "○"
 			}
-			addWrapped(mark+" "+e.text, w-1, func(l string) string { return stPanelDim.Render(fit(" "+l, w)) })
+			addWrapped(mark+" "+e.text, w-1, screen.StyleLineNo, "")
 		case logPlan, logInfo:
-			addWrapped(strings.TrimRight(e.text, "\n"), w-1, func(l string) string { return stPanelDim.Render(fit(" "+l, w)) })
+			addWrapped(strings.TrimRight(e.text, "\n"), w-1, screen.StyleLineNo, "")
 		case logError:
-			addWrapped(e.text, w-1, func(l string) string { return stStatusError.Render(fit(" "+l, w)) })
+			addWrapped(e.text, w-1, screen.StyleStatusFg, screen.StyleStatusErrBg)
 		}
 	}
 	return out

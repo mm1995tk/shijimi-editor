@@ -2170,14 +2170,15 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		activePath = t.path()
 	}
 	if a.showSide {
-		side = a.explorer.render(l.sideW, a.explorerH(), a.focus == focusExplorer && !a.overlayOpen(), activePath)
+		side = drawExplorer(a.explorer.screen(a.explorerH(), activePath), l.sideW, a.explorerH(), a.focus == focusExplorer && !a.overlayOpen())
 		if a.gd.on {
-			side = append(side, a.renderChanges(l.sideW, l.bodyH-a.explorerH(), a.focus == focusChanges && !a.overlayOpen())...)
+			side = append(side, drawChanges(a.changesScreen(l.sideW, l.bodyH-a.explorerH()), l.sideW, l.bodyH-a.explorerH(), a.focus == focusChanges && !a.overlayOpen())...)
 		}
 	}
 	var agent []string
 	if l.agentW > 0 {
-		agent = a.renderAgent(l.agentW, l.bodyH, a.focus == focusAgent && !a.overlayOpen())
+		focused := a.focus == focusAgent && !a.overlayOpen()
+		agent = drawAgent(a.agentScreen(l.agentW, l.bodyH, focused), l.agentW, l.bodyH, focused)
 	}
 	for i := range rows {
 		var sb strings.Builder
@@ -2453,5 +2454,15 @@ func (a *App) fit() {
 	}
 	if a.cmdOpen {
 		a.cmdInput.SetWidth(max(1, a.w-3))
+	}
+	if a.showSide {
+		a.explorer.ensureVisible(a.explorerH() - 1)
+		if a.gd.on {
+			a.fitChanges(l.bodyH - a.explorerH() - 1)
+		}
+	}
+	a.fitAgent(l)
+	if len(a.props) > 0 {
+		a.props[0].fit(a)
 	}
 }

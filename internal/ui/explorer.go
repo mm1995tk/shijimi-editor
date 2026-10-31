@@ -8,6 +8,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 type node struct {
@@ -227,57 +229,78 @@ func (e *explorer) ensureVisible(h int) {
 	e.scroll = clamp(e.scroll, 0, max(0, len(e.flat)-h))
 }
 
-func (e *explorer) render(w, h int, focused bool, activePath string) []string {
-	lines := make([]string, 0, h)
-	title := " EXPLORER: " + strings.ToUpper(e.root.name)
-	lines = append(lines, stSideTitle.Render(fit(title, w)))
-	body := h - 1
-	e.ensureVisible(body)
-	for i := range body {
+// screen is the tree as a screen.Explorer: the rows in view, h rows high with
+// the title, scrolled as fit left it. activePath is the file open in the editor.
+// It changes nothing.
+func (e *explorer) screen(h int, activePath string) screen.Explorer {
+	ex := screen.Explorer{
+		Title: " EXPLORER: " + strings.ToUpper(e.root.name),
+		Icons: e.icons,
+		Top:   e.scroll,
+		Total: len(e.flat),
+	}
+	for i := range max(0, h-1) {
 		idx := e.scroll + i
 		if idx >= len(e.flat) {
+			break
+		}
+		n := e.flat[idx]
+		r := screen.ExplorerRow{
+			Depth: n.depth, Name: n.name, Dir: n.isDir, Expanded: n.expanded,
+			Open: n.path == activePath, Selected: idx == e.sel,
+			Git: e.git[n.path], Ignored: e.isIgnored(n),
+		}
+		if e.icons {
+			ic := iconFor(n)
+			r.Icon, r.IconColor = ic.glyph+" ", ic.color
+		}
+		ex.Rows = append(ex.Rows, r)
+	}
+	return ex
+}
+
+// drawExplorer draws the tree as h lines of w cells.
+func drawExplorer(ex screen.Explorer, w, h int, focused bool) []string {
+	lines := make([]string, 0, h)
+	lines = append(lines, stSideTitle.Render(fit(ex.Title, w)))
+	for i := range max(0, h-1) {
+		if i >= len(ex.Rows) {
 			lines = append(lines, stSide.Render(fit("", w)))
 			continue
 		}
-		n := e.flat[idx]
+		n := ex.Rows[i]
 		chevron := "  "
-		if n.isDir {
+		if n.Dir {
 			chevron = "▸ "
-			if n.expanded {
+			if n.Expanded {
 				chevron = "▾ "
 			}
-			if e.icons {
-				chevron = " " // codicon chevron-right
-				if n.expanded {
-					chevron = " " // codicon chevron-down
+			if ex.Icons {
+				chevron = "\ueab6 " // codicon chevron-right
+				if n.Expanded {
+					chevron = "\ueab4 " // codicon chevron-down
 				}
 			}
 		}
-		icon := ""
-		iconColor := ""
-		if e.icons {
-			ic := iconFor(n)
-			icon, iconColor = ic.glyph+" ", ic.color
-		}
 		// Each nesting level draws a faint guide under its parent's chevron.
-		indent := " " + strings.Repeat("│ ", n.depth)
+		indent := " " + strings.Repeat("│ ", n.Depth)
 		st := stSide
-		if n.isDir {
+		if n.Dir {
 			st = stSideDir
 		}
-		if n.path == activePath {
+		if n.Open {
 			st = stSideActive
 		}
-		if idx == e.sel {
+		if n.Selected {
 			if focused {
 				st = stSideSelFocus
 			} else {
 				st = stSideSel
 			}
 		}
-		letter := e.git[n.path]
+		letter := n.Git
 		textSt, tail, avail := st, "", w
-		if e.isIgnored(n) {
+		if n.Ignored {
 			textSt = st.Foreground(lipgloss.Color(curTheme.Dim))
 		} else if letter != "" {
 			col := gitColor(letter)
@@ -289,14 +312,14 @@ func (e *explorer) render(w, h int, focused bool, activePath string) []string {
 			avail = w - 2
 		}
 		iconSt := textSt
-		if iconColor != "" && !e.isIgnored(n) {
-			iconSt = st.Foreground(lipgloss.Color(iconColor))
+		if n.IconColor != "" && !n.Ignored {
+			iconSt = st.Foreground(lipgloss.Color(n.IconColor))
 		}
 		// Segments are styled separately so each keeps the row background.
 		guideSt := st.UnsetBold().Foreground(lipgloss.Color(curTheme.Dim))
-		head := guideSt.Render(indent) + st.Render(chevron) + iconSt.Render(icon)
-		lead := indent + chevron + icon
-		name := ansi.Truncate(n.name, max(0, avail-ansi.StringWidth(lead)), "…")
+		head := guideSt.Render(indent) + st.Render(chevron) + iconSt.Render(n.Icon)
+		lead := indent + chevron + n.Icon
+		name := ansi.Truncate(n.Name, max(0, avail-ansi.StringWidth(lead)), "…")
 		used := ansi.StringWidth(lead) + ansi.StringWidth(name)
 		line := head + textSt.Render(name) + textSt.Render(strings.Repeat(" ", max(0, avail-used)))
 		lines = append(lines, ansi.Truncate(line, avail, "")+tail)

@@ -300,17 +300,86 @@ type Item struct {
 	Kind   string `json:"kind,omitempty"`
 }
 
-// Explorer, Changes, Agent は TUI だけが使う領域。中身は後の手順で決める。
-type (
-	Explorer struct {
-		Rows   []Line `json:"rows"`
-		Active int    `json:"active"`
-	}
-	Changes struct {
-		Rows   []Line `json:"rows"`
-		Active int    `json:"active"`
-	}
-	Agent struct {
-		Rows []Line `json:"rows"`
-	}
-)
+// Explorer はエクスプローラ（ファイルのツリー）。TUI だけが使う。見えている行だけを持つ。
+type Explorer struct {
+	Title string        `json:"title"`           // 見出しの文字（" EXPLORER: NAME"）
+	Icons bool          `json:"icons,omitempty"` // Nerd Font のアイコンを使う。無いときは ▸ ▾
+	Top   int           `json:"top"`             // Rows[0] の、ツリー全体の中の行
+	Total int           `json:"total"`           // ツリー全体の行数
+	Rows  []ExplorerRow `json:"rows"`
+}
+
+// ExplorerRow はツリーの 1 行。
+type ExplorerRow struct {
+	Depth     int    `json:"depth"`
+	Name      string `json:"name"`
+	Dir       bool   `json:"dir,omitempty"`
+	Expanded  bool   `json:"expanded,omitempty"`
+	Icon      string `json:"icon,omitempty"`      // ファイルの種類のアイコン（Icons のとき）
+	IconColor string `json:"iconColor,omitempty"` // アイコンの色（#rrggbb）。TUI だけが読むので名前にしていない
+	Open      bool   `json:"open,omitempty"`      // 今開いているファイル
+	Selected  bool   `json:"selected,omitempty"`  // ツリーの選択
+	Git       string `json:"git,omitempty"`       // git の状態の文字（M U A D R •）
+	Ignored   bool   `json:"ignored,omitempty"`   // .gitignore に当たる（薄く出す）
+}
+
+// Changes は変更一覧（差分モードのファイルの一覧）。TUI だけが使う。見えている行だけを持つ。
+type Changes struct {
+	Title string       `json:"title"`           // 見出しの文字（件数と、PR のときは確認済みの数）
+	Chip  string       `json:"chip"`            // 見出しの右の、何と比べているか（DIFF か PR）
+	Top   int          `json:"top"`             // Rows[0] の、一覧全体の中の行
+	Total int          `json:"total"`           // 一覧全体の行数
+	Empty string       `json:"empty,omitempty"` // 行が 1 つも無いときの 1 行目の文言（読み込み中・エラー・変更なし）
+	Rows  []ChangesRow `json:"rows"`
+}
+
+// ChangesRow は変更一覧の 1 行。ディレクトリ（Dir）かファイル。
+type ChangesRow struct {
+	Depth    int    `json:"depth"`
+	Name     string `json:"name"`
+	Dir      bool   `json:"dir,omitempty"`
+	Selected bool   `json:"selected,omitempty"`
+	Closed   bool   `json:"closed,omitempty"` // Dir: たたんでいる
+
+	Letter      string `json:"letter,omitempty"`      // ファイルの状態の文字（A D R B M）
+	LetterStyle Style  `json:"letterStyle,omitempty"` // Letter の色
+	Added       int    `json:"added,omitempty"`
+	Deleted     int    `json:"deleted,omitempty"`
+	Viewed      bool   `json:"viewed,omitempty"`  // PR のレビューで確認済み
+	Threads     int    `json:"threads,omitempty"` // PR のレビューのスレッドの数
+}
+
+// Agent はエージェントのパネル。上から、提案の一覧、エージェントの状態、許可の確認、ログ、案内。
+// TUI だけが使う。
+type Agent struct {
+	Title  string      `json:"title"`           // 提案の見出し（件数入り）
+	Empty  string      `json:"empty,omitempty"` // 提案が無いときの文言
+	Items  []AgentItem `json:"items,omitempty"` // 見えている提案
+	Rule   bool        `json:"rule,omitempty"`  // 区切りの線を引く
+	Status string      `json:"status,omitempty"`
+	Perms  []AgentPerm `json:"perms,omitempty"`
+	Log    []AgentRow  `json:"log,omitempty"` // 見えているログの行
+	Hint   string      `json:"hint,omitempty"`
+}
+
+// AgentItem は提案 1 つ。
+type AgentItem struct {
+	Title    string `json:"title"`
+	Detail   string `json:"detail"`
+	Selected bool   `json:"selected,omitempty"`
+}
+
+// AgentPerm は、エージェントが求めている許可 1 つ。
+type AgentPerm struct {
+	Title string   `json:"title"`
+	Lines []string `json:"lines"` // 内容。パネルの幅で折り返してある
+	Keys  string   `json:"keys"`  // 押すキーの案内
+}
+
+// AgentRow はログの 1 行。
+type AgentRow struct {
+	Line Line `json:"line"`
+	// 選ばれている桁の範囲 [SelFrom, SelTo)（マス目）。無いときは SelFrom >= SelTo。
+	SelFrom int `json:"selFrom,omitempty"`
+	SelTo   int `json:"selTo,omitempty"`
+}
