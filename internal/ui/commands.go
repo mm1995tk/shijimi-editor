@@ -252,14 +252,14 @@ func (a *App) execCommand(line string) tea.Cmd {
 			}
 		}
 	case "sh", "run", "!":
-		if a.herdrOn() {
+		if a.muxOn() {
 			switch arg {
 			case "":
-				return a.herdrToggle()
+				return a.muxToggle()
 			case "hide":
-				return a.herdrResult(a.herdrHide())
+				return a.muxResult(a.muxHide())
 			}
-			return a.herdrSend(arg, true)
+			return a.muxSend(arg, true)
 		}
 		if arg == "" {
 			return a.toggleTerm()
@@ -299,6 +299,7 @@ func (a *App) execCommand(line string) tea.Cmd {
 		a.infoText(i18n.T("cmd.lsprestarted"))
 	case "config-reload":
 		a.cfg = config.Load(a.root)
+		a.mux.resolved = false // [terminal] multiplexer may have changed
 		i18n.SetLang(a.cfg.Editor.UILanguage)
 		a.commands = defaultCommands()
 		a.findInput.Placeholder = i18n.T("app.find")

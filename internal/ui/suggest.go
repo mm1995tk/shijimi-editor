@@ -206,7 +206,7 @@ func (a *App) scanTerminals() {
 			}
 		}
 	}
-	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return f.tab != herdrFailTab && !alive[f.tab] })
+	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return f.tab != muxFailTab && !alive[f.tab] })
 }
 
 // addFailure records a failure for the shell t. A shell still failing keeps its

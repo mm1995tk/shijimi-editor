@@ -130,11 +130,24 @@ type Experimental struct {
 	// sees the features without turning them on; a stable user does not see
 	// them without asking.
 	Default bool
-	// Herdr makes the terminal commands (Ctrl+`, :sh, ...) use a pane of the
-	// herdr multiplexer instead of the built-in terminal panel. It takes
-	// effect only inside herdr (HERDR_ENV=1).
-	Herdr bool
+	// Multiplexer makes the terminal commands (Ctrl+`, :sh, ...) use a pane of
+	// the terminal multiplexer the editor runs in instead of the built-in
+	// terminal panel; Terminal.Multiplexer chooses which one. The old key
+	// "herdr" is read as the same switch.
+	Multiplexer bool
 }
+
+// Terminal is the [terminal] section of config.toml.
+type Terminal struct {
+	// Multiplexer is the multiplexer whose panes replace the built-in terminal
+	// while Experimental.Multiplexer is on: "auto" (the innermost one the
+	// editor runs in), "herdr", "tmux", "zellij", "cmux", or "none" (always
+	// the built-in terminal).
+	Multiplexer string
+}
+
+// Multiplexers are the values of [terminal] multiplexer.
+var Multiplexers = []string{"auto", "herdr", "tmux", "zellij", "cmux", "none"}
 
 // Config is the merged configuration.
 type Config struct {
@@ -143,6 +156,7 @@ type Config struct {
 	Search       Search
 	Browser      Browser
 	Agent        Agent
+	Terminal     Terminal
 	Experimental Experimental
 	Languages    map[string]*Language
 	Servers      map[string]*Server
@@ -161,7 +175,8 @@ const nixEvalTimeout = 15 * time.Second
 func Load(root string) *Config {
 	c := &Config{
 		Browser:      Browser{ListenHost: "127.0.0.1"},
-		Experimental: Experimental{Default: channel.IsNightly(), Herdr: channel.IsNightly()},
+		Experimental: Experimental{Default: channel.IsNightly(), Multiplexer: channel.IsNightly()},
+		Terminal:     Terminal{Multiplexer: "auto"},
 		Editor:       Editor{UILanguage: i18n.Default, Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
 		Languages:    map[string]*Language{},
 		Servers:      map[string]*Server{},
@@ -184,6 +199,7 @@ func Load(root string) *Config {
 			c.mergeEditor(string(data))
 			c.mergeBrowser(string(data))
 			c.mergeExperimental(string(data))
+			c.mergeTerminal(string(data))
 			if user {
 				c.mergeAgent(string(data))
 				c.mergeKeys(string(data))
@@ -194,6 +210,7 @@ func Load(root string) *Config {
 			c.mergeEditorRaw(raw)
 			c.mergeBrowserRaw(raw)
 			c.mergeExperimentalRaw(raw)
+			c.mergeTerminalRaw(raw)
 			if user {
 				c.mergeAgentRaw(raw)
 				c.mergeKeysRaw(raw)
@@ -337,8 +354,31 @@ func (c *Config) mergeExperimental(data string) {
 
 func (c *Config) mergeExperimentalRaw(raw map[string]any) {
 	if ex, ok := raw["experimental"].(map[string]any); ok {
+		// "herdr" is the old name of "multiplexer"; the new one wins when both are set.
 		if v, ok := ex["herdr"].(bool); ok {
-			c.Experimental.Herdr = v
+			c.Experimental.Multiplexer = v
+		}
+		if v, ok := ex["multiplexer"].(bool); ok {
+			c.Experimental.Multiplexer = v
+		}
+	}
+}
+
+func (c *Config) mergeTerminal(data string) {
+	var raw map[string]any
+	if _, err := toml.Decode(data, &raw); err != nil {
+		return
+	}
+	c.mergeTerminalRaw(raw)
+}
+
+func (c *Config) mergeTerminalRaw(raw map[string]any) {
+	if t, ok := raw["terminal"].(map[string]any); ok {
+		if v, ok := t["multiplexer"].(string); ok {
+			v = strings.ToLower(strings.TrimSpace(v))
+			if slices.Contains(Multiplexers, v) {
+				c.Terminal.Multiplexer = v
+			}
 		}
 	}
 }

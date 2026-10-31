@@ -191,7 +191,7 @@ This lets a shell command bound to a key of herdr run `shj exec ":sh hide"`, for
 
 ## Inside herdr
 
-When shijimi runs in herdr (`HERDR_ENV=1`) and `[experimental]` `herdr` is `true`, ``Ctrl+` ``, `Space t`, `:sh`, `Space a` and `Alt+A` use a pane of herdr instead of the terminal panel ([Terminal](terminal.md#inside-herdr)).
+When shijimi runs in herdr (`HERDR_ENV=1`) and `[experimental]` `multiplexer` is `true`, ``Ctrl+` ``, `Space t`, `:sh`, `Space a` and `Alt+A` use a pane of herdr instead of the terminal panel ([Terminal](terminal.md#inside-a-terminal-multiplexer)).
 The pane gets the same environment variables, so `claude` started there connects to the IDE integration, and `Space a` / `Alt+A` paste the context into the pane without sending Enter (while connected, `at_mentioned` is sent as before).
 The shell of the pane reports each command's exit code with `shj command-end <code>`, so the suggestion to investigate a failed command still appears.
 

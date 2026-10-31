@@ -13,20 +13,11 @@ import (
 	"sync"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
-
-	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
-	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
-// Inside the herdr terminal multiplexer, the terminal commands (Ctrl+`, :sh,
-// :run, :!, Space t, Space a) use a pane of herdr instead of the built-in
-// terminal panel, so that herdr detects, notifies about and restores the
-// agents run there. The pane is created below the editor's own pane, hidden
-// by zooming the editor's pane, and closed when the editor quits. The
-// built-in panel stays in use when [experimental] herdr is off or the editor
-// does not run in herdr (HERDR_ENV=1).
+// herdrBackend is the muxBackend for the herdr terminal multiplexer. Every
+// operation is a call of its CLI.
 
 const (
 	envHerdr    = "HERDR_ENV"
@@ -34,23 +25,14 @@ const (
 
 	herdrRatio   = "0.3"
 	herdrTimeout = 5 * time.Second
-
-	// herdrFailTab is the termFailure.tab of failures seen in the herdr pane.
-	herdrFailTab = -1
 )
 
-// herdrPane is the pane of herdr that stands in for the terminal panel.
-type herdrPane struct {
-	id      string // "" until a pane has been created
-	visible bool
+type herdrBackend struct {
 	// call runs a herdr command and returns its output; tests replace it.
 	call func(args ...string) ([]byte, error)
 }
 
-// herdrOn reports whether the terminal commands should use a herdr pane.
-func (a *App) herdrOn() bool {
-	return !a.single && a.cfg != nil && a.cfg.Experimental.Herdr && os.Getenv(envHerdr) == "1"
-}
+func (*herdrBackend) name() string { return "herdr" }
 
 func herdrBin() string {
 	if b := os.Getenv(envHerdrBin); b != "" {
@@ -83,48 +65,26 @@ func herdrExec(args ...string) ([]byte, error) {
 	return out, nil
 }
 
-func (h *herdrPane) do(args ...string) ([]byte, error) {
+func (h *herdrBackend) do(args ...string) ([]byte, error) {
 	if h.call != nil {
 		return h.call(args...)
 	}
 	return herdrExec(args...)
 }
 
-// alive reports whether the pane still exists.
-func (h *herdrPane) alive() bool {
-	if h.id == "" {
-		return false
-	}
-	_, err := h.do("pane", "get", h.id)
+func (h *herdrBackend) alive(id string) bool {
+	_, err := h.do("pane", "get", id)
 	return err == nil
 }
 
-// paneEnv is the environment the pane's shell starts with: the IDE
-// integration and the control socket of this editor (as set up in cli.Main),
-// and the shell integration that reports exit codes through shj.
-func (a *App) herdrPaneEnv() []string {
-	var env []string
-	for _, k := range []string{ctl.EnvSocket, ide.EnvPort, ide.EnvEnable, ide.EnvForceTerminal} {
-		if v := os.Getenv(k); v != "" {
-			env = append(env, k+"="+v)
-		}
-	}
-	if exe, err := os.Executable(); err == nil {
-		env = append(env, herdrShellIntegration(shell(), exe)...)
-	}
-	return env
-}
-
-// create splits a new pane off the editor's pane and focuses it.
-func (a *App) herdrCreate() error {
-	h := &a.hd
-	args := []string{"pane", "split", "--current", "--direction", "down", "--ratio", herdrRatio, "--cwd", a.root, "--focus"}
-	for _, e := range a.herdrPaneEnv() {
+func (h *herdrBackend) split(cwd string, env []string) (string, error) {
+	args := []string{"pane", "split", "--current", "--direction", "down", "--ratio", herdrRatio, "--cwd", cwd, "--focus"}
+	for _, e := range env {
 		args = append(args, "--env", e)
 	}
 	out, err := h.do(args...)
 	if err != nil {
-		return err
+		return "", err
 	}
 	var r struct {
 		Result struct {
@@ -134,99 +94,44 @@ func (a *App) herdrCreate() error {
 		} `json:"result"`
 	}
 	if err := json.Unmarshal(out, &r); err != nil || r.Result.Pane.ID == "" {
-		return errors.New(i18n.T("herdr.badreply"))
+		return "", errors.New(i18n.T("herdr.badreply"))
 	}
-	h.id, h.visible = r.Result.Pane.ID, true
-	return nil
+	return r.Result.Pane.ID, nil
 }
 
-// herdrOpen shows the pane and moves focus to it, creating it the first time
-// and again after it has ended.
-func (a *App) herdrOpen() error {
-	h := &a.hd
-	if !h.alive() {
-		h.id, h.visible = "", false
-		return a.herdrCreate()
-	}
+func (h *herdrBackend) show(string) error {
 	if _, err := h.do("pane", "zoom", "--current", "--off"); err != nil {
 		return err
 	}
-	h.visible = true
 	_, err := h.do("pane", "focus", "--current", "--direction", "down")
 	return err
 }
 
-// herdrHide hides the pane by zooming the editor's pane.
-func (a *App) herdrHide() error {
-	h := &a.hd
-	if _, err := h.do("pane", "zoom", "--current", "--on"); err != nil {
-		return err
-	}
-	h.visible = false
-	return nil
+func (h *herdrBackend) hide() error {
+	_, err := h.do("pane", "zoom", "--current", "--on")
+	return err
 }
 
-// herdrToggle is the toggle of Ctrl+`, Space t and :sh.
-func (a *App) herdrToggle() tea.Cmd {
-	h := &a.hd
-	var err error
-	if h.visible && h.alive() {
-		err = a.herdrHide()
-	} else {
-		err = a.herdrOpen()
-	}
-	return a.herdrResult(err)
-}
-
-// herdrSend opens the pane and sends text to it: a command line that is run
-// (Enter included), or pasted text that is left for the person to confirm.
-func (a *App) herdrSend(text string, enter bool) tea.Cmd {
-	if err := a.herdrOpen(); err != nil {
-		return a.herdrResult(err)
-	}
+func (h *herdrBackend) send(id, text string, enter bool) error {
 	verb := "send-text"
 	if enter {
 		verb = "run"
 	}
-	_, err := a.hd.do("pane", verb, a.hd.id, text)
-	return a.herdrResult(err)
+	_, err := h.do("pane", verb, id, text)
+	return err
 }
 
-// herdrClose closes the pane that this editor created, if it is still there.
-func (a *App) herdrClose() {
-	h := &a.hd
-	if h.id != "" && h.alive() {
-		_, _ = h.do("pane", "close", h.id)
-	}
-	h.id, h.visible = "", false
-}
-
-func (a *App) herdrResult(err error) tea.Cmd {
+func (h *herdrBackend) tail(id string, n int) []string {
+	out, err := h.do("pane", "read", id, "--source", "recent", "--lines", fmt.Sprint(n))
 	if err != nil {
-		a.fail(fmt.Errorf(i18n.T("herdr.failed"), err))
+		return nil
 	}
-	return nil
+	return strings.Split(strings.TrimRight(string(out), "\n"), "\n")
 }
 
-// commandEnded handles the exit code that the shell in the herdr pane
-// reports with "shj command-end <code>" (see herdrShellIntegration). It
-// plays the part of scanTerminals for the built-in terminal.
-func (a *App) commandEnded(code int) {
-	switch code {
-	case 0:
-		a.clearFailure(herdrFailTab)
-	case 130:
-		// Ctrl+C: the user stopped it on purpose.
-	default:
-		var tail []string
-		if a.hd.id != "" {
-			if out, err := a.hd.do("pane", "read", a.hd.id, "--source", "recent", "--lines", fmt.Sprint(failTail)); err == nil {
-				tail = strings.Split(strings.TrimRight(string(out), "\n"), "\n")
-			}
-		}
-		a.addFailureTab(herdrFailTab, 1, code, "", tail)
-	}
-}
+func (h *herdrBackend) close(id string) { _, _ = h.do("pane", "close", id) }
+
+func (*herdrBackend) shellEnv(sh, exe string) []string { return herdrShellIntegration(sh, exe) }
 
 // ---- shell integration for the pane ----
 

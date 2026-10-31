@@ -412,9 +412,13 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 
 > `shj open` と `shj status` は IDE 連携（`openFile` / `getOpenEditors` / `getCurrentSelection`）に置き換えて削除しました。
 
-### herdr の中で
+### ターミナルマルチプレクサの中で
 
-ターミナルマルチプレクサ [herdr](https://herdr.dev) の中（`HERDR_ENV=1`）で shijimi を動かしていて、`config.toml` の `[experimental]` の `herdr` が `true` のとき（既定値は nightly 版が `true`、安定版が `false`）、``Ctrl+` ``・`Space t`・`:sh`・`:sh <コマンド>`・`:run`・`:!` はターミナルパネルの代わりに herdr のペインを使います。ペインの中で動かしたエージェントの状態検出・通知・復元は herdr に任せられます。`HERDR_ENV=1` が無いとき、または `herdr = false` のときは、今までどおりターミナルパネルを使います。
+ターミナルマルチプレクサの中で shijimi を動かしていて、`config.toml` の `[experimental]` の `multiplexer` が `true`（既定値は nightly 版が `true`、安定版が `false`。古いキー `herdr` も同じキーとして読みます）で、そのマルチプレクサに対応しているとき、``Ctrl+` ``・`Space t`・`:sh`・`:sh <コマンド>`・`:run`・`:!` はターミナルパネルの代わりにマルチプレクサのペインを使います。ペインの中で動かしたエージェントの状態検出・通知・復元はマルチプレクサに任せられます。
+
+どのマルチプレクサを使うかは `[terminal]` の `multiplexer` で決めます。値は `"auto"`（既定）・`"herdr"`・`"tmux"`・`"zellij"`・`"cmux"`・`"none"` です。`"auto"` は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサ（入れ子のときは一番内側。たとえば herdr の中の tmux なら tmux）を使います。見つからなければターミナルパネルです。`"none"` はいつもターミナルパネルを使います。今は herdr だけに対応していて、`"tmux"`・`"zellij"`・`"cmux"` のときはメッセージを出してターミナルパネルを使います。対応するマルチプレクサが無いとき、または `multiplexer = false` のときは、今までどおりターミナルパネルを使います。
+
+この節の以降は [herdr](https://herdr.dev)（`HERDR_ENV=1`）の説明です。
 
 - 初回は、shijimi のペインの真下（`herdr pane split`）にワークスペースの root でペインを作り、`SHIJIMI_SOCKET` と IDE 連携の環境変数を渡して、焦点を移します。2 回目以降は同じペインを再表示し、終わっていたら新しく作ります。もう一度キーを押すと隠れ（shijimi のペインをズーム）、ペインの中で `shj exec ":sh hide"` を実行しても隠れます。`Ctrl+J` はペインを表示して焦点を移します。戻るには herdr のキー（既定は `Ctrl+B` `k`）を使います。
 - `:sh <コマンド>` はペインでコマンドを実行します。`Space a` / `Alt+A` はペインに文脈を Enter 無しで貼ります（IDE 連携がつながっているときの `at_mentioned` は今のままです）。

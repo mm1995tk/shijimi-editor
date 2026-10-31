@@ -431,27 +431,56 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 	}
 }
 
-func TestExperimentalHerdr(t *testing.T) {
+func TestExperimentalMultiplexer(t *testing.T) {
 	root := t.TempDir()
 	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	t.Setenv("HOME", t.TempDir())
-	if Load(root).Experimental.Herdr {
+	if Load(root).Experimental.Multiplexer {
 		t.Fatal("herdr must default to false on the stable channel")
 	}
 	channel.SetForTest(t, channel.Nightly)
-	if !Load(root).Experimental.Herdr {
+	if !Load(root).Experimental.Multiplexer {
 		t.Fatal("herdr must default to true on the nightly channel")
 	}
 	os.MkdirAll(filepath.Join(cfg, "shijimi-editor-nightly"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor-nightly", "config.toml"), []byte("[experimental]\nherdr = false\n"), 0o644)
-	if Load(root).Experimental.Herdr {
+	if Load(root).Experimental.Multiplexer {
 		t.Fatal("herdr = false must win over the nightly default")
 	}
 	channel.SetForTest(t, "")
 	os.MkdirAll(filepath.Join(cfg, "shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("[experimental]\nherdr = true\n"), 0o644)
-	if !Load(root).Experimental.Herdr {
+	if !Load(root).Experimental.Multiplexer {
 		t.Fatal("herdr = true must win over the stable default")
+	}
+}
+
+func TestMultiplexerKeys(t *testing.T) {
+	root := t.TempDir()
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("HOME", t.TempDir())
+	dir := filepath.Join(cfg, "shijimi-editor")
+	os.MkdirAll(dir, 0o755)
+	write := func(s string) *Config {
+		os.WriteFile(filepath.Join(dir, "config.toml"), []byte(s), 0o644)
+		return Load(root)
+	}
+	if c := write(""); c.Terminal.Multiplexer != "auto" {
+		t.Fatalf("default: %q", c.Terminal.Multiplexer)
+	}
+	if c := write("[experimental]\nmultiplexer = true\n"); !c.Experimental.Multiplexer {
+		t.Fatal("multiplexer = true must enable it")
+	}
+	// The new key wins over the old one, whatever the order.
+	if c := write("[experimental]\nmultiplexer = false\nherdr = true\n"); c.Experimental.Multiplexer {
+		t.Fatal("multiplexer = false must win over herdr = true")
+	}
+	if c := write("[terminal]\nmultiplexer = \"None\"\n"); c.Terminal.Multiplexer != "none" {
+		t.Fatalf("none: %q", c.Terminal.Multiplexer)
+	}
+	if c := write("[terminal]\nmultiplexer = \"screen\"\n"); c.Terminal.Multiplexer != "auto" {
+		t.Fatalf("unknown value must be ignored: %q", c.Terminal.Multiplexer)
 	}
 }

@@ -50,9 +50,9 @@ When a program in the terminal (Claude Code, tmux and so on) copies with OSC 52,
 - It is also sent to the outer terminal with OSC 52. Even over SSH, it reaches the clipboard on your local machine (if the outer terminal supports OSC 52).
 - Copies larger than about 1.5 MB are not accepted. An error appears in the status bar.
 
-## Inside herdr
+## Inside a terminal multiplexer
 
-When shijimi runs in the [herdr](https://herdr.dev) terminal multiplexer (`HERDR_ENV=1`) and `[experimental]` `herdr` is `true` ([Configuration files](config.md#nightly-build)), the terminal commands use a pane of herdr instead of the terminal panel. herdr then detects the state of the agents run there, notifies you and restores them. Without `HERDR_ENV=1`, or with `herdr = false`, nothing changes.
+When shijimi runs in a terminal multiplexer, `[experimental]` `multiplexer` is `true` ([Configuration files](config.md#nightly-build)) and the multiplexer is supported, the terminal commands use a pane of the multiplexer instead of the terminal panel. The multiplexer then detects the state of the agents run there, notifies you and restores them. Which multiplexer is used is set by `[terminal]` `multiplexer` (`"auto"` by default, which takes the innermost multiplexer among the parent processes of shijimi; `"none"` always uses the terminal panel). Only [herdr](https://herdr.dev) (`HERDR_ENV=1`) is supported so far; tmux, zellij and cmux will follow. Without a supported multiplexer, or with `multiplexer = false` or `"none"`, nothing changes. The rest of this section describes herdr.
 
 | Method | Action |
 | --- | --- |
@@ -60,7 +60,7 @@ When shijimi runs in the [herdr](https://herdr.dev) terminal multiplexer (`HERDR
 | `Ctrl+J` | Show the pane and move focus there |
 | `:sh <command>` | Show the pane and run the command in it |
 | `Space a` / `Alt+A` | Paste the context into the pane (Enter is not sent) |
-| `shj exec ":sh hide"` | Hide the pane. Run it in the pane; bind it to a key of herdr |
+| `shj exec ":sh hide"` | Hide the pane. Run it in the pane; bind it to a key of the multiplexer |
 
 - The pane starts in the root of the workspace, with the same environment variables as the terminal panel, so `claude` started there connects to the IDE integration.
 - To end the pane, type `exit` in its shell or use herdr's key (`Ctrl+B x`). After that, the next ``Ctrl+` `` creates a new pane. When shijimi quits, it closes the pane it created.
