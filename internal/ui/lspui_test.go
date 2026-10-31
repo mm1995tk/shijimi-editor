@@ -5,6 +5,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 func TestOnLocation(t *testing.T) {
@@ -93,5 +94,21 @@ func TestSymbolDetail(t *testing.T) {
 	}
 	if got := symbolDetail(s, "a/b.go"); got != "メソッド  Server  a/b.go:12" {
 		t.Errorf("project: %q", got)
+	}
+}
+
+func TestCompletionOverlay(t *testing.T) {
+	items := make([]lsp.CompletionItem, 15)
+	for i := range items {
+		items[i] = lsp.CompletionItem{Label: string(rune('a' + i)), Kind: 3}
+	}
+	tb := &tab{buf: buffer.New()}
+	c := &completionPopup{tab: tb, all: items, items: items, sel: 12}
+	ov := c.overlay(20)
+	if ov.Kind != screen.OverlayCompletion || ov.At == nil || len(ov.Items) != 10 || ov.Active != 9 || ov.Items[ov.Active].Label != "m" || ov.Items[0].Kind != "func" {
+		t.Errorf("overlay = %+v", ov)
+	}
+	if got := len(drawCompletion(ov)); got != 10 {
+		t.Errorf("drawn %d rows", got)
 	}
 }
