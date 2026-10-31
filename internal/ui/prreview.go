@@ -657,10 +657,7 @@ func (a *App) cardHint(c *prCard) string {
 // cells wide: the content rows, the hint on the bottom border and, when the
 // card scrolls, where the rows are among all of them.
 func (a *App) drawCard(ov screen.Overlay) []string {
-	vw := screen.Viewport{Cols: 1}
-	if ov.View != nil {
-		vw = *ov.View
-	}
+	vw := *ov.View // cardOverlay always sets it
 	w := vw.Cols + 4
 	end := vw.Top + len(ov.Lines)
 	bd := bgfg(cEditorBg, cHoverBorder)

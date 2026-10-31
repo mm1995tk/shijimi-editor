@@ -847,7 +847,7 @@ func TestCardOverlay(t *testing.T) {
 	if ov.Hint != a.cardHint(a.card) {
 		t.Errorf("hint = %q", ov.Hint)
 	}
-	if ov.Pane != "" && ov.At == nil {
+	if ov.Pane != a.curText().path() || ov.At == nil || ov.At.Line != 10 {
 		t.Errorf("a card in the pane of its file hangs on a line: %+v", ov)
 	}
 	a.card.scroll = 0
