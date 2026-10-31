@@ -295,7 +295,7 @@ func (a *App) Close() {
 	}
 	a.muxClose()
 	removeShellIntegration()
-	removeHerdrShellIntegration()
+	removeMuxShellIntegration()
 }
 
 func styleInput(ti *textinput.Model, bg string) {

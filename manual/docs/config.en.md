@@ -33,7 +33,8 @@ They are loaded in the following order. Later ones take precedence.
 | --- | --- |
 | `"auto"` (default) | The innermost multiplexer that shijimi runs in. It follows the parent processes of shijimi and takes the first multiplexer it finds; with none, the terminal panel is used |
 | `"herdr"` | herdr (needs `HERDR_ENV=1`) |
-| `"tmux"` / `"zellij"` / `"cmux"` | Not supported yet. The terminal panel is used, with a message |
+| `"tmux"` | tmux 3.1 or later (needs `TMUX`) |
+| `"zellij"` / `"cmux"` | Not supported yet. The terminal panel is used, with a message |
 | `"none"` | Always the terminal panel, even inside a multiplexer |
 
 ## Example config.toml
@@ -67,7 +68,7 @@ include = []
 listen-host = "127.0.0.1"
 
 [terminal]
-multiplexer = "auto"      # "auto" / "herdr" / "none" (tmux, zellij and cmux are not supported yet)
+multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "none" (zellij and cmux are not supported yet)
 
 # Effective only in ~/.config/shijimi-editor/config.toml
 [agent]

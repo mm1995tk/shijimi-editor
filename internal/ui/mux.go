@@ -11,7 +11,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
-// Inside a terminal multiplexer (herdr), the terminal commands (Ctrl+`, :sh,
+// Inside a terminal multiplexer (herdr, tmux), the terminal commands (Ctrl+`, :sh,
 // :run, :!, Space t, Space a) use a pane of the multiplexer instead of the
 // built-in terminal panel, so that the multiplexer detects, notifies about and
 // restores the agents run there. The pane is created below the editor's own
@@ -64,8 +64,11 @@ func (m *muxPane) makeBackend(kind string) muxBackend {
 	if m.newBackend != nil {
 		return m.newBackend(kind)
 	}
-	if kind == "herdr" {
+	switch kind {
+	case "herdr":
 		return &herdrBackend{}
+	case "tmux":
+		return newTmuxBackend()
 	}
 	return nil
 }
@@ -73,7 +76,13 @@ func (m *muxPane) makeBackend(kind string) muxBackend {
 // muxUsable reports whether the editor can use the supported multiplexer kind
 // in this environment.
 func muxUsable(kind string) bool {
-	return kind != "herdr" || os.Getenv(envHerdr) == "1"
+	switch kind {
+	case "herdr":
+		return os.Getenv(envHerdr) == "1"
+	case "tmux":
+		return os.Getenv(envTmux) != ""
+	}
+	return true
 }
 
 // resolveMux decides which multiplexer the terminal commands use from the
@@ -217,7 +226,7 @@ func (a *App) muxResult(err error) tea.Cmd {
 }
 
 // commandEnded handles the exit code that the shell in the multiplexer pane
-// reports with "shj command-end <code>" (see herdrShellIntegration). It
+// reports with "shj command-end <code>" (see muxShellIntegration). It
 // plays the part of scanTerminals for the built-in terminal.
 func (a *App) commandEnded(code int) {
 	switch code {

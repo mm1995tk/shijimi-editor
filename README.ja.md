@@ -416,14 +416,16 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 
 ターミナルマルチプレクサの中で shijimi を動かしていて、`config.toml` の `[experimental]` の `multiplexer` が `true`（既定値は nightly 版が `true`、安定版が `false`。古いキー `herdr` も同じキーとして読みます）で、そのマルチプレクサに対応しているとき、``Ctrl+` ``・`Space t`・`:sh`・`:sh <コマンド>`・`:run`・`:!` はターミナルパネルの代わりにマルチプレクサのペインを使います。ペインの中で動かしたエージェントの状態検出・通知・復元はマルチプレクサに任せられます。
 
-どのマルチプレクサを使うかは `[terminal]` の `multiplexer` で決めます。値は `"auto"`（既定）・`"herdr"`・`"tmux"`・`"zellij"`・`"cmux"`・`"none"` です。`"auto"` は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサ（入れ子のときは一番内側。たとえば herdr の中の tmux なら tmux）を使います。見つからなければターミナルパネルです。`"none"` はいつもターミナルパネルを使います。今は herdr だけに対応していて、`"tmux"`・`"zellij"`・`"cmux"` のときはメッセージを出してターミナルパネルを使います。対応するマルチプレクサが無いとき、または `multiplexer = false` のときは、今までどおりターミナルパネルを使います。
+どのマルチプレクサを使うかは `[terminal]` の `multiplexer` で決めます。値は `"auto"`（既定）・`"herdr"`・`"tmux"`・`"zellij"`・`"cmux"`・`"none"` です。`"auto"` は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサ（入れ子のときは一番内側。たとえば herdr の中の tmux なら tmux）を使います。見つからなければターミナルパネルです。`"none"` はいつもターミナルパネルを使います。今は herdr と tmux に対応していて、`"zellij"`・`"cmux"` のときはメッセージを出してターミナルパネルを使います。対応するマルチプレクサが無いとき、または `multiplexer = false` のときは、今までどおりターミナルパネルを使います。
 
-この節の以降は [herdr](https://herdr.dev)（`HERDR_ENV=1`）の説明です。
+この節の以降は [herdr](https://herdr.dev)（`HERDR_ENV=1`）の説明です。tmux は最後に書きます。
 
 - 初回は、shijimi のペインの真下（`herdr pane split`）にワークスペースの root でペインを作り、`SHIJIMI_SOCKET` と IDE 連携の環境変数を渡して、焦点を移します。2 回目以降は同じペインを再表示し、終わっていたら新しく作ります。もう一度キーを押すと隠れ（shijimi のペインをズーム）、ペインの中で `shj exec ":sh hide"` を実行しても隠れます。`Ctrl+J` はペインを表示して焦点を移します。戻るには herdr のキー（既定は `Ctrl+B` `k`）を使います。
 - `:sh <コマンド>` はペインでコマンドを実行します。`Space a` / `Alt+A` はペインに文脈を Enter 無しで貼ります（IDE 連携がつながっているときの `at_mentioned` は今のままです）。
 - ペインのシェル（zsh、bash）は、終了コードを `shj command-end <終了コード>` で知らせるので、失敗したコマンドを調べる提案は今までどおり出ます。ペインは `exit` か herdr の `Ctrl+B x` で終わり、shijimi は終了時に自分が作ったペインを閉じます。
 - ペインの画面・スクロール・マウスでのコピー・OSC 52 は herdr のもので、shijimi 自身のキー（`Ctrl+Q`・``Ctrl+` ``・`Alt+R`・`F1`）はペインの中では効きません。
+
+tmux 3.1 以降（`TMUX` あり）でも同じように動きます。ペインは shijimi のペイン（`TMUX_PANE`）の下に `tmux split-window -v -l 30%` で作り、環境変数は `-e` で渡します。隠す・出すは shijimi のペインのズーム（`resize-pane -Z`）で、文字は `send-keys` で送り、shijimi の終了時に `kill-pane` で閉じます。ペインから戻るには tmux 自身のキー（プレフィックスのあと矢印キー）を使います。shijimi は tmux のキーを設定しません。
 
 ## 説明書とホームページの編集
 
