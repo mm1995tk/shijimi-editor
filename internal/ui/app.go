@@ -47,7 +47,6 @@ type App struct {
 	recIns    *insertRecord     // the insert being recorded, until Esc
 	replaying bool              // "." is running; do not record
 	caret     *caret.Writer     // the terminal output; nil in tests
-	caretAt   *tea.Cursor       // where the user is typing, for the IME
 	cellSize  func() (w, h int) // terminal cell size in pixels; nil in tests
 	lsp       *lspManager
 	w, h      int
@@ -2145,7 +2144,8 @@ func (a *App) renderText(t *tab, l layout, focused bool) []string {
 }
 
 func (a *App) View() tea.View {
-	v := tea.NewView(a.render())
+	frame, caretAt := a.renderFrame()
+	v := tea.NewView(frame)
 	// Image data goes out before the frame whose placeholder cells show it.
 	if g := takeGraphics(); g != "" && a.caret != nil {
 		_ = a.caret.Send([]byte(g))
@@ -2166,17 +2166,24 @@ func (a *App) View() tea.View {
 	v.KeyboardEnhancements.ReportEventTypes = a.askReleases
 	// The terminal cursor stays hidden (see package caret), but an IME shows
 	// its composition where it is.
-	v.Cursor = a.caretAt
+	v.Cursor = caretAt
 	return v
 }
 
 func (a *App) render() string {
+	frame, _ := a.renderFrame()
+	return frame
+}
+
+// renderFrame draws the frame and returns, with it, where the terminal cursor
+// goes (nil when it is hidden). The cursor is a result of drawing, not state
+// kept on App.
+func (a *App) renderFrame() (string, *tea.Cursor) {
 	if a.w <= 0 || a.h <= 0 {
-		return ""
+		return "", nil
 	}
 	if a.w < 30 || a.h < 8 {
-		a.caretAt = nil
-		return i18n.T("app.toosmall")
+		return i18n.T("app.toosmall"), nil
 	}
 	l := a.layout()
 	if t := a.curText(); t != nil {
@@ -2317,8 +2324,7 @@ func (a *App) render() string {
 	} else {
 		rows = append(rows, a.renderStatus())
 	}
-	a.updateCaret(l)
-	return strings.Join(rows, "\n")
+	return strings.Join(rows, "\n"), a.caretCursor(l)
 }
 
 func (a *App) editorOpts(t *tab, focused bool) editorOpts {

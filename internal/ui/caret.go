@@ -21,14 +21,14 @@ func (a *App) SetCellSize(f func() (w, h int)) {
 	updateCellSize(f())
 }
 
-// updateCaret records where the user is typing in the frame View is about to
-// return. View hands it to bubbletea as the cursor, so an IME shows its
-// composition there.
-func (a *App) updateCaret(l layout) {
-	a.caretAt = nil
+// caretCursor is where the user is typing in the frame View is about to
+// return, or nil. View hands it to bubbletea as the cursor, so an IME shows
+// its composition there.
+func (a *App) caretCursor(l layout) *tea.Cursor {
 	if x, y, ok := a.caretPos(l); ok {
-		a.caretAt = tea.NewCursor(x, y)
+		return tea.NewCursor(x, y)
 	}
+	return nil
 }
 
 // caretPos is the screen cell where typed text goes, if any.
