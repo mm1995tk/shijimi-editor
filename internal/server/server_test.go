@@ -214,3 +214,84 @@ func TestLogPath(t *testing.T) {
 		t.Error(p)
 	}
 }
+
+func TestSupersede(t *testing.T) {
+	srv, sock := start(t)
+	ctx := context.Background()
+
+	got := make(chan *rpc.Message, 4)
+	raw, err := net.Dial("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := rpc.NewConn(raw, rpc.JSON{}, func(_ context.Context, m *rpc.Message) (any, error) {
+		got <- m
+		return nil, nil
+	})
+	defer first.Close()
+	var h1 HelloResult
+	if err := first.Call(ctx, "session.hello", hello(1), &h1); err != nil {
+		t.Fatal(err)
+	}
+	if h1.Supersedes != nil {
+		t.Errorf("first hello must not supersede: %+v", h1.Supersedes)
+	}
+
+	second := dial(t, sock)
+	p := hello(1)
+	p["client"] = map[string]string{"name": "second", "version": "1", "kind": "native"}
+	var h2 HelloResult
+	if err := second.Call(ctx, "session.hello", p, &h2); err != nil {
+		t.Fatal(err)
+	}
+	if h2.Supersedes == nil || h2.Supersedes.Client.Name != "test" || h2.Supersedes.ConnectedAt.IsZero() {
+		t.Fatalf("supersedes: %+v", h2.Supersedes)
+	}
+
+	select {
+	case m := <-got:
+		if m.Method != "session.superseded" || !strings.Contains(string(m.Params), `"second"`) {
+			t.Errorf("notification: %s %s", m.Method, m.Params)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("session.superseded not received")
+	}
+	select {
+	case <-first.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatal("first connection not closed")
+	}
+	if err := first.Call(ctx, "session.ping", struct{}{}, nil); err == nil {
+		t.Error("request on closed connection must fail")
+	}
+	// 新しい持ち主は普通に使える。
+	if err := second.Call(ctx, "session.ping", struct{}{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	srv.mu.Lock()
+	owner := srv.owner
+	srv.mu.Unlock()
+	if owner == nil || owner.client.Name != "second" {
+		t.Errorf("owner: %+v", owner)
+	}
+}
+
+func TestNotOwnerAfterSupersede(t *testing.T) {
+	srv, sock := start(t)
+	ctx := context.Background()
+	first := dial(t, sock)
+	if err := first.Call(ctx, "session.hello", hello(1), nil); err != nil {
+		t.Fatal(err)
+	}
+	// 閉じ損ねた 1 台目を作るため、引き継ぎの印だけを先に付ける。
+	srv.mu.Lock()
+	old := srv.owner
+	old.superseded = true
+	srv.mu.Unlock()
+	for _, m := range []string{"session.ping", "server.info", "session.hello"} {
+		err := first.Call(ctx, m, hello(1), nil)
+		if e, ok := err.(*rpc.Error); !ok || e.Code != rpc.CodeNotOwner {
+			t.Errorf("%s: %v", m, err)
+		}
+	}
+}
