@@ -11,7 +11,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -95,12 +94,12 @@ type App struct {
 	// bottom command line (":" commands and "/" search)
 	cmdOpen  bool
 	cmdKind  string
-	cmdInput textinput.Model
+	cmdInput lineInput
 	cmdFrom  buffer.Pos
 
 	// VS Code-style find bar
 	findOpen   bool
-	findInput  textinput.Model
+	findInput  lineInput
 	findOrigin buffer.Pos
 
 	comp        *completionPopup
@@ -184,15 +183,9 @@ func New(dir, file string) *App {
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
 	}
-	a.findInput = textinput.New()
-	a.findInput.Prompt = ""
+	a.findInput = newLineInput(0)
 	a.findInput.Placeholder = i18n.T("app.find")
-	a.cmdInput = textinput.New()
-	a.cmdInput.Prompt = ""
-	styleInput(&a.findInput, cPaletteBg)
-	styleInput(&a.cmdInput, cEditorBg)
-	styleInput(&a.pal.input, cPaletteBg)
-	a.search.restyle()
+	a.cmdInput = newLineInput(0)
 	a.commands = defaultCommands()
 	if out, err := run(abs, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		a.branch = strings.TrimSpace(string(out))
@@ -235,15 +228,9 @@ func NewSingle(file string) (*App, error) {
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
 	}
-	a.findInput = textinput.New()
-	a.findInput.Prompt = ""
+	a.findInput = newLineInput(0)
 	a.findInput.Placeholder = i18n.T("app.find")
-	a.cmdInput = textinput.New()
-	a.cmdInput.Prompt = ""
-	styleInput(&a.findInput, cPaletteBg)
-	styleInput(&a.cmdInput, cEditorBg)
-	styleInput(&a.pal.input, cPaletteBg)
-	a.search.restyle()
+	a.cmdInput = newLineInput(0)
 	// The command palette is not reachable in this mode; with no commands, it
 	// cannot open the views single-file mode leaves out even if it were.
 	if !a.openFile(abs) {
@@ -298,18 +285,6 @@ func (a *App) Close() {
 	a.muxClose()
 	removeShellIntegration()
 	removeMuxShellIntegration()
-}
-
-func styleInput(ti *textinput.Model, bg string) {
-	st := bgfg(bg, cEditorFg)
-	s := ti.Styles()
-	s.Focused = textinput.StyleState{Text: st, Placeholder: bgfg(bg, curTheme.Dim), Prompt: st}
-	s.Blurred = s.Focused
-	// bubbles' cursor applies Reverse on top of this colour, so it ends up as
-	// the cell background.
-	s.Cursor.Color = lipgloss.Color(curTheme.Cursor)
-	s.Cursor.Blink = false
-	ti.SetStyles(s)
 }
 
 func (a *App) Init() tea.Cmd {
@@ -828,7 +803,8 @@ func (a *App) openFind() tea.Cmd {
 		a.findInput.SetValue(sel)
 	}
 	a.findInput.CursorEnd()
-	return a.findInput.Focus()
+	a.findInput.Focus()
+	return nil
 }
 
 func (a *App) closeFind() {
@@ -1369,14 +1345,13 @@ func (a *App) handlePaletteKey(msg Key) tea.Cmd {
 func (a *App) paletteInput(msg Input) tea.Cmd {
 	p := a.pal
 	old := p.input.Value()
-	var cmd tea.Cmd
-	p.input, cmd = p.input.Update(widgetMsg(msg))
+	a.lineInputUpdate(&p.input, msg)
 	p.sel = 0
 	p.filter(a.commands)
 	if p.picking && p.live && p.input.Value() != old {
-		return tea.Batch(cmd, p.queryLater())
+		return p.queryLater()
 	}
-	return cmd
+	return nil
 }
 
 func (a *App) submitPalette() tea.Cmd {
@@ -1523,12 +1498,11 @@ func (a *App) handleFindKey(msg Key) tea.Cmd {
 // findInputUpdate passes a key or a paste to the find bar.
 func (a *App) findInputUpdate(msg Input) tea.Cmd {
 	before := a.findInput.Value()
-	var cmd tea.Cmd
-	a.findInput, cmd = a.findInput.Update(widgetMsg(msg))
+	a.lineInputUpdate(&a.findInput, msg)
 	if a.findInput.Value() != before {
 		a.findNext(a.findOrigin, false)
 	}
-	return cmd
+	return nil
 }
 
 // handleEditorKey is the modeless (VS Code style) editing used by the
@@ -2357,7 +2331,7 @@ func findInputCells(w int) int {
 }
 
 func (a *App) renderFind(w int) string {
-	return drawFind(*a.findState(), a.findInput.View(), w)
+	return drawFind(*a.findState(), a.findInput.view(inputStyleOn(cPaletteBg)), w)
 }
 
 var modeStyles map[editMode]lipgloss.Style

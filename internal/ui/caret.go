@@ -1,9 +1,6 @@
 package ui
 
 import (
-	"strings"
-
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -45,9 +42,9 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 		return a.searchCaret()
 	case a.pal.open:
 		pw := clamp(a.w*3/5, 30, 100)
-		return (a.w-pw)/2 + ansi.StringWidth(a.pal.label()) + inputCaret(a.pal.input), 2, true
+		return (a.w-pw)/2 + ansi.StringWidth(a.pal.label()) + a.pal.input.Caret(), 2, true
 	case a.findOpen:
-		return l.rightX + ansi.StringWidth(findLabel()) + inputCaret(a.findInput), l.editY - 1, true
+		return l.rightX + ansi.StringWidth(findLabel()) + a.findInput.Caret(), l.editY - 1, true
 	case a.focus == focusTerminal && a.showTerm:
 		tab := a.term.cur()
 		if tab == nil {
@@ -69,18 +66,4 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 		return x, y, a.cursorShown(t, l, x, y)
 	}
 	return 0, 0, false
-}
-
-// inputCaret is how many cells after the start of ti's view the typed text
-// goes. textinput's own Cursor counts runes, which is wrong for wide
-// characters, and how far the view is scrolled is not exported. So a copy
-// without colours is drawn, where the cursor is the only reversed text.
-func inputCaret(ti textinput.Model) int {
-	ti.SetStyles(textinput.Styles{})
-	v := ti.View()
-	before, _, ok := strings.Cut(v, "\x1b[7m")
-	if !ok {
-		return 0
-	}
-	return ansi.StringWidth(before)
 }

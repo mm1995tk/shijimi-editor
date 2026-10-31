@@ -107,7 +107,8 @@ func (a *App) openCmdline(kind string) tea.Cmd {
 	if t := a.curText(); t != nil {
 		a.cmdFrom = t.buf.Cur
 	}
-	return a.cmdInput.Focus()
+	a.cmdInput.Focus()
+	return nil
 }
 
 func (a *App) closeCmdline() {
@@ -153,13 +154,12 @@ func (a *App) handleCmdlineKey(msg Key) tea.Cmd {
 
 // cmdlineInput passes a key or a paste to the command line.
 func (a *App) cmdlineInput(msg Input) tea.Cmd {
-	var cmd tea.Cmd
-	a.cmdInput, cmd = a.cmdInput.Update(widgetMsg(msg))
-	return cmd
+	a.lineInputUpdate(&a.cmdInput, msg)
+	return nil
 }
 
 func (a *App) renderCmdline() string {
-	return drawCmdline(*a.cmdlineState(), a.cmdInput.View(), a.w)
+	return drawCmdline(*a.cmdlineState(), a.cmdInput.view(inputStyleOn(cEditorBg)), a.w)
 }
 
 // execCommand runs a Helix-style ":" command.

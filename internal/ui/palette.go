@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
@@ -32,7 +31,7 @@ type paletteItem struct {
 // (">" prefix), go-to-line (":" prefix) and free-text prompts.
 type palette struct {
 	open  bool
-	input textinput.Model
+	input lineInput
 	sel   int
 	items []paletteItem
 	files []string
@@ -54,10 +53,7 @@ type palette struct {
 }
 
 func newPalette() *palette {
-	ti := textinput.New()
-	ti.Prompt = ""
-	ti.CharLimit = 4096
-	return &palette{input: ti}
+	return &palette{input: newLineInput(4096)}
 }
 
 func indexFiles(root string) []string {
@@ -95,7 +91,8 @@ func (p *palette) show(root, initial string) tea.Cmd {
 	p.input.SetValue(initial)
 	p.input.CursorEnd()
 	p.sel = 0
-	return p.input.Focus()
+	p.input.Focus()
+	return nil
 }
 
 // ask opens the palette as a single-line prompt.
@@ -110,7 +107,8 @@ func (p *palette) ask(prompt, initial string, onSubmit func(string) tea.Cmd) tea
 	p.input.SetValue(initial)
 	p.input.CursorEnd()
 	p.sel = 0
-	return p.input.Focus()
+	p.input.Focus()
+	return nil
 }
 
 func (p *palette) close() {
@@ -200,7 +198,7 @@ func (p *palette) render(w int) []string {
 	label := p.label()
 	p.input.SetWidth(max(1, w-ansi.StringWidth(label)-2))
 	out = append(out, stPaletteBox.Render(fit("", w)))
-	out = append(out, stPaletteBox.Render(label)+fitStyled(p.input.View(), w-ansi.StringWidth(label), stPalette))
+	out = append(out, stPaletteBox.Render(label)+fitStyled(p.input.view(inputStyleOn(cPaletteBg)), w-ansi.StringWidth(label), stPalette))
 	start := 0
 	if p.sel >= maxPaletteItems {
 		start = p.sel - maxPaletteItems + 1
@@ -272,7 +270,8 @@ func (p *palette) pick(title string, items []paletteItem, onPick func(int) tea.C
 	p.input.Placeholder = i18n.T("palette.filter")
 	p.input.SetValue("")
 	p.sel = 0
-	return p.input.Focus()
+	p.input.Focus()
+	return nil
 }
 
 // pickLive is pick for a list the language server filters: the list is not

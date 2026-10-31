@@ -62,3 +62,15 @@ func typed(msg Key) string {
 	}
 	return msg.Text
 }
+
+// lineInputUpdate passes a key or a paste to a one-line field. Ctrl+V pastes
+// from the clipboard (the field itself does not read it).
+func (a *App) lineInputUpdate(l *lineInput, in Input) {
+	if k, ok := in.(Key); ok && k.String() == "ctrl+v" {
+		if l.Focused() {
+			l.Insert(a.pasteText())
+		}
+		return
+	}
+	l.Update(in)
+}

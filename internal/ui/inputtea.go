@@ -7,8 +7,8 @@ import (
 // This file is the only place bubbletea's input types are read or built (apart
 // from Update, which hands them over). It turns tea.KeyPressMsg,
 // tea.PasteMsg and tea.MouseMsg into Input, and Input back into a tea.Msg for
-// the bubbles widgets that still take one (textinput, textarea; P4 removes
-// them).
+// the bubbles widget that still takes one (the review composer's textarea; P10h
+// removes it).
 
 // Named keys. Their values are bubbletea's, so a Key from the TUI needs no
 // translation; inputtea_test.go checks they match.
