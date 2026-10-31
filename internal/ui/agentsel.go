@@ -189,9 +189,9 @@ func (a *App) inLog(l layout, msg Mouse) bool {
 func (a *App) agentDrag(l layout, msg Mouse) (tea.Cmd, bool) {
 	s := &a.ag.sel
 	switch {
-	case msg.Action == mousePress && (msg.Button == MouseWheelUp || msg.Button == MouseWheelDown):
+	case msg.Action == MousePress && (msg.Button == MouseWheelUp || msg.Button == MouseWheelDown):
 		return nil, false // scrolling keeps the selection
-	case msg.Action == mousePress:
+	case msg.Action == MousePress:
 		s.dragging = false // the release was lost
 		return nil, false
 	}
@@ -206,7 +206,7 @@ func (a *App) agentDrag(l layout, msg Mouse) (tea.Cmd, bool) {
 	}
 	s.b = p
 	s.on = s.a != s.b
-	if msg.Action == mouseRelease {
+	if msg.Action == MouseRelease {
 		s.dragging = false
 		if txt := s.text(a.ag.view.rows, a.ag.view.w); txt != "" {
 			a.copyText(txt)

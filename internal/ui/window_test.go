@@ -116,7 +116,7 @@ func TestSplitCloseFileCollapses(t *testing.T) {
 func TestSplitMouseFocusesPane(t *testing.T) {
 	a, ps := splitApp(t)
 	l := a.layout()
-	a.handleMouse(Mouse{X: l.otherX + 3, Y: l.editY + 1, Action: mousePress, Button: MouseLeft})
+	a.handleMouse(Mouse{X: l.otherX + 3, Y: l.editY + 1, Action: MousePress, Button: MouseLeft})
 	if a.pane != 0 || a.other.path() != ps[0] {
 		t.Fatalf("pane=%d", a.pane)
 	}

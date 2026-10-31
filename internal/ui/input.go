@@ -67,12 +67,15 @@ type Composition struct {
 
 func (Composition) input() {}
 
+// CompositionPhase is how far a composition has come: CompositionStart, then
+// any number of CompositionUpdate, then CompositionEnd. At the end Text is the
+// committed text (or empty if the composition was cancelled).
 type CompositionPhase uint8
 
 const (
-	CompositionStart CompositionPhase = iota
-	CompositionUpdate
-	CompositionEnd
+	CompositionStart  CompositionPhase = iota // the first composing text
+	CompositionUpdate                         // the composing text changed
+	CompositionEnd                            // committed or cancelled
 )
 
 // MouseButton is the button of a Mouse input, or a wheel step.
@@ -90,12 +93,13 @@ const (
 	MouseOther
 )
 
-type mouseAction int
+// MouseAction is what the pointer did.
+type MouseAction int
 
 const (
-	mousePress mouseAction = iota // a button press or a wheel step
-	mouseRelease
-	mouseMotion
+	MousePress MouseAction = iota // a button press or a wheel step
+	MouseRelease
+	MouseMotion
 )
 
 // Region is the part of the screen a pointer is over.
@@ -119,14 +123,13 @@ const (
 // click timer (App.lastClick).
 //
 // X and Y are the cell on the whole screen. Only the TUI has them; the
-// handlers still hit-test on them. Moving that onto Region/Row/Col is the rest
-// of the work.
+// handlers still hit-test on them, not yet on Region/Row/Col.
 type Mouse struct {
 	Region           Region
 	Row, Col         int
 	X, Y             int
 	Button           MouseButton
-	Action           mouseAction
+	Action           MouseAction
 	Shift, Alt, Ctrl bool
 	Clicks           int
 	Seq              uint64

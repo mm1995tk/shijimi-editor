@@ -605,11 +605,11 @@ func (t *terminal) mouse(msg Mouse, x, y int) bool {
 		return false
 	}
 	switch msg.Action {
-	case mousePress:
+	case MousePress:
 		ev.Action = vt.MousePress
-	case mouseRelease:
+	case MouseRelease:
 		ev.Action = vt.MouseRelease
-	case mouseMotion:
+	case MouseMotion:
 		ev.Action = vt.MouseMotion
 	}
 	b := tab.vt.EncodeMouse(ev)

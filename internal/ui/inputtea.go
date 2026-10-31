@@ -103,10 +103,6 @@ func widgetMsg(in Input) tea.Msg {
 		return keyToTea(in)
 	case Paste:
 		return tea.PasteMsg{Content: in.Content}
-	case Composition:
-		if in.Phase == CompositionEnd && in.Text != "" {
-			return tea.PasteMsg{Content: in.Text}
-		}
 	}
 	return nil
 }
@@ -137,9 +133,9 @@ func (a *App) mouseFromTea(msg tea.MouseMsg) Mouse {
 	}
 	switch msg.(type) {
 	case tea.MouseReleaseMsg:
-		e.Action = mouseRelease
+		e.Action = MouseRelease
 	case tea.MouseMotionMsg:
-		e.Action = mouseMotion
+		e.Action = MouseMotion
 	}
 	e.Region, e.Row, e.Col = a.hitTest(a.layout(), m.X, m.Y)
 	return e
@@ -152,10 +148,10 @@ func (a *App) hitTest(l layout, x, y int) (Region, int, int) {
 		return RegionNone, 0, 0
 	case a.showSide && x < l.sideW:
 		return RegionExplorer, y - l.top, x
-	case l.agentW > 0 && x >= l.agentX:
+	case l.agentW > 0 && x >= l.agentX-1: // the border column belongs to the panel (it is dragged to resize)
 		return RegionAgent, y - l.top, x - l.agentX
 	case a.showTerm && y >= l.panelY:
-		return RegionTerminal, y - l.panelY, x - l.fullX
+		return RegionTerminal, y - l.panelY - 2, x - l.fullX // row 0 is the first body line, under the frame and title
 	case l.inOtherPane(x, y):
 		return RegionOther, y - l.top, x - l.otherX
 	case x >= l.rightX && x < l.rightX+l.rightW:

@@ -345,7 +345,7 @@ func (a *App) searchInput(msg Input) tea.Cmd {
 
 func (a *App) searchMouse(msg Mouse) tea.Cmd {
 	s := a.search
-	if msg.Action != mousePress {
+	if msg.Action != MousePress {
 		return nil
 	}
 	switch msg.Button {

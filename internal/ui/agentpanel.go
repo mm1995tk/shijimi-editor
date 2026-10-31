@@ -344,7 +344,7 @@ func (a *App) agentMouse(l layout, msg Mouse) (tea.Cmd, bool) {
 	if l.agentW == 0 || msg.X < l.agentX-1 || msg.Y < l.top || msg.Y >= l.top+l.bodyH {
 		return nil, false
 	}
-	if msg.Action == mouseMotion && msg.Button == MouseNone {
+	if msg.Action == MouseMotion && msg.Button == MouseNone {
 		// the pointer left the editor: popups it opened close
 		if c := a.card; c != nil && c.byPointer {
 			a.card = nil
@@ -357,7 +357,7 @@ func (a *App) agentMouse(l layout, msg Mouse) (tea.Cmd, bool) {
 		a.hoverCell = screenPt{-1, -1}
 		return nil, true
 	}
-	if msg.Action != mousePress {
+	if msg.Action != MousePress {
 		return nil, true
 	}
 	switch msg.Button {

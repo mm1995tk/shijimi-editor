@@ -104,7 +104,7 @@ func TestTerminalScrollback(t *testing.T) {
 	if tab.vt.Scrollback() < 50 {
 		t.Fatalf("scrollback = %d", tab.vt.Scrollback())
 	}
-	tm.wheel(Mouse{Button: MouseWheelUp, Action: mousePress}, 0, 0, -3)
+	tm.wheel(Mouse{Button: MouseWheelUp, Action: MousePress}, 0, 0, -3)
 	tm.render(40, 12, true)
 	if tab.snap.Offset != 3 {
 		t.Fatalf("offset = %d", tab.snap.Offset)
@@ -140,7 +140,7 @@ func TestTerminalHasOneShell(t *testing.T) {
 	// F2 and Ctrl+PgUp/PgDn no longer manage tabs; with no PTY they are only written.
 	tm.sh.ptmx, _ = os.CreateTemp(t.TempDir(), "pty")
 	for _, k := range []Key{{Code: KeyF2}, {Code: KeyPgDown, Mod: ModCtrl}} {
-		tm.update(k)
+		tm.key(k)
 	}
 	if tm.sh == nil || tm.sh.id != 1 || tm.nextID != 0 {
 		t.Fatal("a key started another shell")

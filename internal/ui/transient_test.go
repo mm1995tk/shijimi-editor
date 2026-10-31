@@ -99,8 +99,8 @@ func TestExplorerClickTransientDoubleKeeps(t *testing.T) {
 	l := a.layout()
 	y := l.top + 1 + a.explorer.sel - a.explorer.scroll
 	click := func() {
-		a.handleMouse(Mouse{X: 2, Y: y, Action: mousePress, Button: MouseLeft})
-		a.handleMouse(Mouse{X: 2, Y: y, Action: mouseRelease, Button: MouseLeft})
+		a.handleMouse(Mouse{X: 2, Y: y, Action: MousePress, Button: MouseLeft})
+		a.handleMouse(Mouse{X: 2, Y: y, Action: MouseRelease, Button: MouseLeft})
 	}
 	click()
 	if len(a.tabs) != 2 || !a.tabs[1].transient || a.focus != focusExplorer {

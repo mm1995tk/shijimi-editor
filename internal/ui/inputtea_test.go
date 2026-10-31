@@ -30,26 +30,14 @@ func TestMouseFromTea(t *testing.T) {
 	a := newTestApp(t, "hello\n")
 	l := a.layout()
 	m := a.mouseFromTea(tea.MouseClickMsg{X: l.rightX + 4, Y: l.editY + 2, Button: tea.MouseLeft, Mod: tea.ModShift})
-	if m.Region != RegionEditor || m.Col != 4 || m.Row != l.editY+2-l.top || m.Button != MouseLeft || m.Action != mousePress || !m.Shift {
+	if m.Region != RegionEditor || m.Col != 4 || m.Row != l.editY+2-l.top || m.Button != MouseLeft || m.Action != MousePress || !m.Shift {
 		t.Errorf("click in the editor: %+v", m)
 	}
 	m = a.mouseFromTea(tea.MouseWheelMsg{X: 1, Y: l.top + 1, Button: tea.MouseWheelDown})
 	if m.Region != RegionExplorer || m.Button != MouseWheelDown {
 		t.Errorf("wheel over the tree: %+v", m)
 	}
-	if m = a.mouseFromTea(tea.MouseReleaseMsg{X: 1, Y: l.top + 1}); m.Action != mouseRelease {
+	if m = a.mouseFromTea(tea.MouseReleaseMsg{X: 1, Y: l.top + 1}); m.Action != MouseRelease {
 		t.Errorf("release: %+v", m)
-	}
-}
-
-func TestCompositionCommitsAsText(t *testing.T) {
-	a := newTestApp(t, "hello\n")
-	a.focus = focusEditor
-	a.mode = modeInsert
-	a.curText().buf.SetCursor(0, 0, false)
-	a.Update(Composition{Text: "にほ", Phase: CompositionUpdate})
-	a.Update(Composition{Text: "日本", Phase: CompositionEnd})
-	if got := a.curText().buf.Text(); got != "日本hello\n" {
-		t.Errorf("text = %q", got)
 	}
 }

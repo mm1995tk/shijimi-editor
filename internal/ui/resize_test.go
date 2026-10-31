@@ -102,20 +102,20 @@ func TestResizeMouseDrag(t *testing.T) {
 	a := resizeApp(t)
 	a.showTerm = true
 	l := a.layout()
-	mouse := func(act mouseAction, x, y int) {
+	mouse := func(act MouseAction, x, y int) {
 		a.handleMouse(Mouse{X: x, Y: y, Action: act, Button: MouseLeft})
 	}
 
-	mouse(mousePress, l.sideW, 5)
-	mouse(mouseMotion, 40, 5)
-	mouse(mouseRelease, 40, 5)
+	mouse(MousePress, l.sideW, 5)
+	mouse(MouseMotion, 40, 5)
+	mouse(MouseRelease, 40, 5)
 	if a.layout().sideW != 40 || a.resizing != resizeNone {
 		t.Fatalf("side drag: %d", a.layout().sideW)
 	}
 
-	mouse(mousePress, 60, l.panelY)
-	mouse(mouseMotion, 60, l.panelY-5)
-	mouse(mouseRelease, 60, l.panelY-5)
+	mouse(MousePress, 60, l.panelY)
+	mouse(MouseMotion, 60, l.panelY-5)
+	mouse(MouseRelease, 60, l.panelY-5)
 	if got := a.layout().panelH; got != l.panelH+5 {
 		t.Fatalf("panel drag: %d want %d", got, l.panelH+5)
 	}
@@ -136,7 +136,7 @@ func TestResizeWithCompletionOpen(t *testing.T) {
 func TestResizeLostRelease(t *testing.T) {
 	a := resizeApp(t)
 	a.resizing = resizeSide
-	a.handleMouse(Mouse{X: 60, Y: 5, Action: mousePress, Button: MouseLeft})
+	a.handleMouse(Mouse{X: 60, Y: 5, Action: MousePress, Button: MouseLeft})
 	if a.resizing != resizeNone {
 		t.Fatal("stale drag state kept")
 	}

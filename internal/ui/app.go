@@ -1175,11 +1175,9 @@ func (a *App) handleInput(in Input) tea.Cmd {
 		a.hoverWord = wordSpan{}
 		return a.handlePaste(msg)
 	case Composition:
-		// A terminal never composes, so only the GUI gets here. The committed text
-		// is a paste; the composition in progress is drawn by the GUI itself.
-		if msg.Phase == CompositionEnd && msg.Text != "" {
-			return a.handleInput(Paste{Content: msg.Text, Seq: msg.Seq})
-		}
+		// Nothing uses a composition yet: a terminal never composes, and a GUI sends
+		// the committed text as input.key (its text), so taking it here too would
+		// type it twice. B10 decides what a composition does.
 	}
 	return nil
 }
@@ -1871,9 +1869,9 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd tea.Cmd, ok bool) {
 	x, y := msg.X-l.fullX, msg.Y-l.panelY-2
 	if t.sel.dragging {
 		switch msg.Action {
-		case mouseMotion:
+		case MouseMotion:
 			t.dragTo(x, y)
-		case mouseRelease:
+		case MouseRelease:
 			t.dragTo(x, y)
 			if s := t.endSelect(); s != "" {
 				a.copyText(s)
@@ -1895,7 +1893,7 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd tea.Cmd, ok bool) {
 		sent = t.mouse(msg, x, y)
 	}
 	switch msg.Action {
-	case mousePress:
+	case MousePress:
 		if sent {
 			t.sel = termSel{}
 			t.grab = true
@@ -1905,7 +1903,7 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd tea.Cmd, ok bool) {
 			t.selectAt(x, y)
 			return a.setFocus(focusTerminal), true
 		}
-	case mouseRelease:
+	case MouseRelease:
 		t.grab = false
 	}
 	return nil, sent || grabbed
@@ -1916,14 +1914,14 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 		return a.searchMouse(msg)
 	}
 	if a.pal.open {
-		if msg.Action == mousePress && msg.Button == MouseLeft {
+		if msg.Action == MousePress && msg.Button == MouseLeft {
 			a.pal.close()
 		}
 		return nil
 	}
 	l := a.layout()
 	// A press or the wheel over the other pane first moves the focus there.
-	if l.inOtherPane(msg.X, msg.Y) && msg.Action == mousePress && (msg.Button == MouseLeft || msg.Button == MouseWheelUp || msg.Button == MouseWheelDown) {
+	if l.inOtherPane(msg.X, msg.Y) && msg.Action == MousePress && (msg.Button == MouseLeft || msg.Button == MouseWheelUp || msg.Button == MouseWheelDown) {
 		a.focusPane(1 - a.pane)
 		l = a.layout()
 	}
@@ -1939,7 +1937,7 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 	}
 	// Some terminals report a drag as motion with no button; while a border
 	// or a selection is being dragged, motion is the drag whatever it says.
-	if msg.Action == mouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
+	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
 		return a.passiveMotion(l, msg)
 	}
 	x, y := msg.X, msg.Y
@@ -1960,7 +1958,7 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 	}
 	// A popup the pointer opened only owns the wheel while the pointer is on it.
 	if wheel != 0 && a.hoverText != "" && (a.hoverAt == nil || a.inHoverBox(l, screenPt{x, y})) {
-		if msg.Action == mousePress {
+		if msg.Action == MousePress {
 			a.scrollHover(wheel)
 		}
 		return nil
@@ -1968,13 +1966,13 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 	if a.hoverText != "" && msg.Button == MouseLeft {
 		// The button copies on press; the matching release must not close the hover.
 		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).copyHit(x-bx, y-by) {
-			if msg.Action == mousePress {
+			if msg.Action == MousePress {
 				a.copyHover()
 			}
 			return nil
 		}
 	}
-	if a.card != nil && msg.Action == mousePress {
+	if a.card != nil && msg.Action == MousePress {
 		if box, bx, by := a.cardBox(l); box != nil && x >= bx && y >= by && y < by+len(box) && x < bx+ansi.StringWidth(box[0]) {
 			if wheel != 0 {
 				a.card.scroll = max(0, a.card.scroll+wheel)
@@ -1990,16 +1988,16 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 	a.hoverWord = wordSpan{}
 	a.hoverCell = screenPt{-1, -1}
 	a.hoverText, a.hoverAt = "", nil
-	if msg.Action == mousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, x, y) {
+	if msg.Action == MousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, x, y) {
 		hwheel = wheel / 3 * hscrollWheel // Shift turns the vertical wheel sideways, over the text only
 	}
-	if hwheel != 0 && msg.Action == mousePress {
+	if hwheel != 0 && msg.Action == MousePress {
 		if a.inEditorText(l, x, y) {
 			a.scrollCols(a.cur(), hwheel)
 			return nil
 		}
 	}
-	if wheel != 0 && msg.Action == mousePress {
+	if wheel != 0 && msg.Action == MousePress {
 		switch {
 		case y < l.top || y >= l.top+l.bodyH:
 			// the diff mode header and help lines
@@ -2034,17 +2032,17 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 
 	if a.resizing != resizeNone {
 		switch msg.Action {
-		case mouseMotion:
+		case MouseMotion:
 			a.dragResize(l, x, y)
 			return nil
-		case mouseRelease:
+		case MouseRelease:
 			a.resizing = resizeNone
 			return nil
 		}
 		// A press means the release was lost (pointer left the window).
 		a.resizing = resizeNone
 	}
-	if msg.Action == mousePress && msg.Button == MouseLeft {
+	if msg.Action == MousePress && msg.Button == MouseLeft {
 		if r := a.resizeHit(l, x, y); r != resizeNone {
 			a.resizing = r
 			if r == resizeExplorer {
@@ -2060,10 +2058,10 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 
 	left := msg.Button == MouseLeft
 	switch msg.Action {
-	case mouseRelease:
+	case MouseRelease:
 		a.dragging = false
 		return nil
-	case mouseMotion:
+	case MouseMotion:
 		if a.dragging {
 			a.mouseToCursor(l, x, y, true)
 		}
