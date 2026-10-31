@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
@@ -86,10 +87,6 @@ func TestRenderGolden(t *testing.T) {
 
 	t.Run("split", func(t *testing.T) {
 		a := goldenApp(t)
-		other := filepath.Join(a.root, "b.txt")
-		if err := os.WriteFile(other, []byte("second\nfile\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
 		a.splitOpen()
 		keys(a, "esc") // close the file picker the split opens
 		a.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
@@ -102,13 +99,14 @@ func TestRenderGolden(t *testing.T) {
 	t.Run("completion", func(t *testing.T) {
 		a := goldenApp(t)
 		keys(a, "G", "o", "f", "m")
-		a.Update(completionMsg{tab: a.curText(), start: a.curText().buf.Cur, items: []lsp.CompletionItem{
+		cur := a.curText()
+		// completing from the start of the word "fm" just typed
+		start := buffer.Pos{Row: cur.buf.Cur.Row, Col: cur.buf.Cur.Col - len("fm")}
+		a.Update(completionMsg{tab: cur, start: start, items: []lsp.CompletionItem{
 			{Label: "fmt", Detail: "package", Kind: 9},
 			{Label: "fmt.Println", Detail: "func(a ...any)", Kind: 3},
 			{Label: "fmt.Sprintf", Detail: "func(format string, a ...any) string", Kind: 3},
 		}})
-		a.comp.start.Col--
-		a.comp.filter()
 		if a.comp == nil {
 			t.Fatal("no completion popup")
 		}
