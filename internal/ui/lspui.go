@@ -19,6 +19,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 const lspTimeout = 10 * time.Second
@@ -682,27 +683,44 @@ var completionKinds = map[int]string{
 	9: "module", 10: "prop", 12: "value", 13: "enum", 14: "keyword", 15: "snippet", 21: "const", 22: "struct", 25: "type",
 }
 
-func (c *completionPopup) render(maxH int) []string {
+// overlay is the completion popup as a screen.Overlay: the candidates in view
+// (maxH of them at most, ten at most, scrolled so that the selected one shows)
+// with Active the selected one among them, anchored at the cursor. It changes
+// nothing. Drawing it as cells is drawCompletion's work.
+func (c *completionPopup) overlay(maxH int) screen.Overlay {
 	n := min(len(c.items), maxH, 10)
 	start := 0
 	if c.sel >= n {
 		start = c.sel - n + 1
 	}
-	w := 20
+	at := toScreenPos(c.tab.buf.Cur)
+	ov := screen.Overlay{
+		Kind:   screen.OverlayCompletion,
+		Pane:   c.tab.path(),
+		At:     &at,
+		Active: c.sel - start,
+	}
 	for _, it := range c.items[start : start+n] {
+		ov.Items = append(ov.Items, screen.Item{Label: it.Label, Detail: it.Detail, Kind: completionKinds[it.Kind]})
+	}
+	return ov
+}
+
+// drawCompletion draws a completion Overlay as a box of cells.
+func drawCompletion(ov screen.Overlay) []string {
+	w := 20
+	for _, it := range ov.Items {
 		w = max(w, ansi.StringWidth(it.Label)+10)
 	}
 	w = min(w, 60)
-	out := make([]string, 0, n)
-	for i := start; i < start+n; i++ {
-		it := c.items[i]
+	out := make([]string, 0, len(ov.Items))
+	for i, it := range ov.Items {
 		st, dim := stPalette, stPaletteDim
-		if i == c.sel {
+		if i == ov.Active {
 			st, dim = stPaletteSel, bgfg(cListSel, curTheme.SubSel)
 		}
-		kind := completionKinds[it.Kind]
 		label := fit(" "+it.Label, w-9)
-		out = append(out, st.Render(label)+dim.Render(fit(" "+kind, 9)))
+		out = append(out, st.Render(label)+dim.Render(fit(" "+it.Kind, 9)))
 	}
 	return out
 }

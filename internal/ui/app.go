@@ -2241,7 +2241,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		cx, cy := a.popupAnchor(t, l)
 		var box []string
 		if a.comp != nil {
-			box = a.comp.render(max(3, l.editH/2))
+			box = drawCompletion(a.comp.overlay(max(3, l.editH/2)))
 		} else {
 			box = a.hoverView(l).render(a.hoverScroll)
 		}
