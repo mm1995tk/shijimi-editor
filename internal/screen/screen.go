@@ -57,10 +57,11 @@ type Pane struct {
 	Title      Title     `json:"title"`
 	Kind       PaneKind  `json:"kind"`
 	Viewport   Viewport  `json:"viewport"`
-	Lines      []Line    `json:"lines,omitempty"` // 見えている行だけ
-	Cursors    []Pos     `json:"cursors,omitempty"`
-	Selections []Range   `json:"selections,omitempty"`
-	Image      *ImageRef `json:"image,omitempty"` // Kind が KindImage のとき。実体は blob.get で取る
+	Lines      []Line    `json:"lines,omitempty"`      // 見えている行だけ
+	CurLine    int       `json:"curLine"`              // カーソルのある行（バッファの行番号）。行の強調と相対行番号の基準。Cursors の描く位置とは別（選択が前向きのとき、描く位置は 1 つ前の文字になる）
+	Cursors    []Pos     `json:"cursors,omitempty"`    // 描くカーソルの位置。先頭が主のカーソルで、残りが複数カーソルの追加分
+	Selections []Range   `json:"selections,omitempty"` // Cursors と同じ並び。選択が無いカーソルは Start == End の空の範囲
+	Image      *ImageRef `json:"image,omitempty"`      // Kind が KindImage のとき。実体は blob.get で取る
 }
 
 // Title はペインのタイトル行。
@@ -105,7 +106,8 @@ type Line struct {
 	Spans  []Span       `json:"spans"`
 	Marks  []Mark       `json:"marks,omitempty"` // 行番号の横の印
 	Diag   []Diagnostic `json:"diag,omitempty"`
-	Guides []int        `json:"guides,omitempty"` // インデントガイドの桁
+	Guides []int        `json:"guides,omitempty"` // インデントガイドを引く桁（表示上の桁、小さい順）。文字の上でも、空行の行末より右でも引く
+	Indent int          `json:"indent,omitempty"` // ガイドが及ぶ幅（桁）。空行は前後の行の深いほうから決まる。ガイドを引かないときは 0
 }
 
 // Span は同じスタイルで描く文字列の区間。
@@ -146,6 +148,7 @@ type Diagnostic struct {
 	End      int      `json:"end"`
 	Severity Severity `json:"severity"`
 	Message  string   `json:"message"`
+	Cont     bool     `json:"cont,omitempty"` // 前の行から続く診断。下線だけ引き、行末の文言と行番号の横の印には使わない
 }
 
 // Status は状態行。

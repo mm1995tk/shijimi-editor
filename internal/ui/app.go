@@ -2346,9 +2346,11 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 			c = a.cursorCell(t.buf, anchor, r.Cur)
 		}
 		o.extraCursors = append(o.extraCursors, c)
+		sel := [2]buffer.Pos{c, c}
 		if r.HasAnchor && r.Anchor != r.Cur {
-			o.extraSels = append(o.extraSels, [2]buffer.Pos{r.Start(), r.End()})
+			sel = [2]buffer.Pos{r.Start(), r.End()}
 		}
+		o.extraSels = append(o.extraSels, sel)
 	}
 	return o
 }
