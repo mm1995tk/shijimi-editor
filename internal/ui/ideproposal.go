@@ -26,7 +26,7 @@ type proposal struct {
 	newText          string
 	lines            []propLine
 	scroll           int
-	reply            chan ideReply
+	reply            chan<- IDEReply
 }
 
 type propLine struct {
@@ -34,7 +34,7 @@ type propLine struct {
 	text string
 }
 
-func newProposal(name, oldPath, newPath, oldText, newText string, reply chan ideReply) *proposal {
+func newProposal(name, oldPath, newPath, oldText, newText string, reply chan<- IDEReply) *proposal {
 	return &proposal{
 		name: name, oldPath: oldPath, newPath: newPath, newText: newText,
 		lines: unifiedDiff(oldText, newText), reply: reply,
@@ -93,11 +93,11 @@ func unifiedDiff(oldText, newText string) []propLine {
 func (a *App) resolveProposal(p *proposal, accept bool) {
 	if accept {
 		a.info(i18n.T("idep.accepted"), a.rel(p.newPath))
-		p.reply <- ideReply{content: []ide.Content{ide.Text("FILE_SAVED"), ide.Text(p.newText)}}
+		p.reply <- IDEReply{Content: []ide.Content{ide.Text("FILE_SAVED"), ide.Text(p.newText)}}
 		a.treeTicks = treeRefreshTicks - 2 // the client writes the file after this reply
 	} else {
 		a.info(i18n.T("idep.rejected"), a.rel(p.newPath))
-		p.reply <- ideReply{content: []ide.Content{ide.Text("DIFF_REJECTED"), ide.Text(p.name)}}
+		p.reply <- IDEReply{Content: []ide.Content{ide.Text("DIFF_REJECTED"), ide.Text(p.name)}}
 	}
 	a.props = slices.DeleteFunc(a.props, func(q *proposal) bool { return q == p })
 }
@@ -108,12 +108,12 @@ func (a *App) resolveProposal(p *proposal, accept bool) {
 // nothing, so the status bar must not say so.
 func (a *App) closeProposal(p *proposal) {
 	a.info(i18n.T("idep.decided"), a.rel(p.newPath))
-	p.reply <- ideReply{content: []ide.Content{ide.Text("DIFF_REJECTED"), ide.Text(p.name)}}
+	p.reply <- IDEReply{Content: []ide.Content{ide.Text("DIFF_REJECTED"), ide.Text(p.name)}}
 	a.props = slices.DeleteFunc(a.props, func(q *proposal) bool { return q == p })
 }
 
 // cancelProposal drops the proposal whose client disconnected.
-func (a *App) cancelProposal(reply chan ideReply) {
+func (a *App) cancelProposal(reply chan<- IDEReply) {
 	a.props = slices.DeleteFunc(a.props, func(q *proposal) bool { return q.reply == reply })
 }
 

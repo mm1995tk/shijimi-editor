@@ -17,34 +17,18 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
-// ideReply is the result of an IDE tool call.
-type ideReply struct {
-	content []ide.Content
-	err     error
-}
-
-// ideMsg carries an IDE tool call from the MCP server into the Bubble Tea
-// loop. Most calls are answered at once; openDiff is answered when the user
-// decides.
-type ideMsg struct {
-	tool  string
-	args  json.RawMessage
-	reply chan ideReply
-}
-
-// ideCancelMsg withdraws a pending call whose client went away.
-type ideCancelMsg struct{ reply chan ideReply }
-
-// IDEHandler adapts the MCP server to a running program.
+// IDEHandler adapts the MCP server to a running program: each call is delivered
+// to Update as an IDECall and the reply is awaited. Most calls are answered at
+// once; openDiff is answered when the user decides.
 func IDEHandler(p *tea.Program) ide.Handler {
 	return func(ctx context.Context, tool string, args json.RawMessage) ([]ide.Content, error) {
-		reply := make(chan ideReply, 1)
-		p.Send(ideMsg{tool: tool, args: args, reply: reply})
+		reply := make(chan IDEReply, 1)
+		p.Send(IDECall{Tool: tool, Args: args, Reply: reply})
 		select {
 		case r := <-reply:
-			return r.content, r.err
+			return r.Content, r.Err
 		case <-ctx.Done():
-			p.Send(ideCancelMsg{reply})
+			p.Send(IDECancel{Reply: reply})
 			return nil, ctx.Err()
 		}
 	}
@@ -217,21 +201,25 @@ func (a *App) tabFor(path string) *tab {
 
 var lspSeverity = map[int]string{1: "Error", 2: "Warning", 3: "Information", 4: "Hint"}
 
-func (a *App) handleIDE(m ideMsg) tea.Cmd {
+// handleIDE runs an IDE tool call. An answer that is ready goes out as a
+// ReplyIDE Effect; openDiff keeps the channel in its proposal and answers when
+// the user decides.
+func (a *App) handleIDE(m IDECall) []Effect {
 	res, cmd, pending := a.ideCall(m)
+	var effs []Effect
 	if !pending {
-		m.reply <- res
+		effs = append(effs, ReplyIDE{To: m.Reply, Reply: res})
 	}
-	return cmd
+	return append(effs, cmdEffects(cmd)...)
 }
 
 // ideCall runs a tool. pending is true when the reply is deferred.
-func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
-	ok := func(v any) (ideReply, tea.Cmd, bool) {
-		return ideReply{content: []ide.Content{ide.JSON(v)}}, nil, false
+func (a *App) ideCall(m IDECall) (res IDEReply, cmd tea.Cmd, pending bool) {
+	ok := func(v any) (IDEReply, tea.Cmd, bool) {
+		return IDEReply{Content: []ide.Content{ide.JSON(v)}}, nil, false
 	}
-	fail := func(format string, args ...any) (ideReply, tea.Cmd, bool) {
-		return ideReply{err: fmt.Errorf(format, args...)}, nil, false
+	fail := func(format string, args ...any) (IDEReply, tea.Cmd, bool) {
+		return IDEReply{Err: fmt.Errorf(format, args...)}, nil, false
 	}
 	var args struct {
 		URI       string `json:"uri"`
@@ -243,18 +231,18 @@ func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
 		NewText   string `json:"new_file_contents"`
 		TabName   string `json:"tab_name"`
 	}
-	if len(m.args) > 0 {
-		if err := json.Unmarshal(m.args, &args); err != nil {
+	if len(m.Args) > 0 {
+		if err := json.Unmarshal(m.Args, &args); err != nil {
 			return fail(i18n.T("ide.badargs"), err)
 		}
 	}
-	switch m.tool {
+	switch m.Tool {
 	case "getCurrentSelection", "getLatestSelection":
 		if sel, found := a.currentSelection(); found {
 			return ok(map[string]any{"success": true, "text": sel.Text, "filePath": sel.FilePath,
 				"fileUrl": sel.FileURL, "selection": sel.Selection})
 		}
-		if m.tool == "getLatestSelection" && a.lastSel != nil {
+		if m.Tool == "getLatestSelection" && a.lastSel != nil {
 			return ok(map[string]any{"success": true, "text": a.lastSel.Text, "filePath": a.lastSel.FilePath,
 				"fileUrl": a.lastSel.FileURL, "selection": a.lastSel.Selection})
 		}
@@ -321,7 +309,7 @@ func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
 		if t := a.curText(); t != nil && args.StartText != "" {
 			selectText(t.buf, args.StartText, args.EndText)
 		}
-		return ideReply{content: []ide.Content{ide.Text("Opened file: " + p)}}, nil, false
+		return IDEReply{Content: []ide.Content{ide.Text("Opened file: " + p)}}, nil, false
 	case "checkDocumentDirty":
 		p := a.ideAbs(args.FilePath)
 		t := a.tabFor(p)
@@ -341,33 +329,33 @@ func (a *App) ideCall(m ideMsg) (res ideReply, cmd tea.Cmd, pending bool) {
 				return fail(i18n.T("ide.cantsave"), a.msg)
 			}
 		}
-		return ideReply{content: []ide.Content{ide.JSON(map[string]any{"success": true, "filePath": p, "saved": true})}}, cmd, false
+		return IDEReply{Content: []ide.Content{ide.JSON(map[string]any{"success": true, "filePath": p, "saved": true})}}, cmd, false
 	case "openDiff":
 		if args.NewPath == "" || args.OldPath == "" {
 			return fail("%s", i18n.T("ide.needpaths"))
 		}
 		oldPath, newPath := a.ideAbs(args.OldPath), a.ideAbs(args.NewPath)
 		old, _ := os.ReadFile(oldPath)
-		a.props = append(a.props, newProposal(args.TabName, oldPath, newPath, string(old), args.NewText, m.reply))
-		return ideReply{}, nil, true
+		a.props = append(a.props, newProposal(args.TabName, oldPath, newPath, string(old), args.NewText, m.Reply))
+		return IDEReply{}, nil, true
 	case "closeAllDiffTabs":
 		n := len(a.props)
 		for _, p := range slices.Clone(a.props) {
 			a.closeProposal(p)
 		}
-		return ideReply{content: []ide.Content{ide.Text(fmt.Sprintf("CLOSED_%d_DIFF_TABS", n))}}, nil, false
+		return IDEReply{Content: []ide.Content{ide.Text(fmt.Sprintf("CLOSED_%d_DIFF_TABS", n))}}, nil, false
 	case "close_tab":
 		for _, p := range slices.Clone(a.props) {
 			if p.name == args.TabName {
 				a.closeProposal(p)
-				return ideReply{content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
+				return IDEReply{Content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
 			}
 		}
 		// Claude Code calls close_tab to clean up after a decision, when the
 		// diff is already gone.
-		return ideReply{content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
+		return IDEReply{Content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
 	}
-	return fail(i18n.T("ide.unknowntool"), m.tool)
+	return fail(i18n.T("ide.unknowntool"), m.Tool)
 }
 
 // selectText selects from the first line containing start up to the end of

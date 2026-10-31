@@ -40,6 +40,8 @@ func (a *App) effectCmd(effs ...Effect) tea.Cmd {
 			cmds = append(cmds, func() tea.Msg { return lspEventMsg(<-from) })
 		case ReplyCtl:
 			e.To <- e.Resp
+		case ReplyIDE:
+			e.To <- e.Reply
 		case Quit:
 			// From here on the View keeps asking the terminal for the same
 			// keyboard enhancements (see exit).
@@ -65,6 +67,11 @@ func (a *App) handleEvent(ev Event) []Effect {
 		return a.hoverDwell(ev)
 	case CtlRequest:
 		return a.handleCtl(ev)
+	case IDECall:
+		return a.handleIDE(ev)
+	case IDECancel:
+		a.cancelProposal(ev.Reply)
+		return nil
 	case lspEventMsg:
 		// Ask for the next one first, so none waits while this is handled.
 		return append([]Effect{WaitLSP{a.lsp.events}}, cmdEffects(a.handleLSPEvent(lsp.Event(ev)))...)

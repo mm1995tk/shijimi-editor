@@ -903,13 +903,6 @@ func (a *App) pasteText() string {
 // ---- update ----
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch m := msg.(type) {
-	case ideMsg:
-		return a, a.handleIDE(m)
-	case ideCancelMsg:
-		a.cancelProposal(m.reply)
-		return a, nil
-	}
 	cmd := a.update(msg)
 	a.keepTransients()
 	a.normalizeSplit()

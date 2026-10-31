@@ -2,9 +2,11 @@ package ui
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -13,10 +15,10 @@ import (
 // answers with Effects. Nothing here depends on bubbletea, so a front end that
 // is not a terminal can feed the same Events.
 //
-// The timers (P6), the language servers (P7a) and the control socket
-// (P7d) go through this so far (docs/design/gui-protocol.md). The other
-// asynchronous pieces (search, agent, IDE) still use tea.Cmd and move over
-// one subsystem at a time (P7b, P7c, P7e).
+// The timers (P6), the language servers (P7a), the control socket (P7d) and
+// the IDE connection (P7e) go through this so far
+// (docs/design/gui-protocol.md). The other asynchronous pieces (search, agent)
+// still use tea.Cmd and move over one subsystem at a time (P7b, P7c).
 type Event interface{ isEvent() }
 
 // WatchTick fires every watchInterval: open files are compared with the disk,
@@ -105,11 +107,40 @@ type ReplyCtl struct {
 	Resp ctl.Response
 }
 
+// IDECall is a tool call from Claude Code over the IDE connection. The caller
+// waits for the answer, which the core hands back as a ReplyIDE Effect. Most
+// calls are answered at once; openDiff is answered when the user decides.
+type IDECall struct {
+	Tool  string
+	Args  json.RawMessage
+	Reply chan<- IDEReply
+}
+
+// IDECancel withdraws a pending IDECall whose client went away.
+type IDECancel struct{ Reply chan<- IDEReply }
+
+func (IDECall) isEvent()   {}
+func (IDECancel) isEvent() {}
+
+// IDEReply is the result of an IDE tool call.
+type IDEReply struct {
+	Content []ide.Content
+	Err     error
+}
+
+// ReplyIDE hands the answer to an IDECall back to the IDE connection. The
+// channel is buffered, so carrying it out never blocks.
+type ReplyIDE struct {
+	To    chan<- IDEReply
+	Reply IDEReply
+}
+
 // Quit says the program may end.
 type Quit struct{}
 
 func (StartTimer) isEffect() {}
 func (Quit) isEffect()       {}
 func (ReplyCtl) isEffect()   {}
+func (ReplyIDE) isEffect()   {}
 func (RunLSP) isEffect()     {}
 func (WaitLSP) isEffect()    {}
