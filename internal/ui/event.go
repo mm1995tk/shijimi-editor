@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -12,10 +13,10 @@ import (
 // answers with Effects. Nothing here depends on bubbletea, so a front end that
 // is not a terminal can feed the same Events.
 //
-// The timers (P6) and the language servers (P7a) go through this so far
-// (docs/design/gui-protocol.md). The other asynchronous pieces (search, agent,
-// ctl, IDE) still use tea.Cmd and move over one subsystem at a time (P7b to
-// P7e).
+// The timers (P6), the language servers (P7a) and the control socket
+// (P7d) go through this so far (docs/design/gui-protocol.md). The other
+// asynchronous pieces (search, agent, IDE) still use tea.Cmd and move over
+// one subsystem at a time (P7b, P7c, P7e).
 type Event interface{ isEvent() }
 
 // WatchTick fires every watchInterval: open files are compared with the disk,
@@ -36,6 +37,15 @@ type HoldScrollTick struct{ seq int }
 // HoverDwell fires hoverDelay after the pointer entered a cell. seq tells it
 // from a stale one.
 type HoverDwell struct{ seq int }
+
+// CtlRequest is a request that came in on the control socket. The caller waits
+// for the answer, which the core hands back as a ReplyCtl Effect.
+type CtlRequest struct {
+	Req   ctl.Request
+	Reply chan<- ctl.Response
+}
+
+func (CtlRequest) isEvent() {}
 
 func (WatchTick) isEvent()      {}
 func (AutoSaveDue) isEvent()    {}
@@ -88,10 +98,18 @@ type RunLSP struct {
 // delivered as an Event. It is asked again after each one.
 type WaitLSP struct{ From <-chan lsp.Event }
 
+// ReplyCtl hands the answer to a CtlRequest back to the control socket. The
+// channel is buffered, so carrying it out never blocks.
+type ReplyCtl struct {
+	To   chan<- ctl.Response
+	Resp ctl.Response
+}
+
 // Quit says the program may end.
 type Quit struct{}
 
 func (StartTimer) isEffect() {}
 func (Quit) isEffect()       {}
+func (ReplyCtl) isEffect()   {}
 func (RunLSP) isEffect()     {}
 func (WaitLSP) isEffect()    {}
