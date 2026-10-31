@@ -262,6 +262,7 @@ func TestSearchPanelDebounce(t *testing.T) {
 }
 
 func (a *App) renderPanelForTest() []string {
+	a.fit()
 	_, _, box := a.renderSearch()
 	return box
 }
@@ -335,6 +336,7 @@ func TestSearchPanelLayout(t *testing.T) {
 	a := newTestApp(t, "foo\n")
 	a.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
 	drive(a, a.openSearch(fQuery))
+	a.fit()
 	x, y, box := a.renderSearch()
 	if x != 1 || y != 1 || len(box) != a.h-2 {
 		t.Fatalf("window must leave a 1-cell margin: x=%d y=%d rows=%d (h=%d)", x, y, len(box), a.h)
@@ -360,6 +362,7 @@ func TestSearchFieldKeepsCursorCell(t *testing.T) {
 	for _, n := range []int{20, 21, 22, 23, 30} {
 		a.search.in[fQuery].SetValue(strings.Repeat("a", n))
 		a.search.in[fQuery].CursorEnd()
+		a.fit()
 		_, _, box := a.renderSearch()
 		got := ansi.Strip(box[2])
 		// text, then the cursor cell, then the padding column before the border
@@ -371,6 +374,7 @@ func TestSearchFieldKeepsCursorCell(t *testing.T) {
 		}
 	}
 	a.search.in[fQuery].SetValue("")
+	a.fit()
 	_, _, box := a.renderSearch()
 	if strings.Contains(strings.Join(box, ""), "\x00") {
 		t.Fatal("NUL in output")
