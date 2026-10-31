@@ -212,7 +212,7 @@ func (a *App) resizeHit(l layout, x, y int) resizeTarget {
 	switch {
 	case a.showSide && x == l.sideW && y >= l.top && y < l.top+l.bodyH:
 		return resizeSide
-	case a.showTerm && y == l.panelY && x >= l.rightX:
+	case a.showTerm && y == l.panelY && x >= l.fullX:
 		return resizeTerm
 	case a.showSide && a.gd.on && x < l.sideW && y == l.top+a.explorerH():
 		return resizeExplorer

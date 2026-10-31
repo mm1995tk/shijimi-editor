@@ -58,7 +58,7 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 			return 0, 0, false
 		}
 		// The panel's first two rows are its border and tab bar.
-		x, y = l.rightX+sn.CursorX, l.panelY+2+sn.CursorY
+		x, y = l.fullX+sn.CursorX, l.panelY+2+sn.CursorY
 		return x, y, x < a.w && y < l.statusY
 	case a.focus == focusEditor:
 		t := a.curText()

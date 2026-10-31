@@ -111,6 +111,7 @@ Press `Space`, then one of the following keys.
 | --- | --- |
 | `Space f` | Open a file (Quick Open) |
 | `Space b` | List of open buffers |
+| `Space w` | Window menu: `v` split the editor in two, `h` `l` `w` move the focus, `q` `o` close the split |
 | `Space e` | Move to the file tree |
 | `Space E` | Move to CHANGES (in diff mode; outside diff mode, move to the file tree) |
 | `Space k` | Hover |

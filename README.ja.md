@@ -235,6 +235,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | --- | --- |
 | `Space f` | ファイルを開く |
 | `Space b` | 開いているバッファ |
+| `Space w` | ウィンドウ（分割）メニュー: `v` エディタを左右 2 つに分ける、`h` `l` `w` フォーカスを移す、`q` `o` 分割を閉じる |
 | `Space e` | ファイルツリーへ移動 |
 | `Space k` | ホバー。表示中は `Ctrl+D` / `Ctrl+U`（`PgDn` / `PgUp`・ホイール）でスクロール、`y` または枠の右上の `[コピー]` クリックで markdown の原文をコピー |
 | `Space o` | カーソル位置の URL を外部ブラウザで開く（Linux: `xdg-open` / macOS: `open`） |
@@ -272,6 +273,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 | `Ctrl+S` | 保存 |
 | `Ctrl+W` | 今のファイルを閉じる（開いたファイルの一覧から外す） |
 | `Ctrl+Tab` | 直前に開いていたファイルと今のファイルを行き来。kitty keyboard protocol に対応した端末が必要で、そうでない端末では Helix モードの `ga` か `Space b` を使います |
+| `Ctrl+\` | エディタを左右 2 つの欄に分割する / 分割を閉じる（`Ctrl+1` / `Ctrl+2` でフォーカスを移す）。Helix モードでは `Space w v`、`Space w h` `l` `w`、`Space w q` `o`。`:vsplit` と `:only` でも。欄ごとにタイトル行が出て、`Space b`、`ga` / `Ctrl+Tab`、`Ctrl+O` / `Ctrl+I` はフォーカス中の欄に働く。最大 2 つの欄を左右に並べるだけで、同じファイルを両方には出さない。差分モードでは使えない（1 つの欄になる） |
 | `Ctrl+Q` | 終了 |
 
 ### ファイルツリー

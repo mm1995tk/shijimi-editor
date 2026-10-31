@@ -141,12 +141,18 @@ type App struct {
 	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
 	lineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
 
-	single   bool // 単体編集モード: 1 つのファイルだけを開き、閉じたら終了する
-	prevTab  *tab // the file shown before the current one (ga / Ctrl+Tab)
-	seenTab  *tab // the file shown when the last event was handled
-	commands []command
-	mermaid  map[string]*previewJob
-	mdImages map[string]*previewJob // images in the Markdown preview, by file path
+	single  bool // 単体編集モード: 1 つのファイルだけを開き、閉じたら終了する
+	prevTab *tab // the file shown before the current one (ga / Ctrl+Tab)
+	// side by side editor panes (see window.go): the focused pane shows cur(), the
+	// other one shows other, and pane is the side (0 = left) the focused one is on
+	split     bool
+	pane      int
+	other     *tab
+	otherPrev *tab // prevTab of the other pane
+	seenTab   *tab // the file shown when the last event was handled
+	commands  []command
+	mermaid   map[string]*previewJob
+	mdImages  map[string]*previewJob // images in the Markdown preview, by file path
 	// previewGen counts finished jobs, so the preview is drawn again when one
 	// finishes
 	previewGen int
@@ -260,7 +266,7 @@ func (a *App) typing() bool {
 func singleBlocked(key string, typing bool) bool {
 	switch key {
 	case "ctrl+p", "f1", "ctrl+b", "ctrl+`", "ctrl+j", "ctrl+g", "ctrl+e", "ctrl+n",
-		"ctrl+tab", "alt+a", "alt+i", "alt+r":
+		"ctrl+tab", "ctrl+\\", "ctrl+1", "ctrl+2", "alt+a", "alt+i", "alt+r":
 		return true
 	case "ctrl+k":
 		return true
@@ -274,7 +280,7 @@ func singleBlocked(key string, typing bool) bool {
 // single-file mode.
 func singleBlockedCommand(name string) bool {
 	switch name {
-	case "o", "open", "e", "edit", "n", "new", "sh", "run", "!", "gitdiff", "gd", "review",
+	case "o", "open", "e", "edit", "n", "new", "vsplit", "vs", "split", "sp", "only", "on", "sh", "run", "!", "gitdiff", "gd", "review",
 		"pr", "grep", "rg", "replace", "rep", "browser", "agent", "tree", "explorer", "lsp-restart":
 		return true
 	}
@@ -316,7 +322,10 @@ func (a *App) Init() tea.Cmd {
 type layout struct {
 	top, bodyH     int // rows between the diff mode header and the help/status lines
 	sideW          int
-	rightX, rightW int
+	rightX, rightW int // the focused editor pane (the whole editor area unless split)
+	fullX, fullW   int // the editor area, which the terminal under it also spans
+	split          bool
+	otherX, otherW int // the other editor pane while split
 	agentX, agentW int // the suggestion panel; agentW is 0 when it is not shown
 	editY, editH   int
 	panelY, panelH int
@@ -339,6 +348,17 @@ func (a *App) layout() layout {
 		l.agentW = a.agentWidth()
 		l.agentX = a.w - l.agentW
 		l.rightW = max(0, l.agentX-1-l.rightX)
+	}
+	l.fullX, l.fullW = l.rightX, l.rightW
+	if a.splitWanted() && l.fullW >= minSplitW {
+		l.split = true
+		first := (l.fullW - 1) / 2
+		second := l.fullW - 1 - first
+		if a.pane == 0 {
+			l.rightW, l.otherX, l.otherW = first, l.fullX+first+1, second
+		} else {
+			l.rightX, l.rightW, l.otherX, l.otherW = l.fullX+first+1, second, l.fullX, first
+		}
 	}
 	l.editY = l.top + 1
 	if a.findOpen {
@@ -686,8 +706,14 @@ func (a *App) closeTab(force bool) tea.Cmd {
 		return nil
 	}
 	a.confirmClose = false
+	keep := a.other
 	a.dropTab(a.active)
-	if a.active >= len(a.tabs) {
+	switch {
+	case a.split && keep != nil:
+		// the pane of the closed file goes, and the other file fills the area
+		a.split, a.pane, a.other, a.otherPrev = false, 0, nil, nil
+		a.active = a.tabIndex(keep)
+	case a.active >= len(a.tabs):
 		a.active = len(a.tabs) - 1
 	}
 	a.comp = nil
@@ -720,10 +746,7 @@ func (a *App) switchLast() {
 		return
 	}
 	a.pushJump()
-	a.active = i
-	a.follow = true
-	a.mode = modeNormal
-	a.comp = nil
+	a.showInPane(i)
 }
 
 // trackLast remembers the file that was current before the active one changed.
@@ -894,6 +917,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cmd := a.update(msg)
 	a.keepTransients()
+	a.normalizeSplit()
 	a.trackLast()
 	a.syncLSP()
 	a.notifySelection()
@@ -1313,6 +1337,12 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+tab":
 		a.switchLast()
 		return nil
+	case "ctrl+\\":
+		return a.toggleEditorSplit()
+	case "ctrl+1":
+		return a.focusPane(0)
+	case "ctrl+2":
+		return a.focusPane(1)
 	case "alt+a":
 		return a.sendContext()
 	case "alt+i":
@@ -1352,6 +1382,10 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		if a.pending == "space v" {
 			a.pending = ""
 			return a.reviewKey(key)
+		}
+		if a.pending == "space w" {
+			a.pending = ""
+			return a.windowKey(key)
 		}
 		switch key {
 		case "q", "esc":
@@ -1472,6 +1506,10 @@ func (a *App) handleExplorerKey(msg tea.KeyPressMsg) tea.Cmd {
 	if a.pending == "space v" {
 		a.pending = ""
 		return a.reviewKey(key)
+	}
+	if a.pending == "space w" {
+		a.pending = ""
+		return a.windowKey(key)
 	}
 	if a.pending == " " {
 		a.pending = ""
@@ -1810,7 +1848,7 @@ func (a *App) termMouse(l layout, msg mouseEvent) (cmd tea.Cmd, ok bool) {
 	if !a.showTerm {
 		return nil, false
 	}
-	x, y := msg.X-l.rightX, msg.Y-l.panelY-2
+	x, y := msg.X-l.fullX, msg.Y-l.panelY-2
 	if t.sel.dragging {
 		switch msg.Action {
 		case mouseMotion:
@@ -1827,7 +1865,7 @@ func (a *App) termMouse(l layout, msg mouseEvent) (cmd tea.Cmd, ok bool) {
 		}
 		return nil, true
 	}
-	inBody := x >= 0 && x < l.rightW && y >= 0 && msg.Y < l.statusY
+	inBody := x >= 0 && x < l.fullW && y >= 0 && msg.Y < l.statusY
 	grabbed := t.grab
 	if !grabbed && !inBody {
 		return nil, false
@@ -1864,6 +1902,11 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		return nil
 	}
 	l := a.layout()
+	// A press or the wheel over the other pane first moves the focus there.
+	if l.inOtherPane(msg.X, msg.Y) && msg.Action == mousePress && (msg.Button == tea.MouseLeft || msg.Button == tea.MouseWheelUp || msg.Button == tea.MouseWheelDown) {
+		a.focusPane(1 - a.pane)
+		l = a.layout()
+	}
 	if a.ag.sel.dragging {
 		if cmd, ok := a.agentDrag(l, msg); ok {
 			return cmd
@@ -1953,7 +1996,7 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 				e.sel = clamp(e.sel, e.scroll, e.scroll+eh-2)
 			}
 		case a.showTerm && y >= l.panelY:
-			a.term.wheel(msg, x-l.rightX, y-l.panelY-2, wheel)
+			a.term.wheel(msg, x-l.fullX, y-l.panelY-2, wheel)
 		default:
 			if t := a.cur(); t != nil {
 				switch t.kind {
@@ -2213,22 +2256,21 @@ func (a *App) render() string {
 	}
 
 	right := make([]string, 0, l.bodyH)
-	right = append(right, a.renderTitle(l.rightW))
-	if a.findOpen {
-		right = append(right, a.renderFind(l.rightW))
-	}
 	editorFocused := a.focus == focusEditor && !a.overlayOpen()
-	t := a.cur()
-	switch {
-	case t == nil:
-		right = append(right, renderWelcome(l.rightW, l.editH, a.helix)...)
-	case t.kind == tabImage:
-		right = append(right, t.img.render(l.rightW, l.editH)...)
-	default:
-		right = append(right, a.renderText(t, l, editorFocused)...)
+	mine := a.renderPane(a.cur(), l, true, editorFocused)
+	if l.split {
+		theirs := a.renderPane(a.other, l.otherLayout(), false, false)
+		if a.pane == 0 {
+			right = append(right, joinPanes(mine, theirs, l.rightW, l.otherW)...)
+		} else {
+			right = append(right, joinPanes(theirs, mine, l.otherW, l.rightW)...)
+		}
+	} else {
+		right = append(right, mine...)
 	}
+	t := a.cur()
 	if a.showTerm {
-		right = append(right, a.term.render(l.rightW, l.panelH, a.focus == focusTerminal && !a.overlayOpen())...)
+		right = append(right, a.term.render(l.fullW, l.panelH, a.focus == focusTerminal && !a.overlayOpen())...)
 	}
 
 	rows := make([]string, l.bodyH)
@@ -2258,11 +2300,11 @@ func (a *App) render() string {
 		}
 		if agent != nil {
 			if i < len(right) {
-				if rw := ansi.StringWidth(right[i]); rw < l.rightW {
-					sb.WriteString(stEmpty.Render(strings.Repeat(" ", l.rightW-rw)))
+				if rw := ansi.StringWidth(right[i]); rw < l.fullW {
+					sb.WriteString(stEmpty.Render(strings.Repeat(" ", l.fullW-rw)))
 				}
 			} else {
-				sb.WriteString(stEmpty.Render(strings.Repeat(" ", l.rightW)))
+				sb.WriteString(stEmpty.Render(strings.Repeat(" ", l.fullW)))
 			}
 			sb.WriteString(stSeparator.Render("│"))
 			sb.WriteString(agent[i])
@@ -2310,6 +2352,9 @@ func (a *App) render() string {
 	}
 	if a.pending == "space v" && !a.pal.open && !a.cmdOpen {
 		rows = a.renderMenu(rows, l, i18n.T("app.reviewhint"), reviewItems)
+	}
+	if a.pending == "space w" && !a.pal.open && !a.cmdOpen {
+		rows = a.renderMenu(rows, l, i18n.T("win.hint"), windowItems)
 	}
 
 	if a.pal.open {
@@ -2384,8 +2429,7 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 
 // renderTitle is the line above the editor: the path of the file being
 // edited (● when it is unsaved). Open files are listed with "Space b".
-func (a *App) renderTitle(w int) string {
-	t := a.cur()
+func (a *App) renderTitle(t *tab, w int, focused bool) string {
 	if t == nil {
 		return stTabBar.Render(strings.Repeat(" ", w))
 	}
@@ -2397,7 +2441,11 @@ func (a *App) renderTitle(w int) string {
 	if t.dirty() {
 		mark = " ●"
 	}
-	s := stTabActive.Render(" " + name + mark + " ")
+	st := stTabActive
+	if !focused {
+		st = stTabInactive // the pane without the focus
+	}
+	s := st.Render(" " + name + mark + " ")
 	if n := ansi.StringWidth(s); n < w {
 		s += stTabBar.Render(strings.Repeat(" ", w-n))
 	}
