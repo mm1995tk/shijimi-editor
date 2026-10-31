@@ -88,11 +88,9 @@ var failLine = regexp.MustCompile(`^\s*(--- FAIL|FAIL\b|FAILED\b|test result: FA
 
 // ---- gathering ----
 
-type repoProbedMsg struct{ probe repoProbe }
-
 // probeRepo looks at the repository in the background. Pull requests are
 // asked for only when the branch or HEAD moved, or every prProbeTicks.
-func (a *App) probeRepo() tea.Cmd {
+func (a *App) probeRepo() []Effect {
 	if a.gitTop == "" || a.sg.probing {
 		return nil
 	}
@@ -103,7 +101,7 @@ func (a *App) probeRepo() tea.Cmd {
 	if askPR {
 		a.sg.prTicks = 0
 	}
-	return func() tea.Msg { return repoProbedMsg{probeRepoState(root, prev, askPR)} }
+	return []Effect{RunProbe{Run: func() Event { return RepoProbed{probeRepoState(root, prev, askPR)} }}}
 }
 
 func probeRepoState(root string, prev repoProbe, askPR bool) repoProbe {
@@ -162,7 +160,7 @@ func defaultBranch(root string) string {
 	return ""
 }
 
-func (a *App) handleRepoProbed(m repoProbedMsg) {
+func (a *App) handleRepoProbed(m RepoProbed) {
 	a.sg.probing = false
 	a.sg.repo = m.probe
 	a.pruneDismissed()
@@ -176,7 +174,7 @@ func (a *App) suggestTick() tea.Cmd {
 	a.sg.ticks++
 	a.sg.prTicks++
 	if a.sg.ticks >= probeTicks {
-		return a.probeRepo()
+		return a.effectCmd(a.probeRepo()...)
 	}
 	return nil
 }
@@ -353,17 +351,17 @@ func (a *App) runSuggestion() tea.Cmd {
 		return a.openDiff(basePR)
 	case sgConflict:
 		files := a.sg.repo.conflicts
-		return a.runAgent(s.kind, s.key, s.title, func() string { return conflictPrompt(files) })
+		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return conflictPrompt(files) })...)
 	case sgCreatePR:
 		branch, base := a.sg.repo.branch, a.sg.repo.base
-		return a.runAgent(s.kind, s.key, s.title, func() string { return createPRPrompt(branch, base) })
+		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return createPRPrompt(branch, base) })...)
 	case sgLSPErrors:
 		text := a.errorsText()
-		return a.runAgent(s.kind, s.key, s.title, func() string { return lspPrompt(text) })
+		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return lspPrompt(text) })...)
 	case sgFailure:
 		for _, f := range a.sg.fails {
 			if fmt.Sprintf("fail:%d", f.seq) == s.key {
-				cmd := a.runAgent(s.kind, s.key, s.title, func() string { return failurePrompt(f) })
+				cmd := a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return failurePrompt(f) })...)
 				if a.ag.run != nil {
 					a.clearFailure(f.tab)
 				}
@@ -371,20 +369,20 @@ func (a *App) runSuggestion() tea.Cmd {
 			}
 		}
 	case sgApplyFix:
-		cmd := a.runAgent(s.kind, s.key, s.title, func() string { return applyFixPrompt() })
+		cmd := a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return applyFixPrompt() })...)
 		if a.ag.run != nil {
 			a.sg.fixOffer = false
 		}
 		return cmd
 	case sgAIReview:
 		pr, root, rev := a.gd.pr, a.root, a.gd.rev
-		return a.runAgent(s.kind, s.key, s.title, func() string {
+		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string {
 			out, err := run(root, nil, "git", "diff", rev, "--no-color", "--no-ext-diff", "-M")
 			if err != nil {
 				out = []byte(fmt.Sprintf(i18n.T("sg.diffunavailable"), err.Error()))
 			}
 			return reviewPrompt(pr, string(out))
-		})
+		})...)
 	}
 	return nil
 }

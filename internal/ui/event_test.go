@@ -85,3 +85,21 @@ func TestStaleSignatureReplyIsDropped(t *testing.T) {
 		t.Fatal("current reply was dropped")
 	}
 }
+
+// An agent Event is handled and the next one is asked for in the same answer;
+// one from a client that was dropped (older gen) changes nothing.
+func TestAgentEventAsksForTheNext(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	a.ag.gen = 2
+	a.ag.armed = true
+	effs := a.handleEvent(agentUpdateMsg{gen: 1})
+	if len(a.ag.log) != 0 {
+		t.Fatalf("stale update was logged: %+v", a.ag.log)
+	}
+	if len(effs) != 1 {
+		t.Fatalf("want one WaitAgent, got %#v", effs)
+	}
+	if w, ok := effs[0].(WaitAgent); !ok || w.From != a.ag.ch {
+		t.Fatalf("want WaitAgent on the agent channel, got %#v", effs[0])
+	}
+}

@@ -16,9 +16,8 @@ import (
 // is not a terminal can feed the same Events.
 //
 // The timers (P6), the language servers (P7a), the control socket (P7d) and
-// the IDE connection (P7e) and the project search (P7b) go through this so far
-// (docs/design/gui-protocol.md). The agent still uses tea.Cmd and moves over
-// in P7c.
+// the IDE connection (P7e), the project search (P7b) and the agent (P7c) go
+// through this (docs/design/gui-protocol.md).
 type Event interface{ isEvent() }
 
 // WatchTick fires every watchInterval: open files are compared with the disk,
@@ -163,3 +162,38 @@ func (ReplyIDE) isEffect()   {}
 func (RunLSP) isEffect()     {}
 func (WaitLSP) isEffect()    {}
 func (RunSearch) isEffect()  {}
+
+// The agent's side (P7c). Its goroutines put these on agentState.ch, in the
+// order they happened, and WaitAgent delivers them one at a time. Each one
+// carries the generation of the client it came from (agentState.gen), so that
+// a late one from a client that was dropped is ignored.
+func (agentReadyMsg) isEvent()      {}
+func (agentUpdateMsg) isEvent()     {}
+func (agentFileMsg) isEvent()       {}
+func (agentPermMsg) isEvent()       {}
+func (agentPermCancelMsg) isEvent() {}
+func (agentTurnMsg) isEvent()       {}
+func (agentExitMsg) isEvent()       {}
+
+// WaitAgent asks for the next Event the agent's side produced to be delivered.
+// It is asked again after each one (agentState.armed keeps it to one at a time).
+type WaitAgent struct{ From <-chan Event }
+
+// RunAgent asks for Run to be called off the main loop: starting the agent
+// process and its session, or sending a prompt and waiting for the turn to
+// end. Its results reach the core as Events through the channel WaitAgent reads.
+type RunAgent struct{ Run func() }
+
+func (WaitAgent) isEffect() {}
+func (RunAgent) isEffect()  {}
+
+// RepoProbed carries what the suggestion panel's background look at the
+// repository found (branch, conflicts, pull requests).
+type RepoProbed struct{ probe repoProbe }
+
+// RunProbe asks for Run to be called off the main loop and its Event to be
+// delivered.
+type RunProbe struct{ Run func() Event }
+
+func (RepoProbed) isEvent() {}
+func (RunProbe) isEffect()  {}
