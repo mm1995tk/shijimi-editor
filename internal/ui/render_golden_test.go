@@ -145,3 +145,9 @@ func TestRenderGolden(t *testing.T) {
 		checkGolden(t, "diff", a)
 	})
 }
+
+// render is the frame renderFrame draws, without the cursor.
+func (a *App) render() string {
+	frame, _ := a.renderFrame()
+	return frame
+}
