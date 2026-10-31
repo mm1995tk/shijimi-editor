@@ -11,50 +11,45 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
-// ctlMsg carries a control-socket request into the Bubble Tea loop.
-type ctlMsg struct {
-	req   ctl.Request
-	reply chan ctl.Response
-}
-
 // ControlHandler adapts the control socket to a running program: each request
-// is delivered to Update and the reply is awaited.
+// is delivered to Update as a CtlRequest and the reply is awaited.
 func ControlHandler(p *tea.Program) ctl.Handler {
 	return func(req ctl.Request) ctl.Response {
 		reply := make(chan ctl.Response, 1)
-		p.Send(ctlMsg{req: req, reply: reply})
+		p.Send(CtlRequest{Req: req, Reply: reply})
 		return <-reply
 	}
 }
 
-func (a *App) handleCtl(m ctlMsg) tea.Cmd {
+// handleCtl runs a control-socket request. The answer goes out as a ReplyCtl
+// Effect, followed by whatever the command itself asked for.
+func (a *App) handleCtl(m CtlRequest) []Effect {
 	var cmd tea.Cmd
 	var resp ctl.Response
-	switch m.req.Cmd {
+	switch m.Req.Cmd {
 	case "diff":
 		cmd = a.diffWithHead()
 		resp = ctl.Response{OK: true}
-		if m.req.Path != "" {
-			if !a.openFile(m.req.Path) {
-				resp = ctl.Response{Error: i18n.T("ctl.cantopen") + m.req.Path}
+		if m.Req.Path != "" {
+			if !a.openFile(m.Req.Path) {
+				resp = ctl.Response{Error: i18n.T("ctl.cantopen") + m.Req.Path}
 				break
 			}
 			cmd = tea.Batch(cmd, a.setFocus(focusEditor))
 		}
 	case "exec":
-		resp, cmd = a.ctlExec(m.req.Line)
+		resp, cmd = a.ctlExec(m.Req.Line)
 	case "command-end":
-		if code, err := strconv.Atoi(strings.TrimSpace(m.req.Line)); err != nil {
+		if code, err := strconv.Atoi(strings.TrimSpace(m.Req.Line)); err != nil {
 			resp = ctl.Response{Error: i18n.T("ctl.usage.commandend")}
 		} else {
 			a.commandEnded(code)
 			resp = ctl.Response{OK: true}
 		}
 	default:
-		resp = ctl.Response{Error: i18n.T("ctl.unknowncmd") + m.req.Cmd}
+		resp = ctl.Response{Error: i18n.T("ctl.unknowncmd") + m.Req.Cmd}
 	}
-	m.reply <- resp
-	return cmd
+	return append([]Effect{ReplyCtl{To: m.Reply, Resp: resp}}, cmdEffects(cmd)...)
 }
 
 // reviewToRoot turns a repository-relative review path into one relative to

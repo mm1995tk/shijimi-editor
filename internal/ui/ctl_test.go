@@ -10,7 +10,11 @@ import (
 
 func ctlCall(a *App, r ctl.Request) ctl.Response {
 	ch := make(chan ctl.Response, 1)
-	a.handleCtl(ctlMsg{req: r, reply: ch})
+	for _, e := range a.handleCtl(CtlRequest{Req: r, Reply: ch}) {
+		if rc, ok := e.(ReplyCtl); ok {
+			rc.To <- rc.Resp
+		}
+	}
 	return <-ch
 }
 

@@ -904,8 +904,6 @@ func (a *App) pasteText() string {
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m := msg.(type) {
-	case ctlMsg:
-		return a, a.handleCtl(m)
 	case ideMsg:
 		return a, a.handleIDE(m)
 	case ideCancelMsg:
