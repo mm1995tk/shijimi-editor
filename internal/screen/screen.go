@@ -62,6 +62,39 @@ type Pane struct {
 	Cursors    []Pos     `json:"cursors,omitempty"`    // 描くカーソルの位置。先頭が主のカーソルで、残りが複数カーソルの追加分
 	Selections []Range   `json:"selections,omitempty"` // Cursors と同じ並び。選択が無いカーソルは Start == End の空の範囲
 	Image      *ImageRef `json:"image,omitempty"`      // Kind が KindImage のとき。実体は blob.get で取る
+	Diff       *DiffInfo `json:"diff,omitempty"`       // Kind が KindDiff のとき
+}
+
+// DiffInfo は差分の Pane (Kind が KindDiff) の追加の項目。
+//
+// 差分は、変更の前（SideOld）と後（SideNew）の Pane を左右に 2 つ返す。統合表示のときと、相手が無い
+// （新しいファイル）ときは、前後を行ごとに並べた Pane（SideUnified）を 1 つ返す。
+// どの Pane も、Lines は見えている「表示行」を上から並べたもので、左右の Pane は同じ表示行を同じ
+// 並びで持つ（相手側にだけ行がある表示行は Line.Blank）。統合表示で消えた行は Marks に MarkDeleted を
+// 持ち、No は変更前のファイルの行番号になる。変更後の行は、変更の一部なら MarkAdded か MarkModified
+// を持つ。表示行は変更前と後の両方の行を数えるので、バッファの行番号とは数えが違う。
+type DiffInfo struct {
+	Side  DiffSide `json:"side"`
+	Top   int      `json:"top"`   // Lines[0] の表示行
+	Rows  int      `json:"rows"`  // 表示行の全部の数
+	Hunks []Hunk   `json:"hunks"` // 変更のある表示行の範囲。Start の小さい順で、重ならない
+}
+
+// DiffSide は差分の Pane がどちら側か。
+type DiffSide string
+
+const (
+	SideOld     DiffSide = "old"
+	SideNew     DiffSide = "new"
+	SideUnified DiffSide = "unified"
+)
+
+// Hunk は変更のある表示行の範囲 [Start, End)。Kind は MarkAdded（追加だけ）、MarkDeleted（削除だけ）、
+// MarkModified（両方）のどれか。
+type Hunk struct {
+	Start int      `json:"start"`
+	End   int      `json:"end"`
+	Kind  MarkKind `json:"kind"`
 }
 
 // Title はペインのタイトル行。
@@ -70,6 +103,12 @@ type Title struct {
 	Dirty    bool   `json:"dirty,omitempty"`
 	ReadOnly bool   `json:"readOnly,omitempty"`
 	Peer     string `json:"peer,omitempty"` // 差分の相手など
+
+	// 差分の Pane（変更後の側）のタイトル。
+	Added    int    `json:"added,omitempty"`    // 足した行の数
+	Deleted  int    `json:"deleted,omitempty"`  // 消した行の数
+	Note     string `json:"note,omitempty"`     // レビューの注記
+	NoteWarn bool   `json:"noteWarn,omitempty"` // 注記が警告（PR の先頭と作業ツリーが食い違っている）
 }
 
 // Viewport は見えている範囲。行数と桁数は GUI が送り、スクロールは shj が決める。
@@ -107,9 +146,17 @@ type Line struct {
 	Marks  []Mark       `json:"marks,omitempty"` // 行番号の横の印
 	Diag   []Diagnostic `json:"diag,omitempty"`
 	Guides []int        `json:"guides,omitempty"` // インデントガイドを引く桁（表示上の桁、小さい順）。文字の上でも、空行の行末より右でも引く
+	Blank  bool         `json:"blank,omitempty"`  // 差分で、相手側にだけ行がある表示行の空き。No は -1
+	Words  []Cols       `json:"words,omitempty"`  // 差分で、行の中の変わった部分（rune の位置）
 	Indent int          `json:"indent,omitempty"` // ガイドが及ぶ幅（桁）。空行は前後の行の深いほうから決まる。ガイドを引かないときは 0
 	Band   Style        `json:"band,omitempty"`   // 行の背景の色（ホバーのコードブロック）。空は標準
 	Rule   bool         `json:"rule,omitempty"`   // 水平線（ホバー）。幅いっぱいに引く。Spans は空
+}
+
+// Cols は行の中の rune の範囲 [Start, End)。
+type Cols struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
 }
 
 // Span は同じスタイルで描く文字列の区間。

@@ -37,7 +37,31 @@ type paneOpts struct {
 // a screen column back to a rune is buffer.ColFromVisual).
 func buildTextPane(t *tab, w, h int, o paneOpts) screen.Pane {
 	b := t.buf
+	p := textPaneHead(t, w, h, o)
 	colors := t.hl.Colors(b)
+	unit := guideUnit(b, o)
+	for i := range h {
+		row := b.ScrollRow + i
+		if row >= len(b.Lines) {
+			break
+		}
+		p.Lines = append(p.Lines, textLine(b, colors, row, o, unit))
+	}
+	return p
+}
+
+// guideUnit is the step of the indent guides of b (1 when there are none).
+func guideUnit(b *buffer.Buffer, o paneOpts) int {
+	if o.indentGuides {
+		return indentUnitWidth(b)
+	}
+	return 1
+}
+
+// textPaneHead is buildTextPane without the lines: the title, the viewport and
+// the cursors and selections of the buffer of t.
+func textPaneHead(t *tab, w, h int, o paneOpts) screen.Pane {
+	b := t.buf
 	p := screen.Pane{
 		ID:   t.path(),
 		Kind: screen.KindText,
@@ -72,34 +96,29 @@ func buildTextPane(t *tab, w, h int, o paneOpts) screen.Pane {
 		p.Selections = append(p.Selections, r)
 	}
 
-	unit := 1
-	if o.indentGuides {
-		unit = indentUnitWidth(b)
-	}
-	for i := range h {
-		row := b.ScrollRow + i
-		if row >= len(b.Lines) {
-			break
-		}
-		line := b.Lines[row]
-		var lc []string
-		if colors != nil && row < len(colors) {
-			lc = colors[row]
-		}
-		ln := screen.Line{No: row, Spans: spansOf(line, lc)}
-		ln.Diag = lineDiagnostics(line, row, o.diags)
-		if d, ok := headDiagnostic(ln.Diag); ok {
-			ln.Marks = append(ln.Marks, screen.Mark{Kind: screen.MarkDiag, Style: diagStyle(d.Severity)})
-		}
-		if o.indentGuides {
-			ln.Indent = indentGuideWidth(b, row)
-			for v := 0; v < ln.Indent; v += unit {
-				ln.Guides = append(ln.Guides, v)
-			}
-		}
-		p.Lines = append(p.Lines, ln)
-	}
 	return p
+}
+
+// textLine is the line row of b with its colors (the highlighter's, may be
+// nil), diagnostics and indent guides (unit apart, see guideUnit).
+func textLine(b *buffer.Buffer, colors [][]string, row int, o paneOpts, unit int) screen.Line {
+	line := b.Lines[row]
+	var lc []string
+	if colors != nil && row < len(colors) {
+		lc = colors[row]
+	}
+	ln := screen.Line{No: row, Spans: spansOf(line, lc)}
+	ln.Diag = lineDiagnostics(line, row, o.diags)
+	if d, ok := headDiagnostic(ln.Diag); ok {
+		ln.Marks = append(ln.Marks, screen.Mark{Kind: screen.MarkDiag, Style: diagStyle(d.Severity)})
+	}
+	if o.indentGuides {
+		ln.Indent = indentGuideWidth(b, row)
+		for v := 0; v < ln.Indent; v += unit {
+			ln.Guides = append(ln.Guides, v)
+		}
+	}
+	return ln
 }
 
 func toScreenPos(p buffer.Pos) screen.Pos { return screen.Pos{Line: p.Row, Col: p.Col} }

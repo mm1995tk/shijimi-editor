@@ -5,11 +5,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -154,9 +156,9 @@ func TestOpenNewFileAgainstHeadIsOnePane(t *testing.T) {
 	if g := a.dvGeom(a.layout()); g.leftW != 0 || g.rightX != a.layout().rightX {
 		t.Errorf("new file is split: %+v", g)
 	}
-	for _, k := range dv.barCells(len(dv.rows)) {
-		if k != hunkAdd {
-			t.Errorf("bar cell %v, want hunkAdd", k)
+	for _, k := range barKinds(len(dv.rows), len(dv.rows), dv.hunks) {
+		if k != screen.MarkAdded {
+			t.Errorf("bar cell %v, want added", k)
 		}
 	}
 }
@@ -516,11 +518,11 @@ func TestChangeBarKinds(t *testing.T) {
 		{hunk: hunkNone}, {hunk: hunkAdd}, {hunk: hunkNone}, {hunk: hunkDel},
 		{hunk: hunkMod}, {hunk: hunkNone}, {hunk: hunkAdd}, {hunk: hunkDel},
 	}}
-	if got := dv.barCells(8); got[1] != hunkAdd || got[3] != hunkDel || got[4] != hunkMod || got[0] != hunkNone {
+	if got := barKinds(len(dv.rows), 8, hunksOf(dv.rows)); got[1] != screen.MarkAdded || got[3] != screen.MarkDeleted || got[4] != screen.MarkModified || got[0] != "" {
 		t.Errorf("1:1 = %v", got)
 	}
 	// 2 rows per cell: an add and a delete together count as a rewrite
-	if got := dv.barCells(4); got[0] != hunkAdd || got[1] != hunkDel || got[2] != hunkMod || got[3] != hunkMod {
+	if got := barKinds(len(dv.rows), 4, hunksOf(dv.rows)); got[0] != screen.MarkAdded || got[1] != screen.MarkDeleted || got[2] != screen.MarkModified || got[3] != screen.MarkModified {
 		t.Errorf("2:1 = %v", got)
 	}
 }
@@ -912,5 +914,51 @@ func TestAddedLineKeepsGreenUnderCursor(t *testing.T) {
 	}
 	if !strings.Contains(line, want) {
 		t.Errorf("added line under the cursor lost its background: %q", line)
+	}
+}
+
+func TestDiffPanes(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	tb := a.curText()
+	a.gd.split = true
+	dv := a.diffFor(tb)
+	g := a.dvGeom(a.layout())
+	panes := a.buildDiffPanes(tb, dv, g, a.editorOpts(tb, true).paneOpts)
+	if len(panes) != 2 {
+		t.Fatalf("split diff has %d panes", len(panes))
+	}
+	left, right := panes[0], panes[1]
+	if left.Kind != screen.KindDiff || right.Kind != screen.KindDiff ||
+		left.Diff.Side != screen.SideOld || right.Diff.Side != screen.SideNew {
+		t.Errorf("kinds/sides: %+v %+v", left.Diff, right.Diff)
+	}
+	if len(left.Lines) != len(dv.rows) || len(right.Lines) != len(dv.rows) {
+		t.Fatalf("rows: %d %d, want %d", len(left.Lines), len(right.Lines), len(dv.rows))
+	}
+	// row 1: b is deleted (nothing on the right); row 4: x is added (nothing on the left)
+	if l := left.Lines[1]; l.Blank || l.No != 1 || !isDeletedLine(l) || !right.Lines[1].Blank {
+		t.Errorf("deleted row: left %+v right %+v", l, right.Lines[1])
+	}
+	if r := right.Lines[4]; r.Blank || r.No != 3 || !changedLine(r) || !left.Lines[4].Blank {
+		t.Errorf("added row: left %+v right %+v", left.Lines[4], r)
+	}
+	if l := left.Lines[0]; isDeletedLine(l) || changedLine(right.Lines[0]) {
+		t.Errorf("context row is marked: %+v %+v", l, right.Lines[0])
+	}
+	if want := []screen.Hunk{{1, 2, screen.MarkDeleted}, {4, 5, screen.MarkAdded}}; !reflect.DeepEqual(right.Diff.Hunks, want) {
+		t.Errorf("hunks = %v", right.Diff.Hunks)
+	}
+	if right.Title.Text != "a.txt" || right.Title.Added != 1 || right.Title.Deleted != 1 {
+		t.Errorf("title = %+v", right.Title)
+	}
+
+	a.gd.split = false
+	dv = a.diffFor(tb)
+	panes = a.buildDiffPanes(tb, dv, a.dvGeom(a.layout()), a.editorOpts(tb, true).paneOpts)
+	if len(panes) != 1 || panes[0].Diff.Side != screen.SideUnified {
+		t.Fatalf("unified diff: %+v", panes)
+	}
+	if l := panes[0].Lines[1]; !isDeletedLine(l) || l.No != 1 || l.Spans[0].Text != "b" {
+		t.Errorf("deleted line = %+v", l)
 	}
 }
