@@ -307,7 +307,7 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ## 制限
 
-- ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / ``Ctrl+` `` / `F1` / `Alt+R` のみ）。`Ctrl+J` はシェルへ渡るので、Shift+Enter を LF で送る端末でも Claude Code で改行できます。`F2` で新しいタブ、`Ctrl+PageUp/PageDown` でタブ切替、シェルが終了するとタブが閉じます。マウスのホイールで流れた出力をさかのぼれます。
+- ターミナルパネルは PTY 上のログインシェル（`$SHELL -l`）です。`.zshrc` などが読まれ、`vim` / `top` / `lazygit` も動きます。フォーカス中はほぼ全てのキーがシェルへ渡ります（グローバルは `Ctrl+Q` / ``Ctrl+` `` / `F1` / `Alt+R` のみ）。`Ctrl+J` はシェルへ渡るので、Shift+Enter を LF で送る端末でも Claude Code で改行できます。ターミナルは 1 つだけです（複数ほしいときは herdr や tmux などのマルチプレクサを使います）。シェルが終了するとパネルが閉じ、次に開いたときに新しいシェルが起動します。マウスのホイールで流れた出力をさかのぼれます。
 - 画像と mermaid の図は Kitty graphics protocol で描きます。対応した端末（Kitty / Ghostty / WezTerm など）が必要です。
 
 ## 開発
@@ -417,7 +417,7 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 - 初回は、shijimi のペインの真下（`herdr pane split`）にワークスペースの root でペインを作り、`SHIJIMI_SOCKET` と IDE 連携の環境変数を渡して、焦点を移します。2 回目以降は同じペインを再表示し、終わっていたら新しく作ります。もう一度キーを押すと隠れ（shijimi のペインをズーム）、ペインの中で `shj exec ":sh hide"` を実行しても隠れます。`Ctrl+J` はペインを表示して焦点を移します。戻るには herdr のキー（既定は `Ctrl+B` `k`）を使います。
 - `:sh <コマンド>` はペインでコマンドを実行します。`Space a` / `Alt+A` はペインに文脈を Enter 無しで貼ります（IDE 連携がつながっているときの `at_mentioned` は今のままです）。
 - ペインのシェル（zsh、bash）は、終了コードを `shj command-end <終了コード>` で知らせるので、失敗したコマンドを調べる提案は今までどおり出ます。ペインは `exit` か herdr の `Ctrl+B x` で終わり、shijimi は終了時に自分が作ったペインを閉じます。
-- ペインの画面・スクロール・マウスでのコピー・OSC 52 は herdr のもので、shijimi 自身のキー（`Ctrl+Q`・``Ctrl+` ``・`Alt+R`・`F1`・`F2`・`Ctrl+PgUp` / `Ctrl+PgDn`）はペインの中では効きません。
+- ペインの画面・スクロール・マウスでのコピー・OSC 52 は herdr のもので、shijimi 自身のキー（`Ctrl+Q`・``Ctrl+` ``・`Alt+R`・`F1`）はペインの中では効きません。
 
 ## 説明書とホームページの編集
 

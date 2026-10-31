@@ -9,11 +9,11 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
-// addTermTab adds a terminal tab with no shell behind it.
+// addTermTab sets the terminal shell with no PTY; it has no shell behind it.
 func addTermTab(a *App) *termTab {
 	a.term.nextID++
 	tab := &termTab{id: a.term.nextID, vt: vt.New(vt.Options{Cols: 20, Rows: 5})}
-	a.term.tabs = append(a.term.tabs, tab)
+	a.term.sh = tab
 	return tab
 }
 

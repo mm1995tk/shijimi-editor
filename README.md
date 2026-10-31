@@ -309,7 +309,7 @@ How you open it decides what you compare with (the base). Pressing the same key 
 
 ## Limitations
 
-- The terminal panel is a login shell (`$SHELL -l`) on a PTY. `.zshrc` and the like are read, and `vim` / `top` / `lazygit` work. While it has focus, almost every key goes to the shell (the global ones are only `Ctrl+Q` / ``Ctrl+` `` / `F1` / `Alt+R`). `Ctrl+J` goes to the shell, so you can enter a newline in Claude Code even on a terminal that sends Shift+Enter as LF. `F2` opens a new tab, `Ctrl+PageUp/PageDown` switches tabs, and the tab closes when the shell exits. You can scroll back through the output with the mouse wheel.
+- The terminal panel is a login shell (`$SHELL -l`) on a PTY. `.zshrc` and the like are read, and `vim` / `top` / `lazygit` work. While it has focus, almost every key goes to the shell (the global ones are only `Ctrl+Q` / ``Ctrl+` `` / `F1` / `Alt+R`). `Ctrl+J` goes to the shell, so you can enter a newline in Claude Code even on a terminal that sends Shift+Enter as LF. There is one terminal (for several, use a multiplexer such as herdr or tmux); when the shell exits the panel closes, and the next time it opens a new shell starts. You can scroll back through the output with the mouse wheel.
 - Images and mermaid diagrams are drawn with the Kitty graphics protocol. You need a terminal that supports it (Kitty / Ghostty / WezTerm and others).
 
 ## Development
@@ -419,7 +419,7 @@ When shijimi runs in the [herdr](https://herdr.dev) terminal multiplexer (`HERDR
 - The first time, a pane is created right below shijimi's pane (`herdr pane split`) in the workspace root, with `SHIJIMI_SOCKET` and the IDE integration variables, and gets focus. The next time, the same pane is shown again; when it has ended, a new one is created. Pressing the key again hides it (zooms shijimi's pane), and `shj exec ":sh hide"` in the pane does the same. `Ctrl+J` shows the pane and moves focus there; to come back, use herdr's key (`Ctrl+B` `k` by default).
 - `:sh <command>` runs the command in the pane. `Space a` / `Alt+A` pastes the context into the pane without Enter (`at_mentioned` is unchanged while the IDE integration is connected).
 - The shell of the pane (zsh, bash) reports each exit code with `shj command-end <code>`, so the suggestion to investigate a failed command appears as before. The pane ends with `exit` or herdr's `Ctrl+B x`, and shijimi closes the pane it created when it quits.
-- The screen, scrolling, copying with the mouse and OSC 52 of the pane are herdr's, and shijimi's own keys (`Ctrl+Q`, ``Ctrl+` ``, `Alt+R`, `F1`, `F2`, `Ctrl+PgUp` / `Ctrl+PgDn`) do not work in it.
+- The screen, scrolling, copying with the mouse and OSC 52 of the pane are herdr's, and shijimi's own keys (`Ctrl+Q`, ``Ctrl+` ``, `Alt+R`, `F1`) do not work in it.
 
 ## Editing the manual and the home page
 

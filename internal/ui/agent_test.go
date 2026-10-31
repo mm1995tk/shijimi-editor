@@ -237,8 +237,8 @@ func TestLSPErrorSuggestionCanBeDismissed(t *testing.T) {
 
 func TestTerminalFailuresAreSuggested(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	tab := &termTab{id: 1, n: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
-	a.term.tabs = []*termTab{tab}
+	tab := &termTab{id: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
+	a.term.sh = tab
 	tab.vt.Write([]byte("$ make\r\nboom\r\n\x1b]133;D;2\x07$ "))
 	a.scanTerminals()
 	list := a.suggestions()
@@ -275,7 +275,7 @@ func TestTerminalFailuresAreSuggested(t *testing.T) {
 	// a closed tab takes its failure with it
 	tab.vt.Write([]byte("FAIL\tpkg 0.1s\r\n"))
 	a.scanTerminals()
-	a.term.tabs = nil
+	a.term.sh = nil
 	a.scanTerminals()
 	if len(a.suggestions()) != 0 {
 		t.Fatal("the failure of a closed tab stayed")
@@ -540,8 +540,8 @@ func TestStoppingTheAgentDropsTheFixOffer(t *testing.T) {
 
 func TestADismissedFailureStaysHiddenWhileTheTabFails(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	tab := &termTab{id: 1, n: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
-	a.term.tabs = []*termTab{tab}
+	tab := &termTab{id: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
+	a.term.sh = tab
 	tab.vt.Write([]byte("--- FAIL: TestX\r\n"))
 	a.scanTerminals()
 	a.setFocus(focusAgent)
@@ -564,8 +564,8 @@ func TestADismissedFailureStaysHiddenWhileTheTabFails(t *testing.T) {
 
 func TestFailLinesAfterClearAreRead(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	tab := &termTab{id: 1, n: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
-	a.term.tabs = []*termTab{tab}
+	tab := &termTab{id: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
+	a.term.sh = tab
 	tab.vt.Write([]byte("a\r\nb\r\nc\r\n"))
 	a.scanTerminals()
 	tab.vt.Write([]byte("\x1b[H\x1b[2J--- FAIL: TestY\r\n"))
