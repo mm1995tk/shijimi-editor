@@ -15,6 +15,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // Reviewing a pull request inside diff mode (base PR): comments on lines,
@@ -557,24 +558,65 @@ type prCard struct {
 	at        *screenPt // the marker it hangs from when the mouse opened it
 }
 
-// cardLines draws the thread as markdown at width w (content only).
-func (a *App) cardLines(c *prCard, w int) []string {
+// cardDoc lays the thread out as markdown at width w (content only): for
+// each comment a header line, then its body, with a rule between comments.
+func (a *App) cardDoc(c *prCard, w int) mdDoc {
 	t := c.thread
-	var out []string
-	dim := bgfg(cEditorBg, curTheme.Dim)
-	strong := bgfg(cEditorBg, curTheme.Strong).Bold(true)
+	var doc mdDoc
 	for i, cm := range t.Comments {
 		if i > 0 {
-			out = append(out, dim.Render(strings.Repeat("─", w)))
+			doc.Lines = append(doc.Lines, mdRow(screen.Span{Text: strings.Repeat("─", w), Style: screen.StyleDim}))
 		}
-		head := strong.Render("@"+cm.Author) + dim.Render("  "+relTime(cm.Created))
+		head := []screen.Span{
+			{Text: "@" + cm.Author, Style: screen.StyleStrong, Bold: true},
+			{Text: "  " + relTime(cm.Created), Style: screen.StyleDim},
+		}
 		if i == 0 {
-			head += dim.Render(" · " + threadWhere(t) + threadState(t))
+			head = append(head, screen.Span{Text: " · " + threadWhere(t) + threadState(t), Style: screen.StyleDim})
 		}
-		out = append(out, fitStyled(head, w, dim))
-		out = append(out, a.markdownLines(cm.Body, w, mdOpts{mermaid: a.mermaidLines})...)
+		doc.Lines = append(doc.Lines, mdRow(cutSpans(head, 0, w)...))
+		body := renderMarkdown(cm.Body, w, mdOpts{mermaid: a.mermaidLines})
+		for _, im := range body.Images {
+			im.Row += len(doc.Lines)
+			doc.Images = append(doc.Images, im)
+		}
+		doc.Lines = append(doc.Lines, body.Lines...)
 	}
-	return out
+	return doc
+}
+
+// cardOverlay is the open card c as a screen.Overlay: the rows in view when
+// scrolled by c.scroll (the rest stays in core), at most maxH of them, w cells
+// wide, with View telling where they are among all of them. It hangs on the
+// line of the thread in the pane of its file (if that is the current one).
+// Lines hold the card's content, header lines included. It clamps c.scroll
+// and changes nothing else. Drawing it is drawCard's work.
+func (a *App) cardOverlay(c *prCard, w, maxH int) screen.Overlay {
+	doc := a.cardDoc(c, w)
+	h := min(len(doc.Lines), maxH)
+	c.scroll = clamp(c.scroll, 0, max(0, len(doc.Lines)-h))
+	end := min(len(doc.Lines), c.scroll+h)
+	ov := screen.Overlay{
+		Kind: screen.OverlayReviewCard,
+		View: &screen.Viewport{Top: c.scroll, Rows: h, Cols: w, Total: len(doc.Lines)},
+		Hint: a.cardHint(c),
+	}
+	if t := a.curText(); t != nil && t.buf.Path != "" && a.repoPath(t.buf.Path) == c.path {
+		ov.Pane = t.path()
+		if c.thread.Line > 0 {
+			ov.At = &screen.Pos{Line: c.thread.Line - 1}
+		}
+	}
+	for i, l := range doc.Lines[c.scroll:end] {
+		l.No = c.scroll + i
+		ov.Lines = append(ov.Lines, l)
+	}
+	for _, im := range doc.Images {
+		if im.Row < end && im.Row+im.Rows > c.scroll {
+			ov.Images = append(ov.Images, im)
+		}
+	}
+	return ov
 }
 
 func relTime(t time.Time) string {
@@ -611,25 +653,30 @@ func (a *App) cardHint(c *prCard) string {
 	return i18n.T("rv.hint.reply1") + resolve + s + i18n.T("rv.hint.reply2")
 }
 
-// box draws lines in a bordered popup w cells wide (content w-4), showing h
-// content rows from scroll, with title and hint on the borders.
-func box(lines []string, w, h, scroll int, hint string) []string {
+// drawCard draws a review card Overlay as a bordered box ov.View.Cols+4
+// cells wide: the content rows, the hint on the bottom border and, when the
+// card scrolls, where the rows are among all of them.
+func (a *App) drawCard(ov screen.Overlay) []string {
+	vw := screen.Viewport{Cols: 1}
+	if ov.View != nil {
+		vw = *ov.View
+	}
+	w := vw.Cols + 4
+	end := vw.Top + len(ov.Lines)
 	bd := bgfg(cEditorBg, cHoverBorder)
 	iw := w - 2
-	scroll = clamp(scroll, 0, max(0, len(lines)-h))
-	end := min(len(lines), scroll+h)
 	out := []string{bd.Render("╭" + strings.Repeat("─", iw) + "╮")}
 	pad := stEmpty.Render(" ")
-	for _, l := range lines[scroll:end] {
-		out = append(out, bd.Render("│")+pad+fitStyled(l, iw-2, stEmpty)+pad+bd.Render("│"))
+	for _, l := range a.drawMdRows(ov.Lines, vw.Top, ov.Images, vw.Cols) {
+		out = append(out, bd.Render("│")+pad+l+pad+bd.Render("│"))
 	}
 	ind := ""
-	if len(lines) > h {
-		ind = fmt.Sprintf(" %d/%d ", end, len(lines))
+	if vw.Total > vw.Rows {
+		ind = fmt.Sprintf(" %d/%d ", end, vw.Total)
 	}
 	bottom := strings.Repeat("─", iw)
-	if hw, in := ansi.StringWidth(hint), ansi.StringWidth(ind); hw+in+2 <= iw {
-		bottom = "─" + hint + strings.Repeat("─", iw-hw-in-1) + ind
+	if hw, in := ansi.StringWidth(ov.Hint), ansi.StringWidth(ind); hw+in+2 <= iw {
+		bottom = "─" + ov.Hint + strings.Repeat("─", iw-hw-in-1) + ind
 	}
 	return append(out, bd.Render("╰"+bottom+"╯"))
 }
@@ -641,10 +688,7 @@ func (a *App) cardBox(l layout) (rows []string, x, y int) {
 	if w < 20 {
 		return nil, 0, 0
 	}
-	lines := a.cardLines(c, w-4)
-	h := min(len(lines), max(3, l.editH*2/3-2))
-	c.scroll = clamp(c.scroll, 0, max(0, len(lines)-h))
-	rows = box(lines, w, h, c.scroll, a.cardHint(c))
+	rows = a.drawCard(a.cardOverlay(c, w-4, max(3, l.editH*2/3-2)))
 	cx, cy := l.rightX+2, l.editY+1
 	if c.at != nil {
 		cx, cy = c.at.x, c.at.y
@@ -901,6 +945,45 @@ func (a *App) handleComposerKey(msg Key) tea.Cmd {
 	return cmd
 }
 
+// composerOverlay is the open comment editor as a screen.Overlay, iw cells
+// wide inside its border: Title, Hint, the text and cursor in Compose, and
+// in Lines the rendered preview of the text (the first previewRows-1 rows; the
+// label takes the first row). Compose.PreviewLabel is empty when previewRows
+// is 0, as there is no room. It changes nothing. Drawing it is drawComposer's
+// work.
+func (a *App) composerOverlay(iw, previewRows int) screen.Overlay {
+	c := a.composer
+	ov := screen.Overlay{
+		Kind:    screen.OverlayReviewCard,
+		Title:   c.title,
+		Hint:    i18n.T("rv.hint.input"),
+		View:    &screen.Viewport{Rows: max(0, previewRows), Cols: iw},
+		Compose: &screen.Compose{Text: c.ta.Value(), Cursor: screen.Pos{Line: c.ta.Line(), Col: c.ta.Column()}},
+	}
+	if c.orig != nil {
+		ov.Hint = i18n.T("rv.hint.inputsugg")
+	}
+	if previewRows <= 0 {
+		return ov
+	}
+	ov.Compose.PreviewLabel = i18n.T("rv.preview")
+	if strings.TrimSpace(ov.Compose.Text) == "" {
+		return ov
+	}
+	doc := renderMarkdown(ov.Compose.Text, iw, mdOpts{mermaid: a.mermaidLines})
+	n := min(len(doc.Lines), previewRows-1)
+	for i, l := range doc.Lines[:n] {
+		l.No = i
+		ov.Lines = append(ov.Lines, l)
+	}
+	for _, im := range doc.Images {
+		if im.Row < n {
+			ov.Images = append(ov.Images, im)
+		}
+	}
+	return ov
+}
+
 // composerBox draws the editor over the bottom of the editor area.
 func (a *App) composerBox(l layout) (rows []string, x, y int) {
 	c := a.composer
@@ -910,38 +993,40 @@ func (a *App) composerBox(l layout) (rows []string, x, y int) {
 	}
 	iw := w - 4
 	c.ta.SetWidth(iw)
+	input := strings.Split(c.ta.View(), "\n")
+	prevH := max(0, l.editH-(len(input)+2)-1)
+	rows = a.drawComposer(a.composerOverlay(iw, min(prevH, 12)), input)
+	x = l.rightX + max(0, (l.rightW-w)/2)
+	y = max(l.editY, l.editY+l.editH-len(rows))
+	return rows, x, y
+}
+
+// drawComposer draws a comment editor Overlay as a bordered box ov.View.Cols+4
+// cells wide. input is the text field as the widget draws it (its scrolling
+// and cursor), which stays until the widget is replaced by our own type.
+func (a *App) drawComposer(ov screen.Overlay, input []string) []string {
+	iw := ov.View.Cols
+	w := iw + 4
 	bd := bgfg(cPaletteBg, cHoverBorder)
 	in := bgfg(cPaletteBg, cEditorFg)
 	line := func(s string) string {
 		return bd.Render("│") + in.Render(" ") + fitStyled(s, iw, in) + in.Render(" ") + bd.Render("│")
 	}
-	title := " " + c.title + " "
+	title := " " + ov.Title + " "
 	top := "╭─" + ansi.Truncate(title, w-4, "…")
 	top += strings.Repeat("─", max(0, w-1-ansi.StringWidth(top))) + "╮"
-	rows = []string{bd.Render(top)}
-	for l := range strings.SplitSeq(c.ta.View(), "\n") {
+	rows := []string{bd.Render(top)}
+	for _, l := range input {
 		rows = append(rows, line(l))
 	}
-	hint := i18n.T("rv.hint.input")
-	if c.orig != nil {
-		hint = i18n.T("rv.hint.inputsugg")
-	}
-	rows = append(rows, bd.Render("├"+fit(hint, w-2)+"┤"))
-	prevH := max(0, l.editH-len(rows)-1)
-	if prevH > 0 {
-		text := c.ta.Value()
-		prev := []string{stPanelDim.Render(fit(i18n.T("rv.preview"), iw))}
-		if strings.TrimSpace(text) != "" {
-			prev = append(prev, a.markdownLines(text, iw, mdOpts{mermaid: a.mermaidLines})...)
-		}
-		for _, p := range prev[:min(len(prev), min(prevH, 12))] {
+	rows = append(rows, bd.Render("├"+fit(ov.Hint, w-2)+"┤"))
+	if label := ov.Compose.PreviewLabel; label != "" {
+		prev := append([]string{stPanelDim.Render(fit(label, iw))}, a.drawMdRows(ov.Lines, 0, ov.Images, iw)...)
+		for _, p := range prev {
 			rows = append(rows, bd.Render("│")+stEmpty.Render(" ")+fitStyled(p, iw, stEmpty)+stEmpty.Render(" ")+bd.Render("│"))
 		}
 	}
-	rows = append(rows, bd.Render("╰"+strings.Repeat("─", w-2)+"╯"))
-	x = l.rightX + max(0, (l.rightW-w)/2)
-	y = max(l.editY, l.editY+l.editH-len(rows))
-	return rows, x, y
+	return append(rows, bd.Render("╰"+strings.Repeat("─", w-2)+"╯"))
 }
 
 // reviewMermaid returns the mermaid blocks of the open card and editor.

@@ -291,6 +291,18 @@ type Overlay struct {
 	View      *Viewport `json:"view,omitempty"`
 	Hint      string    `json:"hint,omitempty"`      // 枠の下の案内（ローカライズ済み）
 	CopyLabel string    `json:"copyLabel,omitempty"` // 枠の上の右端の「コピー」の押すところ（ローカライズ済み）
+
+	// レビューカードが使う。Images は Lines の中の画像（Row は Lines の中の行）。Compose は返信・コメントの編集のときだけ。
+	Images  []PreviewImage `json:"images,omitempty"`
+	Compose *Compose       `json:"compose,omitempty"`
+}
+
+// Compose はレビューカードの編集（返信・コメント・レビューの本文）の入力欄。Overlay の Lines は、その本文を
+// Markdown として描いたもの（プレビュー）になる。
+type Compose struct {
+	Text         string `json:"text"`
+	Cursor       Pos    `json:"cursor"`                 // 入力欄の中の行と桁（rune）
+	PreviewLabel string `json:"previewLabel,omitempty"` // プレビューの見出し（ローカライズ済み）。置き場所が無いときは空
 }
 
 // Item は一覧の 1 行（補完の候補、パレットの項目、メニューなど）。

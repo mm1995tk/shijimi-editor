@@ -14,6 +14,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 func gitOut(t *testing.T, dir string, args ...string) string {
@@ -826,5 +827,51 @@ func TestSSHDetection(t *testing.T) {
 		if !isRemoteSession() {
 			t.Fatalf("%s must mean remote", k)
 		}
+	}
+}
+
+func TestCardOverlay(t *testing.T) {
+	a, _ := prApp(t)
+	th := &prThread{ID: "T", Path: "a.txt", Line: 11, Side: "RIGHT", Comments: []prComment{
+		{Author: "r", Body: "one\n\ntwo\n\nthree\n\nfour"},
+		{Author: "me", Body: "reply"},
+	}}
+	a.card = &prCard{thread: th, path: "a.txt", scroll: 99}
+	ov := a.cardOverlay(a.card, 40, 4)
+	if ov.Kind != screen.OverlayReviewCard || ov.Compose != nil || ov.View == nil || ov.View.Rows != 4 || ov.View.Cols != 40 {
+		t.Fatalf("overlay = %+v", ov)
+	}
+	if ov.View.Top != ov.View.Total-4 || len(ov.Lines) != 4 || ov.Lines[0].No != ov.View.Top {
+		t.Errorf("view = %+v, %d lines (scroll is clamped to the last page)", *ov.View, len(ov.Lines))
+	}
+	if ov.Hint != a.cardHint(a.card) {
+		t.Errorf("hint = %q", ov.Hint)
+	}
+	if ov.Pane != "" && ov.At == nil {
+		t.Errorf("a card in the pane of its file hangs on a line: %+v", ov)
+	}
+	a.card.scroll = 0
+	ov = a.cardOverlay(a.card, 40, 4)
+	if got := ov.Lines[0].Spans[0].Text; got != "@r" {
+		t.Errorf("first row = %q, want the author", got)
+	}
+}
+
+func TestComposerOverlay(t *testing.T) {
+	a, _ := prApp(t)
+	a.compose("title", "", []string{"x"}, func(string) tea.Cmd { return nil })
+	a.composer.ta.SetValue("# 見出し\n本文")
+	ov := a.composerOverlay(30, 5)
+	if ov.Kind != screen.OverlayReviewCard || ov.Title != "title" || ov.Compose == nil || ov.Compose.Text != "# 見出し\n本文" {
+		t.Fatalf("overlay = %+v", ov)
+	}
+	if ov.Compose.Cursor != (screen.Pos{Line: 1, Col: 2}) || ov.Compose.PreviewLabel == "" || len(ov.Lines) == 0 || len(ov.Lines) > 4 {
+		t.Errorf("compose = %+v, %d preview rows", *ov.Compose, len(ov.Lines))
+	}
+	if ov.Hint != i18n.T("rv.hint.inputsugg") {
+		t.Errorf("hint = %q", ov.Hint)
+	}
+	if ov = a.composerOverlay(30, 0); ov.Compose.PreviewLabel != "" || len(ov.Lines) != 0 {
+		t.Errorf("no room for a preview: %+v", ov)
 	}
 }
