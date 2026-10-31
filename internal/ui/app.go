@@ -316,7 +316,7 @@ func (a *App) Init() tea.Cmd {
 	if a.single {
 		return a.effectCmd(watchTimer())
 	}
-	return tea.Batch(a.effectCmd(WaitLSP{a.lsp.events}, watchTimer()), a.probeRepo())
+	return tea.Batch(a.effectCmd(WaitLSP{a.lsp.events}, watchTimer()), a.effectCmd(a.probeRepo()...))
 }
 
 // ---- layout ----
@@ -947,9 +947,6 @@ func (a *App) handleAutoSave(m AutoSaveDue) []Effect {
 }
 
 func (a *App) update(msg tea.Msg) tea.Cmd {
-	if cmd, ok := a.handleAgentMsg(msg); ok {
-		return cmd
-	}
 	switch msg := msg.(type) {
 	case Event:
 		return a.effectCmd(a.handleEvent(msg)...)
@@ -1008,8 +1005,6 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		} else {
 			a.info(i18n.T("app.opened"), msg.url)
 		}
-	case repoProbedMsg:
-		a.handleRepoProbed(msg)
 	case changesLoadedMsg:
 		a.applyChanges(msg)
 	case highlightMsg:
