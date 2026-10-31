@@ -35,7 +35,7 @@ They are loaded in the following order. Later ones take precedence.
 | `"herdr"` | herdr (needs `HERDR_ENV=1`) |
 | `"tmux"` | tmux 3.1 or later (needs `TMUX`) |
 | `"zellij"` | zellij 0.44 or later (needs `ZELLIJ`) |
-| `"cmux"` | Not supported yet. The terminal panel is used, with a message |
+| `"cmux"` | cmux on macOS (needs `CMUX_WORKSPACE_ID` and `CMUX_SURFACE_ID`). It cannot hide the pane |
 | `"none"` | Always the terminal panel, even inside a multiplexer |
 
 ## Example config.toml
@@ -69,7 +69,7 @@ include = []
 listen-host = "127.0.0.1"
 
 [terminal]
-multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "none" (cmux is not supported yet)
+multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "none"
 
 # Effective only in ~/.config/shijimi-editor/config.toml
 [agent]

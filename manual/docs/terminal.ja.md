@@ -52,7 +52,7 @@ shijimi が受け取るキーは次のとおりです。
 
 ## ターミナルマルチプレクサの中で
 
-ターミナルマルチプレクサの中で shijimi を動かしていて、`[experimental]` の `multiplexer` が `true`（[設定ファイル](config.md#nightly-版)）で、そのマルチプレクサに対応しているとき、ターミナル系のコマンドはターミナルパネルの代わりにマルチプレクサのペインを使います。ペインの中で動かしたエージェントの状態検出・通知・復元はマルチプレクサに任せられます。どのマルチプレクサを使うかは `[terminal]` の `multiplexer` で決めます（既定は `"auto"` で、shijimi の親プロセスのうち一番内側のマルチプレクサを使います。`"none"` ならいつもターミナルパネルです）。今は [herdr](https://herdr.dev)（`HERDR_ENV=1`）・tmux 3.1 以降（`TMUX` あり）・zellij 0.44 以降（`ZELLIJ` あり）に対応していて、cmux はこれから足します。対応するマルチプレクサが無いとき、`multiplexer = false` のとき、`"none"` のときは、今までと変わりません。この節の以降は herdr・tmux・zellij の説明です。特に書かない限り同じように動きます。
+ターミナルマルチプレクサの中で shijimi を動かしていて、`[experimental]` の `multiplexer` が `true`（[設定ファイル](config.md#nightly-版)）で、そのマルチプレクサに対応しているとき、ターミナル系のコマンドはターミナルパネルの代わりにマルチプレクサのペインを使います。ペインの中で動かしたエージェントの状態検出・通知・復元はマルチプレクサに任せられます。どのマルチプレクサを使うかは `[terminal]` の `multiplexer` で決めます（既定は `"auto"` で、shijimi の親プロセスのうち一番内側のマルチプレクサを使います。`"none"` ならいつもターミナルパネルです）。今は [herdr](https://herdr.dev)（`HERDR_ENV=1`）・tmux 3.1 以降（`TMUX` あり）・zellij 0.44 以降（`ZELLIJ` あり）・macOS の cmux（`CMUX_WORKSPACE_ID` と `CMUX_SURFACE_ID` あり）に対応しています。対応するマルチプレクサが無いとき、`multiplexer = false` のとき、`"none"` のときは、今までと変わりません。この節の以降は herdr・tmux・zellij・cmux の説明です。特に書かない限り同じように動きます。
 
 | 方法 | 動作 |
 | --- | --- |
@@ -62,10 +62,10 @@ shijimi が受け取るキーは次のとおりです。
 | `Space a` / `Alt+A` | ペインに文脈を貼る（Enter は送らない） |
 | `shj exec ":sh hide"` | ペインを隠す。ペインの中で実行する。マルチプレクサのキーに割り当てられる |
 
-- ペインは shijimi のペインのズームで隠します（tmux では `resize-pane -Z`、zellij では `toggle-fullscreen`）。新しいペインは高さの 30% を取ります（zellij はタイル状のペインの大きさを決められないので半分です）。zellij はどの操作も `--pane-id` でペインを指すので、フォーカスの位置に左右されません。tmux で `remain-on-exit` により残っている終了済みのペインは、終わったものとして扱い、新しく作ります。
+- ペインは shijimi のペインのズームで隠します（tmux では `resize-pane -Z`、zellij では `toggle-fullscreen`）。cmux にはズームが無いので、隠す操作は shijimi へフォーカスを戻すだけで、ペインは画面に残ります。cmux ではペインのシェルを起動するコマンドをペインに打ち込むので（`cd <root> && exec env ...`）、それが見えます。新しいペインは高さの 30% を取ります（zellij と cmux はタイル状のペインの大きさを決められないので半分です）。zellij はどの操作も `--pane-id` でペインを指すので、フォーカスの位置に左右されません。tmux で `remain-on-exit` により残っている終了済みのペインは、終わったものとして扱い、新しく作ります。
 - ペインはワークスペースの root で始まり、ターミナルパネルと同じ環境変数が入るので、そこで起動した `claude` は IDE 連携につながります。
-- ペインを終わらせるには、そのシェルで `exit` するか、マルチプレクサのキー（herdr は `Ctrl+B x`、tmux はプレフィックスのあと `x`、zellij は `Ctrl+P` のあと `x`）を使います。そのあとの ``Ctrl+` `` で新しいペインを作ります。shijimi を終了すると、作ったペインを閉じます。
-- ペインから shijimi へ戻るには、マルチプレクサのキー（herdr は既定で `Ctrl+B` `k`、tmux はプレフィックスのあと矢印キーか `select-pane -U`、zellij は既定で `Alt+Up`）を使います。shijimi 自身のキー（`Ctrl+Q`・``Ctrl+` ``・`Alt+R`・`F1`）はペインの中では効きません。
+- ペインを終わらせるには、そのシェルで `exit` するか、マルチプレクサのキー（herdr は `Ctrl+B x`、tmux はプレフィックスのあと `x`、zellij は `Ctrl+P` のあと `x`、cmux は cmux 自身のキーで surface を閉じる）を使います。そのあとの ``Ctrl+` `` で新しいペインを作ります。shijimi を終了すると、作ったペインを閉じます。
+- ペインから shijimi へ戻るには、マルチプレクサのキー（herdr は既定で `Ctrl+B` `k`、tmux はプレフィックスのあと矢印キーか `select-pane -U`、zellij は既定で `Alt+Up`、cmux はペイン移動の cmux のキー）を使います。shijimi 自身のキー（`Ctrl+Q`・``Ctrl+` ``・`Alt+R`・`F1`）はペインの中では効きません。
 - ペインの画面・スクロール・マウスでのコピー・OSC 52 はマルチプレクサのものです。「ターミナルから N 文字をコピーしました」のメッセージは出ません。
 - ペインのシェルは、コマンドごとの終了コードを `shj command-end <終了コード>` で知らせるので、失敗したコマンドを調べる提案は今までどおり出ます。zsh と bash で動きます。bash は `PROMPT_COMMAND` で hook を渡すので、起動ファイルが `PROMPT_COMMAND` を置き換えると働きません。
 - マルチプレクサのコマンドが失敗したときは、ステータスバーにエラーが出ます。

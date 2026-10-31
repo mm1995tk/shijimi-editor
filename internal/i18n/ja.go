@@ -278,6 +278,8 @@ var ja = map[string]string{
 	"herdr.badreply":           "herdr の返事を読み取れませんでした",
 	"tmux.badreply":            "tmux の返事を読み取れませんでした",
 	"zellij.badreply":          "zellij の返事を読み取れませんでした",
+	"cmux.badreply":            "cmux の返事を読み取れませんでした",
+	"cmux.noeditor":            "エディタのペインが分かりません（CMUX_SURFACE_ID がありません）",
 	"mux.failed":               "%s のコマンドが失敗しました: %w",
 	"mux.unsupported":          "[terminal] multiplexer = \"%s\" にはまだ対応していません。内蔵ターミナルを使います",
 	"mux.unavailable":          "%s の中ではないので、内蔵ターミナルを使います",

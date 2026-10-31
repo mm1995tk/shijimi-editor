@@ -35,7 +35,7 @@
 | `"herdr"` | herdr（`HERDR_ENV=1` が必要） |
 | `"tmux"` | tmux 3.1 以降（`TMUX` が必要） |
 | `"zellij"` | zellij 0.44 以降（`ZELLIJ` が必要） |
-| `"cmux"` | まだ対応していません。メッセージを出してターミナルパネルを使う |
+| `"cmux"` | macOS の cmux（`CMUX_WORKSPACE_ID` と `CMUX_SURFACE_ID` が必要）。ペインは隠せない |
 | `"none"` | マルチプレクサの中でも、いつもターミナルパネルを使う |
 
 ## config.toml の例
@@ -69,7 +69,7 @@ include = []
 listen-host = "127.0.0.1"
 
 [terminal]
-multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "none"（cmux はまだ対応していません）
+multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "none"
 
 # ~/.config/shijimi-editor/config.toml だけで有効
 [agent]

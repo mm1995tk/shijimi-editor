@@ -11,7 +11,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
-// Inside a terminal multiplexer (herdr, tmux, zellij), the terminal commands (Ctrl+`, :sh,
+// Inside a terminal multiplexer (herdr, tmux, zellij, cmux), the terminal commands (Ctrl+`, :sh,
 // :run, :!, Space t, Space a) use a pane of the multiplexer instead of the
 // built-in terminal panel, so that the multiplexer detects, notifies about and
 // restores the agents run there. The pane is created below the editor's own
@@ -71,6 +71,8 @@ func (m *muxPane) makeBackend(kind string) muxBackend {
 		return newTmuxBackend()
 	case "zellij":
 		return newZellijBackend()
+	case "cmux":
+		return newCmuxBackend()
 	}
 	return nil
 }
@@ -85,6 +87,8 @@ func muxUsable(kind string) bool {
 		return os.Getenv(envTmux) != ""
 	case "zellij":
 		return os.Getenv(envZellij) != ""
+	case "cmux":
+		return cmuxGOOS == cmuxOS && os.Getenv(envCmuxWorkspace) != "" && os.Getenv(envCmuxSurface) != ""
 	}
 	return true
 }
