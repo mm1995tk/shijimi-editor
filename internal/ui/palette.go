@@ -233,20 +233,7 @@ func (p *palette) overlay() screen.Overlay {
 	ov.Active = p.sel - start
 	for i := start; i < len(p.items) && i < start+maxPaletteItems; i++ {
 		it := p.items[i]
-		item := screen.Item{Label: it.label, Detail: it.detail}
-		if len(it.matched) > 0 {
-			at := map[int]bool{}
-			for _, m := range it.matched {
-				at[m] = true
-			}
-			n := 0
-			for b := range it.label { // b is a byte offset
-				if at[b] {
-					item.Matched = append(item.Matched, n)
-				}
-				n++
-			}
-		}
+		item := screen.Item{Label: it.label, Detail: it.detail, Matched: runeIndexes(it.label, it.matched)}
 		ov.Items = append(ov.Items, item)
 	}
 	if p.prompt == "" && len(p.items) == 0 {
@@ -286,9 +273,7 @@ func renderItem(it screen.Item, w int, selected bool) string {
 	var sb strings.Builder
 	sb.WriteString(base.Render("  "))
 	used := 2
-	i := -1
-	for _, r := range it.Label {
-		i++
+	for i, r := range []rune(it.Label) {
 		rw := ansi.StringWidth(string(r))
 		if used+rw > w-1 {
 			break
@@ -355,4 +340,22 @@ func (p *palette) setPickItems(items []paletteItem) {
 	}
 	p.pickAll = items
 	p.sel = 0
+}
+
+// runeIndexes turns byte offsets into s (small to large, each at the start of
+// a rune) into the positions of those runes.
+func runeIndexes(s string, byteOffsets []int) []int {
+	var out []int
+	n, j := 0, 0
+	for b := range s {
+		if j >= len(byteOffsets) {
+			break
+		}
+		if b == byteOffsets[j] {
+			out = append(out, n)
+			j++
+		}
+		n++
+	}
+	return out
 }
