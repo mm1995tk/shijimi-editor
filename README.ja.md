@@ -416,7 +416,7 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 
 ターミナルマルチプレクサの中で shijimi を動かしていて、`config.toml` の `[experimental]` の `multiplexer` が `true`（既定値は nightly 版が `true`、安定版が `false`。古いキー `herdr` も同じキーとして読みます）で、そのマルチプレクサに対応しているとき、``Ctrl+` ``・`Space t`・`:sh`・`:sh <コマンド>`・`:run`・`:!` はターミナルパネルの代わりにマルチプレクサのペインを使います。ペインの中で動かしたエージェントの状態検出・通知・復元はマルチプレクサに任せられます。
 
-どのマルチプレクサを使うかは `[terminal]` の `multiplexer` で決めます。値は `"auto"`（既定）・`"herdr"`・`"tmux"`・`"zellij"`・`"cmux"`・`"none"` です。`"auto"` は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサ（入れ子のときは一番内側。たとえば herdr の中の tmux なら tmux）を使います。見つからなければターミナルパネルです。`"none"` はいつもターミナルパネルを使います。今は herdr と tmux に対応していて、`"zellij"`・`"cmux"` のときはメッセージを出してターミナルパネルを使います。対応するマルチプレクサが無いとき、または `multiplexer = false` のときは、今までどおりターミナルパネルを使います。
+どのマルチプレクサを使うかは `[terminal]` の `multiplexer` で決めます。値は `"auto"`（既定）・`"herdr"`・`"tmux"`・`"zellij"`・`"cmux"`・`"none"` です。`"auto"` は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサ（入れ子のときは一番内側。たとえば herdr の中の tmux なら tmux）を使います。見つからなければターミナルパネルです。`"none"` はいつもターミナルパネルを使います。今は herdr・tmux・zellij に対応していて、`"cmux"` のときはメッセージを出してターミナルパネルを使います。対応するマルチプレクサが無いとき、または `multiplexer = false` のときは、今までどおりターミナルパネルを使います。
 
 この節の以降は [herdr](https://herdr.dev)（`HERDR_ENV=1`）の説明です。tmux は最後に書きます。
 
@@ -426,6 +426,8 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 - ペインの画面・スクロール・マウスでのコピー・OSC 52 は herdr のもので、shijimi 自身のキー（`Ctrl+Q`・``Ctrl+` ``・`Alt+R`・`F1`）はペインの中では効きません。
 
 tmux 3.1 以降（`TMUX` あり）でも同じように動きます。ペインは shijimi のペイン（`TMUX_PANE`）の下に `tmux split-window -v -l 30%` で作り、環境変数は `-e` で渡します。隠す・出すは shijimi のペインのズーム（`resize-pane -Z`）で、文字は `send-keys` で送り、shijimi の終了時に `kill-pane` で閉じます。ペインから戻るには tmux 自身のキー（プレフィックスのあと矢印キー）を使います。shijimi は tmux のキーを設定しません。
+
+zellij 0.44 以降（`ZELLIJ` あり。0.45.1 で確認）でも同じように動きます。ペインは shijimi のペインの下に `zellij action new-pane --direction down` で作り、環境変数を渡すためにシェルを `env` 経由で起動して、フォーカスを移します（`focus-pane-id`）。隠す・出すは shijimi のペインへの `toggle-fullscreen` で、文字は `write-chars`（コマンド行）と `paste`（文脈）で送り、shijimi の終了時に `close-pane` でペインを閉じます。どの操作も `--pane-id` でペインを指すので、フォーカスがどこにあっても働きます。zellij にはタイル状のペインの大きさを決める方法が無いので、新しいペインは高さの半分になります（30% ではありません）。ペインから戻るには zellij のキー（既定で `Alt+Up`、または `Ctrl+P` のあと矢印キー）を使います。zellij のキーやレイアウトは shijimi では設定しません。
 
 ## 説明書とホームページの編集
 

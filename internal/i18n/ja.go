@@ -277,6 +277,7 @@ var ja = map[string]string{
 	"help.vsc.tree":            "Ctrl+E        ファイルツリーへ移動",
 	"herdr.badreply":           "herdr の返事を読み取れませんでした",
 	"tmux.badreply":            "tmux の返事を読み取れませんでした",
+	"zellij.badreply":          "zellij の返事を読み取れませんでした",
 	"mux.failed":               "%s のコマンドが失敗しました: %w",
 	"mux.unsupported":          "[terminal] multiplexer = \"%s\" にはまだ対応していません。内蔵ターミナルを使います",
 	"mux.unavailable":          "%s の中ではないので、内蔵ターミナルを使います",
