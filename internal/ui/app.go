@@ -2243,7 +2243,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	}
 
 	if a.pal.open {
-		pw := clamp(a.w*3/5, 30, 100)
+		pw := a.paletteWidth()
 		box := drawPalette(a.pal.overlay(), &a.pal.input, pw)
 		rows = overlay(rows, box, (a.w-pw)/2, 1)
 	}
@@ -2447,6 +2447,10 @@ func (a *App) fit() {
 		panes = append(panes, pane{a.other, false})
 	}
 	for _, p := range panes {
+		pl := l
+		if p.t == a.other && l.split {
+			pl = l.otherLayout()
+		}
 		if p.t == nil || p.t.kind == tabImage {
 			continue
 		}
@@ -2454,7 +2458,7 @@ func (a *App) fit() {
 			a.diffFor(p.t)
 		}
 		if !p.focused && !a.fullPreview(p.t) {
-			ensureCursorVisible(p.t.buf, a.editW(p.t, l), l.editH) // the width changed under it
+			ensureCursorVisible(p.t.buf, a.editW(p.t, pl), pl.editH) // the width changed under it
 		}
 	}
 	if t := a.curText(); t != nil {
@@ -2470,7 +2474,7 @@ func (a *App) fit() {
 	}
 	if a.pal.open {
 		a.pal.filter(a.commands)
-		pw := clamp(a.w*3/5, 30, 100)
+		pw := a.paletteWidth()
 		a.pal.input.SetWidth(max(1, pw-ansi.StringWidth(a.pal.label())-2))
 	}
 	if a.search.open {

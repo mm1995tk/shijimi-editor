@@ -640,8 +640,8 @@ func (a *App) renderSearch() (x, y int, box []string) {
 	return x, y, box
 }
 
-// searchDims is where the parts of the search window sit.
-type searchDims struct {
+// searchGeom is where the parts of the search window sit.
+type searchGeom struct {
 	x, y, pw, ph int // the window on screen
 	inner        int // cells between its borders
 	lw, rw       int // the matched lines and the preview
@@ -649,8 +649,8 @@ type searchDims struct {
 	bodyH        int // rows of the matched lines and the preview
 }
 
-func (a *App) searchGeom() searchDims {
-	var g searchDims
+func (a *App) searchGeom() searchGeom {
+	var g searchGeom
 	g.pw = min(a.w, max(30, a.w-2))
 	g.ph = min(max(a.h-2, 14), a.h)
 	g.inner = g.pw - 2
@@ -674,7 +674,7 @@ func (s *searchPanel) fit(a *App) {
 	s.rect = [4]int{g.x, g.y, g.pw, g.ph}
 	// View() is one cell wider than Width when the cursor sits at the end.
 	for i := range s.in {
-		s.in[i].SetWidth(max(1, [...]int{fQuery: g.bl, fRepl: g.br, fInclude: g.bl, fExclude: g.br}[i]-5))
+		s.in[i].SetWidth(max(1, g.fieldW(i)-5))
 	}
 	if s.cursor < s.scroll {
 		s.scroll = s.cursor
@@ -801,4 +801,13 @@ func (s *searchPanel) placeholderView(i int) string {
 		first = bgfg(curTheme.Cursor, curTheme.CursorFg).Render(string(rs[0]))
 	}
 	return first + stPaletteDim.Render(string(rs[1:]))
+}
+
+// fieldW is the width of input field i: the left column holds the search and
+// include fields, the right one the replace and exclude fields.
+func (g searchGeom) fieldW(i int) int {
+	if i == fRepl || i == fExclude {
+		return g.br
+	}
+	return g.bl
 }
