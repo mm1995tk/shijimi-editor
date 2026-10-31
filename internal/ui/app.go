@@ -315,7 +315,7 @@ func (a *App) Init() tea.Cmd {
 	if a.single {
 		return a.effectCmd(watchTimer())
 	}
-	return tea.Batch(a.lsp.wait(), a.effectCmd(watchTimer()), a.probeRepo())
+	return tea.Batch(a.effectCmd(WaitLSP{a.lsp.events}, watchTimer()), a.probeRepo())
 }
 
 // ---- layout ----
@@ -995,71 +995,14 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 			}
 		}
 		return nil
-	case lspEventMsg:
-		return tea.Batch(a.handleLSPEvent(lsp.Event(msg)), a.lsp.wait())
 	case mermaidStartMsg:
 		return a.handleMermaidStart(msg)
 	case mermaidDoneMsg:
 		a.handleMermaidDone(msg)
 	case mdImageDoneMsg:
 		a.handleMDImageDone(msg)
-	case hoverMsg:
-		if t := a.curText(); a.fullPreview(t) {
-			return nil // the popup would be anchored to the hidden buffer
-		}
-		if m := msg.mouse; m != nil {
-			if m.seq != a.hoverSeq || m.tab != a.cur() || strings.TrimSpace(msg.text) == "" {
-				return nil
-			}
-			a.hoverText, a.hoverScroll = msg.text, 0
-			a.hoverAt, a.hoverWord = &m.pt, m.word
-			return nil
-		}
-		if strings.TrimSpace(msg.text) == "" {
-			a.infoText(i18n.T("app.nohover"))
-		} else {
-			a.hoverText = msg.text
-			a.hoverScroll = 0
-			a.hoverAt = nil
-		}
-	case locationsMsg:
-		return a.showLocations(msg)
-	case completionMsg:
-		t := a.curText()
-		if t == nil || t != msg.tab || a.mode != modeInsert && a.helix || len(msg.items) == 0 {
-			return nil
-		}
-		a.comp = &completionPopup{tab: t, start: msg.start, all: msg.items}
-		a.comp.filter()
-		if len(a.comp.items) == 0 {
-			a.comp = nil
-		}
-	case signatureMsg:
-		a.showSignature(msg)
-	case workspaceEditMsg:
-		a.applyWorkspaceEdit(msg.edit)
-	case symbolsMsg:
-		return a.showSymbols(msg)
-	case symbolQueryMsg:
-		return a.runSymbolQuery(msg)
-	case workspaceSymbolsMsg:
-		a.showWorkspaceSymbols(msg)
-	case codeActionsMsg:
-		return a.showCodeActions(msg)
-	case codeActionResolvedMsg:
-		return a.runCodeAction(msg)
-	case formatMsg:
-		if len(msg.edits) > 0 {
-			msg.tab.buf.ApplyEdits(toEdits(msg.tab.buf, msg.edits))
-		}
-		if msg.save {
-			return a.saveTab(msg.tab)
-		}
-		a.infoText(i18n.T("app.formatted"))
 	case formatterDoneMsg:
 		return a.handleFormatterDone(msg)
-	case lspErrMsg:
-		a.fail(msg.err)
 	case openURLMsg:
 		if msg.err != nil && msg.copyOnFail {
 			a.copyText(msg.url)
@@ -1075,8 +1018,6 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.applyChanges(msg)
 	case highlightMsg:
 		msg.h.apply(msg)
-	case semanticMsg:
-		msg.h.sem.apply(msg)
 	case tea.KeyboardEnhancementsMsg:
 		a.keyReleases = msg.SupportsEventTypes()
 	case tea.KeyReleaseMsg:

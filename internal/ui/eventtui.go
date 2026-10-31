@@ -1,9 +1,12 @@
 package ui
 
 import (
+	"context"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
 // cmdEffect carries a tea.Cmd through the Effect list. It is the bridge for work
@@ -22,6 +25,19 @@ func (a *App) effectCmd(effs ...Effect) tea.Cmd {
 		case StartTimer:
 			fire := e.Fire
 			cmds = append(cmds, tea.Tick(e.After, func(time.Time) tea.Msg { return fire }))
+		case RunLSP:
+			run := e.Run
+			cmds = append(cmds, func() tea.Msg {
+				ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
+				defer cancel()
+				if ev := run(ctx); ev != nil {
+					return ev
+				}
+				return nil
+			})
+		case WaitLSP:
+			from := e.From
+			cmds = append(cmds, func() tea.Msg { return lspEventMsg(<-from) })
 		case Quit:
 			// From here on the View keeps asking the terminal for the same
 			// keyboard enhancements (see exit).
@@ -45,6 +61,20 @@ func (a *App) handleEvent(ev Event) []Effect {
 		return a.holdScrollTick(ev.seq)
 	case HoverDwell:
 		return a.hoverDwell(ev)
+	case lspEventMsg:
+		// Ask for the next one first, so none waits while this is handled.
+		return append([]Effect{WaitLSP{a.lsp.events}}, cmdEffects(a.handleLSPEvent(lsp.Event(ev)))...)
+	}
+	if effs, ok := a.handleLSPReply(ev); ok {
+		return effs
 	}
 	return nil
+}
+
+// cmdEffects wraps a tea.Cmd that has not moved to an Effect yet.
+func cmdEffects(cmd tea.Cmd) []Effect {
+	if cmd == nil {
+		return nil
+	}
+	return []Effect{cmdEffect{cmd}}
 }

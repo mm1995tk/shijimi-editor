@@ -37,7 +37,7 @@ func (a *App) signatureHelp(manual bool) tea.Cmd {
 	pos, seq := t.buf.Cur, a.sigSeq+1
 	a.sigSeq = seq
 	lp := lspPos(t.buf, pos)
-	req := func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+	req := func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		h, err := c.SignatureHelp(ctx, t.buf.Path, lp)
 		if err != nil {
 			if !manual {
@@ -55,11 +55,7 @@ func (a *App) signatureHelp(manual bool) tea.Cmd {
 		return nil
 	}
 	a.syncLSP()
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
-		defer cancel()
-		return req(ctx, c, t)
-	}
+	return a.lspReq(func(ctx context.Context) Event { return req(ctx, c, t) })
 }
 
 func (a *App) showSignature(m signatureMsg) {

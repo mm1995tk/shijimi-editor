@@ -59,16 +59,14 @@ func (a *App) semanticCmd(t *tab) tea.Cmd {
 		lines[i] = string(l)
 	}
 	path, version := t.buf.Path, t.buf.Version
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
-		defer cancel()
+	return a.lspReq(func(ctx context.Context) Event {
 		toks, err := c.SemanticTokens(ctx, path)
 		m := semanticMsg{h: h, version: version, lines: lines}
 		if err == nil && toks != nil {
 			m.roles, m.ok = semanticRoles(lines, toks), true
 		}
 		return m
-	}
+	})
 }
 
 // semanticTabs requests semantic tokens for every text tab that is behind.

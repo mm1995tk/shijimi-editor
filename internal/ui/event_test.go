@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
 // The core answers an Event with Effects and never touches bubbletea.
@@ -51,5 +53,35 @@ func TestStartTimerDeliversEvent(t *testing.T) {
 	cmd := a.effectCmd(StartTimer{After: 1, Fire: HoverDwell{seq: 7}})
 	if m, ok := cmd().(HoverDwell); !ok || m.seq != 7 {
 		t.Fatalf("got %#v", cmd())
+	}
+}
+
+// A server's own event is handled and the next one is asked for in the same
+// answer, so none is missed while the core works.
+func TestLSPServerEventAsksForTheNext(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	effs := a.handleEvent(lspEventMsg(lsp.Event{Server: "gopls", Message: "ready"}))
+	var waits int
+	for _, e := range effs {
+		if w, ok := e.(WaitLSP); ok && w.From == a.lsp.events {
+			waits++
+		}
+	}
+	if waits != 1 {
+		t.Fatalf("want one WaitLSP, got %#v", effs)
+	}
+}
+
+// A signature reply that is not for the latest request is dropped.
+func TestStaleSignatureReplyIsDropped(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	a.sigSeq = 5
+	a.handleEvent(signatureMsg{tab: a.curText(), seq: 4, manual: true, help: &lsp.SignatureHelp{Label: "f()"}})
+	if a.sig != nil {
+		t.Fatal("stale reply opened the popup")
+	}
+	a.handleEvent(signatureMsg{tab: a.curText(), seq: 5, manual: true, help: &lsp.SignatureHelp{Label: "f()"}})
+	if a.sig == nil {
+		t.Fatal("current reply was dropped")
 	}
 }
