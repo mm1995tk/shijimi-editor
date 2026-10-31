@@ -42,20 +42,20 @@ func TestHScrollWheelAndAltPgDn(t *testing.T) {
 	a := newTestApp(t, strings.Repeat("x", 300)+"\n")
 	b := a.curText().buf
 	l := a.layout()
-	a.handleMouse(mouseEvent{X: l.rightX + 10, Y: l.editY + 1, Action: mousePress, Button: tea.MouseWheelRight})
+	a.handleMouse(Mouse{X: l.rightX + 10, Y: l.editY + 1, Action: mousePress, Button: MouseWheelRight})
 	if b.ScrollCol != hscrollWheel {
 		t.Fatalf("wheel right -> %d", b.ScrollCol)
 	}
-	a.handleMouse(mouseEvent{X: l.rightX + 10, Y: l.editY + 1, Action: mousePress, Button: tea.MouseWheelDown, Shift: true})
+	a.handleMouse(Mouse{X: l.rightX + 10, Y: l.editY + 1, Action: mousePress, Button: MouseWheelDown, Shift: true})
 	if b.ScrollCol != 2*hscrollWheel {
 		t.Fatalf("shift+wheel down -> %d", b.ScrollCol)
 	}
-	a.handleMouse(mouseEvent{X: l.rightX + 10, Y: l.editY + 1, Action: mousePress, Button: tea.MouseWheelLeft})
+	a.handleMouse(Mouse{X: l.rightX + 10, Y: l.editY + 1, Action: mousePress, Button: MouseWheelLeft})
 	if b.ScrollCol != hscrollWheel || b.ScrollRow != 0 {
 		t.Fatalf("wheel left -> col %d row %d", b.ScrollCol, b.ScrollRow)
 	}
 	a.helix = false
-	a.Update(tea.KeyPressMsg{Code: tea.KeyPgDown, Mod: tea.ModAlt})
+	a.Update(Key{Code: KeyPgDown, Mod: ModAlt})
 	if b.ScrollCol <= hscrollWheel {
 		t.Fatalf("alt+pgdn -> %d", b.ScrollCol)
 	}
@@ -83,7 +83,7 @@ func TestHScrollShiftWheelOutsideTextStaysVertical(t *testing.T) {
 	a := New(dir, filepath.Join(dir, "f00.txt"))
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	l := a.layout()
-	a.handleMouse(mouseEvent{X: 2, Y: l.editY + 2, Action: mousePress, Button: tea.MouseWheelDown, Shift: true})
+	a.handleMouse(Mouse{X: 2, Y: l.editY + 2, Action: mousePress, Button: MouseWheelDown, Shift: true})
 	if a.explorer.scroll == 0 {
 		t.Fatalf("Shift+wheel over the explorer did not scroll it")
 	}

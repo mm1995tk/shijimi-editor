@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // fakeCmux plays the cmux app: it records the calls and keeps the surfaces.
@@ -80,7 +78,7 @@ func cmuxEnv(t *testing.T) {
 func TestCmuxToggle(t *testing.T) {
 	cmuxEnv(t)
 	a, f := cmuxApp(t)
-	ctrlBacktick := tea.KeyPressMsg{Code: '`', Mod: tea.ModCtrl}
+	ctrlBacktick := Key{Code: '`', Mod: ModCtrl}
 	a.focus = focusEditor
 	a.Update(ctrlBacktick)
 	if a.showTerm || a.term.cur() != nil {
@@ -122,7 +120,7 @@ func TestCmuxCommands(t *testing.T) {
 	}
 	f.calls = nil
 	a.ctx = &ctxPreview{text: "ctx"}
-	a.handleContextKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	a.handleContextKey(Key{Code: KeyEnter})
 	if !f.has("paste --surface S2 --force -- ctx") || f.has("send-key") {
 		t.Fatalf("context must be pasted without Enter: %v", f.calls)
 	}

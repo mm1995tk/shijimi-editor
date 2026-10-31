@@ -263,7 +263,7 @@ func (a *App) snippetActive() bool {
 
 // handleSnippetKey moves between tab stops. handled is false for every key
 // the session does not take.
-func (a *App) handleSnippetKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+func (a *App) handleSnippetKey(msg Key) (tea.Cmd, bool) {
 	if !a.snippetActive() {
 		return nil, false
 	}

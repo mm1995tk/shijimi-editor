@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
@@ -39,8 +37,8 @@ func snipSetup(t *testing.T, content string) (*App, *buffer.Buffer) {
 	return a, b
 }
 
-func pressKey(a *App, k rune, mod ...tea.KeyMod) {
-	m := tea.KeyPressMsg{Code: k}
+func pressKey(a *App, k rune, mod ...Mod) {
+	m := Key{Code: k}
 	for _, x := range mod {
 		m.Mod |= x
 	}
@@ -54,18 +52,18 @@ func TestSnippetTabMovesBetweenStops(t *testing.T) {
 		t.Fatalf("text = %q", got)
 	}
 	keys(a, "x") // replaces "format"
-	pressKey(a, tea.KeyTab)
+	pressKey(a, KeyTab)
 	keys(a, "y", "z") // replaces "a..."
 	if got := b.Text(); got != "fmt.Printf(x, yz)" {
 		t.Fatalf("text = %q", got)
 	}
-	pressKey(a, tea.KeyTab, tea.ModShift)
+	pressKey(a, KeyTab, ModShift)
 	keys(a, "w")
 	if got := b.Text(); got != "fmt.Printf(w, yz)" {
 		t.Fatalf("after shift+tab: %q", got)
 	}
-	pressKey(a, tea.KeyTab)
-	pressKey(a, tea.KeyTab) // $0
+	pressKey(a, KeyTab)
+	pressKey(a, KeyTab) // $0
 	if a.snip != nil || b.Cur != (buffer.Pos{Col: 17}) {
 		t.Fatalf("session = %v, cursor = %v", a.snip, b.Cur)
 	}
@@ -84,7 +82,7 @@ func TestSnippetEndsWhenCursorLeavesStop(t *testing.T) {
 	a, b := snipSetup(t, "")
 	a.startSnippet(a.curText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
 	b.SetCursor(0, 0, false)
-	pressKey(a, tea.KeyTab)
+	pressKey(a, KeyTab)
 	if a.snip != nil {
 		t.Fatal("session should have ended")
 	}
@@ -93,7 +91,7 @@ func TestSnippetEndsWhenCursorLeavesStop(t *testing.T) {
 func TestSnippetEscEndsSession(t *testing.T) {
 	a, _ := snipSetup(t, "")
 	a.startSnippet(a.curText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
-	pressKey(a, tea.KeyEsc)
+	pressKey(a, KeyEsc)
 	if a.snip != nil {
 		t.Fatal("session should have ended")
 	}
@@ -103,7 +101,7 @@ func TestSnippetAdjacentStopsDoNotSwallowTyping(t *testing.T) {
 	a, b := snipSetup(t, "")
 	a.startSnippet(a.curText(), buffer.Pos{}, "${1:x}$0")
 	keys(a, "a", "b")
-	pressKey(a, tea.KeyTab)
+	pressKey(a, KeyTab)
 	if a.snip != nil || b.Cur != (buffer.Pos{Col: 2}) || b.Anchor != nil {
 		t.Fatalf("cursor = %v anchor = %v session = %v", b.Cur, b.Anchor, a.snip)
 	}
@@ -111,7 +109,7 @@ func TestSnippetAdjacentStopsDoNotSwallowTyping(t *testing.T) {
 	a, b = snipSetup(t, "")
 	a.startSnippet(a.curText(), buffer.Pos{}, "${1:x}${2:y}")
 	keys(a, "a", "b")
-	pressKey(a, tea.KeyTab)
+	pressKey(a, KeyTab)
 	keys(a, "Z")
 	if got := b.Text(); got != "abZ" {
 		t.Fatalf("text = %q", got)
@@ -122,11 +120,11 @@ func TestSnippetUndoEndsSession(t *testing.T) {
 	a, b := snipSetup(t, "")
 	a.startSnippet(a.curText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
 	keys(a, "x")
-	pressKey(a, 'z', tea.ModCtrl)
+	pressKey(a, 'z', ModCtrl)
 	if got := b.Text(); got != "f(a, b)" {
 		t.Fatalf("text = %q", got)
 	}
-	pressKey(a, tea.KeyTab) // plain indentation now, not a jump to a stale stop
+	pressKey(a, KeyTab) // plain indentation now, not a jump to a stale stop
 	if a.snip != nil {
 		t.Fatal("session should have ended")
 	}
@@ -136,7 +134,7 @@ func TestSnippetReverseOrderAdjacentStops(t *testing.T) {
 	a, b := snipSetup(t, "")
 	a.startSnippet(a.curText(), buffer.Pos{}, "${2:b}${1:a}")
 	keys(a, "x")
-	pressKey(a, tea.KeyTab)
+	pressKey(a, KeyTab)
 	keys(a, "Z")
 	if got := b.Text(); got != "Zx" {
 		t.Fatalf("text = %q", got)
@@ -145,7 +143,7 @@ func TestSnippetReverseOrderAdjacentStops(t *testing.T) {
 	a, b = snipSetup(t, "")
 	a.startSnippet(a.curText(), buffer.Pos{}, "$1$2")
 	keys(a, "p")
-	pressKey(a, tea.KeyTab)
+	pressKey(a, KeyTab)
 	keys(a, "q")
 	if got := b.Text(); got != "pq" {
 		t.Fatalf("empty stops: text = %q", got)
@@ -160,7 +158,7 @@ func TestSnippetStopBeforeMirror(t *testing.T) {
 		a, b := snipSetup(t, "")
 		a.startSnippet(a.curText(), buffer.Pos{}, c.in)
 		keys(a, "x")
-		pressKey(a, tea.KeyTab)
+		pressKey(a, KeyTab)
 		keys(a, "Z")
 		if got := b.Text(); got != c.want {
 			t.Errorf("%q: text = %q, want %q", c.in, got, c.want)

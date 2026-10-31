@@ -137,12 +137,12 @@ func TestCommentOnLines(t *testing.T) {
 		t.Fatalf("no editor: %s", a.msg)
 	}
 	a.composer.ta.InsertString("前置き")
-	a.handleComposerKey(tea.KeyPressMsg{Code: 's', Mod: tea.ModCtrl})
+	a.handleComposerKey(Key{Code: 's', Mod: ModCtrl})
 	if v := a.composer.ta.Value(); !strings.HasPrefix(v, "前置き\n```suggestion\nlinei\nchanged\nlinek\n```") {
 		t.Errorf("suggestion block: %q", v)
 	}
 	a.composer.ta.SetValue("見てください")
-	a.handleComposerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	a.handleComposerKey(Key{Code: KeyEnter})
 	if a.composer != nil || len(a.gd.rv.pending) != 1 {
 		t.Fatal("comment not added")
 	}
@@ -205,7 +205,7 @@ func TestSpaceVMenu(t *testing.T) {
 		t.Fatal("Space v C did not open the editor")
 	}
 	a.composer.ta.SetValue("全体")
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	a.handleKey(Key{Code: KeyEnter})
 	if len(a.gd.rv.pending) != 1 || !a.gd.rv.pending[0].File {
 		t.Fatal("file comment not added")
 	}
@@ -275,7 +275,7 @@ func TestCardKeys(t *testing.T) {
 	a.gd.rv.threads = []*prThread{th}
 	a.card = &prCard{thread: th, path: "a.txt"}
 	a.curText().buf.Cur = buffer.Pos{}
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	a.handleKey(Key{Code: KeyEnter})
 	if a.card != nil || a.curText().buf.Cur.Row != 9 {
 		t.Errorf("Enter: card=%v row=%d", a.card != nil, a.curText().buf.Cur.Row)
 	}
@@ -284,11 +284,11 @@ func TestCardKeys(t *testing.T) {
 	if a.composer == nil || !strings.HasPrefix(a.composer.title, "返信") {
 		t.Fatal("r did not open a reply")
 	}
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEsc})
+	a.handleKey(Key{Code: KeyEsc})
 	if a.composer != nil {
 		t.Error("Esc did not close the editor")
 	}
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEsc})
+	a.handleKey(Key{Code: KeyEsc})
 	if a.card != nil {
 		t.Error("Esc did not close the card")
 	}
@@ -310,11 +310,11 @@ func TestMarkerClickOpensCard(t *testing.T) {
 	tb := a.curText()
 	dv := a.diffFor(tb)
 	y := g.top + dv.newIdx[9] - dv.start(tb.buf.ScrollRow)
-	a.handleMouse(mouseEvent{X: g.rightX, Y: y, Button: tea.MouseLeft, Action: mousePress})
+	a.handleMouse(Mouse{X: g.rightX, Y: y, Button: MouseLeft, Action: mousePress})
 	if a.card == nil || a.card.thread != th {
 		t.Fatal("click on the marker did not open the card")
 	}
-	a.handleMouse(mouseEvent{X: g.rightX + 30, Y: g.top, Button: tea.MouseLeft, Action: mousePress})
+	a.handleMouse(Mouse{X: g.rightX + 30, Y: g.top, Button: MouseLeft, Action: mousePress})
 	if a.card != nil {
 		t.Error("click elsewhere did not close the card")
 	}
@@ -432,11 +432,11 @@ func TestSubmitNeedsSomething(t *testing.T) {
 	if a.composer == nil {
 		t.Fatal("no editor for the review body")
 	}
-	if cmd := a.handleComposerKey(tea.KeyPressMsg{Code: tea.KeyEnter}); cmd != nil || !a.msgErr {
+	if cmd := a.handleComposerKey(Key{Code: KeyEnter}); cmd != nil || !a.msgErr {
 		t.Error("empty comment-only review was sent")
 	}
 	a.reviewKey("A")
-	if cmd := a.handleComposerKey(tea.KeyPressMsg{Code: tea.KeyEnter}); cmd == nil {
+	if cmd := a.handleComposerKey(Key{Code: KeyEnter}); cmd == nil {
 		t.Error("approval without a body was not sent")
 	}
 }
@@ -445,7 +445,7 @@ func TestComposerNewlineAndPreview(t *testing.T) {
 	a, _ := prApp(t)
 	a.compose("t", "", nil, func(string) tea.Cmd { return nil })
 	a.composer.ta.InsertString("# 見出し")
-	a.handleComposerKey(tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift})
+	a.handleComposerKey(Key{Code: KeyEnter, Mod: ModShift})
 	a.composer.ta.InsertString("本文")
 	if v := a.composer.ta.Value(); v != "# 見出し\n本文" {
 		t.Errorf("value %q", v)
@@ -462,9 +462,9 @@ func TestComposerNewlineAndPreview(t *testing.T) {
 func TestResizeDragWithoutButton(t *testing.T) {
 	a := resizeApp(t)
 	l := a.layout()
-	a.handleMouse(mouseEvent{X: l.sideW, Y: 5, Action: mousePress, Button: tea.MouseLeft})
-	a.handleMouse(mouseEvent{X: 40, Y: 5, Action: mouseMotion, Button: tea.MouseNone})
-	a.handleMouse(mouseEvent{X: 40, Y: 5, Action: mouseRelease, Button: tea.MouseNone})
+	a.handleMouse(Mouse{X: l.sideW, Y: 5, Action: mousePress, Button: MouseLeft})
+	a.handleMouse(Mouse{X: 40, Y: 5, Action: mouseMotion, Button: MouseNone})
+	a.handleMouse(Mouse{X: 40, Y: 5, Action: mouseRelease, Button: MouseNone})
 	if a.layout().sideW != 40 || a.resizing != resizeNone {
 		t.Fatalf("side drag: %d", a.layout().sideW)
 	}
@@ -473,9 +473,9 @@ func TestResizeDragWithoutButton(t *testing.T) {
 func TestResizeDragInDiffMode(t *testing.T) {
 	a, _ := prApp(t)
 	l := a.layout()
-	a.handleMouse(mouseEvent{X: l.sideW, Y: 5, Action: mousePress, Button: tea.MouseLeft})
-	a.handleMouse(mouseEvent{X: 40, Y: 5, Action: mouseMotion, Button: tea.MouseLeft})
-	a.handleMouse(mouseEvent{X: 40, Y: 5, Action: mouseRelease, Button: tea.MouseLeft})
+	a.handleMouse(Mouse{X: l.sideW, Y: 5, Action: mousePress, Button: MouseLeft})
+	a.handleMouse(Mouse{X: 40, Y: 5, Action: mouseMotion, Button: MouseLeft})
+	a.handleMouse(Mouse{X: 40, Y: 5, Action: mouseRelease, Button: MouseLeft})
 	if a.layout().sideW != 40 {
 		t.Fatalf("side drag in diff mode: %d", a.layout().sideW)
 	}
@@ -496,7 +496,7 @@ func TestPointerCardTakesNoKeys(t *testing.T) {
 	th := &prThread{ID: "T", Path: "a.txt", Line: 10, Side: "RIGHT", Comments: []prComment{{Author: "r", Body: "x"}}}
 	a.gd.rv.threads = []*prThread{th}
 	x, y := markerCell(a, 9)
-	a.handleMouse(mouseEvent{X: x, Y: y, Action: mouseMotion, Button: tea.MouseNone})
+	a.handleMouse(Mouse{X: x, Y: y, Action: mouseMotion, Button: MouseNone})
 	if a.card == nil || !a.card.byPointer {
 		t.Fatal("resting on the marker did not show the card")
 	}
@@ -509,14 +509,14 @@ func TestPointerCardTakesNoKeys(t *testing.T) {
 		t.Error("x did not reach the editor")
 	}
 	// leaving the marker closes it
-	a.handleMouse(mouseEvent{X: x, Y: y, Action: mouseMotion, Button: tea.MouseNone})
-	a.handleMouse(mouseEvent{X: x + 60, Y: y - 5, Action: mouseMotion, Button: tea.MouseNone})
+	a.handleMouse(Mouse{X: x, Y: y, Action: mouseMotion, Button: MouseNone})
+	a.handleMouse(Mouse{X: x + 60, Y: y - 5, Action: mouseMotion, Button: MouseNone})
 	if a.card != nil {
 		t.Error("card stayed after the pointer left")
 	}
 	// without mouse hover, resting opens nothing
 	a.cfg.Editor.MouseHover = false
-	a.handleMouse(mouseEvent{X: x, Y: y, Action: mouseMotion, Button: tea.MouseNone})
+	a.handleMouse(Mouse{X: x, Y: y, Action: mouseMotion, Button: MouseNone})
 	if a.card != nil {
 		t.Error("card opened with mouse hover off")
 	}
@@ -628,7 +628,7 @@ func TestEnterOnBaseSideThreadDoesNotMove(t *testing.T) {
 	th := &prThread{ID: "T", Path: "a.txt", Line: 15, Side: "LEFT", Comments: []prComment{{Body: "x"}}}
 	a.card = &prCard{thread: th, path: "a.txt"}
 	a.curText().buf.Cur = buffer.Pos{Row: 2}
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	a.handleKey(Key{Code: KeyEnter})
 	if a.curText().buf.Cur.Row != 2 {
 		t.Errorf("moved to %d", a.curText().buf.Cur.Row)
 	}
@@ -757,7 +757,7 @@ func TestCommentOnNewFileInOnePane(t *testing.T) {
 		t.Fatalf("no editor: %s", a.msg)
 	}
 	a.composer.ta.SetValue("新規ファイルへ")
-	a.handleComposerKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	a.handleComposerKey(Key{Code: KeyEnter})
 	if len(a.gd.rv.pending) != 1 {
 		t.Fatal("comment not added")
 	}

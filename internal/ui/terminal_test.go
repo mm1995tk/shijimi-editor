@@ -6,26 +6,25 @@ import (
 	"testing"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
 func TestTermKeyBytes(t *testing.T) {
 	cases := []struct {
-		msg  tea.KeyPressMsg
+		msg  Key
 		app  bool
 		want string
 	}{
 		{textKey("a"), false, "a"},
 		{altKey("a"), false, "\x1ba"},
-		{tea.KeyPressMsg{Code: tea.KeyEnter}, false, "\r"},
-		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, false, "\x03"},
-		{tea.KeyPressMsg{Code: tea.KeyBackspace}, false, "\x7f"},
-		{tea.KeyPressMsg{Code: tea.KeyUp}, false, "\x1b[A"},
-		{tea.KeyPressMsg{Code: tea.KeyUp}, true, "\x1bOA"},
-		{tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModCtrl}, false, "\x1b[1;5C"},
-		{tea.KeyPressMsg{Code: tea.KeyDelete}, false, "\x1b[3~"},
+		{Key{Code: KeyEnter}, false, "\r"},
+		{Key{Code: 'c', Mod: ModCtrl}, false, "\x03"},
+		{Key{Code: KeyBackspace}, false, "\x7f"},
+		{Key{Code: KeyUp}, false, "\x1b[A"},
+		{Key{Code: KeyUp}, true, "\x1bOA"},
+		{Key{Code: KeyRight, Mod: ModCtrl}, false, "\x1b[1;5C"},
+		{Key{Code: KeyDelete}, false, "\x1b[3~"},
 	}
 	for _, c := range cases {
 		if got := string(termKeyBytes(c.msg, c.app)); got != c.want {
@@ -105,7 +104,7 @@ func TestTerminalScrollback(t *testing.T) {
 	if tab.vt.Scrollback() < 50 {
 		t.Fatalf("scrollback = %d", tab.vt.Scrollback())
 	}
-	tm.wheel(mouseEvent{Button: tea.MouseWheelUp, Action: mousePress}, 0, 0, -3)
+	tm.wheel(Mouse{Button: MouseWheelUp, Action: mousePress}, 0, 0, -3)
 	tm.render(40, 12, true)
 	if tab.snap.Offset != 3 {
 		t.Fatalf("offset = %d", tab.snap.Offset)
@@ -140,7 +139,7 @@ func TestTerminalHasOneShell(t *testing.T) {
 	tm.sh = &termTab{id: 1, vt: vt.New(vt.Options{Cols: 20, Rows: 5})}
 	// F2 and Ctrl+PgUp/PgDn no longer manage tabs; with no PTY they are only written.
 	tm.sh.ptmx, _ = os.CreateTemp(t.TempDir(), "pty")
-	for _, k := range []tea.KeyPressMsg{{Code: tea.KeyF2}, {Code: tea.KeyPgDown, Mod: tea.ModCtrl}} {
+	for _, k := range []Key{{Code: KeyF2}, {Code: KeyPgDown, Mod: ModCtrl}} {
 		tm.update(k)
 	}
 	if tm.sh == nil || tm.sh.id != 1 || tm.nextID != 0 {

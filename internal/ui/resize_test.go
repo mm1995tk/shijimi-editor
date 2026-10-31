@@ -24,15 +24,15 @@ func TestResizeKeys(t *testing.T) {
 	side, panel := a.layout().sideW, a.layout().panelH
 
 	a.startResize()
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyRight})
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyUp})
+	a.handleKey(Key{Code: KeyRight})
+	a.handleKey(Key{Code: KeyUp})
 	l := a.layout()
 	if l.sideW != side+resizeStep || l.panelH != panel+resizeStep {
 		t.Fatalf("side %d->%d panel %d->%d", side, l.sideW, panel, l.panelH)
 	}
 
 	// keys do not leak to the editor while resizing, and Esc leaves the mode
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEsc})
+	a.handleKey(Key{Code: KeyEsc})
 	if a.resizeMode {
 		t.Fatal("still in resize mode")
 	}
@@ -56,15 +56,15 @@ func TestResizeClamp(t *testing.T) {
 	a.showTerm = true
 	a.startResize()
 	for range 200 {
-		a.handleKey(tea.KeyPressMsg{Code: tea.KeyLeft})
-		a.handleKey(tea.KeyPressMsg{Code: tea.KeyDown})
+		a.handleKey(Key{Code: KeyLeft})
+		a.handleKey(Key{Code: KeyDown})
 	}
 	if l := a.layout(); l.sideW != minSideW || l.panelH != 6 {
 		t.Fatalf("min: %d %d", l.sideW, l.panelH)
 	}
 	for range 200 {
-		a.handleKey(tea.KeyPressMsg{Code: tea.KeyRight})
-		a.handleKey(tea.KeyPressMsg{Code: tea.KeyUp})
+		a.handleKey(Key{Code: KeyRight})
+		a.handleKey(Key{Code: KeyUp})
 	}
 	l := a.layout()
 	if l.sideW > a.w/2 || l.panelH > a.h-8 {
@@ -103,7 +103,7 @@ func TestResizeMouseDrag(t *testing.T) {
 	a.showTerm = true
 	l := a.layout()
 	mouse := func(act mouseAction, x, y int) {
-		a.handleMouse(mouseEvent{X: x, Y: y, Action: act, Button: tea.MouseLeft})
+		a.handleMouse(Mouse{X: x, Y: y, Action: act, Button: MouseLeft})
 	}
 
 	mouse(mousePress, l.sideW, 5)
@@ -127,7 +127,7 @@ func TestResizeWithCompletionOpen(t *testing.T) {
 	a.comp = &completionPopup{}
 	panel := a.layout().panelH
 	a.startResize()
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyUp})
+	a.handleKey(Key{Code: KeyUp})
 	if a.layout().panelH != panel+resizeStep {
 		t.Fatalf("panel %d->%d", panel, a.layout().panelH)
 	}
@@ -136,7 +136,7 @@ func TestResizeWithCompletionOpen(t *testing.T) {
 func TestResizeLostRelease(t *testing.T) {
 	a := resizeApp(t)
 	a.resizing = resizeSide
-	a.handleMouse(mouseEvent{X: 60, Y: 5, Action: mousePress, Button: tea.MouseLeft})
+	a.handleMouse(Mouse{X: 60, Y: 5, Action: mousePress, Button: MouseLeft})
 	if a.resizing != resizeNone {
 		t.Fatal("stale drag state kept")
 	}

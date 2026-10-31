@@ -1,7 +1,5 @@
 package ui
 
-import tea "charm.land/bubbletea/v2"
-
 // \ shows the line numbers the other way (absolute or relative, the opposite
 // of editor.line-number), so both are at hand without two columns:
 //   - When the terminal reports key releases (kitty keyboard protocol), only
@@ -21,14 +19,14 @@ func (a *App) flipLineNumbers() {
 
 // lineFlipOtherKey ends the flip when a key other than \ is pressed while
 // the terminal reports key releases.
-func (a *App) lineFlipOtherKey(msg tea.KeyPressMsg) {
+func (a *App) lineFlipOtherKey(msg Key) {
 	if a.keyReleases && msg.Code != lineFlipKey {
 		a.lineFlip = false
 	}
 }
 
 // lineFlipRelease ends the flip when \ is let go.
-func (a *App) lineFlipRelease(msg tea.KeyReleaseMsg) {
+func (a *App) lineFlipRelease(msg Key) {
 	if msg.Code == lineFlipKey {
 		a.lineFlip = false
 	}

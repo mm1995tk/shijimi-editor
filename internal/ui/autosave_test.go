@@ -42,7 +42,7 @@ func TestScheduleAutoSave(t *testing.T) {
 	tb := a.curText()
 
 	// no edit: nothing is scheduled
-	if _, cmd := a.Update(tea.KeyPressMsg{Code: tea.KeyEscape}); cmd != nil && tb.autoVer != 0 {
+	if _, cmd := a.Update(Key{Code: KeyEscape}); cmd != nil && tb.autoVer != 0 {
 		t.Fatal("scheduled without an edit")
 	}
 

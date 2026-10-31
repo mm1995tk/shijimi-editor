@@ -12,14 +12,14 @@ import (
 
 func keys(a *App, ks ...string) {
 	for _, k := range ks {
-		var m tea.KeyPressMsg
+		var m Key
 		switch k {
 		case "esc":
-			m = tea.KeyPressMsg{Code: tea.KeyEscape}
+			m = Key{Code: KeyEscape}
 		case "enter":
-			m = tea.KeyPressMsg{Code: tea.KeyEnter}
+			m = Key{Code: KeyEnter}
 		case "space":
-			m = tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+			m = Key{Code: KeySpace, Text: " "}
 		default:
 			m = textKey(k)
 		}
@@ -28,18 +28,18 @@ func keys(a *App, ks ...string) {
 }
 
 // textKey is a key press that types s (several runes arrive as one message).
-func textKey(s string) tea.KeyPressMsg {
+func textKey(s string) Key {
 	r, _ := utf8.DecodeRuneInString(s)
 	if utf8.RuneCountInString(s) > 1 {
-		r = tea.KeyExtended
+		r = KeyExtended
 	}
-	return tea.KeyPressMsg{Code: r, Text: s}
+	return Key{Code: r, Text: s}
 }
 
 // altKey is Alt held with the key that types s.
-func altKey(s string) tea.KeyPressMsg {
+func altKey(s string) Key {
 	r, _ := utf8.DecodeRuneInString(s)
-	return tea.KeyPressMsg{Code: r, Mod: tea.ModAlt}
+	return Key{Code: r, Mod: ModAlt}
 }
 
 func newTestApp(t *testing.T, content string) *App {
@@ -217,7 +217,7 @@ func TestAutoCloseBracketHelixInsert(t *testing.T) {
 	if got := b.Text(); got != "{}" || b.Cur.Col != 1 {
 		t.Fatalf("text = %q cur = %v", got, b.Cur)
 	}
-	a.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	a.Update(Key{Code: KeyBackspace})
 	if got := b.Text(); got != "" {
 		t.Fatalf("after backspace = %q", got)
 	}

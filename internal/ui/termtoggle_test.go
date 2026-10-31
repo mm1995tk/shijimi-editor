@@ -2,13 +2,11 @@ package ui
 
 import (
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 func TestTerminalToggleKeys(t *testing.T) {
-	ctrlBacktick := tea.KeyPressMsg{Code: '`', Mod: tea.ModCtrl}
-	ctrlJ := tea.KeyPressMsg{Code: 'j', Mod: tea.ModCtrl}
+	ctrlBacktick := Key{Code: '`', Mod: ModCtrl}
+	ctrlJ := Key{Code: 'j', Mod: ModCtrl}
 
 	a := newTestApp(t, "hello")
 	a.focus = focusEditor

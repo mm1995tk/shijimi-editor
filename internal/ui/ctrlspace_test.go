@@ -2,12 +2,10 @@ package ui
 
 import (
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 func TestCtrlSpaceInEditor(t *testing.T) {
-	ctrlSpace := tea.KeyPressMsg{Code: tea.KeySpace, Mod: tea.ModCtrl}
+	ctrlSpace := Key{Code: KeySpace, Mod: ModCtrl}
 
 	t.Run("vscode keeps editor focus", func(t *testing.T) {
 		a := newTestApp(t, "hello")
@@ -45,7 +43,7 @@ func TestCtrlSpaceWithoutTextTab(t *testing.T) {
 	a.helix = false
 	a.tabs = nil
 	a.focus = focusEditor
-	a.Update(tea.KeyPressMsg{Code: tea.KeySpace, Mod: tea.ModCtrl})
+	a.Update(Key{Code: KeySpace, Mod: ModCtrl})
 	if !a.showTerm || a.focus != focusTerminal {
 		t.Fatalf("showTerm=%v focus=%v, want terminal", a.showTerm, a.focus)
 	}

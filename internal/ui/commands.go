@@ -115,7 +115,7 @@ func (a *App) closeCmdline() {
 	a.cmdInput.Blur()
 }
 
-func (a *App) handleCmdlineKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) handleCmdlineKey(msg Key) tea.Cmd {
 	switch msg.String() {
 	case "esc", "ctrl+c":
 		a.closeCmdline()
@@ -152,9 +152,9 @@ func (a *App) handleCmdlineKey(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // cmdlineInput passes a key or a paste to the command line.
-func (a *App) cmdlineInput(msg tea.Msg) tea.Cmd {
+func (a *App) cmdlineInput(msg Input) tea.Cmd {
 	var cmd tea.Cmd
-	a.cmdInput, cmd = a.cmdInput.Update(msg)
+	a.cmdInput, cmd = a.cmdInput.Update(widgetMsg(msg))
 	return cmd
 }
 

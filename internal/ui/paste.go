@@ -10,7 +10,7 @@ import (
 
 // handlePaste sends a bracketed paste to whatever has the keyboard, the same
 // way handleKey routes keys. Overlays that take no text ignore it.
-func (a *App) handlePaste(msg tea.PasteMsg) tea.Cmd {
+func (a *App) handlePaste(msg Paste) tea.Cmd {
 	a.msg = ""
 	switch {
 	case a.search.open:
@@ -56,8 +56,8 @@ func (a *App) handlePaste(msg tea.PasteMsg) tea.Cmd {
 
 // typed returns the text a key press types, or "" for keys that type nothing
 // (named keys and Ctrl/Alt combinations).
-func typed(msg tea.KeyPressMsg) string {
-	if msg.Mod.Contains(tea.ModCtrl) || msg.Mod.Contains(tea.ModAlt) {
+func typed(msg Key) string {
+	if msg.Mod.Has(ModCtrl) || msg.Mod.Has(ModAlt) {
 		return ""
 	}
 	return msg.Text

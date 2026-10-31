@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -13,7 +12,7 @@ func splitApp(t *testing.T) (*App, []string) {
 	t.Helper()
 	a := newTestApp(t, "one\n")
 	ps := writeFiles(t, a.root, "b.txt", "c.txt")
-	a.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	a.Update(Key{Code: KeyEscape})
 	a.openFile(ps[0])
 	a.trackLast()
 	a.openFile(a.tabs[0].path())
@@ -50,12 +49,12 @@ func TestSplitShowsTwoFiles(t *testing.T) {
 func TestSplitFocusMovesCommands(t *testing.T) {
 	a, ps := splitApp(t)
 	keys(a, "space", "w", "h")
-	a.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	a.Update(Key{Code: KeyEscape})
 	if a.pane != 0 || a.cur().path() != a.tabs[0].path() || a.other.path() != ps[0] {
 		t.Fatalf("pane=%d cur=%s", a.pane, a.cur().path())
 	}
 	// Ctrl+2 goes back right
-	a.handleKey(tea.KeyPressMsg{Code: '2', Mod: tea.ModCtrl})
+	a.handleKey(Key{Code: '2', Mod: ModCtrl})
 	if a.pane != 1 || a.cur().path() != ps[0] {
 		t.Fatalf("pane=%d cur=%s", a.pane, a.cur().path())
 	}
@@ -63,7 +62,7 @@ func TestSplitFocusMovesCommands(t *testing.T) {
 	a.bufferPicker()
 	a.pal.onPick(0)
 	a.pal.close()
-	a.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	a.Update(Key{Code: KeyEscape})
 	if a.cur().path() != a.tabs[0].path() || a.other.path() != ps[0] {
 		t.Fatalf("cur=%s other=%s", a.cur().path(), a.other.path())
 	}
@@ -73,7 +72,7 @@ func TestSplitOpeningOtherPaneFileMovesFocus(t *testing.T) {
 	a, ps := splitApp(t)
 	left := a.tabs[0].path()
 	a.openFile(left)
-	a.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	a.Update(Key{Code: KeyEscape})
 	if a.pane != 0 || a.cur().path() != left || a.other.path() != ps[0] {
 		t.Fatalf("pane=%d cur=%s other=%s", a.pane, a.cur().path(), a.other.path())
 	}
@@ -82,9 +81,9 @@ func TestSplitOpeningOtherPaneFileMovesFocus(t *testing.T) {
 func TestSplitSwitchLastActsOnFocusedPane(t *testing.T) {
 	a, ps := splitApp(t)
 	a.openFile(ps[1]) // right pane: b -> c
-	a.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	a.Update(Key{Code: KeyEscape})
 	a.switchLast()
-	a.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	a.Update(Key{Code: KeyEscape})
 	if a.cur().path() != ps[0] || a.pane != 1 || a.other.path() != a.tabs[0].path() {
 		t.Fatalf("cur=%s pane=%d other=%s", a.cur().path(), a.pane, a.other.path())
 	}
@@ -92,7 +91,7 @@ func TestSplitSwitchLastActsOnFocusedPane(t *testing.T) {
 
 func TestSplitClose(t *testing.T) {
 	a, ps := splitApp(t)
-	a.handleKey(tea.KeyPressMsg{Code: '\\', Mod: tea.ModCtrl})
+	a.handleKey(Key{Code: '\\', Mod: ModCtrl})
 	if a.split || a.cur().path() != ps[0] || a.other != nil {
 		t.Fatalf("split=%v cur=%s", a.split, a.cur().path())
 	}
@@ -108,7 +107,7 @@ func TestSplitClose(t *testing.T) {
 func TestSplitCloseFileCollapses(t *testing.T) {
 	a, ps := splitApp(t)
 	a.closeTab(true)
-	a.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	a.Update(Key{Code: KeyEscape})
 	if a.split || a.cur() == nil || a.cur().path() != a.tabs[0].path() || ps == nil {
 		t.Fatalf("split=%v cur=%v", a.split, a.cur())
 	}
@@ -117,7 +116,7 @@ func TestSplitCloseFileCollapses(t *testing.T) {
 func TestSplitMouseFocusesPane(t *testing.T) {
 	a, ps := splitApp(t)
 	l := a.layout()
-	a.handleMouse(mouseEvent{X: l.otherX + 3, Y: l.editY + 1, Action: mousePress, Button: tea.MouseLeft})
+	a.handleMouse(Mouse{X: l.otherX + 3, Y: l.editY + 1, Action: mousePress, Button: MouseLeft})
 	if a.pane != 0 || a.other.path() != ps[0] {
 		t.Fatalf("pane=%d", a.pane)
 	}

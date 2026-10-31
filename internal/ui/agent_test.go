@@ -295,7 +295,7 @@ func TestPanelOpensBesideTheEditor(t *testing.T) {
 	if !strings.Contains(ansi.Strip(a.renderStatus()), "提案 1（Alt+I）") {
 		t.Errorf("status = %q", ansi.Strip(a.renderStatus()))
 	}
-	a.handleKey(tea.KeyPressMsg{Code: 'i', Mod: tea.ModAlt})
+	a.handleKey(Key{Code: 'i', Mod: ModAlt})
 	l := a.layout()
 	if a.focus != focusAgent || l.agentW == 0 || l.agentX+l.agentW != a.w || l.rightX+l.rightW+1 != l.agentX {
 		t.Fatalf("focus = %v, layout = %+v", a.focus, l)
@@ -312,7 +312,7 @@ func TestPanelOpensBesideTheEditor(t *testing.T) {
 	if !strings.Contains(strings.Join(screen, "\n"), "エラー 1 件を直しますか") {
 		t.Errorf("screen lacks the suggestion:\n%s", strings.Join(screen, "\n"))
 	}
-	a.handleKey(tea.KeyPressMsg{Code: 'i', Mod: tea.ModAlt})
+	a.handleKey(Key{Code: 'i', Mod: ModAlt})
 	if a.focus != focusEditor || a.layout().agentW != 0 {
 		t.Error("Alt+I did not close the panel")
 	}
@@ -327,13 +327,13 @@ func TestPanelMouse(t *testing.T) {
 	a.sg.fixOffer = true
 	l := a.layout()
 	// row 0 is the title, rows 1-2 the first suggestion, rows 3-4 the second
-	a.handleMouse(mouseEvent{X: l.agentX + 2, Y: l.top + 4, Action: mousePress, Button: tea.MouseLeft})
+	a.handleMouse(Mouse{X: l.agentX + 2, Y: l.top + 4, Action: mousePress, Button: MouseLeft})
 	if a.focus != focusAgent || a.sg.sel != 1 {
 		t.Errorf("focus = %v, sel = %d", a.focus, a.sg.sel)
 	}
-	a.handleMouse(mouseEvent{X: l.agentX - 1, Y: l.top + 5, Action: mousePress, Button: tea.MouseLeft})
-	a.handleMouse(mouseEvent{X: l.agentX - 21, Y: l.top + 5, Action: mouseMotion, Button: tea.MouseLeft})
-	a.handleMouse(mouseEvent{X: l.agentX - 21, Y: l.top + 5, Action: mouseRelease, Button: tea.MouseLeft})
+	a.handleMouse(Mouse{X: l.agentX - 1, Y: l.top + 5, Action: mousePress, Button: MouseLeft})
+	a.handleMouse(Mouse{X: l.agentX - 21, Y: l.top + 5, Action: mouseMotion, Button: MouseLeft})
+	a.handleMouse(Mouse{X: l.agentX - 21, Y: l.top + 5, Action: mouseRelease, Button: MouseLeft})
 	if got := a.layout().agentW; got != l.agentW+20 {
 		t.Errorf("width = %d, want %d", got, l.agentW+20)
 	}

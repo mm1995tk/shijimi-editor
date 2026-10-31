@@ -34,14 +34,14 @@ type holdScrollMsg struct{ seq int }
 // continues reports whether a key press is the held key itself (or its repeat),
 // so the running scroll goes on. Ctrl+D and Ctrl+Alt+D share a code but are
 // different scrolls.
-func (h holdScroll) continues(msg tea.KeyPressMsg) bool {
-	return h.buf != nil && msg.Code == h.code && msg.Mod.Contains(tea.ModCtrl) && msg.Mod.Contains(tea.ModAlt) == h.keep
+func (h holdScroll) continues(msg Key) bool {
+	return h.buf != nil && msg.Code == h.code && msg.Mod.Has(ModCtrl) && msg.Mod.Has(ModAlt) == h.keep
 }
 
 // halfPage handles Ctrl+D (dir = 1) and Ctrl+U (dir = -1), and with Alt added
 // (Ctrl+Alt+D / Ctrl+Alt+U) the same scroll that leaves the cursor on its line.
-func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg tea.KeyPressMsg) tea.Cmd {
-	keep := msg.Mod.Contains(tea.ModAlt)
+func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) tea.Cmd {
+	keep := msg.Mod.Has(ModAlt)
 	if !a.keyReleases { // one press, half a page
 		if keep {
 			a.scrollKeepCursor(b, dir*a.pageSize()/2, ext)
@@ -51,7 +51,7 @@ func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg tea.KeyPressMsg)
 		}
 		return nil
 	}
-	if msg.IsRepeat || a.hold.continues(msg) {
+	if msg.Repeat || a.hold.continues(msg) {
 		return nil // already scrolling until the release
 	}
 	a.hold = holdScroll{buf: b, dir: dir, ext: ext, code: msg.Code, keep: keep}
@@ -88,7 +88,7 @@ func (a *App) stopHoldScroll() { a.hold = holdScroll{} }
 
 // holdScrollRelease stops the scroll when the held letter is let go. The
 // release of D or U ends it even if Ctrl was let go first.
-func (a *App) holdScrollRelease(msg tea.KeyReleaseMsg) {
+func (a *App) holdScrollRelease(msg Key) {
 	if a.hold.buf != nil && msg.Code == a.hold.code {
 		a.stopHoldScroll()
 	}

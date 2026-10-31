@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	ctrlD = tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl}
-	ctrlU = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
+	ctrlD = Key{Code: 'd', Mod: ModCtrl}
+	ctrlU = Key{Code: 'u', Mod: ModCtrl}
 )
 
 func TestHalfPageCentersCursorWithoutKeyReleases(t *testing.T) {
@@ -18,7 +18,7 @@ func TestHalfPageCentersCursorWithoutKeyReleases(t *testing.T) {
 	b := a.curText().buf
 	keys(a, "1", "0", "0", "g")
 	mid := a.layout().editH / 2
-	for _, k := range []tea.KeyPressMsg{ctrlD, ctrlD, ctrlU} {
+	for _, k := range []Key{ctrlD, ctrlD, ctrlU} {
 		row := b.Cur.Row
 		a.Update(k)
 		a.render()
@@ -42,7 +42,7 @@ func TestHalfPageScrollsWhileHeld(t *testing.T) {
 
 	a.Update(ctrlD)
 	repeat := ctrlD
-	repeat.IsRepeat = true
+	repeat.Repeat = true
 	for range 5 {
 		a.Update(repeat) // key repeat must not speed it up
 		tick()
@@ -120,8 +120,8 @@ func TestKeyReleasesFrozenWhileQuitting(t *testing.T) {
 }
 
 var (
-	ctrlAltD = tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl | tea.ModAlt}
-	ctrlAltU = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl | tea.ModAlt}
+	ctrlAltD = Key{Code: 'd', Mod: ModCtrl | ModAlt}
+	ctrlAltU = Key{Code: 'u', Mod: ModCtrl | ModAlt}
 )
 
 func TestScrollKeepCursorHalfPage(t *testing.T) {
@@ -165,7 +165,7 @@ func TestScrollKeepCursorWhileHeld(t *testing.T) {
 	a.Update(ctrlAltD)
 	a.render()
 	repeat := ctrlAltD
-	repeat.IsRepeat = true
+	repeat.Repeat = true
 	for range 3 {
 		a.Update(repeat)
 		tick()

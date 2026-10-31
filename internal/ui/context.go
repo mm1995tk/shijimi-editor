@@ -100,7 +100,7 @@ func (a *App) sendContext() tea.Cmd {
 }
 
 // handleContextKey drives the preview: Enter pastes, Esc cancels.
-func (a *App) handleContextKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) handleContextKey(msg Key) tea.Cmd {
 	switch msg.String() {
 	case "enter":
 		text := a.ctx.text

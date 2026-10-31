@@ -38,7 +38,7 @@ func (a *App) MouseHover() bool { return a.cfg.Editor.MouseHover }
 // passiveMotion handles pointer movement with no button held. It never moves
 // the cursor: it only starts the dwell timer, or closes a popup the pointer
 // left.
-func (a *App) passiveMotion(l layout, msg mouseEvent) tea.Cmd {
+func (a *App) passiveMotion(l layout, msg Mouse) tea.Cmd {
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
 	}

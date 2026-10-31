@@ -42,7 +42,7 @@ type helixCmd struct {
 var helixCommands = map[string]helixCmd{}
 
 // helixDefaultKeys is the built-in normal-mode keymap: key (as
-// tea.KeyPressMsg.String reports it) to command name.
+// Key.String reports it) to command name.
 var helixDefaultKeys = map[string]string{}
 
 // helixCommandNames returns the command names, sorted.
@@ -352,7 +352,7 @@ type insertRecord struct {
 // insertStep is a key typed in insert mode, or a completion that was accepted
 // (it replaces the back characters before the cursor with text).
 type insertStep struct {
-	key        tea.KeyPressMsg
+	key        Key
 	completion bool
 	text       string
 	back       int
@@ -385,13 +385,13 @@ func (a *App) repeatLastInsert(b *buffer.Buffer, ext bool) tea.Cmd {
 		a.follow = true
 	}
 	if a.mode == modeInsert {
-		cmds = append(cmds, a.handleInsertKey(tea.KeyPressMsg{Code: tea.KeyEscape}))
+		cmds = append(cmds, a.handleInsertKey(Key{Code: KeyEscape}))
 	}
 	return tea.Batch(cmds...)
 }
 
 // normalizeHelixKey turns a Helix key name ("C-s", "A-x", "S-tab", "ret")
-// into the string tea.KeyPressMsg.String gives for that key.
+// into the string Key.String gives for that key.
 func normalizeHelixKey(s string) (string, bool) {
 	parts := strings.Split(s, "-")
 	var ctrl, alt, shift bool

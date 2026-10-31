@@ -119,7 +119,7 @@ func (a *App) cancelProposal(reply chan ideReply) {
 
 // handleProposalKey drives the first pending proposal: Enter accepts, Esc
 // rejects.
-func (a *App) handleProposalKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) handleProposalKey(msg Key) tea.Cmd {
 	p := a.props[0]
 	switch msg.String() {
 	case "enter", "y":
