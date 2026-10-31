@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 const mdSample = "# 見出し\n\n段落に **太字** と `code` と [リンク](http://x)。\n\n- 項目1\n- 項目2\n  - 入れ子\n\n1. 一\n2. 二\n\n```go\nfunc main() {}\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n```mermaid\ngraph TD; A-->B\n```\n"
@@ -20,9 +22,9 @@ const mdSample = "# 見出し\n\n段落に **太字** と `code` と [リンク]
 func TestRenderMarkdownWidth(t *testing.T) {
 	for _, w := range []int{20, 40, 80} {
 		called := false
-		lines := renderMarkdown(mdSample, w, mdOpts{mermaid: func(code string, w int) []string {
+		lines := testMd(mdSample, w, mdOpts{mermaid: func(code string, w int) *mdMedia {
 			called = strings.Contains(code, "A-->B")
-			return []string{strings.Repeat("x", w)}
+			return &mdMedia{Lines: []screen.Line{mdRow(plainSpan(strings.Repeat("x", w)))}}
 		}})
 		if !called {
 			t.Fatal("mermaid callback not called")
@@ -47,7 +49,7 @@ func TestRenderMarkdownWidth(t *testing.T) {
 func TestMarkdownTableWrapsLongCells(t *testing.T) {
 	src := "| 名前 | 説明 |\n|---|---|\n| foo | とても長い説明文がここに入ります。この文は幅を超えるので折り返されるべきです。 |\n| bar | short words that should wrap at spaces nicely |\n"
 	const w = 40
-	lines := renderMarkdown(src, w, mdOpts{})
+	lines := testMd(src, w, mdOpts{})
 	var text strings.Builder
 	for i, l := range lines {
 		if got := ansi.StringWidth(l); got != w {
@@ -98,7 +100,7 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 	}
 	code := mermaidBlocks(b.Text())[0]
 	key := a.mermaidKey(code)
-	if got := a.mermaidLines(code, 30); !strings.Contains(ansi.Strip(strings.Join(got, "\n")), "描画中") {
+	if got := a.testMedia(a.mermaidLines(code, 30), 30); !strings.Contains(ansi.Strip(strings.Join(got, "\n")), "描画中") {
 		t.Fatalf("pending placeholder expected: %q", got)
 	}
 	msg := a.handleMermaidStart(mermaidStartMsg{key, code})()
@@ -107,7 +109,7 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 		t.Fatalf("msg = %#v", msg)
 	}
 	a.handleMermaidDone(done)
-	lines := a.mermaidLines(code, 30)
+	lines := a.testMedia(a.mermaidLines(code, 30), 30)
 	if len(lines) < 3 || strings.Contains(ansi.Strip(strings.Join(lines, "")), "mermaid") {
 		t.Fatalf("diagram expected, got %d lines", len(lines))
 	}
@@ -138,7 +140,7 @@ func TestLongFenceNotClosedByShorter(t *testing.T) {
 	if got := mermaidBlocks(src); len(got) != 0 {
 		t.Fatalf("example inside a longer fence must not be drawn: %q", got)
 	}
-	plain := ansi.Strip(strings.Join(renderMarkdown(src, 40, mdOpts{}), "\n"))
+	plain := ansi.Strip(strings.Join(testMd(src, 40, mdOpts{}), "\n"))
 	if !strings.Contains(plain, "after text") || strings.Contains(plain, "````") {
 		t.Fatalf("unexpected render:\n%s", plain)
 	}
@@ -261,7 +263,7 @@ func TestFullPreviewBlocksLeaderPasteAndVscodeKeymap(t *testing.T) {
 
 func TestPreviewFrontMatterAsYAML(t *testing.T) {
 	src := "---\nname: skill\ndescription: 説明\n---\n\n# 見出し\n"
-	lines := renderMarkdown(src, 40, mdOpts{frontMatter: true})
+	lines := testMd(src, 40, mdOpts{frontMatter: true})
 	plain := ansi.Strip(strings.Join(lines, "\n"))
 	if !strings.Contains(plain, " yaml") || !strings.Contains(plain, "name: skill") || !strings.Contains(plain, "description: 説明") {
 		t.Fatalf("front matter not shown as YAML:\n%s", plain)
@@ -271,7 +273,7 @@ func TestPreviewFrontMatterAsYAML(t *testing.T) {
 	}
 
 	// without the option (review comments), "---" stays a rule
-	plain = ansi.Strip(strings.Join(renderMarkdown(src, 40, mdOpts{}), "\n"))
+	plain = ansi.Strip(strings.Join(testMd(src, 40, mdOpts{}), "\n"))
 	if strings.Contains(plain, "yaml") {
 		t.Fatalf("front matter outside the preview:\n%s", plain)
 	}
@@ -315,7 +317,7 @@ func TestCodeBlockWrapsLongLines(t *testing.T) {
 	} {
 		exact := map[int][2]int{}
 		conts := map[int]bool{}
-		lines := renderMarkdown("```\n"+tc.line+"\n```\n", tc.w, mdOpts{
+		lines := testMd("```\n"+tc.line+"\n```\n", tc.w, mdOpts{
 			wrapped: func(row int, space bool, indent int) { conts[row] = true },
 			exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
 		})
@@ -340,7 +342,7 @@ func TestCodeBlockWrapsLongLines(t *testing.T) {
 
 	// a line that fits is not reported
 	called := false
-	renderMarkdown("```\nshort\n```\n", 20, mdOpts{exact: func(int, int, int) { called = true }})
+	testMd("```\nshort\n```\n", 20, mdOpts{exact: func(int, int, int) { called = true }})
 	if called {
 		t.Fatal("a line that fits reported as cut")
 	}
@@ -485,4 +487,18 @@ func TestMarkdownImageReloadedWhenFileChanges(t *testing.T) {
 	if a.previewGen == gen {
 		t.Fatal("previews drawn with the freed image must be drawn again")
 	}
+}
+
+// testMd renders src as lines of w cells, with no images drawn.
+func testMd(src string, w int, o mdOpts) []string {
+	return (&App{}).drawMdDoc(renderMarkdown(src, w, o), w)
+}
+
+// testMedia draws the rows of m as lines of w cells.
+func (a *App) testMedia(m *mdMedia, w int) []string {
+	doc := mdDoc{Lines: m.Lines}
+	if m.Image != nil {
+		doc.Images = []screen.PreviewImage{{Rows: len(m.Lines), Image: *m.Image}}
+	}
+	return a.drawMdDoc(doc, w)
 }

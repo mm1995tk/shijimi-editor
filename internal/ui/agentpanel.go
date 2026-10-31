@@ -267,7 +267,7 @@ func (a *App) renderLog(w int) []logRow {
 			}
 			cuts := map[int]cut{} // row of the markdown -> the cut above it
 			exact := map[int][2]int{}
-			lines := renderMarkdown(e.text, max(1, w-1), mdOpts{
+			lines := a.markdownLines(e.text, max(1, w-1), mdOpts{
 				wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} },
 				exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
 			})

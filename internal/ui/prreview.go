@@ -572,7 +572,7 @@ func (a *App) cardLines(c *prCard, w int) []string {
 			head += dim.Render(" · " + threadWhere(t) + threadState(t))
 		}
 		out = append(out, fitStyled(head, w, dim))
-		out = append(out, renderMarkdown(cm.Body, w, mdOpts{mermaid: a.mermaidLines})...)
+		out = append(out, a.markdownLines(cm.Body, w, mdOpts{mermaid: a.mermaidLines})...)
 	}
 	return out
 }
@@ -932,7 +932,7 @@ func (a *App) composerBox(l layout) (rows []string, x, y int) {
 		text := c.ta.Value()
 		prev := []string{stPanelDim.Render(fit(i18n.T("rv.preview"), iw))}
 		if strings.TrimSpace(text) != "" {
-			prev = append(prev, renderMarkdown(text, iw, mdOpts{mermaid: a.mermaidLines})...)
+			prev = append(prev, a.markdownLines(text, iw, mdOpts{mermaid: a.mermaidLines})...)
 		}
 		for _, p := range prev[:min(len(prev), min(prevH, 12))] {
 			rows = append(rows, bd.Render("│")+stEmpty.Render(" ")+fitStyled(p, iw, stEmpty)+stEmpty.Render(" ")+bd.Render("│"))

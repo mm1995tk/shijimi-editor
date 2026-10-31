@@ -78,6 +78,17 @@ const (
 	StyleHoverHead   Style = "hover.head"
 	StyleHoverRule   Style = "hover.rule"
 
+	// Markdown プレビュー
+	StyleMdH1       Style = "md.h1"
+	StyleMdH2       Style = "md.h2"
+	StyleMdH3       Style = "md.h3" // 3 段目より下の見出しと、表の見出しの行
+	StyleMdCode     Style = "md.code"
+	StyleMdCodeBg   Style = "md.code.bg" // 行の中のコードの背景
+	StyleMdLink     Style = "md.link"
+	StyleMdImage    Style = "md.image"
+	StyleMdQuote    Style = "md.quote"
+	StyleMdListMark Style = "md.list.mark"
+
 	// 差分
 	StyleDiffAddBg     Style = "diff.add.bg"
 	StyleDiffDelBg     Style = "diff.del.bg"
