@@ -278,6 +278,8 @@ var en = map[string]string{
 	"herdr.badreply":           "herdr returned an unexpected reply",
 	"tmux.badreply":            "tmux returned an unexpected reply",
 	"zellij.badreply":          "zellij returned an unexpected reply",
+	"cmux.badreply":            "cmux returned an unexpected reply",
+	"cmux.noeditor":            "The pane of the editor is unknown (CMUX_SURFACE_ID is not set)",
 	"mux.failed":               "%s failed: %w",
 	"mux.unsupported":          "[terminal] multiplexer = \"%s\" is not supported yet; using the built-in terminal",
 	"mux.unavailable":          "Not running in %s; using the built-in terminal",
