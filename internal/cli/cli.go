@@ -37,10 +37,15 @@ func Main() {
 			fmt.Println("       shj diff [path]")
 			fmt.Println(i18n.T("help.exec"))
 			fmt.Println(i18n.T("help.skill"))
+			fmt.Println(i18n.T("help.serve"))
 			fmt.Println("       shj -v, --version")
 			fmt.Println(i18n.T("help.sub1") + ctl.EnvSocket + i18n.T("help.sub2"))
 			fmt.Println(i18n.T("help.samename"))
 			return
+		}
+		if arg == "serve" {
+			i18n.SetLang(config.Load(dir).Editor.UILanguage)
+			os.Exit(runServe(os.Args[2:]))
 		}
 		if ctl.IsSubcommand(arg) {
 			i18n.SetLang(config.Load(dir).Editor.UILanguage)
