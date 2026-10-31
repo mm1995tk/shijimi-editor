@@ -107,9 +107,9 @@ func TestAgentReadsTheBufferAndWritesAfterPermission(t *testing.T) {
 	open.buf.Insert("unsaved ")
 	other := filepath.Join(a.root, "b.txt")
 	p := newPump(a)
-	p.run(a.runAgent(sgLSPErrors, "k", "テスト", func() string {
+	p.run(a.effectCmd(a.runAgent(sgLSPErrors, "k", "テスト", func() string {
 		return "READ:" + open.buf.Path + "\nWRITE:" + other
-	}))
+	})...))
 	p.until(t, "the permission request", func() bool { return len(a.ag.perms) == 1 })
 	if !a.showAgent {
 		t.Error("the panel did not open for the permission request")
@@ -139,7 +139,7 @@ func TestAgentDoesNotOverwriteUnsavedEdits(t *testing.T) {
 	open := a.curText()
 	open.buf.Insert("unsaved ")
 	p := newPump(a)
-	p.run(a.runAgent(sgLSPErrors, "k", "テスト", func() string { return "WRITE:" + open.buf.Path }))
+	p.run(a.effectCmd(a.runAgent(sgLSPErrors, "k", "テスト", func() string { return "WRITE:" + open.buf.Path })...))
 	p.until(t, "the permission request", func() bool { return len(a.ag.perms) == 1 })
 	a.answerPermission(true)
 	p.until(t, "the end of the turn", func() bool { return a.ag.run == nil })
@@ -156,7 +156,7 @@ func TestRejectingPermissionKeepsTheFile(t *testing.T) {
 	fakeAgent(t, a)
 	other := filepath.Join(a.root, "b.txt")
 	p := newPump(a)
-	p.run(a.runAgent(sgLSPErrors, "k", "テスト", func() string { return "WRITE:" + other }))
+	p.run(a.effectCmd(a.runAgent(sgLSPErrors, "k", "テスト", func() string { return "WRITE:" + other })...))
 	p.until(t, "the permission request", func() bool { return len(a.ag.perms) == 1 })
 	a.setFocus(focusAgent)
 	a.handleKey(textKey("n"))
@@ -170,7 +170,7 @@ func TestCancelEndsTheAgentTurn(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	fakeAgent(t, a)
 	p := newPump(a)
-	p.run(a.runAgent(sgFailure, "k", "テスト", func() string { return "WAIT" }))
+	p.run(a.effectCmd(a.runAgent(sgFailure, "k", "テスト", func() string { return "WAIT" })...))
 	p.until(t, "the agent to start", func() bool { return a.ag.client != nil })
 	time.Sleep(50 * time.Millisecond) // the prompt reaches the agent
 	a.setFocus(focusAgent)
@@ -183,7 +183,7 @@ func TestCancelEndsTheAgentTurn(t *testing.T) {
 		t.Error("a cancelled analysis offered a fix")
 	}
 	// the session stays for the next run
-	p.run(a.runAgent(sgFailure, "k", "もう一度", func() string { return "SAY:原因はこれです" }))
+	p.run(a.effectCmd(a.runAgent(sgFailure, "k", "もう一度", func() string { return "SAY:原因はこれです" })...))
 	p.until(t, "the second turn", func() bool { return a.ag.run == nil && strings.Contains(logText(a), "原因はこれです") })
 	if !a.sg.fixOffer {
 		t.Error("the analysis did not offer the fix")
@@ -196,7 +196,7 @@ func TestCancelEndsTheAgentTurn(t *testing.T) {
 func TestAgentNeedsACommand(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.cfg.Agent = config.Agent{}
-	if cmd := a.runAgent(sgConflict, "k", "t", func() string { return "" }); cmd != nil || !a.msgErr || !strings.Contains(a.msg, "[agent]") {
+	if effs := a.runAgent(sgConflict, "k", "t", func() string { return "" }); effs != nil || !a.msgErr || !strings.Contains(a.msg, "[agent]") {
 		t.Errorf("msg = %q", a.msg)
 	}
 	if a.ag.run != nil {
@@ -362,7 +362,7 @@ func TestAIReviewBecomesUnsentComments(t *testing.T) {
 	reply := "SAY:```json\\n" + `[{"path":"a.txt","line":11,"start_line":10,"body":"範囲"},` +
 		`{"path":"a.txt","line":1,"body":"遠い"},{"path":"nope.txt","line":1,"body":"無い"},{"path":"b.txt","body":"全体"}]` + "\\n```"
 	p := newPump(a)
-	p.run(a.runAgent(sgAIReview, "k", "レビュー", func() string { return reply }))
+	p.run(a.effectCmd(a.runAgent(sgAIReview, "k", "レビュー", func() string { return reply })...))
 	p.until(t, "the review", func() bool { return a.ag.run == nil })
 	got := a.gd.rv.pending
 	if len(got) != 3 {
@@ -517,7 +517,7 @@ func TestOnlyWritingRunsMayWrite(t *testing.T) {
 	fakeAgent(t, a)
 	other := filepath.Join(a.root, "b.txt")
 	p := newPump(a)
-	p.run(a.runAgent(sgFailure, "k", "テスト", func() string { return "WRITE:" + other }))
+	p.run(a.effectCmd(a.runAgent(sgFailure, "k", "テスト", func() string { return "WRITE:" + other })...))
 	p.until(t, "the permission request", func() bool { return len(a.ag.perms) == 1 })
 	a.answerPermission(true)
 	p.until(t, "the end of the turn", func() bool { return a.ag.run == nil })

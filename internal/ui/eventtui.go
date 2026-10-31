@@ -46,6 +46,12 @@ func (a *App) effectCmd(effs ...Effect) tea.Cmd {
 				}
 				return nil
 			})
+		case WaitAgent:
+			from := e.From
+			cmds = append(cmds, func() tea.Msg { return <-from })
+		case RunAgent:
+			run := e.Run
+			cmds = append(cmds, func() tea.Msg { run(); return nil })
 		case ReplyCtl:
 			e.To <- e.Resp
 		case ReplyIDE:
@@ -88,6 +94,9 @@ func (a *App) handleEvent(ev Event) []Effect {
 	case lspEventMsg:
 		// Ask for the next one first, so none waits while this is handled.
 		return append([]Effect{WaitLSP{a.lsp.events}}, cmdEffects(a.handleLSPEvent(lsp.Event(ev)))...)
+	}
+	if effs, ok := a.handleAgentEvent(ev); ok {
+		return effs
 	}
 	if effs, ok := a.handleLSPReply(ev); ok {
 		return effs

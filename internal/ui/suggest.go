@@ -353,17 +353,17 @@ func (a *App) runSuggestion() tea.Cmd {
 		return a.openDiff(basePR)
 	case sgConflict:
 		files := a.sg.repo.conflicts
-		return a.runAgent(s.kind, s.key, s.title, func() string { return conflictPrompt(files) })
+		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return conflictPrompt(files) })...)
 	case sgCreatePR:
 		branch, base := a.sg.repo.branch, a.sg.repo.base
-		return a.runAgent(s.kind, s.key, s.title, func() string { return createPRPrompt(branch, base) })
+		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return createPRPrompt(branch, base) })...)
 	case sgLSPErrors:
 		text := a.errorsText()
-		return a.runAgent(s.kind, s.key, s.title, func() string { return lspPrompt(text) })
+		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return lspPrompt(text) })...)
 	case sgFailure:
 		for _, f := range a.sg.fails {
 			if fmt.Sprintf("fail:%d", f.seq) == s.key {
-				cmd := a.runAgent(s.kind, s.key, s.title, func() string { return failurePrompt(f) })
+				cmd := a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return failurePrompt(f) })...)
 				if a.ag.run != nil {
 					a.clearFailure(f.tab)
 				}
@@ -371,20 +371,20 @@ func (a *App) runSuggestion() tea.Cmd {
 			}
 		}
 	case sgApplyFix:
-		cmd := a.runAgent(s.kind, s.key, s.title, func() string { return applyFixPrompt() })
+		cmd := a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return applyFixPrompt() })...)
 		if a.ag.run != nil {
 			a.sg.fixOffer = false
 		}
 		return cmd
 	case sgAIReview:
 		pr, root, rev := a.gd.pr, a.root, a.gd.rev
-		return a.runAgent(s.kind, s.key, s.title, func() string {
+		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string {
 			out, err := run(root, nil, "git", "diff", rev, "--no-color", "--no-ext-diff", "-M")
 			if err != nil {
 				out = []byte(fmt.Sprintf(i18n.T("sg.diffunavailable"), err.Error()))
 			}
 			return reviewPrompt(pr, string(out))
-		})
+		})...)
 	}
 	return nil
 }

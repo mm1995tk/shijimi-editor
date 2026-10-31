@@ -27,8 +27,8 @@ type agentState struct {
 	session string
 	name    string // the agent's name for display
 	gen     int    // bumped when a client is dropped; its late messages are ignored
-	ch      chan tea.Msg
-	armed   bool // a wait() command is outstanding
+	ch      chan Event
+	armed   bool // a WaitAgent effect is outstanding
 	run     *agentRun
 	log     []logEntry
 	perms   []*permAsk // permission requests waiting for y / n
@@ -75,16 +75,16 @@ type permAsk struct {
 // maxLog bounds the panel log.
 const maxLog = 500
 
-func newAgentState() *agentState { return &agentState{ch: make(chan tea.Msg, 256)} }
+func newAgentState() *agentState { return &agentState{ch: make(chan Event, 256)} }
 
-// wait returns a command that delivers the next message from the agent.
-func (s *agentState) wait() tea.Cmd {
+// wait returns the Effect that delivers the next Event from the agent, or nil
+// if one is already outstanding.
+func (s *agentState) wait() []Effect {
 	if s.armed {
 		return nil
 	}
 	s.armed = true
-	ch := s.ch
-	return func() tea.Msg { return <-ch }
+	return []Effect{WaitAgent{From: s.ch}}
 }
 
 func (s *agentState) add(e logEntry) {
@@ -142,7 +142,7 @@ type agentExitMsg struct {
 
 // agentHandler forwards the agent's requests into the Bubble Tea loop.
 type agentHandler struct {
-	ch  chan tea.Msg
+	ch  chan Event
 	gen int
 }
 
@@ -184,7 +184,7 @@ func (h agentHandler) RequestPermission(ctx context.Context, r acp.PermissionReq
 
 // runAgent sends a prompt built by build for the suggestion of kind and key,
 // starting the agent first if needed.
-func (a *App) runAgent(kind suggestKind, key, title string, build func() string) tea.Cmd {
+func (a *App) runAgent(kind suggestKind, key, title string, build func() string) []Effect {
 	s := a.ag
 	if s.run != nil {
 		a.fail(errors.New(i18n.T("agent.busy")))
@@ -203,22 +203,22 @@ func (a *App) runAgent(kind suggestKind, key, title string, build func() string)
 	s.add(logEntry{kind: logUser, text: title})
 	if s.client == nil {
 		s.add(logEntry{kind: logInfo, text: i18n.T("agent.starting") + a.cfg.Agent.Command})
-		return tea.Batch(a.startAgent(), s.wait())
+		return append([]Effect{a.startAgent()}, s.wait()...)
 	}
-	return tea.Batch(a.sendPrompt(), s.wait())
+	return append([]Effect{a.sendPrompt()}, s.wait()...)
 }
 
 // startAgent launches the agent and opens a session in the background.
-func (a *App) startAgent() tea.Cmd {
+func (a *App) startAgent() Effect {
 	s := a.ag
 	s.gen++
 	gen, ch, root := s.gen, s.ch, a.root
 	o := acp.Options{Command: a.cfg.Agent.Command, Args: a.cfg.Agent.Args, Env: a.cfg.Agent.Env, Dir: root, Version: versionLabel()}
-	return func() tea.Msg {
+	return RunAgent{Run: func() {
 		c, err := acp.Start(o, agentHandler{ch: ch, gen: gen})
 		if err != nil {
 			ch <- agentReadyMsg{gen: gen, err: err}
-			return nil
+			return
 		}
 		ctx := context.Background()
 		sid := ""
@@ -228,27 +228,25 @@ func (a *App) startAgent() tea.Cmd {
 		if err != nil {
 			c.Close()
 			ch <- agentReadyMsg{gen: gen, err: err}
-			return nil
+			return
 		}
 		ch <- agentReadyMsg{gen: gen, client: c, session: sid}
 		go func() {
 			<-c.Done()
 			ch <- agentExitMsg{gen: gen, err: c.Err()}
 		}()
-		return nil
-	}
+	}}
 }
 
 // sendPrompt sends the current run's prompt. The answer goes through the
 // channel after the updates the agent sent before it.
-func (a *App) sendPrompt() tea.Cmd {
+func (a *App) sendPrompt() Effect {
 	s := a.ag
 	c, sid, gen, ch, build := s.client, s.session, s.gen, s.ch, s.run.build
-	return func() tea.Msg {
+	return RunAgent{Run: func() {
 		stop, err := c.Prompt(context.Background(), sid, acp.Text(build()))
 		ch <- agentTurnMsg{gen: gen, stop: stop, err: err}
-		return nil
-	}
+	}}
 }
 
 // cancelAgent asks the agent to stop the running turn.
@@ -282,11 +280,11 @@ func (a *App) stopAgent() {
 	s.perms = nil
 }
 
-// handleAgentMsg handles every message from the agent. It reports whether
-// msg was one.
-func (a *App) handleAgentMsg(msg tea.Msg) (tea.Cmd, bool) {
+// handleAgentEvent handles every Event from the agent. It reports whether
+// ev was one.
+func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
 	s := a.ag
-	switch m := msg.(type) {
+	switch m := ev.(type) {
 	case agentReadyMsg:
 		s.armed = false
 		if m.gen != s.gen {
@@ -305,7 +303,7 @@ func (a *App) handleAgentMsg(msg tea.Msg) (tea.Cmd, bool) {
 		if s.run == nil {
 			return s.wait(), true
 		}
-		return tea.Batch(a.sendPrompt(), s.wait()), true
+		return append([]Effect{a.sendPrompt()}, s.wait()...), true
 	case agentUpdateMsg:
 		s.armed = false
 		if m.gen == s.gen {
@@ -328,11 +326,11 @@ func (a *App) handleAgentMsg(msg tea.Msg) (tea.Cmd, bool) {
 		if err != nil {
 			return s.wait(), true
 		}
-		cmds := []tea.Cmd{s.wait()}
+		effs := s.wait()
 		if a.gd.on {
-			cmds = append(cmds, a.reloadChanges())
+			effs = append(effs, cmdEffects(a.reloadChanges())...)
 		}
-		return tea.Batch(cmds...), true
+		return effs, true
 	case agentPermMsg:
 		s.armed = false
 		if m.ask.gen != s.gen {
@@ -359,7 +357,7 @@ func (a *App) handleAgentMsg(msg tea.Msg) (tea.Cmd, bool) {
 		if m.gen != s.gen {
 			return s.wait(), true
 		}
-		return tea.Batch(a.endTurn(m), s.wait()), true
+		return append(cmdEffects(a.endTurn(m)), s.wait()...), true
 	case agentExitMsg:
 		s.armed = false
 		if m.gen != s.gen {

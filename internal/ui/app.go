@@ -946,9 +946,6 @@ func (a *App) handleAutoSave(m AutoSaveDue) []Effect {
 }
 
 func (a *App) update(msg tea.Msg) tea.Cmd {
-	if cmd, ok := a.handleAgentMsg(msg); ok {
-		return cmd
-	}
 	switch msg := msg.(type) {
 	case Event:
 		return a.effectCmd(a.handleEvent(msg)...)
