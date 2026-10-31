@@ -16,9 +16,6 @@ const hoverDelay = 500 * time.Millisecond
 // screenPt is a screen cell.
 type screenPt struct{ x, y int }
 
-// hoverDwellMsg fires hoverDelay after the pointer entered a cell.
-type hoverDwellMsg struct{ seq int }
-
 // wordSpan is the word under the pointer: columns [start, end) of one row. The
 // zero value is no word.
 type wordSpan struct{ row, start, end int }
@@ -91,7 +88,7 @@ func (a *App) passiveMotion(l layout, msg Mouse) tea.Cmd {
 	}
 	a.hoverWord = word
 	seq := a.hoverSeq
-	return tea.Tick(hoverDelay, func(time.Time) tea.Msg { return hoverDwellMsg{seq} })
+	return a.effectCmd(StartTimer{After: hoverDelay, Fire: HoverDwell{seq}})
 }
 
 // hoverBlocked reports whether something that owns the keys is open (palette,
@@ -102,7 +99,7 @@ func (a *App) hoverBlocked() bool {
 }
 
 // hoverDwell asks the language server about the word under a resting pointer.
-func (a *App) hoverDwell(msg hoverDwellMsg) tea.Cmd {
+func (a *App) hoverDwell(msg HoverDwell) []Effect {
 	if msg.seq != a.hoverSeq || a.focus != focusEditor || a.hoverBlocked() {
 		return nil
 	}
@@ -121,7 +118,7 @@ func (a *App) hoverDwell(msg hoverDwellMsg) tea.Cmd {
 	a.syncLSP()
 	path, lp := t.buf.Path, lspPos(t.buf, pos)
 	origin := &mouseHover{tab: t, seq: msg.seq, pos: pos, word: word, pt: a.hoverCell}
-	return func() tea.Msg {
+	return []Effect{cmdEffect{func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
 		defer cancel()
 		text, err := c.Hover(ctx, path, lp)
@@ -129,7 +126,7 @@ func (a *App) hoverDwell(msg hoverDwellMsg) tea.Cmd {
 			return nil
 		}
 		return hoverMsg{text: text, mouse: origin}
-	}
+	}}}
 }
 
 // mouseBufPos maps a screen cell to the buffer position of the character under

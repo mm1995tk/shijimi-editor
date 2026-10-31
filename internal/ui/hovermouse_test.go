@@ -41,7 +41,7 @@ func TestMouseHoverStaleDwellIgnored(t *testing.T) {
 	move(a, l.rightX+gw+1, l.editY)
 	seq := a.hoverSeq
 	move(a, l.rightX+gw+3, l.editY)
-	if cmd := a.hoverDwell(hoverDwellMsg{seq}); cmd != nil {
+	if cmd := a.hoverDwell(HoverDwell{seq}); cmd != nil {
 		t.Fatal("a timer from an earlier cell must be dropped")
 	}
 }
@@ -167,7 +167,7 @@ func TestMouseHoverNeedsEditorFocus(t *testing.T) {
 			t.Fatalf("focus %v: timer started", f)
 		}
 		a.hoverCell = screenPt{l.rightX + gutterWidth(a.curText().buf) + 1, l.editY}
-		if cmd := a.hoverDwell(hoverDwellMsg{a.hoverSeq}); cmd != nil {
+		if cmd := a.hoverDwell(HoverDwell{a.hoverSeq}); cmd != nil {
 			t.Fatalf("focus %v: dwell sent a request", f)
 		}
 	}
@@ -247,7 +247,7 @@ func TestMouseHoverBlockedByKeyOwners(t *testing.T) {
 			t.Fatalf("%s: timer started", name)
 		}
 		a.hoverCell = screenPt{x, y}
-		if cmd := a.hoverDwell(hoverDwellMsg{a.hoverSeq}); cmd != nil {
+		if cmd := a.hoverDwell(HoverDwell{a.hoverSeq}); cmd != nil {
 			t.Fatalf("%s: dwell sent a request", name)
 		}
 	}

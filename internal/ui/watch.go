@@ -3,8 +3,6 @@ package ui
 import (
 	"time"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -20,10 +18,30 @@ const treeRefreshTicks = 3
 // watchInterval is how often open files are compared with the disk.
 const watchInterval = time.Second
 
-type watchMsg struct{}
+// watchTimer schedules the next WatchTick.
+func watchTimer() Effect { return StartTimer{After: watchInterval, Fire: WatchTick{}} }
 
-func watchTick() tea.Cmd {
-	return tea.Tick(watchInterval, func(time.Time) tea.Msg { return watchMsg{} })
+// handleWatch runs one WatchTick and schedules the next.
+func (a *App) handleWatch() []Effect {
+	if a.single {
+		a.checkDiskChanges()
+		return []Effect{watchTimer()}
+	}
+	reload := a.checkDiskChanges()
+	sg := a.suggestTick()
+	a.treeTicks++
+	if reload || a.treeTicks >= treeRefreshTicks {
+		a.treeTicks = 0
+		a.explorer.refresh()
+	}
+	effs := []Effect{watchTimer(), cmdEffect{sg}}
+	if a.gd.on {
+		a.gd.ticks++
+		if reload || a.gd.ticks%gitDiffRefreshTicks == 0 {
+			effs = append(effs, cmdEffect{a.reloadChanges()})
+		}
+	}
+	return effs
 }
 
 // checkDiskChanges follows edits other processes (e.g. an AI agent) made to

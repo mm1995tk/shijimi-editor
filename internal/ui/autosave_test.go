@@ -15,11 +15,11 @@ func TestAutoSave(t *testing.T) {
 	ver := tb.buf.Version
 	// a stale timer (buffer edited again afterwards) must not save
 	keys(a, "y")
-	a.Update(autoSaveMsg{tab: tb, ver: ver})
+	a.Update(AutoSaveDue{tab: tb, ver: ver})
 	if b, _ := os.ReadFile(tb.buf.Path); string(b) != "one\n" {
 		t.Fatalf("stale timer saved: %q", b)
 	}
-	a.Update(autoSaveMsg{tab: tb, ver: tb.buf.Version})
+	a.Update(AutoSaveDue{tab: tb, ver: tb.buf.Version})
 	if b, _ := os.ReadFile(tb.buf.Path); string(b) != "xyone\n" || tb.buf.Dirty {
 		t.Fatalf("not saved: %q", b)
 	}
@@ -30,7 +30,7 @@ func TestAutoSaveSkipsUnnamed(t *testing.T) {
 	a.newFile()
 	keys(a, "i", "x")
 	tb := a.curText()
-	a.Update(autoSaveMsg{tab: tb, ver: tb.buf.Version})
+	a.Update(AutoSaveDue{tab: tb, ver: tb.buf.Version})
 	if !tb.buf.Dirty || tb.buf.Path != "" {
 		t.Fatal("unnamed buffer must not be auto-saved")
 	}
@@ -52,15 +52,15 @@ func TestScheduleAutoSave(t *testing.T) {
 	if cmd == nil || tb.autoVer != tb.buf.Version {
 		t.Fatalf("edit did not schedule auto-save (autoVer=%d, version=%d)", tb.autoVer, tb.buf.Version)
 	}
-	var msg autoSaveMsg
+	var msg AutoSaveDue
 	found := false
 	for _, m := range collect(cmd) {
-		if am, ok := m.(autoSaveMsg); ok {
+		if am, ok := m.(AutoSaveDue); ok {
 			msg, found = am, true
 		}
 	}
 	if !found {
-		t.Fatal("no autoSaveMsg produced")
+		t.Fatal("no AutoSaveDue produced")
 	}
 
 	// same Version: not scheduled twice
@@ -80,7 +80,7 @@ func TestAutoSaveDisabled(t *testing.T) {
 	keys(a, "i")
 	_, cmd := a.Update(textKey("x"))
 	for _, m := range collect(cmd) {
-		if _, ok := m.(autoSaveMsg); ok {
+		if _, ok := m.(AutoSaveDue); ok {
 			t.Fatal("scheduled while disabled")
 		}
 	}
