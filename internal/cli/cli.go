@@ -38,10 +38,15 @@ func Main() {
 			fmt.Println(i18n.T("help.exec"))
 			fmt.Println(i18n.T("help.skill"))
 			fmt.Println(i18n.T("help.serve"))
+			fmt.Println(i18n.T("help.attach"))
 			fmt.Println("       shj -v, --version")
 			fmt.Println(i18n.T("help.sub1") + ctl.EnvSocket + i18n.T("help.sub2"))
 			fmt.Println(i18n.T("help.samename"))
 			return
+		}
+		if arg == "attach" {
+			i18n.SetLang(config.Load(dir).Editor.UILanguage)
+			os.Exit(runAttach(os.Args[2:]))
 		}
 		if arg == "serve" {
 			i18n.SetLang(config.Load(dir).Editor.UILanguage)

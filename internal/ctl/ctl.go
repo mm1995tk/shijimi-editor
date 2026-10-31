@@ -111,6 +111,16 @@ func ServeSocketPath() (string, error) {
 	return filepath.Join(dir, "serve.rpc"), nil
 }
 
+// ServeLockPath returns the lock file that "shj attach" takes with flock while
+// it starts "shj serve": <socketDir>/serve.lock.
+func ServeLockPath() (string, error) {
+	dir, err := socketDir(true)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "serve.lock"), nil
+}
+
 // Listen creates the socket (mode 0600) and serves h until Close. Inside a
 // herdr pane it also links the socket under a name built from the herdr
 // environment (see herdrLink), so that shj finds it without SHIJIMI_SOCKET.
