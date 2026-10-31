@@ -118,9 +118,7 @@ func (a *App) hoverDwell(msg HoverDwell) []Effect {
 	a.syncLSP()
 	path, lp := t.buf.Path, lspPos(t.buf, pos)
 	origin := &mouseHover{tab: t, seq: msg.seq, pos: pos, word: word, pt: a.hoverCell}
-	return []Effect{cmdEffect{func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
-		defer cancel()
+	return []Effect{RunLSP{func(ctx context.Context) Event {
 		text, err := c.Hover(ctx, path, lp)
 		if err != nil {
 			return nil

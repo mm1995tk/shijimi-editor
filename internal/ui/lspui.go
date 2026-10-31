@@ -43,12 +43,6 @@ func newLSPManager(cfg *config.Config, root string) *lspManager {
 	}
 }
 
-type lspEventMsg lsp.Event
-
-func (m *lspManager) wait() tea.Cmd {
-	return func() tea.Msg { return lspEventMsg(<-m.events) }
-}
-
 // clientsFor returns running clients for a tab, starting them if needed.
 // Errors (e.g. server binary missing) are returned once per server.
 func (m *lspManager) clientsFor(t *tab) ([]*lsp.Client, []error) {
@@ -207,7 +201,12 @@ type formatMsg struct {
 }
 type lspErrMsg struct{ err error }
 
-func (a *App) lspRequest(capability string, f func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg) tea.Cmd {
+// lspReq builds the tea.Cmd that carries out a RunLSP.
+func (a *App) lspReq(run func(ctx context.Context) Event) tea.Cmd {
+	return a.effectCmd(RunLSP{Run: run})
+}
+
+func (a *App) lspRequest(capability string, f func(ctx context.Context, c *lsp.Client, t *tab) Event) tea.Cmd {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -222,15 +221,11 @@ func (a *App) lspRequest(capability string, f func(ctx context.Context, c *lsp.C
 		return nil
 	}
 	a.syncLSP()
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
-		defer cancel()
-		return f(ctx, c, t)
-	}
+	return a.lspReq(func(ctx context.Context) Event { return f(ctx, c, t) })
 }
 
 func (a *App) hover() tea.Cmd {
-	return a.lspRequest("hoverProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+	return a.lspRequest("hoverProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		text, err := c.Hover(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
 		if err != nil {
 			return lspErrMsg{err}
@@ -240,7 +235,7 @@ func (a *App) hover() tea.Cmd {
 }
 
 func (a *App) gotoDefinition() tea.Cmd {
-	return a.lspRequest("definitionProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+	return a.lspRequest("definitionProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		pos := lspPos(t.buf, t.buf.Cur)
 		locs, err := c.Definition(ctx, t.buf.Path, pos)
 		if err != nil {
@@ -283,7 +278,7 @@ func onLocation(locs []lsp.Location, path string, pos lsp.Position) bool {
 }
 
 func (a *App) references() tea.Cmd {
-	return a.lspRequest("referencesProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+	return a.lspRequest("referencesProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		locs, err := c.References(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
 		if err != nil {
 			return lspErrMsg{err}
@@ -300,7 +295,7 @@ func (a *App) completion() tea.Cmd {
 	start := wordStart(t.buf)
 	version := t.buf.Version
 	pos := t.buf.Cur
-	return a.lspRequest("completionProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+	return a.lspRequest("completionProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		items, err := c.Completion(ctx, t.buf.Path, lspPos(t.buf, pos))
 		if err != nil {
 			return lspErrMsg{err}
@@ -325,7 +320,7 @@ func (a *App) rename() tea.Cmd {
 		if v == "" || v == old {
 			return nil
 		}
-		return a.lspRequest("renameProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+		return a.lspRequest("renameProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 			we, err := c.Rename(ctx, t.buf.Path, lspPos(t.buf, pos), v)
 			if err != nil {
 				return lspErrMsg{err}
@@ -344,7 +339,7 @@ func (a *App) format(save bool) tea.Cmd {
 		return a.runFormatter(t, t.lang.Formatter, save)
 	}
 	unit := t.buf.IndentUnit()
-	return a.lspRequest("documentFormattingProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+	return a.lspRequest("documentFormattingProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		edits, err := c.Format(ctx, t.buf.Path, max(1, len(unit)), unit != "\t")
 		if err != nil {
 			return lspErrMsg{err}
@@ -370,7 +365,7 @@ func (a *App) codeAction() tea.Cmd {
 		return nil
 	}
 	rng, diags := codeActionRange(t.buf, a.lsp.diagnostics(t.buf.Path))
-	return a.lspRequest("codeActionProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+	return a.lspRequest("codeActionProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		actions, err := c.CodeActions(ctx, t.buf.Path, rng, diags)
 		if err != nil {
 			return lspErrMsg{err}
@@ -435,15 +430,13 @@ func (a *App) showCodeActions(m codeActionsMsg) tea.Cmd {
 	}
 	return a.pal.pick(i18n.T("lspui.codeactions"), items, func(i int) tea.Cmd {
 		act := actions[i]
-		return func() tea.Msg {
-			ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
-			defer cancel()
+		return a.lspReq(func(ctx context.Context) Event {
 			r, err := m.client.ResolveCodeAction(ctx, act)
 			if err != nil {
 				return lspErrMsg{err}
 			}
 			return codeActionResolvedMsg{m.client, r}
-		}
+		})
 	})
 }
 
@@ -461,14 +454,12 @@ func (a *App) runCodeAction(m codeActionResolvedMsg) tea.Cmd {
 		return nil
 	}
 	a.syncLSP()
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
-		defer cancel()
+	return a.lspReq(func(ctx context.Context) Event {
 		if err := m.client.ExecuteCommand(ctx, *cmd); err != nil {
 			return lspErrMsg{err}
 		}
 		return nil
-	}
+	})
 }
 
 func (a *App) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
@@ -755,4 +746,75 @@ func (a *App) jumpTo(l lsp.Location) tea.Cmd {
 	t.buf.SetCursor(p.Row, buffer.VisualCol(t.buf.Lines[p.Row], p.Col), false)
 	a.follow = true
 	return a.setFocus(focusEditor)
+}
+
+// handleLSPReply takes the Events a language server's reply becomes. ok is
+// false for an Event that is not one of them.
+func (a *App) handleLSPReply(ev Event) (effs []Effect, ok bool) {
+	switch msg := ev.(type) {
+	case hoverMsg:
+		a.showHover(msg)
+	case locationsMsg:
+		return cmdEffects(a.showLocations(msg)), true
+	case completionMsg:
+		t := a.curText()
+		if t == nil || t != msg.tab || a.mode != modeInsert && a.helix || len(msg.items) == 0 {
+			return nil, true
+		}
+		a.comp = &completionPopup{tab: t, start: msg.start, all: msg.items}
+		a.comp.filter()
+		if len(a.comp.items) == 0 {
+			a.comp = nil
+		}
+	case signatureMsg:
+		a.showSignature(msg)
+	case workspaceEditMsg:
+		a.applyWorkspaceEdit(msg.edit)
+	case symbolsMsg:
+		return cmdEffects(a.showSymbols(msg)), true
+	case symbolQueryMsg:
+		return cmdEffects(a.runSymbolQuery(msg)), true
+	case workspaceSymbolsMsg:
+		a.showWorkspaceSymbols(msg)
+	case codeActionsMsg:
+		return cmdEffects(a.showCodeActions(msg)), true
+	case codeActionResolvedMsg:
+		return cmdEffects(a.runCodeAction(msg)), true
+	case formatMsg:
+		if len(msg.edits) > 0 {
+			msg.tab.buf.ApplyEdits(toEdits(msg.tab.buf, msg.edits))
+		}
+		if msg.save {
+			return cmdEffects(a.saveTab(msg.tab)), true
+		}
+		a.infoText(i18n.T("app.formatted"))
+	case lspErrMsg:
+		a.fail(msg.err)
+	case semanticMsg:
+		msg.h.sem.apply(msg)
+	default:
+		return nil, false
+	}
+	return nil, true
+}
+
+func (a *App) showHover(msg hoverMsg) {
+	if t := a.curText(); a.fullPreview(t) {
+		return // the popup would be anchored to the hidden buffer
+	}
+	if m := msg.mouse; m != nil {
+		if m.seq != a.hoverSeq || m.tab != a.cur() || strings.TrimSpace(msg.text) == "" {
+			return
+		}
+		a.hoverText, a.hoverScroll = msg.text, 0
+		a.hoverAt, a.hoverWord = &m.pt, m.word
+		return
+	}
+	if strings.TrimSpace(msg.text) == "" {
+		a.infoText(i18n.T("app.nohover"))
+	} else {
+		a.hoverText = msg.text
+		a.hoverScroll = 0
+		a.hoverAt = nil
+	}
 }

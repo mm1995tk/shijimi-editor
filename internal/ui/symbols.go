@@ -38,7 +38,7 @@ func (p *palette) queryLater() tea.Cmd {
 
 // documentSymbols lists the functions, types and variables of the current file.
 func (a *App) documentSymbols() tea.Cmd {
-	return a.lspRequest("documentSymbolProvider", func(ctx context.Context, c *lsp.Client, t *tab) tea.Msg {
+	return a.lspRequest("documentSymbolProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		syms, err := c.DocumentSymbols(ctx, t.buf.Path)
 		if err != nil {
 			return lspErrMsg{err}
@@ -111,15 +111,13 @@ func (a *App) runSymbolQuery(m symbolQueryMsg) tea.Cmd {
 		return nil
 	}
 	q := p.input.Value()
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), lspTimeout)
-		defer cancel()
+	return a.lspReq(func(ctx context.Context) Event {
 		syms, err := c.WorkspaceSymbols(ctx, q)
 		if err != nil {
 			return lspErrMsg{err}
 		}
 		return workspaceSymbolsMsg{m.seq, syms}
-	}
+	})
 }
 
 func (a *App) showWorkspaceSymbols(m workspaceSymbolsMsg) {
