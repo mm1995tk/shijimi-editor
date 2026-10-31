@@ -52,7 +52,7 @@ When a program in the terminal (Claude Code, tmux and so on) copies with OSC 52,
 
 ## Inside a terminal multiplexer
 
-When shijimi runs in a terminal multiplexer, `[experimental]` `multiplexer` is `true` ([Configuration files](config.md#nightly-build)) and the multiplexer is supported, the terminal commands use a pane of the multiplexer instead of the terminal panel. The multiplexer then detects the state of the agents run there, notifies you and restores them. Which multiplexer is used is set by `[terminal]` `multiplexer` (`"auto"` by default, which takes the innermost multiplexer among the parent processes of shijimi; `"none"` always uses the terminal panel). [herdr](https://herdr.dev) (`HERDR_ENV=1`) and tmux 3.1 or later (`TMUX` set) are supported so far; zellij and cmux will follow. Without a supported multiplexer, or with `multiplexer = false` or `"none"`, nothing changes. The rest of this section describes herdr and tmux; they work the same way except where noted.
+When shijimi runs in a terminal multiplexer, `[experimental]` `multiplexer` is `true` ([Configuration files](config.md#nightly-build)) and the multiplexer is supported, the terminal commands use a pane of the multiplexer instead of the terminal panel. The multiplexer then detects the state of the agents run there, notifies you and restores them. Which multiplexer is used is set by `[terminal]` `multiplexer` (`"auto"` by default, which takes the innermost multiplexer among the parent processes of shijimi; `"none"` always uses the terminal panel). [herdr](https://herdr.dev) (`HERDR_ENV=1`) , tmux 3.1 or later (`TMUX` set) and zellij 0.44 or later (`ZELLIJ` set) are supported so far; cmux will follow. Without a supported multiplexer, or with `multiplexer = false` or `"none"`, nothing changes. The rest of this section describes herdr, tmux and zellij; they work the same way except where noted.
 
 | Method | Action |
 | --- | --- |
@@ -62,10 +62,10 @@ When shijimi runs in a terminal multiplexer, `[experimental]` `multiplexer` is `
 | `Space a` / `Alt+A` | Paste the context into the pane (Enter is not sent) |
 | `shj exec ":sh hide"` | Hide the pane. Run it in the pane; bind it to a key of the multiplexer |
 
-- The pane is hidden by zooming shijimi's pane (in tmux, `resize-pane -Z`). The new pane takes 30% of the height. In tmux, a pane that ended but is kept by `remain-on-exit` counts as ended, and a new one is created.
+- The pane is hidden by zooming shijimi's pane (in tmux, `resize-pane -Z`; in zellij, `toggle-fullscreen`). The new pane takes 30% of the height; in zellij, which cannot size a tiled pane, half of it. zellij names the pane by `--pane-id` in every action, so nothing depends on the focus. In tmux, a pane that ended but is kept by `remain-on-exit` counts as ended, and a new one is created.
 - The pane starts in the root of the workspace, with the same environment variables as the terminal panel, so `claude` started there connects to the IDE integration.
-- To end the pane, type `exit` in its shell or use the multiplexer's key (herdr: `Ctrl+B x`; tmux: its prefix then `x`). After that, the next ``Ctrl+` `` creates a new pane. When shijimi quits, it closes the pane it created.
-- To go back to shijimi from the pane, use the multiplexer's key (herdr: `Ctrl+B` `k` by default; tmux: its prefix then an arrow key, or `select-pane -U`). shijimi's own keys (`Ctrl+Q`, ``Ctrl+` ``, `Alt+R` and `F1`) do not work in the pane.
+- To end the pane, type `exit` in its shell or use the multiplexer's key (herdr: `Ctrl+B x`; tmux: its prefix then `x`; zellij: `Ctrl+P` then `x`). After that, the next ``Ctrl+` `` creates a new pane. When shijimi quits, it closes the pane it created.
+- To go back to shijimi from the pane, use the multiplexer's key (herdr: `Ctrl+B` `k` by default; tmux: its prefix then an arrow key, or `select-pane -U`; zellij: `Alt+Up` by default). shijimi's own keys (`Ctrl+Q`, ``Ctrl+` ``, `Alt+R` and `F1`) do not work in the pane.
 - The screen, the scrolling, the copying with the mouse and OSC 52 in the pane are the multiplexer's. The message "Copied N characters from the terminal" does not appear.
 - The shell of the pane reports the exit code of each command with `shj command-end <code>`, so the suggestion to investigate a failed command still appears. This works for zsh and bash. For bash, the hook is set through `PROMPT_COMMAND`, so it does not work when a startup file replaces `PROMPT_COMMAND`.
 - When a command of the multiplexer fails, the error is shown in the status bar.

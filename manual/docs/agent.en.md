@@ -189,9 +189,9 @@ This lets a shell command bound to a key of herdr run `shj exec ":sh hide"`, for
 !!! note "Removed commands"
     `shj open` and `shj status` were removed. They were replaced by the IDE integration's `openFile` and `getOpenEditors` / `getCurrentSelection`.
 
-## Inside herdr and tmux
+## Inside herdr, tmux and zellij
 
-When shijimi runs in herdr (`HERDR_ENV=1`) or tmux (`TMUX` set) and `[experimental]` `multiplexer` is `true`, ``Ctrl+` ``, `Space t`, `:sh`, `Space a` and `Alt+A` use a pane of the multiplexer instead of the terminal panel ([Terminal](terminal.md#inside-a-terminal-multiplexer)).
+When shijimi runs in herdr (`HERDR_ENV=1`), tmux (`TMUX` set) or zellij (`ZELLIJ` set) and `[experimental]` `multiplexer` is `true`, ``Ctrl+` ``, `Space t`, `:sh`, `Space a` and `Alt+A` use a pane of the multiplexer instead of the terminal panel ([Terminal](terminal.md#inside-a-terminal-multiplexer)).
 The pane gets the same environment variables, so `claude` started there connects to the IDE integration, and `Space a` / `Alt+A` paste the context into the pane without sending Enter (while connected, `at_mentioned` is sent as before).
 The shell of the pane reports each command's exit code with `shj command-end <code>`, so the suggestion to investigate a failed command still appears.
 

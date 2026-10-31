@@ -34,7 +34,8 @@
 | `"auto"`（既定） | shijimi が動いているマルチプレクサのうち一番内側のもの。shijimi の親プロセスをたどり、最初に見つかったマルチプレクサを使う。無ければターミナルパネル |
 | `"herdr"` | herdr（`HERDR_ENV=1` が必要） |
 | `"tmux"` | tmux 3.1 以降（`TMUX` が必要） |
-| `"zellij"` / `"cmux"` | まだ対応していません。メッセージを出してターミナルパネルを使う |
+| `"zellij"` | zellij 0.44 以降（`ZELLIJ` が必要） |
+| `"cmux"` | まだ対応していません。メッセージを出してターミナルパネルを使う |
 | `"none"` | マルチプレクサの中でも、いつもターミナルパネルを使う |
 
 ## config.toml の例
@@ -68,7 +69,7 @@ include = []
 listen-host = "127.0.0.1"
 
 [terminal]
-multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "none"（zellij・cmux はまだ対応していません）
+multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "none"（cmux はまだ対応していません）
 
 # ~/.config/shijimi-editor/config.toml だけで有効
 [agent]
