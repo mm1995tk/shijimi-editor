@@ -29,8 +29,6 @@ type holdScroll struct {
 	keep bool           // Ctrl+Alt: scroll the view only, the cursor stays on its line
 }
 
-type holdScrollMsg struct{ seq int }
-
 // continues reports whether a key press is the held key itself (or its repeat),
 // so the running scroll goes on. Ctrl+D and Ctrl+Alt+D share a code but are
 // different scrolls.
@@ -56,12 +54,12 @@ func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) tea.Cmd {
 	}
 	a.hold = holdScroll{buf: b, dir: dir, ext: ext, code: msg.Code, keep: keep}
 	a.holdSeq++
-	return a.holdScrollTick(a.holdSeq)
+	return a.effectCmd(a.holdScrollTick(a.holdSeq)...)
 }
 
 // holdScrollTick moves the cursor and the view one line together, so the
 // cursor stays on its screen row while the text flows past it.
-func (a *App) holdScrollTick(seq int) tea.Cmd {
+func (a *App) holdScrollTick(seq int) []Effect {
 	h := a.hold
 	if h.buf == nil || seq != a.holdSeq {
 		return nil
@@ -71,7 +69,7 @@ func (a *App) holdScrollTick(seq int) tea.Cmd {
 			a.stopHoldScroll()
 			return nil
 		}
-		return tea.Tick(holdScrollFrame, func(time.Time) tea.Msg { return holdScrollMsg{seq} })
+		return []Effect{StartTimer{After: holdScrollFrame, Fire: HoldScrollTick{seq}}}
 	}
 	row := h.buf.Cur.Row
 	h.buf.MoveLines(h.dir, h.ext)
@@ -81,7 +79,7 @@ func (a *App) holdScrollTick(seq int) tea.Cmd {
 	}
 	h.buf.ScrollRow = clamp(h.buf.ScrollRow+h.dir, 0, max(0, len(h.buf.Lines)-1))
 	a.follow = true
-	return tea.Tick(holdScrollFrame, func(time.Time) tea.Msg { return holdScrollMsg{seq} })
+	return []Effect{StartTimer{After: holdScrollFrame, Fire: HoldScrollTick{seq}}}
 }
 
 func (a *App) stopHoldScroll() { a.hold = holdScroll{} }

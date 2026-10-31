@@ -65,7 +65,7 @@ func (p *pump) until(t *testing.T, what string, cond func() bool) {
 		select {
 		case msg := <-p.ch:
 			switch m := msg.(type) {
-			case nil, watchMsg:
+			case nil, WatchTick:
 			case tea.BatchMsg:
 				for _, c := range m {
 					p.run(c)

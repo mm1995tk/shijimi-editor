@@ -313,9 +313,9 @@ func styleInput(ti *textinput.Model, bg string) {
 
 func (a *App) Init() tea.Cmd {
 	if a.single {
-		return watchTick()
+		return a.effectCmd(watchTimer())
 	}
-	return tea.Batch(a.lsp.wait(), watchTick(), a.probeRepo())
+	return tea.Batch(a.lsp.wait(), a.effectCmd(watchTimer()), a.probeRepo())
 }
 
 // ---- layout ----
@@ -813,10 +813,7 @@ func (a *App) quit() tea.Cmd {
 // the same keyboard enhancements: when they change, Bubble Tea queries the
 // terminal, and the reply (CSI ? flags u) can arrive after input is no longer
 // read, so the shell would get it as typed text such as "3u".
-func (a *App) exit() tea.Cmd {
-	a.quitting = true
-	return tea.Quit
-}
+func (a *App) exit() tea.Cmd { return a.effectCmd(Quit{}) }
 
 func (a *App) openFind() tea.Cmd {
 	t := a.curText()
@@ -922,34 +919,27 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	a.trackLast()
 	a.syncLSP()
 	a.notifySelection()
-	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs(), a.semanticTabs())
-}
-
-// autoSaveMsg fires when a tab has been idle for the auto-save delay.
-type autoSaveMsg struct {
-	tab *tab
-	ver int
+	return a, tea.Batch(cmd, a.effectCmd(a.scheduleAutoSave()...), a.syncPreview(), a.lexTabs(), a.semanticTabs())
 }
 
 // scheduleAutoSave starts a timer for every named tab edited since the last
 // call. The timer is ignored if the buffer changed again before it fires.
-func (a *App) scheduleAutoSave() tea.Cmd {
+func (a *App) scheduleAutoSave() []Effect {
 	if !a.cfg.Editor.AutoSave {
 		return nil
 	}
-	var cmds []tea.Cmd
+	var effs []Effect
 	for _, t := range a.tabs {
 		if !t.dirty() || t.buf.Path == "" || t.autoVer == t.buf.Version {
 			continue
 		}
 		t.autoVer = t.buf.Version
-		m := autoSaveMsg{tab: t, ver: t.buf.Version}
-		cmds = append(cmds, tea.Tick(a.cfg.Editor.AutoSaveDelay, func(time.Time) tea.Msg { return m }))
+		effs = append(effs, StartTimer{After: a.cfg.Editor.AutoSaveDelay, Fire: AutoSaveDue{tab: t, ver: t.buf.Version}})
 	}
-	return tea.Batch(cmds...)
+	return effs
 }
 
-func (a *App) handleAutoSave(m autoSaveMsg) tea.Cmd {
+func (a *App) handleAutoSave(m AutoSaveDue) []Effect {
 	t := m.tab
 	if !t.dirty() || t.buf.Version != m.ver || t.buf.Path == "" || !slices.Contains(a.tabs, t) {
 		return nil
@@ -957,7 +947,7 @@ func (a *App) handleAutoSave(m autoSaveMsg) tea.Cmd {
 	if t.buf.DiskChanged() {
 		return nil // never overwrite another process's change silently
 	}
-	return a.saveTab(t)
+	return []Effect{cmdEffect{a.saveTab(t)}}
 }
 
 func (a *App) update(msg tea.Msg) tea.Cmd {
@@ -965,27 +955,8 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return cmd
 	}
 	switch msg := msg.(type) {
-	case autoSaveMsg:
-		return a.handleAutoSave(msg)
-	case watchMsg:
-		if a.single {
-			a.checkDiskChanges()
-			return watchTick()
-		}
-		reload := a.checkDiskChanges()
-		sg := a.suggestTick()
-		a.treeTicks++
-		if reload || a.treeTicks >= treeRefreshTicks {
-			a.treeTicks = 0
-			a.explorer.refresh()
-		}
-		if a.gd.on {
-			a.gd.ticks++
-			if reload || a.gd.ticks%gitDiffRefreshTicks == 0 {
-				return tea.Batch(watchTick(), sg, a.reloadChanges())
-			}
-		}
-		return tea.Batch(watchTick(), sg)
+	case Event:
+		return a.effectCmd(a.handleEvent(msg)...)
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
 		if a.cellSize != nil {
@@ -1051,8 +1022,6 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 			a.hoverScroll = 0
 			a.hoverAt = nil
 		}
-	case hoverDwellMsg:
-		return a.hoverDwell(msg)
 	case locationsMsg:
 		return a.showLocations(msg)
 	case completionMsg:
@@ -1108,8 +1077,6 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		msg.h.apply(msg)
 	case semanticMsg:
 		msg.h.sem.apply(msg)
-	case holdScrollMsg:
-		return a.holdScrollTick(msg.seq)
 	case tea.KeyboardEnhancementsMsg:
 		a.keyReleases = msg.SupportsEventTypes()
 	case tea.KeyReleaseMsg:
