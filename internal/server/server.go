@@ -57,6 +57,7 @@ type Server struct {
 	sessions   map[*session]struct{}
 	closed     bool      // shutdown が始まった。以後の接続は受けずに閉じる
 	lastClient time.Time // 最後に GUI がつながっていた時刻。ゼロなら一度も無い
+	owner      *session  // いま受けつけている GUI（session.hello を済ませた最新の接続）。無ければ nil
 	wg         sync.WaitGroup
 }
 
@@ -155,6 +156,9 @@ func (s *Server) accept(c net.Conn) {
 		<-ss.conn.Done()
 		s.mu.Lock()
 		delete(s.sessions, ss)
+		if s.owner == ss {
+			s.owner = nil
+		}
 		s.lastClient = time.Now()
 		s.mu.Unlock()
 		// 状態（ファイル・core・ターミナル）はそのまま残す。
@@ -186,17 +190,31 @@ type session struct {
 	conn  *rpc.Conn
 	mu    sync.Mutex
 	hello bool
+
+	// 以下は srv.mu で守る。
+	client      ClientInfo // session.hello で名乗ったもの
+	connectedAt time.Time  // session.hello が通った時刻
+	superseded  bool       // 後からつないだ GUI に引き継がれた。以後の要求は not_owner
+}
+
+// ClientInfo は GUI が session.hello で名乗る内容。
+type ClientInfo struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Kind    string `json:"kind"`
+}
+
+// Peer は引き継ぎの相手（session.hello の supersedes と session.superseded の by）。
+type Peer struct {
+	Client      ClientInfo `json:"client"`
+	ConnectedAt time.Time  `json:"connectedAt"`
 }
 
 // HelloParams は session.hello のパラメータ。
 type HelloParams struct {
 	Protocol ProtocolVersion `json:"protocol"`
-	Client   struct {
-		Name    string `json:"name"`
-		Version string `json:"version"`
-		Kind    string `json:"kind"`
-	} `json:"client"`
-	Encoding []string `json:"encoding"`
+	Client   ClientInfo      `json:"client"`
+	Encoding []string        `json:"encoding"`
 	Resume   *struct {
 		ServerID string `json:"serverId"`
 		Rev      int64  `json:"rev"`
@@ -210,6 +228,7 @@ type HelloResult struct {
 	Shj          Shj             `json:"shj"`
 	ServerID     string          `json:"serverId"`
 	StartedAt    time.Time       `json:"startedAt"`
+	Supersedes   *Peer           `json:"supersedes,omitempty"`
 	Capabilities []string        `json:"capabilities"`
 	Workspaces   []any           `json:"workspaces"`
 	Rev          int64           `json:"rev"`
@@ -230,6 +249,9 @@ type InfoResult struct {
 func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 	if req.IsNotification() {
 		return nil, nil // 知らない通知は無視する
+	}
+	if ss.isSuperseded() {
+		return nil, errNotOwner()
 	}
 	switch req.Method {
 	case "session.hello":
@@ -255,6 +277,16 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 	return nil, rpc.Errorf(rpc.CodeMethodNotFound, "method not found: %s", req.Method)
 }
 
+func errNotOwner() *rpc.Error {
+	return rpc.Errorf(rpc.CodeNotOwner, "another GUI took over this shj")
+}
+
+func (ss *session) isSuperseded() bool {
+	ss.srv.mu.Lock()
+	defer ss.srv.mu.Unlock()
+	return ss.superseded
+}
+
 func (ss *session) needHello() error {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
@@ -278,10 +310,37 @@ func (ss *session) helloReq(req *rpc.Message) (any, error) {
 	if len(p.Encoding) > 0 && !slices.Contains(p.Encoding, "json") {
 		return nil, rpc.Errorf(rpc.CodeInvalidParams, "no common encoding: server supports json")
 	}
+	s := ss.srv
+	now := time.Now()
+	s.mu.Lock()
+	if ss.superseded || s.closed {
+		s.mu.Unlock()
+		return nil, errNotOwner()
+	}
+	// 同じ接続からの hello のやり直しは引き継ぎではない。
+	prev := s.owner
+	if prev == ss {
+		prev = nil
+	}
+	var sup *Peer
+	if prev != nil {
+		sup = &Peer{Client: prev.client, ConnectedAt: prev.connectedAt}
+		prev.superseded = true
+	}
+	ss.client, ss.connectedAt = p.Client, now
+	s.owner = ss
+	s.mu.Unlock()
 	ss.mu.Lock()
 	ss.hello = true
 	ss.mu.Unlock()
-	s := ss.srv
+	if prev != nil {
+		// この要求の Handler の中では閉じられない（自分を待って詰まる）ので別の goroutine で。
+		// 前の GUI が出した返事前の要求は、閉じることで返事が届かず捨てられる。
+		s.wg.Go(func() {
+			_ = prev.conn.Notify("session.superseded", map[string]any{"by": Peer{Client: p.Client, ConnectedAt: now}})
+			prev.conn.Close()
+		})
+	}
 	ss.srv.log.Info("hello", "client", p.Client.Name, "version", p.Client.Version, "kind", p.Client.Kind)
 	return HelloResult{
 		Protocol:     Protocol,
@@ -289,6 +348,7 @@ func (ss *session) helloReq(req *rpc.Message) (any, error) {
 		Shj:          s.opts.Shj,
 		ServerID:     s.serverID,
 		StartedAt:    s.startedAt,
+		Supersedes:   sup,
 		Capabilities: []string{},
 		Workspaces:   []any{},
 	}, nil
