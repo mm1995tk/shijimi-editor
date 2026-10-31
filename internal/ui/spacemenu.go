@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // spaceItem is one row of the Space menu popup. textOnly marks commands that
@@ -74,26 +75,51 @@ func (a *App) renderSpaceMenu(rows []string, l layout) []string {
 	return a.renderMenu(rows, l, " Space", a.spaceMenuItems())
 }
 
+// menuOverlay is a menu of leader key items titled title, as a screen.Overlay.
+// Each Item has the translated label in Label and the key in Detail. It has no
+// place in a pane (the drawer puts it in a corner). It changes nothing.
+// Drawing it as cells is drawMenu's work.
+func menuOverlay(title string, items []spaceItem) screen.Overlay {
+	ov := screen.Overlay{Kind: screen.OverlayMenu, Title: title}
+	for _, it := range items {
+		ov.Items = append(ov.Items, screen.Item{Label: i18n.T(it.label), Detail: it.key})
+	}
+	return ov
+}
+
 // renderMenu draws a menu of leader key items titled title.
 func (a *App) renderMenu(rows []string, l layout, title string, items []spaceItem) []string {
-	if len(items) == 0 {
+	box := drawMenu(menuOverlay(title, items), l.rightW)
+	if box == nil {
 		return rows
 	}
+	x := l.rightX + l.rightW - ansi.StringWidth(box[0])
+	y := l.editY + l.editH - len(box)
+	return overlay(rows, box, x, max(0, y))
+}
+
+// drawMenu draws a menu Overlay as a box of cells no wider than maxW, or nil
+// when there is nothing to draw.
+func drawMenu(ov screen.Overlay, maxW int) []string {
+	items := ov.Items
+	if len(items) == 0 {
+		return nil
+	}
 	cols := 2
-	if len(items) < 6 || l.rightW < 60 {
+	if len(items) < 6 || maxW < 60 {
 		cols = 1
 	}
 	per := (len(items) + cols - 1) / cols
 	cellW := 0
 	for _, it := range items {
-		cellW = max(cellW, 2+ansi.StringWidth(i18n.T(it.label)))
+		cellW = max(cellW, 2+ansi.StringWidth(it.Label))
 	}
-	w := min(cols*cellW+(cols-1)*2+2, l.rightW)
+	w := min(cols*cellW+(cols-1)*2+2, maxW)
 	if w < 8 {
-		return rows
+		return nil
 	}
 	inner := w - 2
-	box := []string{stPaletteBox.Render(fit(title, w))}
+	box := []string{stPaletteBox.Render(fit(ov.Title, w))}
 	for r := range per {
 		var sb strings.Builder
 		sb.WriteString(stPalette.Render(" "))
@@ -108,11 +134,10 @@ func (a *App) renderMenu(rows []string, l layout, title string, items []spaceIte
 				used += 2
 			}
 			it := items[i]
-			lab := i18n.T(it.label)
-			sb.WriteString(stPaletteHi.Render(it.key))
-			sb.WriteString(stPalette.Render(" " + lab))
-			used += 2 + ansi.StringWidth(lab)
-			if pad := cellW - 2 - ansi.StringWidth(lab); pad > 0 && c < cols-1 {
+			sb.WriteString(stPaletteHi.Render(it.Detail))
+			sb.WriteString(stPalette.Render(" " + it.Label))
+			used += 2 + ansi.StringWidth(it.Label)
+			if pad := cellW - 2 - ansi.StringWidth(it.Label); pad > 0 && c < cols-1 {
 				sb.WriteString(stPalette.Render(strings.Repeat(" ", pad)))
 				used += pad
 			}
@@ -124,7 +149,5 @@ func (a *App) renderMenu(rows []string, l layout, title string, items []spaceIte
 		}
 		box = append(box, line+stPalette.Render(strings.Repeat(" ", max(0, w-used))))
 	}
-	x := l.rightX + l.rightW - w
-	y := l.editY + l.editH - len(box)
-	return overlay(rows, box, x, max(0, y))
+	return box
 }
