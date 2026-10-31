@@ -96,7 +96,7 @@ func TestTmuxToggle(t *testing.T) {
 	if a.showTerm || a.term.cur() != nil {
 		t.Fatal("the built-in terminal must stay closed")
 	}
-	if !f.has("split-window -v -l 30% -c "+a.root+" -P -F #{pane_id}") || !f.has("split-window") || a.mux.id != "%2" || !a.mux.visible {
+	if !f.has("split-window -v -l 30% -c "+a.root+" -P -F #{pane_id}") || a.mux.id != "%2" || !a.mux.visible {
 		t.Fatalf("not created: %v id=%q", f.calls, a.mux.id)
 	}
 	var split string
@@ -153,7 +153,7 @@ func TestTmuxCommands(t *testing.T) {
 	f.calls = nil
 	a.ctx = &ctxPreview{text: "ctx"}
 	a.handleContextKey(tea.KeyPressMsg{Code: tea.KeyEnter})
-	if !f.has("send-keys -t %2 -l -- ctx") || f.has("send-keys -t %2 Enter") {
+	if !f.has("set-buffer -b shijimi -- ctx") || !f.has("paste-buffer -d -p -b shijimi -t %2") || f.has("send-keys") {
 		t.Fatalf("context must be pasted without Enter: %v", f.calls)
 	}
 	f.fail = "resize-pane"
@@ -225,5 +225,21 @@ func TestTmuxAutoFollowsParents(t *testing.T) {
 func TestTmuxShellEnv(t *testing.T) {
 	if env := (&tmuxBackend{}).shellEnv("/bin/bash", "/bin/shj"); len(env) != 1 || !strings.HasPrefix(env[0], "PROMPT_COMMAND=") {
 		t.Fatalf("bash: %v", env)
+	}
+}
+
+func TestTmuxSendMultilineIsOnePaste(t *testing.T) {
+	f := &fakeTmux{}
+	b := &tmuxBackend{call: f.call}
+	if err := b.send("%2", "a.go:1\n```\nx\n```\n", false); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.calls) != 2 || f.calls[0] != "set-buffer -b shijimi -- a.go:1\n```\nx\n```\n" || f.has("send-keys") {
+		t.Fatalf("calls: %q", f.calls)
+	}
+	f.calls = nil
+	_ = b.send("%2", "ls;", true)
+	if f.calls[0] != `send-keys -t %2 -l -- ls\;` {
+		t.Fatalf("trailing semicolon: %q", f.calls)
 	}
 }

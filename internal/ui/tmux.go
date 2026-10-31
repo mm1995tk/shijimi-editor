@@ -137,19 +137,36 @@ func (t *tmuxBackend) hide() error {
 	return t.toggleZoom()
 }
 
-func (t *tmuxBackend) send(id, text string, enter bool) error {
-	if _, err := t.do("send-keys", "-t", id, "-l", "--", text); err != nil {
-		return err
+// tmuxArg protects a trailing ";" of a text: tmux takes an argument that ends
+// in ";" as the end of a command and drops the ";".
+func tmuxArg(s string) string {
+	if strings.HasSuffix(s, ";") {
+		return s[:len(s)-1] + `\;`
 	}
+	return s
+}
+
+const tmuxBuffer = "shijimi"
+
+func (t *tmuxBackend) send(id, text string, enter bool) error {
 	if enter {
+		if _, err := t.do("send-keys", "-t", id, "-l", "--", tmuxArg(text)); err != nil {
+			return err
+		}
 		_, err := t.do("send-keys", "-t", id, "Enter")
 		return err
 	}
-	return nil
+	// send-keys -l sends a newline as Enter. A paste (bracketed when the
+	// program in the pane asks for it) keeps a multi-line text from running.
+	if _, err := t.do("set-buffer", "-b", tmuxBuffer, "--", tmuxArg(text)); err != nil {
+		return err
+	}
+	_, err := t.do("paste-buffer", "-d", "-p", "-b", tmuxBuffer, "-t", id)
+	return err
 }
 
 func (t *tmuxBackend) tail(id string, n int) []string {
-	out, err := t.do("capture-pane", "-p", "-J", "-t", id, "-S", "-"+strconv.Itoa(n+200))
+	out, err := t.do("capture-pane", "-p", "-J", "-t", id, "-S", "-"+strconv.Itoa(n))
 	if err != nil {
 		return nil
 	}
