@@ -19,6 +19,12 @@ var Version, Commit = "", ""
 // Values missing from ldflags come from the build info: the module version
 // recorded by go install and the commit recorded by go build.
 func versionLabel() string {
+	return formatVersion(BuildVersion())
+}
+
+// BuildVersion is the version and commit of this build before they are
+// formatted for the status line. Either may be empty.
+func BuildVersion() (version, commit string) {
 	v, c := Version, Commit
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		if v == "" && bi.Main.Version != "(devel)" {
@@ -31,7 +37,7 @@ func versionLabel() string {
 			}
 		}
 	}
-	return formatVersion(v, c)
+	return v, c
 }
 
 // VersionLabel is versionLabel for use outside the package, such as shj --version.

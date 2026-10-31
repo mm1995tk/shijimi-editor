@@ -100,6 +100,17 @@ func SocketPath() (string, error) {
 	return filepath.Join(dir, fmt.Sprintf("%d.sock", os.Getpid())), nil
 }
 
+// ServeSocketPath returns the socket of "shj serve": <socketDir>/serve.rpc.
+// The name does not end in ".sock" on purpose: FindSocket treats every
+// "*.sock" in the directory as an editor and would count the server as one.
+func ServeSocketPath() (string, error) {
+	dir, err := socketDir(true)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "serve.rpc"), nil
+}
+
 // Listen creates the socket (mode 0600) and serves h until Close. Inside a
 // herdr pane it also links the socket under a name built from the herdr
 // environment (see herdrLink), so that shj finds it without SHIJIMI_SOCKET.
