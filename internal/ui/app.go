@@ -141,12 +141,12 @@ type App struct {
 	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
 	lineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
 
-	single    bool // 単体編集モード: 1 つのファイルだけを開き、閉じたら終了する
-	tabSpans  []span
-	tabOffset int
-	commands  []command
-	mermaid   map[string]*previewJob
-	mdImages  map[string]*previewJob // images in the Markdown preview, by file path
+	single   bool // 単体編集モード: 1 つのファイルだけを開き、閉じたら終了する
+	prevTab  *tab // the file shown before the current one (ga / Ctrl+Tab)
+	seenTab  *tab // the file shown when the last event was handled
+	commands []command
+	mermaid  map[string]*previewJob
+	mdImages map[string]*previewJob // images in the Markdown preview, by file path
 	// previewGen counts finished jobs, so the preview is drawn again when one
 	// finishes
 	previewGen int
@@ -260,8 +260,7 @@ func (a *App) typing() bool {
 func singleBlocked(key string, typing bool) bool {
 	switch key {
 	case "ctrl+p", "f1", "ctrl+b", "ctrl+`", "ctrl+j", "ctrl+g", "ctrl+e", "ctrl+n",
-		"ctrl+pgdown", "ctrl+pgup", "alt+a", "alt+i", "alt+r",
-		"alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
+		"ctrl+tab", "alt+a", "alt+i", "alt+r":
 		return true
 	case "ctrl+k":
 		return true
@@ -714,14 +713,29 @@ func (a *App) dropTab(i int) {
 	a.tabs = append(a.tabs[:i], a.tabs[i+1:]...)
 }
 
-func (a *App) switchTab(d int) {
-	if len(a.tabs) == 0 {
+func (a *App) switchLast() {
+	i := slices.Index(a.tabs, a.prevTab)
+	if a.prevTab == nil || i < 0 || i == a.active {
+		a.infoText(i18n.T("app.nolast"))
 		return
 	}
-	a.active = (a.active + d + len(a.tabs)) % len(a.tabs)
+	a.pushJump()
+	a.active = i
 	a.follow = true
 	a.mode = modeNormal
 	a.comp = nil
+}
+
+// trackLast remembers the file that was current before the active one changed.
+// A file that was closed in the meantime is not remembered.
+func (a *App) trackLast() {
+	cur := a.cur()
+	if cur != a.seenTab {
+		if a.seenTab != nil && slices.Contains(a.tabs, a.seenTab) {
+			a.prevTab = a.seenTab
+		}
+		a.seenTab = cur
+	}
 }
 
 func (a *App) toggleSide() {
@@ -880,6 +894,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	cmd := a.update(msg)
 	a.keepTransients()
+	a.trackLast()
 	a.syncLSP()
 	a.notifySelection()
 	return a, tea.Batch(cmd, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs(), a.semanticTabs())
@@ -1295,11 +1310,8 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		if !insert {
 			return a.closeTab(false)
 		}
-	case "ctrl+pgdown":
-		a.switchTab(1)
-		return nil
-	case "ctrl+pgup":
-		a.switchTab(-1)
+	case "ctrl+tab":
+		a.switchLast()
 		return nil
 	case "alt+a":
 		return a.sendContext()
@@ -1307,13 +1319,6 @@ func (a *App) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 		return a.toggleAgentPanel()
 	case "alt+r":
 		return a.startResize()
-	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
-		if i := int(key[4] - '1'); i < len(a.tabs) {
-			a.active = i
-			a.follow = true
-			return a.setFocus(focusEditor)
-		}
-		return nil
 	}
 
 	switch a.focus {
@@ -2038,18 +2043,6 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 			}
 		}
 		return a.setFocus(focusExplorer)
-	case y == l.top:
-		for i, s := range a.tabSpans {
-			if x >= s.x0 && x < s.x1 {
-				a.active = i
-				if double {
-					a.tabs[i].transient = false
-				}
-				a.follow = true
-				a.mode = modeNormal
-				return a.setFocus(focusEditor)
-			}
-		}
 	case a.showTerm && y >= l.panelY:
 		if y == l.panelY+1 {
 			a.term.clickTab(x - l.rightX)
@@ -2223,7 +2216,7 @@ func (a *App) render() string {
 	}
 
 	right := make([]string, 0, l.bodyH)
-	right = append(right, a.renderTabs(l.rightW))
+	right = append(right, a.renderTitle(l.rightW))
 	if a.findOpen {
 		right = append(right, a.renderFind(l.rightW))
 	}
@@ -2392,65 +2385,26 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 	return o
 }
 
-func (a *App) renderTabs(w int) string {
-	if a.single {
-		return a.renderSingleTitle(w)
+// renderTitle is the line above the editor: the path of the file being
+// edited (● when it is unsaved). Open files are listed with "Space b".
+func (a *App) renderTitle(w int) string {
+	t := a.cur()
+	if t == nil {
+		return stTabBar.Render(strings.Repeat(" ", w))
 	}
-	type piece struct {
-		text string
-		w    int
+	name := t.title()
+	if !a.single && t.path() != "" {
+		name = a.rel(t.path())
 	}
-	pieces := make([]piece, len(a.tabs))
-	for i, t := range a.tabs {
-		mark := "  "
-		if t.dirty() {
-			mark = " ●"
-		}
-		name := t.title()
-		label := " " + name + mark + " "
-		st := stTabInactive
-		if i == a.active {
-			st = stTabActive
-		}
-		var s string
-		switch {
-		case t.transient:
-			s = st.Render(" ") + st.Italic(true).Render(name) + st.Render(mark+" ")
-		case i == a.active && t.dirty():
-			s = stTabActive.Render(" "+name) + stTabDirty.Render(mark) + stTabActive.Render(" ")
-		default:
-			s = st.Render(label)
-		}
-		pieces[i] = piece{s + stTabBar.Render(" "), ansi.StringWidth(label) + 1}
+	mark := "  "
+	if t.dirty() {
+		mark = " ●"
 	}
-	// active is -1 once the last tab is closed
-	a.tabOffset = clamp(min(a.tabOffset, a.active), 0, max(0, len(a.tabs)-1))
-	for {
-		total := 0
-		for i := a.tabOffset; i <= a.active && i < len(pieces); i++ {
-			total += pieces[i].w
-		}
-		if total <= w || a.tabOffset >= a.active {
-			break
-		}
-		a.tabOffset++
+	s := stTabActive.Render(" " + name + mark + " ")
+	if n := ansi.StringWidth(s); n < w {
+		s += stTabBar.Render(strings.Repeat(" ", w-n))
 	}
-	var sb strings.Builder
-	a.tabSpans = make([]span, len(a.tabs))
-	x := 0
-	rx := a.layout().rightX
-	for i := a.tabOffset; i < len(pieces); i++ {
-		if x+pieces[i].w > w {
-			break
-		}
-		sb.WriteString(pieces[i].text)
-		a.tabSpans[i] = span{x0: x + rx, x1: x + rx + pieces[i].w}
-		x += pieces[i].w
-	}
-	if x < w {
-		sb.WriteString(stTabBar.Render(strings.Repeat(" ", w-x)))
-	}
-	return sb.String()
+	return fitStyled(s, w, stTabBar)
 }
 
 func findLabel() string { return i18n.T("app.findlabel") }
@@ -2620,25 +2574,6 @@ func (a *App) scrollHover(d int) {
 // overlayOpen reports whether a floating window (palette or project search)
 // has the keyboard.
 func (a *App) overlayOpen() bool { return a.pal.open || a.search.open }
-
-// renderSingleTitle is the bar above the editor in single-file mode: the name
-// of the file being edited, with no tabs to switch between.
-func (a *App) renderSingleTitle(w int) string {
-	a.tabSpans = nil
-	t := a.cur()
-	if t == nil {
-		return stTabBar.Render(strings.Repeat(" ", w))
-	}
-	mark := "  "
-	if t.dirty() {
-		mark = " ●"
-	}
-	s := stTabActive.Render(" " + t.title() + mark + " ")
-	if n := ansi.StringWidth(s); n < w {
-		s += stTabBar.Render(strings.Repeat(" ", w-n))
-	}
-	return fitStyled(s, w, stTabBar)
-}
 
 // infoText shows an already-formatted message in the status line.
 func (a *App) infoText(s string) {

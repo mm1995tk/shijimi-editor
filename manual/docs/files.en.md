@@ -47,15 +47,14 @@ Files and folders matched by `.gitignore` are shown dimmed. They get no Git stat
 
 ### Opening as a preview
 
-Clicking a file or pressing `l` opens it as a **preview**. The tab of a preview has an italic name.
+Clicking a file or pressing `l` opens it as a **preview**. A preview is not kept in the list of open files unless you edit it.
 
-- There is only one preview tab. Opening another file as a preview replaces the tab in the same position.
-- A preview tab becomes a normal tab when you do any of the following:
+- There is only one preview. Opening another file as a preview replaces it, so files you only looked at do not pile up in the list of open files.
+- A preview becomes a normal open file when you do any of the following:
   - Edit the buffer
-  - Double-click the tab name
   - Double-click the file in the file tree, or press `Enter` / `o`
-- A file that is already open does not become a preview; shijimi just switches to its tab.
-- Files opened from anywhere other than the file tree, such as Quick Open, search results, or CHANGES in diff mode, open in normal tabs.
+- A file that is already open does not become a preview; shijimi just switches to it.
+- Files opened from anywhere other than the file tree, such as Quick Open, search results, or CHANGES in diff mode, open as normal open files.
 
 ### Git status markers
 
