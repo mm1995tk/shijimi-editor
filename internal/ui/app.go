@@ -2119,13 +2119,7 @@ func (a *App) View() tea.View {
 		// A resting pointer is only noticed if motion without a button is reported.
 		v.MouseMode = tea.MouseModeAllMotion
 	}
-	// Key releases let Ctrl+D / Ctrl+U scroll only while held. Some terminals
-	// (herdr 0.9.5) then drop text committed by an IME, so they are asked
-	// for only where those keys scroll. The request is frozen once quitting
-	// (see exit).
-	if !a.quitting {
-		a.askReleases = a.wantKeyReleases()
-	}
+	// askReleases is decided in fit.
 	v.KeyboardEnhancements.ReportEventTypes = a.askReleases
 	// The terminal cursor stays hidden (see package caret), but an IME shows
 	// its composition where it is.
@@ -2249,7 +2243,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	}
 
 	if a.pal.open {
-		pw := clamp(a.w*3/5, 30, 100)
+		pw := a.paletteWidth()
 		box := drawPalette(a.pal.overlay(), &a.pal.input, pw)
 		rows = overlay(rows, box, (a.w-pw)/2, 1)
 	}
@@ -2431,10 +2425,42 @@ func (a *App) infoText(s string) {
 // cursor, the palette's filtered list and the widths of the inputs. It runs
 // before renderFrame, which only reads the state.
 func (a *App) fit() {
+	// Key releases let Ctrl+D / Ctrl+U scroll only while held. Some terminals
+	// (herdr 0.9.5) then drop text committed by an IME, so they are asked
+	// for only where those keys scroll. The request is frozen once quitting
+	// (see exit).
+	if !a.quitting {
+		a.askReleases = a.wantKeyReleases()
+	}
 	if a.w < 30 || a.h < 8 {
 		return
 	}
 	l := a.layout()
+	// The panes: a tab's diff view is made here, and the scroll of a pane
+	// that is not being edited follows its cursor in the width it has now.
+	type pane struct {
+		t       *tab
+		focused bool
+	}
+	panes := []pane{{a.cur(), a.focus == focusEditor && !a.overlayOpen()}}
+	if l.split {
+		panes = append(panes, pane{a.other, false})
+	}
+	for _, p := range panes {
+		pl := l
+		if p.t == a.other && l.split {
+			pl = l.otherLayout()
+		}
+		if p.t == nil || p.t.kind == tabImage {
+			continue
+		}
+		if p.t.kind == tabText {
+			a.diffFor(p.t)
+		}
+		if !p.focused && !a.fullPreview(p.t) {
+			ensureCursorVisible(p.t.buf, a.editW(p.t, pl), pl.editH) // the width changed under it
+		}
+	}
 	if t := a.curText(); t != nil {
 		if a.follow {
 			if dv := a.diffFor(t); dv != nil {
@@ -2448,6 +2474,14 @@ func (a *App) fit() {
 	}
 	if a.pal.open {
 		a.pal.filter(a.commands)
+		pw := a.paletteWidth()
+		a.pal.input.SetWidth(max(1, pw-ansi.StringWidth(a.pal.label())-2))
+	}
+	if a.search.open {
+		a.search.fit(a)
+	}
+	if a.showTerm {
+		a.term.fit(l.fullW, l.panelH)
 	}
 	if a.findOpen {
 		a.findInput.SetWidth(max(1, findInputCells(l.rightW)-1))

@@ -566,8 +566,7 @@ func (s *searchPanel) fieldBox(i, w int) [3]string {
 		bd = bgfg(cPaletteBg, curTheme.Strong).Bold(true)
 	}
 	title := " " + searchLabels()[i] + " "
-	// View() is one cell wider than Width when the cursor sits at the end.
-	s.in[i].SetWidth(max(1, w-5))
+	// The width of the input is set in fit.
 	body := s.in[i].view(inputStyleOn(cPaletteBg))
 	if s.in[i].Value() == "" {
 		body = s.placeholderView(i)
@@ -604,15 +603,9 @@ func (a *App) searchCaret() (x, y int, ok bool) {
 // fills the screen except for a one-cell margin on every side.
 func (a *App) renderSearch() (x, y int, box []string) {
 	s := a.search
-	pw := min(a.w, max(30, a.w-2))
-	ph := min(max(a.h-2, 14), a.h)
-	inner := pw - 2
-	lw := (inner - 1) / 2
-	rw := inner - 1 - lw
-	const fixedRows = 11 // title, 2x3 field rows, toggles, status, divider, bottom
-	s.bodyH = max(1, ph-fixedRows)
-	x, y = (a.w-pw)/2, min(1, max(0, a.h-ph))
-	s.rect = [4]int{x, y, pw, ph}
+	g := a.searchGeom()
+	pw, inner, lw, rw := g.pw, g.inner, g.lw, g.rw
+	x, y = g.x, g.y
 
 	bs := func(t string) string { return stPaletteBox.Render(t) }
 	line := func(content string) string { return bs("│") + content + bs("│") }
@@ -621,9 +614,7 @@ func (a *App) renderSearch() (x, y int, box []string) {
 	box = append(box, bs("┌─"+title+strings.Repeat("─", max(0, pw-3-ansi.StringWidth(title)))+"┐"))
 
 	// Two columns: search | replace, then include | exclude.
-	avail := inner - 2
-	bl := (avail - 1) / 2
-	br := avail - 1 - bl
+	bl, br := g.bl, g.br
 	sp := stPalette.Render(" ")
 	for _, pair := range [][2]int{{fQuery, fRepl}, {fInclude, fExclude}} {
 		l, r := s.fieldBox(pair[0], bl), s.fieldBox(pair[1], br)
@@ -649,14 +640,55 @@ func (a *App) renderSearch() (x, y int, box []string) {
 	return x, y, box
 }
 
-func (s *searchPanel) matchedRows(a *App, w, h int) []string {
+// searchGeom is where the parts of the search window sit.
+type searchGeom struct {
+	x, y, pw, ph int // the window on screen
+	inner        int // cells between its borders
+	lw, rw       int // the matched lines and the preview
+	bl, br       int // the left and the right input field
+	bodyH        int // rows of the matched lines and the preview
+}
+
+func (a *App) searchGeom() searchGeom {
+	var g searchGeom
+	g.pw = min(a.w, max(30, a.w-2))
+	g.ph = min(max(a.h-2, 14), a.h)
+	g.inner = g.pw - 2
+	g.lw = (g.inner - 1) / 2
+	g.rw = g.inner - 1 - g.lw
+	avail := g.inner - 2
+	g.bl = (avail - 1) / 2
+	g.br = avail - 1 - g.bl
+	const fixedRows = 11 // title, 2x3 field rows, toggles, status, divider, bottom
+	g.bodyH = max(1, g.ph-fixedRows)
+	g.x, g.y = (a.w-g.pw)/2, min(1, max(0, a.h-g.ph))
+	return g
+}
+
+// fit brings the window up to date for the frame about to be drawn: where it
+// is, the widths of the inputs, the scroll that follows the cursor and the
+// file of the preview. renderSearch only reads them.
+func (s *searchPanel) fit(a *App) {
+	g := a.searchGeom()
+	s.bodyH = g.bodyH
+	s.rect = [4]int{g.x, g.y, g.pw, g.ph}
+	// View() is one cell wider than Width when the cursor sits at the end.
+	for i := range s.in {
+		s.in[i].SetWidth(max(1, g.fieldW(i)-5))
+	}
 	if s.cursor < s.scroll {
 		s.scroll = s.cursor
 	}
-	if s.cursor >= s.scroll+h {
-		s.scroll = s.cursor - h + 1
+	if s.cursor >= s.scroll+g.bodyH {
+		s.scroll = s.cursor - g.bodyH + 1
 	}
-	s.scroll = clamp(s.scroll, 0, max(0, len(s.res.hits)-h))
+	s.scroll = clamp(s.scroll, 0, max(0, len(s.res.hits)-g.bodyH))
+	if hit := s.cur(); hit != nil {
+		a.loadView(hit.path)
+	}
+}
+
+func (s *searchPanel) matchedRows(a *App, w, h int) []string {
 	var out []string
 	for i := s.scroll; i < len(s.res.hits) && len(out) < h; i++ {
 		out = append(out, a.matchedRow(s.res.hits[i], w, i == s.cursor))
@@ -722,8 +754,7 @@ func (s *searchPanel) viewRows(a *App, w, h int) []string {
 	blank := stPalette.Render(fit("", w))
 	var out []string
 	if hit := s.cur(); hit != nil && h > 0 {
-		a.loadView(hit.path)
-		v := s.view
+		v := s.view // loaded in fit
 		out = append(out, bgfg(cPaletteBg, curTheme.Heading).Bold(true).Render(fit(fmt.Sprintf(" %s:%d", a.rel(hit.path), hit.row+1), w)), blank)
 
 		nd := max(3, digits(len(v.lines)))
@@ -770,4 +801,13 @@ func (s *searchPanel) placeholderView(i int) string {
 		first = bgfg(curTheme.Cursor, curTheme.CursorFg).Render(string(rs[0]))
 	}
 	return first + stPaletteDim.Render(string(rs[1:]))
+}
+
+// fieldW is the width of input field i: the left column holds the search and
+// include fields, the right one the replace and exclude fields.
+func (g searchGeom) fieldW(i int) int {
+	if i == fRepl || i == fExclude {
+		return g.br
+	}
+	return g.bl
 }

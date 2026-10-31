@@ -228,9 +228,6 @@ func (a *App) renderPane(t *tab, l layout, current, focused bool) []string {
 	case t.kind == tabImage:
 		rows = append(rows, a.imageLines(t, l.rightW, l.editH)...)
 	default:
-		if !focused && !a.fullPreview(t) {
-			ensureCursorVisible(t.buf, a.editW(t, l), l.editH) // the width changed under it
-		}
 		rows = append(rows, a.renderText(t, l, focused)...)
 	}
 	return rows

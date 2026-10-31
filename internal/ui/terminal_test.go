@@ -49,7 +49,7 @@ func TestTerminalRunsLoginShell(t *testing.T) {
 
 	deadline := time.After(5 * time.Second)
 	for {
-		rows := tm.render(60, 12, true)
+		rows := tm.draw(60, 12, true)
 		if strings.Contains(stripANSI(strings.Join(rows, "\n")), "dotfile-ok") {
 			return
 		}
@@ -91,7 +91,7 @@ func TestTerminalScrollback(t *testing.T) {
 
 	deadline := time.After(5 * time.Second)
 	for {
-		if strings.Contains(stripANSI(strings.Join(tm.render(40, 12, true), "\n")), "マーカー-2") {
+		if strings.Contains(stripANSI(strings.Join(tm.draw(40, 12, true), "\n")), "マーカー-2") {
 			break
 		}
 		select {
@@ -105,7 +105,7 @@ func TestTerminalScrollback(t *testing.T) {
 		t.Fatalf("scrollback = %d", tab.vt.Scrollback())
 	}
 	tm.wheel(Mouse{Button: MouseWheelUp, Action: MousePress}, 0, 0, -3)
-	tm.render(40, 12, true)
+	tm.draw(40, 12, true)
 	if tab.snap.Offset != 3 {
 		t.Fatalf("offset = %d", tab.snap.Offset)
 	}
@@ -150,4 +150,10 @@ func TestTerminalHasOneShell(t *testing.T) {
 	if tm.sh != nil {
 		t.Fatal("exited shell kept")
 	}
+}
+
+// draw is fit then render, as a frame does.
+func (t *terminal) draw(w, h int, focused bool) []string {
+	t.fit(w, h)
+	return t.render(w, h, focused)
 }

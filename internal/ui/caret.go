@@ -41,7 +41,7 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 	case a.search.open:
 		return a.searchCaret()
 	case a.pal.open:
-		pw := clamp(a.w*3/5, 30, 100)
+		pw := a.paletteWidth()
 		return (a.w-pw)/2 + ansi.StringWidth(a.pal.label()) + a.pal.input.Caret(), 2, true
 	case a.findOpen:
 		return l.rightX + ansi.StringWidth(findLabel()) + a.findInput.Caret(), l.editY - 1, true

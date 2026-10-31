@@ -215,6 +215,28 @@ func (t *termTab) label() string {
 	return filepath.Base(shell())
 }
 
+// fit brings the terminal up to date for a panel w x h cells: it remembers the
+// size (for a shell started later), resizes the shell to the body of the panel
+// and takes the snapshot that render draws.
+func (t *terminal) fit(w, h int) {
+	body := h - 2
+	if body < 0 {
+		return
+	}
+	t.w, t.h = w, body
+	tab := t.cur()
+	if tab == nil || w < 1 || body < 1 {
+		return
+	}
+	if tab.cols != w || tab.rows != body {
+		tab.cols, tab.rows = w, body
+		pty.Setsize(tab.ptmx, &pty.Winsize{Rows: uint16(body), Cols: uint16(w)})
+		tab.vt.Resize(w, body)
+	}
+	tab.vt.Snapshot(&tab.snap)
+	tab.title = tab.snap.Title
+}
+
 func (t *terminal) render(w, h int, focused bool) []string {
 	out := make([]string, 0, h)
 	out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
@@ -230,7 +252,6 @@ func (t *terminal) render(w, h int, focused bool) []string {
 	if body < 0 {
 		return out[:h]
 	}
-	t.w, t.h = w, body
 	tab := t.cur()
 	if tab == nil || w < 1 || body < 1 {
 		for len(out) < h {
@@ -238,14 +259,7 @@ func (t *terminal) render(w, h int, focused bool) []string {
 		}
 		return out[:h]
 	}
-	if tab.cols != w || tab.rows != body {
-		tab.cols, tab.rows = w, body
-		pty.Setsize(tab.ptmx, &pty.Winsize{Rows: uint16(body), Cols: uint16(w)})
-		tab.vt.Resize(w, body)
-	}
-	sn := &tab.snap
-	tab.vt.Snapshot(sn)
-	tab.title = sn.Title
+	sn := &tab.snap // taken in fit
 	for y := range body {
 		cx := -1
 		if focused && sn.CursorVisible && sn.CursorY == y {
