@@ -135,6 +135,32 @@ func TestRenderGolden(t *testing.T) {
 		checkGolden(t, "search", a)
 	})
 
+	t.Run("cmdline", func(t *testing.T) {
+		a := goldenApp(t)
+		keys(a, ":", "w", "r", "i")
+		if !a.cmdOpen {
+			t.Fatal("the command line is not open")
+		}
+		checkGolden(t, "cmdline", a)
+	})
+
+	t.Run("find", func(t *testing.T) {
+		a := goldenApp(t)
+		drive(a, a.openFind())
+		keys(a, "f", "m", "t")
+		if !a.findOpen {
+			t.Fatal("the find bar is not open")
+		}
+		checkGolden(t, "find", a)
+	})
+
+	t.Run("status", func(t *testing.T) {
+		a := goldenApp(t)
+		keys(a, "i", "x", "esc", "v", "l")
+		a.msg = "保存しました"
+		checkGolden(t, "status", a)
+	})
+
 	t.Run("diff", func(t *testing.T) {
 		// the branch name shows in the status line
 		t.Setenv("GIT_CONFIG_COUNT", "1")
@@ -151,4 +177,27 @@ func (a *App) render() string {
 	a.fit()
 	frame, _ := a.renderFrame()
 	return frame
+}
+func TestLineStates(t *testing.T) {
+	a := goldenApp(t)
+	keys(a, "i", "x", "esc")
+	a.msg, a.msgErr = "失敗", true
+
+	if ti := a.titleOf(a.cur()); ti == nil || ti.Text != "a.txt" || !ti.Dirty {
+		t.Errorf("title = %+v", ti)
+	}
+	if p := buildTextPane(a.cur(), 40, 3, a.editorOpts(a.cur(), true).paneOpts); p.Title.Text != "a.txt" || !p.Title.Dirty {
+		t.Errorf("pane title = %+v", p.Title)
+	}
+	s := a.statusOf()
+	if s.Mode != "NOR" || s.Msg != "失敗" || !s.MsgErr || s.Position != "1:2" || s.Question != "" {
+		t.Errorf("status = %+v", s)
+	}
+	if a.cmdlineState() != nil || a.findState() != nil {
+		t.Error("lines are not open")
+	}
+	keys(a, ":", "w", "q")
+	if c := a.cmdlineState(); c == nil || c.Prefix != ":" || c.Text != "wq" || c.Cursor != 2 {
+		t.Errorf("cmdline = %+v", c)
+	}
 }

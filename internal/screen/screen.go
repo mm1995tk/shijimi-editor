@@ -151,23 +151,37 @@ type Diagnostic struct {
 	Cont     bool     `json:"cont,omitempty"` // 前の行から続く診断。下線だけ引き、行末の文言と行番号の横の印には使わない
 }
 
-// Status は状態行。
+// Status は状態行。文言はローカライズ済み。左（モード・領域・ブランチ・診断・メッセージ）と
+// 右（位置・字下げ・言語・版）に分かれる。右は Position が空なら（テキスト以外のとき）出さない。
 type Status struct {
-	Mode     string `json:"mode"`  // 表示用の文字列（ローカライズ済み）
-	Style    Style  `json:"style"` // モードの色（StyleModeNormal など）
-	Msg      string `json:"msg,omitempty"`
-	MsgErr   bool   `json:"msgErr,omitempty"`
-	Branch   string `json:"branch,omitempty"`
-	Errors   int    `json:"errors,omitempty"`
-	Warnings int    `json:"warnings,omitempty"`
-	Cursor   Pos    `json:"cursor"`
+	Mode    string `json:"mode"`              // モードの表示（"NOR" など）。空ならモードの欄を出さない
+	Pending string `json:"pending,omitempty"` // 途中まで押されたキー（"space" など）
+	Style   Style  `json:"style"`             // モードの色（StyleModeNormal など）
+
+	Pane        string `json:"pane,omitempty"`        // キーを受けているエディタ以外の領域の名前
+	Branch      string `json:"branch,omitempty"`      // git のブランチ
+	Errors      int    `json:"errors,omitempty"`      // 診断の数
+	Warnings    int    `json:"warnings,omitempty"`    // 診断の数
+	Suggestions string `json:"suggestions,omitempty"` // エージェントの提案の数（提案の欄が見えていないときだけ）
+
+	Msg      string `json:"msg,omitempty"`      // メッセージ（保存の結果、同期の状況など）
+	MsgErr   bool   `json:"msgErr,omitempty"`   // Msg がエラー
+	Question string `json:"question,omitempty"` // 確認の問い。あれば Msg より優先し、右側を隠す
+
+	Cursor   Pos    `json:"cursor"`             // カーソルの位置
+	Position string `json:"position,omitempty"` // 「行:桁」に複数カーソルと選択の文字数を足したもの
+	Indent   string `json:"indent,omitempty"`   // 字下げの種類
+	Language string `json:"language,omitempty"` // 言語と言語サーバーの状態
+	Unsent   string `json:"unsent,omitempty"`   // 未送信のレビューコメントの数
+	Version  string `json:"version,omitempty"`  // shj の版
 }
 
-// Cmdline は ":" と "/" の入力行。
+// Cmdline は ":" と "/" の入力行。検索バー（Ctrl+F）も同じ形で、ラベルと案内が付く。
 type Cmdline struct {
-	Prefix string `json:"prefix"` // ":" か "/" か "?"
+	Prefix string `json:"prefix"` // ":" か "/" か "?"（検索バーはラベル）
 	Text   string `json:"text"`
-	Cursor int    `json:"cursor"` // rune の位置
+	Cursor int    `json:"cursor"`         // rune の位置
+	Hint   string `json:"hint,omitempty"` // 検索バーの右の案内
 }
 
 // OverlayKind は Overlay の種類。

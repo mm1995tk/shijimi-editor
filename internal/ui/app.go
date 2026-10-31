@@ -2307,6 +2307,7 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 		cursorAt:     t.buf.Cur,
 		relative:     a.relativeLineNumbers(),
 		indentGuides: a.cfg.Editor.IndentGuides,
+		title:        a.titleOf(t),
 		diags:        a.lsp.diagnostics(t.buf.Path),
 	}
 	if a.findOpen {
@@ -2346,26 +2347,7 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 // renderTitle is the line above the editor: the path of the file being
 // edited (● when it is unsaved). Open files are listed with "Space b".
 func (a *App) renderTitle(t *tab, w int, focused bool) string {
-	if t == nil {
-		return stTabBar.Render(strings.Repeat(" ", w))
-	}
-	name := t.title()
-	if !a.single && t.path() != "" {
-		name = a.rel(t.path())
-	}
-	mark := "  "
-	if t.dirty() {
-		mark = " ●"
-	}
-	st := stTabActive
-	if !focused {
-		st = stTabInactive // the pane without the focus
-	}
-	s := st.Render(" " + name + mark + " ")
-	if n := ansi.StringWidth(s); n < w {
-		s += stTabBar.Render(strings.Repeat(" ", w-n))
-	}
-	return fitStyled(s, w, stTabBar)
+	return drawTitle(a.titleOf(t), w, focused)
 }
 
 func findLabel() string { return i18n.T("app.findlabel") }
@@ -2376,103 +2358,12 @@ func findInputCells(w int) int {
 }
 
 func (a *App) renderFind(w int) string {
-	label := stFindLabel.Render(findLabel())
-	hint := stFind.Render(i18n.T("app.findhint"))
-	iw := findInputCells(w)
-	return label + fitStyled(a.findInput.View(), iw, stFind) + hint
+	return drawFind(*a.findState(), a.findInput.View(), w)
 }
 
 var modeStyles map[editMode]lipgloss.Style
 
-func (a *App) renderStatus() string {
-	var prefix string
-	prefixW := 0
-	if a.helix && a.focus == focusEditor && a.curText() != nil {
-		label := " " + a.mode.label() + " "
-		if a.pending != "" {
-			p := a.pending
-			if p == " " {
-				p = "space"
-			}
-			label = " " + a.mode.label() + " " + p + " "
-		}
-		prefix = modeStyles[a.mode].Render(label)
-		prefixW = ansi.StringWidth(label)
-	}
-	leftParts := []string{}
-	if a.branch != "" {
-		leftParts = append(leftParts, "⎇ "+a.branch)
-	}
-	switch a.focus {
-	case focusExplorer:
-		leftParts = append(leftParts, i18n.T("app.pane.tree"))
-	case focusChanges:
-		leftParts = append(leftParts, i18n.T("app.pane.changes"))
-	case focusTerminal:
-		leftParts = append(leftParts, i18n.T("app.pane.terminal"))
-	case focusAgent:
-		leftParts = append(leftParts, i18n.T("app.pane.suggest"))
-	}
-	if t := a.curText(); t != nil {
-		ds := a.lsp.diagnostics(t.buf.Path)
-		errs, warns := 0, 0
-		for _, d := range ds {
-			if sevRank(d.Severity) == 1 {
-				errs++
-			} else if d.Severity == 2 {
-				warns++
-			}
-		}
-		if errs+warns > 0 {
-			leftParts = append(leftParts, fmt.Sprintf("● %d  ▲ %d", errs, warns))
-		}
-	}
-	if l := a.layout(); l.agentW == 0 {
-		if n := len(a.suggestions()); n > 0 {
-			leftParts = append(leftParts, fmt.Sprintf(i18n.T("app.suggestions"), n))
-		}
-	}
-	left := " " + strings.Join(leftParts, "  ")
-	right := ""
-	if t := a.cur(); t != nil && t.kind == tabText {
-		b := t.buf
-		indent := fmt.Sprintf(i18n.T("app.spaces"), len(b.IndentUnit()))
-		if b.IndentUnit() == "\t" {
-			indent = i18n.T("app.tab")
-		}
-		pos := fmt.Sprintf("%d:%d", b.Cur.Row+1, buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col)+1)
-		if b.HasExtra() {
-			pos = fmt.Sprintf(i18n.T("app.cursors"), len(b.Extra())+1) + pos
-		}
-		if s := b.SelectedText(); s != "" {
-			pos += fmt.Sprintf(i18n.T("app.selected"), len([]rune(s)))
-		}
-		lang := t.hl.Language()
-		if st := a.lspStatus(); st != "" {
-			lang += " [" + st + "]"
-		}
-		right = fmt.Sprintf("%s   %s   %s   ", pos, indent, lang)
-	}
-	if n := len(a.gd.rv.pending); n > 0 && a.prShown() {
-		right = fmt.Sprintf(i18n.T("app.pendingcomments"), n) + right
-	}
-	right += versionLabel() + " "
-	st := stStatus
-	switch {
-	case a.confirm != nil:
-		st, right = stStatusError, "" // the question must not be cut off
-		left += "   " + a.confirm.prompt
-	case a.msg != "":
-		if a.msgErr {
-			st = stStatusError
-		}
-		left += "   " + a.msg
-	case a.prShown() && a.gd.rv.sync.text() != "":
-		left += "   " + a.gd.rv.sync.text()
-	}
-	lw := a.w - prefixW - ansi.StringWidth(right)
-	return prefix + st.Render(fit(left, lw)+right)
-}
+func (a *App) renderStatus() string { return drawStatus(a.statusOf(), a.w) }
 
 // popupPos places box below the cursor cell (cx, cy), or above it when there
 // is no room below, clamped to the editor area of a screen w cells wide.
