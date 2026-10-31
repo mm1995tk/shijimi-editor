@@ -26,7 +26,6 @@ type mouseHover struct {
 	seq  int
 	pos  buffer.Pos
 	word wordSpan
-	pt   screenPt
 }
 
 // MouseHover reports whether resting the pointer on a word shows its hover.
@@ -117,7 +116,7 @@ func (a *App) hoverDwell(msg HoverDwell) []Effect {
 	}
 	a.syncLSP()
 	path, lp := t.buf.Path, lspPos(t.buf, pos)
-	origin := &mouseHover{tab: t, seq: msg.seq, pos: pos, word: word, pt: a.hoverCell}
+	origin := &mouseHover{tab: t, seq: msg.seq, pos: pos, word: word}
 	return []Effect{RunLSP{func(ctx context.Context) Event {
 		text, err := c.Hover(ctx, path, lp)
 		if err != nil {
@@ -165,10 +164,15 @@ func (a *App) mouseWord(l layout, pt screenPt) (buffer.Pos, wordSpan, bool) {
 // popupAnchor is the cell a popup hangs from: the pointer for a hover it
 // triggered, the cursor otherwise.
 func (a *App) popupAnchor(t *tab, l layout) (x, y int) {
+	return a.posScreen(t, l, a.popupAnchorPos(t))
+}
+
+// popupAnchorPos is the place in the file a popup hangs from.
+func (a *App) popupAnchorPos(t *tab) buffer.Pos {
 	if a.comp == nil && a.hoverAt != nil {
-		return a.hoverAt.x, a.hoverAt.y
+		return *a.hoverAt
 	}
-	return a.cursorScreen(t, l)
+	return t.buf.Cur
 }
 
 // inHoverBox reports whether pt is on the open hover popup.
@@ -177,7 +181,7 @@ func (a *App) inHoverBox(l layout, pt screenPt) bool {
 	if !ok {
 		return false
 	}
-	box := a.hoverView(l).render(a.hoverScroll)
+	box := a.hoverBox(l)
 	bw := 0
 	for _, s := range box {
 		bw = max(bw, ansi.StringWidth(s))

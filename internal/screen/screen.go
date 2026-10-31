@@ -108,6 +108,8 @@ type Line struct {
 	Diag   []Diagnostic `json:"diag,omitempty"`
 	Guides []int        `json:"guides,omitempty"` // インデントガイドを引く桁（表示上の桁、小さい順）。文字の上でも、空行の行末より右でも引く
 	Indent int          `json:"indent,omitempty"` // ガイドが及ぶ幅（桁）。空行は前後の行の深いほうから決まる。ガイドを引かないときは 0
+	Band   Style        `json:"band,omitempty"`   // 行の背景の色（ホバーのコードブロック）。空は標準
+	Rule   bool         `json:"rule,omitempty"`   // 水平線（ホバー）。幅いっぱいに引く。Spans は空
 }
 
 // Span は同じスタイルで描く文字列の区間。
@@ -206,6 +208,12 @@ type Overlay struct {
 	Lines  []Line      `json:"lines,omitempty"`
 	Items  []Item      `json:"items,omitempty"`
 	Active int         `json:"active"` // Items の選択位置
+
+	// ホバーが使う。Lines には見えている行だけが入り、View がその位置を表す
+	// （Top は先頭の行、Rows は窓の高さ、Cols は文字の幅、Total は全体の行数）。
+	View      *Viewport `json:"view,omitempty"`
+	Hint      string    `json:"hint,omitempty"`      // 枠の下の案内（ローカライズ済み）
+	CopyLabel string    `json:"copyLabel,omitempty"` // 枠の上の右端の「コピー」の押すところ（ローカライズ済み）
 }
 
 // Item は一覧の 1 行（補完の候補、パレットの項目、メニューなど）。

@@ -230,7 +230,7 @@ func applyTheme(t *Theme) {
 	cAddWordBg, cDelWordBg, cModSign, cBarView = t.AddWordBg, t.DelWordBg, t.ModSign, t.BarView
 
 	cHoverBg, cHoverFg, cHoverCodeBg, cHoverBorder = t.PaletteBg, t.EditorFg, t.HoverCodeBg, t.Accent
-	cHoverInline, cHoverHead, cHoverRule = t.HoverInline, t.HoverHead, t.HoverRule
+	cHoverRule = t.HoverRule
 
 	modeStyles = map[editMode]lipgloss.Style{
 		modeNormal: bgfg(t.ModeNormal, t.CursorFg).Bold(true),

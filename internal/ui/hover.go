@@ -10,16 +10,16 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // Hover popup colors; set by applyTheme.
-var cHoverBg, cHoverFg, cHoverCodeBg, cHoverBorder, cHoverInline, cHoverHead, cHoverRule string
+var cHoverBg, cHoverFg, cHoverCodeBg, cHoverBorder, cHoverRule string
 
-// hoverCell is one rune with its foreground color and weight.
+// hoverCell is one rune with the name of its color (a heading's is bold).
 type hoverCell struct {
-	r    rune
-	fg   string
-	bold bool
+	r  rune
+	st screen.Style
 }
 
 // hoverLine is one logical line of the popup. code lines get a darker band.
@@ -82,9 +82,9 @@ func textCells(l string) [][]hoverCell {
 		case r == '`':
 			inCode = !inCode
 		case inCode:
-			cs = append(cs, hoverCell{r: r, fg: cHoverInline})
+			cs = append(cs, hoverCell{r: r, st: screen.StyleHoverInline})
 		case head:
-			cs = append(cs, hoverCell{r: r, fg: cHoverHead, bold: true})
+			cs = append(cs, hoverCell{r: r, st: screen.StyleHoverHead})
 		default:
 			cs = append(cs, hoverCell{r: r})
 		}
@@ -113,9 +113,9 @@ func codeCells(lang string, lines []string) [][]hoverCell {
 	}
 	row, col := 0, 0
 	for tok := it(); tok != chroma.EOF; tok = it() {
-		c := ""
+		var c screen.Style
 		if e := chromaStyle.Get(tok.Type); e.Colour.IsSet() {
-			c = e.Colour.String()
+			c = syntaxStyleOf(e.Colour.String())
 		}
 		for _, r := range tok.Value {
 			if r == '\n' {
@@ -124,7 +124,7 @@ func codeCells(lang string, lines []string) [][]hoverCell {
 				continue
 			}
 			if row < len(out) && col < len(out[row]) {
-				out[row][col].fg = c
+				out[row][col].st = c
 			}
 			col++
 		}
@@ -178,16 +178,16 @@ func renderCells(cs []hoverCell, bg string, w int) string {
 	for i := 0; i < len(cs); {
 		j := i
 		var run strings.Builder
-		for j < len(cs) && cs[j].fg == cs[i].fg && cs[j].bold == cs[i].bold {
+		for j < len(cs) && cs[j].st == cs[i].st {
 			run.WriteRune(cs[j].r)
 			width += ansi.StringWidth(string(cs[j].r))
 			j++
 		}
-		fg := cs[i].fg
+		fg := styleColor(cs[i].st)
 		if fg == "" {
 			fg = cHoverFg
 		}
-		sb.WriteString(bgfg(bg, fg).Bold(cs[i].bold).Render(run.String()))
+		sb.WriteString(bgfg(bg, fg).Bold(cs[i].st == screen.StyleHoverHead).Render(run.String()))
 		i = j
 	}
 	if width < w {
@@ -240,44 +240,91 @@ func newHoverView(text string, boxW, boxH int) hoverView {
 	return hoverView{lines: lines, width: max(w, 1), height: max(boxH-2, 1)}
 }
 
-// render draws the box scrolled by scroll rows: border, padding, code bands
-// and a scroll indicator on the bottom border.
-func (v hoverView) render(scroll int) []string {
+// overlay is the popup as a screen.Overlay: the rows in view when scrolled by
+// scroll (the rest stays in core), with View telling where they are among all
+// of them. The caller says which pane it hangs on and from where.
+func (v hoverView) overlay(scroll int) screen.Overlay {
 	scroll = clamp(scroll, 0, v.maxScroll())
 	end := min(scroll+v.height, len(v.lines))
-	vis := v.lines[scroll:end]
+	ov := screen.Overlay{
+		Kind:      screen.OverlayHover,
+		View:      &screen.Viewport{Top: scroll, Rows: v.height, Cols: v.width, Total: len(v.lines)},
+		Hint:      hoverHintCopyOnly(),
+		CopyLabel: hoverCopyLabel(),
+	}
+	if v.maxScroll() > 0 {
+		ov.Hint = hoverHint()
+	}
+	for i, l := range v.lines[scroll:end] {
+		sl := screen.Line{No: scroll + i, Rule: l.rule}
+		if l.code {
+			sl.Band = screen.StyleHoverCodeBg
+		}
+		for j := 0; j < len(l.cells); {
+			k := j
+			for k < len(l.cells) && l.cells[k].st == l.cells[j].st {
+				k++
+			}
+			runes := make([]rune, 0, k-j)
+			for _, c := range l.cells[j:k] {
+				runes = append(runes, c.r)
+			}
+			sl.Spans = append(sl.Spans, screen.Span{Text: string(runes), Style: l.cells[j].st})
+			j = k
+		}
+		ov.Lines = append(ov.Lines, sl)
+	}
+	return ov
+}
+
+// render draws the box scrolled by scroll rows.
+func (v hoverView) render(scroll int) []string { return drawHover(v.overlay(scroll)) }
+
+// drawHover draws a hover Overlay as a box of cells: border, padding, code
+// bands and a scroll indicator on the bottom border.
+func drawHover(ov screen.Overlay) []string {
+	vw := screen.Viewport{Cols: 1}
+	if ov.View != nil {
+		vw = *ov.View
+	}
+	width := max(vw.Cols, 1)
+	end := vw.Top + len(ov.Lines)
 	bd := bgfg(cHoverBg, cHoverBorder)
-	iw := v.width + 2
-	out := make([]string, 0, len(vis)+2)
+	iw := width + 2
+	out := make([]string, 0, len(ov.Lines)+2)
 	top := strings.Repeat("─", iw)
-	if n := ansi.StringWidth(hoverCopyLabel()); n+2 <= iw {
-		top = strings.Repeat("─", iw-n-1) + hoverCopyLabel() + "─"
+	if n := ansi.StringWidth(ov.CopyLabel); n+2 <= iw {
+		top = strings.Repeat("─", iw-n-1) + ov.CopyLabel + "─"
 	}
 	out = append(out, bd.Render("╭"+top+"╮"))
-	for _, l := range vis {
+	for _, l := range ov.Lines {
 		bg := cHoverBg
-		if l.code {
+		if l.Band != "" {
 			bg = cHoverCodeBg
 		}
 		pad := bgfg(bg, cHoverFg).Render(" ")
-		cells := l.cells
-		if l.rule {
-			cells = make([]hoverCell, v.width)
+		var cells []hoverCell
+		if l.Rule {
+			cells = make([]hoverCell, width)
 			for i := range cells {
-				cells[i] = hoverCell{r: '─', fg: cHoverRule}
+				cells[i] = hoverCell{r: '─', st: screen.StyleHoverRule}
 			}
 		}
-		out = append(out, bd.Render("│")+pad+renderCells(cells, bg, v.width)+pad+bd.Render("│"))
+		for _, sp := range l.Spans {
+			for _, r := range sp.Text {
+				cells = append(cells, hoverCell{r: r, st: sp.Style})
+			}
+		}
+		out = append(out, bd.Render("│")+pad+renderCells(cells, bg, width)+pad+bd.Render("│"))
 	}
 	ind := ""
-	hint := hoverHintCopyOnly()
-	if v.maxScroll() > 0 {
-		hint = hoverHint()
-		ind = fmt.Sprintf(" %d/%d ", end, len(v.lines))
-		if scroll > 0 {
+	hint := ov.Hint
+	if vw.Total > vw.Rows {
+		ind = fmt.Sprintf(" %d/%d ", end, vw.Total)
+		if vw.Top > 0 {
 			ind = "↑" + ind
 		}
-		if end < len(v.lines) {
+		if end < vw.Total {
 			ind += "↓"
 		}
 	}
