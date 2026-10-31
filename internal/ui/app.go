@@ -23,6 +23,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 	"github.com/mm1995tk/shijimi-editor/internal/proxy"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 type focus int
@@ -108,10 +109,10 @@ type App struct {
 	snip        *snippetSession
 	hoverText   string
 	hoverScroll int
-	hoverAt     *screenPt // where a mouse-triggered popup is anchored; nil = at the cursor
-	hoverWord   wordSpan  // word the pointer's pending or open hover belongs to
-	hoverCell   screenPt  // last cell the pointer rested on without a button
-	hoverSeq    int       // bumped on every input; stale dwell timers and replies are dropped
+	hoverAt     *buffer.Pos // the character a mouse-triggered popup hangs from (a place in the file, not on the screen); nil = at the cursor
+	hoverWord   wordSpan    // word the pointer's pending or open hover belongs to
+	hoverCell   screenPt    // last cell the pointer rested on without a button
+	hoverSeq    int         // bumped on every input; stale dwell timers and replies are dropped
 	ctx         *ctxPreview
 
 	// Claude Code IDE integration (see ide.go)
@@ -2238,7 +2239,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		if a.comp != nil {
 			box = drawCompletion(a.comp.overlay(max(3, l.editH/2)))
 		} else {
-			box = a.hoverView(l).render(a.hoverScroll)
+			box = a.hoverBox(l)
 		}
 		x, y := popupPos(l, a.w, cx, cy, box)
 		rows = overlay(rows, box, x, y)
@@ -2386,7 +2387,7 @@ func (a *App) hoverPos(l layout) (x, y int, ok bool) {
 		return 0, 0, false
 	}
 	cx, cy := a.popupAnchor(t, l)
-	x, y = popupPos(l, a.w, cx, cy, a.hoverView(l).render(a.hoverScroll))
+	x, y = popupPos(l, a.w, cx, cy, a.hoverBox(l))
 	return x, y, true
 }
 
@@ -2408,6 +2409,22 @@ func (a *App) hoverView(l layout) hoverView {
 	}
 	return newHoverView(a.hoverText, min(80, l.rightW-2), max(h, 3))
 }
+
+// hoverOverlay is the open hover popup as a screen.Overlay, hanging from the
+// character it describes: the pointer's for a hover it triggered, the cursor's
+// otherwise. Drawing it as cells is drawHover's work.
+func (a *App) hoverOverlay(l layout) screen.Overlay {
+	ov := a.hoverView(l).overlay(a.hoverScroll)
+	if t := a.curText(); t != nil {
+		ov.Pane = t.path()
+		at := toScreenPos(a.popupAnchorPos(t))
+		ov.At = &at
+	}
+	return ov
+}
+
+// hoverBox is the hover popup as a box of cells.
+func (a *App) hoverBox(l layout) []string { return drawHover(a.hoverOverlay(l)) }
 
 // hoverScrollKey maps a key to a hover scroll amount (0 = not a scroll key).
 func hoverScrollKey(key string) int {

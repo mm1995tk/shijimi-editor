@@ -1311,10 +1311,13 @@ func (a *App) ensureDiffVisible(t *tab, dv *diffView, w, h int) {
 }
 
 // cursorScreen returns the screen position of the cursor cell.
-func (a *App) cursorScreen(t *tab, l layout) (x, y int) {
+func (a *App) cursorScreen(t *tab, l layout) (x, y int) { return a.posScreen(t, l, t.buf.Cur) }
+
+// posScreen is the screen cell of the character at p in t's buffer.
+func (a *App) posScreen(t *tab, l layout, p buffer.Pos) (x, y int) {
 	b := t.buf
-	x = l.rightX + gutterWidth(b) + buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col) - b.ScrollCol
-	y = l.editY + b.Cur.Row - b.ScrollRow
+	x = l.rightX + gutterWidth(b) + buffer.VisualCol(b.Lines[p.Row], p.Col) - b.ScrollCol
+	y = l.editY + p.Row - b.ScrollRow
 	if dv := a.diffFor(t); dv != nil {
 		g := a.dvGeom(l)
 		x += g.rightX - l.rightX

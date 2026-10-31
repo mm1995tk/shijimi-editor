@@ -1,11 +1,15 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 const goplsHover = "```go\nfunc Println(a ...any) (n int, err error)\n```\n\n---\n\nPrintln formats using the default formats for its operands and writes to standard output. See `fmt` for [details](https://pkg.go.dev/fmt).\n"
@@ -143,5 +147,43 @@ func TestHoverCopyKeyAndButton(t *testing.T) {
 	a.handleMouse(a.locate(Mouse{X: bx + 2, Y: by + 1, Action: MousePress, Button: MouseLeft}))
 	if a.clipboard != "" || a.hoverText != "" {
 		t.Fatalf("click elsewhere: clipboard=%q hover=%v", a.clipboard, a.hoverText != "")
+	}
+}
+
+func TestHoverOverlay(t *testing.T) {
+	a := newTestApp(t, "hello world\nsecond\n")
+	l := a.layout()
+	long := "```go\nfunc f()\n```\n---\n"
+	for i := range 30 {
+		long += fmt.Sprintf("line %d\n", i)
+	}
+	a.hoverText = long
+	a.hoverAt = &buffer.Pos{Row: 1, Col: 3}
+	ov := a.hoverOverlay(l)
+	if ov.Kind != screen.OverlayHover || ov.Pane != a.curText().path() || ov.At == nil || *ov.At != (screen.Pos{Line: 1, Col: 3}) {
+		t.Fatalf("overlay = %+v", ov)
+	}
+	if ov.View == nil || ov.View.Total <= len(ov.Lines) || len(ov.Lines) != ov.View.Rows || ov.Hint != hoverHint() {
+		t.Fatalf("view = %+v, %d lines, hint %q", ov.View, len(ov.Lines), ov.Hint)
+	}
+	if ov.Lines[0].Band != screen.StyleHoverCodeBg || !ov.Lines[1].Rule || ov.Lines[2].Band != "" {
+		t.Fatalf("lines = %+v", ov.Lines[:3])
+	}
+	a.hoverAt = nil
+	if at := a.hoverOverlay(l).At; at == nil || *at != toScreenPos(a.curText().buf.Cur) {
+		t.Fatalf("a keyboard hover hangs from the cursor, got %v", at)
+	}
+}
+
+// A pointer hover keeps the place it opened at; the file may shrink (a reload)
+// while it is open, and drawing must not fall off the end.
+func TestHoverAnchorSurvivesShrinkingFile(t *testing.T) {
+	a := newTestApp(t, "a\nb\nc\nd\nlast line\n")
+	a.hoverText, a.hoverAt = "text", &buffer.Pos{Row: 4, Col: 6}
+	b := a.curText().buf
+	b.Lines, b.Cur = b.Lines[:1], buffer.Pos{}
+	_ = a.render()
+	if at := a.hoverOverlay(a.layout()).At; at == nil || at.Line != 0 {
+		t.Fatalf("anchor = %v", at)
 	}
 }

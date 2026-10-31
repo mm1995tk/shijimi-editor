@@ -825,7 +825,7 @@ func (a *App) showHover(msg hoverMsg) {
 			return
 		}
 		a.hoverText, a.hoverScroll = msg.text, 0
-		a.hoverAt, a.hoverWord = &m.pt, m.word
+		a.hoverAt, a.hoverWord = &m.pos, m.word
 		return
 	}
 	if strings.TrimSpace(msg.text) == "" {
