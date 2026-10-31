@@ -159,8 +159,7 @@ func (a *App) cmdlineInput(msg Input) tea.Cmd {
 }
 
 func (a *App) renderCmdline() string {
-	prefix := a.cmdKind
-	return stPanel.Render(prefix) + fitStyled(a.cmdInput.View(), a.w-1, stPanel)
+	return drawCmdline(*a.cmdlineState(), a.cmdInput.View(), a.w)
 }
 
 // execCommand runs a Helix-style ":" command.

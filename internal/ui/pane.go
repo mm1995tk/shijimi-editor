@@ -24,6 +24,7 @@ type paneOpts struct {
 	cursorAt     buffer.Pos    // where the cursor is drawn
 	extras       []extraCursor // cursors of a multi-cursor edit
 	indentGuides bool          // fill Line.Guides
+	title        *screen.Title // the title row of the pane, nil = just the file name
 	diags        []lsp.Diagnostic
 }
 
@@ -49,6 +50,9 @@ func buildTextPane(t *tab, w, h int, o paneOpts) screen.Pane {
 			Left: b.ScrollCol, Total: len(b.Lines),
 		},
 		CurLine: b.Cur.Row,
+	}
+	if o.title != nil {
+		p.Title = *o.title
 	}
 
 	// Cursors[0] is the main one; Selections is parallel to Cursors.
