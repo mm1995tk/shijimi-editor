@@ -140,7 +140,8 @@ func (a *App) mouseFromTea(msg tea.MouseMsg) Mouse {
 	return a.locate(e)
 }
 
-// locate fills in Region, Row and Col from the screen cell X, Y.
+// locate fills in Region, Row and Col from the screen cell X, Y. It keeps
+// state: a press starts the capture and a release ends it.
 //
 // While a button is held, the pointer is captured by the region the press was
 // in (as a browser does with setPointerCapture): the drag and the release keep
@@ -148,15 +149,16 @@ func (a *App) mouseFromTea(msg tea.MouseMsg) Mouse {
 // negative or past its edge. A GUI sends its events the same way.
 func (a *App) locate(m Mouse) Mouse {
 	l := a.layout()
-	button := m.Button != MouseNone && m.Button < MouseWheelUp || m.Button == MouseOther
+	button := m.Button.isButton()
 	switch {
 	case m.Action == MousePress && button:
+		// capture starts
 		m.Region, m.Row, m.Col = a.hitTest(l, m.X, m.Y)
 		a.capture = m.Region
 	case m.Action != MousePress && a.capture != RegionNone && (m.Action == MouseRelease || m.Button != MouseNone || a.pointerHeld()):
 		x0, y0 := a.regionOrigin(l, a.capture)
 		m.Region, m.Row, m.Col = a.capture, m.Y-y0, m.X-x0
-		if m.Action == MouseRelease {
+		if m.Action == MouseRelease { // capture ends
 			a.capture = RegionNone
 		}
 	default:

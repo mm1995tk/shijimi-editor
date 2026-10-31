@@ -45,6 +45,7 @@ func TestMouseFromTea(t *testing.T) {
 func TestHitTestRegions(t *testing.T) {
 	a := newTestApp(t, "hello\n")
 	a.showTerm = true
+	a.showAgent = true
 	l := a.layout()
 	for _, c := range []struct {
 		name     string
@@ -56,6 +57,8 @@ func TestHitTestRegions(t *testing.T) {
 		{"editor title", l.rightX + 1, l.top, RegionEditor, 0, 1},
 		{"editor text", l.rightX + 5, l.editY + 1, RegionEditor, l.editY - l.top + 1, 5},
 		{"terminal body", l.fullX + 3, l.panelY + 2, RegionTerminal, 0, 3},
+		{"agent body", l.agentX + 4, l.top + 2, RegionAgent, 2, 4},
+		{"agent border", l.agentX - 1, l.top + 2, RegionAgent, 2, -1},
 		{"separator", l.sideW, l.top + 1, RegionNone, 0, 0},
 		{"status line", 3, l.statusY, RegionNone, 0, 0},
 	} {
@@ -85,5 +88,19 @@ func TestMouseCaptureKeepsRegion(t *testing.T) {
 	}
 	if m := a.locate(Mouse{X: 1, Y: l.top + 5, Action: MouseMotion, Button: MouseNone}); m.Region != RegionExplorer {
 		t.Errorf("motion with no button after the release: %+v", m)
+	}
+}
+
+func TestHitTestOtherPane(t *testing.T) {
+	a, _ := splitApp(t)
+	l := a.layout()
+	r, row, col := a.hitTest(l, l.otherX+3, l.editY+1)
+	if r != RegionOther || col != 3 || row != l.editY-l.top+1 {
+		t.Errorf("other pane: %v (%d, %d)", r, row, col)
+	}
+	// A press there focuses the pane; the position inside it is kept.
+	a.Update(a.locate(Mouse{X: l.otherX + 3, Y: l.editY + 1, Action: MousePress, Button: MouseLeft}))
+	if a.pane == 1 || a.capture != RegionEditor {
+		t.Errorf("pane %d, capture %v", a.pane, a.capture)
 	}
 }

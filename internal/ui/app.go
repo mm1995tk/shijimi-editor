@@ -1925,7 +1925,12 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 	if msg.Region == RegionOther && msg.Action == MousePress && (msg.Button == MouseLeft || msg.Button == MouseWheelUp || msg.Button == MouseWheelDown) {
 		a.focusPane(1 - a.pane)
 		l = a.layout()
-		msg = a.locate(msg) // the pane the pointer is on is now the focused one
+		// The pane under the pointer is the focused one now. Its corner has not
+		// moved, so Row and Col stay; only the name of the region changes.
+		msg.Region = RegionEditor
+		if a.capture == RegionOther {
+			a.capture = RegionEditor
+		}
 	}
 	if a.ag.sel.dragging {
 		if cmd, ok := a.agentDrag(l, msg); ok {
