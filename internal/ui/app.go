@@ -2247,7 +2247,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 
 	if a.sig != nil && a.comp == nil && a.hoverText == "" && a.sigVisible() {
 		if cx, cy := a.cursorScreen(a.sig.tab, l); a.cursorShown(a.sig.tab, l, cx, cy) {
-			box := a.sig.render(max(10, a.w-l.rightX))
+			box := drawSignature(a.sig.overlay(), max(10, a.w-l.rightX))
 			x, y := signaturePos(l, a.w, cx, cy, box)
 			rows = overlay(rows, box, x, y)
 		}
