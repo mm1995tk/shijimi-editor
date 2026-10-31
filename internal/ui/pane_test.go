@@ -35,7 +35,7 @@ func TestBuildTextPane(t *testing.T) {
 	}
 	p := buildTextPane(tb, 40, 3, paneOpts{
 		cursorAt: b.Cur, indentGuides: true, diags: []lsp.Diagnostic{diag},
-		extraCursors: []buffer.Pos{{Row: 3, Col: 4}}, extraSels: [][2]buffer.Pos{{{Row: 3, Col: 4}, {Row: 3, Col: 4}}},
+		extras: []extraCursor{{cursor: buffer.Pos{Row: 3, Col: 4}, sel: [2]buffer.Pos{{Row: 3, Col: 4}, {Row: 3, Col: 4}}}},
 	})
 
 	if p.Kind != screen.KindText || p.CurLine != 1 {
@@ -50,7 +50,7 @@ func TestBuildTextPane(t *testing.T) {
 	if got := p.Lines[0].Spans; len(got) != 1 || got[0].Text != "    b" {
 		t.Errorf("spans = %+v", got)
 	}
-	if got := p.Lines[0].Guides; len(got) != 1 || got[0] != 0 && p.Lines[0].Indent != 4 {
+	if got := p.Lines[0].Guides; len(got) != 1 || got[0] != 0 || p.Lines[0].Indent != 4 {
 		t.Errorf("guides = %v indent %d", got, p.Lines[0].Indent)
 	}
 	// the blank line takes the deeper of its neighbours
@@ -106,8 +106,8 @@ func TestPaneSyntaxStyles(t *testing.T) {
 }
 
 // Full-width characters take two cells and a tab goes to the next tab stop.
-// A combining character takes a cell of its own (the width the draw and the
-// mouse have always used, so the two agree). The pane keeps whole runes; the
+// A combining character takes a cell of its own (the width buffer.RuneWidth gives, which both
+// the draw and the mouse use, so the two agree). The pane keeps whole runes; the
 // drawing side lays them out.
 func TestPaneWideAndCombining(t *testing.T) {
 	line := []rune("世é\tx")

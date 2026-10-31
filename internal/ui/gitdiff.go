@@ -1440,7 +1440,7 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 	opts.marks = func(row int) []diff.Span { return dv.newSpans[row] }
 	opts.markBg = cAddWordBg
 	opts.gutterMark = a.commentMark(t)
-	gw := len(fmt.Sprint(len(dv.old))) + 4 // same width as gutterWidth
+	gw := gutterWidthFor(len(dv.old))
 
 	start := dv.start(b.ScrollRow)
 	bar := dv.changeBar(g.h, start)

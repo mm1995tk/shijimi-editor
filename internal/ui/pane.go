@@ -13,11 +13,17 @@ import (
 // paneOpts is what App decides about the contents of a text pane, apart from
 // the buffer itself. How it is drawn (focus, search highlight, line number
 // style, diff colors) stays with editorOpts.
+// extraCursor is a cursor of a multi-cursor edit with its selection (an empty pair
+// when it selects nothing).
+type extraCursor struct {
+	cursor buffer.Pos
+	sel    [2]buffer.Pos
+}
+
 type paneOpts struct {
-	cursorAt     buffer.Pos      // where the cursor is drawn
-	extraCursors []buffer.Pos    // cursors of a multi-cursor edit
-	extraSels    [][2]buffer.Pos // same length as extraCursors; an empty pair when the cursor selects nothing
-	indentGuides bool            // fill Line.Guides
+	cursorAt     buffer.Pos    // where the cursor is drawn
+	extras       []extraCursor // cursors of a multi-cursor edit
+	indentGuides bool          // fill Line.Guides
 	diags        []lsp.Diagnostic
 }
 
@@ -52,10 +58,10 @@ func buildTextPane(t *tab, w, h int, o paneOpts) screen.Pane {
 	} else {
 		p.Selections = append(p.Selections, screen.Range{Start: p.Cursors[0], End: p.Cursors[0]})
 	}
-	for i, c := range o.extraCursors {
-		sp := toScreenPos(c)
+	for _, x := range o.extras {
+		sp := toScreenPos(x.cursor)
 		r := screen.Range{Start: sp, End: sp}
-		if s := o.extraSels[i]; s[0] != s[1] {
+		if s := x.sel; s[0] != s[1] {
 			r = screen.Range{Start: toScreenPos(s[0]), End: toScreenPos(s[1])}
 		}
 		p.Cursors = append(p.Cursors, sp)

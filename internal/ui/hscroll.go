@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -23,7 +22,7 @@ func (a *App) scrollCols(t *tab, d int) {
 	}
 	if dv := a.diffFor(t); dv != nil { // the base side scrolls with it
 		if dv.split && !dv.single { // the narrower base side decides where the end shows
-			textW = max(1, min(textW, a.dvGeom(a.layout()).leftW-(len(fmt.Sprint(len(dv.old)))+4)))
+			textW = max(1, min(textW, a.dvGeom(a.layout()).leftW-gutterWidthFor(len(dv.old))))
 		}
 		for _, ln := range dv.old {
 			widest = max(widest, ansi.StringWidth(strings.ReplaceAll(ln, "\t", "    ")))

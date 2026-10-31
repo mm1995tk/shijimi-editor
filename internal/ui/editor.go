@@ -101,9 +101,10 @@ func styleFor(k cellStyle) lipgloss.Style {
 	return s
 }
 
-func gutterWidth(b *buffer.Buffer) int {
-	return len(fmt.Sprint(len(b.Lines))) + 4
-}
+// gutterWidthFor is the width of the line numbers column for a file of total lines.
+func gutterWidthFor(total int) int { return len(fmt.Sprint(total)) + 4 }
+
+func gutterWidth(b *buffer.Buffer) int { return gutterWidthFor(len(b.Lines)) }
 
 // ensureCursorVisible adjusts scrolling so the cursor is on screen.
 func ensureCursorVisible(b *buffer.Buffer, w, h int) {
@@ -156,7 +157,7 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 // It reads only p and o: the cell width of characters, tab stops, the line
 // numbers and the colors of the theme are decided here.
 func drawTextPane(p screen.Pane, w, h int, o editorOpts) []string {
-	gw := len(fmt.Sprint(p.Viewport.Total)) + 4
+	gw := gutterWidthFor(p.Viewport.Total)
 	textW := max(0, w-gw)
 	scrollCol := p.Viewport.Left
 	q := []rune(strings.ToLower(o.query))
@@ -195,10 +196,8 @@ func drawTextPane(p screen.Pane, w, h int, o editorOpts) []string {
 		}
 		var sb strings.Builder
 		var hd *screen.Diagnostic // the diagnostic shown at the end of the line
-		for k := range pl.Diag {
-			if d := &pl.Diag[k]; !d.Cont && (hd == nil || d.Severity < hd.Severity) {
-				hd = d
-			}
+		if d, ok := headDiagnostic(pl.Diag); ok {
+			hd = &d
 		}
 		mark := ""
 		if o.gutterMark != nil {
@@ -326,7 +325,7 @@ func drawTextPane(p screen.Pane, w, h int, o editorOpts) []string {
 				fg = lc[col]
 			}
 			k := cellStyle{fg: fg, bg: cellBg(col)}
-			if hd != nil && col < len(line) { // as before, a row no diagnostic starts on is not underlined
+			if hd != nil && col < len(line) { // a row no diagnostic starts on is not underlined (only Cont ones touch it)
 				if u := underline(col); u != "" {
 					k.under = u
 					k.fg = u
