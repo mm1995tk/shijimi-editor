@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 func writeFiles(t *testing.T, dir string, names ...string) []string {
@@ -55,7 +53,7 @@ func TestTransientTabKeptByEditOrOpen(t *testing.T) {
 
 	a.openTransient(ps[0])
 	a.focus = focusEditor
-	a.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	a.Update(Key{Code: 'x', Text: "x"})
 	if a.tabs[1].transient {
 		t.Fatal("an edit did not keep the tab")
 	}
@@ -101,8 +99,8 @@ func TestExplorerClickTransientDoubleKeeps(t *testing.T) {
 	l := a.layout()
 	y := l.top + 1 + a.explorer.sel - a.explorer.scroll
 	click := func() {
-		a.handleMouse(mouseEvent{X: 2, Y: y, Action: mousePress, Button: tea.MouseLeft})
-		a.handleMouse(mouseEvent{X: 2, Y: y, Action: mouseRelease, Button: tea.MouseLeft})
+		a.handleMouse(Mouse{X: 2, Y: y, Action: MousePress, Button: MouseLeft})
+		a.handleMouse(Mouse{X: 2, Y: y, Action: MouseRelease, Button: MouseLeft})
 	}
 	click()
 	if len(a.tabs) != 2 || !a.tabs[1].transient || a.focus != focusExplorer {

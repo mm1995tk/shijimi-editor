@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -22,7 +21,7 @@ func TestSwitchLastFile(t *testing.T) {
 	if a.tabs[a.active].path() != ps[0] {
 		t.Fatalf("active = %q", a.tabs[a.active].path())
 	}
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModCtrl})
+	a.handleKey(Key{Code: KeyTab, Mod: ModCtrl})
 	a.trackLast()
 	if a.tabs[a.active].path() != ps[1] {
 		t.Fatalf("active = %q", a.tabs[a.active].path())
@@ -45,10 +44,10 @@ func TestRenderTitle(t *testing.T) {
 func TestOldTabKeysGone(t *testing.T) {
 	a := newTestApp(t, "one\n")
 	a.openFile(writeFiles(t, a.root, "b.txt")[0])
-	for _, k := range []tea.KeyPressMsg{
-		{Code: tea.KeyPgUp, Mod: tea.ModCtrl},
-		{Code: tea.KeyPgDown, Mod: tea.ModCtrl},
-		{Code: '1', Mod: tea.ModAlt},
+	for _, k := range []Key{
+		{Code: KeyPgUp, Mod: ModCtrl},
+		{Code: KeyPgDown, Mod: ModCtrl},
+		{Code: '1', Mod: ModAlt},
 	} {
 		a.handleKey(k)
 		if a.active != 1 {

@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-var backslash = tea.KeyPressMsg{Code: '\\', Text: "\\"}
+var backslash = Key{Code: '\\', Text: "\\"}
 
 // firstLineNumber is the number in the gutter of the first line: 1 when
 // absolute, the cursor row when relative.
@@ -26,7 +26,7 @@ func TestLineFlipWhileHeld(t *testing.T) {
 	}
 	a.Update(backslash)
 	repeat := backslash
-	repeat.IsRepeat = true
+	repeat.Repeat = true
 	a.Update(repeat) // a repeat keeps it flipped
 	if got := firstLineNumber(a); got != "4" || !a.lineFlip {
 		t.Fatalf("held: %q flip=%v, want relative", got, a.lineFlip)

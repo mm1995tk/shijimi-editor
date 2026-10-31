@@ -159,7 +159,7 @@ func (s agentSel) text(rows []logRow, w int) string {
 
 // logPos is the cell of the log under screen cell (x, y), clamped to the rows
 // drawn. above and below say the pointer is off them.
-func (a *App) logPos(l layout, msg mouseEvent) (p agentPos, above, below bool) {
+func (a *App) logPos(l layout, msg Mouse) (p agentPos, above, below bool) {
 	v := a.ag.view
 	y := msg.Y - (l.top + v.y0)
 	p.col = clamp(msg.X-l.agentX, 0, max(0, v.w-1))
@@ -178,7 +178,7 @@ func (a *App) logPos(l layout, msg mouseEvent) (p agentPos, above, below bool) {
 }
 
 // inLog reports whether screen cell (x, y) is on a drawn log row.
-func (a *App) inLog(l layout, msg mouseEvent) bool {
+func (a *App) inLog(l layout, msg Mouse) bool {
 	v := a.ag.view
 	y := msg.Y - (l.top + v.y0)
 	return v.n > 0 && y >= 0 && y < v.n && msg.X >= l.agentX
@@ -186,12 +186,12 @@ func (a *App) inLog(l layout, msg mouseEvent) bool {
 
 // agentDrag follows a drag that began on the log, wherever the pointer goes.
 // ok is false when the event is not part of it.
-func (a *App) agentDrag(l layout, msg mouseEvent) (tea.Cmd, bool) {
+func (a *App) agentDrag(l layout, msg Mouse) (tea.Cmd, bool) {
 	s := &a.ag.sel
 	switch {
-	case msg.Action == mousePress && (msg.Button == tea.MouseWheelUp || msg.Button == tea.MouseWheelDown):
+	case msg.Action == MousePress && (msg.Button == MouseWheelUp || msg.Button == MouseWheelDown):
 		return nil, false // scrolling keeps the selection
-	case msg.Action == mousePress:
+	case msg.Action == MousePress:
 		s.dragging = false // the release was lost
 		return nil, false
 	}
@@ -206,7 +206,7 @@ func (a *App) agentDrag(l layout, msg mouseEvent) (tea.Cmd, bool) {
 	}
 	s.b = p
 	s.on = s.a != s.b
-	if msg.Action == mouseRelease {
+	if msg.Action == MouseRelease {
 		s.dragging = false
 		if txt := s.text(a.ag.view.rows, a.ag.view.w); txt != "" {
 			a.copyText(txt)

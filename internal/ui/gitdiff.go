@@ -786,7 +786,7 @@ func (a *App) showFirstChange(t *tab) {
 	a.follow = true
 }
 
-func (a *App) handleChangesKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) handleChangesKey(msg Key) tea.Cmd {
 	g := &a.gd
 	key := msg.String()
 	if a.pending == "space v" {

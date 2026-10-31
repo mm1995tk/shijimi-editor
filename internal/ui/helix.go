@@ -58,7 +58,7 @@ func (a *App) fullPreviewKey(key string) bool {
 
 // fullPreviewEditorKey is fullPreviewKey for the modeless (vscode) keymap,
 // where plain characters would be typed into the hidden buffer.
-func fullPreviewEditorKey(msg tea.KeyPressMsg) bool {
+func fullPreviewEditorKey(msg Key) bool {
 	switch msg.String() {
 	case "up", "down", "pgup", "pgdown", "home", "end", "ctrl+home", "ctrl+end", "esc":
 		return true
@@ -67,7 +67,7 @@ func fullPreviewEditorKey(msg tea.KeyPressMsg) bool {
 }
 
 // handleHelixKey implements Helix-style modal editing for text tabs.
-func (a *App) handleHelixKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) handleHelixKey(msg Key) tea.Cmd {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -212,7 +212,7 @@ func (a *App) enterInsert() tea.Cmd {
 	return nil
 }
 
-func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) helixPending(p, key string, msg Key) tea.Cmd {
 	t := a.cur()
 	b := t.buf
 	ext := a.mode == modeSelect
@@ -383,7 +383,7 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	return nil
 }
 
-func (a *App) handleInsertKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) handleInsertKey(msg Key) tea.Cmd {
 	cmd := a.insertKey(msg)
 	if a.recIns != nil && !a.replaying {
 		if a.mode == modeInsert {
@@ -395,7 +395,7 @@ func (a *App) handleInsertKey(msg tea.KeyPressMsg) tea.Cmd {
 	return cmd
 }
 
-func (a *App) insertKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) insertKey(msg Key) tea.Cmd {
 	t := a.cur()
 	b := t.buf
 	if bd, ok := a.keymap.insert[msg.String()]; ok {

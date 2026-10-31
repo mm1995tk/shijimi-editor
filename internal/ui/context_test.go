@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
@@ -40,7 +38,7 @@ func TestSendContextPreview(t *testing.T) {
 	if a.sendContext(); a.ctx == nil || !strings.HasPrefix(a.ctx.text, "a.txt:1\n") {
 		t.Fatalf("ctx = %+v", a.ctx)
 	}
-	a.handleKey(tea.KeyPressMsg{Code: tea.KeyEsc})
+	a.handleKey(Key{Code: KeyEsc})
 	if a.ctx != nil {
 		t.Errorf("esc did not close preview")
 	}

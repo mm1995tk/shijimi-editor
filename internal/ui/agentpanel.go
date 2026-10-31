@@ -67,7 +67,7 @@ func (a *App) leaveAgentPanel() tea.Cmd {
 	return a.setFocus(focusExplorer)
 }
 
-func (a *App) handleAgentKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) handleAgentKey(msg Key) tea.Cmd {
 	n := len(a.suggestions())
 	switch msg.String() {
 	case "j", "down":
@@ -340,11 +340,11 @@ func wrapPlainRows(text string, w int) []wrapRow {
 
 // agentMouse handles the pointer over the panel. ok is false when (x, y)
 // is not on it.
-func (a *App) agentMouse(l layout, msg mouseEvent) (tea.Cmd, bool) {
+func (a *App) agentMouse(l layout, msg Mouse) (tea.Cmd, bool) {
 	if l.agentW == 0 || msg.X < l.agentX-1 || msg.Y < l.top || msg.Y >= l.top+l.bodyH {
 		return nil, false
 	}
-	if msg.Action == mouseMotion && msg.Button == tea.MouseNone {
+	if msg.Action == MouseMotion && msg.Button == MouseNone {
 		// the pointer left the editor: popups it opened close
 		if c := a.card; c != nil && c.byPointer {
 			a.card = nil
@@ -357,17 +357,17 @@ func (a *App) agentMouse(l layout, msg mouseEvent) (tea.Cmd, bool) {
 		a.hoverCell = screenPt{-1, -1}
 		return nil, true
 	}
-	if msg.Action != mousePress {
+	if msg.Action != MousePress {
 		return nil, true
 	}
 	switch msg.Button {
-	case tea.MouseWheelUp:
+	case MouseWheelUp:
 		a.ag.scroll += 3
 		return nil, true
-	case tea.MouseWheelDown:
+	case MouseWheelDown:
 		a.ag.scroll = max(0, a.ag.scroll-3)
 		return nil, true
-	case tea.MouseLeft:
+	case MouseLeft:
 	default:
 		return nil, true
 	}

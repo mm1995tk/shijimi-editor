@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -131,17 +130,17 @@ func TestHoverCopyKeyAndButton(t *testing.T) {
 	if !v.copyHit(col, 0) {
 		t.Fatalf("copyHit(%d,0) = false", col)
 	}
-	a.handleMouse(mouseEvent{X: bx + col, Y: by, Action: mousePress, Button: tea.MouseLeft})
+	a.handleMouse(Mouse{X: bx + col, Y: by, Action: MousePress, Button: MouseLeft})
 	if a.clipboard != goplsHover || a.hoverText == "" {
 		t.Fatalf("button: clipboard=%q hover=%v", a.clipboard, a.hoverText != "")
 	}
-	a.handleMouse(mouseEvent{X: bx + col, Y: by, Action: mouseRelease, Button: tea.MouseLeft})
+	a.handleMouse(Mouse{X: bx + col, Y: by, Action: MouseRelease, Button: MouseLeft})
 	if a.hoverText == "" {
 		t.Fatal("release on the button closed the hover")
 	}
 
 	a.clipboard = ""
-	a.handleMouse(mouseEvent{X: bx + 2, Y: by + 1, Action: mousePress, Button: tea.MouseLeft})
+	a.handleMouse(Mouse{X: bx + 2, Y: by + 1, Action: MousePress, Button: MouseLeft})
 	if a.clipboard != "" || a.hoverText != "" {
 		t.Fatalf("click elsewhere: clipboard=%q hover=%v", a.clipboard, a.hoverText != "")
 	}

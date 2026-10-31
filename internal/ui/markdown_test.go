@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -254,7 +253,7 @@ func TestFullPreviewBlocksLeaderPasteAndVscodeKeymap(t *testing.T) {
 
 	a.helix = false
 	a.handleKey(textKey("j"))
-	a.handlePaste(tea.PasteMsg{Content: "pasted"})
+	a.handlePaste(Paste{Content: "pasted"})
 	if b.Version != ver {
 		t.Fatalf("vscode keymap edited the hidden buffer: version %d, want %d", b.Version, ver)
 	}

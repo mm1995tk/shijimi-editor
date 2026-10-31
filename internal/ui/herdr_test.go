@@ -5,8 +5,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 type fakeHerdr struct {
@@ -61,7 +59,7 @@ func herdrApp(t *testing.T) (*App, *fakeHerdr) {
 
 func TestHerdrToggle(t *testing.T) {
 	a, f := herdrApp(t)
-	ctrlBacktick := tea.KeyPressMsg{Code: '`', Mod: tea.ModCtrl}
+	ctrlBacktick := Key{Code: '`', Mod: ModCtrl}
 	a.focus = focusEditor
 	a.Update(ctrlBacktick)
 	if a.showTerm || a.term.cur() != nil {
@@ -118,7 +116,7 @@ func TestHerdrCommands(t *testing.T) {
 		t.Fatalf("calls: %v", f.calls)
 	}
 	a.ctx = &ctxPreview{text: "ctx"}
-	a.handleContextKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	a.handleContextKey(Key{Code: KeyEnter})
 	if !f.has("pane send-text w1-p2 ctx") || f.has("pane run w1-p2 ctx") {
 		t.Fatalf("context must be pasted without Enter: %v", f.calls)
 	}

@@ -50,9 +50,9 @@ func TestSingleOpensOnlyThatFile(t *testing.T) {
 }
 
 func TestSingleBlocksOtherViews(t *testing.T) {
-	ctrl := func(r rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: r, Mod: tea.ModCtrl} }
-	keys := []tea.KeyPressMsg{ctrl('p'), ctrl('b'), ctrl('`'), ctrl('j'), ctrl('g'), ctrl('e'), ctrl('n'), ctrl('k'),
-		{Code: 'i', Mod: tea.ModAlt}, {Code: tea.KeyF1}}
+	ctrl := func(r rune) Key { return Key{Code: r, Mod: ModCtrl} }
+	keys := []Key{ctrl('p'), ctrl('b'), ctrl('`'), ctrl('j'), ctrl('g'), ctrl('e'), ctrl('n'), ctrl('k'),
+		{Code: 'i', Mod: ModAlt}, {Code: KeyF1}}
 	for _, helix := range []bool{true, false} {
 		a, _ := newSingleApp(t, "a.txt", "hello\n")
 		a.helix = helix

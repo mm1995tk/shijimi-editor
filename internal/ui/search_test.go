@@ -191,11 +191,11 @@ func TestSearchPanelFlow(t *testing.T) {
 	}
 
 	// leave the first line out, then replace the rest
-	a.handleSearchKey(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
+	a.handleSearchKey(Key{Code: 'x', Mod: ModCtrl})
 	if !a.search.res.hits[0].skip {
 		t.Fatal("ctrl+x must exclude the line")
 	}
-	drive(a, a.handleSearchKey(tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModAlt}))
+	drive(a, a.handleSearchKey(Key{Code: KeyEnter, Mod: ModAlt}))
 	if a.search.open {
 		t.Fatal("panel must close after replacing")
 	}
@@ -223,7 +223,7 @@ func TestSearchPanelOpenHit(t *testing.T) {
 	if len(a.search.res.hits) != 1 {
 		t.Fatalf("hits = %+v", a.search.res.hits)
 	}
-	a.handleSearchKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	a.handleSearchKey(Key{Code: KeyEnter})
 	b := a.curText().buf
 	if a.search.open || b.Cur.Row != 2 || b.Cur.Col != 6 {
 		t.Fatalf("open=%v cur=%+v", a.search.open, b.Cur)
@@ -275,7 +275,7 @@ func TestSearchReplaceOne(t *testing.T) {
 	if len(a.search.res.hits) != 3 {
 		t.Fatalf("hits = %d", len(a.search.res.hits))
 	}
-	a.handleSearchKey(tea.KeyPressMsg{Code: tea.KeyDown})
+	a.handleSearchKey(Key{Code: KeyDown})
 	drive(a, a.handleSearchKey(altKey(string('1'))))
 	if !a.search.open {
 		t.Fatal("panel must stay open")
@@ -294,7 +294,7 @@ func TestSearchReplaceOne(t *testing.T) {
 func TestSearchReplaceOneExcludedLine(t *testing.T) {
 	a := newTestApp(t, "foo one\nfoo two\n")
 	drive(a, a.openSearchArgs("foo => X", true))
-	a.handleSearchKey(tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl})
+	a.handleSearchKey(Key{Code: 'x', Mod: ModCtrl})
 	if !a.search.res.hits[0].skip {
 		t.Fatal("ctrl+x must exclude the line")
 	}

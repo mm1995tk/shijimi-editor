@@ -658,7 +658,7 @@ func (a *App) cardBox(l layout) (rows []string, x, y int) {
 	return rows, x, y
 }
 
-func (a *App) handleCardKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+func (a *App) handleCardKey(msg Key) (tea.Cmd, bool) {
 	c := a.card
 	t := c.thread
 	switch key := msg.String(); key {
@@ -867,7 +867,7 @@ func (a *App) compose(title, initial string, orig []string, onSubmit func(string
 	return a.composer.ta.Focus()
 }
 
-func (a *App) handleComposerKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) handleComposerKey(msg Key) tea.Cmd {
 	c := a.composer
 	switch msg.String() {
 	case "esc":
@@ -897,7 +897,7 @@ func (a *App) handleComposerKey(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 	var cmd tea.Cmd
-	c.ta, cmd = c.ta.Update(msg)
+	c.ta, cmd = c.ta.Update(widgetMsg(msg))
 	return cmd
 }
 

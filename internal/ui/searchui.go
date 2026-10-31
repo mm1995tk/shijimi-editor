@@ -284,7 +284,7 @@ func (a *App) searchDone(m searchDoneMsg) {
 
 // ---- keys ----
 
-func (a *App) handleSearchKey(msg tea.KeyPressMsg) tea.Cmd {
+func (a *App) handleSearchKey(msg Key) tea.Cmd {
 	s := a.search
 	switch key := msg.String(); key {
 	case "esc", "ctrl+c":
@@ -332,28 +332,28 @@ func (a *App) handleSearchKey(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // searchInput passes a key or a paste to the focused search field.
-func (a *App) searchInput(msg tea.Msg) tea.Cmd {
+func (a *App) searchInput(msg Input) tea.Cmd {
 	s := a.search
 	before := s.in[s.field].Value()
 	var cmd tea.Cmd
-	s.in[s.field], cmd = s.in[s.field].Update(msg)
+	s.in[s.field], cmd = s.in[s.field].Update(widgetMsg(msg))
 	if s.in[s.field].Value() != before {
 		return tea.Batch(cmd, a.scheduleSearch())
 	}
 	return cmd
 }
 
-func (a *App) searchMouse(msg mouseEvent) tea.Cmd {
+func (a *App) searchMouse(msg Mouse) tea.Cmd {
 	s := a.search
-	if msg.Action != mousePress {
+	if msg.Action != MousePress {
 		return nil
 	}
 	switch msg.Button {
-	case tea.MouseWheelUp:
+	case MouseWheelUp:
 		s.move(-3)
-	case tea.MouseWheelDown:
+	case MouseWheelDown:
 		s.move(3)
-	case tea.MouseLeft:
+	case MouseLeft:
 		r := s.rect
 		if msg.X < r[0] || msg.X >= r[0]+r[2] || msg.Y < r[1] || msg.Y >= r[1]+r[3] {
 			s.close()

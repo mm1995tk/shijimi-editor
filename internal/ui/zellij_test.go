@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 // fakeZellij plays the zellij session: it records the actions and keeps the
@@ -75,7 +73,7 @@ func zellijApp(t *testing.T) (*App, *fakeZellij) {
 
 func TestZellijToggle(t *testing.T) {
 	a, f := zellijApp(t)
-	ctrlBacktick := tea.KeyPressMsg{Code: '`', Mod: tea.ModCtrl}
+	ctrlBacktick := Key{Code: '`', Mod: ModCtrl}
 	a.focus = focusEditor
 	a.Update(ctrlBacktick)
 	if a.showTerm || a.term.cur() != nil {
@@ -129,7 +127,7 @@ func TestZellijCommands(t *testing.T) {
 	}
 	f.calls = nil
 	a.ctx = &ctxPreview{text: "ctx"}
-	a.handleContextKey(tea.KeyPressMsg{Code: tea.KeyEnter})
+	a.handleContextKey(Key{Code: KeyEnter})
 	if !f.has("paste --pane-id terminal_2 -- ctx") || f.has("write") {
 		t.Fatalf("context must be pasted without Enter: %v", f.calls)
 	}
