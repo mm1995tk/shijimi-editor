@@ -126,3 +126,9 @@ func TestExplorerDimsIgnoredFiles(t *testing.T) {
 		}
 	}
 }
+
+// render fits the tree to h rows and draws it, the way View does.
+func (e *explorer) render(w, h int, focused bool, activePath string) []string {
+	e.ensureVisible(h - 1)
+	return drawExplorer(e.screen(h, activePath), w, h, focused)
+}

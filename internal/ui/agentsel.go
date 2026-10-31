@@ -9,15 +9,17 @@ import (
 	"github.com/rivo/uniseg"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // Text of the agent panel's log picked with the mouse.
 
-// logRow is one drawn row of the log. cont marks a row that continues the one
+// logRow is one row of the log. cont marks a row that continues the one
 // above it, cut by the panel width; space says the cut fell on a space, which
 // copying puts back.
 type logRow struct {
-	s      string // drawn, exactly the panel width
+	line   screen.Line // the row as spans
+	plain  string      // its text, padded to the panel width
 	cont   bool
 	space  bool
 	indent int // columns of decoration that copying leaves out of a cont row
@@ -135,7 +137,7 @@ func (s agentSel) text(rows []logRow, w int) string {
 		if i == b.row {
 			c1 = b.col + 1
 		}
-		seg := strings.TrimRight(cutCols(ansi.Strip(rows[i].s), c0, c1), " ")
+		seg := strings.TrimRight(cutCols(rows[i].plain, c0, c1), " ")
 		if i > a.row {
 			switch {
 			case !rows[i].cont:
@@ -146,9 +148,9 @@ func (s agentSel) text(rows []logRow, w int) string {
 		}
 		switch {
 		case rows[i].to > 0:
-			seg = cutCols(ansi.Strip(rows[i].s), max(c0, rows[i].from), min(c1, rows[i].to))
+			seg = cutCols(rows[i].plain, max(c0, rows[i].from), min(c1, rows[i].to))
 		case rows[i].cont:
-			seg = strings.Trim(cutCols(ansi.Strip(rows[i].s), max(c0, rows[i].indent), c1), " ")
+			seg = strings.Trim(cutCols(rows[i].plain, max(c0, rows[i].indent), c1), " ")
 		case c0 == 0:
 			seg = strings.TrimPrefix(seg, " ") // the margin of the panel
 		}

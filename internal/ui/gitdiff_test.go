@@ -962,3 +962,9 @@ func TestDiffPanes(t *testing.T) {
 		t.Errorf("deleted line = %+v", l)
 	}
 }
+
+// renderChanges fits the list to h rows and draws it, the way View does.
+func (a *App) renderChanges(w, h int, focused bool) []string {
+	a.fitChanges(h - 1)
+	return drawChanges(a.changesScreen(w, h), w, h, focused)
+}
