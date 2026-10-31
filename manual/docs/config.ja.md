@@ -25,7 +25,16 @@
 
 | キー | 意味 |
 | --- | --- |
-| `herdr` | herdr の中（`HERDR_ENV=1`）で、ターミナルパネルの代わりに herdr のペインを使う（[ターミナル](terminal.md#herdr-の中で)） |
+| `multiplexer` | ターミナルマルチプレクサの中で、ターミナルパネルの代わりにそのペインを使う。どれを使うかは `[terminal]` の `multiplexer`（[ターミナル](terminal.md#ターミナルマルチプレクサの中で)）。古い名前 `herdr` も同じキーとして読む |
+
+`[terminal]` の `multiplexer` は、`[experimental]` の `multiplexer` が有効なときに、どのマルチプレクサのペインを使うかを選びます。
+
+| 値 | 意味 |
+| --- | --- |
+| `"auto"`（既定） | shijimi が動いているマルチプレクサのうち一番内側のもの。shijimi の親プロセスをたどり、最初に見つかったマルチプレクサを使う。無ければターミナルパネル |
+| `"herdr"` | herdr（`HERDR_ENV=1` が必要） |
+| `"tmux"` / `"zellij"` / `"cmux"` | まだ対応していません。メッセージを出してターミナルパネルを使う |
+| `"none"` | マルチプレクサの中でも、いつもターミナルパネルを使う |
 
 ## config.toml の例
 
@@ -56,6 +65,9 @@ include = []
 
 [browser]
 listen-host = "127.0.0.1"
+
+[terminal]
+multiplexer = "auto"      # "auto" / "herdr" / "none"（tmux・zellij・cmux はまだ対応していません）
 
 # ~/.config/shijimi-editor/config.toml だけで有効
 [agent]

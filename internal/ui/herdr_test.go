@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -46,9 +47,10 @@ func herdrApp(t *testing.T) (*App, *fakeHerdr) {
 	t.Helper()
 	t.Setenv("HERDR_ENV", "1")
 	a := newTestApp(t, "hello")
-	a.cfg.Experimental.Herdr = true
+	a.cfg.Experimental.Multiplexer = true
 	f := &fakeHerdr{}
-	a.hd.call = f.call
+	a.mux.herdrCall = f.call
+	a.cfg.Terminal.Multiplexer = "herdr"
 	return a, f
 }
 
@@ -60,15 +62,15 @@ func TestHerdrToggle(t *testing.T) {
 	if a.showTerm || a.term.cur() != nil {
 		t.Fatal("the built-in terminal must stay closed")
 	}
-	if !f.has("pane split --current --direction down --ratio 0.3 --cwd "+a.root+" --focus") || a.hd.id != "w1-p2" || !a.hd.visible {
-		t.Fatalf("not created: %v id=%q", f.calls, a.hd.id)
+	if !f.has("pane split --current --direction down --ratio 0.3 --cwd "+a.root+" --focus") || a.mux.id != "w1-p2" || !a.mux.visible {
+		t.Fatalf("not created: %v id=%q", f.calls, a.mux.id)
 	}
 	a.Update(ctrlBacktick)
-	if !f.has("pane zoom --current --on") || a.hd.visible {
+	if !f.has("pane zoom --current --on") || a.mux.visible {
 		t.Fatalf("not hidden: %v", f.calls)
 	}
 	a.Update(ctrlBacktick)
-	if !f.has("pane zoom --current --off") || !f.has("pane focus --current --direction down") || !a.hd.visible {
+	if !f.has("pane zoom --current --off") || !f.has("pane focus --current --direction down") || !a.mux.visible {
 		t.Fatalf("not shown again: %v", f.calls)
 	}
 	n := 0
@@ -125,13 +127,13 @@ func TestHerdrCommands(t *testing.T) {
 
 func TestHerdrOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := herdrApp(t)
-	a.cfg.Experimental.Herdr = false
-	if a.herdrOn() {
+	a.cfg.Experimental.Multiplexer = false
+	if a.muxOn() {
 		t.Fatal("herdr must be off when the setting is off")
 	}
-	a.cfg.Experimental.Herdr = true
+	a.cfg.Experimental.Multiplexer = true
 	t.Setenv("HERDR_ENV", "")
-	if a.herdrOn() {
+	if a.muxOn() {
 		t.Fatal("herdr must be off outside herdr")
 	}
 	a.toggleTerm()
@@ -143,7 +145,8 @@ func TestHerdrOffKeepsBuiltinTerminal(t *testing.T) {
 
 func TestHerdrCommandEnd(t *testing.T) {
 	a, _ := herdrApp(t)
-	a.hd.id = "w1-p2"
+	a.mux.id = "w1-p2"
+	a.muxOn()
 	a.commandEnded(1)
 	if len(a.sg.fails) != 1 || a.sg.fails[0].code != 1 || len(a.sg.fails[0].output) == 0 {
 		t.Fatalf("fails: %+v", a.sg.fails)
@@ -169,5 +172,85 @@ func TestHerdrShellIntegration(t *testing.T) {
 	}
 	if env := herdrShellIntegration("/bin/fish", "/bin/shj"); env != nil {
 		t.Fatalf("fish: %v", env)
+	}
+}
+
+func TestMuxNoneKeepsBuiltinTerminal(t *testing.T) {
+	a, f := herdrApp(t)
+	a.cfg.Terminal.Multiplexer = "none"
+	if a.muxOn() {
+		t.Fatal("none must use the built-in terminal even inside herdr")
+	}
+	a.toggleTerm()
+	if !a.showTerm || len(f.calls) != 0 {
+		t.Fatalf("built-in terminal expected: showTerm=%v calls=%v", a.showTerm, f.calls)
+	}
+	a.term.closeAll()
+}
+
+func TestMuxAutoFollowsParents(t *testing.T) {
+	a, _ := herdrApp(t)
+	a.cfg.Terminal.Multiplexer = "auto"
+	a.mux.parents = fakeChain("shj", "zsh", "herdr", "systemd")
+	if !a.muxOn() || a.mux.b.name() != "herdr" {
+		t.Fatalf("herdr parent not used: %v", a.mux.b)
+	}
+}
+
+func TestMuxAutoInnerWins(t *testing.T) {
+	// herdr -> tmux -> zsh -> shj: tmux is inner, and it is not supported yet.
+	a, f := herdrApp(t)
+	a.cfg.Terminal.Multiplexer = "auto"
+	a.mux.parents = fakeChain("shj", "zsh", "tmux: server", "herdr", "systemd")
+	if a.muxOn() || len(f.calls) != 0 {
+		t.Fatal("the inner tmux must win over herdr")
+	}
+}
+
+func TestMuxAutoNoMultiplexer(t *testing.T) {
+	a, _ := herdrApp(t)
+	a.cfg.Terminal.Multiplexer = "auto"
+	a.mux.parents = fakeChain("shj", "zsh", "alacritty", "init")
+	if a.muxOn() {
+		t.Fatal("no multiplexer among the parents")
+	}
+}
+
+func TestMuxUnsupportedFallsBack(t *testing.T) {
+	a, _ := herdrApp(t)
+	a.cfg.Terminal.Multiplexer = "tmux"
+	if a.muxOn() || !strings.Contains(a.msg, "tmux") {
+		t.Fatalf("expected the built-in terminal and a message: %q", a.msg)
+	}
+}
+
+func fakeChain(comms ...string) func(int) (int, string, bool) {
+	pids := []int{os.Getpid()}
+	for i := range comms[1:] {
+		pids = append(pids, 2000+i)
+	}
+	pids = append(pids, 0)
+	return func(pid int) (int, string, bool) {
+		for i, p := range pids[:len(comms)] {
+			if p == pid {
+				return pids[i+1], comms[i], true
+			}
+		}
+		return 0, "", false
+	}
+}
+
+func TestSystemParent(t *testing.T) {
+	ppid, comm, ok := systemParent(os.Getpid())
+	if !ok || ppid != os.Getppid() || comm == "" {
+		t.Fatalf("ppid=%d comm=%q ok=%v", ppid, comm, ok)
+	}
+}
+
+func TestMuxKindOf(t *testing.T) {
+	for comm, want := range map[string]string{"herdr": "herdr", "tmux: server": "tmux", "/usr/bin/zellij": "zellij", "cmux": "cmux", "zsh": ""} {
+		if got := muxKindOf(comm); got != want {
+			t.Errorf("muxKindOf(%q) = %q, want %q", comm, got, want)
+		}
 	}
 }
