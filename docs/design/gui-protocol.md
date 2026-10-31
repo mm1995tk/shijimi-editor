@@ -55,7 +55,7 @@ TUI:  shj  =  core + TUI の描画  （同じプロセス、関数を直接呼�
 要点は次の 5 つ。
 
 1. **意味で伝える。** 色は RGB ではなく「テーマ上の名前」（`syntax.keyword`、`diag.error`、`selection` など）で伝える。名前と色の対応表（テーマ）は別に送る（`theme.get`）。TUI の描画は同じ名前を lipgloss のスタイルにする。
-2. **マス目に変換しない。** 行は「文字列 + スタイルの区間」で表す。幅の計算と、字下げの線の引き方は描く側の仕事。ただし見える行数と桁数は GUI が送り（`view.resize`）、スクロールや折り返しは shj が決める。等幅フォントで描く前提。
+2. **マス目に変換しない。** 行は「文字列 + スタイルの区間」で表す。文字の幅の計算と、字下げの線の引き方は描く側の仕事（ただしマウスの位置のマス目 → rune の位置の変換だけは `core` が行う。「入力」の節）。ただし見える行数と桁数は GUI が送り（`view.resize`）、スクロールや折り返しは shj が決める。等幅フォントで描く前提。
 3. **領域（region）ごとに分ける。** TUI は全部を並べて描き、GUI は必要な領域だけ受け取る（左の一覧と右下のターミナルは GUI が自前で作るので、`Screen` の購読に入れない）。
 4. **位置は「ペインの中の行と桁」。** 画面全体の座標を持たない。マウスの位置も同じ形で送る。
 5. **ローカライズ済みの文字列。** 表示言語は shj の設定で決まるので、文言は shj が組み立てて送る。
@@ -182,18 +182,31 @@ type Line struct {
 | P4 | `textinput.Model`（bubbles）を自前の入力行の型に置き換える（`cmdInput`・`findInput`・パレット・検索パネル） | P1 |
 | P5 | 入力の型を作る：`Input`（Key / Mouse / Paste / Composition）。`tea.KeyPressMsg` などを `Input` に変えるアダプタを作り、キー処理を `Input` で書く。マウスは「領域 + ペインの中の行と桁」で扱い、画面全体の座標での当たり判定は TUI のアダプタに寄せる | P1 |
 | P6 | 非同期の仕組みを `tea.Cmd` から切り離す。`core` が `Event`（タイマー、LSP の返事、ファイルの変化 …）を受け取り、`Effect`（タイマーを予約、LSP に送る、終了する …）を返す形にする。まずタイマー（`hold`、`hoverSeq`、自動保存、`watch`）から | P5 |
-| P7 | 同じ切り離しを LSP、検索 / grep、エージェント（ACP）、制御用ソケット（`ControlHandler`）、IDE（`IDEHandler`）について 1 つずつ行う（5 本の PR） | P6 |
+| P7a | LSP を `Event` / `Effect` にする（`lspManager`、サーバーの返事、診断、`sigSeq` などの古い返事を捨てる番号） | P6 |
+| P7b | 検索 / grep（`searchPanel`）を `Event` / `Effect` にする | P6 |
+| P7c | エージェント（ACP、`agentState`、提案パネル）を `Event` / `Effect` にする | P6 |
+| P7d | 制御用ソケット（`ControlHandler`、「送って返事を待つ」形）を `core` の `Event` と返事の受け渡しにする | P6 |
+| P7e | IDE（`IDEHandler`、`openDiff` のように決定まで返事を待つ呼び出しを含む）を同じ形にする | P6、P7d |
 | P8 | ファイルの欄（テキスト）を `Screen` で作る：バッファ → `Pane`（`Lines`・`Cursors`・`Selections`）。TUI の描画は `Pane` を読んで描くように変える。P1 のテストで見た目が同じことを確かめる | P2、P3 |
 | P9 | タイトル行・状態行・コマンド行を `Screen` で作る | P8 |
-| P10 | ポップアップ（補完、ホバー、シグネチャ、スニペット、確認、パレット、メニュー、レビューカード）を `Overlay` にする。1 種類ずつ複数の PR | P8 |
-| P11 | 差分モード・Markdown プレビュー・画像を `Pane.Kind` ごとに `Screen` で作る（3 本の PR） | P8 |
+| P10a | 補完のポップアップを `Overlay` にする | P8、P7a |
+| P10b | ホバーを `Overlay` にする（`hoverAt` を「ペインの中の行と桁」に直すのもここ） | P8、P7a |
+| P10c | シグネチャのポップアップを `Overlay` にする | P8、P7a |
+| P10d | スニペットの状態の表示を `Screen` にする | P8 |
+| P10e | 確認の窓（`confirm`・`confirmQuit`・`confirmClose`）を `Overlay` にする | P8 |
+| P10f | コマンドパレットを `Overlay` にする | P8、P4 |
+| P10g | メニュー（`spacemenu`）を `Overlay` にする | P8 |
+| P10h | レビューカード（`card`・`composer`）を `Overlay` にする | P8、P4 |
+| P11a | 差分モードを `Pane.Kind=="diff"` として `Screen` で作る | P8 |
+| P11b | Markdown プレビューを `Pane.Kind=="preview"` として `Screen` で作る | P8 |
+| P11c | 画像を `Pane.Kind=="image"` として `Screen` で作る（`imageView` を中身と TUI の描画に分ける） | P8 |
 | P12 | エクスプローラ・変更一覧・エージェントのパネルを `Screen` で作る（TUI だけが使う） | P8 |
-| P13 | `core` パッケージへ移す。`App` は `core` を持って、`Input` ↔ `tea` と `Screen` ↔ 描画をつなぐだけの薄い bubbletea の Model になる。`internal/ui` を `internal/tui` に改名する | P7、P9〜P12 |
+| P13 | `core` パッケージへ移す。`App` は `core` を持って、`Input` ↔ `tea` と `Screen` ↔ 描画をつなぐだけの薄い bubbletea の Model になる。`internal/ui` を `internal/tui` に改名する | P7a〜P7e、P9、P10a〜P10h、P11a〜P11c、P12 |
 | P14 | `core` が複数のワークスペースを持てるようにする（ワークスペースごとに `core` を 1 つ。TUI は今までどおり 1 つだけ作る） | P13 |
 
-- P8〜P12 は、`Screen` を作る関数と TUI の描画関数を同じ PR で対にして変える。`Screen` を作るだけで使われない状態にしない。
+- P8〜P12（P10a〜h、P11a〜c を含む）は、`Screen` を作る関数と TUI の描画関数を同じ PR で対にして変える。`Screen` を作るだけで使われない状態にしない。
 - 途中は、`App` が `core` の「まだ分けていない部分」を直接持っていてよい。分けた領域の分だけ、`render` が `Screen` を通る。
-- P6・P7 が一番大きい。1 つの PR で全部をやらず、サブシステムごとに行う。
+- P6 とその後の P7a〜P7e が一番大きい。1 つの PR で全部をやらず、サブシステムごとに行う。
 
 ## 3. プロトコル
 
@@ -240,9 +253,9 @@ type Line struct {
 | メソッド | 向き | パラメータ → 結果 |
 | --- | --- | --- |
 | `view.subscribe` | → shj | `{regions: ["files", "status", "cmdline", "overlay"]}` → `{}`。受け取る領域を選ぶ（GUI は `explorer` などを選ばない） |
-| `view.resize` | → shj | `{panes: [{id, cols, rows}]}` → `{}`。ペインごとの行数と桁数（等幅のマス目で数える）。変えると画面が送り直される |
+| `view.resize` | → shj | `{regions: {"files": {cols, rows}, "status": {cols}, "cmdline": {cols}, "overlay": {cols, rows}}}` → `{}`。領域ごとの桁数と行数（等幅のマス目で数える）。ペインの大きさ（2 つ並べるときの割り方）は shj が `files` の中で決める。ペインができる前でも送れる。変えると画面が送り直される |
 | `screen.get` | → shj | `{}` → `Screen`（全部）。つなぎ直し、抜けの回復用 |
-| `screen.update` | ← GUI | 通知 `{rev, baseRev, ackSeq, focus?, files?: {panes: [{id, kind?, title?, viewport?, lines?: {rows: {"0": Line, "5": Line}, count}, cursors?, selections?}], active?}, status?, cmdline?, overlay?}`。付いている項目だけが変わった。`lines.rows` は見えている行の番号 → 新しい行。`baseRev` が GUI の持つ版と合わなければ GUI は `screen.get` する |
+| `screen.update` | ← GUI | 通知 `{rev, baseRev, ackSeq, focus?, files?: {panes: [{id, kind?, title?, viewport?, lines?: {rows: {"0": Line, "5": Line}, count}, cursors?, selections?}], active?}, status?, cmdline?, overlay?}`。付いている項目だけが変わった。`lines.rows` のキーは「ビューポートの中で上から何行目か」（0 始まり。バッファの行番号は `Line.No`）で、`count` は見えている行数。スクロールするとキーの意味する行が全部変わるので、全行を送る。`baseRev` が GUI の持つ版と合わなければ GUI は `screen.get` する |
 | `screen.ack` | → shj | 通知 `{rev}`。GUI が描き終えた版。shj は返事の来ていない更新を 1 つまでしか溜めず、間の変化は 1 つにまとめて送る（遅い回線で更新が積み上がらないように） |
 | `theme.get` | → shj | `{}` → `{name, tokens: {"syntax.keyword": {fg, bg?, bold?, italic?, underline?}}}`。テーマが変わると `theme.changed` 通知（同じ形） |
 | `blob.get` | → shj | `{id, offset?, length?}` → `{mime, size, data (base64), eof}`。画像・プレビュー用の画像は `Screen` に埋め込まず `ImageRef{id, mime, w, h}` で持たせ、これで取る。大きい画像は分けて取る |
@@ -257,7 +270,7 @@ type Line struct {
 | --- | --- | --- |
 | `input.key` | → shj | `{seq, region, key, mods: ["ctrl","shift","alt","super"], text?, phase: "press"\|"repeat"\|"release"}` → `{rev}`。`key` は W3C の `KeyboardEvent.key` の名前（`"a"`、`"Enter"`、`"ArrowLeft"` …）。`text` は入力される文字（IME 確定後も） |
 | `input.composition` | → shj | `{seq, region, text, cursor: [start, end]\|null}` → `{rev}`。IME の変換中。`null` で終わり。変換中の文字は `Pane` の中に「下線付きで」出る |
-| `input.mouse` | → shj | `{seq, region, pane?, kind: "down"\|"up"\|"move"\|"wheel", button?, clicks?, row, col, dx?, dy?, mods}` → `{rev}`。`row`・`col` はペインの中のマス目。`clicks` は GUI がダブルクリック等を数えて送る。`wheel` は `dy` が行数 |
+| `input.mouse` | → shj | `{seq, region, pane?, kind: "down"\|"up"\|"move"\|"wheel", button?, clicks?, row, col, dx?, dy?, mods}` → `{rev}`。`row`・`col` はペインの中のマス目。マス目 → rune の位置の変換（全角・結合文字）は `core` がその行の文字から行う（GUI は幅の計算を持たない）。この変換は P8 で確かめる事項に含める。`clicks` は GUI がダブルクリック等を数えて送る。`wheel` は `dy` が行数 |
 | `input.paste` | → shj | `{seq, region, text}` → `{rev}`。貼り付け（ブラケットペーストと同じ扱い） |
 | `input.focus` | → shj | `{seq, region}` → `{rev}`。GUI で別の領域を押してフォーカスを移した |
 | `command.run` | → shj | `{seq, line}` → `{ok, message}`。`:` コマンドを実行（制御用ソケットの `exec` と同じ） |
@@ -288,7 +301,7 @@ type Line struct {
 | `term.resize` | → shj | `{termId, cols, rows}` → `{}` |
 | `term.input` | → shj | `{termId, data (base64)}` → `{}`。xterm.js が作ったバイト列をそのまま PTY に書く |
 | `term.output` | ← GUI | 通知 `{termId, seq, data (base64)}`。PTY の出力。`seq` はバイト数の累計 |
-| `term.ack` | → shj | 通知 `{termId, seq}`。GUI が処理したバイト数。shj は `seq` から 256 KiB より先までは送らない（`yes` のような大量の出力で回線と WebView が詰まらないように） |
+| `term.ack` | → shj | 通知 `{termId, seq}`。GUI が処理したバイト数。shj は `seq` から 256 KiB より先までは送らない。このとき PTY は読み続けてリングバッファに溜め、溢れた分は捨てる（GUI が止まってもシェルは止めない。捨てた分は `term.attach` で取り直す）（`yes` のような大量の出力で回線と WebView が詰まらないように） |
 | `term.exit` | ← GUI | 通知 `{termId, code, signal?}`。シェルが終わった |
 | `term.title` | ← GUI | 通知 `{termId, title}` |
 
@@ -326,10 +339,10 @@ GUI は複数のワークスペースのツリーを（開閉の状態を持っ�
 
 | メソッド | 向き | パラメータ → 結果 |
 | --- | --- | --- |
-| `tree.list` | → shj | `{workspaceId, path ("" = ルート)}` → `{entries: [{name, kind: "file"\|"dir"\|"symlink", target?, size?, git?: "M"\|"A"\|"D"\|"R"\|"?"\|"!"\|"U", gitChildren?: bool}], truncated?, rev}`。1 階層だけ（フォルダを開いたときに取る）。`.gitignore` で無視されているものは `git: "!"`。順番は TUI のツリーと同じ（フォルダが先）。5000 件で切る |
+| `tree.list` | → shj | `{workspaceId, path ("" = ルート)}` → `{entries: [{name, kind: "file"\|"dir"\|"symlink", target?, size?, git?: "M"\|"A"\|"D"\|"R"\|"?"\|"!"\|"U", gitChildren?: bool}], truncated?, rev}`（`rev` はツリー専用の版。`Screen.Rev` とは別で、`tree.changed` のあとの取り直しで古い返事を捨てるのに使う）。1 階層だけ（フォルダを開いたときに取る）。`.gitignore` で無視されているものは `git: "!"`。順番は TUI のツリーと同じ（フォルダが先）。5000 件で切る |
 | `tree.watch` | → shj | `{workspaceId, paths: [...]}` → `{}`。GUI が開いているフォルダを教える。サーバーはそこだけ監視する（`watch.go` と同じ仕組み） |
 | `tree.changed` | ← GUI | 通知 `{workspaceId, paths: [...]}`。そのフォルダの中身が変わった。GUI は `tree.list` を取り直す |
-| `git.status` | → shj | `{workspaceId}` → `{branch, ahead?, behind?, marks: {"path": "M"}, rev}`。全体の印。フォルダの印は `gitChildren` を使って GUI が求める |
+| `git.status` | → shj | `{workspaceId}` → `{branch, ahead?, behind?, marks: {"path": "M"}, rev}`（`rev` は git 専用の版。`Screen.Rev` とは別で、`git.changed` との前後の判定に使う）。全体の印。フォルダの印は `gitChildren` を使って GUI が求める |
 | `git.changed` | ← GUI | 通知 `{workspaceId, branch?, marks?: {"path": "M"\|null}}`。変わった分だけ（`null` は印が消えた） |
 | `tree.create` | → shj | `{workspaceId, path, kind: "file"\|"dir"}` → `{}` |
 | `tree.rename` | → shj | `{workspaceId, from, to}` → `{}` |
@@ -342,7 +355,7 @@ GUI は複数のワークスペースのツリーを（開閉の状態を持っ�
 
 GUI はシステムの `ssh` を子プロセスとして起動する（`~/.ssh/config` と ssh-agent をそのまま使うため）。ssh がパスワードや 2 段階認証を求めるときは `SSH_ASKPASS` で GUI の窓に出す。
 
-1. **shj の場所**：`~/.cache/shijimi-editor/<GUI の版>/shj`。無ければ、ユーザーに聞いてから GUI が転送する。PATH の `shj` には触らない。リモートの OS とアーキテクチャは `uname -sm` で調べ、合う実行ファイルを GitHub Releases から GUI が取って送る。送ったあと SHA-256 を確かめる。
+1. **shj の場所**：`~/.cache/shijimi-editor/<GUI の版>/shj`。無ければ、ユーザーに聞いてから GUI が転送する。PATH の `shj` には触らない。リモートの OS とアーキテクチャは `uname -sm` で調べ、合う実行ファイルを GitHub Releases から GUI が取って送る。送ったあと、GitHub Releases の checksums にある SHA-256 と、取得した実行ファイルを比べる（取得の段階の確認）。リモートに置いたファイルも同じ値かを確かめる（転送の壊れの確認）。
 2. **つなぐ**：`ssh -T host -- ~/.cache/shijimi-editor/<版>/shj attach`（`-T` は端末を割り当てない）。ユーザーの `ssh_config`（`ControlMaster` など）はそのまま効く。
 3. **`shj attach` がすること**（リモートで動く橋渡し）：
    1. 標準出力に `@@shj-rpc 1@@` を出す。
@@ -384,7 +397,7 @@ GUI はシステムの `ssh` を子プロセスとして起動する（`~/.ssh/c
 
 ### A. `internal/ui` の切り離し
 
-手順 P1〜P14（「2. 分けていく順番」）をそのまま Issue にする。P7 は 5 本、P10 は 1 種類ずつ複数、P11 は 3 本に分ける。
+手順 P1〜P14（「2. 分けていく順番」）をそのまま Issue にする（表の 1 行が 1 つの Issue）。
 
 ### B. shj のサーバーモード
 
@@ -400,7 +413,7 @@ GUI はシステムの `ssh` を子プロセスとして起動する（`~/.ssh/c
 | B8 | ツリーと git の印：`tree.*`・`git.*` | B7 | 1 階層の一覧、監視、`git.changed`、作成 / 名前変更 / 削除 |
 | B9 | 画面の配信：`view.*`・`screen.*`・`theme.get`・`blob.get` | P9、P14、B7 | 購読、差分、`ack`、まとめて送る |
 | B10 | 入力：`input.*`・`command.run`・`file.open` | P5、B9 | `seq`、IME、マウス（ペイン内の座標） |
-| B11 | 制御用ソケットと Claude Code 連携をサーバーモードに載せる | P7、B2 | `shj diff` などが動く。`clipboard.write` と `url.open` の通知 |
+| B11 | 制御用ソケットと Claude Code 連携をサーバーモードに載せる | P7d、P7e、B2 | `shj diff` などが動く。`clipboard.write` と `url.open` の通知 |
 
 ### C. Tauri アプリの土台
 
