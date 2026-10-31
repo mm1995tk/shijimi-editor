@@ -2249,7 +2249,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 
 	if a.pal.open {
 		pw := clamp(a.w*3/5, 30, 100)
-		box := a.pal.render(pw)
+		box := drawPalette(a.pal.overlay(), &a.pal.input, pw)
 		rows = overlay(rows, box, (a.w-pw)/2, 1)
 	}
 

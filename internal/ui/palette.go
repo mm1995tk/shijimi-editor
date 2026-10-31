@@ -11,6 +11,7 @@ import (
 	"github.com/sahilm/fuzzy"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 const (
@@ -182,50 +183,112 @@ func (p *palette) filter(cmds []command) {
 	p.sel = clamp(p.sel, 0, max(0, len(p.items)-1))
 }
 
-// label is what precedes the input on the palette's first row.
-func (p *palette) label() string {
+// head is the palette's heading and the mark after it: a prompt asks with
+// ":", the rest search or pick with ">".
+func (p *palette) head() (title, prefix string) {
 	switch {
 	case p.prompt != "":
-		return " " + p.prompt + ": "
+		return p.prompt, ":"
 	case p.picking:
-		return " " + p.pickTitle + " > "
+		return p.pickTitle, ">"
+	}
+	return "", ">"
+}
+
+// paletteLabel is what precedes the input on the palette's first row.
+func paletteLabel(title, prefix string) string {
+	switch {
+	case prefix == ":":
+		return " " + title + ": "
+	case title != "":
+		return " " + title + " > "
 	}
 	return " > "
 }
 
-func (p *palette) render(w int) []string {
-	var out []string
-	label := p.label()
-	p.input.SetWidth(max(1, w-ansi.StringWidth(label)-2))
-	out = append(out, stPaletteBox.Render(fit("", w)))
-	out = append(out, stPaletteBox.Render(label)+fitStyled(p.input.view(inputStyleOn(cPaletteBg)), w-ansi.StringWidth(label), stPalette))
+// label is what precedes the input on the palette's first row.
+func (p *palette) label() string { return paletteLabel(p.head()) }
+
+// overlay is the palette as a screen.Overlay: the input field and the rows in
+// view (maxPaletteItems at most, scrolled so that the selected one shows) with
+// Active the selected one among them. It has no place in a pane, so it has no
+// At (the TUI centres it). It changes nothing. Drawing it as cells is
+// drawPalette's work.
+func (p *palette) overlay() screen.Overlay {
+	title, prefix := p.head()
+	ov := screen.Overlay{
+		Kind:  screen.OverlayPalette,
+		Title: title,
+		Field: &screen.Field{
+			Prefix:      prefix,
+			Text:        p.input.Value(),
+			Cursor:      p.input.Position(),
+			Placeholder: p.input.Placeholder,
+		},
+	}
 	start := 0
 	if p.sel >= maxPaletteItems {
 		start = p.sel - maxPaletteItems + 1
 	}
+	ov.Active = p.sel - start
 	for i := start; i < len(p.items) && i < start+maxPaletteItems; i++ {
-		out = append(out, renderItem(p.items[i], w, i == p.sel))
+		it := p.items[i]
+		item := screen.Item{Label: it.label, Detail: it.detail}
+		if len(it.matched) > 0 {
+			at := map[int]bool{}
+			for _, m := range it.matched {
+				at[m] = true
+			}
+			n := 0
+			for b := range it.label { // b is a byte offset
+				if at[b] {
+					item.Matched = append(item.Matched, n)
+				}
+				n++
+			}
+		}
+		ov.Items = append(ov.Items, item)
 	}
 	if p.prompt == "" && len(p.items) == 0 {
-		out = append(out, stPaletteDim.Render(fit(i18n.T("palette.nomatch"), w)))
+		ov.Hint = i18n.T("palette.nomatch")
+	}
+	return ov
+}
+
+// drawPalette draws a palette Overlay as a box w cells wide. in is the TUI's
+// state of the input (what is in view of a long text); the Overlay holds the
+// text and the caret.
+func drawPalette(ov screen.Overlay, in *lineInput, w int) []string {
+	var out []string
+	label := paletteLabel(ov.Title, ov.Field.Prefix)
+	in.SetWidth(max(1, w-ansi.StringWidth(label)-2))
+	out = append(out, stPaletteBox.Render(fit("", w)))
+	out = append(out, stPaletteBox.Render(label)+fitStyled(in.view(inputStyleOn(cPaletteBg)), w-ansi.StringWidth(label), stPalette))
+	for i, it := range ov.Items {
+		out = append(out, renderItem(it, w, i == ov.Active))
+	}
+	if ov.Hint != "" {
+		out = append(out, stPaletteDim.Render(fit(ov.Hint, w)))
 	}
 	out = append(out, stPalette.Render(fit("", w)))
 	return out
 }
 
-func renderItem(it paletteItem, w int, selected bool) string {
+func renderItem(it screen.Item, w int, selected bool) string {
 	base, hi := stPalette, stPaletteHi
 	if selected {
 		base, hi = stPaletteSel, stPaletteHiS
 	}
 	matched := map[int]bool{}
-	for _, m := range it.matched {
+	for _, m := range it.Matched {
 		matched[m] = true
 	}
 	var sb strings.Builder
 	sb.WriteString(base.Render("  "))
 	used := 2
-	for i, r := range it.label {
+	i := -1
+	for _, r := range it.Label {
+		i++
 		rw := ansi.StringWidth(string(r))
 		if used+rw > w-1 {
 			break
@@ -237,8 +300,8 @@ func renderItem(it paletteItem, w int, selected bool) string {
 		}
 		used += rw
 	}
-	if it.detail != "" && it.detail != "." {
-		d := "  " + it.detail
+	if it.Detail != "" && it.Detail != "." {
+		d := "  " + it.Detail
 		dw := ansi.StringWidth(d)
 		if used+dw < w {
 			st := stPaletteDim

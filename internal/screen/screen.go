@@ -282,6 +282,9 @@ type Overlay struct {
 	Items  []Item      `json:"items,omitempty"`
 	Active int         `json:"active"` // Items の選択位置
 
+	// パレットが使う。入力欄。Title は見出し（プロンプトの文言や選ぶものの名前）、Hint は候補が無いときの案内。
+	Field *Field `json:"field,omitempty"`
+
 	// ホバーが使う。Lines には見えている行だけが入り、View がその位置を表す
 	// （Top は先頭の行、Rows は窓の高さ、Cols は文字の幅、Total は全体の行数）。
 	View      *Viewport `json:"view,omitempty"`
@@ -291,9 +294,18 @@ type Overlay struct {
 
 // Item は一覧の 1 行（補完の候補、パレットの項目、メニューなど）。
 type Item struct {
-	Label  string `json:"label"`
-	Detail string `json:"detail,omitempty"`
-	Kind   string `json:"kind,omitempty"`
+	Label   string `json:"label"`
+	Detail  string `json:"detail,omitempty"`
+	Kind    string `json:"kind,omitempty"`
+	Matched []int  `json:"matched,omitempty"` // Label の中で検索に合った文字の位置（rune、小さい順）
+}
+
+// Field は Overlay の 1 行の入力欄（パレット）。
+type Field struct {
+	Prefix      string `json:"prefix"` // 見出しの後ろの印。":"（文言を聞く）か ">"（探す・選ぶ）
+	Text        string `json:"text"`
+	Cursor      int    `json:"cursor"`                // rune の位置
+	Placeholder string `json:"placeholder,omitempty"` // Text が空のときに見せる薄い文言（ローカライズ済み）
 }
 
 // Explorer, Changes, Agent は TUI だけが使う領域。中身は後の手順で決める。
