@@ -232,8 +232,6 @@ func applyTheme(t *Theme) {
 	cHoverBg, cHoverFg, cHoverCodeBg, cHoverBorder = t.PaletteBg, t.EditorFg, t.HoverCodeBg, t.Accent
 	cHoverInline, cHoverHead, cHoverRule = t.HoverInline, t.HoverHead, t.HoverRule
 
-	severityColor = map[int]string{1: t.DiagError, 2: t.DiagWarn, 3: t.DiagInfo, 4: t.DiagInfo}
-
 	modeStyles = map[editMode]lipgloss.Style{
 		modeNormal: bgfg(t.ModeNormal, t.CursorFg).Bold(true),
 		modeInsert: bgfg(t.ModeInsert, t.CursorFg).Bold(true),

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -10,7 +11,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
-	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 type tabKind int
@@ -100,9 +101,10 @@ func styleFor(k cellStyle) lipgloss.Style {
 	return s
 }
 
-func gutterWidth(b *buffer.Buffer) int {
-	return len(fmt.Sprint(len(b.Lines))) + 4
-}
+// gutterWidthFor is the width of the line numbers column for a file of total lines.
+func gutterWidthFor(total int) int { return len(fmt.Sprint(total)) + 4 }
+
+func gutterWidth(b *buffer.Buffer) int { return gutterWidthFor(len(b.Lines)) }
 
 // ensureCursorVisible adjusts scrolling so the cursor is on screen.
 func ensureCursorVisible(b *buffer.Buffer, w, h int) {
@@ -126,58 +128,50 @@ func ensureCursorVisible(b *buffer.Buffer, w, h int) {
 	}
 }
 
+// editorOpts is what App decides about one text pane: its contents (paneOpts,
+// for buildTextPane) and how it is drawn (the rest, for drawPane).
 type editorOpts struct {
-	focused      bool
-	query        string
-	cursorColor  string
-	cursorAt     buffer.Pos   // where to draw the cursor
-	extraCursors []buffer.Pos // cursors of a multi-cursor edit
-	extraSels    [][2]buffer.Pos
-	relative     bool
-	indentGuides bool // draw a faint │ at each indent level
-	diags        []lsp.Diagnostic
-	rowBg        func(row int) string      // background override per buffer line (diff view)
-	marks        func(row int) []diff.Span // parts of a line drawn on markBg (diff view)
-	markBg       string
-	gutterMark   func(row int) string // color of a ● before the line number (review comments), "" = none
+	paneOpts
+	focused     bool
+	query       string
+	cursorColor string
+	relative    bool
+	rowBg       func(row int) string      // background override per buffer line (diff view)
+	marks       func(row int) []diff.Span // parts of a line drawn on markBg (diff view)
+	markBg      string
+	gutterMark  func(row int) string // color of a ● before the line number (review comments), "" = none
 }
 
-var severityColor map[int]string
-
+// diagColor is the color of a diagnostic of severity sev.
 func diagColor(sev int) string {
-	if c, ok := severityColor[sev]; ok {
-		return c
-	}
-	return severityColor[1]
+	return styleColor(diagStyle(screen.Severity(sevRank(sev))))
 }
 
 // renderEditor draws the visible part of a buffer as exactly h lines of
-// width w.
+// width w: the Pane of the buffer (buildTextPane), drawn as cells.
 func renderEditor(t *tab, w, h int, o editorOpts) []string {
-	b := t.buf
-	colors := t.hl.Colors(b)
-	gw := gutterWidth(b)
-	textW := max(0, w-gw)
-	selS, selE, hasSel := b.Selection()
-	q := []rune(strings.ToLower(o.query))
+	return drawTextPane(buildTextPane(t, w, h, o.paneOpts), w, h, o)
+}
 
-	// diagnostics by line
-	lineDiag := map[int]lsp.Diagnostic{}
-	for _, d := range o.diags {
-		r := d.Range.Start.Line
-		if old, ok := lineDiag[r]; !ok || sevRank(d.Severity) < sevRank(old.Severity) {
-			lineDiag[r] = d
-		}
-	}
+// drawTextPane draws the Pane of a text file as exactly h lines of width w.
+// It reads only p and o: the cell width of characters, tab stops, the line
+// numbers and the colors of the theme are decided here.
+func drawTextPane(p screen.Pane, w, h int, o editorOpts) []string {
+	gw := gutterWidthFor(p.Viewport.Total)
+	textW := max(0, w-gw)
+	scrollCol := p.Viewport.Left
+	q := []rune(strings.ToLower(o.query))
+	hasSel := len(p.Selections) > 0 && p.Selections[0].Start != p.Selections[0].End
 
 	out := make([]string, 0, h)
 	for i := range h {
-		row := b.ScrollRow + i
-		if row >= len(b.Lines) {
+		if i >= len(p.Lines) {
 			out = append(out, stEmpty.Render(strings.Repeat(" ", w)))
 			continue
 		}
-		isCur := row == b.Cur.Row
+		pl := p.Lines[i]
+		row := pl.No
+		isCur := row == p.CurLine
 		lineBg := cEditorBg
 		if isCur && !hasSel {
 			lineBg = cCurLine
@@ -195,30 +189,44 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 		}
 		n := row + 1
 		if o.relative && !isCur {
-			n = row - b.Cur.Row
+			n = row - p.CurLine
 			if n < 0 {
 				n = -n
 			}
 		}
 		var sb strings.Builder
-		d, hasDiag := lineDiag[row]
+		var hd *screen.Diagnostic // the diagnostic shown at the end of the line
+		if d, ok := headDiagnostic(pl.Diag); ok {
+			hd = &d
+		}
 		mark := ""
 		if o.gutterMark != nil {
 			mark = o.gutterMark(row)
 		}
+		diagMark := ""
+		for _, m := range pl.Marks {
+			if m.Kind == screen.MarkDiag {
+				diagMark = styleColor(m.Style)
+			}
+		}
 		if mark != "" {
 			sb.WriteString(bgfg(lineBg, mark).Render("●"))
-		} else if hasDiag {
-			sb.WriteString(bgfg(lineBg, diagColor(d.Severity)).Render("●"))
+		} else if diagMark != "" {
+			sb.WriteString(bgfg(lineBg, diagMark).Render("●"))
 		} else {
 			sb.WriteString(bgfg(lineBg, cLineNo).Render(" "))
 		}
 		sb.WriteString(numSt.Render(fmt.Sprintf("%*d  ", gw-3, n)))
 
-		line := b.Lines[row]
+		// the text of the line and the color of each rune ("" = none)
+		var line []rune
 		var lc []string
-		if colors != nil && row < len(colors) {
-			lc = colors[row]
+		for _, sp := range pl.Spans {
+			c := styleColor(sp.Style)
+			for _, r := range sp.Text {
+				line = append(line, r)
+				lc = append(lc, c)
+			}
 		}
 		var matchCols []int
 		if len(q) > 0 {
@@ -233,20 +241,17 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 			return false
 		}
 		inSel := func(col int) bool {
-			p := buffer.Pos{Row: row, Col: col}
-			if hasSel && !p.Less(selS) && p.Less(selE) {
-				return true
-			}
-			for _, s := range o.extraSels {
-				if !p.Less(s[0]) && p.Less(s[1]) {
+			at := screen.Pos{Line: row, Col: col}
+			for _, s := range p.Selections {
+				if !posLess(at, s.Start) && posLess(at, s.End) {
 					return true
 				}
 			}
 			return false
 		}
-		isExtra := func(col int) bool {
-			for _, c := range o.extraCursors {
-				if c.Row == row && c.Col == col {
+		isCursor := func(col int) bool {
+			for _, c := range p.Cursors {
+				if c.Line == row && c.Col == col {
 					return true
 				}
 			}
@@ -256,22 +261,9 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 		underline := func(col int) string {
 			best := ""
 			bestRank := 99
-			for _, dg := range o.diags {
-				if dg.Range.Start.Line > row || dg.Range.End.Line < row {
-					continue
-				}
-				s, e := 0, len(line)+1
-				if dg.Range.Start.Line == row {
-					s = lsp.FromUTF16(line, dg.Range.Start.Character)
-				}
-				if dg.Range.End.Line == row {
-					e = lsp.FromUTF16(line, dg.Range.End.Character)
-				}
-				if e == s {
-					e = s + 1
-				}
-				if col >= s && col < e && sevRank(dg.Severity) < bestRank {
-					best, bestRank = diagColor(dg.Severity), sevRank(dg.Severity)
+			for _, dg := range pl.Diag {
+				if col >= dg.Start && col < dg.End && int(dg.Severity) < bestRank {
+					best, bestRank = styleColor(diagStyle(dg.Severity)), int(dg.Severity)
 				}
 			}
 			return best
@@ -298,10 +290,8 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 
 		vis := 0
 		drawn := 0
-		guideW, guideU := 0, 1
-		if o.indentGuides {
-			guideW, guideU = indentGuideWidth(b, row), indentUnitWidth(b)
-		}
+		guideW := pl.Indent
+		isGuideCol := func(v int) bool { return slices.Contains(pl.Guides, v) }
 		var marks []diff.Span
 		if o.marks != nil {
 			marks = o.marks(row)
@@ -321,7 +311,7 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 			return lineBg
 		}
 		for col := 0; col <= len(line) && drawn < textW; col++ {
-			cursorHere := o.focused && (row == o.cursorAt.Row && col == o.cursorAt.Col || isExtra(col))
+			cursorHere := o.focused && isCursor(col)
 			var r rune = ' '
 			rw := 1
 			if col < len(line) {
@@ -331,20 +321,20 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 				break
 			}
 			fg := cEditorFg
-			if lc != nil && col < len(lc) && lc[col] != "" {
+			if col < len(lc) && lc[col] != "" {
 				fg = lc[col]
 			}
 			k := cellStyle{fg: fg, bg: cellBg(col)}
-			if hasDiag && col < len(line) {
+			if hd != nil && col < len(line) { // a row no diagnostic starts on is not underlined (only Cont ones touch it)
 				if u := underline(col); u != "" {
 					k.under = u
 					k.fg = u
-					if lc != nil && col < len(lc) && lc[col] != "" {
+					if col < len(lc) && lc[col] != "" {
 						k.fg = lc[col]
 					}
 				}
 			}
-			isGuide := col < len(line) && (r == ' ' || r == '\t') && vis < guideW && vis%guideU == 0
+			isGuide := col < len(line) && (r == ' ' || r == '\t') && vis < guideW && isGuideCol(vis)
 			if isGuide {
 				k.fg = cIndentGuide
 			}
@@ -353,7 +343,7 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 			}
 			if r == '\t' || col == len(line) {
 				for c := 0; c < rw; c++ {
-					if vis+c >= b.ScrollCol && drawn < textW {
+					if vis+c >= scrollCol && drawn < textW {
 						kk := k
 						if c > 0 {
 							kk.cursor = ""
@@ -366,7 +356,7 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 						drawn++
 					}
 				}
-			} else if vis >= b.ScrollCol {
+			} else if vis >= scrollCol {
 				if drawn+rw > textW {
 					break
 				}
@@ -375,19 +365,19 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 				}
 				put(k, string(r))
 				drawn += rw
-			} else if vis+rw > b.ScrollCol {
-				put(k, strings.Repeat(" ", vis+rw-b.ScrollCol))
-				drawn += vis + rw - b.ScrollCol
+			} else if vis+rw > scrollCol {
+				put(k, strings.Repeat(" ", vis+rw-scrollCol))
+				drawn += vis + rw - scrollCol
 			}
 			vis += rw
 		}
 		// guides of a blank line extend past its end
 		for v := vis; v < guideW && drawn < textW; v++ {
-			if v < b.ScrollCol {
+			if v < scrollCol {
 				continue
 			}
 			ch := " "
-			if v%guideU == 0 {
+			if isGuideCol(v) {
 				ch = "│"
 			}
 			put(cellStyle{fg: cIndentGuide, bg: cellBg(len(line))}, ch)
@@ -395,10 +385,10 @@ func renderEditor(t *tab, w, h int, o editorOpts) []string {
 		}
 		flush()
 		// inline diagnostic message (like Helix's inline diagnostics)
-		if hasDiag && drawn+6 < textW {
-			msg := "   ● " + firstLine(d.Message)
+		if hd != nil && drawn+6 < textW {
+			msg := "   ● " + firstLine(hd.Message)
 			msg = fit(msg, textW-drawn)
-			sb.WriteString(bgfg(lineBg, diagColor(d.Severity)).Faint(true).Render(msg))
+			sb.WriteString(bgfg(lineBg, styleColor(diagStyle(hd.Severity))).Faint(true).Render(msg))
 			drawn = textW
 		}
 		if drawn < textW {
