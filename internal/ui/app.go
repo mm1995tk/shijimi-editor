@@ -1019,10 +1019,6 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		k := keyReleaseFromTea(msg)
 		a.holdScrollRelease(k)
 		a.lineFlipRelease(k)
-	case searchTickMsg:
-		return a.searchTick(msg)
-	case searchDoneMsg:
-		a.searchDone(msg)
 	case prFoundMsg:
 		return a.handlePRFound(msg)
 	case branchPRsMsg:

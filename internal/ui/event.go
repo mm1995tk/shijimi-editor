@@ -16,9 +16,9 @@ import (
 // is not a terminal can feed the same Events.
 //
 // The timers (P6), the language servers (P7a), the control socket (P7d) and
-// the IDE connection (P7e) go through this so far
-// (docs/design/gui-protocol.md). The other asynchronous pieces (search, agent)
-// still use tea.Cmd and move over one subsystem at a time (P7b, P7c).
+// the IDE connection (P7e) and the project search (P7b) go through this so far
+// (docs/design/gui-protocol.md). The agent still uses tea.Cmd and moves over
+// in P7c.
 type Event interface{ isEvent() }
 
 // WatchTick fires every watchInterval: open files are compared with the disk,
@@ -135,6 +135,24 @@ type ReplyIDE struct {
 	Reply IDEReply
 }
 
+// SearchTick fires searchDebounce after the last key typed into the search
+// window. seq tells it from a stale one: it is ignored if more was typed since.
+type SearchTick struct{ seq int64 }
+
+// SearchDone carries the result of one project search. It is ignored if a
+// newer search was started since (seq no longer matches).
+type SearchDone struct {
+	seq int64
+	res searchResult
+}
+
+func (SearchTick) isEvent() {}
+func (SearchDone) isEvent() {}
+
+// RunSearch asks for Run to be called off the main loop and its Event to be
+// delivered. The search stops by itself once a newer one supersedes it.
+type RunSearch struct{ Run func() Event }
+
 // Quit says the program may end.
 type Quit struct{}
 
@@ -144,3 +162,4 @@ func (ReplyCtl) isEffect()   {}
 func (ReplyIDE) isEffect()   {}
 func (RunLSP) isEffect()     {}
 func (WaitLSP) isEffect()    {}
+func (RunSearch) isEffect()  {}

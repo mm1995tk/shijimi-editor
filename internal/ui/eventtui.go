@@ -38,6 +38,14 @@ func (a *App) effectCmd(effs ...Effect) tea.Cmd {
 		case WaitLSP:
 			from := e.From
 			cmds = append(cmds, func() tea.Msg { return lspEventMsg(<-from) })
+		case RunSearch:
+			run := e.Run
+			cmds = append(cmds, func() tea.Msg {
+				if ev := run(); ev != nil {
+					return ev
+				}
+				return nil
+			})
 		case ReplyCtl:
 			e.To <- e.Resp
 		case ReplyIDE:
@@ -65,6 +73,11 @@ func (a *App) handleEvent(ev Event) []Effect {
 		return a.holdScrollTick(ev.seq)
 	case HoverDwell:
 		return a.hoverDwell(ev)
+	case SearchTick:
+		return a.searchTick(ev)
+	case SearchDone:
+		a.searchDone(ev)
+		return nil
 	case CtlRequest:
 		return a.handleCtl(ev)
 	case IDECall:
