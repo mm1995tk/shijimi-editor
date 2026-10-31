@@ -102,10 +102,8 @@ func (s *Server) ServerID() string { return s.serverID }
 
 // Serve は ctx が終わるか Close されるまで接続を受ける。終わるとソケットを消す。
 func (s *Server) Serve(ctx context.Context) error {
-	go func() {
-		<-ctx.Done()
-		s.ln.Close()
-	}()
+	stop := context.AfterFunc(ctx, func() { s.ln.Close() })
+	defer stop()
 	s.log.Info("serving", "socket", s.opts.SocketPath, "serverId", s.serverID, "pid", os.Getpid())
 	for {
 		c, err := s.ln.Accept()
@@ -142,11 +140,10 @@ func (s *Server) shutdown() {
 
 func (s *Server) accept(c net.Conn) {
 	ss := &session{srv: s}
+	ss.conn = rpc.NewConn(c, rpc.JSON{}, ss.handle)
 	s.mu.Lock()
-	// Conn の読みは NewConn の中で始まるので、先に登録しておく。
 	s.sessions[ss] = struct{}{}
 	s.mu.Unlock()
-	ss.conn = rpc.NewConn(c, rpc.JSON{}, ss.handle)
 	s.log.Info("client connected")
 	s.wg.Go(func() {
 		<-ss.conn.Done()

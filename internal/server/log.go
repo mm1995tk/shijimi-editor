@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
@@ -92,11 +93,10 @@ func (l *logFile) trim() error {
 	buf = buf[:n]
 	// 途中から始まる行は捨てる（切り出しが行の頭ちょうどなら捨てない）。
 	if keep < l.size {
-		for i, b := range buf {
-			if b == '\n' {
-				buf = buf[i+1:]
-				break
-			}
+		if i := bytes.IndexByte(buf, '\n'); i >= 0 {
+			buf = buf[i+1:]
+		} else {
+			buf = buf[:0] // 1 行が長すぎる。全部捨てる
 		}
 	}
 	if err := l.f.Truncate(0); err != nil {

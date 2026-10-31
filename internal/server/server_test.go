@@ -177,9 +177,8 @@ func TestLogTrimsHead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := range 100 {
+	for range 100 {
 		line := strings.Repeat("x", 30) + "\n"
-		_ = i
 		if _, err := w.Write([]byte(line)); err != nil {
 			t.Fatal(err)
 		}

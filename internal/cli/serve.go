@@ -32,20 +32,26 @@ func runServe(args []string) int {
 	// The log goes to a file because the server runs detached from a terminal.
 	var logw io.Writer = io.Discard
 	if path, err := server.LogPath(); err == nil {
-		if f, err := server.OpenLog(path, 0); err == nil {
+		f, err := server.OpenLog(path, 0)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
 			defer f.Close()
 			logw = f
 		}
+	} else {
+		fmt.Fprintln(os.Stderr, err)
 	}
 	ver, commit := ui.BuildVersion()
 	chName := "stable"
 	if channel.IsNightly() {
 		chName = channel.Nightly
 	}
+	logger := slog.New(slog.NewTextHandler(logw, nil))
 	srv, err := server.Listen(server.Options{
 		SocketPath: sock,
 		Shj:        server.Shj{Version: ver, Commit: commit, Channel: chName},
-		Logger:     slog.New(slog.NewTextHandler(logw, nil)),
+		Logger:     logger,
 	})
 	if err != nil {
 		if errors.Is(err, server.ErrRunning) {
@@ -58,6 +64,7 @@ func runServe(args []string) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := srv.Serve(ctx); err != nil {
+		logger.Error("serve", "err", err)
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
