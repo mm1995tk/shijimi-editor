@@ -19,27 +19,31 @@ import (
 
 // ideCall runs a tool and returns the first text block; pending replies are
 // returned through the channel.
-func ideCallRaw(a *App, tool string, args any) (chan ideReply, ideReply, bool) {
+func ideCallRaw(a *App, tool string, args any) (chan IDEReply, IDEReply, bool) {
 	b, _ := json.Marshal(args)
-	ch := make(chan ideReply, 1)
-	a.handleIDE(ideMsg{tool: tool, args: b, reply: ch})
+	ch := make(chan IDEReply, 1)
+	for _, e := range a.handleIDE(IDECall{Tool: tool, Args: b, Reply: ch}) {
+		if r, ok := e.(ReplyIDE); ok {
+			r.To <- r.Reply
+		}
+	}
 	select {
 	case r := <-ch:
 		return ch, r, true
 	default:
-		return ch, ideReply{}, false
+		return ch, IDEReply{}, false
 	}
 }
 
 func ideJSON(t *testing.T, a *App, tool string, args any) map[string]any {
 	t.Helper()
 	_, r, done := ideCallRaw(a, tool, args)
-	if !done || r.err != nil {
-		t.Fatalf("%s: done=%v err=%v", tool, done, r.err)
+	if !done || r.Err != nil {
+		t.Fatalf("%s: done=%v err=%v", tool, done, r.Err)
 	}
 	var m map[string]any
-	if err := json.Unmarshal([]byte(r.content[0].Text), &m); err != nil {
-		t.Fatalf("%s: %v in %q", tool, err, r.content[0].Text)
+	if err := json.Unmarshal([]byte(r.Content[0].Text), &m); err != nil {
+		t.Fatalf("%s: %v in %q", tool, err, r.Content[0].Text)
 	}
 	return m
 }
@@ -57,7 +61,7 @@ func TestIDEOpenFileAndSelection(t *testing.T) {
 		t.Errorf("no editor: %v", m)
 	}
 	_, r, _ := ideCallRaw(a, "openFile", map[string]any{"filePath": "a.txt", "startText": "tw", "endText": "wo"})
-	if r.err != nil || !strings.Contains(r.content[0].Text, f) {
+	if r.Err != nil || !strings.Contains(r.Content[0].Text, f) {
 		t.Fatalf("openFile: %+v", r)
 	}
 	m := ideJSON(t, a, "getCurrentSelection", nil)
@@ -70,10 +74,10 @@ func TestIDEOpenFileAndSelection(t *testing.T) {
 	if len(ed) != 1 || ed[0].(map[string]any)["isActive"] != true || ed[0].(map[string]any)["label"] != "a.txt" {
 		t.Errorf("editors = %v", ed)
 	}
-	if _, r, _ := ideCallRaw(a, "openFile", map[string]any{"filePath": "missing.txt"}); r.err == nil {
+	if _, r, _ := ideCallRaw(a, "openFile", map[string]any{"filePath": "missing.txt"}); r.Err == nil {
 		t.Error("missing file opened")
 	}
-	if _, r, _ := ideCallRaw(a, "bogus", nil); r.err == nil {
+	if _, r, _ := ideCallRaw(a, "bogus", nil); r.Err == nil {
 		t.Error("bogus tool accepted")
 	}
 }
@@ -104,7 +108,7 @@ func TestIDEOpenDiffAccept(t *testing.T) {
 	}
 	a.update(Key{Code: KeyEnter})
 	r := <-ch
-	if len(r.content) != 2 || r.content[0].Text != "FILE_SAVED" || r.content[1].Text != "one\n2\nthree\n" {
+	if len(r.Content) != 2 || r.Content[0].Text != "FILE_SAVED" || r.Content[1].Text != "one\n2\nthree\n" {
 		t.Fatalf("reply = %+v", r)
 	}
 	if b, _ := os.ReadFile(f); string(b) != "one\ntwo\nthree\n" {
@@ -121,7 +125,7 @@ func TestIDEOpenDiffRejectAndNewFile(t *testing.T) {
 	ch, _, _ := ideCallRaw(a, "openDiff", args)
 	a.update(Key{Code: KeyEscape})
 	r := <-ch
-	if r.content[0].Text != "DIFF_REJECTED" || r.content[1].Text != "edit" {
+	if r.Content[0].Text != "DIFF_REJECTED" || r.Content[1].Text != "edit" {
 		t.Fatalf("reply = %+v", r)
 	}
 	if b, _ := os.ReadFile(f); string(b) != "one\ntwo\nthree\n" {
@@ -137,13 +141,13 @@ func TestIDECloseAndCancel(t *testing.T) {
 	c1, _, _ := ideCallRaw(a, "openDiff", args("one"))
 	ideCallRaw(a, "openDiff", args("two"))
 	c3, _, _ := ideCallRaw(a, "openDiff", args("three"))
-	if _, r, _ := ideCallRaw(a, "close_tab", map[string]any{"tab_name": "one"}); r.content[0].Text != "TAB_CLOSED" {
+	if _, r, _ := ideCallRaw(a, "close_tab", map[string]any{"tab_name": "one"}); r.Content[0].Text != "TAB_CLOSED" {
 		t.Errorf("close_tab = %+v", r)
 	}
-	if _, r, _ := ideCallRaw(a, "close_tab", map[string]any{"tab_name": "one"}); r.content[0].Text != "TAB_CLOSED" {
+	if _, r, _ := ideCallRaw(a, "close_tab", map[string]any{"tab_name": "one"}); r.Content[0].Text != "TAB_CLOSED" {
 		t.Errorf("close_tab after decision = %+v", r)
 	}
-	if r := <-c1; r.content[0].Text != "DIFF_REJECTED" {
+	if r := <-c1; r.Content[0].Text != "DIFF_REJECTED" {
 		t.Errorf("closed tab reply = %+v", r)
 	}
 	if strings.Contains(a.msg, "却下しました") || !strings.Contains(a.msg, "差分を閉じました") {
@@ -153,7 +157,7 @@ func TestIDECloseAndCancel(t *testing.T) {
 	if len(a.props) != 1 || a.props[0].name != "two" {
 		t.Errorf("props after cancel = %d", len(a.props))
 	}
-	if _, r, _ := ideCallRaw(a, "closeAllDiffTabs", nil); r.content[0].Text != "CLOSED_1_DIFF_TABS" {
+	if _, r, _ := ideCallRaw(a, "closeAllDiffTabs", nil); r.Content[0].Text != "CLOSED_1_DIFF_TABS" {
 		t.Errorf("closeAll = %+v", r)
 	}
 	if len(a.props) != 0 {
