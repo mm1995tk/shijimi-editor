@@ -2170,11 +2170,6 @@ func (a *App) View() tea.View {
 	return v
 }
 
-func (a *App) render() string {
-	frame, _ := a.renderFrame()
-	return frame
-}
-
 // renderFrame draws the frame and returns, with it, where the terminal cursor
 // goes (nil when it is hidden). The cursor is a result of drawing, not state
 // kept on App.
