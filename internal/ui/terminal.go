@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -24,10 +25,9 @@ type termDoneMsg struct {
 	err error
 }
 
-// termTab is one shell running on its own PTY, drawn through a VT emulator.
+// termTab is the shell running on its own PTY, drawn through a VT emulator.
 type termTab struct {
 	id      int
-	n       int // number shown in the tab label
 	vt      *vt.Term
 	ptmx    *os.File
 	cmd     *exec.Cmd
@@ -38,22 +38,20 @@ type termTab struct {
 	scanned int         // line number the failure scan reads from (vt.LinesSince)
 }
 
-// terminal is the bottom panel: a set of PTY-backed login shells.
+// terminal is the bottom panel: one PTY-backed login shell. When it exits,
+// sh is nil until the panel is opened again.
 type terminal struct {
-	tabs   []*termTab
-	active int
+	sh     *termTab
 	cwd    string
 	nextID int
-	nextN  int
 	ch     chan tea.Msg
 	armed  bool // a wait() command is outstanding
 	w, h   int  // size of the body last rendered
 	grab   bool // a mouse press was sent to the program; its drag and release follow
 	sel    termSel
-	tabX   []int
 }
 
-// termPos is a cell of a terminal tab: row is numbered as in vt.Snapshot.Top,
+// termPos is a cell of the terminal: row is numbered as in vt.Snapshot.Top,
 // so it stays on the same text while the view scrolls.
 type termPos struct{ row, col int }
 
@@ -61,7 +59,7 @@ func (p termPos) less(q termPos) bool {
 	return p.row < q.row || p.row == q.row && p.col < q.col
 }
 
-// termSel is text of the active tab picked with the mouse. a is where the
+// termSel is text of the shell picked with the mouse. a is where the
 // drag started and b where it is now; both cells are included.
 type termSel struct {
 	on       bool // something is selected and drawn
@@ -87,17 +85,12 @@ func shell() string {
 	return "/bin/sh"
 }
 
-func (t *terminal) cur() *termTab {
-	if t.active < 0 || t.active >= len(t.tabs) {
-		return nil
-	}
-	return t.tabs[t.active]
-}
+func (t *terminal) cur() *termTab { return t.sh }
 
 // focus makes sure a shell exists so the panel is never empty.
 func (t *terminal) focus() tea.Cmd {
-	if len(t.tabs) == 0 {
-		return t.newTab()
+	if t.sh == nil {
+		return t.start()
 	}
 	return t.wait()
 }
@@ -115,8 +108,8 @@ func (t *terminal) wait() tea.Cmd {
 	return func() tea.Msg { return <-ch }
 }
 
-// newTab starts a login shell in the current directory on a fresh PTY.
-func (t *terminal) newTab() tea.Cmd {
+// start runs a login shell in the current directory on a fresh PTY.
+func (t *terminal) start() tea.Cmd {
 	args, env := shellIntegration(shell())
 	cmd := exec.Command(shell(), args...)
 	cmd.Dir = t.cwd
@@ -128,13 +121,11 @@ func (t *terminal) newTab() tea.Cmd {
 		return func() tea.Msg { return termErrMsg{err} }
 	}
 	t.nextID++
-	t.nextN++
 	tab := &termTab{
-		id: t.nextID, n: t.nextN, ptmx: ptmx, cmd: cmd, cols: cols, rows: rows,
+		id: t.nextID, ptmx: ptmx, cmd: cmd, cols: cols, rows: rows,
 		vt: vt.New(vt.Options{Cols: cols, Rows: rows, Reply: ptmx}),
 	}
-	t.tabs = append(t.tabs, tab)
-	t.active = len(t.tabs) - 1
+	t.sh = tab
 	go t.pump(tab)
 	return t.wait()
 }
@@ -169,29 +160,14 @@ func (t *terminal) update(msg tea.Msg) tea.Cmd {
 		return t.wait()
 	case termDoneMsg:
 		t.armed = false
-		for i, tab := range t.tabs {
-			if tab.id == msg.id {
-				tab.ptmx.Close()
-				t.tabs = append(t.tabs[:i], t.tabs[i+1:]...)
-				if t.active > i || t.active >= len(t.tabs) {
-					t.active = max(0, t.active-1)
-				}
-				break
-			}
+		if t.sh != nil && t.sh.id == msg.id {
+			t.sh.ptmx.Close()
+			t.sh = nil
+			t.sel = termSel{}
 		}
 		return t.wait()
 	case tea.KeyPressMsg:
 		t.sel = termSel{}
-		switch msg.String() {
-		case "f2":
-			return t.newTab()
-		case "ctrl+pgdown":
-			t.switchTab(1)
-			return nil
-		case "ctrl+pgup":
-			t.switchTab(-1)
-			return nil
-		}
 		if tab := t.cur(); tab != nil {
 			tab.vt.ScrollToBottom()
 			tab.ptmx.Write(termKeyBytes(msg, tab.vt.Modes().AppCursor))
@@ -200,18 +176,15 @@ func (t *terminal) update(msg tea.Msg) tea.Cmd {
 	return nil
 }
 
-func (t *terminal) switchTab(d int) {
-	t.sel = termSel{}
-	if n := len(t.tabs); n > 0 {
-		t.active = (t.active + d + n) % n
-	}
-}
-
-// run types a command line into the active shell, as if the user entered it.
+// run types a command line into the shell, as if the user entered it.
 func (t *terminal) run(line string) tea.Cmd {
 	var cmd tea.Cmd
-	if len(t.tabs) == 0 || t.cur().vt.Modes().AltScreen {
-		cmd = t.newTab()
+	if t.sh == nil {
+		cmd = t.start()
+	} else if t.sh.vt.Modes().AltScreen {
+		// A full-screen program owns the only terminal; typing into it would
+		// send the command to that program.
+		return func() tea.Msg { return termErrMsg{errors.New(i18n.T("term.busy"))} }
 	}
 	if tab := t.cur(); tab != nil {
 		tab.vt.ScrollToBottom()
@@ -220,9 +193,9 @@ func (t *terminal) run(line string) tea.Cmd {
 	return tea.Batch(cmd, t.wait())
 }
 
-// closeAll ends every shell. Closing the PTY master hangs up the session.
+// closeAll ends the shell. Closing the PTY master hangs up the session.
 func (t *terminal) closeAll() {
-	for _, tab := range t.tabs {
+	if tab := t.sh; tab != nil {
 		tab.ptmx.Close()
 		if tab.cmd.Process != nil {
 			tab.cmd.Process.Kill()
@@ -230,24 +203,12 @@ func (t *terminal) closeAll() {
 	}
 }
 
-// clickTab selects the tab drawn at column x of the tab bar.
-func (t *terminal) clickTab(x int) {
-	for i := 0; i+1 < len(t.tabX) && i < len(t.tabs); i++ {
-		if x >= t.tabX[i] && x < t.tabX[i+1] {
-			if i != t.active {
-				t.sel = termSel{}
-			}
-			t.active = i
-			return
-		}
-	}
-}
-
+// label is the title the program set, or the shell's name.
 func (t *termTab) label() string {
 	if s := strings.TrimSpace(t.title); s != "" {
 		return s
 	}
-	return filepath.Base(shell()) + " " + strconv.Itoa(t.n)
+	return filepath.Base(shell())
 }
 
 func (t *terminal) render(w, h int, focused bool) []string {
@@ -256,20 +217,9 @@ func (t *terminal) render(w, h int, focused bool) []string {
 
 	var bar strings.Builder
 	bar.WriteString(stPanelTitle.Render(" ") + stPanelTab.Render("TERMINAL"))
-	x := 9
-	t.tabX = t.tabX[:0]
-	for i, tab := range t.tabs {
-		t.tabX = append(t.tabX, x)
-		s := " " + tab.label() + " "
-		st := stPanelDim
-		if i == t.active {
-			st = stPanelCmd
-		}
-		bar.WriteString(st.Render(s))
-		x += ansi.StringWidth(s)
+	if tab := t.sh; tab != nil {
+		bar.WriteString(stPanelCmd.Render(" " + tab.label() + " "))
 	}
-	t.tabX = append(t.tabX, x)
-	bar.WriteString(stPanelDim.Render(i18n.T("term.new")))
 	out = append(out, fitStyled(bar.String(), w, stPanel))
 
 	body := h - 2
@@ -601,12 +551,12 @@ func termKeyBytes(msg tea.KeyPressMsg, appCursor bool) []byte {
 	return nil
 }
 
-// paste sends text to the active shell without a trailing Enter. Programs that
+// paste sends text to the shell without a trailing Enter. Programs that
 // enabled bracketed paste receive it wrapped, so it arrives as one paste.
 func (t *terminal) paste(text string) tea.Cmd {
 	var cmd tea.Cmd
-	if len(t.tabs) == 0 {
-		cmd = t.newTab()
+	if t.sh == nil {
+		cmd = t.start()
 	}
 	if tab := t.cur(); tab != nil {
 		tab.vt.ScrollToBottom()

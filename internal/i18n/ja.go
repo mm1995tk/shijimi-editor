@@ -510,7 +510,7 @@ var ja = map[string]string{
 	"symui.none":               "シンボルがありません",
 	"symui.title":              "シンボル",
 	"symui.wsunsupported":      "言語サーバーが workspaceSymbolProvider に対応していないか、起動中です",
-	"term.new":                 " F2:新規",
+	"term.busy":                "ターミナルでプログラムが動いています。先に終了してください",
 	"theme.current":            "現在のテーマ",
 	"theme.title":              "テーマ",
 	"watch.changed1":           "ディスク上で変更されました（未保存の編集あり）: ",

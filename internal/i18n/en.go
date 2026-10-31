@@ -510,7 +510,7 @@ var en = map[string]string{
 	"symui.none":               "No symbols",
 	"symui.title":              "Symbols",
 	"symui.wsunsupported":      "The language server does not support workspaceSymbolProvider, or is still starting",
-	"term.new":                 " F2:new",
+	"term.busy":                "a program is running in the terminal; quit it first",
 	"theme.current":            "Current theme",
 	"theme.title":              "Theme",
 	"watch.changed1":           "Changed on disk (with unsaved edits): ",

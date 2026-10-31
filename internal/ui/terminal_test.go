@@ -134,3 +134,21 @@ func TestRenderVTRowCursorOnDefaultCell(t *testing.T) {
 		t.Fatal("cursor on a default cell looks the same as without it")
 	}
 }
+
+func TestTerminalHasOneShell(t *testing.T) {
+	tm := newTerminal(t.TempDir())
+	tm.sh = &termTab{id: 1, vt: vt.New(vt.Options{Cols: 20, Rows: 5})}
+	// F2 and Ctrl+PgUp/PgDn no longer manage tabs; with no PTY they are only written.
+	tm.sh.ptmx, _ = os.CreateTemp(t.TempDir(), "pty")
+	for _, k := range []tea.KeyPressMsg{{Code: tea.KeyF2}, {Code: tea.KeyPgDown, Mod: tea.ModCtrl}} {
+		tm.update(k)
+	}
+	if tm.sh == nil || tm.sh.id != 1 || tm.nextID != 0 {
+		t.Fatal("a key started another shell")
+	}
+	// when the shell exits the panel has none, until it is focused again
+	tm.update(termDoneMsg{id: 1})
+	if tm.sh != nil {
+		t.Fatal("exited shell kept")
+	}
+}

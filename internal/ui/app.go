@@ -972,7 +972,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		// A program in the terminal panel (Claude Code, tmux, …) copies with
 		// OSC 52; pass the text on to the clipboard. Any program there can do
 		// this unasked, so every copy is shown.
-		for _, tab := range a.term.tabs {
+		if tab := a.term.sh; tab != nil {
 			c, ok := tab.vt.TakeClipboard()
 			switch {
 			case !ok:
@@ -983,7 +983,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 				a.info(i18n.T("app.termcopied"), utf8.RuneCountInString(c.Text))
 			}
 		}
-		if len(a.term.tabs) == 0 && a.showTerm {
+		if a.term.sh == nil && a.showTerm {
 			a.showTerm = false
 			if a.focus == focusTerminal {
 				return tea.Batch(cmd, a.setFocus(focusEditor))
@@ -992,7 +992,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		return cmd
 	case termErrMsg:
 		a.fail(msg.err)
-		if len(a.term.tabs) == 0 && a.showTerm {
+		if a.term.sh == nil && a.showTerm {
 			a.showTerm = false
 			if a.focus == focusTerminal {
 				return a.setFocus(focusEditor)
@@ -2044,9 +2044,6 @@ func (a *App) handleMouse(msg mouseEvent) tea.Cmd {
 		}
 		return a.setFocus(focusExplorer)
 	case a.showTerm && y >= l.panelY:
-		if y == l.panelY+1 {
-			a.term.clickTab(x - l.rightX)
-		}
 		return a.setFocus(focusTerminal)
 	case y >= l.editY && y < l.editY+l.editH:
 		t := a.cur()

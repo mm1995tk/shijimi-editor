@@ -28,10 +28,8 @@ The keys that shijimi handles are:
 | ``Ctrl+` `` | Close the terminal |
 | `Alt+R` | Resize mode ([Understanding the screen](screen.md)) |
 | `F1` | Command palette |
-| `F2` | New terminal tab |
-| `Ctrl+PgUp` / `Ctrl+PgDn` | Switch terminal tabs |
 
-When the shell exits, its tab is closed.
+There is one terminal. For several, use a multiplexer such as herdr or tmux. When the shell exits, the panel closes, and the next time you open it a new shell starts.
 
 ## Copying
 
@@ -66,7 +64,7 @@ When shijimi runs in the [herdr](https://herdr.dev) terminal multiplexer (`HERDR
 
 - The pane starts in the root of the workspace, with the same environment variables as the terminal panel, so `claude` started there connects to the IDE integration.
 - To end the pane, type `exit` in its shell or use herdr's key (`Ctrl+B x`). After that, the next ``Ctrl+` `` creates a new pane. When shijimi quits, it closes the pane it created.
-- To go back to shijimi from the pane, use herdr's key (`Ctrl+B` `k` by default). shijimi's own keys (`Ctrl+Q`, ``Ctrl+` ``, `Alt+R`, `F1`, `F2` and `Ctrl+PgUp` / `Ctrl+PgDn`) do not work in the pane.
+- To go back to shijimi from the pane, use herdr's key (`Ctrl+B` `k` by default). shijimi's own keys (`Ctrl+Q`, ``Ctrl+` ``, `Alt+R` and `F1`) do not work in the pane.
 - The screen, the scrolling, the copying with the mouse and OSC 52 in the pane are herdr's. The message "Copied N characters from the terminal" does not appear.
 - The shell of the pane reports the exit code of each command with `shj command-end <code>`, so the suggestion to investigate a failed command still appears. This works for zsh and bash. For bash, the hook is set through `PROMPT_COMMAND`, so it does not work when a startup file replaces `PROMPT_COMMAND`.
 - When a herdr command fails, the error is shown in the status bar.

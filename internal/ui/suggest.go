@@ -71,7 +71,7 @@ type repoProbe struct {
 type termFailure struct {
 	seq    int
 	tab    int // termTab.id
-	n      int // number shown on the terminal tab
+	n      int // number shown for the terminal
 	code   int // exit code, or -1 when a test reported FAIL
 	line   string
 	output []string // the end of the terminal at the time
@@ -185,7 +185,7 @@ func (a *App) suggestTick() tea.Cmd {
 // (OSC 133;D, see shellIntegration) and FAIL lines of test runners.
 func (a *App) scanTerminals() {
 	alive := map[int]bool{}
-	for _, t := range a.term.tabs {
+	if t := a.term.sh; t != nil {
 		alive[t.id] = true
 		for _, code := range t.vt.TakeCommandEnds() {
 			switch code {
@@ -209,10 +209,10 @@ func (a *App) scanTerminals() {
 	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return f.tab != herdrFailTab && !alive[f.tab] })
 }
 
-// addFailure records a failure in tab t. A tab still failing keeps its
+// addFailure records a failure for the shell t. A shell still failing keeps its
 // record (and the key a dismissal refers to); only what is shown changes.
 func (a *App) addFailure(t *termTab, code int, line string) {
-	a.addFailureTab(t.id, t.n, code, line, t.vt.Tail(failTail))
+	a.addFailureTab(t.id, 1, code, line, t.vt.Tail(failTail))
 }
 
 // addFailureTab is addFailure for a terminal that is not a termTab.
