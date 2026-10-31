@@ -1,8 +1,8 @@
 // Package server は画面を持たない常駐プロセス「shj serve」の中身。
 // Unix ソケットで JSON-RPC を話す。設計は docs/design/gui-protocol.md の 3 章。
 //
-// 今あるメソッドは session.hello / session.bye / session.ping / server.info だけ。
-// ワークスペースやターミナルなどは後の Issue で足す。
+// 今あるメソッドは session.* / server.info / term.*（term.go）。
+// ワークスペースなどは後の Issue で足す。
 package server
 
 import (
@@ -59,6 +59,7 @@ type Server struct {
 	lastClient time.Time // 最後に GUI がつながっていた時刻。ゼロなら一度も無い
 	owner      *session  // いま受けつけている GUI（session.hello を済ませた最新の接続）。無ければ nil
 	wg         sync.WaitGroup
+	terms      *termManager
 }
 
 // ErrRunning はすでに別の shj serve が動いているときのエラー。
@@ -89,14 +90,16 @@ func Listen(opts Options) (*Server, error) {
 	if log == nil {
 		log = slog.New(slog.DiscardHandler)
 	}
-	return &Server{
+	srv := &Server{
 		opts:      opts,
 		log:       log,
 		ln:        ln,
 		serverID:  hex.EncodeToString(id),
 		startedAt: time.Now(),
 		sessions:  map[*session]struct{}{},
-	}, nil
+	}
+	srv.terms = newTermManager(srv)
+	return srv, nil
 }
 
 // ServerID はこのサーバーの 1 回の起動ごとの番号。
@@ -138,6 +141,7 @@ func (s *Server) shutdown() {
 	for _, ss := range open {
 		ss.conn.Close()
 	}
+	s.terms.shutdown()
 	s.wg.Wait()
 }
 
@@ -248,10 +252,14 @@ type InfoResult struct {
 
 func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 	if req.IsNotification() {
+		ss.termNotify(req)
 		return nil, nil // 知らない通知は無視する
 	}
 	if ss.isSuperseded() {
 		return nil, errNotOwner()
+	}
+	if res, err, ok := ss.termRequest(req); ok {
+		return res, err
 	}
 	switch req.Method {
 	case "session.hello":
@@ -272,6 +280,7 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 			PID:          os.Getpid(),
 			Uptime:       int64(time.Since(s.startedAt) / time.Second),
 			LastClientAt: s.lastClientAt(),
+			Terminals:    s.terms.count(),
 		}, nil
 	}
 	return nil, rpc.Errorf(rpc.CodeMethodNotFound, "method not found: %s", req.Method)

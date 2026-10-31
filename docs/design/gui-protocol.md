@@ -306,7 +306,7 @@ type Line struct {
 | `term.title` | ← GUI | 通知 `{termId, title}` |
 
 - JSON では base64 にするので出力が約 1.33 倍になる。MessagePack に変えれば生のバイト列で送れる。「速さが足りなければ MessagePack に」が一番効くのはここ。
-- ターミナルの中身を読む `internal/vt` は TUI だけで使う。GUI ではサーバーは PTY のバイト列を中継するだけで、エミュレートしない。コマンドの終了を知らせる印（`command-end`、`shellint`）は、サーバーが出力を読んで印だけ取り出す必要があるかを B6 で確かめる。
+- ターミナルの中身を読む `internal/vt` は TUI だけで使う。GUI ではサーバーは PTY のバイト列を中継するだけで、エミュレートしない。コマンドの終了を知らせる印（`command-end`、`shellint`）は、サーバーでは取り出さない（B6 で確かめた）。バイト列は xterm.js にそのまま届くので、印が要る機能は GUI の側（xterm.js の OSC ハンドラ）で拾う。サーバーが出力から読むのはタイトル（OSC 0 / 2）だけ。
 
 ### ワークスペース
 
