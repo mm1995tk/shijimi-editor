@@ -25,6 +25,7 @@ func (t *Theme) Palette() screen.Palette {
 		screen.StyleSyntaxControl: control,
 
 		screen.StyleDiagError: t.DiagError, screen.StyleDiagWarn: t.DiagWarn, screen.StyleDiagInfo: t.DiagInfo,
+		screen.StyleDiagHint: t.DiagInfo,
 
 		screen.StyleEditorBg: t.EditorBg, screen.StyleEditorFg: t.EditorFg,
 		screen.StyleLineNo: t.LineNo, screen.StyleLineNoCur: t.LineNoCur,

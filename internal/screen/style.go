@@ -26,6 +26,7 @@ const (
 	StyleDiagError Style = "diag.error"
 	StyleDiagWarn  Style = "diag.warn"
 	StyleDiagInfo  Style = "diag.info"
+	StyleDiagHint  Style = "diag.hint" // info と同じ色
 
 	// エディタ
 	StyleEditorBg   Style = "editor.bg"

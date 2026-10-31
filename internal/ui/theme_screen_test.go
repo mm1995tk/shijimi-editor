@@ -38,3 +38,16 @@ func TestPaletteResolvesNames(t *testing.T) {
 		t.Errorf("indent = %q", g[screen.StyleIndent])
 	}
 }
+
+func TestPaletteFallbacks(t *testing.T) {
+	p := (&Theme{LineNo: "#abcdef", Syntax: syntaxColors{Keyword: "#123456"}, DiagInfo: "#654321"}).Palette()
+	if p[screen.StyleIndent] != "#abcdef" {
+		t.Errorf("indent fallback = %q, want LineNo", p[screen.StyleIndent])
+	}
+	if p[screen.StyleSyntaxControl] != "#123456" {
+		t.Errorf("control fallback = %q, want Keyword", p[screen.StyleSyntaxControl])
+	}
+	if p[screen.StyleDiagHint] != "#654321" {
+		t.Errorf("hint = %q, want DiagInfo", p[screen.StyleDiagHint])
+	}
+}
