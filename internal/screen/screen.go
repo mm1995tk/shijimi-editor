@@ -289,11 +289,23 @@ type Overlay struct {
 	// パレットが使う。入力欄。Title は見出し（プロンプトの文言や選ぶものの名前）、Hint は候補が無いときの案内。
 	Field *Field `json:"field,omitempty"`
 
-	// ホバーが使う。Lines には見えている行だけが入り、View がその位置を表す
+	// ホバーとレビューカードが使う。Lines には見えている行だけが入り、View がその位置を表す
 	// （Top は先頭の行、Rows は窓の高さ、Cols は文字の幅、Total は全体の行数）。
 	View      *Viewport `json:"view,omitempty"`
 	Hint      string    `json:"hint,omitempty"`      // 枠の下の案内（ローカライズ済み）
 	CopyLabel string    `json:"copyLabel,omitempty"` // 枠の上の右端の「コピー」の押すところ（ローカライズ済み）
+
+	// レビューカードが使う。Images は Lines の中の画像。Row は Line.No と同じ表示行の番号（Lines のインデックスではない）で、見える範囲に掛かるものだけ入る。Compose は返信・コメントの編集のときだけ。このとき View.Rows はラベルを含むプレビューの高さ（Lines は最大 Rows-1 行）で、Total は使わない。
+	Images  []PreviewImage `json:"images,omitempty"`
+	Compose *Compose       `json:"compose,omitempty"`
+}
+
+// Compose はレビューカードの編集（返信・コメント・レビューの本文）の入力欄。Overlay の Lines は、その本文を
+// Markdown として描いたもの（プレビュー）になる。
+type Compose struct {
+	Text         string `json:"text"`
+	Cursor       Pos    `json:"cursor"`                 // 入力欄の中の行と桁（rune）
+	PreviewLabel string `json:"previewLabel,omitempty"` // プレビューの見出し（ローカライズ済み）。置き場所が無いときは空
 }
 
 // Item は一覧の 1 行（補完の候補、パレットの項目、メニューなど）。
