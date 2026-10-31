@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"charm.land/bubbles/v2/textinput"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -101,18 +100,16 @@ func TestInputCaretScrolledRepeats(t *testing.T) {
 		{"日本語", 20, 0, 6},
 		{"", 10, 0, 0},
 	} {
-		ti := textinput.New()
-		ti.Prompt = ""
+		ti := newLineInput(0)
 		ti.SetWidth(c.width)
 		ti.Focus()
-		styleInput(&ti, cPaletteBg)
 		for _, r := range c.value {
-			ti, _ = ti.Update(widgetMsg(textKey(string(r))))
+			ti.Update(textKey(string(r)))
 		}
 		for range c.left {
-			ti, _ = ti.Update(widgetMsg(Key{Code: KeyLeft}))
+			ti.Update(Key{Code: KeyLeft})
 		}
-		if got := inputCaret(ti); got != c.want {
+		if got := ti.Caret(); got != c.want {
 			t.Errorf("%q width %d left %d: caret = %d, want %d", c.value, c.width, c.left, got, c.want)
 		}
 	}

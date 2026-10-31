@@ -272,17 +272,13 @@ func applyTheme(t *Theme) {
 	rebuildStyles(t)
 }
 
-// setTheme switches the active theme by name and restyles the text inputs.
+// setTheme switches the active theme by name.
 func (a *App) setTheme(name string) bool {
 	t, ok := lookupTheme(name)
 	if !ok {
 		return false
 	}
 	applyTheme(t)
-	styleInput(&a.findInput, cPaletteBg)
-	styleInput(&a.cmdInput, cEditorBg)
-	styleInput(&a.pal.input, cPaletteBg)
-	a.search.restyle()
 	return true
 }
 

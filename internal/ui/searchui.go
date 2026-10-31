@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -48,7 +47,7 @@ type searchView struct {
 // lower right.
 type searchPanel struct {
 	open  bool
-	in    [numFields]textinput.Model
+	in    [numFields]lineInput
 	field int
 
 	caseSens, word, regex, keepCase bool
@@ -70,20 +69,11 @@ type searchPanel struct {
 func newSearchPanel(def config.Search) *searchPanel {
 	s := &searchPanel{skipped: map[string]bool{}}
 	for i := range s.in {
-		ti := textinput.New()
-		ti.Prompt = ""
-		ti.CharLimit = 4096
-		s.in[i] = ti
+		s.in[i] = newLineInput(4096)
 	}
 	s.in[fInclude].SetValue(strings.Join(def.Include, ","))
 	s.in[fExclude].SetValue(strings.Join(def.Exclude, ","))
 	return s
-}
-
-func (s *searchPanel) restyle() {
-	for i := range s.in {
-		styleInput(&s.in[i], cPaletteBg)
-	}
 }
 
 func (s *searchPanel) opts() searchOpts {
@@ -101,15 +91,14 @@ func (s *searchPanel) opts() searchOpts {
 
 func (s *searchPanel) focusField(f int) tea.Cmd {
 	s.field = (f + numFields) % numFields
-	var cmd tea.Cmd
 	for i := range s.in {
 		if i == s.field {
-			cmd = s.in[i].Focus()
+			s.in[i].Focus()
 		} else {
 			s.in[i].Blur()
 		}
 	}
-	return cmd
+	return nil
 }
 
 func (s *searchPanel) close() {
@@ -329,12 +318,11 @@ func (a *App) handleSearchKey(msg Key) tea.Cmd {
 func (a *App) searchInput(msg Input) tea.Cmd {
 	s := a.search
 	before := s.in[s.field].Value()
-	var cmd tea.Cmd
-	s.in[s.field], cmd = s.in[s.field].Update(widgetMsg(msg))
+	a.lineInputUpdate(&s.in[s.field], msg)
 	if s.in[s.field].Value() != before {
-		return tea.Batch(cmd, a.effectCmd(a.scheduleSearch()...))
+		return a.effectCmd(a.scheduleSearch()...)
 	}
-	return cmd
+	return nil
 }
 
 func (a *App) searchMouse(msg Mouse) tea.Cmd {
@@ -580,7 +568,7 @@ func (s *searchPanel) fieldBox(i, w int) [3]string {
 	title := " " + searchLabels()[i] + " "
 	// View() is one cell wider than Width when the cursor sits at the end.
 	s.in[i].SetWidth(max(1, w-5))
-	body := s.in[i].View()
+	body := s.in[i].view(inputStyleOn(cPaletteBg))
 	if s.in[i].Value() == "" {
 		body = s.placeholderView(i)
 	}
@@ -607,7 +595,7 @@ func (a *App) searchCaret() (x, y int, ok bool) {
 		y += 3
 	}
 	if s.in[s.field].Value() != "" {
-		x += inputCaret(s.in[s.field])
+		x += s.in[s.field].Caret()
 	}
 	return x, y, true
 }
@@ -774,8 +762,7 @@ func (s *searchPanel) viewRows(a *App, w, h int) []string {
 }
 
 // placeholderView draws the hint of an empty field with the cursor on its
-// first character. textinput's own placeholder is not used: it pads with NULs
-// when the text has wide characters.
+// first character, in the panel's colours.
 func (s *searchPanel) placeholderView(i int) string {
 	rs := []rune(searchPlaceholders()[i])
 	first := stPaletteDim.Render(string(rs[0]))
