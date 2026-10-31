@@ -36,13 +36,6 @@ func searchPlaceholders() [numFields]string {
 	return [numFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.includeph"), i18n.T("search.excludeph")}
 }
 
-type searchTickMsg struct{ seq int64 }
-
-type searchDoneMsg struct {
-	seq int64
-	res searchResult
-}
-
 // searchView caches the file shown in the View area.
 type searchView struct {
 	path   string
@@ -174,7 +167,7 @@ func (a *App) openSearch(field int) tea.Cmd {
 	s.open = true
 	cmds := []tea.Cmd{s.focusField(field)}
 	if s.in[fQuery].Value() != "" {
-		cmds = append(cmds, a.searchNow())
+		cmds = append(cmds, a.effectCmd(a.searchNow()...))
 	}
 	return tea.Batch(cmds...)
 }
@@ -223,37 +216,38 @@ func (a *App) openBufferLines() map[string][]string {
 }
 
 // searchNow starts a search immediately.
-func (a *App) searchNow() tea.Cmd {
-	s := a.search
-	return a.searchCmd(s.seq.Add(1))
+func (a *App) searchNow() []Effect {
+	return a.searchEffects(a.search.seq.Add(1))
 }
 
 // scheduleSearch starts a search once the inputs have been idle.
-func (a *App) scheduleSearch() tea.Cmd {
+func (a *App) scheduleSearch() []Effect {
 	s := a.search
 	seq := s.seq.Add(1)
 	s.busy = true
-	return tea.Tick(searchDebounce, func(time.Time) tea.Msg { return searchTickMsg{seq} })
+	return []Effect{StartTimer{After: searchDebounce, Fire: SearchTick{seq}}}
 }
 
-func (a *App) searchTick(m searchTickMsg) tea.Cmd {
+// searchTick starts the search a debounce timer was waiting for, unless more
+// was typed since or the window was closed.
+func (a *App) searchTick(m SearchTick) []Effect {
 	if !a.search.open || m.seq != a.search.seq.Load() {
 		return nil
 	}
-	return a.searchCmd(m.seq)
+	return a.searchEffects(m.seq)
 }
 
-func (a *App) searchCmd(seq int64) tea.Cmd {
+func (a *App) searchEffects(seq int64) []Effect {
 	s := a.search
 	s.busy = true
 	o, root, open := s.opts(), a.root, a.openBufferLines()
 	cancelled := func() bool { return s.seq.Load() != seq }
-	return func() tea.Msg {
-		return searchDoneMsg{seq: seq, res: runSearch(root, o, open, cancelled)}
-	}
+	return []Effect{RunSearch{Run: func() Event {
+		return SearchDone{seq: seq, res: runSearch(root, o, open, cancelled)}
+	}}}
 }
 
-func (a *App) searchDone(m searchDoneMsg) {
+func (a *App) searchDone(m SearchDone) {
 	s := a.search
 	if m.seq != s.seq.Load() {
 		return
@@ -311,16 +305,16 @@ func (a *App) handleSearchKey(msg Key) tea.Cmd {
 		return nil
 	case "alt+c":
 		s.caseSens = !s.caseSens
-		return a.searchNow()
+		return a.effectCmd(a.searchNow()...)
 	case "alt+w":
 		s.word = !s.word
-		return a.searchNow()
+		return a.effectCmd(a.searchNow()...)
 	case "alt+r":
 		s.regex = !s.regex
-		return a.searchNow()
+		return a.effectCmd(a.searchNow()...)
 	case "alt+p":
 		s.keepCase = !s.keepCase
-		return a.searchNow()
+		return a.effectCmd(a.searchNow()...)
 	case "enter":
 		return a.searchOpenHit()
 	case "alt+enter":
@@ -338,7 +332,7 @@ func (a *App) searchInput(msg Input) tea.Cmd {
 	var cmd tea.Cmd
 	s.in[s.field], cmd = s.in[s.field].Update(widgetMsg(msg))
 	if s.in[s.field].Value() != before {
-		return tea.Batch(cmd, a.scheduleSearch())
+		return tea.Batch(cmd, a.effectCmd(a.scheduleSearch()...))
 	}
 	return cmd
 }
@@ -437,7 +431,7 @@ func (a *App) searchReplaceOne() tea.Cmd {
 		return nil
 	}
 	s.restore, s.restoreAt, s.restoreKey = true, idx, key
-	return a.searchNow()
+	return a.effectCmd(a.searchNow()...)
 }
 
 // replaceHits applies the replacement to hits, opening each affected file as
