@@ -7,7 +7,7 @@ import (
 )
 
 func move(a *App, x, y int) tea.Cmd {
-	return a.handleMouse(Mouse{X: x, Y: y, Action: MouseMotion, Button: MouseNone})
+	return a.handleMouse(a.locate(Mouse{X: x, Y: y, Action: MouseMotion, Button: MouseNone}))
 }
 
 func TestMouseHoverDwellKeepsCursor(t *testing.T) {
@@ -91,7 +91,7 @@ func TestMouseHoverDisabled(t *testing.T) {
 }
 
 func wheelDown(a *App, x, y int) {
-	a.handleMouse(Mouse{X: x, Y: y, Action: MousePress, Button: MouseWheelDown})
+	a.handleMouse(a.locate(Mouse{X: x, Y: y, Action: MousePress, Button: MouseWheelDown}))
 }
 
 func TestMouseHoverWheelOutsidePopupScrollsBuffer(t *testing.T) {

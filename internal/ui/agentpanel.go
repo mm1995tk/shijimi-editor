@@ -341,7 +341,7 @@ func wrapPlainRows(text string, w int) []wrapRow {
 // agentMouse handles the pointer over the panel. ok is false when (x, y)
 // is not on it.
 func (a *App) agentMouse(l layout, msg Mouse) (tea.Cmd, bool) {
-	if l.agentW == 0 || msg.X < l.agentX-1 || msg.Y < l.top || msg.Y >= l.top+l.bodyH {
+	if msg.Region != RegionAgent {
 		return nil, false
 	}
 	if msg.Action == MouseMotion && msg.Button == MouseNone {
@@ -371,11 +371,11 @@ func (a *App) agentMouse(l layout, msg Mouse) (tea.Cmd, bool) {
 	default:
 		return nil, true
 	}
-	if msg.X == l.agentX-1 {
+	if msg.Col == -1 { // the border
 		a.resizing = resizeAgent
 		return nil, true
 	}
-	row := msg.Y - l.top - 1 // below the title
+	row := msg.Row - 1 // below the title
 	list := a.suggestions()
 	if rows := a.suggestRows(list, max(2, l.bodyH/2-1)); row >= 0 && row < len(rows) {
 		i := rows[row]

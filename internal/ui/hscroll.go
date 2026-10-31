@@ -40,14 +40,15 @@ func (a *App) scrollHalfScreen(t *tab, dir int) {
 	a.scrollCols(t, dir*max(1, textW/2))
 }
 
-// inEditorText reports whether (x, y) is over the text of the current text
+// inEditorText reports whether the pointer is over the text of the current text
 // tab, where the sideways wheel scrolls it.
-func (a *App) inEditorText(l layout, x, y int) bool {
+func (a *App) inEditorText(l layout, msg Mouse) bool {
 	t := a.cur()
-	if t == nil || t.kind != tabText || a.fullPreview(t) || a.showTerm && y >= l.panelY {
+	if t == nil || t.kind != tabText || a.fullPreview(t) || msg.Region != RegionEditor {
 		return false
 	}
-	return y >= l.editY && y < l.editY+l.editH && x >= l.rightX
+	top := l.editY - l.top
+	return msg.Row >= top && msg.Row < top+l.editH
 }
 
 // cursorShown reports whether the cursor drawn at (x, y) is inside the text

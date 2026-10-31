@@ -133,10 +133,11 @@ type App struct {
 	confirmClose bool
 	follow       bool // scroll to the cursor on next render
 	dragging     bool
-	lastClick    click // the previous left press, to spot a double click
-	keyReleases  bool  // the terminal reports key releases
-	askReleases  bool  // key releases were asked for in the last View
-	quitting     bool  // tea.Quit was returned (see exit)
+	lastClick    click  // the previous left press, to spot a double click
+	capture      Region // the region a held pointer button is captured by (see locate)
+	keyReleases  bool   // the terminal reports key releases
+	askReleases  bool   // key releases were asked for in the last View
+	quitting     bool   // tea.Quit was returned (see exit)
 	hold         holdScroll
 	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
 	lineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
@@ -1866,7 +1867,7 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd tea.Cmd, ok bool) {
 	if !a.showTerm {
 		return nil, false
 	}
-	x, y := msg.X-l.fullX, msg.Y-l.panelY-2
+	x, y := msg.Col, msg.Row
 	if t.sel.dragging {
 		switch msg.Action {
 		case MouseMotion:
@@ -1883,7 +1884,7 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd tea.Cmd, ok bool) {
 		}
 		return nil, true
 	}
-	inBody := x >= 0 && x < l.fullW && y >= 0 && msg.Y < l.statusY
+	inBody := msg.Region == RegionTerminal && x >= 0 && x < l.fullW && y >= 0
 	grabbed := t.grab
 	if !grabbed && !inBody {
 		return nil, false
@@ -1921,9 +1922,15 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 	}
 	l := a.layout()
 	// A press or the wheel over the other pane first moves the focus there.
-	if l.inOtherPane(msg.X, msg.Y) && msg.Action == MousePress && (msg.Button == MouseLeft || msg.Button == MouseWheelUp || msg.Button == MouseWheelDown) {
+	if msg.Region == RegionOther && msg.Action == MousePress && (msg.Button == MouseLeft || msg.Button == MouseWheelUp || msg.Button == MouseWheelDown) {
 		a.focusPane(1 - a.pane)
 		l = a.layout()
+		// The pane under the pointer is the focused one now. Its corner has not
+		// moved, so Row and Col stay; only the name of the region changes.
+		msg.Region = RegionEditor
+		if a.capture == RegionOther {
+			a.capture = RegionEditor
+		}
 	}
 	if a.ag.sel.dragging {
 		if cmd, ok := a.agentDrag(l, msg); ok {
@@ -1988,22 +1995,22 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 	a.hoverWord = wordSpan{}
 	a.hoverCell = screenPt{-1, -1}
 	a.hoverText, a.hoverAt = "", nil
-	if msg.Action == MousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, x, y) {
+	if msg.Action == MousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, msg) {
 		hwheel = wheel / 3 * hscrollWheel // Shift turns the vertical wheel sideways, over the text only
 	}
 	if hwheel != 0 && msg.Action == MousePress {
-		if a.inEditorText(l, x, y) {
+		if a.inEditorText(l, msg) {
 			a.scrollCols(a.cur(), hwheel)
 			return nil
 		}
 	}
 	if wheel != 0 && msg.Action == MousePress {
 		switch {
-		case y < l.top || y >= l.top+l.bodyH:
+		case msg.Region == RegionNone:
 			// the diff mode header and help lines
-		case a.showSide && x < l.sideW:
+		case msg.Region == RegionExplorer:
 			e := a.explorer
-			if a.gd.on && y-l.top >= a.explorerH() {
+			if a.gd.on && msg.Row >= a.explorerH() {
 				g := &a.gd
 				body := l.bodyH - a.explorerH() - 1
 				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.vis())-body))
@@ -2013,8 +2020,8 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 				e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(eh-1)))
 				e.sel = clamp(e.sel, e.scroll, e.scroll+eh-2)
 			}
-		case a.showTerm && y >= l.panelY:
-			a.term.wheel(msg, x-l.fullX, y-l.panelY-2, wheel)
+		case msg.Region == RegionTerminal:
+			a.term.wheel(msg, msg.Col, msg.Row, wheel)
 		default:
 			if t := a.cur(); t != nil {
 				switch t.kind {
@@ -2063,7 +2070,7 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 		return nil
 	case MouseMotion:
 		if a.dragging {
-			a.mouseToCursor(l, x, y, true)
+			a.mouseToCursor(l, msg.Row, msg.Col, true)
 		}
 		return nil
 	}
@@ -2073,10 +2080,10 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 	double := a.isDoubleClick(x, y)
 
 	switch {
-	case y < l.top || y >= l.top+l.bodyH:
+	case msg.Region == RegionNone:
 		return nil // the diff mode header and help lines
-	case a.showSide && x < l.sideW:
-		sy := y - l.top
+	case msg.Region == RegionExplorer:
+		sy := msg.Row
 		if a.gd.on && sy >= a.explorerH() {
 			g := &a.gd
 			if vis, i := g.vis(), sy-1-a.explorerH()+g.scroll; sy > a.explorerH() && i < len(vis) {
@@ -2104,40 +2111,40 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 			}
 		}
 		return a.setFocus(focusExplorer)
-	case a.showTerm && y >= l.panelY:
+	case msg.Region == RegionTerminal:
 		return a.setFocus(focusTerminal)
-	case y >= l.editY && y < l.editY+l.editH:
+	case msg.Region == RegionEditor && msg.Row >= l.editY-l.top && msg.Row < l.editY-l.top+l.editH:
 		t := a.cur()
 		if t == nil {
 			return nil
 		}
 		if t.kind == tabText {
 			if a.diffFile(t) != nil {
-				if y == l.editY {
+				if msg.Row == l.editY-l.top { // the title row
 					if !a.diffSingle(a.diffFile(t)) {
 						a.toggleSplit()
 					}
 					return nil
 				}
 				g := a.dvGeom(l)
-				if x >= g.barX {
+				if msg.Col >= g.barX-l.rightX {
 					if dv := a.diffFor(t); dv != nil {
 						a.diffBarClick(t, dv, g, y)
 					}
 					return nil
 				}
-				if x < g.rightX {
+				if msg.Col < g.rightX-l.rightX {
 					return nil // the base side is read-only
 				}
 				if th := a.markerAt(l, x, y); th != nil {
 					a.card = &prCard{thread: th, path: a.repoPath(t.buf.Path), at: &screenPt{x, y}}
 					return nil
 				}
-			} else if t.preview != previewOff && x >= l.rightX+a.editW(t, l) {
+			} else if t.preview != previewOff && msg.Col >= a.editW(t, l) {
 				return nil // the preview pane is read-only
 			}
 			a.comp = nil
-			a.mouseToCursor(l, x, y, false)
+			a.mouseToCursor(l, msg.Row, msg.Col, false)
 			a.dragging = true
 			return a.setFocus(focusEditor)
 		}
@@ -2166,25 +2173,28 @@ func (a *App) isDoubleClick(x, y int) bool {
 	return double
 }
 
-func (a *App) mouseToCursor(l layout, x, y int, extend bool) {
+func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
 	t := a.curText()
 	if t == nil {
 		return
 	}
 	if dv := a.diffFor(t); dv != nil {
-		a.diffMouseToCursor(t, dv, l, x, y, extend)
+		a.diffMouseToCursor(t, dv, l, row, col, extend)
 		return
 	}
-	x = min(x, l.rightX+a.editW(t, l)-1)
+	// row and col count from the pane's corner; the text starts below the title
+	// (and the find bar).
+	body := row - (l.editY - l.top)
+	col = min(col, a.editW(t, l)-1)
 	b := t.buf
-	if y < l.editY {
+	if body < 0 {
 		b.MoveLines(-1, extend)
-	} else if y >= l.editY+l.editH {
+	} else if body >= l.editH {
 		b.MoveLines(1, extend)
 	}
-	row := b.ScrollRow + clamp(y-l.editY, 0, max(0, l.editH-1))
-	vis := max(0, x-l.rightX-gutterWidth(b)) + b.ScrollCol
-	b.SetCursor(row, vis, extend)
+	r := b.ScrollRow + clamp(body, 0, max(0, l.editH-1))
+	vis := max(0, col-gutterWidth(b)) + b.ScrollCol
+	b.SetCursor(r, vis, extend)
 	a.follow = true
 }
 

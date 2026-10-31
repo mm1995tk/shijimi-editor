@@ -122,8 +122,11 @@ const (
 // them and sends the number; the TUI leaves it 0 and keeps its own double
 // click timer (App.lastClick).
 //
-// X and Y are the cell on the whole screen. Only the TUI has them; the
-// handlers still hit-test on them, not yet on Region/Row/Col.
+// X and Y are the cell on the whole screen. Only the TUI has them, and only
+// what is anchored to a screen cell uses them: popups (hover, the review card,
+// completion), the search and palette boxes, and dragging a border. A GUI draws
+// those itself. While a button is held, Region stays the one the press was in
+// (see App.locate) and Row and Col may fall outside it.
 type Mouse struct {
 	Region           Region
 	Row, Col         int
@@ -136,3 +139,8 @@ type Mouse struct {
 }
 
 func (Mouse) input() {}
+
+// isButton reports whether b is a real button, not a wheel step or nothing.
+func (b MouseButton) isButton() bool {
+	return b == MouseLeft || b == MouseMiddle || b == MouseRight || b == MouseOther
+}

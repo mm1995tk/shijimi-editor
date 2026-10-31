@@ -1611,28 +1611,30 @@ func tokenColor(tt chroma.TokenType) string {
 
 // diffMouseToCursor moves the cursor to the buffer line under (x, y) in a
 // diff view. Rows that exist only on the base side snap to the next line.
-func (a *App) diffMouseToCursor(t *tab, dv *diffView, l layout, x, y int, extend bool) {
+func (a *App) diffMouseToCursor(t *tab, dv *diffView, l layout, row, col int, extend bool) {
 	g := a.dvGeom(l)
 	b := t.buf
-	x = clamp(x, g.rightX, g.rightX+g.rightW-1)
-	if y < g.top {
+	// g is in screen cells; row and col count from the pane's corner.
+	gTop, gLeft := g.top-l.top, g.rightX-l.rightX
+	col = clamp(col, gLeft, gLeft+g.rightW-1)
+	if row < gTop {
 		b.MoveLines(-1, extend)
-	} else if y >= g.top+g.h {
+	} else if row >= gTop+g.h {
 		b.MoveLines(1, extend)
 	}
-	idx := clamp(dv.start(b.ScrollRow)+clamp(y-g.top, 0, max(0, g.h-1)), 0, len(dv.rows)-1)
-	row := -1
-	for i := idx; i < len(dv.rows) && row < 0; i++ {
-		row = dv.rows[i].new
+	idx := clamp(dv.start(b.ScrollRow)+clamp(row-gTop, 0, max(0, g.h-1)), 0, len(dv.rows)-1)
+	newRow := -1
+	for i := idx; i < len(dv.rows) && newRow < 0; i++ {
+		newRow = dv.rows[i].new
 	}
-	for i := idx; i >= 0 && row < 0; i-- {
-		row = dv.rows[i].new
+	for i := idx; i >= 0 && newRow < 0; i-- {
+		newRow = dv.rows[i].new
 	}
-	if row < 0 {
+	if newRow < 0 {
 		return
 	}
-	vis := max(0, x-g.rightX-gutterWidth(b)) + b.ScrollCol
-	b.SetCursor(row, vis, extend)
+	vis := max(0, col-gLeft-gutterWidth(b)) + b.ScrollCol
+	b.SetCursor(newRow, vis, extend)
 	a.follow = true
 }
 
