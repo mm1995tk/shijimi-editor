@@ -16,6 +16,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // Diff mode: the whole editor switches to showing changes against a base,
@@ -1104,8 +1105,7 @@ type diffView struct {
 	oldSpans, newSpans map[int][]diff.Span
 	inline             map[[2]string]inlinePair // reused across builds
 
-	barH     int        // height barKinds was computed for
-	barKinds []hunkKind // per cell of the change bar
+	hunks []screen.Hunk // runs of rows of one kind of change, for the change bar
 }
 
 // diffFile returns the changed file shown by tab t in diff mode, or nil
@@ -1171,7 +1171,7 @@ func (dv *diffView) build(t *tab, split bool) {
 		lines[i] = string(l)
 	}
 	dv.ver, dv.split, dv.valid = t.buf.Version, split, true
-	dv.barH = 0
+	defer func() { dv.hunks = hunksOf(dv.rows) }()
 	dv.rows = dv.rows[:0]
 	dv.newIdx = make([]int, len(lines))
 	dv.changed = make([]bool, len(lines))
@@ -1342,46 +1342,69 @@ func barRange(i, h, n int) (lo, hi int) {
 	return min(lo, n), min(hi, n)
 }
 
-// barCells returns the kind of change in every cell of a bar h cells high.
-// A cell holding several kinds counts as a rewrite.
-func (dv *diffView) barCells(h int) []hunkKind {
-	if dv.barH == h && len(dv.barKinds) == h {
-		return dv.barKinds
-	}
-	kinds := make([]hunkKind, h)
+// barKinds returns the kind of change in every cell of a bar h cells high
+// over total display rows ("" = none). A cell holding several kinds counts
+// as a rewrite.
+func barKinds(total, h int, hunks []screen.Hunk) []screen.MarkKind {
+	kinds := make([]screen.MarkKind, h)
 	for i := range kinds {
-		lo, hi := barRange(i, h, len(dv.rows))
-		for _, r := range dv.rows[lo:hi] {
+		lo, hi := barRange(i, h, total)
+		for j := sort.Search(len(hunks), func(j int) bool { return hunks[j].End > lo }); j < len(hunks) && hunks[j].Start < hi; j++ {
 			switch {
-			case r.hunk == hunkNone:
-			case kinds[i] == hunkNone:
-				kinds[i] = r.hunk
-			case kinds[i] != r.hunk:
-				kinds[i] = hunkMod
+			case kinds[i] == "":
+				kinds[i] = hunks[j].Kind
+			case kinds[i] != hunks[j].Kind:
+				kinds[i] = screen.MarkModified
 			}
 		}
 	}
-	dv.barH, dv.barKinds = h, kinds
 	return kinds
 }
 
-// changeBar draws the bar: a mark per change, and a lighter background over
-// the rows on screen, which start at display row start.
-func (dv *diffView) changeBar(h, start int) []string {
-	kinds := dv.barCells(h)
+// hunksOf is the runs of rows of one kind of change, as the Pane tells them.
+func hunksOf(rows []dispRow) []screen.Hunk {
+	var out []screen.Hunk
+	for i, r := range rows {
+		if r.hunk == hunkNone {
+			continue
+		}
+		k := hunkMark(r.hunk)
+		if n := len(out); n > 0 && out[n-1].End == i && out[n-1].Kind == k {
+			out[n-1].End++
+			continue
+		}
+		out = append(out, screen.Hunk{Start: i, End: i + 1, Kind: k})
+	}
+	return out
+}
+
+func hunkMark(k hunkKind) screen.MarkKind {
+	switch k {
+	case hunkAdd:
+		return screen.MarkAdded
+	case hunkDel:
+		return screen.MarkDeleted
+	}
+	return screen.MarkModified
+}
+
+// changeBar draws the bar of a diff Pane h cells high: a mark per change,
+// and a lighter background over the rows on screen.
+func changeBar(d *screen.DiffInfo, h int) []string {
+	kinds := barKinds(d.Rows, h, d.Hunks)
 	out := make([]string, h)
 	for i, k := range kinds {
-		lo, hi := barRange(i, h, len(dv.rows))
+		lo, hi := barRange(i, h, d.Rows)
 		bg := cEditorBg
-		if hi > start && lo < start+h {
+		if hi > d.Top && lo < d.Top+h {
 			bg = cBarView
 		}
 		switch k {
-		case hunkAdd:
+		case screen.MarkAdded:
 			out[i] = bgfg(bg, cAddSign).Render("▐")
-		case hunkDel:
+		case screen.MarkDeleted:
 			out[i] = bgfg(bg, cDelSign).Render("▐")
-		case hunkMod:
+		case screen.MarkModified:
 			out[i] = bgfg(bg, cModSign).Render("▐")
 		default:
 			out[i] = bgfg(bg, cEditorFg).Render(" ")
@@ -1400,124 +1423,238 @@ func (a *App) diffBarClick(t *tab, dv *diffView, g dvGeom, y int) {
 	t.buf.ScrollRow = dv.scrollFor(max(0, lo-g.h/2))
 }
 
+// ---- the diff Panes ----
+
+// buildDiffPanes makes the Panes of the diff view of t that g lays out: the
+// base and the buffer side by side when the diff is split (rows that have no
+// line on one side are a Blank line there), otherwise one Pane with the
+// deleted lines between the current ones. It changes nothing.
+func (a *App) buildDiffPanes(t *tab, dv *diffView, g dvGeom, o paneOpts) []screen.Pane {
+	b := t.buf
+	two := dv.split && !dv.single
+	start := dv.start(b.ScrollRow)
+	info := func(side screen.DiffSide) *screen.DiffInfo {
+		return &screen.DiffInfo{Side: side, Top: start, Rows: len(dv.rows), Hunks: dv.hunks}
+	}
+
+	right := textPaneHead(t, g.rightW, g.h, o)
+	right.Kind = screen.KindDiff
+	right.Title = screen.Title{Text: a.rel(b.Path)}
+	if f := a.diffFile(t); f != nil {
+		right.Title.Added, right.Title.Deleted = f.Added, f.Deleted
+	}
+	right.Title.Note = a.reviewNote(t)
+	right.Title.NoteWarn = a.prShown() && a.isStale(a.repoPath(b.Path))
+	right.Diff = info(screen.SideUnified)
+	var left screen.Pane
+	if two {
+		right.Diff.Side = screen.SideNew
+		left = screen.Pane{
+			ID: b.Path + ":base", Kind: screen.KindDiff,
+			Title:    screen.Title{Text: dv.path, ReadOnly: true},
+			Viewport: screen.Viewport{Rows: g.h, Cols: max(0, g.leftW-gutterWidthFor(len(dv.old))), Left: b.ScrollCol, Total: len(dv.old)},
+			Diff:     info(screen.SideOld),
+		}
+	}
+
+	colors := t.hl.Colors(b)
+	unit := guideUnit(b, o)
+	topOld := true
+	for i := 0; i < g.h && start+i < len(dv.rows); i++ {
+		r := dv.rows[start+i]
+		if topOld && r.old >= 0 {
+			left.Viewport.Top, topOld = r.old, false
+		}
+		switch {
+		case r.new >= 0:
+			ln := textLine(b, colors, r.new, o, unit)
+			if r.changed {
+				m := screen.Mark{Kind: hunkMark(r.hunk), Style: screen.StyleDiffAddSign}
+				if m.Kind == screen.MarkModified {
+					m.Style = screen.StyleDiffModSign
+				}
+				ln.Marks = append(ln.Marks, m)
+				ln.Words = colsOf(dv.newSpans[r.new])
+			}
+			right.Lines = append(right.Lines, ln)
+		case two:
+			right.Lines = append(right.Lines, screen.Line{No: -1, Blank: true})
+		default:
+			right.Lines = append(right.Lines, dv.oldLine(r))
+		}
+		if two {
+			if r.old >= 0 {
+				left.Lines = append(left.Lines, dv.oldLine(r))
+			} else {
+				left.Lines = append(left.Lines, screen.Line{No: -1, Blank: true})
+			}
+		}
+	}
+	if two {
+		return []screen.Pane{left, right}
+	}
+	return []screen.Pane{right}
+}
+
+// oldLine is the line of the base that row r shows, marked deleted when it
+// is part of a change.
+func (dv *diffView) oldLine(r dispRow) screen.Line {
+	ln := screen.Line{No: r.old, Spans: lexSpans(dv.old[r.old], dv.lexer), Words: colsOf(dv.oldSpans[r.old])}
+	if r.changed {
+		ln.Marks = []screen.Mark{{Kind: screen.MarkDeleted, Style: screen.StyleDiffDelSign}}
+	}
+	return ln
+}
+
+func colsOf(spans []diff.Span) []screen.Cols {
+	var out []screen.Cols
+	for _, s := range spans {
+		out = append(out, screen.Cols{Start: s.Start, End: s.End})
+	}
+	return out
+}
+
+// lexSpans splits text into runs of one syntax color. With no lexer (or when
+// lexing fails) it is one run of the plain text color.
+func lexSpans(text string, lex chroma.Lexer) []screen.Span {
+	var spans []screen.Span
+	if lex != nil {
+		if it, err := lex.Tokenise(nil, text); err == nil {
+			for tok := it(); tok != chroma.EOF; tok = it() {
+				v := strings.TrimRight(tok.Value, "\n")
+				if v == "" {
+					continue
+				}
+				st := syntaxStyleOf(tokenColor(tok.Type))
+				if n := len(spans); n > 0 && spans[n-1].Style == st {
+					spans[n-1].Text += v
+				} else {
+					spans = append(spans, screen.Span{Text: v, Style: st})
+				}
+			}
+			return spans
+		}
+	}
+	return []screen.Span{{Text: text}}
+}
+
+// changedLine reports whether pl is a line of a change on the current side of
+// a diff (drawn on the added background).
+func changedLine(pl screen.Line) bool {
+	for _, m := range pl.Marks {
+		if m.Kind == screen.MarkAdded || m.Kind == screen.MarkModified {
+			return true
+		}
+	}
+	return false
+}
+
 // ---- rendering ----
 
+// renderDiffText draws the diff view of t in the area l gives the file: the
+// header, then the Panes (buildDiffPanes) with the change bar.
 func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []string {
 	g := a.dvGeom(l)
-	b := t.buf
-	out := make([]string, 0, l.editH)
+	opts := a.editorOpts(t, focused)
+	opts.gutterMark = a.commentMark(t)
+	panes := a.buildDiffPanes(t, dv, g, opts.paneOpts)
 
 	hint := i18n.T("gd.splittoggle")
 	if dv.single {
 		hint = "" // one pane: there is nothing to switch
 	}
-	f := a.diffFile(t)
-	name := " " + a.rel(t.buf.Path)
-	stats := fmt.Sprintf("  +%d", f.Added)
-	dels := fmt.Sprintf(" -%d", f.Deleted)
-	note, noteFg := a.reviewNote(t), curTheme.Renamed
-	if a.prShown() && a.isStale(a.repoPath(t.buf.Path)) {
+	out := make([]string, 0, l.editH)
+	out = append(out, drawDiffHeader(panes[len(panes)-1].Title, hint, l.rightW))
+	return append(out, drawDiff(panes, g, opts)...)
+}
+
+// drawDiffHeader draws the header row of a diff: the file name with what was
+// added and deleted, the review note and the hint, w cells wide.
+func drawDiffHeader(title screen.Title, hint string, w int) string {
+	name := " " + title.Text
+	stats := fmt.Sprintf("  +%d", title.Added)
+	dels := fmt.Sprintf(" -%d", title.Deleted)
+	noteFg := curTheme.Renamed
+	if title.NoteWarn {
 		noteFg = curTheme.DiagWarn
 	}
 	hw := 0
 	if hint != "" {
 		hw = ansi.StringWidth(hint) + 1
 	}
-	nw := max(0, min(ansi.StringWidth(name), l.rightW-hw-ansi.StringWidth(stats+dels)))
+	nw := max(0, min(ansi.StringWidth(name), w-hw-ansi.StringWidth(stats+dels)))
 	head := bgfg(cTabBarBg, curTheme.Strong).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
 		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +
-		bgfg(cTabBarBg, noteFg).Render(note)
-	out = append(out, fitStyled(head, max(0, l.rightW-hw), bgfg(cTabBarBg, curTheme.Strong))+
-		bgfg(cTabBarBg, curTheme.Dim).Render(fit(" "+hint, hw)))
+		bgfg(cTabBarBg, noteFg).Render(title.Note)
+	return fitStyled(head, max(0, w-hw), bgfg(cTabBarBg, curTheme.Strong)) +
+		bgfg(cTabBarBg, curTheme.Dim).Render(fit(" "+hint, hw))
+}
 
-	opts := a.editorOpts(t, focused)
-	opts.rowBg = func(row int) string {
-		if row >= 0 && row < len(dv.changed) && dv.changed[row] {
-			return cAddBg
-		}
-		return ""
+// drawDiff draws the rows of the Panes of a diff (the last one is the current
+// side and has the change bar) as g.h lines.
+func drawDiff(panes []screen.Pane, g dvGeom, o editorOpts) []string {
+	cur := panes[len(panes)-1]
+	two := len(panes) == 2
+	bar := changeBar(cur.Diff, g.h)
+	ld := newLineDrawer(cur, g.rightW, o)
+	width := g.rightW
+	if two {
+		width += g.leftW + 1
 	}
-	opts.marks = func(row int) []diff.Span { return dv.newSpans[row] }
-	opts.markBg = cAddWordBg
-	opts.gutterMark = a.commentMark(t)
-	gw := gutterWidthFor(len(dv.old))
-
-	start := dv.start(b.ScrollRow)
-	bar := dv.changeBar(g.h, start)
-	saved := b.ScrollRow
-	defer func() { b.ScrollRow = saved }()
-	for i := 0; i < g.h; {
-		idx := start + i
-		if idx >= len(dv.rows) {
-			for ; i < g.h; i++ {
-				out = append(out, a.diffBlank(g.rightX+g.rightW-l.rightX)+bar[i])
-			}
-			break
-		}
-		r := dv.rows[idx]
-		if r.new < 0 {
-			var line string
-			if dv.split && !dv.single {
-				line = a.diffOld(dv, r, gw, g.leftW, b.ScrollCol) + stSeparator.Render("│") + bgfg(cSideBg, cLineNo).Render(fit("", g.rightW))
-			} else {
-				line = a.diffOldUnified(dv, r, gutterWidth(b), g.rightW, b.ScrollCol)
-			}
-			out = append(out, line+bar[i])
-			i++
+	out := make([]string, 0, g.h)
+	for i := range g.h {
+		if i >= len(cur.Lines) {
+			out = append(out, stEmpty.Render(fit("", width))+bar[i])
 			continue
 		}
-		// a run of rows that all show buffer lines
-		n := 1
-		for i+n < g.h && idx+n < len(dv.rows) && dv.rows[idx+n].new >= 0 {
-			n++
+		pl := cur.Lines[i]
+		var line string
+		if pl.Blank || isDeletedLine(pl) { // the deleted lines of a unified diff
+			line = drawOldLine(cur, pl, g.rightW)
+		} else {
+			line = ld.draw(pl)
 		}
-		b.ScrollRow = r.new
-		edit := renderEditor(t, g.rightW, n, opts)
-		for k := 0; k < n; k++ {
-			if dv.split && !dv.single {
-				out = append(out, a.diffOld(dv, dv.rows[idx+k], gw, g.leftW, b.ScrollCol)+stSeparator.Render("│")+edit[k]+bar[i+k])
-			} else {
-				out = append(out, edit[k]+bar[i+k])
-			}
+		if two {
+			line = drawOldLine(panes[0], panes[0].Lines[i], g.leftW) + stSeparator.Render("│") + line
 		}
-		i += n
+		out = append(out, line+bar[i])
 	}
 	return out
 }
 
-func (a *App) diffBlank(w int) string { return stEmpty.Render(fit("", w)) }
+func isDeletedLine(pl screen.Line) bool {
+	for _, m := range pl.Marks {
+		if m.Kind == screen.MarkDeleted {
+			return true
+		}
+	}
+	return false
+}
 
-// diffOld draws the base side of a row in split mode.
-func (a *App) diffOld(dv *diffView, r dispRow, gw, w, scrollCol int) string {
-	if r.old < 0 {
+// drawOldLine draws pl, a line of the base (or the space where the base has
+// none), w cells wide.
+func drawOldLine(p screen.Pane, pl screen.Line, w int) string {
+	if pl.Blank {
 		return bgfg(cSideBg, cLineNo).Render(fit("", w))
 	}
-	bg, sc := cEditorBg, cLineNo
-	sign := " "
-	var spans []diff.Span
-	if r.changed {
+	gw := gutterWidthFor(p.Viewport.Total)
+	bg, sc, sign := cEditorBg, cLineNo, " "
+	if isDeletedLine(pl) {
 		bg, sc, sign = cDelBg, cDelSign, "-"
-		spans = dv.oldSpans[r.old]
 	}
-	gutter := bgfg(bg, sc).Render(sign) + bgfg(bg, cLineNo).Render(fmt.Sprintf("%*d  ", gw-3, r.old+1))
-	return gutter + highlightText(dv.old[r.old], dv.lexer, bg, spans, cDelWordBg, w-gw, scrollCol)
+	gutter := bgfg(bg, sc).Render(sign) + bgfg(bg, cLineNo).Render(fmt.Sprintf("%*d  ", gw-3, pl.No+1))
+	return gutter + drawSpans(pl.Spans, bg, pl.Words, cDelWordBg, w-gw, p.Viewport.Left)
 }
 
-// diffOldUnified draws a deleted line between the current lines.
-func (a *App) diffOldUnified(dv *diffView, r dispRow, gw, w, scrollCol int) string {
-	gutter := bgfg(cDelBg, cDelSign).Render("-") + bgfg(cDelBg, cLineNo).Render(fmt.Sprintf("%*d  ", gw-3, r.old+1))
-	return gutter + highlightText(dv.old[r.old], dv.lexer, cDelBg, dv.oldSpans[r.old], cDelWordBg, w-gw, scrollCol)
-}
-
-// highlightText draws text with syntax colors on bg, w cells wide. The runes
-// inside spans get markBg instead. The first skip cells of the line are left
-// out (a sideways scroll).
-func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, markBg string, w, skip int) string {
+// drawSpans draws spans on bg, w cells wide. The runes inside words get
+// wordBg instead. The first skip cells of the line are left out (a sideways
+// scroll).
+func drawSpans(spans []screen.Span, bg string, words []screen.Cols, wordBg string, w, skip int) string {
 	if w <= 0 {
 		return ""
 	}
 	var sb strings.Builder
-	used, idx, col := 0, 0, 0 // cells drawn, rune index into text, cells passed
+	used, idx, col := 0, 0, 0 // cells drawn, rune index into the line, cells passed
 	var run strings.Builder
 	var runKey cellStyle
 	flush := func() {
@@ -1531,9 +1668,9 @@ func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, 
 		// by grapheme cluster, measured as the terminal draws it
 		for g := uniseg.NewGraphemes(s); g.Next(); {
 			cell := bg
-			for _, sp := range spans {
-				if idx >= sp.Start && idx < sp.End {
-					cell = markBg
+			for _, wd := range words {
+				if idx >= wd.Start && idx < wd.End {
+					cell = wordBg
 					break
 				}
 			}
@@ -1566,27 +1703,14 @@ func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, 
 		}
 		return used < w
 	}
-	drawn := false
-	if lex != nil {
-		if it, err := lex.Tokenise(nil, text); err == nil {
-			drawn = true
-			for tok := it(); tok != chroma.EOF; tok = it() {
-				v := strings.TrimRight(tok.Value, "\n")
-				if v == "" {
-					continue
-				}
-				fg := tokenColor(tok.Type)
-				if fg == "" {
-					fg = cEditorFg
-				}
-				if !emit(v, fg) {
-					break
-				}
-			}
+	for _, sp := range spans {
+		fg := styleColor(sp.Style)
+		if fg == "" {
+			fg = cEditorFg
 		}
-	}
-	if !drawn {
-		emit(text, cEditorFg)
+		if !emit(sp.Text, fg) {
+			break
+		}
 	}
 	flush()
 	if used < w {
@@ -1652,4 +1776,10 @@ func (a *App) focusChangesList() tea.Cmd {
 	}
 	a.showSide = true
 	return a.setFocus(focusChanges)
+}
+
+// highlightText draws text with syntax colors on bg, w cells wide (lexSpans
+// drawn by drawSpans). The runes inside spans get markBg instead.
+func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, markBg string, w, skip int) string {
+	return drawSpans(lexSpans(text, lex), bg, colsOf(spans), markBg, w, skip)
 }
