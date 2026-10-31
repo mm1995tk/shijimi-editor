@@ -170,7 +170,9 @@ func (a *App) popupAnchor(t *tab, l layout) (x, y int) {
 // popupAnchorPos is the place in the file a popup hangs from.
 func (a *App) popupAnchorPos(t *tab) buffer.Pos {
 	if a.comp == nil && a.hoverAt != nil {
-		return *a.hoverAt
+		// The file may have shrunk (a reload) since the pointer opened it.
+		row := clamp(a.hoverAt.Row, 0, len(t.buf.Lines)-1)
+		return buffer.Pos{Row: row, Col: clamp(a.hoverAt.Col, 0, len(t.buf.Lines[row]))}
 	}
 	return t.buf.Cur
 }

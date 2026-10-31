@@ -174,3 +174,16 @@ func TestHoverOverlay(t *testing.T) {
 		t.Fatalf("a keyboard hover hangs from the cursor, got %v", at)
 	}
 }
+
+// A pointer hover keeps the place it opened at; the file may shrink (a reload)
+// while it is open, and drawing must not fall off the end.
+func TestHoverAnchorSurvivesShrinkingFile(t *testing.T) {
+	a := newTestApp(t, "a\nb\nc\nd\nlast line\n")
+	a.hoverText, a.hoverAt = "text", &buffer.Pos{Row: 4, Col: 6}
+	b := a.curText().buf
+	b.Lines, b.Cur = b.Lines[:1], buffer.Pos{}
+	_ = a.render()
+	if at := a.hoverOverlay(a.layout()).At; at == nil || at.Line != 0 {
+		t.Fatalf("anchor = %v", at)
+	}
+}

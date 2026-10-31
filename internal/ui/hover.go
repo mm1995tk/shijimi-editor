@@ -14,7 +14,7 @@ import (
 )
 
 // Hover popup colors; set by applyTheme.
-var cHoverBg, cHoverFg, cHoverCodeBg, cHoverBorder, cHoverRule string
+var cHoverBg, cHoverFg, cHoverBorder, cHoverRule string
 
 // hoverCell is one rune with the name of its color (a heading's is bold).
 type hoverCell struct {
@@ -300,7 +300,7 @@ func drawHover(ov screen.Overlay) []string {
 	for _, l := range ov.Lines {
 		bg := cHoverBg
 		if l.Band != "" {
-			bg = cHoverCodeBg
+			bg = styleColor(l.Band)
 		}
 		pad := bgfg(bg, cHoverFg).Render(" ")
 		var cells []hoverCell
