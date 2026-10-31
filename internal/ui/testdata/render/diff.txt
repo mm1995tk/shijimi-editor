@@ -1,0 +1,30 @@
+  DIFF    比較元 HEAD ↔ 作業ツリー（main）
+ EXPLORER: 001      │ a.txt
+    a.txt         M│ a.txt  +1 -1                                                     [分割 ⇄ 統合]
+    new.txt       U│  1  a                                │  1  a
+                    │- 2  b                                │                                       ▐
+                    │  3  c                                │  2  c
+                    │  4  d                                │  3  d
+                    │                                      │  4  x                                 ▐
+                    │  5  e                                │  5  e
+                    │  6                                   │  6
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+ CHANGES (2)   DIFF │
+ M a.txt      +1 -1 │
+ A new.txt    +2 -0 │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+ Space G:閉じる  Space g:PR の base と比べる  右側は編集・保存できます  上の行のクリック:分割/統合 …
+ NOR  ⎇ main                                                    1:1   スペース: 4   plaintext   dev

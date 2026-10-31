@@ -1,0 +1,30 @@
+ EXPLORER: 001      │ a.txt ●
+    a.txt          │   1  package main
+                    │   2
+                    │   3  import "fmt"
+                    │   4
+                    │   5  func main() {
+                    │   6  │   fmt.Println("hello")
+                    │   7  │   for i := 0; i < 3; i++ {
+                    │   8  │   │   fmt.Println(i)
+                    │   9  │   }
+                    │  10  }
+                    │  11
+                    │  12  fm
+                    │         fmt         module
+                    │         fmt.Println func
+                    │         fmt.Sprintf func
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+                    │
+ INS                                                                  12:3   タブ   plaintext   dev
