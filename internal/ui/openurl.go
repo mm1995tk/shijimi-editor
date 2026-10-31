@@ -93,7 +93,7 @@ func (a *App) openURL(arg string) tea.Cmd {
 		a.fail(fmt.Errorf(i18n.T("open.badurl"), url))
 		return nil
 	}
-	return func() tea.Msg { return openURLMsg{url: url, err: openExternal(url)} }
+	return func() tea.Msg { return openURLMsg{url: url, err: a.openInBrowser(url)} }
 }
 
 // isRemoteSession reports whether the editor runs over SSH, where a browser
@@ -113,10 +113,10 @@ func (a *App) copyPRURL() tea.Cmd {
 // opener fails, it copies the URL instead and says so.
 func (a *App) openPRURL() tea.Cmd {
 	url := a.gd.pr.URL
-	if isRemoteSession() {
+	if a.host == nil && isRemoteSession() {
 		a.copyText(url)
 		a.info(i18n.T("rv.sshcopied"), url)
 		return nil
 	}
-	return func() tea.Msg { return openURLMsg{url: url, err: openExternal(url), copyOnFail: true} }
+	return func() tea.Msg { return openURLMsg{url: url, err: a.openInBrowser(url), copyOnFail: true} }
 }
