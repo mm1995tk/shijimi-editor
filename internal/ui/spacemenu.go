@@ -32,6 +32,7 @@ var spaceItems = []spaceItem{
 	{"g", "space.diffpr", false},
 	{"G", "space.diffhead", false},
 	{"v", "space.review", false},
+	{"w", "space.window", false},
 	{"y", "space.copy", true},
 	{"p", "space.pasteafter", true},
 	{"P", "space.pastebefore", true},
@@ -59,7 +60,7 @@ func (a *App) spaceMenuItems() []spaceItem {
 		if it.key == "E" && !a.gd.on {
 			continue
 		}
-		if full && !strings.Contains("fbkodDeEmgGvy?/tai", it.key) {
+		if full && !strings.Contains("fbkodDeEmgGvwy?/tai", it.key) {
 			continue
 		}
 		out = append(out, it)

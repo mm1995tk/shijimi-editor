@@ -793,6 +793,10 @@ func (a *App) handleChangesKey(msg tea.KeyPressMsg) tea.Cmd {
 		a.pending = ""
 		return a.reviewKey(key)
 	}
+	if a.pending == "space w" {
+		a.pending = ""
+		return a.windowKey(key)
+	}
 	if a.pending == " " {
 		a.pending = ""
 		return a.spaceMode(key)

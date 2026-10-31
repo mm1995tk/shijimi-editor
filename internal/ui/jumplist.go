@@ -81,7 +81,7 @@ func (a *App) jumpMove(dir int) tea.Cmd {
 			return nil
 		}
 		l := a.jumps[i]
-		if !a.jumpable(l) || !a.openFile(l.path) {
+		if !a.jumpable(l) || !a.openFileHere(l.path) {
 			a.jumps = append(a.jumps[:i], a.jumps[i+1:]...)
 			if dir > 0 {
 				i--

@@ -35,10 +35,13 @@ func (m editMode) label() string {
 // ctrl chords. Anything else would edit a buffer that is not visible.
 func (a *App) fullPreviewKey(key string) bool {
 	if a.pending == " " {
-		return strings.Contains("fbkodDeEmgGvy?/ta", key) && len(key) == 1
+		return strings.Contains("fbkodDeEmgGvwy?/ta", key) && len(key) == 1
 	}
 	if a.pending == "space v" {
 		return true // review commands do not edit the hidden buffer
+	}
+	if a.pending == "space w" {
+		return true
 	}
 	if a.pending != "" {
 		return a.pending == "g"
@@ -299,6 +302,8 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 		return a.spaceMode(key)
 	case "space v":
 		return a.reviewKey(key)
+	case "space w":
+		return a.windowKey(key)
 	}
 	return nil
 }
@@ -307,7 +312,7 @@ func (a *App) helixPending(p, key string, msg tea.KeyPressMsg) tea.Cmd {
 func (a *App) spaceMode(key string) tea.Cmd {
 	if a.single {
 		switch key {
-		case "f", "b", "d", "D", "e", "E", "g", "G", "v", "i", "?", "/", "t", "a", "s":
+		case "f", "b", "d", "D", "e", "E", "g", "G", "v", "w", "i", "?", "/", "t", "a", "s":
 			return nil
 		}
 	}
@@ -347,6 +352,9 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		return a.openDiff(baseHead)
 	case "v":
 		return a.openReviewMenu()
+	case "w":
+		a.pending = "space w"
+		return nil
 	case "i":
 		return a.toggleAgentPanel()
 	case "y":
@@ -560,8 +568,7 @@ func (a *App) bufferPicker() tea.Cmd {
 	}
 	return a.pal.pick(i18n.T("helix.buffers"), items, func(i int) tea.Cmd {
 		a.pushJump()
-		a.active = i
-		a.follow = true
+		a.showInPane(i)
 		return a.setFocus(focusEditor)
 	})
 }

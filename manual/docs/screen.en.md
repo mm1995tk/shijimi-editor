@@ -65,7 +65,7 @@ The sizes are kept until you quit shijimi.
 
 ## Switching files
 
-There is no tab bar. The files you have opened are kept in a list, and only the current one is shown, with its path on the title line.
+There is no tab bar. The files you have opened are kept in a list, and only the current one is shown, with its path on the title line. To see two files at once, [split the editor](#split-editor).
 
 | Key | Action |
 | --- | --- |
@@ -75,6 +75,24 @@ There is no tab bar. The files you have opened are kept in a list, and only the 
 | `Ctrl+W` | Close the current file (remove it from the list) |
 
 `Ctrl+Tab` only reaches shijimi on terminals that support the kitty keyboard protocol. Elsewhere use `ga` or `Space b`.
+
+## Split editor
+
+You can split the editor into two panes side by side, to read two files together (an implementation and its test, for example). Each pane has its own title line. There is no up-and-down split and no third pane. Most of the time there is one pane.
+
+| Helix mode | VS Code mode | Action |
+| --- | --- | --- |
+| `Space w v` | `Ctrl+\` | Split. The current file stays on the left, and the right pane, which takes the focus, shows the last file (`ga`). If there is none, the file picker opens |
+| `Space w h` / `Space w l` / `Space w w` | `Ctrl+1` / `Ctrl+2` | Move the focus to the left pane / the right pane / the other pane (also: click or scroll in a pane) |
+| `Space w q` / `Space w o` | `Ctrl+\` | Close the split. `q` keeps the other pane's file and `o` (and `Ctrl+\`) keeps the focused pane's file. The closed file stays in the list of open files |
+
+`:vsplit` (`:vs`) and `:only` do the same from the command line, and the command palette has them too. (`Ctrl+W` is "close the file", so the Helix `Ctrl+W` window keys are under `Space w` instead.)
+
+- `Space b`, `ga` / `Ctrl+Tab` and `Ctrl+O` / `Ctrl+I` act on the focused pane. Each pane keeps its own last file for `ga`. The other pane is not touched; a file the other pane shows is swapped into this pane.
+- The same file is never in both panes. Opening a file that the other pane shows (from the file tree, for example) moves the focus to that pane.
+- `Ctrl+W` closes the focused pane's file. The split closes too, and the other file fills the area.
+- The two panes are the same width (the mouse cannot resize them). The split needs an editor area at least 41 columns wide.
+- In diff mode the editor is one pane, and the split comes back when you leave diff mode. The Markdown preview and images work inside a pane.
 
 ## Command palette
 

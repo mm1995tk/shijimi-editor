@@ -38,6 +38,9 @@ func defaultCommands() []command {
 		{i18n.T("cmd.resize"), "Alt+R", func(a *App) tea.Cmd { return a.startResize() }},
 		{i18n.T("cmd.resetsizes"), i18n.T("cmd.resetsizes.key"), func(a *App) tea.Cmd { a.resetPanes(); return nil }},
 		{i18n.T("cmd.lastfile"), "ga / Ctrl+Tab", func(a *App) tea.Cmd { a.switchLast(); return nil }},
+		{i18n.T("cmd.split"), "Ctrl+\\ / Space w v / :vsplit", func(a *App) tea.Cmd { return a.splitOpen() }},
+		{i18n.T("cmd.splitfocus"), "Ctrl+1 Ctrl+2 / Space w h l w", func(a *App) tea.Cmd { return a.focusOtherPane() }},
+		{i18n.T("cmd.splitclose"), "Ctrl+\\ / Space w q o / :only", func(a *App) tea.Cmd { a.closeSplit(true); return nil }},
 		{i18n.T("cmd.find"), "Ctrl+F / /", func(a *App) tea.Cmd {
 			if a.helix {
 				return a.openCmdline("/")
@@ -266,6 +269,11 @@ func (a *App) execCommand(line string) tea.Cmd {
 		return tea.Batch(cmd, a.term.run(arg))
 	case "preview", "md":
 		return a.togglePreview()
+	case "vsplit", "vs", "split", "sp":
+		return a.splitOpen()
+	case "only", "on":
+		a.closeSplit(true)
+		return nil
 	case "gitdiff", "gd", "review":
 		return a.gitDiffCommand(arg)
 	case "pr":

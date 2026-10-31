@@ -237,6 +237,7 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 | --- | --- |
 | `Space f` | Open a file |
 | `Space b` | Open buffers |
+| `Space w` | Window (split) menu: `v` split the editor in two side by side, `h` `l` `w` move the focus, `q` `o` close the split |
 | `Space e` | Go to the file tree |
 | `Space k` | Hover. While it is shown, scroll with `Ctrl+D` / `Ctrl+U` (`PgDn` / `PgUp`, wheel); copy the Markdown source with `y` or by clicking `[Copy]` at the top right of the frame |
 | `Space o` | Open the URL under the cursor in the external browser (Linux: `xdg-open` / macOS: `open`) |
@@ -274,6 +275,7 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 | `Ctrl+S` | Save |
 | `Ctrl+W` | Close the current file (remove it from the list of open files) |
 | `Ctrl+Tab` | Go back and forth between the last file and this one. It needs a terminal that supports the kitty keyboard protocol; elsewhere use `ga` in Helix mode, or `Space b` |
+| `Ctrl+\` | Split the editor into two panes side by side / close the split (`Ctrl+1` / `Ctrl+2` move the focus). In Helix mode: `Space w v`, `Space w h` `l` `w`, `Space w q` `o`; also `:vsplit` and `:only`. Each pane has its own title line, and `Space b`, `ga` / `Ctrl+Tab`, `Ctrl+O` / `Ctrl+I` act on the focused pane. At most two panes, side by side; the same file is not shown in both. Not available in diff mode (one pane then) |
 | `Ctrl+Q` | Quit |
 
 ### File tree
