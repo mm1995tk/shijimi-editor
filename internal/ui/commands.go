@@ -160,7 +160,6 @@ func (a *App) cmdlineInput(msg Input) tea.Cmd {
 
 func (a *App) renderCmdline() string {
 	prefix := a.cmdKind
-	a.cmdInput.SetWidth(max(1, a.w-3))
 	return stPanel.Render(prefix) + fitStyled(a.cmdInput.View(), a.w-1, stPanel)
 }
 

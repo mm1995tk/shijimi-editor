@@ -2144,6 +2144,7 @@ func (a *App) renderText(t *tab, l layout, focused bool) []string {
 }
 
 func (a *App) View() tea.View {
+	a.fit()
 	frame, caretAt := a.renderFrame()
 	v := tea.NewView(frame)
 	// Image data goes out before the frame whose placeholder cells show it.
@@ -2181,17 +2182,6 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		return i18n.T("app.toosmall"), nil
 	}
 	l := a.layout()
-	if t := a.curText(); t != nil {
-		if a.follow {
-			if dv := a.diffFor(t); dv != nil {
-				a.ensureDiffVisible(t, dv, a.editW(t, l), a.dvGeom(l).h)
-			} else if !a.fullPreview(t) { // the hidden editor is 0 wide: following it would scroll to the cursor column
-				ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
-			}
-			a.follow = false
-		}
-		t.buf.ScrollRow = clamp(t.buf.ScrollRow, 0, max(0, len(t.buf.Lines)-1))
-	}
 
 	right := make([]string, 0, l.bodyH)
 	editorFocused := a.focus == focusEditor && !a.overlayOpen()
@@ -2296,7 +2286,6 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	}
 
 	if a.pal.open {
-		a.pal.filter(a.commands)
 		pw := clamp(a.w*3/5, 30, 100)
 		box := a.pal.render(pw)
 		rows = overlay(rows, box, (a.w-pw)/2, 1)
@@ -2391,11 +2380,15 @@ func (a *App) renderTitle(t *tab, w int, focused bool) string {
 
 func findLabel() string { return i18n.T("app.findlabel") }
 
+// findInputCells is the width of the find bar between its label and hint.
+func findInputCells(w int) int {
+	return w - lipgloss.Width(stFindLabel.Render(findLabel())) - lipgloss.Width(stFind.Render(i18n.T("app.findhint")))
+}
+
 func (a *App) renderFind(w int) string {
 	label := stFindLabel.Render(findLabel())
 	hint := stFind.Render(i18n.T("app.findhint"))
-	iw := w - lipgloss.Width(label) - lipgloss.Width(hint)
-	a.findInput.SetWidth(max(1, iw-1))
+	iw := findInputCells(w)
 	return label + fitStyled(a.findInput.View(), iw, stFind) + hint
 }
 
@@ -2560,4 +2553,35 @@ func (a *App) overlayOpen() bool { return a.pal.open || a.search.open }
 // infoText shows an already-formatted message in the status line.
 func (a *App) infoText(s string) {
 	a.msg, a.msgErr = s, false
+}
+
+// fit brings the state that depends on the window size and on what is open
+// up to date for the frame about to be drawn: the scroll that follows the
+// cursor, the palette's filtered list and the widths of the inputs. It runs
+// before renderFrame, which only reads the state.
+func (a *App) fit() {
+	if a.w < 30 || a.h < 8 {
+		return
+	}
+	l := a.layout()
+	if t := a.curText(); t != nil {
+		if a.follow {
+			if dv := a.diffFor(t); dv != nil {
+				a.ensureDiffVisible(t, dv, a.editW(t, l), a.dvGeom(l).h)
+			} else if !a.fullPreview(t) { // the hidden editor is 0 wide: following it would scroll to the cursor column
+				ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
+			}
+			a.follow = false
+		}
+		t.buf.ScrollRow = clamp(t.buf.ScrollRow, 0, max(0, len(t.buf.Lines)-1))
+	}
+	if a.pal.open {
+		a.pal.filter(a.commands)
+	}
+	if a.findOpen {
+		a.findInput.SetWidth(max(1, findInputCells(l.rightW)-1))
+	}
+	if a.cmdOpen {
+		a.cmdInput.SetWidth(max(1, a.w-3))
+	}
 }
