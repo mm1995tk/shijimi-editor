@@ -48,6 +48,11 @@ func (t *Theme) Palette() screen.Palette {
 		screen.StyleHoverCodeBg: t.HoverCodeBg, screen.StyleHoverInline: t.HoverInline,
 		screen.StyleHoverHead: t.HoverHead, screen.StyleHoverRule: t.HoverRule,
 
+		// Markdown プレビューの色はテーマに依らず決まっている（今までと同じ色）
+		screen.StyleMdH1: "#4fc1ff", screen.StyleMdH2: "#569cd6", screen.StyleMdH3: "#9cdcfe",
+		screen.StyleMdCode: "#ce9178", screen.StyleMdCodeBg: "#2d2d2d", screen.StyleMdLink: "#4fc1ff",
+		screen.StyleMdImage: "#6e6e6e", screen.StyleMdQuote: "#6a9955", screen.StyleMdListMark: "#9cdcfe",
+
 		screen.StyleDiffAddBg: t.AddBg, screen.StyleDiffDelBg: t.DelBg,
 		screen.StyleDiffAddSign: t.AddSign, screen.StyleDiffDelSign: t.DelSign, screen.StyleDiffModSign: t.ModSign,
 		screen.StyleDiffAddWordBg: t.AddWordBg, screen.StyleDiffDelWordBg: t.DelWordBg,

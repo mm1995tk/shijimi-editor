@@ -40,7 +40,7 @@ type tab struct {
 
 	// Markdown preview beside the buffer
 	preview   previewMode
-	prevCache []string
+	prevCache *mdDoc
 	prevW     int
 	prevVer   int
 	prevGen   int

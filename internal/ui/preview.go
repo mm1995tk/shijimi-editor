@@ -11,12 +11,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // Markdown preview: a read-only rendering shown to the right of the buffer.
@@ -36,9 +40,6 @@ type previewJob struct {
 	// stamp is the size and modification time of an image file when it was
 	// last read; a change makes it read again.
 	stamp fileStamp
-
-	cacheW int
-	cache  []string
 }
 
 // fileStamp tells whether a file changed. The zero value is a missing file.
@@ -75,11 +76,11 @@ func mermaidBlocks(text string) []string {
 // shown on their own line, as the preview finds them.
 func previewSources(text string) (blocks, images []string) {
 	renderMarkdown(text, 80, mdOpts{
-		mermaid: func(code string, _ int) []string {
+		mermaid: func(code string, _ int) *mdMedia {
 			blocks = append(blocks, code)
 			return nil
 		},
-		image: func(_, src string, _ int) []string {
+		image: func(_, src string, _ int) *mdMedia {
 			images = append(images, src)
 			return nil
 		},
@@ -227,7 +228,7 @@ func (a *App) handleMermaidDone(m mermaidDoneMsg) {
 	if job == nil {
 		return
 	}
-	job.done, job.cache = true, nil
+	job.done = true
 	a.previewGen++
 	if m.err != nil {
 		job.err = m.err.Error()
@@ -295,7 +296,7 @@ func (a *App) handleMDImageDone(m mdImageDoneMsg) {
 	if job.img != nil {
 		job.img.close()
 	}
-	job.done, job.cache, job.img, job.err = true, nil, nil, ""
+	job.done, job.img, job.err = true, nil, ""
 	a.previewGen++
 	if err := m.img.err; err != nil {
 		// the path is shown already; keep only the reason
@@ -308,79 +309,206 @@ func (a *App) handleMDImageDone(m mdImageDoneMsg) {
 	job.img = m.img
 }
 
-// mdImageLines draws an image that has a line of its own in the preview of
-// the Markdown file mdPath, the same way as a mermaid diagram. Images that
-// are not local files are left to be shown as text.
-func (a *App) mdImageLines(mdPath string) func(alt, src string, w int) []string {
-	return func(alt, src string, w int) []string {
+// mdImageLines makes the rows of an image that has a line of its own in the
+// preview of the Markdown file mdPath, the same way as a mermaid diagram.
+// Images that are not local files are left to be shown as text.
+func (a *App) mdImageLines(mdPath string) func(alt, src string, w int) *mdMedia {
+	return func(alt, src string, w int) *mdMedia {
 		path := mdImagePath(mdPath, src)
 		if path == "" {
 			return nil
 		}
-		label := func() []string {
-			return []string{fitEmpty(mdRender(inlineCells("🖼 "+alt, mdStyle{fg: "#6e6e6e"})), w)}
+		label := func() []screen.Line {
+			return []screen.Line{mdRow(fitSpans(mdSpans(inlineCells("🖼 "+alt, mdStyle{fg: screen.StyleMdImage})), w)...)}
 		}
-		return jobLines(a.mdImages[path], w, i18n.T("preview.loadingimage"), src+": ", label)
+		return jobLines(a.mdImages[path], blobFile+path, w, i18n.T("preview.loadingimage"), src+": ", label)
 	}
 }
 
-// jobLines draws a mermaid diagram or an image when it is ready. Until then,
-// or when it failed, it draws above (the source, or the image's alt text)
-// with a line that says it is loading or what went wrong.
-func jobLines(job *previewJob, w int, loading, errPrefix string, above func() []string) []string {
-	note := func(text string, err bool) []string {
-		st := stPanelDim
-		if err {
-			st = bgfg(cEditorBg, cError)
+// What a screen.ImageRef.Blob of the preview names: a local image file, or a
+// mermaid diagram by the key of its source.
+const (
+	blobFile    = "file:"
+	blobMermaid = "mermaid:"
+)
+
+// previewImage is the image that a Blob of the preview names, nil when it is
+// gone.
+func (a *App) previewImage(blob string) *imageView {
+	if path, ok := strings.CutPrefix(blob, blobFile); ok {
+		if job := a.mdImages[path]; job != nil {
+			return job.img
 		}
-		return append(above(), st.Render(fit(" "+text, w)))
+	}
+	if key, ok := strings.CutPrefix(blob, blobMermaid); ok {
+		if job := a.mermaid[key]; job != nil {
+			return job.img
+		}
+	}
+	return nil
+}
+
+// jobLines makes the rows of a mermaid diagram or an image. When it is ready
+// they are empty rows the image fills, named by blob. Until then, or when it
+// failed, they are above (the source, or the image's alt text) with a line
+// that says it is loading or what went wrong.
+func jobLines(job *previewJob, blob string, w int, loading, errPrefix string, above func() []screen.Line) *mdMedia {
+	note := func(text string, err bool) *mdMedia {
+		st := screen.StyleLineNo
+		if err {
+			st = screen.StyleError
+		}
+		return &mdMedia{Lines: append(above(), mdRow(screen.Span{Text: fit(" "+text, w), Style: st}))}
 	}
 	switch {
 	case job == nil || !job.done:
 		return note(loading, false)
-	case job.err != "":
+	case job.err != "" || job.img == nil:
 		return note(errPrefix+job.err, true)
 	}
-	if job.cache != nil && job.cacheW == w {
-		return job.cache
+	b := job.img.img.Bounds()
+	rows := make([]screen.Line, clamp(job.img.rowsFor(w), 3, 28))
+	for i := range rows {
+		rows[i] = mdRow()
 	}
-	rows := clamp(job.img.rowsFor(w), 3, 28)
-	lines := job.img.render(w, rows+1)[1:] // drop the info line
-	job.cacheW, job.cache = w, lines
-	return lines
+	return &mdMedia{Lines: rows, Tight: job.img.rowsFor(w) < 3, Image: &screen.ImageRef{Blob: blob, Width: b.Dx(), Height: b.Dy()}}
 }
 
 func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
-// mermaidLines draws one diagram (or its placeholder) for the preview.
-func (a *App) mermaidLines(code string, w int) []string {
-	source := func() []string { return mdCodeBlock(strings.Split(code, "\n"), "mermaid", w) }
-	return jobLines(a.mermaid[a.mermaidKey(code)], w, i18n.T("preview.rendering"), "mermaid: ", source)
+// mermaidLines makes the rows of one diagram (or its placeholder) for the preview.
+func (a *App) mermaidLines(code string, w int) *mdMedia {
+	source := func() []screen.Line { return mdCodeBlock(strings.Split(code, "\n"), "mermaid", w) }
+	key := a.mermaidKey(code)
+	return jobLines(a.mermaid[key], blobMermaid+key, w, i18n.T("preview.rendering"), "mermaid: ", source)
 }
 
-// previewLines renders the document in the preview pane, scrolled so the
-// part around the editor cursor is visible.
-func (a *App) previewLines(t *tab, w, h int) []string {
-	text := t.buf.Text()
+// buildPreviewPane makes the Pane of the Markdown preview of t, w columns
+// wide and h rows high: the part of the document in view, scrolled so the part
+// around the editor cursor is visible. It changes nothing but the cache of the
+// document rendered at width w (prevCache), which is made again when the
+// width, the buffer or an image changed.
+func (a *App) buildPreviewPane(t *tab, w, h int) screen.Pane {
 	if t.prevCache == nil || t.prevW != w || t.prevVer != t.buf.Version || t.prevGen != a.previewGen {
-		t.prevCache = renderMarkdown(text, w, mdOpts{mermaid: a.mermaidLines, image: a.mdImageLines(t.buf.Path), frontMatter: true})
+		doc := renderMarkdown(t.buf.Text(), w, mdOpts{mermaid: a.mermaidLines, image: a.mdImageLines(t.buf.Path), frontMatter: true})
+		t.prevCache = &doc
 		t.prevW, t.prevVer, t.prevGen = w, t.buf.Version, a.previewGen
 	}
-	all := t.prevCache
+	all := t.prevCache.Lines
 	top := 0
 	if span := len(all) - h; span > 0 {
 		n := max(1, len(t.buf.Lines)-1)
 		top = clamp(t.buf.Cur.Row*span/n, 0, span)
 	}
-	out := make([]string, 0, h)
-	for i := range h {
-		if top+i < len(all) {
-			out = append(out, all[top+i])
-		} else {
-			out = append(out, stEmpty.Render(strings.Repeat(" ", w)))
+	end := min(len(all), top+max(0, h))
+	p := screen.Pane{
+		ID:       t.path() + "#preview",
+		Kind:     screen.KindPreview,
+		Title:    screen.Title{Text: t.title(), Dirty: t.dirty()},
+		Viewport: screen.Viewport{Top: top, Rows: h, Cols: w, Total: len(all)},
+		CurLine:  t.buf.Cur.Row,
+		Preview:  &screen.PreviewInfo{Top: top, Rows: len(all), Images: []screen.PreviewImage{}},
+	}
+	for i, l := range all[top:end] {
+		l.No = top + i
+		p.Lines = append(p.Lines, l)
+	}
+	for _, im := range t.prevCache.Images {
+		if im.Row < end && im.Row+im.Rows > top {
+			p.Preview.Images = append(p.Preview.Images, im)
 		}
 	}
+	return p
+}
+
+// previewLines draws the Markdown preview of t in an area w x h.
+func (a *App) previewLines(t *tab, w, h int) []string {
+	return a.drawPreview(a.buildPreviewPane(t, w, h), w, h)
+}
+
+// drawPreview draws the Pane of a Markdown preview as h lines of w cells.
+func (a *App) drawPreview(p screen.Pane, w, h int) []string {
+	out := a.drawMdRows(p.Lines, p.Preview.Top, p.Preview.Images, w)
+	for len(out) < h {
+		out = append(out, stEmpty.Render(strings.Repeat(" ", w)))
+	}
 	return out
+}
+
+// drawMdDoc draws a rendered Markdown document as lines of w cells.
+func (a *App) drawMdDoc(doc mdDoc, w int) []string {
+	return a.drawMdRows(doc.Lines, 0, doc.Images, w)
+}
+
+// markdownLines renders src as lines of w cells.
+func (a *App) markdownLines(src string, w int, o mdOpts) []string {
+	return a.drawMdDoc(renderMarkdown(src, w, o), w)
+}
+
+// drawMdRows draws lines, which are the rows of a document from row top, as
+// lines of w cells. The rows of images are drawn from the images in the
+// terminal; images are the ones that may be in view.
+func (a *App) drawMdRows(lines []screen.Line, top int, images []screen.PreviewImage, w int) []string {
+	out := make([]string, 0, len(lines))
+	rows := map[int][]string{} // the rows of an image, by its index in images
+	for i, l := range lines {
+		row := top + i
+		idx := slices.IndexFunc(images, func(im screen.PreviewImage) bool { return row >= im.Row && row < im.Row+im.Rows })
+		if idx < 0 {
+			out = append(out, drawMdLine(l, w))
+			continue
+		}
+		im := images[idx]
+		if rows[idx] == nil {
+			iw := max(0, w-im.Col)
+			if iv := a.previewImage(im.Image.Blob); iv != nil {
+				rows[idx] = iv.render(iw, im.Rows+1)[1:] // drop the info line
+			} else { // gone: drawn again when the preview is made again
+				blank := stEmpty.Render(strings.Repeat(" ", iw))
+				rows[idx] = slices.Repeat([]string{blank}, im.Rows)
+			}
+		}
+		out = append(out, drawMdLine(l, im.Col)+rows[idx][row-im.Row])
+	}
+	return out
+}
+
+// mdSpanKey is the look of a span as the terminal draws it.
+type mdSpanKey struct {
+	fg, bg                      string
+	bold, italic, under, strike bool
+}
+
+var mdSpanStyles = map[mdSpanKey]lipgloss.Style{}
+
+// drawMdLine draws l, w cells wide: the rest of the line after its spans is
+// the editor background.
+func drawMdLine(l screen.Line, w int) string {
+	var sb strings.Builder
+	used := 0
+	for _, sp := range l.Spans {
+		if sp.Text == "" {
+			continue
+		}
+		k := mdSpanKey{styleColor(sp.Style), styleColor(sp.Bg), sp.Bold, sp.Italic, sp.Underline, sp.Strike}
+		if k.fg == "" {
+			k.fg = cEditorFg
+		}
+		if k.bg == "" {
+			k.bg = cEditorBg
+		}
+		st, ok := mdSpanStyles[k]
+		if !ok {
+			st = bgfg(k.bg, k.fg).Bold(k.bold).Italic(k.italic).Underline(k.under).Strikethrough(k.strike)
+			mdSpanStyles[k] = st
+		}
+		sb.WriteString(st.Render(sp.Text))
+		used += ansi.StringWidth(sp.Text)
+	}
+	if used < w {
+		sb.WriteString(stEmpty.Render(strings.Repeat(" ", w-used)))
+	}
+	return sb.String()
 }
 
 // wantedMermaid returns the mermaid blocks on screen: in the current tab's
