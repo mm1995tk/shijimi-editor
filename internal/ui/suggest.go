@@ -88,11 +88,9 @@ var failLine = regexp.MustCompile(`^\s*(--- FAIL|FAIL\b|FAILED\b|test result: FA
 
 // ---- gathering ----
 
-type repoProbedMsg struct{ probe repoProbe }
-
 // probeRepo looks at the repository in the background. Pull requests are
 // asked for only when the branch or HEAD moved, or every prProbeTicks.
-func (a *App) probeRepo() tea.Cmd {
+func (a *App) probeRepo() []Effect {
 	if a.gitTop == "" || a.sg.probing {
 		return nil
 	}
@@ -103,7 +101,7 @@ func (a *App) probeRepo() tea.Cmd {
 	if askPR {
 		a.sg.prTicks = 0
 	}
-	return func() tea.Msg { return repoProbedMsg{probeRepoState(root, prev, askPR)} }
+	return []Effect{RunProbe{Run: func() Event { return RepoProbed{probeRepoState(root, prev, askPR)} }}}
 }
 
 func probeRepoState(root string, prev repoProbe, askPR bool) repoProbe {
@@ -162,7 +160,7 @@ func defaultBranch(root string) string {
 	return ""
 }
 
-func (a *App) handleRepoProbed(m repoProbedMsg) {
+func (a *App) handleRepoProbed(m RepoProbed) {
 	a.sg.probing = false
 	a.sg.repo = m.probe
 	a.pruneDismissed()
@@ -176,7 +174,7 @@ func (a *App) suggestTick() tea.Cmd {
 	a.sg.ticks++
 	a.sg.prTicks++
 	if a.sg.ticks >= probeTicks {
-		return a.probeRepo()
+		return a.effectCmd(a.probeRepo()...)
 	}
 	return nil
 }

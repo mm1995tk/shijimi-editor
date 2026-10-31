@@ -10,8 +10,9 @@ import (
 )
 
 // cmdEffect carries a tea.Cmd through the Effect list. It is the bridge for work
-// that has not moved to an Effect yet (saving, reloading the CHANGES list, the
-// LSP request behind a hover); it goes away as P7a to P7e move those.
+// that has not moved to an Effect yet (saving, the
+// LSP request behind a hover, the CHANGES list, placing an AI review). P7a to
+// P7e are done; what is left goes away as P13 moves the rest into the core.
 type cmdEffect struct{ cmd tea.Cmd }
 
 func (cmdEffect) isEffect() {}
@@ -52,6 +53,14 @@ func (a *App) effectCmd(effs ...Effect) tea.Cmd {
 		case RunAgent:
 			run := e.Run
 			cmds = append(cmds, func() tea.Msg { run(); return nil })
+		case RunProbe:
+			run := e.Run
+			cmds = append(cmds, func() tea.Msg {
+				if ev := run(); ev != nil {
+					return ev
+				}
+				return nil
+			})
 		case ReplyCtl:
 			e.To <- e.Resp
 		case ReplyIDE:
@@ -81,6 +90,9 @@ func (a *App) handleEvent(ev Event) []Effect {
 		return a.hoverDwell(ev)
 	case SearchTick:
 		return a.searchTick(ev)
+	case RepoProbed:
+		a.handleRepoProbed(ev)
+		return nil
 	case SearchDone:
 		a.searchDone(ev)
 		return nil

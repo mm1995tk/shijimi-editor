@@ -140,7 +140,8 @@ type agentExitMsg struct {
 	err error
 }
 
-// agentHandler forwards the agent's requests into the Bubble Tea loop.
+// agentHandler forwards the agent's requests to the core as Events on
+// agentState.ch.
 type agentHandler struct {
 	ch  chan Event
 	gen int
@@ -284,9 +285,15 @@ func (a *App) stopAgent() {
 // ev was one.
 func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
 	s := a.ag
+	switch ev.(type) {
+	case agentReadyMsg, agentUpdateMsg, agentFileMsg, agentPermMsg, agentPermCancelMsg, agentTurnMsg, agentExitMsg:
+		// The WaitAgent that delivered ev is done; each case asks for the next.
+		s.armed = false
+	default:
+		return nil, false
+	}
 	switch m := ev.(type) {
 	case agentReadyMsg:
-		s.armed = false
 		if m.gen != s.gen {
 			if m.client != nil {
 				m.client.Close()
@@ -305,13 +312,11 @@ func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
 		}
 		return append([]Effect{a.sendPrompt()}, s.wait()...), true
 	case agentUpdateMsg:
-		s.armed = false
 		if m.gen == s.gen {
 			a.agentUpdate(m.u)
 		}
 		return s.wait(), true
 	case agentFileMsg:
-		s.armed = false
 		if m.gen != s.gen {
 			m.reply <- agentFileReply{err: errors.New(i18n.T("agent.sessionended"))}
 			return s.wait(), true
@@ -332,7 +337,6 @@ func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
 		}
 		return effs, true
 	case agentPermMsg:
-		s.armed = false
 		if m.ask.gen != s.gen {
 			m.ask.reply <- ""
 			return s.wait(), true
@@ -344,7 +348,6 @@ func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
 		}
 		return s.wait(), true
 	case agentPermCancelMsg:
-		s.armed = false
 		for i, p := range s.perms {
 			if p.reply == m.reply {
 				s.perms = append(s.perms[:i], s.perms[i+1:]...)
@@ -353,13 +356,11 @@ func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
 		}
 		return s.wait(), true
 	case agentTurnMsg:
-		s.armed = false
 		if m.gen != s.gen {
 			return s.wait(), true
 		}
 		return append(cmdEffects(a.endTurn(m)), s.wait()...), true
 	case agentExitMsg:
-		s.armed = false
 		if m.gen != s.gen {
 			return s.wait(), true
 		}

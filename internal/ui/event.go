@@ -186,3 +186,14 @@ type RunAgent struct{ Run func() }
 
 func (WaitAgent) isEffect() {}
 func (RunAgent) isEffect()  {}
+
+// RepoProbed carries what the suggestion panel's background look at the
+// repository found (branch, conflicts, pull requests).
+type RepoProbed struct{ probe repoProbe }
+
+// RunProbe asks for Run to be called off the main loop and its Event to be
+// delivered.
+type RunProbe struct{ Run func() Event }
+
+func (RepoProbed) isEvent() {}
+func (RunProbe) isEffect()  {}
