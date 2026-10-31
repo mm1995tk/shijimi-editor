@@ -76,6 +76,7 @@ func IntID(n int64) ID { return ID(fmt.Appendf(nil, "%d", n)) }
 // IsZero は id が無い（通知）かを返す。
 func (i ID) IsZero() bool { return len(i) == 0 }
 
+// String は id の生の JSON を返す。
 func (i ID) String() string { return string(i) }
 
 // Message は線の上を流れる 1 件。要求・通知・応答・エラー応答のどれかになる。
@@ -155,7 +156,7 @@ func (m *Message) UnmarshalJSON(b []byte) error {
 		if len(m.Result) > 0 {
 			return Errorf(CodeInvalidRequest, "a response must not have both result and error")
 		}
-	case len(m.Result) == 0 && m.ID.IsZero():
+	case len(m.Result) == 0:
 		return Errorf(CodeInvalidRequest, "neither method, result nor error")
 	}
 	return nil

@@ -16,13 +16,16 @@ type Codec interface {
 	// Read は次の 1 件を返す。終わりは io.EOF。
 	// 1 件の形が壊れていて、続きは読めるときは *Error（CodeParseError / CodeInvalidRequest）を返す。
 	Read() (*Message, error)
+	// Write は 1 件を書く。複数の goroutine から呼んでよい（Codec の中で直列にする）。
 	Write(*Message) error
 }
 
 // Encoding は分け方（framing）と中身の符号化の組。session.hello の encoding で名前を選び、
 // あとで MessagePack（長さ付き）を足せるようにここで差し替える。
 type Encoding interface {
+	// Name は session.hello の encoding で選ぶ名前。
 	Name() string
+	// NewCodec は r から読み w に書く Codec を作る。
 	NewCodec(r io.Reader, w io.Writer) Codec
 }
 
@@ -37,8 +40,10 @@ type JSON struct {
 	MaxLine int
 }
 
+// Name は "json" を返す。
 func (JSON) Name() string { return "json" }
 
+// NewCodec は r から読み w に書く、改行区切りの JSON の Codec を作る。
 func (e JSON) NewCodec(r io.Reader, w io.Writer) Codec {
 	max := e.MaxLine
 	if max <= 0 {

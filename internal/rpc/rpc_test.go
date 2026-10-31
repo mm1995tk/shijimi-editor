@@ -62,6 +62,7 @@ func TestInvalidMessages(t *testing.T) {
 		"bad version":  `{"jsonrpc":"1.0","id":1,"method":"a"}`,
 		"bad id":       `{"jsonrpc":"2.0","id":{},"method":"a"}`,
 		"empty":        `{"jsonrpc":"2.0"}`,
+		"id only":      `{"jsonrpc":"2.0","id":1}`,
 		"both":         `{"jsonrpc":"2.0","id":1,"result":1,"error":{"code":1,"message":"x"}}`,
 		"req w/ error": `{"jsonrpc":"2.0","id":1,"method":"a","error":{"code":1,"message":"x"}}`,
 	} {
@@ -230,7 +231,9 @@ func TestNotificationsKeepOrder(t *testing.T) {
 
 func TestCallContextAndClose(t *testing.T) {
 	block := make(chan struct{})
+	entered := make(chan struct{}, 2)
 	ca, cb := pair(t, nil, func(ctx context.Context, r *Message) (any, error) {
+		entered <- struct{}{}
 		select {
 		case <-block:
 		case <-ctx.Done():
@@ -246,7 +249,8 @@ func TestCallContextAndClose(t *testing.T) {
 	// 相手が閉じると、待っている Call は ErrClosed で戻り、Done が閉じる
 	errc := make(chan error, 1)
 	go func() { errc <- ca.Call(context.Background(), "slow", nil, nil) }()
-	time.Sleep(20 * time.Millisecond)
+	<-entered // 1 回目（時間切れ）の分
+	<-entered // 2 回目が Handler に入るまで待つ
 	cb.Close()
 	select {
 	case err := <-errc:

@@ -13,10 +13,11 @@ import (
 //
 // 通知（req.IsNotification）は読んだ順に 1 件ずつ、読みの goroutine の中で呼ばれる。
 // 戻り値は捨てられる。重い処理はここでしない（読みが止まる）。
+// ここから Conn.Call してはいけない（応答を読む人がいなくなり、必ず詰まる）。必要なら別の goroutine で呼ぶ。
 //
 // 要求は 1 件ごとに別の goroutine で呼ばれ、戻り値が応答になる。
 // result は json.Marshal できる値。err が *Error ならそのまま、それ以外は CodeInternalError にする。
-// ctx は接続が閉じると取り消される。Handler の中から Conn.Call してもよい。
+// ctx は接続が閉じると取り消される。要求の Handler の中からは Conn.Call してもよい。
 type Handler func(ctx context.Context, req *Message) (result any, err error)
 
 // ErrClosed は閉じた接続に使ったときのエラー。
@@ -69,6 +70,7 @@ func (c *Conn) Err() error {
 }
 
 // Close は接続を閉じる。待っている Call は ErrClosed で戻る。実行中の Handler の終わりも待つ。
+// Handler の中から呼んではいけない（自分を待って詰まる）。閉じるなら別の goroutine で。
 func (c *Conn) Close() error {
 	c.shutdown(ErrClosed)
 	err := c.closer.Close()
@@ -213,8 +215,8 @@ func (c *Conn) serve(req *Message) {
 	}
 	res, err := c.handler(c.ctx, req)
 	if err != nil {
-		var re *Error
-		if !errors.As(err, &re) {
+		re, ok := errors.AsType[*Error](err)
+		if !ok {
 			re = Errorf(CodeInternalError, "%v", err)
 		}
 		c.reply(&Message{ID: req.ID, Error: re})
