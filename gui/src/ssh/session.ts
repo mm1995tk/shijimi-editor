@@ -6,6 +6,7 @@
 // Solid などの画面の仕組みには依存しない。
 
 import type { Client } from "../rpc/client.ts";
+import { ErrorCode, RpcError } from "../rpc/message.ts";
 import type {
   HelloResult,
   Notifications,
@@ -50,8 +51,12 @@ export type SessionState =
   | { kind: "installing"; plan: InstallPlan }
   /** 回数を使い切った。ボタンで retry() できる */
   | { kind: "failed"; message: string }
-  /** 別の GUI に引き継がれた。自動ではつなぎ直さない（取り合いになるため。表示は C7） */
-  | { kind: "superseded" }
+  /**
+   * 別の GUI に引き継がれた。自動ではつなぎ直さない（あとからつないだほうが勝つ。取り返すと取り合いになる）。
+   * retry() でつなぎ直せる（そのときは、あちらの GUI が切れる）。
+   * by は引き継いだ GUI（session.superseded で来たとき）。not_owner で気づいたときは無い。
+   */
+  | { kind: "superseded"; by?: Notifications["session.superseded"]["by"] }
   | { kind: "closed" };
 
 /** Session の調整値。どれも省くと下の既定値。 */
@@ -326,24 +331,34 @@ export class Session {
     this.serverId = conn.hello.serverId;
     this.rev = conn.hello.rev;
     this.fetching = false;
-    let superseded = false;
+    // 引き継がれた。session.superseded か、閉じ損ねた接続への not_owner で気づく
+    let superseded: SessionState | undefined;
     const offs = [
-      conn.client.on("session.superseded", () => {
-        superseded = true;
+      conn.client.on("session.superseded", (p) => {
+        superseded = { kind: "superseded", by: p?.by };
+        // shj は送ったあと閉じるが、閉じ損ねても待たずにこちらから閉じる
+        conn.client.close("superseded by another GUI");
       }),
       conn.client.on("screen.update", (u) => this.handleUpdate(conn, gen, u)),
       conn.client.on("workspace.changed", (c) => {
         this._workspaces = applyWorkspaceChange(this._workspaces, c);
         this.emitWorkspaces();
       }),
-      startPing(conn.client, this.opts.pingIntervalMs, this.opts.pingTimeoutMs),
+      startPing(
+        conn.client,
+        this.opts.pingIntervalMs,
+        this.opts.pingTimeoutMs,
+        (e) => {
+          if (isNotOwner(e)) superseded ??= { kind: "superseded" };
+        },
+      ),
     ];
     conn.client.onClose((why) => {
       offs.forEach((f) => f());
       if (gen !== this.generation || this.conn !== conn) return;
       this.conn = undefined;
       if (superseded) {
-        this.setState({ kind: "superseded" });
+        this.setState(superseded);
         return;
       }
       void this.run(0, why ?? "connection ended");
@@ -407,14 +422,20 @@ export function applyWorkspaceChange(
   return [...ws.values()];
 }
 
+/** 引き継がれたあとの古い接続が要求したときのエラー（not_owner）か。 */
+export function isNotOwner(e: unknown): boolean {
+  return e instanceof RpcError && e.code === ErrorCode.NotOwner;
+}
+
 /**
  * session.ping を intervalMs ごとに送る。timeoutMs 経っても返事が無い（またはエラー）なら
- * 切れたとみなして client を閉じる。止める関数を返す。
+ * 切れたとみなして client を閉じる（閉じる前に onError に理由を渡す）。止める関数を返す。
  */
 export function startPing(
   client: Client,
   intervalMs: number,
   timeoutMs: number,
+  onError?: (e: unknown) => void,
 ): () => void {
   let pinging = false;
   const timer = setInterval(() => {
@@ -425,7 +446,10 @@ export function startPing(
       to = setTimeout(() => rej(new Error("ping timed out")), timeoutMs);
     });
     Promise.race([client.request("session.ping", {}), timeout])
-      .catch((e) => client.close(e instanceof Error ? e.message : String(e)))
+      .catch((e) => {
+        onError?.(e);
+        client.close(e instanceof Error ? e.message : String(e));
+      })
       .finally(() => {
         clearTimeout(to);
         pinging = false;

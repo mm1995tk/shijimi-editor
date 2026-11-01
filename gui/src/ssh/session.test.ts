@@ -12,6 +12,8 @@ function fakeShell(opts: {
   installFails?: string; // 入れるのがこの理由で失敗する
   installHangs?: boolean; // 入れる処理が終わらない（取り消されるまで）
   pingReply?: () => boolean;
+  /** ping にこのエラーで答える（引き継がれた後の not_owner など） */
+  pingError?: () => { code: number; message: string } | undefined;
 }) {
   const lines: Line[] = [];
   const closeds: ((e: ClosedEvent) => void)[] = [];
@@ -61,9 +63,17 @@ function fakeShell(opts: {
         case "screen.get":
           reply({ rev: 7, ackSeq: 0, focus: "w", status: null });
           break;
-        case "session.ping":
+        case "session.ping": {
+          const error = opts.pingError?.();
+          if (error) {
+            queueMicrotask(() =>
+              emit(id, { jsonrpc: "2.0", id: msg.id, error }),
+            );
+            break;
+          }
           if (opts.pingReply?.() ?? true) reply({});
           break;
+        }
         case "session.bye":
           reply({});
           break;
@@ -235,6 +245,64 @@ describe("Session", () => {
     f.drop(id);
     await waitFor(s, (st) => st.kind === "superseded");
     await new Promise((r) => setTimeout(r, 30));
+    assert.equal(f.connects, 1);
+  });
+
+  it("session.superseded を受けたら、shj が閉じ損ねても閉じて、引き継いだ GUI を状態に載せる", async () => {
+    const f = fakeShell({ serverIds: ["A", "A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    const by = {
+      client: { name: "shijimi-editor-gui", version: "2", kind: "web" },
+      connectedAt: "2026-11-01T10:00:00Z",
+    };
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "session.superseded",
+      params: { by },
+    });
+    const st = await waitFor(s, (x) => x.kind === "superseded");
+    assert.deepEqual(st, { kind: "superseded", by });
+    assert.equal(s.connection, undefined);
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(f.connects, 1, "自動では取り返さない");
+  });
+
+  it("引き継がれた後に retry すると、resume を付けてつなぎ直す", async () => {
+    const f = fakeShell({ serverIds: ["A", "A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await new Promise((r) => setTimeout(r, 10));
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "session.superseded",
+      params: { by: { client: {}, connectedAt: "t" } },
+    });
+    await waitFor(s, (st) => st.kind === "superseded");
+    s.retry();
+    await waitFor(s, (st) => st.kind === "connected");
+    assert.equal(f.connects, 2);
+    const hellos = f.sent.filter((x) => x.msg.method === "session.hello");
+    assert.deepEqual(hellos[1].msg.params.resume, { serverId: "A", rev: 7 });
+    await s.close();
+  });
+
+  it("ping に not_owner が返ったら、引き継がれたとみなして取り返さない", async () => {
+    const f = fakeShell({
+      serverIds: ["A", "A"],
+      pingError: () => ({ code: -32002, message: "not owner" }),
+    });
+    const s = new Session(f.api, "h", {
+      delays: [5],
+      pingIntervalMs: 20,
+      pingTimeoutMs: 1000,
+    });
+    s.start();
+    const st = await waitFor(s, (x) => x.kind === "superseded");
+    assert.deepEqual(st, { kind: "superseded" });
+    await new Promise((r) => setTimeout(r, 60));
     assert.equal(f.connects, 1);
   });
 
