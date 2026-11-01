@@ -31,3 +31,19 @@ body,
   flex: none;
   height: 300px;
 }
+
+/* ターミナルモード（F3。mode.ts）：ファイルの欄とターミナルのカードを入れ替える。
+   上が大きなターミナル、下がモックの 300px のファイルの欄。どちらも隠さない */
+.main[data-mode="terminal"] > .terminal {
+  order: -1;
+  flex: 1;
+  height: auto;
+  border-top: none;
+}
+
+.main[data-mode="terminal"] > .files {
+  order: 1;
+  flex: none;
+  height: 300px;
+  border-top: 1px solid #2a2f39;
+}
