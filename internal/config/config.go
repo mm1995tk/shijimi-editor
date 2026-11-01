@@ -146,6 +146,13 @@ type Terminal struct {
 	Multiplexer string
 }
 
+// Serve is the [server] section of config.toml, read by `shj serve`.
+type Serve struct {
+	// IdleStopDays is how many days `shj serve` waits with no GUI connected
+	// before it stops. 0 means it never stops.
+	IdleStopDays int
+}
+
 // Multiplexers are the values of [terminal] multiplexer.
 var Multiplexers = []string{"auto", "herdr", "tmux", "zellij", "cmux", "none"}
 
@@ -157,6 +164,7 @@ type Config struct {
 	Browser      Browser
 	Agent        Agent
 	Terminal     Terminal
+	Serve        Serve
 	Experimental Experimental
 	Languages    map[string]*Language
 	Servers      map[string]*Server
@@ -177,6 +185,7 @@ func Load(root string) *Config {
 		Browser:      Browser{ListenHost: "127.0.0.1"},
 		Experimental: Experimental{Default: channel.IsNightly(), Multiplexer: channel.IsNightly()},
 		Terminal:     Terminal{Multiplexer: "auto"},
+		Serve:        Serve{IdleStopDays: 7},
 		Editor:       Editor{UILanguage: i18n.Default, Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
 		Languages:    map[string]*Language{},
 		Servers:      map[string]*Server{},
@@ -200,6 +209,7 @@ func Load(root string) *Config {
 			c.mergeBrowser(string(data))
 			c.mergeExperimental(string(data))
 			c.mergeTerminal(string(data))
+			c.mergeServe(string(data))
 			if user {
 				c.mergeAgent(string(data))
 				c.mergeKeys(string(data))
@@ -211,6 +221,7 @@ func Load(root string) *Config {
 			c.mergeBrowserRaw(raw)
 			c.mergeExperimentalRaw(raw)
 			c.mergeTerminalRaw(raw)
+			c.mergeServeRaw(raw)
 			if user {
 				c.mergeAgentRaw(raw)
 				c.mergeKeysRaw(raw)
@@ -378,6 +389,29 @@ func (c *Config) mergeTerminalRaw(raw map[string]any) {
 			v = strings.ToLower(strings.TrimSpace(v))
 			if slices.Contains(Multiplexers, v) {
 				c.Terminal.Multiplexer = v
+			}
+		}
+	}
+}
+
+func (c *Config) mergeServe(data string) {
+	var raw map[string]any
+	if _, err := toml.Decode(data, &raw); err != nil {
+		return
+	}
+	c.mergeServeRaw(raw)
+}
+
+func (c *Config) mergeServeRaw(raw map[string]any) {
+	if t, ok := raw["server"].(map[string]any); ok {
+		switch v := t["idle_stop_days"].(type) {
+		case int64:
+			if v >= 0 {
+				c.Serve.IdleStopDays = int(v)
+			}
+		case float64:
+			if v >= 0 && v == float64(int(v)) {
+				c.Serve.IdleStopDays = int(v)
 			}
 		}
 	}

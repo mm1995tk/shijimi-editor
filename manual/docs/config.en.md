@@ -71,6 +71,9 @@ listen-host = "127.0.0.1"
 [terminal]
 multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "none"
 
+[server]
+idle_stop_days = 7        # 0 = never stop
+
 # Effective only in ~/.config/shijimi-editor/config.toml
 [agent]
 command = "claude-agent-acp"
@@ -96,6 +99,7 @@ args = []
 | `[keys.normal]` `[keys.insert]` `[keys.select]` | Remap keys in Helix mode (only in `~/.config/shijimi-editor/`) | [Editing (Helix mode)](editing-helix.md#remapping-keys) |
 | `browser.listen-host` | Listen address for port forwarding | [External browser and port forwarding](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | The ACP agent used by the suggestions panel | [AI agent integration](agent.md) |
+| `server.idle_stop_days` | Days `shj serve` stays up with no GUI connected before it stops itself (default 7, 0 = never). Running shells end with it; unsaved edits are written next to the file as `<name>.bk` (`.bk.1`, ... if taken) and the file itself is not changed | — |
 
 ## Themes
 
