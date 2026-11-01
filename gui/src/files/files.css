@@ -49,11 +49,27 @@
   overflow: hidden;
 }
 
-/* 左右に並べたペインの間の 1 桁 */
+/* 左右に並べたペインの間の 1 桁（E7）。真ん中に縦の線を引く（TUI の "│" と同じく枠の色）。
+   左右 2 つのファイルの間も、差分・プレビューの左右の間も同じ線にする（TUI と同じ）。
+   本文では上下の余白まで線を伸ばし、タイトル行の線とつなげる。 */
 .files-split {
+  position: relative;
   flex: none;
   width: 1ch;
   align-self: stretch;
+}
+
+.files-split::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  border-left: 1px solid var(--files-border);
+}
+
+.files-body > .files-split {
+  margin: calc(-1 * var(--files-pad-y)) 0;
 }
 
 .files-line {
