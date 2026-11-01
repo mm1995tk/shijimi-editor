@@ -9,6 +9,8 @@
 // - term.create の返事より先に term.output が届くことがあるので、作ったら term.attach（0 から）で取り直す。
 // - ワークスペースを移したら、workspace.focus の termId（そのワークスペースで最後に使ったターミナル）に
 //   切り替える。そのワークスペースにターミナルが無ければ、ルートで新しく作る（F2）。
+// - ターミナルを並べるとき（F4。group.ts）は、ターミナル 1 つにつき 1 つ作る。そのときは term.list で
+//   動いているものを拾わず（ほかの欄のシェルを拾わないため）、シェルが終わったら onExit で知らせる。
 //
 // DOM を使わないので node --test で確かめられる。画面は TermSink、shj は TermPort で差し替える。
 
@@ -46,8 +48,8 @@ export const RECREATED_NOTICE =
   "\r\n[前のシェルが見つからないので、新しいシェルを開きました]\r\n";
 
 /**
- * 1 つのマシンのターミナル 1 つと、それを描く画面をつなぐ。マシンごとに 1 つ作り、右下に出すときに
- * bind、外すときに unbind する。shj からの通知は handle に、つなぎ直したことは reconnected に渡す。
+ * ターミナル 1 つと、それを描く画面をつなぐ。ターミナル 1 つにつき 1 つ作り（並びは TermGroup が持つ）、
+ * 欄に出すときに bind、外すときに unbind する。shj からの通知は handle に、つなぎ直したことは reconnected に渡す。
  * 流量制御・欠けの取り直し・つなぎ直しの決まりは、このファイルの先頭のとおり。
  */
 export class TermLink {
@@ -70,10 +72,24 @@ export class TermLink {
   private rows = DEFAULT_SIZE.rows;
   /** 続けて始めたとき、古い返事を捨てるための番号 */
   private op = 0;
+  /** ターミナルが無いとき、term.list で動いているものを拾うか（false なら新しく作る） */
+  private readonly adopt: boolean;
+  /** シェルが終わったと分かったとき（F4。並べた欄から外すため） */
+  onExit?: () => void;
 
-  constructor(port: TermPort, onError: (message: string) => void = () => {}) {
+  constructor(
+    port: TermPort,
+    onError: (message: string) => void = () => {},
+    opts: { adopt?: boolean } = {},
+  ) {
     this.port = port;
     this.onError = onError;
+    this.adopt = opts.adopt ?? true;
+  }
+
+  /** シェルが終わったか（Enter で作り直す前）。 */
+  get hasExited(): boolean {
+    return this.exited;
   }
 
   /** 今描いているターミナル（まだ無ければ undefined）。 */
@@ -160,7 +176,9 @@ export class TermLink {
         // 送り残した出力より先に届くことがあるので、残りを取ってから知らせる
         this.exited = true;
         void this.attach(this.op, this.received).then((r) => {
-          if (r === "ok" && this.exited) this.sink?.notice(EXITED_NOTICE);
+          if (!this.exited) return;
+          if (r === "ok") this.sink?.notice(EXITED_NOTICE);
+          this.onExit?.();
         });
         return;
       case "term.title":
@@ -213,8 +231,9 @@ export class TermLink {
       this.exited = false;
       this.sink?.notice(RECREATED_NOTICE);
     }
-    // ワークスペースが決まっていれば、ほかのワークスペースのシェルを拾わずにそのルートで作る
-    if (this.cwd !== undefined) {
+    // ワークスペースが決まっていれば、ほかのワークスペースのシェルを拾わずにそのルートで作る。
+    // 並べた欄の 1 つ（adopt が false）も、ほかの欄のシェルを拾わずに作る
+    if (this.cwd !== undefined || !this.adopt) {
       await this.create(op);
       return;
     }
@@ -322,6 +341,7 @@ export class TermLink {
     if (this.exited) return;
     this.exited = true;
     this.sink?.notice(EXITED_NOTICE);
+    this.onExit?.();
   }
 
   /** つないだターミナルが term.list で生きているかを確かめ、終わっていれば知らせる。 */

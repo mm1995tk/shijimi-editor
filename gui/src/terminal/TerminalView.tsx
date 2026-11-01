@@ -9,12 +9,20 @@ import "./terminal.css";
 const encoder = new TextEncoder();
 
 /**
- * IDE モードの右下のターミナル（F1）。xterm.js で描き、shj とのやりとりは TermLink に任せる。
- * 大きさは欄に合わせ（FitAddon）、変わったら term.resize を送る。
+ * ターミナル 1 つの欄（F1）。xterm.js で描き、shj とのやりとりは TermLink に任せる。
+ * 大きさは欄に合わせ（FitAddon）、変わったら term.resize を送る。並べ方は TerminalGrid（F4）が決める。
  */
 export function TerminalView(props: {
-  /** 描くターミナル。無ければ空の欄を出す（つないだマシンが無いとき） */
+  /** 描くターミナル */
   link: TermLink | undefined;
+  /** 今使っているターミナルか（F4。並べたときに印を付ける） */
+  active?: boolean;
+  /** 隠すか。IDE モードでは active の 1 つだけを見せる（隠しても中身は動き続ける） */
+  hidden?: boolean;
+  /** 欄の位置（CSS grid の grid-area） */
+  area?: string;
+  /** 欄がフォーカスを受けた（押した・キーを向けた） */
+  onFocus?: () => void;
 }): JSX.Element {
   let host!: HTMLDivElement;
   // 親 #271 のモック（案：フラットな一覧）の右下の文字と色に合わせる
@@ -84,8 +92,14 @@ export function TerminalView(props: {
   });
 
   return (
-    <section class="terminal" aria-label="ターミナル">
+    <div
+      class="terminal-cell"
+      data-active={props.active ? "" : undefined}
+      hidden={props.hidden}
+      style={props.area ? { "grid-area": props.area } : undefined}
+      onFocusIn={() => props.onFocus?.()}
+    >
       <div class="terminal-host" ref={host} />
-    </section>
+    </div>
   );
 }

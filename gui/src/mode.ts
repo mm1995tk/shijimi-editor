@@ -19,8 +19,13 @@ export const SWAP_MS = 300;
  * Shift を押すと key は "~" になる配列があり、JIS では ` が Shift+@ なので、code と key のどれかで見る。
  */
 export function isModeKey(e: KeyLike): boolean {
-  if (!e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return false;
+  if (!isCtrlShift(e)) return false;
   return e.code === "Backquote" || e.key === "`" || e.key === "~";
+}
+
+/** Ctrl と Shift だけを押しているか（Alt・Meta は押していない）。GUI が受けるキーはどれもこの形。 */
+export function isCtrlShift(e: KeyLike): boolean {
+  return e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey;
 }
 
 /** もう一方のモード。 */
