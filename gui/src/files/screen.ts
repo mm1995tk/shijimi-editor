@@ -29,7 +29,7 @@ export function applyUpdate(prev: Screen | null, u: ScreenUpdate): Screen {
   const base = prev ?? emptyScreen();
   const next: Screen = { ...base, rev: u.rev, ackSeq: u.ackSeq };
   if (u.focus !== undefined) next.focus = u.focus;
-  if ("status" in u) next.status = u.status;
+  if (u.status !== undefined) next.status = u.status;
   if ("cmdline" in u) next.cmdline = u.cmdline;
   if ("overlay" in u) next.overlay = u.overlay;
   if (u.files) next.files = applyFiles(base.files, u.files);

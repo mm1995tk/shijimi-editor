@@ -134,14 +134,54 @@ export interface Files {
   active: number;
 }
 
+/** 状態行。Go の screen.Status。 */
+export interface Status {
+  /** モードの表示（"NOR" など）。空ならモードの欄を出さない */
+  mode: string;
+  /** 途中まで押されたキー（"space" など） */
+  pending?: string;
+  /** モードの色（`mode.normal` など） */
+  style: string;
+  /** キーを受けているエディタ以外の領域の名前 */
+  pane?: string;
+  branch?: string;
+  errors?: number;
+  warnings?: number;
+  /** エージェントの提案の数（文言は shj が作る） */
+  suggestions?: string;
+  msg?: string;
+  msgErr?: boolean;
+  cursor: Pos;
+  /** 「行:桁」に複数カーソルと選択の文字数を足したもの */
+  position?: string;
+  indent?: string;
+  language?: string;
+  /** 未送信のレビューコメントの数（文言は shj が作る） */
+  unsent?: string;
+  version?: string;
+}
+
+/** `:` と `/` の入力行（検索バーも同じ形で、ラベルと案内が付く）。Go の screen.Cmdline。 */
+export interface Cmdline {
+  /** ":" か "/" か "?"（検索バーはラベル） */
+  prefix: string;
+  text: string;
+  /** rune の位置 */
+  cursor: number;
+  /** 検索バーの右の案内 */
+  hint?: string;
+}
+
 /** 全部の画面。`screen.get` の結果。 */
 export interface Screen {
   rev: number;
   ackSeq: number;
   focus: string;
   files?: Files;
-  status: unknown;
-  cmdline?: unknown;
+  /** 購読していない・まだ来ていないときは null */
+  status: Status | null;
+  /** 閉じているときは null か無い */
+  cmdline?: Cmdline | null;
   overlay?: unknown[];
 }
 
@@ -167,8 +207,9 @@ export interface ScreenUpdate {
   ackSeq: number;
   focus?: string;
   files?: { panes: PaneUpdate[]; active?: number };
-  status?: unknown;
-  cmdline?: unknown;
+  status?: Status;
+  /** 閉じたら null */
+  cmdline?: Cmdline | null;
   overlay?: unknown[];
 }
 

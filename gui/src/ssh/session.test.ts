@@ -494,7 +494,7 @@ describe("画面の購読（E1）", () => {
   const sentOf = (f: ReturnType<typeof fakeShell>, method: string) =>
     f.sent.filter((x) => x.msg.method === method);
 
-  it("つなぐと files を購読し、覚えている大きさを送り、テーマを取る", async () => {
+  it("つなぐと files・status・cmdline を購読し、覚えている大きさを送り、テーマを取る", async () => {
     const f = fakeShell({ serverIds: ["A"] });
     const s = new Session(f.api, "h", fast);
     const themes: string[] = [];
@@ -504,10 +504,14 @@ describe("画面の購読（E1）", () => {
     await waitFor(s, (st) => st.kind === "connected");
     await settle();
     assert.deepEqual(sentOf(f, "view.subscribe")[0]!.msg.params, {
-      regions: ["files"],
+      regions: ["files", "status", "cmdline"],
     });
     assert.deepEqual(sentOf(f, "view.resize")[0]!.msg.params, {
-      regions: { files: { cols: 100, rows: 30 } },
+      regions: {
+        files: { cols: 100, rows: 30 },
+        status: { cols: 100 },
+        cmdline: { cols: 100 },
+      },
     });
     assert.deepEqual(themes, ["dark"]);
     assert.equal(s.theme?.tokens["editor.bg"]?.fg, "#000000");
@@ -548,7 +552,11 @@ describe("画面の購読（E1）", () => {
     await settle();
     assert.equal(sentOf(f, "view.subscribe").length, 2);
     assert.deepEqual(sentOf(f, "view.resize").at(-1)!.msg.params, {
-      regions: { files: { cols: 80, rows: 20 } },
+      regions: {
+        files: { cols: 80, rows: 20 },
+        status: { cols: 80 },
+        cmdline: { cols: 80 },
+      },
     });
     await s.close();
   });

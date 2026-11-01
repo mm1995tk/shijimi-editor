@@ -23,8 +23,8 @@
   overflow: hidden;
   padding: var(--files-pad-y) 0;
   box-sizing: border-box;
-  font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
-    Consolas, monospace;
+  font-family:
+    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: var(--files-line-height);
   /* 等幅のマス目を崩さない（合字で文字の数が変わらないように） */
@@ -74,4 +74,146 @@
 
 .files-caption {
   padding: 0 1ch;
+}
+
+/* ---- タイトル行・状態行・コマンド行（E3）。モックの寸法（タイトル行 36px、状態行 24px）に合わせる ---- */
+
+/* ペインごとのタイトルを、本文と同じマス目（ch）の幅で横に並べる */
+.files-titles {
+  flex: none;
+  height: 36px;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  background: var(--files-bar-bg);
+  border-bottom: 1px solid var(--files-border);
+  box-sizing: border-box;
+  /* 幅の ch を本文と同じにするため、フォントは本文と同じ。中の文字は UI のフォントにする */
+  font-family:
+    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+
+.files-title {
+  flex: none;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.files-title-name {
+  flex: none;
+  max-width: 70%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-top: 2px solid transparent;
+  box-sizing: border-box;
+  color: var(--files-inactive-fg);
+  font-family: "IBM Plex Sans JP", system-ui, sans-serif;
+}
+
+.files-title[data-active] .files-title-name {
+  background: var(--files-bg);
+  border-top-color: var(--files-accent);
+  color: var(--files-fg);
+}
+
+.files-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.files-title-lock {
+  flex: none;
+}
+
+.files-title-path {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 0 14px;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--files-bar-fg);
+}
+
+.files-title-path > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.files-status,
+.files-cmdline {
+  flex: none;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  white-space: nowrap;
+  background: var(--files-bar-bg);
+  border-top: 1px solid var(--files-border);
+  box-sizing: border-box;
+}
+
+.files-status {
+  gap: 14px;
+  padding: 0 12px;
+  font-family: "IBM Plex Sans JP", system-ui, sans-serif;
+  font-size: 12px;
+  color: var(--files-bar-fg);
+}
+
+.files-status-mode {
+  flex: none;
+  font-weight: 600;
+  padding: 0 8px;
+  border-radius: 3px;
+}
+
+/* 入らないときは、右の項目より先に左の項目（長いメッセージなど）を削る */
+.files-status-item {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.files-status-right > .files-status-item {
+  flex: none;
+}
+
+.files-status-right {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  gap: 14px;
+}
+
+/* コマンド行は入力をマス目で切るので、本文と同じ等幅のフォントにする */
+.files-cmdline {
+  padding: 0 1ch;
+  font-family:
+    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 13px;
+  white-space: pre;
+  color: var(--files-fg);
+}
+
+.files-cmdline-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.files-cmdline-hint {
+  flex: none;
+  padding-left: 1ch;
+  color: var(--files-bar-fg);
 }
