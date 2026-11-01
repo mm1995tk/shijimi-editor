@@ -4,6 +4,7 @@
 mod askpass;
 mod connection;
 mod install;
+mod locate;
 mod ssh_config;
 mod update;
 mod version;
@@ -105,6 +106,8 @@ fn main() {
         .manage(update::Updates::default())
         .setup(|app| {
             version::init(app.package_info().version.to_string());
+            // 「このマシン」の shj を探す PATH を、先にログインシェルに聞いておく（locate.rs）
+            locate::warm_up();
             let askpass = AskpassServer::start(app.handle().clone())?;
             app.manage(AppState {
                 conns: Connections::default(),

@@ -11,6 +11,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use crate::askpass::{self, AskpassServer};
+use crate::locate;
 
 /// 「このマシン」を表す接続先の名前。ssh のホスト名と取り違えないよう、`@` で始める（ホスト名には使えない）。
 pub const LOCAL: &str = "@local";
@@ -38,11 +39,6 @@ struct Conn {
 #[derive(Default)]
 pub struct Connections {
     map: Arc<Mutex<HashMap<String, Arc<Conn>>>>,
-}
-
-/// リモートの shj の場所。`~` はリモートのシェルが展開する。版ごとに分ける（設計書 3 章）。
-pub fn remote_shj() -> String {
-    std::env::var("SHIJIMI_REMOTE_SHJ").unwrap_or_else(|_| default_remote_shj())
 }
 
 /// 版ごとのキャッシュのフォルダ（`$HOME` からの相対）。つなぐ先（default_remote_shj）と入れる先（install.rs）が
@@ -92,20 +88,35 @@ pub fn ssh_command(
     Ok(c)
 }
 
-/// リモートで実行する `shj attach`。shj が無ければ（実行できなければ）EXIT_SHJ_MISSING で終わる。
-fn attach_command(shj: &str) -> String {
+/// `SHIJIMI_REMOTE_SHJ` で場所を手で指定したときの `shj attach`。その場所だけを見る。
+/// shj が無ければ（実行できなければ）EXIT_SHJ_MISSING で終わる。
+fn custom_attach_command(shj: &str) -> String {
     // command -v は、パス（~ も展開される）と PATH 上の名前（SHIJIMI_REMOTE_SHJ=shj など）の両方を調べる
     format!("command -v {shj} >/dev/null 2>&1 || exit {EXIT_SHJ_MISSING}; {shj} attach")
 }
 
+/// 普段の `shj attach`。GUI の版のキャッシュ、PATH、よく使う場所（Nix のプロファイルなど）の順に探す
+/// （locate.rs）。ログインシェルが fish などでも動くよう、`sh -c '…'` で包む。
+fn default_attach_command(version: &str) -> String {
+    let script = locate::remote_attach_script(&cache_dir_rel(version), EXIT_SHJ_MISSING);
+    format!("sh -c '{script}'")
+}
+
+/// リモートで実行する `shj attach`。
+fn remote_attach_command() -> String {
+    match std::env::var("SHIJIMI_REMOTE_SHJ") {
+        Ok(shj) => custom_attach_command(&shj),
+        Err(_) => default_attach_command(crate::version::get()),
+    }
+}
+
 fn build_command(target: &str, ask: &AskpassServer, id: &str) -> Result<Command, String> {
     if target == LOCAL {
-        let shj = std::env::var_os("SHIJIMI_SHJ").unwrap_or_else(|| "shj".into());
-        let mut c = Command::new(shj);
+        let mut c = locate::local_shj_command();
         c.arg("attach");
         return Ok(c);
     }
-    ssh_command(target, ask, id, &attach_command(&remote_shj()))
+    ssh_command(target, ask, id, &remote_attach_command())
 }
 
 impl Connections {
@@ -231,8 +242,18 @@ mod tests {
     #[test]
     fn attach_exits_97_without_shj() {
         assert_eq!(
-            attach_command("~/.cache/shijimi-editor/1.2.3/shj"),
+            custom_attach_command("~/.cache/shijimi-editor/1.2.3/shj"),
             "command -v ~/.cache/shijimi-editor/1.2.3/shj >/dev/null 2>&1 || exit 97; ~/.cache/shijimi-editor/1.2.3/shj attach"
         );
+    }
+
+    #[test]
+    fn default_attach_is_wrapped_in_sh() {
+        let c = default_attach_command("1.2.3");
+        assert!(c.starts_with("sh -c '") && c.ends_with("attach'"));
+        // 包んだ中に単一引用符が無い（あれば引用が崩れる）
+        assert_eq!(c.matches('\'').count(), 2);
+        assert!(c.contains("$HOME/.cache/shijimi-editor/1.2.3/shj"));
+        assert!(c.contains("exit 97"));
     }
 }
