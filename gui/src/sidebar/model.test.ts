@@ -3,7 +3,14 @@ import { describe, it } from "node:test";
 
 import type { Workspace } from "../rpc/protocol.ts";
 import { LOCAL } from "../ssh/api.ts";
-import { adoptFocus, band, buildSidebar, health, keepFocus } from "./model.ts";
+import {
+  adoptFocus,
+  band,
+  buildSidebar,
+  health,
+  keepFocus,
+  splitAtFocus,
+} from "./model.ts";
 
 const ws = (
   w: Partial<Workspace> & { id: string; root: string },
@@ -148,5 +155,56 @@ describe("keepFocus", () => {
       keepFocus({ target: "b", id: "y" }, lists, { c: "z" })?.target,
       "b",
     );
+  });
+});
+
+describe("splitAtFocus", () => {
+  const lists = {
+    a: [ws({ id: "a1", root: "/a1" }), ws({ id: "a2", root: "/a2" })],
+    b: [
+      ws({ id: "b1", root: "/b1" }),
+      ws({ id: "b2", root: "/b2" }),
+      ws({ id: "b3", root: "/b3" }),
+    ],
+    c: [ws({ id: "c1", root: "/c1" })],
+  };
+  const groups = (focus: { target: string; id: string } | null) =>
+    buildSidebar(["a", "b", "c"], {}, lists, focus);
+  const ids = (bs: { id: string }[]) => bs.map((b) => b.id);
+
+  it("フォーカスまでを上に、残りの帯と後ろのマシンを下に分ける", () => {
+    const s = splitAtFocus(groups({ target: "b", id: "b2" }));
+    assert.deepEqual(
+      s.before.map((g) => g.target),
+      ["a"],
+    );
+    assert.equal(s.focused?.target, "b");
+    assert.deepEqual(ids(s.focused!.bands), ["b1", "b2"]);
+    assert.equal(s.after.target, "b");
+    assert.deepEqual(ids(s.after.rest), ["b3"]);
+    assert.deepEqual(
+      s.after.groups.map((g) => g.target),
+      ["c"],
+    );
+  });
+
+  it("最後の帯なら下は空", () => {
+    const s = splitAtFocus(groups({ target: "c", id: "c1" }));
+    assert.deepEqual(
+      s.before.map((g) => g.target),
+      ["a", "b"],
+    );
+    assert.deepEqual(ids(s.focused!.bands), ["c1"]);
+    assert.deepEqual(s.after.rest, []);
+    assert.deepEqual(s.after.groups, []);
+  });
+
+  it("フォーカスが無ければ全部上", () => {
+    const g = groups(null);
+    const s = splitAtFocus(g);
+    assert.equal(s.before, g);
+    assert.equal(s.focused, null);
+    assert.deepEqual(s.after.rest, []);
+    assert.deepEqual(s.after.groups, []);
   });
 });

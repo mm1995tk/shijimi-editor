@@ -282,3 +282,27 @@ export function rows(s: TreeState): TreeRow[] {
   walk(ROOT, 0);
   return out;
 }
+
+/** 行を親子に組んだもの。children はその行より深い、続きの行。 */
+export interface TreeNode {
+  row: TreeRow;
+  children: TreeNode[];
+}
+
+/**
+ * rows の平らな行を親子に組む（D3）。開いたフォルダの行とその中身を 1 つの要素にまとめ、
+ * フォルダの行を中身をスクロールしている間だけ上に固定する（CSS の sticky が親の要素の中で止まる）。
+ */
+export function nest(rs: TreeRow[]): TreeNode[] {
+  const top: TreeNode[] = [];
+  const stack: TreeNode[] = [];
+  for (const row of rs) {
+    while (stack.length > 0 && stack[stack.length - 1].row.depth >= row.depth) {
+      stack.pop();
+    }
+    const node: TreeNode = { row, children: [] };
+    (stack.length > 0 ? stack[stack.length - 1].children : top).push(node);
+    stack.push(node);
+  }
+  return top;
+}

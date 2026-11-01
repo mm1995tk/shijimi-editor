@@ -1,5 +1,6 @@
 /* 左の一覧（D1）。親 #271 のモック「案：フラットな一覧」の寸法と色に合わせる。
-   マシンごとの色（D4）は --machine-color で差し替える。決まるまでは 1 色。 */
+   マシンごとの色（D4）は --machine-color で差し替える。決まるまでは 1 色。
+   上下の固定（D3）は Sidebar.tsx の説明のとおり、sticky と要素の組み方で決める。 */
 
 .sidebar {
   --sidebar-bg: #181b21;
@@ -11,6 +12,10 @@
   --health-up: #7cc4b0;
   --health-pending: #e5b567;
   --health-down: #5c6370;
+  /* 上に固定するものの高さ（D3）。ツリーのフォルダの行は、見出しと帯の下から積む */
+  --heading-height: 32px;
+  --band-height: 30px;
+  --sticky-shadow: rgba(0, 0, 0, 0.6);
 
   box-sizing: border-box;
   width: 300px;
@@ -27,7 +32,10 @@
   --machine-color: #8fb4ff;
 }
 
-.machine + .machine {
+/* マシンの区切り。下に固定する要素（.sidebar-after）の中の最初のマシンも、上のものと区切る。
+   ただし、フォーカスしているマシンの残りの帯（.machine-rest）は同じマシンなので区切らない */
+.machine + .machine,
+.machine + .sidebar-after > .machine:first-child:not(.machine-rest) {
   margin-top: 6px;
   border-top: 1px solid var(--sidebar-border);
 }
@@ -45,8 +53,9 @@
 }
 
 .machine-heading {
-  height: 32px;
+  height: var(--heading-height);
   margin: 0;
+  background: var(--sidebar-bg);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -93,7 +102,7 @@
 
 .band {
   width: 100%;
-  height: 30px;
+  height: var(--band-height);
   border-top: 0;
   border-right: 0;
   border-bottom: 0;
@@ -114,6 +123,39 @@
 .band[aria-current="true"] {
   background: color-mix(in srgb, var(--machine-color) 22%, var(--sidebar-bg));
   font-weight: 600;
+}
+
+/* 上下の固定（D3）。見出し → 帯 → ツリーのフォルダの行（tree.css）の順に積み、下の要素はその上に重ねる。
+   z-index はフォルダの行（100 - 深さ）より上にする */
+.machine-heading[data-sticky] {
+  position: sticky;
+  top: 0;
+  z-index: 102;
+}
+.band[data-sticky] {
+  position: sticky;
+  top: var(--heading-height);
+  z-index: 101;
+}
+.sidebar .tree {
+  --tree-sticky-top: calc(var(--heading-height) + var(--band-height));
+}
+.sidebar-after {
+  position: sticky;
+  bottom: 0;
+  z-index: 103;
+  background: var(--sidebar-bg);
+}
+/* フォーカスしている帯の続きの帯は、上の帯と同じだけ空ける */
+.sidebar-after > .machine-rest {
+  padding-top: 2px;
+}
+/* 固定されたものの境目に影を落とす（モックと同じ）。上は一番下に固定されたものの下、下は要素の上 */
+.sidebar [data-shadow] {
+  box-shadow: 0 6px 8px -4px var(--sticky-shadow);
+}
+.sidebar-after[data-shadow] {
+  box-shadow: 0 -6px 8px -4px var(--sticky-shadow);
 }
 
 .band-icon {

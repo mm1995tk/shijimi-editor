@@ -10,6 +10,7 @@ import {
   applyTreeChanged,
   dropDir,
   emptyTree,
+  nest,
   ROOT,
   rows,
   toggle,
@@ -215,5 +216,24 @@ describe("iconFor", () => {
     assert.equal(iconFor("LICENSE", false, false).kind, "license");
     assert.equal(iconFor("noext", false, false).kind, "default");
     assert.equal(iconFor("src", true, true).kind, "folder-open");
+  });
+});
+
+describe("nest", () => {
+  it("深さで親子に組む", () => {
+    let s = toggle(sample(), "internal/ui");
+    s = applyList(s, "internal/ui", { entries: [file("b.go")], rev: 1 });
+    const shape = (ns: ReturnType<typeof nest>): unknown =>
+      ns.map((n) =>
+        n.children.length ? [n.row.name, shape(n.children)] : n.row.name,
+      );
+    assert.deepEqual(shape(nest(rows(s))), [
+      ["internal", [["ui", ["b.go"]], "a.go"]],
+      "README.md",
+    ]);
+  });
+
+  it("空なら空", () => {
+    assert.deepEqual(nest([]), []);
   });
 });
