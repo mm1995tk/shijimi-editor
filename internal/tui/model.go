@@ -3,7 +3,7 @@ package tui
 import tea "charm.land/bubbletea/v2"
 
 // model.go is the part of App that talks to bubbletea: what it draws and asks
-// of the terminal each frame. It stays in tui.
+// of the terminal each frame, and the two calls bubbletea makes (Init, Update). It stays in tui.
 
 // View is bubbletea's view of the app: the frame (after fit brought the state up
 // to date) and the modes it needs of the terminal (alt screen, mouse motion,
@@ -28,4 +28,28 @@ func (a *App) View() tea.View {
 	// its composition where it is.
 	v.Cursor = caretAt
 	return v
+}
+
+// Init is bubbletea's first call: the effects that start the app (the watch
+// timer; unless in single-file mode, waiting on the language servers and
+// probing the repository).
+func (a *App) Init() tea.Cmd {
+	if a.single {
+		return a.effectCmd(watchTimer())
+	}
+	return a.effectCmd(append([]Effect{WaitLSP{a.lsp.events}, watchTimer()}, a.probeRepo()...)...)
+}
+
+// Update is bubbletea's call for each message: fromTea turns it into an Input
+// or an Event for Core.update, the state is brought up to date (transients,
+// split, last tab, LSP, selection), and the effects of the message and the
+// ones every round owes (auto-save, preview, lexing) become one tea.Cmd.
+func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	effs := a.update(a.fromTea(msg))
+	a.keepTransients()
+	a.normalizeSplit()
+	a.trackLast()
+	a.syncLSP()
+	a.notifySelection()
+	return a, a.effectCmd(batch(effs, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs(), a.semanticTabs())...)
 }

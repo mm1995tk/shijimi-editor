@@ -112,6 +112,9 @@ type frontEnd interface {
 	suggestionsShown() bool
 	editorCols() int
 	resetPanes()
+	setScreen(w, h int)
+	handleEvent(ev Event) []Effect
+	handleMouse(msg Mouse) []Effect
 }
 
 var _ frontEnd = (*App)(nil)

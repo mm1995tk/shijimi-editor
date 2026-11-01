@@ -1,6 +1,12 @@
 package tui
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/x/ansi"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
+)
 
 // cardBox lays out the open card for layout l.
 func (a *App) cardBox(l layout) (rows []string, x, y int) {
@@ -80,4 +86,57 @@ func (a *App) composerCaret(l layout) (x, y int, ok bool) {
 	}
 	x, y = bx+2+c.Position.X, by+1+c.Position.Y
 	return x, y, y < by+len(rows) && x < a.w
+}
+
+// drawCard draws a review card Overlay as a bordered box ov.View.Cols+4
+// cells wide: the content rows, the hint on the bottom border and, when the
+// card scrolls, where the rows are among all of them.
+func (a *App) drawCard(ov screen.Overlay) []string {
+	vw := *ov.View // cardOverlay always sets it
+	w := vw.Cols + 4
+	end := vw.Top + len(ov.Lines)
+	bd := bgfg(cEditorBg, cHoverBorder)
+	iw := w - 2
+	out := []string{bd.Render("╭" + strings.Repeat("─", iw) + "╮")}
+	pad := stEmpty.Render(" ")
+	for _, l := range a.drawMdRows(ov.Lines, vw.Top, ov.Images, vw.Cols) {
+		out = append(out, bd.Render("│")+pad+l+pad+bd.Render("│"))
+	}
+	ind := ""
+	if vw.Total > vw.Rows {
+		ind = fmt.Sprintf(" %d/%d ", end, vw.Total)
+	}
+	bottom := strings.Repeat("─", iw)
+	if hw, in := ansi.StringWidth(ov.Hint), ansi.StringWidth(ind); hw+in+2 <= iw {
+		bottom = "─" + ov.Hint + strings.Repeat("─", iw-hw-in-1) + ind
+	}
+	return append(out, bd.Render("╰"+bottom+"╯"))
+}
+
+// drawComposer draws a comment editor Overlay as a bordered box ov.View.Cols+4
+// cells wide. input is the text field as the widget draws it (its scrolling
+// and cursor), which stays until the widget is replaced by our own type.
+func (a *App) drawComposer(ov screen.Overlay, input []string) []string {
+	iw := ov.View.Cols
+	w := iw + 4
+	bd := bgfg(cPaletteBg, cHoverBorder)
+	in := bgfg(cPaletteBg, cEditorFg)
+	line := func(s string) string {
+		return bd.Render("│") + in.Render(" ") + fitStyled(s, iw, in) + in.Render(" ") + bd.Render("│")
+	}
+	title := " " + ov.Title + " "
+	top := "╭─" + ansi.Truncate(title, w-4, "…")
+	top += strings.Repeat("─", max(0, w-1-ansi.StringWidth(top))) + "╮"
+	rows := []string{bd.Render(top)}
+	for _, l := range input {
+		rows = append(rows, line(l))
+	}
+	rows = append(rows, bd.Render("├"+fit(ov.Hint, w-2)+"┤"))
+	if label := ov.Compose.PreviewLabel; label != "" {
+		prev := append([]string{stPanelDim.Render(fit(label, iw))}, a.drawMdRows(ov.Lines, 0, ov.Images, iw)...)
+		for _, p := range prev {
+			rows = append(rows, bd.Render("│")+stEmpty.Render(" ")+fitStyled(p, iw, stEmpty)+stEmpty.Render(" ")+bd.Render("│"))
+		}
+	}
+	return append(rows, bd.Render("╰"+strings.Repeat("─", w-2)+"╯"))
 }

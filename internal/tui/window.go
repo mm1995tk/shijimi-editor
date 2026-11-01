@@ -208,29 +208,6 @@ func (l layout) inOtherPane(x, y int) bool {
 	return l.split && x >= l.otherX && x < l.otherX+l.otherW && y >= l.top && y < l.panelY
 }
 
-// renderPane draws one pane: title row, the find bar row when open (only the
-// focused pane has the bar), and the body.
-func (a *App) renderPane(t *tab, l layout, current, focused bool) []string {
-	rows := make([]string, 0, l.editH+2)
-	rows = append(rows, a.renderTitle(t, l.rightW, current))
-	if a.findOpen {
-		if current {
-			rows = append(rows, a.renderFind(l.rightW))
-		} else {
-			rows = append(rows, stTabBar.Render(strings.Repeat(" ", l.rightW)))
-		}
-	}
-	switch {
-	case t == nil:
-		rows = append(rows, renderWelcome(l.rightW, l.editH, a.helix)...)
-	case t.kind == tabImage:
-		rows = append(rows, a.imageLines(t, l.rightW, l.editH)...)
-	default:
-		rows = append(rows, a.renderText(t, l, focused)...)
-	}
-	return rows
-}
-
 // joinPanes puts the two panes side by side with a line between them.
 func joinPanes(left, right []string, leftW, rightW int) []string {
 	n := max(len(left), len(right))
