@@ -10,6 +10,7 @@ type Line = (e: { id: string; line: string }) => void;
 function fakeShell(opts: {
   serverIds: string[]; // n 回目の接続の serverId。"fail" なら ssh が終わる、"missing" なら shj が無い（97）
   installFails?: string; // 入れるのがこの理由で失敗する
+  installHangs?: boolean; // 入れる処理が終わらない（取り消されるまで）
   pingReply?: () => boolean;
 }) {
   const lines: Line[] = [];
@@ -17,6 +18,9 @@ function fakeShell(opts: {
   const sent: { id: string; msg: any }[] = [];
   let n = 0;
   const installs: string[] = [];
+  const cancels: string[] = [];
+  const installIds: string[] = [];
+  const hang: (() => void)[] = [];
   const serverOf = new Map<string, string>();
   const emit = (id: string, obj: unknown) =>
     lines.forEach((f) => f({ id, line: JSON.stringify(obj) }));
@@ -81,7 +85,16 @@ function fakeShell(opts: {
       path: "~/.cache/shijimi-editor/0.0.0/shj",
       release_url: "https://example.invalid/r",
     }),
-    installRemote: async (_id, target) => {
+    installCancel: async (id) => {
+      cancels.push(id);
+    },
+    installRemote: async (id, target) => {
+      if (opts.installHangs) {
+        installIds.push(id);
+        return new Promise((_, rej) =>
+          hang.push(() => rej(new Error("cancelled"))),
+        );
+      }
       installs.push(target);
       if (opts.installFails) throw new Error(opts.installFails);
       // 入れたので、次からは shj がある
@@ -95,6 +108,9 @@ function fakeShell(opts: {
     api,
     sent,
     installs,
+    cancels,
+    installIds,
+    hang,
     emit,
     /** ssh が切れた */
     drop(id: string) {
@@ -391,5 +407,22 @@ describe("shj が無いリモート", () => {
     await s.install();
     assert.deepEqual(f.installs, []);
     await s.close();
+  });
+});
+
+describe("入れている最中に切る", () => {
+  it("close() が askpass の質問を取り消す", async () => {
+    const f = fakeShell({ serverIds: ["missing"], installHangs: true });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    void s.install();
+    assert.equal(s.state.kind, "installing");
+    await s.close();
+    assert.deepEqual(f.cancels, f.installIds);
+    assert.equal(f.cancels.length, 1);
+    f.hang.forEach((h) => h());
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(s.state.kind, "closed", "取り消しの失敗で状態を戻さない");
   });
 });

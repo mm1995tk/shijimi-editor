@@ -75,6 +75,12 @@ async fn install_remote(
         .map_err(|e| e.to_string())?
 }
 
+/// 入れている最中の取り消し（「切る」）。待っている ssh の質問を取り消す。質問に答えられないので、入れる処理は失敗して終わる。
+#[tauri::command]
+fn install_cancel(state: State<AppState>, id: String) {
+    state.askpass.cancel_conn(&id);
+}
+
 /// ssh の質問（askpass）への答え。`None` は取り消し。
 #[tauri::command]
 fn askpass_reply(state: State<AppState>, request_id: u64, value: Option<String>) {
@@ -104,7 +110,8 @@ fn main() {
             disconnect,
             askpass_reply,
             install_plan,
-            install_remote
+            install_remote,
+            install_cancel
         ])
         .build(tauri::generate_context!())
         .expect("failed to build the shijimi-editor GUI")

@@ -43,6 +43,7 @@ export class ShjMissingError extends ConnectError {
 }
 
 let counter = 0;
+/** 接続（と入れる処理）の id。殻のイベントと、askpass の質問の宛先になる。 */
 export function newId(): string {
   counter += 1;
   return `c${Date.now().toString(36)}-${counter}`;

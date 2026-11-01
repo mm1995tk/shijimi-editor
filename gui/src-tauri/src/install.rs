@@ -14,7 +14,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::askpass::AskpassServer;
-use crate::connection::{default_remote_shj, ssh_command};
+use crate::connection::{cache_dir_rel, default_remote_shj, ssh_command};
 
 const REPO_URL: &str = "https://github.com/mm1995tk/shijimi-editor";
 /// checksums のファイル名（リリースと nightly の両方に上げる）。
@@ -37,10 +37,14 @@ pub struct InstallPlan {
     pub release_url: String,
 }
 
+/// 入れ終わった結果。
 #[derive(Serialize, Clone, Debug)]
 pub struct InstallResult {
+    /// 入れた場所（`~` はリモートのシェルが展開する）
     pub path: String,
+    /// 取った Release のアセット名（`shj-linux-x64` など）
     pub asset: String,
+    /// 確かめた SHA-256（16 進、小文字）。取得の段階とリモートの両方でこの値と合った
     pub sha256: String,
 }
 
@@ -98,6 +102,8 @@ fn asset_url(version: &str, name: &str) -> String {
     )
 }
 
+/// ユーザーに聞くときに見せる内容（版・入れる場所・Release のページ）を作る。
+/// 版が URL とリモートのスクリプトに入れられる文字でなければ Err。
 pub fn plan() -> Result<InstallPlan, String> {
     let version = env!("CARGO_PKG_VERSION");
     if !valid_version(version) {
@@ -206,7 +212,7 @@ fn remote_script(version: &str, expected: &str) -> String {
     format!(
         concat!(
             "set -eu; ",
-            "d=\"$HOME/.cache/shijimi-editor/{version}\"; ",
+            "d=\"$HOME/{dir}\"; ",
             "mkdir -p \"$d\"; ",
             "t=\"$d/.shj.$$\"; ",
             "cat > \"$t\" || {{ rm -f \"$t\"; exit 1; }}; ",
@@ -215,7 +221,7 @@ fn remote_script(version: &str, expected: &str) -> String {
             "chmod 755 \"$t\"; ",
             "mv -f \"$t\" \"$d/shj\""
         ),
-        version = version,
+        dir = cache_dir_rel(version),
         expected = expected,
         mismatch = EXIT_CHECKSUM_MISMATCH
     )
@@ -253,6 +259,13 @@ fn remote_uname(target: &str, ask: &AskpassServer, id: &str) -> Result<String, S
 
 /// リモートに shj を入れる。ユーザーに聞いたあとにだけ呼ぶ。時間がかかるので別スレッドで呼ぶこと。
 pub fn install(target: &str, ask: &AskpassServer, id: &str) -> Result<InstallResult, String> {
+    let r = install_inner(target, ask, id);
+    // 終わったあとに残った質問（ssh が先に終わったときなど）を片付ける
+    ask.cancel_conn(id);
+    r
+}
+
+fn install_inner(target: &str, ask: &AskpassServer, id: &str) -> Result<InstallResult, String> {
     if std::env::var_os("SHIJIMI_REMOTE_SHJ").is_some() {
         // 場所を手で指定しているときは、その場所に何があるか分からない。入れない。
         return Err("SHIJIMI_REMOTE_SHJ is set; refusing to install".into());

@@ -45,9 +45,15 @@ pub fn remote_shj() -> String {
     std::env::var("SHIJIMI_REMOTE_SHJ").unwrap_or_else(|_| default_remote_shj())
 }
 
+/// 版ごとのキャッシュのフォルダ（`$HOME` からの相対）。つなぐ先（default_remote_shj）と入れる先（install.rs）が
+/// ずれないよう、ここ 1 か所で決める。
+pub fn cache_dir_rel(version: &str) -> String {
+    format!(".cache/shijimi-editor/{version}")
+}
+
 /// 入れる先（`~/.cache/shijimi-editor/<GUI の版>/shj`）。PATH の `shj` ではない。
 pub fn default_remote_shj() -> String {
-    format!("~/.cache/shijimi-editor/{}/shj", env!("CARGO_PKG_VERSION"))
+    format!("~/{}/shj", cache_dir_rel(env!("CARGO_PKG_VERSION")))
 }
 
 /// ssh の引数に渡してよいホスト名か。`-` で始まるとオプションになり、空白や制御文字は別の引数に化ける。
@@ -88,7 +94,8 @@ pub fn ssh_command(
 
 /// リモートで実行する `shj attach`。shj が無ければ（実行できなければ）EXIT_SHJ_MISSING で終わる。
 fn attach_command(shj: &str) -> String {
-    format!("[ -x {shj} ] || exit {EXIT_SHJ_MISSING}; {shj} attach")
+    // command -v は、パス（~ も展開される）と PATH 上の名前（SHIJIMI_REMOTE_SHJ=shj など）の両方を調べる
+    format!("command -v {shj} >/dev/null 2>&1 || exit {EXIT_SHJ_MISSING}; {shj} attach")
 }
 
 fn build_command(target: &str, ask: &AskpassServer, id: &str) -> Result<Command, String> {
@@ -225,7 +232,7 @@ mod tests {
     fn attach_exits_97_without_shj() {
         assert_eq!(
             attach_command("~/.cache/shijimi-editor/1.2.3/shj"),
-            "[ -x ~/.cache/shijimi-editor/1.2.3/shj ] || exit 97; ~/.cache/shijimi-editor/1.2.3/shj attach"
+            "command -v ~/.cache/shijimi-editor/1.2.3/shj >/dev/null 2>&1 || exit 97; ~/.cache/shijimi-editor/1.2.3/shj attach"
         );
     }
 }

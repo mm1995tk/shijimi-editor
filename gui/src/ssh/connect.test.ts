@@ -77,6 +77,7 @@ function fakeApi(onConnect: (h: Handlers, id: string, target: string) => void) {
       release_url: "u",
     }),
     installRemote: async () => ({ path: "p", asset: "a", sha256: "h" }),
+    installCancel: async () => {},
     onAskpassDone: async () => () => {},
   };
   return { api, h, sent, connects, disconnects };

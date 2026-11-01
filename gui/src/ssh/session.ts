@@ -96,6 +96,8 @@ export class Session {
   private _screen: Screen | null = null;
   private _workspaces: HelloResult["workspaces"] = [];
   private wake?: () => void;
+  /** 入れている最中の id（「切る」で askpass の質問を取り消すのに使う） */
+  private installId?: string;
   private generation = 0;
   private readonly stateHandlers = new Set<(s: SessionState) => void>();
   private readonly screenHandlers = new Set<(s: Screen) => void>();
@@ -177,9 +179,12 @@ export class Session {
     const gen = ++this.generation;
     const plan = s.plan;
     this.setState({ kind: "installing", plan });
+    const id = newId();
+    this.installId = id;
     try {
-      await this.api.installRemote(newId(), this.target);
+      await this.api.installRemote(id, this.target);
     } catch (e) {
+      if (this.installId === id) this.installId = undefined;
       if (gen !== this.generation) return;
       this.setState({
         kind: "needs-install",
@@ -188,6 +193,7 @@ export class Session {
       });
       return;
     }
+    if (this.installId === id) this.installId = undefined;
     if (gen !== this.generation) return;
     await this.run(0, "");
   }
@@ -223,6 +229,10 @@ export class Session {
     const c = this.conn;
     this.conn = undefined;
     this.setState({ kind: "closed" });
+    // 入れている最中なら、待っている askpass の質問を取り消す（窓が残って、答えると入れ続けるのを防ぐ）
+    const installId = this.installId;
+    this.installId = undefined;
+    if (installId) void this.api.installCancel(installId).catch(() => {});
     await c?.close();
   }
 
