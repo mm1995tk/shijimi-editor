@@ -163,6 +163,17 @@ export function App(props: {
     focusFilesWhenShown = false;
     if (untrack(mode) === "ide") focusFiles();
   });
+  // 逆に、最後のファイルを閉じた・ワークスペースが消えたなどで欄を隠したとき、キーが欄（か、隠れて外れた先の body）に
+  // あれば、ターミナルに向ける（どこにもキーが届かなくなるため）
+  createEffect<boolean>((was) => {
+    const open = fileOpen();
+    if (was && !open && untrack(mode) === "ide") {
+      const a = document.activeElement;
+      const inFiles = !!a?.closest(".main > .files");
+      if (!a || a === document.body || inFiles) focusTerminal();
+    }
+    return open;
+  }, false);
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
   // ホストを開く窓を出しているか
   const [picking, setPicking] = createSignal(false);
