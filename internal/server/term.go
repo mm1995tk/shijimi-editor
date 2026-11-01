@@ -49,6 +49,17 @@ func newTermManager(s *Server) *termManager {
 	return &termManager{srv: s, terms: map[string]*terminal{}}
 }
 
+// all は今あるターミナルを返す。
+func (m *termManager) all() []*terminal {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]*terminal, 0, len(m.terms))
+	for _, t := range m.terms {
+		out = append(out, t)
+	}
+	return out
+}
+
 func (m *termManager) count() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -74,7 +85,6 @@ type terminal struct {
 	mgr  *termManager
 	id   string
 	pid  int
-	cwd  string
 	ptmx *os.File
 	cmd  *exec.Cmd
 
@@ -82,6 +92,10 @@ type terminal struct {
 	sendMu sync.Mutex
 
 	mu         sync.Mutex
+	cwd        string // シェルの今の cwd（workspace.go が更新）
+	wsID       string // 属するワークスペース。無ければ ""
+	wsRoot     string
+	wsKind     string
 	cols, rows int
 	title      string
 	alive      bool
@@ -123,8 +137,12 @@ func (t *terminal) ringAppend(b []byte) {
 func (t *terminal) info() map[string]any {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	var wid any
+	if t.wsID != "" {
+		wid = t.wsID
+	}
 	return map[string]any{
-		"termId": t.id, "pid": t.pid, "cwd": t.cwd, "workspaceId": nil,
+		"termId": t.id, "pid": t.pid, "cwd": t.cwd, "workspaceId": wid,
 		"title": t.title, "cols": t.cols, "rows": t.rows, "alive": t.alive,
 	}
 }
@@ -148,7 +166,9 @@ func (m *termManager) create(p termCreateParams) (any, error) {
 	}
 	cwd := p.Cwd
 	if cwd == "" {
-		// フォーカスしているワークスペース（B7）はまだ無いので、いまは常に ~。
+		cwd = m.srv.ws.focusRoot()
+	}
+	if cwd == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			home = "/"
@@ -190,9 +210,12 @@ func (m *termManager) create(p termCreateParams) (any, error) {
 		ptmx: ptmx, cmd: cmd, cols: p.Cols, rows: p.Rows, alive: true,
 		ring: make([]byte, ringSize),
 	}
+	t.cwd = normalizePath(cwd) // 以後 cwd の変化を見るので、読み取った値（実パス）に合わせる
+	t.wsID, t.wsRoot, t.wsKind = m.srv.ws.resolve(cwd)
 	m.terms[t.id] = t
 	m.wg.Go(t.pump)
 	m.mu.Unlock()
+	m.srv.ws.recompute()
 	m.srv.log.Info("term created", "termId", t.id, "pid", t.pid, "shell", sh, "cwd", cwd)
 	return map[string]any{"termId": t.id, "pid": t.pid, "cwd": cwd}, nil
 }
@@ -243,6 +266,7 @@ func (t *terminal) pump() {
 	t.mu.Unlock()
 	t.flush() // 最後の出力が先に届くように
 	t.mgr.srv.notifyOwner("term.exit", exit)
+	t.mgr.srv.ws.recompute()
 	t.mgr.srv.log.Info("term exited", "termId", t.id, "code", exit["code"])
 }
 
@@ -378,6 +402,10 @@ func (ss *session) termRequest(req *rpc.Message) (res any, err error, handled bo
 		delete(m.terms, t.id)
 		m.mu.Unlock()
 		t.hangup()
+		t.mu.Lock()
+		t.alive = false
+		t.mu.Unlock()
+		ss.srv.ws.recompute()
 		return struct{}{}, nil, true
 	case "term.resize":
 		if p.Cols <= 0 || p.Rows <= 0 || p.Cols > maxTermDim || p.Rows > maxTermDim {
@@ -395,6 +423,7 @@ func (ss *session) termRequest(req *rpc.Message) (res any, err error, handled bo
 		if err != nil {
 			return nil, rpc.Errorf(rpc.CodeInvalidParams, "data is not base64: %v", err), true
 		}
+		ss.srv.ws.touch(t)
 		if _, err := t.ptmx.Write(b); err != nil {
 			return nil, rpc.Errorf(rpc.CodeNotFound, "terminal has exited: %s", t.id), true
 		}
@@ -427,9 +456,11 @@ func sortTerms(l []map[string]any) {
 	}
 }
 
-func termNum(m map[string]any) int {
+func termNum(m map[string]any) int { return termIDNum(m["termId"].(string)) }
+
+func termIDNum(id string) int {
 	var n int
-	fmt.Sscanf(m["termId"].(string), "t%d", &n)
+	fmt.Sscanf(id, "t%d", &n)
 	return n
 }
 
