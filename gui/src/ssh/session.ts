@@ -95,6 +95,8 @@ export type TermMethod =
   | "term.close"
   | "term.resize"
   | "term.input";
+/** Session.request で送れる要求（画像の実体。E6）。 */
+export type BlobMethod = "blob.get";
 /** ターミナルの通知（F1）。method で見分ける。 */
 export type TermEvent =
   | { method: "term.output"; params: Notifications["term.output"] }
@@ -281,10 +283,10 @@ export class Session {
   }
 
   /**
-   * ツリーと git（D2）・ターミナル（F1）の要求を今の接続で送る。つながっていないときは投げる。
+   * ツリーと git（D2）・ターミナル（F1）・画像（E6）の要求を今の接続で送る。つながっていないときは投げる。
    * つなぎ直したら、呼ぶ側が取り直す（onState の connected で知る）。
    */
-  async request<M extends TreeMethod | TermMethod>(
+  async request<M extends TreeMethod | TermMethod | BlobMethod>(
     method: M,
     params: Requests[M]["params"],
   ): Promise<Requests[M]["result"]> {

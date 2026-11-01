@@ -4,13 +4,15 @@
 //
 // - 箱はマス目（桁は ch、行は LINE_HEIGHT）で置く。本文の 1 行目は上の余白（PAD_Y）の下。
 // - 確認（confirm）は箱にせず、状態行に出す（BarsView.tsx）。
-// - レビューカードの中の画像（images）は、まだ描かない（E6 で blob.get と一緒に描く）。
+// - レビューカードの中の画像（images）は、行の上に重ねる（E6。MediaView.tsx の PreviewImages）。
 // - 押しても shj には送らず、キーを受ける textarea からフォーカスを外さない。
 import { createMemo, For, Index, Show, type JSX } from "solid-js";
 
 import type { Files, Item, Line, Overlay, Theme } from "../rpc/protocol.ts";
 import { cmdlineText, textCells } from "./bars.ts";
+import type { BlobSource } from "./blob.ts";
 import { LINE_HEIGHT, PAD_Y } from "./layout.ts";
+import { PreviewImages } from "./MediaView.tsx";
 import {
   COMPLETION_KIND_W,
   composeRows,
@@ -33,6 +35,8 @@ export function OverlayLayer(props: {
   files: Files | undefined;
   area: Area;
   theme: Theme | null;
+  /** レビューカードの画像の取り先 */
+  blobs?: BlobSource;
   onMouseDown: (e: MouseEvent) => void;
 }): JSX.Element {
   return (
@@ -44,6 +48,7 @@ export function OverlayLayer(props: {
             files={props.files}
             area={props.area}
             theme={props.theme}
+            blobs={props.blobs}
             onMouseDown={props.onMouseDown}
           />
         )}
@@ -66,6 +71,7 @@ function OverlayBox(props: {
   files: Files | undefined;
   area: Area;
   theme: Theme | null;
+  blobs?: BlobSource;
   onMouseDown: (e: MouseEvent) => void;
 }): JSX.Element {
   const box = createMemo(() =>
@@ -85,7 +91,12 @@ function OverlayBox(props: {
             props.onMouseDown(e);
           }}
         >
-          <OverlayBody overlay={props.overlay} box={b()} theme={props.theme} />
+          <OverlayBody
+            overlay={props.overlay}
+            box={b()}
+            theme={props.theme}
+            blobs={props.blobs}
+          />
         </div>
       )}
     </Show>
@@ -105,6 +116,7 @@ function OverlayBody(props: {
   overlay: Overlay;
   box: Box;
   theme: Theme | null;
+  blobs?: BlobSource;
 }): JSX.Element {
   const ov = () => props.overlay;
   switch (props.overlay.kind) {
@@ -124,9 +136,19 @@ function OverlayBody(props: {
       );
     case "reviewCard":
       return isComposer(props.overlay) ? (
-        <ComposerBody overlay={ov()} box={props.box} theme={props.theme} />
+        <ComposerBody
+          overlay={ov()}
+          box={props.box}
+          theme={props.theme}
+          blobs={props.blobs}
+        />
       ) : (
-        <ScrollBody overlay={ov()} box={props.box} theme={props.theme} />
+        <ScrollBody
+          overlay={ov()}
+          box={props.box}
+          theme={props.theme}
+          blobs={props.blobs}
+        />
       );
     case "menu":
       return <MenuBody overlay={ov()} box={props.box} theme={props.theme} />;
@@ -201,6 +223,7 @@ function ScrollBody(props: {
   overlay: Overlay;
   box: Box;
   theme: Theme | null;
+  blobs?: BlobSource;
 }): JSX.Element {
   const ov = () => props.overlay;
   const cols = () => Math.max(1, props.box.w - 2);
@@ -213,21 +236,30 @@ function ScrollBody(props: {
           <span class="files-pop-dim">{ov().copyLabel ?? ""}</span>
         </div>
       </Show>
-      <For each={ov().lines ?? []}>
-        {(l) => (
-          <div
-            class="files-pop-row files-pop-pad"
-            style={{ background: color(l.band) }}
-          >
-            <Show
-              when={!l.rule}
-              fallback={<span class="files-pop-rule" aria-hidden="true" />}
+      <div class="files-pop-lines">
+        <For each={ov().lines ?? []}>
+          {(l) => (
+            <div
+              class="files-pop-row files-pop-pad"
+              style={{ background: color(l.band) }}
             >
-              <LineRuns line={l} cols={cols()} theme={props.theme} />
-            </Show>
-          </div>
-        )}
-      </For>
+              <Show
+                when={!l.rule}
+                fallback={<span class="files-pop-rule" aria-hidden="true" />}
+              >
+                <LineRuns line={l} cols={cols()} theme={props.theme} />
+              </Show>
+            </div>
+          )}
+        </For>
+        <PreviewImages
+          images={ov().images}
+          top={ov().view?.top ?? 0}
+          cols={cols()}
+          left={1}
+          blobs={props.blobs}
+        />
+      </div>
       <div class="files-pop-row files-pop-pad files-pop-foot">
         <span class="files-pop-dim files-pop-label">{ov().hint ?? ""}</span>
         <span class="files-pop-dim">{indicator()}</span>
@@ -380,6 +412,7 @@ function ComposerBody(props: {
   overlay: Overlay;
   box: Box;
   theme: Theme | null;
+  blobs?: BlobSource;
 }): JSX.Element {
   const ov = () => props.overlay;
   const cols = () => Math.max(1, props.box.w - 2);
@@ -422,13 +455,22 @@ function ComposerBody(props: {
         <div class="files-pop-row files-pop-pad files-pop-dim">
           {ov().compose?.previewLabel}
         </div>
-        <For each={ov().lines ?? []}>
-          {(l) => (
-            <div class="files-pop-row files-pop-pad">
-              <LineRuns line={l} cols={cols()} theme={props.theme} />
-            </div>
-          )}
-        </For>
+        <div class="files-pop-lines">
+          <For each={ov().lines ?? []}>
+            {(l) => (
+              <div class="files-pop-row files-pop-pad">
+                <LineRuns line={l} cols={cols()} theme={props.theme} />
+              </div>
+            )}
+          </For>
+          <PreviewImages
+            images={ov().images}
+            top={0}
+            cols={cols()}
+            left={1}
+            blobs={props.blobs}
+          />
+        </div>
       </Show>
     </>
   );

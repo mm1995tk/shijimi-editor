@@ -17,7 +17,13 @@ import type {
   Span,
 } from "../rpc/protocol.ts";
 import { lineText, textCells } from "./bars.ts";
-import { gutterWidth, layoutLine, paneCells, type Run } from "./layout.ts";
+import {
+  isDeletedLine,
+  layoutLine,
+  paneCells,
+  paneGutter,
+  type Run,
+} from "./layout.ts";
 import { runeWidth } from "./width.ts";
 
 /** 欄の本文のマス目の数。 */
@@ -95,20 +101,15 @@ export function anchorCell(
   const p = files?.panes.find((q) => q.id === id);
   if (left === undefined || !p) return undefined;
   const lines = p.lines ?? [];
-  const row = lines.findIndex((l) => l.no === at.line && !isDeleted(l));
+  const row = lines.findIndex((l) => l.no === at.line && !isDeletedLine(l));
   const y = row >= 0 ? row : at.line - p.viewport.top;
   const line = row >= 0 ? lines[row] : undefined;
   const vis = line ? runesCells(line, at.col) : at.col;
-  const gutter = p.kind === "text" ? gutterWidth(p.viewport.total) : 0;
+  const gutter = paneGutter(p);
   const rel = vis - p.viewport.left;
   const col = Math.max(0, Math.min(rel, p.viewport.cols - 1));
   const shown = row >= 0 && rel >= 0 && rel < p.viewport.cols;
   return { x: left + gutter + col, y, shown };
-}
-
-/** 1 列の差分で消した行。 */
-function isDeleted(l: Line): boolean {
-  return (l.marks ?? []).some((m) => m?.kind === "deleted");
 }
 
 function clamp(v: number, lo: number, hi: number): number {

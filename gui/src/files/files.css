@@ -44,6 +44,7 @@
 }
 
 .files-pane {
+  position: relative;
   flex: none;
   overflow: hidden;
 }
@@ -102,8 +103,59 @@
   overflow: hidden;
 }
 
+/* 画像のペイン（E6）。1 行目は画像の説明（TUI と同じく 2 桁空けて薄く）、その下の全部に画像を真ん中に置く */
 .files-caption {
-  padding: 0 1ch;
+  height: var(--files-line-height);
+  padding: 0 2ch;
+  overflow: hidden;
+  color: var(--files-bar-fg);
+}
+
+.files-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* 画像は縦横比を保って枠に収め、元より大きくしない */
+.files-image img,
+.files-preview-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* プレビューとレビューカードの画像（E6）。shj が空けた表示行の上に重ね、左上に寄せる */
+.files-preview-image {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 差分の変更のバー（E6）。変更の後の側のペインの右端に重ねる（shj はバーの桁を空けない） */
+.files-diff-bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  pointer-events: none;
+}
+
+.files-diff-bar-cell {
+  position: relative;
+  height: var(--files-line-height);
+}
+
+.files-diff-bar-mark {
+  position: absolute;
+  inset: 0 0 0 2px;
 }
 
 /* キーと IME を受ける textarea（E2）。見せないが、IME の候補の窓がカーソルの近くに出るよう、
@@ -372,4 +424,11 @@
 
 .files-pop-compose {
   background: var(--files-bg);
+}
+
+/* レビューカードの行。画像（E6）を行の上に重ねる土台 */
+.files-pop-lines {
+  position: relative;
+  /* 見える範囲から一部はみ出した画像を、見出しや案内の行に重ねない */
+  overflow: hidden;
 }

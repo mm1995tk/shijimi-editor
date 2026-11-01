@@ -37,6 +37,16 @@ const FALLBACK: Record<string, string> = {
   "diag.info": "#8fb4ff",
   "diag.hint": "#8fb4ff",
   "indent.guide": "#3a414e",
+  // 差分（E6）。色の組は shj の既定のテーマ（dark-plus）と同じ
+  "side.bg": "#181b21",
+  "diff.add.bg": "#203a27",
+  "diff.del.bg": "#3d2125",
+  "diff.add.word.bg": "#2f6b3c",
+  "diff.del.word.bg": "#7a2e35",
+  "diff.add.sign": "#3fb950",
+  "diff.del.sign": "#f85149",
+  "diff.mod.sign": "#3794ff",
+  "diff.bar.view": "#2a2f39",
 };
 
 /** name の色。テーマに無ければ控えの色、それも無ければ undefined。 */

@@ -10,6 +10,7 @@ import {
   gutterText,
   headDiagnostic,
   gutterWidth,
+  isCurrentLine,
   layoutLine,
   lineBg,
   lineKey,
@@ -71,6 +72,8 @@ describe("gutter", () => {
   it("テキストのペインの幅は行番号の欄を足す", () => {
     assert.equal(paneCells(pane()), 27);
     assert.equal(paneCells(pane({ kind: "preview" })), 20);
+    // 差分のペインも行番号の欄を持つ（E6）
+    assert.equal(paneCells(pane({ kind: "diff" })), 27);
   });
 });
 
@@ -205,7 +208,7 @@ describe("lineBg", () => {
     });
     assert.equal(lineBg(plain(3, ""), sel), undefined);
     assert.equal(
-      lineBg(plain(3, ""), pane({ kind: "diff", curLine: 3 })),
+      lineBg(plain(3, ""), pane({ kind: "preview", curLine: 3 })),
       undefined,
     );
   });
@@ -337,9 +340,9 @@ describe("診断（E5）", () => {
 });
 
 describe("行番号の横の印（E5）", () => {
-  it("診断の印の色。診断の印が無ければ空ける", () => {
+  it("診断の印は「●」と重さの色。診断の印が無ければ空ける", () => {
     assert.equal(gutterMark(plain(0, "")), undefined);
-    assert.equal(
+    assert.deepEqual(
       gutterMark({
         no: 0,
         spans: [],
@@ -348,7 +351,7 @@ describe("行番号の横の印（E5）", () => {
           { kind: "diag", style: "diag.warn" },
         ],
       }),
-      "diag.warn",
+      { ch: "●", style: "diag.warn" },
     );
     assert.equal(
       gutterMark({
@@ -423,5 +426,97 @@ describe("インデントガイド（E5）", () => {
       " |1|indent.guide,cursor,guide",
       "   x|4",
     ]);
+  });
+});
+
+describe("差分（E6）", () => {
+  const newSide = (more: Partial<Pane> = {}) =>
+    pane({
+      kind: "diff",
+      diff: { side: "new", top: 0, rows: 10, hunks: [] },
+      ...more,
+    });
+  const oldSide = (more: Partial<Pane> = {}) =>
+    pane({
+      kind: "diff",
+      diff: { side: "old", top: 0, rows: 10, hunks: [] },
+      ...more,
+    });
+  const added: Line = {
+    no: 3,
+    spans: [{ text: "abcd" }],
+    marks: [{ kind: "added", style: "diff.add.sign" }],
+    words: [{ start: 1, end: 3 }],
+  };
+  const deleted: Line = {
+    no: 3,
+    spans: [{ text: "abcd" }],
+    marks: [{ kind: "deleted", style: "diff.del.sign" }],
+    words: [{ start: 0, end: 1 }],
+  };
+  const blank: Line = { no: -1, spans: [], blank: true };
+
+  it("行の背景：変わった行は変更の色、空きは side.bg、ほかはカーソルのある行だけ curline", () => {
+    assert.equal(lineBg(added, newSide({ curLine: 3 })), "diff.add.bg");
+    assert.equal(lineBg(deleted, newSide({ curLine: 3 })), "diff.del.bg");
+    assert.equal(lineBg(blank, newSide()), "side.bg");
+    assert.equal(lineBg(plain(3, "x"), newSide({ curLine: 3 })), "curline");
+    // 変更の前の側（左の列）はバッファの行ではない
+    assert.equal(lineBg(plain(3, "x"), oldSide({ curLine: 3 })), undefined);
+  });
+
+  it("カーソルのある行の判定は、消した行と空きと左の列を除く", () => {
+    assert.equal(isCurrentLine(plain(3, "x"), newSide({ curLine: 3 })), true);
+    assert.equal(isCurrentLine(deleted, newSide({ curLine: 3 })), false);
+    assert.equal(isCurrentLine(plain(3, "x"), oldSide({ curLine: 3 })), false);
+    assert.equal(isCurrentLine(blank, newSide({ curLine: -1 })), false);
+  });
+
+  it("印：消した行は「-」", () => {
+    assert.deepEqual(gutterMark(deleted), { ch: "-", style: "diff.del.sign" });
+  });
+
+  it("変わった部分：足した側は diff.add.word.bg、消した側は diff.del.word.bg", () => {
+    assert.deepEqual(
+      layoutLine(added, newSide(), { cursor: false }).map((r) => [
+        r.text,
+        r.bg,
+      ]),
+      [
+        ["a", undefined],
+        ["bc", "diff.add.word.bg"],
+        ["d", undefined],
+      ],
+    );
+    assert.deepEqual(
+      layoutLine(deleted, newSide(), { cursor: false }).map((r) => [
+        r.text,
+        r.bg,
+      ]),
+      [
+        ["a", "diff.del.word.bg"],
+        ["bcd", undefined],
+      ],
+    );
+    const old: Line = { ...deleted, marks: [] };
+    assert.equal(
+      layoutLine(old, oldSide(), { cursor: false })[0]?.bg,
+      "diff.del.word.bg",
+    );
+  });
+
+  it("カーソルは今のバッファの行にだけ描く（1 列の差分で消した行の番号が同じでも描かない）", () => {
+    const p = newSide({
+      cursors: [at(3, 0)],
+      selections: [range(at(3, 0), at(3, 0))],
+    });
+    assert.equal(
+      layoutLine(plain(3, "ab"), p, { cursor: true })[0]?.cursor,
+      true,
+    );
+    assert.equal(
+      layoutLine(deleted, p, { cursor: true }).some((r) => r.cursor),
+      false,
+    );
   });
 });

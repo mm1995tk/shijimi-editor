@@ -11,6 +11,11 @@
 //  - インデントガイド（E5）：guides の桁にある空白（タブは先頭の 1 桁）に縦線を引く。indent より右には
 //    引かない。空行は行末より右にも indent まで引く。縦線は文字ではなく、マス目の左端の 1px の線
 //    （モックのツリーの縦線と同じ形）で描く。
+//  - 差分（E6。internal/tui/gitdiff_draw.go）：差分のペインも行番号の欄を持つ。消した行（左の列の行と、
+//    1 列の差分で消した行）は diff.del.bg の背景で、印の桁に「-」を出す。足した・書き換えた行は
+//    diff.add.bg の背景。行の中の変わった部分（words）は、消した側は diff.del.word.bg、足した側は
+//    diff.add.word.bg。相手側にだけ行がある空き（blank）は side.bg で塗る。カーソル・選択・行の強調は、
+//    今のバッファの行（変更の後の側の、消した行でも空きでもない行）にだけ描く。
 // 行の文字はスタイルの区間（spans）で来るので、ここで rune（code point）に戻して数える。
 
 import type {
@@ -69,17 +74,70 @@ export function gutterNumber(no: number, total: number): string {
   return `${String(no + 1).padStart(w - 2)}  `;
 }
 
-/** ペインの横幅（マス目）。テキストは行番号の欄を足す。 */
-export function paneCells(p: Pane): number {
-  const cols = Math.max(0, p.viewport.cols);
-  return p.kind === "text" ? cols + gutterWidth(p.viewport.total) : cols;
+/** 行番号の欄を持つペイン（テキストと差分）。 */
+export function hasGutter(p: Pane): boolean {
+  return p.kind === "text" || p.kind === "diff";
 }
 
-/** 行の背景の名前。カーソルのある行は curline（選択があるときは付けない）。 */
+/** ペインの行番号の欄の幅（マス目）。欄が無ければ 0。 */
+export function paneGutter(p: Pane): number {
+  return hasGutter(p) ? gutterWidth(p.viewport.total) : 0;
+}
+
+/** ペインの横幅（マス目）。テキストと差分は行番号の欄を足す。 */
+export function paneCells(p: Pane): number {
+  return Math.max(0, p.viewport.cols) + paneGutter(p);
+}
+
+/** 差分で、変更の前の行（1 列の差分で消した行）。 */
+export function isDeletedLine(l: Line): boolean {
+  return (l.marks ?? []).some((m) => m?.kind === "deleted");
+}
+
+/** 差分で、変更の後の側の変わった行（足した・書き換えた行）。 */
+export function isChangedLine(l: Line): boolean {
+  return (l.marks ?? []).some(
+    (m) => m?.kind === "added" || m?.kind === "modified",
+  );
+}
+
+/**
+ * 今のバッファの行か（カーソル・選択・行の強調を描く行）。テキストの行と、差分の変更の後の側のうち、
+ * 消した行でも空きでもない行。
+ */
+export function isBufferLine(line: Line, p: Pane): boolean {
+  if (line.no < 0) return false;
+  if (p.kind === "text") return true;
+  return (
+    p.kind === "diff" &&
+    p.diff?.side !== "old" &&
+    !line.blank &&
+    !isDeletedLine(line)
+  );
+}
+
+/** カーソルのある行か（行番号を強調する）。 */
+export function isCurrentLine(line: Line, p: Pane): boolean {
+  return isBufferLine(line, p) && line.no === p.curLine;
+}
+
+/** 消した側の行か（左の列の行と、1 列の差分で消した行）。 */
+function oldSide(line: Line, p: Pane): boolean {
+  return p.kind === "diff" && (p.diff?.side === "old" || isDeletedLine(line));
+}
+
+/**
+ * 行の背景の名前。カーソルのある行は curline（選択があるときは付けない）。
+ * 差分は変更の背景を、カーソルのある行でも優先する（TUI と同じ）。
+ */
 export function lineBg(line: Line, p: Pane): string | undefined {
   if (line.band) return line.band;
-  if (p.kind !== "text" || line.no < 0 || line.no !== p.curLine)
-    return undefined;
+  if (p.kind === "diff") {
+    if (line.blank) return "side.bg";
+    if (isDeletedLine(line)) return "diff.del.bg";
+    if (isChangedLine(line)) return "diff.add.bg";
+  }
+  if (!isCurrentLine(line, p)) return undefined;
   return hasSelection(p.selections) ? undefined : "curline";
 }
 
@@ -117,12 +175,23 @@ export function headDiagnostic(
   return best;
 }
 
+/** 行番号の横の印（1 桁の文字と色の名前）。 */
+export interface GutterMark {
+  ch: string;
+  style: string;
+}
+
 /**
- * 行番号の横の印の色の名前。印が無ければ undefined（印の桁は空ける）。
- * テキストのペインで shj が付ける印は診断だけなので、診断の印だけを見る（差分の印は E6）。
+ * 行番号の横の印。印が無ければ undefined（印の桁は空ける）。
+ * 診断の印は「●」、差分で消した行は「-」（TUI の drawOldLine と同じ）。足した・書き換えた行は背景だけで
+ * 印は出さない（TUI と同じ。どこが変わったかは変更のバーにも出る）。
  */
-export function gutterMark(line: Line): string | undefined {
-  return line.marks?.find((m) => m.kind === "diag")?.style || undefined;
+export function gutterMark(line: Line): GutterMark | undefined {
+  const diag = line.marks?.find((m) => m.kind === "diag");
+  if (diag?.style) return { ch: "●", style: diag.style };
+  const del = line.marks?.find((m) => m.kind === "deleted");
+  if (del) return { ch: "-", style: del.style || "diff.del.sign" };
+  return undefined;
 }
 
 /** 1 つのマス目の見た目。 */
@@ -266,11 +335,16 @@ export function layoutLine(line: Line, p: Pane, o: LineOptions): Run[] {
   const row = line.no;
   const textW = Math.max(0, p.viewport.cols);
   const left = Math.max(0, p.viewport.left);
-  const text = p.kind === "text";
-  const sels = text ? (p.selections ?? []) : [];
-  const curs = text && o.cursor ? (p.cursors ?? []) : [];
+  const buf = isBufferLine(line, p);
+  const sels = buf ? (p.selections ?? []) : [];
+  const curs = buf && o.cursor ? (p.cursors ?? []) : [];
   const isGuide = guideCol(line);
   const looks = runeLooks(line);
+  // 差分の行の中の変わった部分
+  const words = p.kind === "diff" ? (line.words ?? []) : [];
+  const wordBg = oldSide(line, p) ? "diff.del.word.bg" : "diff.add.word.bg";
+  const inWord = (col: number) =>
+    words.some((w) => col >= w.start && col < w.end);
   const inSel = (col: number) => {
     if (row < 0) return false;
     const at = { line: row, col };
@@ -290,6 +364,7 @@ export function layoutLine(line: Line, p: Pane, o: LineOptions): Run[] {
     const look: Cell = eol ? { ch: " ", cells: 1 } : { ...looks[col]! };
     const ch = look.ch;
     const rw = eol ? 1 : runeWidth(ch, vis);
+    if (!eol && inWord(col)) look.bg = wordBg;
     if (sel) look.bg = "selection";
     const d = eol ? undefined : diagAt(line, col);
     if (d) {
@@ -374,18 +449,19 @@ export function cellsFor(
  */
 export function lineKey(line: Line, p: Pane, o: LineOptions): string {
   const row = line.no;
-  const text = p.kind === "text";
+  const buf = isBufferLine(line, p);
   const touches = (s: Range) => s.start.line <= row && row <= s.end.line;
   return JSON.stringify([
     p.kind,
+    p.diff?.side,
     p.viewport.cols,
     p.viewport.left,
     p.viewport.total,
-    row >= 0 && row === p.curLine,
+    isCurrentLine(line, p),
     hasSelection(p.selections),
-    text && o.cursor
+    buf && o.cursor
       ? (p.cursors ?? []).filter((c) => c.line === row).map((c) => c.col)
       : [],
-    text ? (p.selections ?? []).filter(touches) : [],
+    buf ? (p.selections ?? []).filter(touches) : [],
   ]);
 }
