@@ -5,7 +5,8 @@ package server
 // ワークスペースはターミナルのシェルの cwd から決める。シェルの cwd を 1 秒に 1 回読み、
 // 変わったターミナルだけ term.cwd を通知する。ワークスペースの一覧は、生きているターミナルから
 // 作り直して前回と比べ、workspace.changed にする。
-// core はまだ 1 つなので（P14）、files は空にしてある。
+// 開いているファイルはワークスペースごとの core（Cores）が持つ。ファイルを開いている間は、
+// シェルがいなくてもワークスペースは残る。
 
 import (
 	"encoding/json"
@@ -85,19 +86,30 @@ func (w *wsManager) focusRoot() string {
 func (w *wsManager) recompute() {
 	w.recomputeMu.Lock()
 	defer w.recomputeMu.Unlock()
+	cores := w.srv.coresOf()
 	next := buildWorkspaces(w.srv.terms.all())
+	if cores != nil {
+		w.addKept(next, cores)
+	}
 	w.mu.Lock()
 	prev := w.list
 	w.list = next
 	if _, ok := next[w.focus]; !ok {
-		// フォーカスが消えた。GUI は removed から知る。P14 で Screen の宛先が要るときに通知を足す。
+		// フォーカスが消えた。GUI は removed から知る。Screen の宛先が要るとき（B9）に通知を足す。
 		w.focus = ""
 	}
 	added, updated, removed := diffWorkspaces(prev, next)
+	var gone []string
 	for _, id := range removed {
 		delete(w.lastTerm, id)
+		gone = append(gone, prev[id].Root)
 	}
 	w.mu.Unlock()
+	if cores != nil {
+		for _, root := range gone {
+			cores.Close(root)
+		}
+	}
 	if p := changedParams(added, updated, removed); p != nil {
 		w.srv.notifyOwner("workspace.changed", p)
 	}
@@ -127,6 +139,29 @@ func buildWorkspaces(terms []*terminal) map[string]*wsInfo {
 		slices.SortFunc(x.Terms, func(a, b string) int { return termIDNum(a) - termIDNum(b) })
 	}
 	return next
+}
+
+// addKept は、シェルがいなくてもファイルを開いているワークスペースを next に足し、
+// どのワークスペースにも開いているファイル（ルートからの相対パス）を入れる。
+func (w *wsManager) addKept(next map[string]*wsInfo, cores Cores) {
+	for _, root := range cores.Kept() {
+		id := workspaceID(root)
+		if next[id] != nil {
+			continue
+		}
+		kind := "cwd"
+		if r, k, ok := findRoot(root, w.home); ok && r == root {
+			kind = k
+		}
+		x := &wsInfo{ID: id, Root: root, Kind: kind, Name: filepath.Base(root), Terms: []string{}, Files: []string{}}
+		if kind == "git" {
+			x.Branch = gitBranch(root)
+		}
+		next[id] = x
+	}
+	for _, x := range next {
+		x.Files = relFiles(x.Root, cores.Files(x.Root))
+	}
 }
 
 // diffWorkspaces は前回と今回の差。
@@ -274,9 +309,18 @@ func (ss *session) workspaceRequest(req *rpc.Message) (res any, err error, handl
 	if x == nil {
 		return nil, rpc.Errorf(rpc.CodeNotFound, "no such workspace: %s", p.ID), true
 	}
+	cores := ss.srv.coresOf()
 	if req.Method == "workspace.close_files" {
-		// core がワークスペースごとになる（P14）まで、開いているファイルは無い。
+		// 未保存の変更があるファイルは閉じずに残す（閉じて変更を失わない）。
+		if cores != nil {
+			cores.CloseFiles(x.Root)
+			w.recompute()
+		}
 		return struct{}{}, nil, true
+	}
+	// フォーカスを移したワークスペースの core を用意する。core は外しても残る。
+	if cores != nil {
+		cores.Open(x.Root)
 	}
 	w.mu.Lock()
 	w.focus = p.ID

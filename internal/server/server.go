@@ -76,6 +76,7 @@ type Server struct {
 	stopping   bool        // stop が始まった
 	beforeStop []func()    // 止まる前に走らせる（AddBeforeStop）
 	focus      Workspace   // ctl と ide の届け先。無ければ nil
+	cores      Cores       // ワークスペースごとの core（SetCores）。無ければ nil
 	ctlSrv     *ctl.Server // StartControl で開く
 	ideSrv     *ide.Server // StartIDE で開く
 }

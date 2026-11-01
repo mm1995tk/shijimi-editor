@@ -70,6 +70,14 @@ func runServe(args []string) int {
 		}
 		return 1
 	}
+	// A core per workspace, on one set of process-wide parts. A core is made
+	// when its workspace takes the focus and kept while it has files open.
+	shared := core.NewShared()
+	defer shared.Close()
+	cores := core.NewWorkspaces(shared, nil)
+	defer cores.CloseAll()
+	srv.SetCores(serveCores{cores})
+	srv.AddBeforeStop(func() { writeBackups(cores, logger) })
 	// Like the TUI, the control socket and the Claude Code connection are best
 	// effort. The server has one of each for all workspaces; requests go to the
 	// focused workspace. The socket is <pid>.sock as in the TUI, so shj finds it

@@ -13,7 +13,8 @@ import (
 // the core of one workspace. The server holds one control socket and one IDE
 // connection for all workspaces and hands each request to the workspace that
 // has the focus (docs/design/gui-protocol.md, 3 章「サーバーモードの中身」).
-// The workspaces themselves come with P14.
+// The workspaces' cores are internal/core.Workspaces (see Cores); none of them
+// is a Workspace yet, so ctl and ide get errNoWorkspace until one is.
 type Workspace interface {
 	// Control runs a request from the control socket (shj diff, exec, ...).
 	Control(req ctl.Request) ctl.Response
