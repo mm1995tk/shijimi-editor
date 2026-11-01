@@ -7,6 +7,7 @@ import {
   createMemo,
   createSignal,
   For,
+  Index,
   on,
   onCleanup,
   Show,
@@ -70,6 +71,8 @@ export function BlobImg(props: {
 /**
  * プレビュー（とレビューカード）の行の上に重ねる画像。top は 1 行目の表示行、left は左に空ける桁、
  * cols は使える桁数。画像の表示行の範囲の行は空なので、その上に置く。
+ * スクロールのたびに images は新しいオブジェクトで届くので、位置で使い回す（同じ画像なら BlobImg は
+ * 鍵が変わらず、<img> を作り直さない）。
  */
 export function PreviewImages(props: {
   images: readonly PreviewImage[] | null | undefined;
@@ -79,21 +82,21 @@ export function PreviewImages(props: {
   blobs?: BlobSource;
 }): JSX.Element {
   return (
-    <For each={props.images ?? []}>
+    <Index each={props.images ?? []}>
       {(im) => (
         <div
           class="files-preview-image"
           style={{
-            top: `${(im.row - props.top) * LINE_HEIGHT}px`,
-            left: `${(props.left ?? 0) + (im.col ?? 0)}ch`,
-            width: `${Math.max(1, props.cols - (im.col ?? 0))}ch`,
-            height: `${im.rows * LINE_HEIGHT}px`,
+            top: `${(im().row - props.top) * LINE_HEIGHT}px`,
+            left: `${(props.left ?? 0) + (im().col ?? 0)}ch`,
+            width: `${Math.max(1, props.cols - (im().col ?? 0))}ch`,
+            height: `${im().rows * LINE_HEIGHT}px`,
           }}
         >
-          <BlobImg image={im.image} blobs={props.blobs} />
+          <BlobImg image={im().image} blobs={props.blobs} />
         </div>
       )}
-    </For>
+    </Index>
   );
 }
 
@@ -119,7 +122,7 @@ export function ImageBody(props: {
   );
 }
 
-/** 差分のペインの右端の変更のバー。h はペインの行数。 */
+/** 差分のペインの右端の変更のバー。rows はペインの行数。 */
 export function ChangeBar(props: {
   diff: DiffInfo;
   rows: number;

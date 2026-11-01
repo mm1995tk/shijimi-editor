@@ -413,4 +413,6 @@
 /* レビューカードの行。画像（E6）を行の上に重ねる土台 */
 .files-pop-lines {
   position: relative;
+  /* 見える範囲から一部はみ出した画像を、見出しや案内の行に重ねない */
+  overflow: hidden;
 }
