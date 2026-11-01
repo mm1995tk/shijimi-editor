@@ -67,3 +67,59 @@ func TestFileKnowledge(t *testing.T) {
 		}
 	}
 }
+
+// tuiFields are the fields of App that belong to the TUI (the table in
+// docs/design/gui-protocol.md): the size of the screen, which regions are
+// shown and the terminal under the editor.
+var tuiFields = []string{"w", "h", "showSide", "showTerm", "showAgent", "term"}
+
+// TestRenderFrameReadsQueries keeps renderFrame from reading the state of App
+// directly. What is shown comes from the screens (Screen, Pane, Overlay) and
+// from questions App answers (a.cur(), a.diffMode(), a.focusIn(...)), which
+// become core.Screen() and core's query methods when App is split (#384).
+// Only the TUI's own fields may be read by name.
+func TestRenderFrameReadsQueries(t *testing.T) {
+	fset := token.NewFileSet()
+	appFile, err := parser.ParseFile(fset, "app.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fields := map[string]bool{}
+	ast.Inspect(appFile, func(n ast.Node) bool {
+		ts, ok := n.(*ast.TypeSpec)
+		if !ok || ts.Name.Name != "App" {
+			return true
+		}
+		for _, f := range ts.Type.(*ast.StructType).Fields.List {
+			for _, id := range f.Names {
+				fields[id.Name] = true
+			}
+		}
+		return false
+	})
+	drawFile, err := parser.ParseFile(fset, "app_draw.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := false
+	for _, d := range drawFile.Decls {
+		fd, ok := d.(*ast.FuncDecl)
+		if !ok || fd.Name.Name != "renderFrame" {
+			continue
+		}
+		seen = true
+		ast.Inspect(fd.Body, func(n ast.Node) bool {
+			sel, ok := n.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			if id, ok := sel.X.(*ast.Ident); ok && id.Name == "a" && fields[sel.Sel.Name] && !slices.Contains(tuiFields, sel.Sel.Name) {
+				t.Errorf("renderFrame reads a.%s; ask a method of App instead (%s)", sel.Sel.Name, fset.Position(sel.Pos()))
+			}
+			return true
+		})
+	}
+	if !seen {
+		t.Fatal("renderFrame not found in app_draw.go")
+	}
+}

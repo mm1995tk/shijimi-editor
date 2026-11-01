@@ -73,4 +73,3 @@ func (a *App) popupAnchorPos(t *tab) buffer.Pos {
 	}
 	return t.buf.Cur
 }
-
