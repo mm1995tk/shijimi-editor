@@ -324,7 +324,7 @@ func (a *App) ideCall(m IDECall) (res IDEReply, cmd tea.Cmd, pending bool) {
 			return ok(map[string]any{"success": false, "message": "Document not open: " + p})
 		}
 		if t.dirty() {
-			cmd = a.saveTab(t)
+			cmd = a.effectCmd(a.saveTab(t)...)
 			if a.msgErr {
 				return fail(i18n.T("ide.cantsave"), a.msg)
 			}

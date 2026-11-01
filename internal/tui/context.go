@@ -110,7 +110,7 @@ func (a *App) handleContextKey(msg Key) tea.Cmd {
 		}
 		a.showTerm = true
 		cmd := a.setFocus(focusTerminal)
-		return tea.Batch(cmd, a.term.paste(text))
+		return tea.Batch(a.effectCmd(cmd...), a.term.paste(text))
 	case "esc", "ctrl+c", "q":
 		a.ctx = nil
 	case "ctrl+d", "pgdown", "down", "j":

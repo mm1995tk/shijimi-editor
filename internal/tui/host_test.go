@@ -20,7 +20,7 @@ func TestHostGetsClipboardAndURL(t *testing.T) {
 	if len(h.clip) != 1 || h.clip[0] != "hello" || a.clipboard != "hello" {
 		t.Fatalf("clip %v, register %q", h.clip, a.clipboard)
 	}
-	runCmd(a, a.execCommand("open-url https://a.example"))
+	runCmd(a, a.effectCmd(a.execCommand("open-url https://a.example")...))
 	if len(h.url) != 1 || h.url[0] != "https://a.example" || a.msgErr {
 		t.Fatalf("url %v err %v", h.url, a.msgErr)
 	}

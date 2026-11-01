@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 
@@ -38,13 +37,13 @@ type palette struct {
 
 	// prompt mode
 	prompt   string
-	onSubmit func(value string) tea.Cmd
+	onSubmit func(value string) []Effect
 
 	// pick mode
 	picking   bool
 	pickTitle string
 	pickAll   []paletteItem
-	onPick    func(index int) tea.Cmd
+	onPick    func(index int) []Effect
 
 	// live is set when the list comes from a server query (see pickLive);
 	// liveSeq numbers the edits so that late answers can be told apart.
@@ -80,7 +79,7 @@ func indexFiles(root string) []string {
 }
 
 // show opens the palette in quick-open/command mode with initial text.
-func (p *palette) show(root, initial string) tea.Cmd {
+func (p *palette) show(root, initial string) []Effect {
 	p.open = true
 	p.picking = false
 	p.live = false
@@ -96,7 +95,7 @@ func (p *palette) show(root, initial string) tea.Cmd {
 }
 
 // ask opens the palette as a single-line prompt.
-func (p *palette) ask(prompt, initial string, onSubmit func(string) tea.Cmd) tea.Cmd {
+func (p *palette) ask(prompt, initial string, onSubmit func(string) []Effect) []Effect {
 	p.open = true
 	p.picking = false
 	p.live = false
@@ -302,7 +301,7 @@ func renderItem(it screen.Item, w int, selected bool) string {
 }
 
 // pick opens the palette as a fuzzy list; onPick receives the index into items.
-func (p *palette) pick(title string, items []paletteItem, onPick func(int) tea.Cmd) tea.Cmd {
+func (p *palette) pick(title string, items []paletteItem, onPick func(int) []Effect) []Effect {
 	p.open = true
 	p.picking = true
 	p.prompt = ""
@@ -323,7 +322,7 @@ func (p *palette) pick(title string, items []paletteItem, onPick func(int) tea.C
 // pickLive is pick for a list the language server filters: the list is not
 // fuzzy-filtered here. The caller asks the server after each edit of the
 // input (queryLater) and puts the answer in with setPickItems.
-func (p *palette) pickLive(title string, onPick func(int) tea.Cmd) tea.Cmd {
+func (p *palette) pickLive(title string, onPick func(int) []Effect) []Effect {
 	cmd := p.pick(title, nil, onPick)
 	p.live = true
 	p.liveSeq++

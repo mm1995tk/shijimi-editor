@@ -77,19 +77,19 @@ func TestSingleBlocksOtherViews(t *testing.T) {
 
 func TestSingleQuitAndClose(t *testing.T) {
 	a, _ := newSingleApp(t, "a.txt", "hello\n")
-	if !isQuit(a.execCommand("q")) {
+	if !isQuit(a.effectCmd(a.execCommand("q")...)) {
 		t.Fatal(":q did not quit")
 	}
 	a, _ = newSingleApp(t, "a.txt", "hello\n")
-	if !isQuit(a.closeTab(false)) {
+	if !isQuit(a.effectCmd(a.closeTab(false)...)) {
 		t.Fatal("closing the file did not quit")
 	}
 	a, _ = newSingleApp(t, "a.txt", "hello\n")
 	a.tabs[0].buf.Insert("x")
-	if isQuit(a.closeTab(false)) {
+	if isQuit(a.effectCmd(a.closeTab(false)...)) {
 		t.Fatal("closing a modified file quit without asking")
 	}
-	if isQuit(a.execCommand("q")) {
+	if isQuit(a.effectCmd(a.execCommand("q")...)) {
 		t.Fatal(":q quit with unsaved changes")
 	}
 }
@@ -103,7 +103,7 @@ func TestSingleNewFileCreatedOnSave(t *testing.T) {
 		t.Fatal("file created before saving")
 	}
 	a.tabs[0].buf.Insert("hi")
-	if !isQuit(a.execCommand("wq")) {
+	if !isQuit(a.effectCmd(a.execCommand("wq")...)) {
 		t.Fatal(":wq did not quit")
 	}
 	got, err := os.ReadFile(p)
