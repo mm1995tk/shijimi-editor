@@ -9,7 +9,7 @@ import (
 // cells.go is the helpers that fit text to a number of terminal cells.
 
 // fit truncates or pads s (which may contain ANSI codes) to exactly w cells.
-func fit(s string, w int) string {
+func Fit(s string, w int) string {
 	if w <= 0 {
 		return ""
 	}
@@ -25,7 +25,7 @@ func fit(s string, w int) string {
 }
 
 // overlay draws box lines over base lines starting at (x, y).
-func overlay(base []string, box []string, x, y int) []string {
+func Overlay(base []string, box []string, x, y int) []string {
 	for i, bl := range box {
 		r := y + i
 		if r < 0 || r >= len(base) {
@@ -40,7 +40,7 @@ func overlay(base []string, box []string, x, y int) []string {
 	return base
 }
 
-func clamp(v, lo, hi int) int {
+func Clamp(v, lo, hi int) int {
 	if v < lo {
 		return lo
 	}

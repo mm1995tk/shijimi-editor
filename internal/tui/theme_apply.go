@@ -7,7 +7,7 @@ import (
 
 // applyTheme makes t the active theme: it rewrites the palette variables,
 // rebuilds precomputed styles, and invalidates color caches.
-func applyTheme(t *Theme) {
+func applyTheme(t *core.Theme) {
 	core.ActivateTheme(t)
 
 	cEditorBg, cEditorFg, cSideBg, cSideFg = t.EditorBg, t.EditorFg, t.SideBg, t.SideFg
@@ -27,16 +27,15 @@ func applyTheme(t *Theme) {
 	cHoverBg, cHoverFg, cHoverBorder = t.PaletteBg, t.EditorFg, t.Accent
 	cHoverRule = t.HoverRule
 
-	modeStyles = map[editMode]lipgloss.Style{
-		modeNormal: bgfg(t.ModeNormal, t.CursorFg).Bold(true),
-		modeInsert: bgfg(t.ModeInsert, t.CursorFg).Bold(true),
-		modeSelect: bgfg(t.ModeSelect, t.CursorFg).Bold(true),
+	modeStyles = map[core.EditMode]lipgloss.Style{
+		core.ModeNormal: bgfg(t.ModeNormal, t.CursorFg).Bold(true),
+		core.ModeInsert: bgfg(t.ModeInsert, t.CursorFg).Bold(true),
+		core.ModeSelect: bgfg(t.ModeSelect, t.CursorFg).Bold(true),
 	}
-
 
 	cellStyles = map[cellStyle]lipgloss.Style{}
 	rebuildStyles(t)
 }
 
 // init makes the default theme the active one before any config is read.
-func init() { applyTheme(defaultTheme) }
+func init() { applyTheme(core.DefaultTheme) }

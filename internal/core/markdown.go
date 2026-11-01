@@ -230,7 +230,7 @@ func plainText(cs []mdCell) string {
 
 // mdDoc is a Markdown document rendered at one width: the lines (what the
 // preview Pane carries) and where the images go.
-type mdDoc struct {
+type MdDoc struct {
 	Lines  []screen.Line
 	Images []screen.PreviewImage
 }
@@ -248,7 +248,7 @@ type mdMedia struct {
 }
 
 // mdOpts supplies the pieces the renderer cannot produce itself.
-type mdOpts struct {
+type MdOpts struct {
 	// mermaid returns the rows for a diagram (each at most w wide), or nil
 	// to show the source as a plain code block.
 	mermaid func(code string, w int) *mdMedia
@@ -369,12 +369,12 @@ func fitSpans(spans []screen.Span, w int) []screen.Span {
 // renderMarkdown formats src into lines for a pane w columns wide. The lines
 // are not padded to w: the drawing side fills the rest with the editor
 // background. The structure of src is ParseMarkdown's; the widths are here.
-func renderMarkdown(src string, w int, o mdOpts) mdDoc {
+func RenderMarkdown(src string, w int, o MdOpts) MdDoc {
 	return formatMarkdown(ParseMarkdown(src, o.frontMatter), w, o)
 }
 
 // formatMarkdown lays the blocks of a document out for a pane w columns wide.
-func formatMarkdown(blocks []MdBlock, w int, o mdOpts) mdDoc {
+func formatMarkdown(blocks []MdBlock, w int, o MdOpts) MdDoc {
 	var out []screen.Line
 	var images []screen.PreviewImage
 	gapAt := -1     // the index in out of the empty line that separates blocks
@@ -516,7 +516,7 @@ func formatMarkdown(blocks []MdBlock, w int, o mdOpts) mdDoc {
 		out = out[:len(out)-1]
 		gapAt = -1
 	}
-	return mdDoc{Lines: out, Images: images}
+	return MdDoc{Lines: out, Images: images}
 }
 
 // soleImage reports whether a paragraph is one image and nothing else, and
@@ -560,7 +560,7 @@ func mdCodeRows(code []string, lang string, w int) (rows []screen.Line, pieces m
 	blank := mdRow(screen.Span{Text: strings.Repeat(" ", max(0, w)), Style: bg, Bg: bg})
 	var out []screen.Line
 	if lang != "" {
-		out = append(out, mdRow(screen.Span{Text: fit(" "+lang, w), Style: screen.StyleLineNo, Bg: bg}))
+		out = append(out, mdRow(screen.Span{Text: Fit(" "+lang, w), Style: screen.StyleLineNo, Bg: bg}))
 	} else {
 		out = append(out, blank)
 	}
@@ -590,7 +590,7 @@ func mdCodeRows(code []string, lang string, w int) (rows []screen.Line, pieces m
 			if len(widths) > 1 {
 				pieces[len(out)] = codePiece{cont: i > 0, width: min(pw, tw)} // a rune wider than the block is drawn as "…"
 			}
-			out = append(out, codeRow(lexSpans(l, lex), edge, col, pw, tw))
+			out = append(out, codeRow(LexSpans(l, lex), edge, col, pw, tw))
 			col += pw
 		}
 	}

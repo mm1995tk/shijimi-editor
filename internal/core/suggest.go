@@ -78,7 +78,7 @@ type termFailure struct {
 const (
 	probeTicks   = 5  // watch ticks between repository probes
 	prProbeTicks = 60 // watch ticks between pull request lookups
-	failTail     = 200
+	FailTail     = 200
 )
 
 // failLine matches the summary lines test runners print on failure.
@@ -88,7 +88,7 @@ var failLine = regexp.MustCompile(`^\s*(--- FAIL|FAIL\b|FAILED\b|test result: FA
 
 // probeRepo looks at the repository in the background. Pull requests are
 // asked for only when the branch or HEAD moved, or every prProbeTicks.
-func (a *Core) probeRepo() []Effect {
+func (a *Core) ProbeRepo() []Effect {
 	if a.gitTop == "" || a.sg.probing {
 		return nil
 	}
@@ -172,7 +172,7 @@ func (a *Core) suggestTick() []Effect {
 	a.sg.ticks++
 	a.sg.prTicks++
 	if a.sg.ticks >= probeTicks {
-		return a.probeRepo()
+		return a.ProbeRepo()
 	}
 	return nil
 }
@@ -186,7 +186,7 @@ func (a *Core) scanTerminals() {
 		for _, code := range t.TakeCommandEnds() {
 			switch code {
 			case 0:
-				a.clearFailure(t.ID())
+				a.ClearFailure(t.ID())
 			case 130:
 				// Ctrl+C: the user stopped it on purpose.
 			default:
@@ -206,11 +206,11 @@ func (a *Core) scanTerminals() {
 // addFailure records a failure for the shell t. A shell still failing keeps its
 // record (and the key a dismissal refers to); only what is shown changes.
 func (a *Core) addFailure(t Shell, code int, line string) {
-	a.addFailureTab(t.ID(), 1, code, line, t.Tail(failTail))
+	a.AddFailureTab(t.ID(), 1, code, line, t.Tail(FailTail))
 }
 
 // addFailureTab is addFailure for a terminal that is not a Shell.
-func (a *Core) addFailureTab(tab, n, code int, line string, output []string) {
+func (a *Core) AddFailureTab(tab, n, code int, line string, output []string) {
 	f := termFailure{tab: tab, n: n, code: code, line: line, output: output}
 	for i := range a.sg.fails {
 		if a.sg.fails[i].tab == tab {
@@ -224,7 +224,7 @@ func (a *Core) addFailureTab(tab, n, code int, line string, output []string) {
 	a.sg.fails = append(a.sg.fails, f)
 }
 
-func (a *Core) clearFailure(tab int) {
+func (a *Core) ClearFailure(tab int) {
 	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return f.tab == tab })
 }
 
@@ -260,7 +260,7 @@ func (a *Core) allSuggestions() []offer {
 	if r.prKnown && len(r.prs) == 0 && r.ahead > 0 && r.base != "" && !isBranchOf(r.base, r.branch) {
 		out = append(out, offer{sgCreatePR, "create-pr:" + r.branch, i18n.T("sg.createpr"), fmt.Sprintf(i18n.T("sg.commits"), r.branch, r.ahead)})
 	}
-	if r.prKnown && len(r.prs) > 0 && !a.prShown() {
+	if r.prKnown && len(r.prs) > 0 && !a.PrShown() {
 		p := r.prs[0]
 		out = append(out, offer{sgReviewMode, fmt.Sprintf("review-mode:%s:%d", r.branch, p.Number), i18n.T("sg.reviewmode"), fmt.Sprintf("#%d %s", p.Number, p.Title)})
 	}
@@ -276,9 +276,9 @@ func (a *Core) allSuggestions() []offer {
 		for _, p := range paths {
 			n += len(byPath[p])
 		}
-		out = append(out, offer{sgLSPErrors, "lsp-errors", fmt.Sprintf(i18n.T("sg.fixerrors"), n), fmt.Sprintf(i18n.T("sg.files"), len(paths), a.rel(paths[0]))})
+		out = append(out, offer{sgLSPErrors, "lsp-errors", fmt.Sprintf(i18n.T("sg.fixerrors"), n), fmt.Sprintf(i18n.T("sg.files"), len(paths), a.Rel(paths[0]))})
 	}
-	if a.prShown() {
+	if a.PrShown() {
 		out = append(out, offer{sgAIReview, fmt.Sprintf("ai-review:%d", a.gd.pr.Number), i18n.T("sg.aireview"), fmt.Sprintf("#%d %s", a.gd.pr.Number, a.gd.pr.Title)})
 	}
 	return out
@@ -323,7 +323,7 @@ func (a *Core) dismissSuggestion() {
 	if len(list) == 0 {
 		return
 	}
-	s := list[clamp(a.sg.sel, 0, len(list)-1)]
+	s := list[Clamp(a.sg.sel, 0, len(list)-1)]
 	if a.sg.dismissed == nil {
 		a.sg.dismissed = map[string]bool{}
 	}
@@ -331,7 +331,7 @@ func (a *Core) dismissSuggestion() {
 	if s.kind == sgApplyFix {
 		a.sg.fixOffer = false
 	}
-	a.sg.sel = clamp(a.sg.sel, 0, max(0, len(list)-2))
+	a.sg.sel = Clamp(a.sg.sel, 0, max(0, len(list)-2))
 }
 
 // ---- running a suggestion ----
@@ -341,7 +341,7 @@ func (a *Core) runSuggestion() []Effect {
 	if len(list) == 0 {
 		return nil
 	}
-	s := list[clamp(a.sg.sel, 0, len(list)-1)]
+	s := list[Clamp(a.sg.sel, 0, len(list)-1)]
 	switch s.kind {
 	case sgReviewMode:
 		return a.openDiff(basePR)
@@ -359,7 +359,7 @@ func (a *Core) runSuggestion() []Effect {
 			if fmt.Sprintf("fail:%d", f.seq) == s.key {
 				cmd := a.runAgent(s.kind, s.key, s.title, func() string { return failurePrompt(f) })
 				if a.ag.run != nil {
-					a.clearFailure(f.tab)
+					a.ClearFailure(f.tab)
 				}
 				return cmd
 			}
@@ -400,7 +400,7 @@ func (a *Core) errorsText() string {
 			if d.Source != "" {
 				src = " (" + d.Source + ")"
 			}
-			fmt.Fprintf(&sb, "- %s:%d:%d: %s%s\n", a.rel(p), d.Range.Start.Line+1, d.Range.Start.Character+1, firstLine(d.Message), src)
+			fmt.Fprintf(&sb, "- %s:%d:%d: %s%s\n", a.Rel(p), d.Range.Start.Line+1, d.Range.Start.Character+1, FirstLine(d.Message), src)
 		}
 	}
 	return sb.String()
@@ -438,7 +438,7 @@ func applyFixPrompt() string { return i18n.T("sg.prompt.applyfix") }
 // maxReviewDiff bounds the diff sent for a review.
 const maxReviewDiff = 200_000
 
-func reviewPrompt(pr *prInfo, d string) string {
+func reviewPrompt(pr *PrInfo, d string) string {
 	if len(d) > maxReviewDiff {
 		d = d[:maxReviewDiff] + i18n.T("sg.difftruncated")
 	}
@@ -476,14 +476,14 @@ func parseReview(text string) ([]reviewComment, error) {
 // pull request or differ from its head commit are skipped.
 func (a *Core) placeReview(run *agentRun) []Effect {
 	s := a.ag
-	if !a.prShown() || a.gd.pr.Number != run.pr {
+	if !a.PrShown() || a.gd.pr.Number != run.pr {
 		s.add(logEntry{kind: logError, text: i18n.T("sg.prnotshown")})
 		return nil
 	}
 	cs, err := parseReview(run.text.String())
 	if err != nil {
 		s.add(logEntry{kind: logError, text: err.Error()})
-		a.fail(err)
+		a.Fail(err)
 		return nil
 	}
 	byPath := map[string]*diff.File{}
@@ -494,14 +494,14 @@ func (a *Core) placeReview(run *agentRun) []Effect {
 	for _, c := range cs {
 		p := strings.TrimPrefix(filepath.ToSlash(c.Path), "./")
 		if filepath.IsAbs(c.Path) {
-			p = a.repoPath(c.Path)
+			p = a.RepoPath(c.Path)
 		}
 		f := byPath[p]
-		if f == nil || a.isStale(p) || strings.TrimSpace(c.Body) == "" {
+		if f == nil || a.IsStale(p) || strings.TrimSpace(c.Body) == "" {
 			skipped++
 			continue
 		}
-		th := &prThread{Path: p, Side: "RIGHT", Pending: true}
+		th := &PrThread{Path: p, Side: "RIGHT", Pending: true}
 		body := c.Body
 		switch {
 		case c.Line <= 0:
@@ -524,7 +524,7 @@ func (a *Core) placeReview(run *agentRun) []Effect {
 		msg += fmt.Sprintf(i18n.T("sg.skippedfiles"), skipped)
 	}
 	s.add(logEntry{kind: logInfo, text: msg})
-	a.info("%s", msg)
+	a.Info("%s", msg)
 	return nil
 }
 

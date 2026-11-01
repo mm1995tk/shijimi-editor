@@ -11,14 +11,14 @@ import (
 )
 
 // hoverCell is one rune with the name of its color (a heading's is bold).
-type hoverCell struct {
-	r  rune
-	st screen.Style
+type HoverCell struct {
+	R  rune
+	St screen.Style
 }
 
 // hoverLine is one logical line of the popup. code lines get a darker band.
 type hoverLine struct {
-	cells []hoverCell
+	cells []HoverCell
 	code  bool
 	rule  bool // horizontal rule, drawn at the popup width
 }
@@ -26,35 +26,35 @@ type hoverLine struct {
 var mdLink = regexp.MustCompile(`\[([^\]]*)\]\([^)]*\)`)
 
 // textCells styles one markdown text line: headings, `inline code`, links.
-func textCells(l string) [][]hoverCell {
+func textCells(l string) [][]HoverCell {
 	head := false
 	if t := strings.TrimLeft(l, "#"); len(t) < len(l) && strings.HasPrefix(t, " ") {
 		l, head = strings.TrimSpace(t), true
 	}
 	l = mdLink.ReplaceAllString(l, "$1")
-	var cs []hoverCell
+	var cs []HoverCell
 	inCode := false
 	for _, r := range l {
 		switch {
 		case r == '`':
 			inCode = !inCode
 		case inCode:
-			cs = append(cs, hoverCell{r: r, st: screen.StyleHoverInline})
+			cs = append(cs, HoverCell{R: r, St: screen.StyleHoverInline})
 		case head:
-			cs = append(cs, hoverCell{r: r, st: screen.StyleHoverHead})
+			cs = append(cs, HoverCell{R: r, St: screen.StyleHoverHead})
 		default:
-			cs = append(cs, hoverCell{r: r})
+			cs = append(cs, HoverCell{R: r})
 		}
 	}
-	return [][]hoverCell{cs}
+	return [][]HoverCell{cs}
 }
 
 // codeCells syntax-highlights a fenced block, one cell slice per line.
-func codeCells(lang string, lines []string) [][]hoverCell {
-	out := make([][]hoverCell, len(lines))
+func codeCells(lang string, lines []string) [][]HoverCell {
+	out := make([][]HoverCell, len(lines))
 	for i, l := range lines {
 		for _, r := range l {
-			out[i] = append(out[i], hoverCell{r: r})
+			out[i] = append(out[i], HoverCell{R: r})
 		}
 	}
 	var lx chroma.Lexer
@@ -81,7 +81,7 @@ func codeCells(lang string, lines []string) [][]hoverCell {
 				continue
 			}
 			if row < len(out) && col < len(out[row]) {
-				out[row][col].st = c
+				out[row][col].St = c
 			}
 			col++
 		}

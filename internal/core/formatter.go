@@ -19,7 +19,7 @@ const formatterTimeout = 10 * time.Second
 
 // formatterDoneMsg carries the output of an external formatter.
 type formatterDoneMsg struct {
-	tab  *tab
+	tab  *Tab
 	in   string // buffer text the formatter was given
 	out  string
 	err  error
@@ -28,10 +28,10 @@ type formatterDoneMsg struct {
 
 // runFormatter formats the current buffer with the language's formatter
 // command: the buffer goes to stdin, stdout becomes the new text.
-func (a *Core) runFormatter(t *tab, f *config.Formatter, save bool) []Effect {
-	in := t.buf.Text()
+func (a *Core) runFormatter(t *Tab, f *config.Formatter, save bool) []Effect {
+	in := t.Buf.Text()
 	root := a.root
-	name := a.rel(t.buf.Path)
+	name := a.Rel(t.Buf.Path)
 	args := make([]string, len(f.Args))
 	for i, s := range f.Args {
 		args[i] = strings.ReplaceAll(s, "%{buffer_name}", name)
@@ -74,12 +74,12 @@ func firstNonEmptyLine(s, def string) string {
 // undo step, so the cursor and scroll stay where they were.
 func (a *Core) handleFormatterDone(msg formatterDoneMsg) []Effect {
 	if msg.err != nil {
-		a.fail(msg.err)
+		a.Fail(msg.err)
 		return nil
 	}
-	b := msg.tab.buf
+	b := msg.tab.Buf
 	if b.Text() != msg.in {
-		a.fail(errors.New(i18n.T("fmt.stale")))
+		a.Fail(errors.New(i18n.T("fmt.stale")))
 		return nil
 	}
 	if edit, ok := lineDiffEdit(b, msg.out); ok {
@@ -88,7 +88,7 @@ func (a *Core) handleFormatterDone(msg formatterDoneMsg) []Effect {
 	if msg.save {
 		return a.saveTab(msg.tab)
 	}
-	a.infoText(i18n.T("app.formatted"))
+	a.InfoText(i18n.T("app.formatted"))
 	return nil
 }
 

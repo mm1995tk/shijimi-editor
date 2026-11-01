@@ -10,19 +10,19 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
-type editMode int
+type EditMode int
 
 const (
-	modeNormal editMode = iota
-	modeInsert
-	modeSelect
+	ModeNormal EditMode = iota
+	ModeInsert
+	ModeSelect
 )
 
-func (m editMode) label() string {
+func (m EditMode) label() string {
 	switch m {
-	case modeInsert:
+	case ModeInsert:
 		return "INS"
-	case modeSelect:
+	case ModeSelect:
 		return "SEL"
 	}
 	return "NOR"
@@ -66,25 +66,25 @@ func fullPreviewEditorKey(msg Key) bool {
 
 // handleHelixKey implements Helix-style modal editing for text tabs.
 func (a *Core) handleHelixKey(msg Key) []Effect {
-	t := a.cur()
-	if t == nil || t.kind != tabText {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText {
 		return nil
 	}
-	if a.fullPreview(t) {
-		a.mode = modeNormal // e.g. after switching back to this tab from insert mode
+	if a.FullPreview(t) {
+		a.mode = ModeNormal // e.g. after switching back to this tab from insert mode
 		if !a.fullPreviewKey(msg.String()) {
 			a.pending, a.count = "", 0
-			a.infoText(i18n.T("app.fullpreview"))
+			a.InfoText(i18n.T("app.fullpreview"))
 			return nil
 		}
 	}
-	if a.mode == modeInsert {
+	if a.mode == ModeInsert {
 		return a.handleInsertKey(msg)
 	}
-	b := t.buf
+	b := t.Buf
 	key := msg.String()
 	a.follow = a.pending != "" || key != "z" // the z prefix alone must not pull the view back to the cursor
-	ext := a.mode == modeSelect
+	ext := a.mode == ModeSelect
 
 	// pending multi-key sequences
 	if a.pending != "" {
@@ -130,7 +130,7 @@ func (a *Core) handleHelixKey(msg Key) []Effect {
 		return nil
 	case "s":
 		if _, _, ok := b.Selection(); !ok && !b.HasExtra() {
-			a.infoText(i18n.T("helix.selectfirst"))
+			a.InfoText(i18n.T("helix.selectfirst"))
 			return nil
 		}
 		return a.openCmdline("s")
@@ -160,7 +160,7 @@ func (a *Core) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int,
 		if key == "alt+pgup" {
 			dir = -1
 		}
-		a.scrollHalfScreen(a.cur(), dir)
+		a.scrollHalfScreen(a.Cur(), dir)
 	case "ctrl+u":
 		b.MoveLines(-a.pageSize()/2, ext)
 	case "ctrl+d":
@@ -179,7 +179,7 @@ func (a *Core) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int,
 		if s := b.SelectedText(); s != "" && !strings.Contains(s, "\n") {
 			a.pushJump()
 			a.lastSearch = s
-			a.info(i18n.T("helix.search"), s)
+			a.Info(i18n.T("helix.search"), s)
 		}
 
 	// --- prefixes ---
@@ -206,16 +206,16 @@ func (a *Core) pageSize() int { return max(1, a.EditRows()-2) }
 
 func (a *Core) enterInsert() []Effect {
 	a.recIns = nil
-	a.mode = modeInsert
+	a.mode = ModeInsert
 	return nil
 }
 
 func (a *Core) helixPending(p, key string, msg Key) []Effect {
-	t := a.cur()
-	b := t.buf
-	ext := a.mode == modeSelect
+	t := a.Cur()
+	b := t.Buf
+	ext := a.mode == ModeSelect
 	ch := []rune(key)
-	single := utf8.RuneCountInString(typed(msg)) == 1
+	single := utf8.RuneCountInString(Typed(msg)) == 1
 	var r rune
 	if key == "space" {
 		r = ' '
@@ -269,7 +269,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 		}
 	case "m i", "m a":
 		if single && !b.SelectTextObject(r, p == "m a") {
-			a.info(i18n.T("helix.notfoundc"), r)
+			a.Info(i18n.T("helix.notfoundc"), r)
 		}
 	case "]":
 		switch key {
@@ -287,7 +287,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 				b.Anchor = nil
 			}
 			if !b.FindChar(r, p == "f" || p == "t", p == "t" || p == "T", true) {
-				a.info(i18n.T("helix.notfoundc"), r)
+				a.Info(i18n.T("helix.notfoundc"), r)
 			}
 		}
 	case "r":
@@ -335,13 +335,13 @@ func (a *Core) spaceMode(key string) []Effect {
 		return a.diagnosticPicker()
 	case "e":
 		a.SetSide(true)
-		return a.setFocus(focusExplorer)
+		return a.SetFocus(FocusExplorer)
 	case "E":
 		if a.gd.on {
 			return a.focusChangesList()
 		}
 		a.SetSide(true)
-		return a.setFocus(focusExplorer)
+		return a.SetFocus(FocusExplorer)
 	case "m":
 		return a.togglePreview()
 	case "g":
@@ -356,21 +356,21 @@ func (a *Core) spaceMode(key string) []Effect {
 	case "i":
 		return a.toggleAgentPanel()
 	case "y":
-		if t := a.cur(); t != nil && t.kind == tabText {
-			s, e := t.buf.SelectionOrChar()
-			a.copyText(t.buf.TextRange(s, e))
-			a.infoText(i18n.T("helix.copied"))
+		if t := a.Cur(); t != nil && t.Kind == TabText {
+			s, e := t.Buf.SelectionOrChar()
+			a.CopyText(t.Buf.TextRange(s, e))
+			a.InfoText(i18n.T("helix.copied"))
 		}
 	case "p", "P":
-		if t := a.cur(); t != nil && t.kind == tabText {
+		if t := a.Cur(); t != nil && t.Kind == TabText {
 			if s, ok := ReadSystemClipboard(); ok {
-				a.paste(t.buf, s, key == "p")
+				a.paste(t.Buf, s, key == "p")
 			}
 		}
 	case "?":
 		return a.pal.show(a.root, ">")
 	case "/":
-		return a.openSearch(fQuery)
+		return a.openSearch(FQuery)
 	case "c":
 		a.toggleComment()
 	case "t":
@@ -384,7 +384,7 @@ func (a *Core) spaceMode(key string) []Effect {
 func (a *Core) handleInsertKey(msg Key) []Effect {
 	cmd := a.insertKey(msg)
 	if a.recIns != nil && !a.replaying {
-		if a.mode == modeInsert {
+		if a.mode == ModeInsert {
 			a.recIns.steps = append(a.recIns.steps, insertStep{key: msg})
 		} else {
 			a.lastIns, a.recIns = a.recIns, nil // left insert mode: the record is complete
@@ -394,14 +394,14 @@ func (a *Core) handleInsertKey(msg Key) []Effect {
 }
 
 func (a *Core) insertKey(msg Key) []Effect {
-	t := a.cur()
-	b := t.buf
+	t := a.Cur()
+	b := t.Buf
 	if bd, ok := a.keymap.insert[msg.String()]; ok {
 		return a.runBinding(bd, b, false, 1, false)
 	}
 	switch msg.String() {
 	case "esc":
-		a.mode = modeNormal
+		a.mode = ModeNormal
 		a.comp = nil
 		b.ForEachCursor(b.ClearSelection)
 		return nil
@@ -525,24 +525,24 @@ func (a *Core) changeCase(b *buffer.Buffer, key string) {
 }
 
 func (a *Core) searchNext(backward bool) {
-	t := a.cur()
-	if t == nil || t.kind != tabText || a.lastSearch == "" {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText || a.lastSearch == "" {
 		return
 	}
 	if a.searchBackward {
 		backward = !backward
 	}
-	b := t.buf
+	b := t.Buf
 	from := b.Cur
 	if s, _, ok := b.Selection(); ok && backward {
 		from = s
 	}
 	p, ok := b.Find(a.lastSearch, from, backward)
 	if !ok {
-		a.fail(errString(i18n.T("app.notfound") + a.lastSearch))
+		a.Fail(errString(i18n.T("app.notfound") + a.lastSearch))
 		return
 	}
-	if a.mode == modeSelect && b.Anchor != nil {
+	if a.mode == ModeSelect && b.Anchor != nil {
 		b.Cur = buffer.Pos{Row: p.Row, Col: p.Col + len([]rune(a.lastSearch))}
 	} else {
 		b.SelectRange(p, buffer.Pos{Row: p.Row, Col: p.Col + len([]rune(a.lastSearch))})
@@ -562,12 +562,12 @@ func (a *Core) bufferPicker() []Effect {
 		if t.dirty() {
 			label += " ●"
 		}
-		items[i] = paletteItem{label: label, detail: a.rel(t.path())}
+		items[i] = paletteItem{label: label, detail: a.Rel(t.Path())}
 	}
 	return a.pal.pick(i18n.T("helix.buffers"), items, func(i int) []Effect {
 		a.pushJump()
 		a.showInPane(i)
-		return a.setFocus(focusEditor)
+		return a.SetFocus(FocusEditor)
 	})
 }
 
@@ -581,28 +581,28 @@ func atoiOr(s string, def int) int {
 // selectMatches turns the selections into one cursor per match of the
 // regular expression pattern (Helix "s").
 func (a *Core) selectMatches(pattern string) {
-	t := a.curText()
+	t := a.CurText()
 	if t == nil || pattern == "" {
 		return
 	}
 	re, err := regexp.Compile(pattern)
 	if err != nil {
-		a.fail(err)
+		a.Fail(err)
 		return
 	}
-	if err := t.buf.SelectMatches(re); err != nil {
-		a.fail(err)
+	if err := t.Buf.SelectMatches(re); err != nil {
+		a.Fail(err)
 		return
 	}
-	a.mode = modeNormal
+	a.mode = ModeNormal
 	a.follow = true
-	a.info(i18n.T("helix.cursors"), len(t.buf.Extra())+1)
+	a.Info(i18n.T("helix.cursors"), len(t.Buf.Extra())+1)
 }
 
 // cursorCell is where a cursor is drawn: Helix draws it on the last
 // selected character when the selection extends forwards.
 func (a *Core) cursorCell(b *buffer.Buffer, anchor *buffer.Pos, cur buffer.Pos) buffer.Pos {
-	if a.mode == modeInsert || anchor == nil || !anchor.Less(cur) {
+	if a.mode == ModeInsert || anchor == nil || !anchor.Less(cur) {
 		return cur
 	}
 	if cur.Col > 0 {

@@ -12,15 +12,15 @@ import (
 type tabKind int
 
 const (
-	tabText tabKind = iota
-	tabImage
+	TabText tabKind = iota
+	TabImage
 )
 
 // tab is one item in the editor area: a text buffer or an image preview.
-type tab struct {
-	kind tabKind
+type Tab struct {
+	Kind tabKind
 
-	buf        *buffer.Buffer
+	Buf        *buffer.Buffer
 	hl         *highlighter
 	lang       *config.Language
 	lspVersion int
@@ -31,12 +31,12 @@ type tab struct {
 	transient    bool
 	transientVer int // buffer version when opened; an edit keeps the tab
 
-	img *imageView
-	dv  *diffView // set while the tab is shown as a diff (diff mode)
+	img *ImageView
+	dv  *DiffView // set while the tab is shown as a diff (diff mode)
 
 	// Markdown preview beside the buffer
-	preview   previewMode
-	prevCache *mdDoc
+	Preview   previewMode
+	prevCache *MdDoc
 	prevW     int
 	prevVer   int
 	prevGen   int
@@ -49,41 +49,41 @@ type tab struct {
 	scanImages []string
 }
 
-func newTab(b *buffer.Buffer) *tab {
-	return &tab{kind: tabText, buf: b, hl: newHighlighter(b.Path), lspVersion: -1}
+func newTab(b *buffer.Buffer) *Tab {
+	return &Tab{Kind: TabText, Buf: b, hl: newHighlighter(b.Path), lspVersion: -1}
 }
 
-func (t *tab) title() string {
-	switch t.kind {
-	case tabImage:
+func (t *Tab) title() string {
+	switch t.Kind {
+	case TabImage:
 		return t.img.name()
 	}
-	return t.buf.Name()
+	return t.Buf.Name()
 }
 
-func (t *tab) dirty() bool { return t.kind == tabText && t.buf.Dirty }
+func (t *Tab) dirty() bool { return t.Kind == TabText && t.Buf.Dirty }
 
-func (t *tab) path() string {
-	switch t.kind {
-	case tabText:
-		return t.buf.Path
-	case tabImage:
+func (t *Tab) Path() string {
+	switch t.Kind {
+	case TabText:
+		return t.Buf.Path
+	case TabImage:
 		return t.img.path
 	}
 	return ""
 }
 
 // gutterWidthFor is the width of the line numbers column for a file of total lines.
-func gutterWidthFor(total int) int { return len(fmt.Sprint(total)) + 4 }
+func GutterWidthFor(total int) int { return len(fmt.Sprint(total)) + 4 }
 
-func gutterWidth(b *buffer.Buffer) int { return gutterWidthFor(len(b.Lines)) }
+func GutterWidth(b *buffer.Buffer) int { return GutterWidthFor(len(b.Lines)) }
 
 // ensureCursorVisible adjusts scrolling so the cursor is on screen.
-func ensureCursorVisible(b *buffer.Buffer, w, h int) {
+func EnsureCursorVisible(b *buffer.Buffer, w, h int) {
 	if h <= 0 {
 		return
 	}
-	textW := max(1, w-gutterWidth(b))
+	textW := max(1, w-GutterWidth(b))
 	margin := min(3, (h-1)/2)
 	if b.Cur.Row < b.ScrollRow+margin {
 		b.ScrollRow = max(0, b.Cur.Row-margin)
@@ -100,22 +100,21 @@ func ensureCursorVisible(b *buffer.Buffer, w, h int) {
 	}
 }
 
-// editorOpts is what App decides about one text pane: its contents (paneOpts,
+// editorOpts is what App decides about one text pane: its contents (PaneOpts,
 // for buildTextPane) and how it is drawn (the rest, for drawPane).
-type editorOpts struct {
-	paneOpts
-	focused     bool
-	query       string
-	cursorColor string
-	relative    bool
-	gutterMark  func(row int) string // color of a ● before the line number (review comments), "" = none
+type EditorOpts struct {
+	PaneOpts
+	Focused     bool
+	Query       string
+	CursorColor string
+	Relative    bool
+	GutterMark  func(row int) string // color of a ● before the line number (review comments), "" = none
 }
 
 // diagColor is the color of a diagnostic of severity sev.
 func diagColor(sev int) string {
-	return styleColor(diagStyle(screen.Severity(sevRank(sev))))
+	return StyleColor(DiagStyle(screen.Severity(sevRank(sev))))
 }
-
 
 func sevRank(s int) int {
 	if s == 0 {
@@ -124,7 +123,7 @@ func sevRank(s int) int {
 	return s
 }
 
-func firstLine(s string) string {
+func FirstLine(s string) string {
 	if before, _, ok := strings.Cut(s, "\n"); ok {
 		return before
 	}
@@ -133,10 +132,10 @@ func firstLine(s string) string {
 
 // reload re-reads the file from disk. Reload bumps the buffer version, but it
 // is not a user edit, so a transient tab stays transient.
-func (t *tab) reload() error {
-	if err := t.buf.Reload(); err != nil {
+func (t *Tab) reload() error {
+	if err := t.Buf.Reload(); err != nil {
 		return err
 	}
-	t.transientVer = t.buf.Version
+	t.transientVer = t.Buf.Version
 	return nil
 }

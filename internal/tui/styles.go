@@ -1,6 +1,9 @@
 package tui
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
+)
 
 func bgfg(bg, fg string) lipgloss.Style {
 	return lipgloss.NewStyle().Background(lipgloss.Color(bg)).Foreground(lipgloss.Color(fg))
@@ -16,7 +19,7 @@ var (
 )
 
 // rebuildStyles recreates every precomputed style from the current colors.
-func rebuildStyles(t *Theme) {
+func rebuildStyles(t *core.Theme) {
 	stSide = bgfg(cSideBg, cSideFg)
 	stSideDir = bgfg(cSideBg, cSideFg).Bold(true)
 	stSideTitle = bgfg(cSideBg, t.SideTitle).Bold(true)

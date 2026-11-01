@@ -19,11 +19,11 @@ type jumpLoc struct {
 // curLoc returns where the cursor is now; ok is false when the active tab has
 // no file position (no tab, an image, an unsaved scratch buffer).
 func (a *Core) curLoc() (jumpLoc, bool) {
-	t := a.curText()
-	if t == nil || t.buf.Path == "" {
+	t := a.CurText()
+	if t == nil || t.Buf.Path == "" {
 		return jumpLoc{}, false
 	}
-	return jumpLoc{t.buf.Path, t.buf.Cur.Row, t.buf.Cur.Col}, true
+	return jumpLoc{t.Buf.Path, t.Buf.Cur.Row, t.Buf.Cur.Col}, true
 }
 
 // pushJump records the current position before a far jump. Going somewhere
@@ -47,7 +47,7 @@ func (a *Core) pushJump() {
 // jumpable reports whether the file of l can still be shown.
 func (a *Core) jumpable(l jumpLoc) bool {
 	for _, t := range a.tabs {
-		if t.kind == tabText && t.buf.Path == l.path {
+		if t.Kind == TabText && t.Buf.Path == l.path {
 			return true
 		}
 	}
@@ -72,9 +72,9 @@ func (a *Core) jumpMove(dir int) []Effect {
 		i += dir
 		if i < 0 || i >= len(a.jumps) {
 			if dir < 0 {
-				a.infoText(i18n.T("jump.noback"))
+				a.InfoText(i18n.T("jump.noback"))
 			} else {
-				a.infoText(i18n.T("jump.noforward"))
+				a.InfoText(i18n.T("jump.noforward"))
 			}
 			return nil
 		}
@@ -86,16 +86,16 @@ func (a *Core) jumpMove(dir int) []Effect {
 			}
 			continue
 		}
-		t := a.curText()
+		t := a.CurText()
 		if t == nil {
 			return nil
 		}
-		b := t.buf
+		b := t.Buf
 		b.Anchor = nil
 		row := min(max(l.row, 0), len(b.Lines)-1)
 		b.SetCursor(row, buffer.VisualCol(b.Lines[row], l.col), false)
 		a.jumpIdx = i
 		a.follow = true
-		return a.setFocus(focusEditor)
+		return a.SetFocus(FocusEditor)
 	}
 }

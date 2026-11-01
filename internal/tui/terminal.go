@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"math"
 	"path/filepath"
 	"strconv"
@@ -14,7 +15,6 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/term"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
-
 
 // termTab is the shell running on its own PTY (internal/term), drawn through
 // a VT emulator.
@@ -36,7 +36,7 @@ type terminal struct {
 	sh     *termTab
 	cwd    string
 	nextID int
-	ch     chan Event
+	ch     chan core.Event
 	armed  bool // a WaitTerm is outstanding
 	w, h   int  // size of the body last rendered
 	grab   bool // a mouse press was sent to the program; its drag and release follow
@@ -67,13 +67,13 @@ func (s termSel) ordered() (termPos, termPos) {
 }
 
 func newTerminal(cwd string) *terminal {
-	return &terminal{cwd: cwd, ch: make(chan Event, 64), w: 80, h: 24}
+	return &terminal{cwd: cwd, ch: make(chan core.Event, 64), w: 80, h: 24}
 }
 
 func (t *terminal) cur() *termTab { return t.sh }
 
 // focus makes sure a shell exists so the panel is never empty.
-func (t *terminal) focus() ([]Effect, error) {
+func (t *terminal) focus() ([]core.Effect, error) {
 	if t.sh == nil {
 		return t.start()
 	}
@@ -84,18 +84,18 @@ func (t *terminal) blur() {}
 
 // wait asks for the next PTY event to be delivered. Only one is ever
 // outstanding; handleTermEvent asks again after every event.
-func (t *terminal) wait() []Effect {
+func (t *terminal) wait() []core.Effect {
 	if t.armed {
 		return nil
 	}
 	t.armed = true
-	return []Effect{WaitTerm{From: t.ch}}
+	return []core.Effect{core.WaitTerm{From: t.ch}}
 }
 
 // start runs a login shell in the current directory on a fresh PTY.
-func (t *terminal) start() ([]Effect, error) {
+func (t *terminal) start() ([]core.Effect, error) {
 	sh := term.DefaultShell()
-	args, env := ShellIntegration(sh)
+	args, env := core.ShellIntegration(sh)
 	cols, rows := max(1, t.w), max(1, t.h)
 	sess, err := term.Start(term.Options{Shell: sh, Args: args, Dir: t.cwd, Env: env, Cols: cols, Rows: rows})
 	if err != nil {
@@ -116,22 +116,22 @@ func (t *terminal) pump(tab *termTab) {
 	err := tab.sess.Pump(func(b []byte) {
 		tab.vt.Write(b)
 		select {
-		case t.ch <- termOutputMsg{id: tab.id}:
+		case t.ch <- core.TermOutputMsg{ID: tab.id}:
 		default: // a notification is already queued
 		}
 	})
-	t.ch <- termDoneMsg{id: tab.id, err: err}
+	t.ch <- core.TermDoneMsg{ID: tab.id, Err: err}
 }
 
 // update takes a PTY event off the channel; the caller asks for the next one.
-func (t *terminal) update(ev Event) []Effect {
+func (t *terminal) update(ev core.Event) []core.Effect {
 	switch ev := ev.(type) {
-	case termOutputMsg:
+	case core.TermOutputMsg:
 		t.armed = false
 		return t.wait()
-	case termDoneMsg:
+	case core.TermDoneMsg:
 		t.armed = false
-		if t.sh != nil && t.sh.id == ev.id {
+		if t.sh != nil && t.sh.id == ev.ID {
 			t.sh.close()
 			t.sh = nil
 			t.sel = termSel{}
@@ -142,7 +142,7 @@ func (t *terminal) update(ev Event) []Effect {
 }
 
 // key sends a key press to the shell.
-func (t *terminal) key(msg Key) {
+func (t *terminal) key(msg core.Key) {
 	t.sel = termSel{}
 	if tab := t.cur(); tab != nil {
 		tab.vt.ScrollToBottom()
@@ -151,8 +151,8 @@ func (t *terminal) key(msg Key) {
 }
 
 // run types a command line into the shell, as if the user entered it.
-func (t *terminal) run(line string) ([]Effect, error) {
-	var effs []Effect
+func (t *terminal) run(line string) ([]core.Effect, error) {
+	var effs []core.Effect
 	if t.sh == nil {
 		var err error
 		if effs, err = t.start(); err != nil {
@@ -167,7 +167,7 @@ func (t *terminal) run(line string) ([]Effect, error) {
 		tab.vt.ScrollToBottom()
 		tab.write([]byte(line + "\r"))
 	}
-	return batch(effs, t.wait()), nil
+	return core.Batch(effs, t.wait()), nil
 }
 
 // closeAll ends the shell. Closing the PTY master hangs up the session.
@@ -233,7 +233,7 @@ func (t *terminal) selectAt(x, y int) {
 	if tab == nil {
 		return
 	}
-	p := termPos{tab.snap.Top + clamp(y, 0, tab.rows-1), clamp(x, 0, tab.cols-1)}
+	p := termPos{tab.snap.Top + core.Clamp(y, 0, tab.rows-1), core.Clamp(x, 0, tab.cols-1)}
 	t.sel = termSel{dragging: true, a: p, b: p}
 }
 
@@ -251,7 +251,7 @@ func (t *terminal) dragTo(x, y int) {
 		tab.vt.ScrollView(-1)
 	}
 	tab.vt.Snapshot(&tab.snap)
-	t.sel.b = termPos{tab.snap.Top + clamp(y, 0, tab.rows-1), clamp(x, 0, tab.cols-1)}
+	t.sel.b = termPos{tab.snap.Top + core.Clamp(y, 0, tab.rows-1), core.Clamp(x, 0, tab.cols-1)}
 	t.sel.on = t.sel.a != t.sel.b
 }
 
@@ -367,9 +367,9 @@ func sgrColor(c vt.Color, fg, isFG bool) string {
 		return fmt.Sprintf("%d;2;%d;%d;%d", base, r, g, b)
 	}
 	// Default colors match the editor and follow the current theme.
-	rgb := hexRGB(curTheme.EditorBg)
+	rgb := hexRGB(core.CurTheme.EditorBg)
 	if isFG {
-		rgb = hexRGB(curTheme.EditorFg)
+		rgb = hexRGB(core.CurTheme.EditorFg)
 	}
 	return fmt.Sprintf("%d;2;%d;%d;%d", base, rgb[0], rgb[1], rgb[2])
 }
@@ -384,17 +384,17 @@ func fitStyled(s string, w int, st interface{ Render(...string) string }) string
 }
 
 // termKeyBytes encodes a key press the way an xterm would send it.
-func termKeyBytes(msg Key, appCursor bool) []byte {
-	shift := msg.Mod.Has(ModShift)
-	alt := msg.Mod.Has(ModAlt)
-	ctrl := msg.Mod.Has(ModCtrl)
+func termKeyBytes(msg core.Key, appCursor bool) []byte {
+	shift := msg.Mod.Has(core.ModShift)
+	alt := msg.Mod.Has(core.ModAlt)
+	ctrl := msg.Mod.Has(core.ModCtrl)
 	esc := func(b []byte) []byte {
 		if alt {
 			return append([]byte{0x1b}, b...)
 		}
 		return b
 	}
-	if s := typed(msg); s != "" {
+	if s := core.Typed(msg); s != "" {
 		return []byte(s)
 	}
 	switch c := msg.Code; {
@@ -507,8 +507,8 @@ func termKeyBytes(msg Key, appCursor bool) []byte {
 
 // paste sends text to the shell without a trailing Enter. Programs that
 // enabled bracketed paste receive it wrapped, so it arrives as one paste.
-func (t *terminal) paste(text string) ([]Effect, error) {
-	var effs []Effect
+func (t *terminal) paste(text string) ([]core.Effect, error) {
+	var effs []core.Effect
 	if t.sh == nil {
 		var err error
 		if effs, err = t.start(); err != nil {
@@ -522,13 +522,13 @@ func (t *terminal) paste(text string) ([]Effect, error) {
 		}
 		tab.write([]byte(text))
 	}
-	return batch(effs, t.wait()), nil
+	return core.Batch(effs, t.wait()), nil
 }
 
 // mouse sends a mouse event at cell (x, y) of the terminal body to the
 // program. It reports whether anything was sent, which is false when the
 // program has not asked for mouse input.
-func (t *terminal) mouse(msg Mouse, x, y int) bool {
+func (t *terminal) mouse(msg core.Mouse, x, y int) bool {
 	tab := t.cur()
 	if tab == nil {
 		return false
@@ -538,31 +538,31 @@ func (t *terminal) mouse(msg Mouse, x, y int) bool {
 		Shift: msg.Shift, Alt: msg.Alt, Ctrl: msg.Ctrl,
 	}
 	switch msg.Button {
-	case MouseNone:
+	case core.MouseNone:
 		ev.Button = vt.ButtonNone
-	case MouseLeft:
+	case core.MouseLeft:
 		ev.Button = vt.ButtonLeft
-	case MouseMiddle:
+	case core.MouseMiddle:
 		ev.Button = vt.ButtonMiddle
-	case MouseRight:
+	case core.MouseRight:
 		ev.Button = vt.ButtonRight
-	case MouseWheelUp:
+	case core.MouseWheelUp:
 		ev.Button = vt.WheelUp
-	case MouseWheelDown:
+	case core.MouseWheelDown:
 		ev.Button = vt.WheelDown
-	case MouseWheelLeft:
+	case core.MouseWheelLeft:
 		ev.Button = vt.WheelLeft
-	case MouseWheelRight:
+	case core.MouseWheelRight:
 		ev.Button = vt.WheelRight
 	default:
 		return false
 	}
 	switch msg.Action {
-	case MousePress:
+	case core.MousePress:
 		ev.Action = vt.MousePress
-	case MouseRelease:
+	case core.MouseRelease:
 		ev.Action = vt.MouseRelease
-	case MouseMotion:
+	case core.MouseMotion:
 		ev.Action = vt.MouseMotion
 	}
 	b := tab.vt.EncodeMouse(ev)
@@ -577,7 +577,7 @@ func (t *terminal) mouse(msg Mouse, x, y int) bool {
 // program that reads the mouse gets the event. Otherwise the alternate screen
 // (vim, less) gets arrow keys, and a shell's output scrolls through the
 // scrollback.
-func (t *terminal) wheel(msg Mouse, x, y, lines int) {
+func (t *terminal) wheel(msg core.Mouse, x, y, lines int) {
 	tab := t.cur()
 	if tab == nil {
 		return
@@ -592,7 +592,7 @@ func (t *terminal) wheel(msg Mouse, x, y, lines int) {
 			key = KeyUp
 		}
 		for range abs(lines) {
-			tab.write(termKeyBytes(Key{Code: key}, m.AppCursor))
+			tab.write(termKeyBytes(core.Key{Code: key}, m.AppCursor))
 		}
 		return
 	}

@@ -41,7 +41,6 @@ type Key struct {
 	Seq uint64
 }
 
-
 func (Key) input() {}
 
 // Paste is text pasted in one piece.
@@ -139,6 +138,6 @@ type Mouse struct {
 func (Mouse) input() {}
 
 // isButton reports whether b is a real button, not a wheel step or nothing.
-func (b MouseButton) isButton() bool {
+func (b MouseButton) IsButton() bool {
 	return b == MouseLeft || b == MouseMiddle || b == MouseRight || b == MouseOther
 }

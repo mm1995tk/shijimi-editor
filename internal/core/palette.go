@@ -28,7 +28,7 @@ type paletteItem struct {
 // (">" prefix), go-to-line (":" prefix) and free-text prompts.
 type palette struct {
 	open  bool
-	input inputField
+	input InputField
 	sel   int
 	items []paletteItem
 	files []string
@@ -176,7 +176,7 @@ func (p *palette) filter(cmds []command) {
 			}
 		}
 	}
-	p.sel = clamp(p.sel, 0, max(0, len(p.items)-1))
+	p.sel = Clamp(p.sel, 0, max(0, len(p.items)-1))
 }
 
 // head is the palette's heading and the mark after it: a prompt asks with
@@ -192,7 +192,7 @@ func (p *palette) head() (title, prefix string) {
 }
 
 // paletteLabel is what precedes the input on the palette's first row.
-func paletteLabel(title, prefix string) string {
+func PaletteLabel(title, prefix string) string {
 	switch {
 	case prefix == ":":
 		return " " + title + ": "
@@ -203,7 +203,7 @@ func paletteLabel(title, prefix string) string {
 }
 
 // label is what precedes the input on the palette's first row.
-func (p *palette) label() string { return paletteLabel(p.head()) }
+func (p *palette) label() string { return PaletteLabel(p.head()) }
 
 // overlay is the palette as a screen.Overlay: the input field and the rows in
 // view (maxPaletteItems at most, scrolled so that the selected one shows) with
@@ -296,4 +296,4 @@ func runeIndexes(s string, byteOffsets []int) []int {
 }
 
 // paletteWidth is the width of the palette window.
-func (a *Core) paletteWidth() int { return clamp(a.ScreenW()*3/5, 30, 100) }
+func (a *Core) PaletteWidth() int { return Clamp(a.ScreenW()*3/5, 30, 100) }

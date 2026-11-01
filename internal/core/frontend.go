@@ -41,9 +41,9 @@ type FrontEnd interface {
 	StartResize() []Effect
 	HandleResizeKey(key string) []Effect
 	ScrollHover(d int)
-	HoverCellWord() (buffer.Pos, wordSpan, bool)
+	HoverCellWord() (buffer.Pos, WordSpan, bool)
 	EditRows() int
-	TextCols(t *tab) int
+	TextCols(t *Tab) int
 	DiffBaseCols() int
 	SuggestionsShown() bool
 	EditorCols() int

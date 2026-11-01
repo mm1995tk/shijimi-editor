@@ -17,14 +17,14 @@ func (a *Core) themePicker() []Effect {
 	items := make([]paletteItem, 0, len(themes))
 	for _, n := range themeNames() {
 		d := ""
-		if n == curTheme.Name {
+		if n == CurTheme.Name {
 			d = i18n.T("theme.current")
 		}
 		items = append(items, paletteItem{label: n, detail: d})
 	}
 	return a.pal.pick(i18n.T("theme.title"), items, func(i int) []Effect {
 		a.setTheme(items[i].label)
-		a.info(i18n.T("cmd.themeis"), curTheme.Name)
+		a.Info(i18n.T("cmd.themeis"), CurTheme.Name)
 		return nil
 	})
 }

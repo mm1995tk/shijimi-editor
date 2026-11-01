@@ -75,7 +75,7 @@ func (a *Core) holdScrollTick(seq int) []Effect {
 		a.stopHoldScroll()
 		return nil
 	}
-	h.buf.ScrollRow = clamp(h.buf.ScrollRow+h.dir, 0, max(0, len(h.buf.Lines)-1))
+	h.buf.ScrollRow = Clamp(h.buf.ScrollRow+h.dir, 0, max(0, len(h.buf.Lines)-1))
 	a.follow = true
 	return []Effect{StartTimer{After: holdScrollFrame, Fire: HoldScrollTick{seq}}}
 }
@@ -93,8 +93,8 @@ func (a *Core) holdScrollRelease(msg Key) {
 // wantKeyReleases reports whether Ctrl+D / Ctrl+U would scroll now: the Helix
 // normal or select mode in the editor, with nothing open on top. Text is not
 // typed there, so losing IME input to key-release reporting does no harm.
-func (a *Core) wantKeyReleases() bool {
-	return a.helix && a.mode != modeInsert && a.focus == focusEditor && a.curText() != nil &&
+func (a *Core) WantKeyReleases() bool {
+	return a.helix && a.mode != ModeInsert && a.focus == FocusEditor && a.CurText() != nil &&
 		!a.overlayOpen() && !a.cmdOpen && !a.findOpen && a.props.Len() == 0 && a.ctx == nil
 }
 
@@ -109,7 +109,7 @@ func (a *Core) scrollKeepCursor(b *buffer.Buffer, n int, ext bool) bool {
 		return false
 	}
 	old := b.ScrollRow
-	b.ScrollRow = clamp(old+n, 0, max(0, len(b.Lines)-h))
+	b.ScrollRow = Clamp(old+n, 0, max(0, len(b.Lines)-h))
 	moved := b.ScrollRow != old
 	margin := min(3, (h-1)/2)
 	lo, hi := b.ScrollRow+margin, b.ScrollRow+h-1-margin
@@ -119,7 +119,7 @@ func (a *Core) scrollKeepCursor(b *buffer.Buffer, n int, ext bool) bool {
 	if b.ScrollRow == max(0, len(b.Lines)-h) {
 		hi = len(b.Lines) - 1 // nor does the bottom have a line below
 	}
-	row := clamp(b.Cur.Row, lo, max(lo, hi))
+	row := Clamp(b.Cur.Row, lo, max(lo, hi))
 	if row != b.Cur.Row {
 		b.MoveLines(row-b.Cur.Row, ext)
 	}

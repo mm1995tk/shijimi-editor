@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -27,8 +26,8 @@ import (
 // prReview is the review state of the pull request shown.
 type prReview struct {
 	num     int         // the pull request this state belongs to
-	threads []*prThread // from GitHub
-	pending []*prThread // written here, sent with the review
+	threads []*PrThread // from GitHub
+	pending []*PrThread // written here, sent with the review
 	viewed  map[string]bool
 	sync    prSync
 	seq     int // bumped on every load; older answers are dropped
@@ -86,19 +85,19 @@ func (a *Core) loadReview() []Effect {
 
 func (a *Core) handlePRReview(m prReviewMsg) []Effect {
 	rv := &a.gd.rv
-	if m.seq != rv.seq || !a.prShown() || a.gd.pr.Number != m.num {
+	if m.seq != rv.seq || !a.PrShown() || a.gd.pr.Number != m.num {
 		return nil
 	}
 	rv.sync = m.sync
 	if m.err != nil {
-		a.fail(m.err)
+		a.Fail(m.err)
 	} else {
 		rv.threads, rv.viewed = m.data.threads, m.data.viewed
-		if c := a.card; c != nil && !c.thread.Pending {
+		if c := a.card; c != nil && !c.Thread.Pending {
 			a.card = nil
 			for _, t := range rv.threads {
-				if t.ID == c.thread.ID {
-					a.card = &prCard{thread: t, path: c.path}
+				if t.ID == c.Thread.ID {
+					a.card = &prCard{Thread: t, Path: c.Path}
 				}
 			}
 		}
@@ -107,14 +106,14 @@ func (a *Core) handlePRReview(m prReviewMsg) []Effect {
 }
 
 // prShown reports whether diff mode compares with a pull request's base.
-func (a *Core) prShown() bool {
+func (a *Core) PrShown() bool {
 	return a.gd.on && a.gd.base == basePR && a.gd.pr != nil
 }
 
 // ---- files ----
 
 // repoPath is abs relative to the repository top, as GitHub names files.
-func (a *Core) repoPath(abs string) string {
+func (a *Core) RepoPath(abs string) string {
 	if r, err := filepath.Rel(a.gitTopDir(), abs); err == nil {
 		return filepath.ToSlash(r)
 	}
@@ -123,14 +122,14 @@ func (a *Core) repoPath(abs string) string {
 
 // isStale reports whether file p (from the repository top) differs from the
 // pull request's head commit, so its line numbers may not match GitHub's.
-func (a *Core) isStale(p string) bool {
+func (a *Core) IsStale(p string) bool {
 	return a.gd.staleAll || a.gd.stale[p]
 }
 
 // threadsIn returns the threads of file p, sent ones first.
-func (rv *prReview) threadsIn(p string) []*prThread {
-	var out []*prThread
-	for _, ts := range [][]*prThread{rv.threads, rv.pending} {
+func (rv *prReview) threadsIn(p string) []*PrThread {
+	var out []*PrThread
+	for _, ts := range [][]*PrThread{rv.threads, rv.pending} {
 		for _, t := range ts {
 			if t.Path == p {
 				out = append(out, t)
@@ -141,8 +140,8 @@ func (rv *prReview) threadsIn(p string) []*prThread {
 }
 
 // lineThreads returns the threads shown at line (1-based) of file p.
-func (rv *prReview) lineThreads(p string, line int) []*prThread {
-	var out []*prThread
+func (rv *prReview) lineThreads(p string, line int) []*PrThread {
+	var out []*PrThread
 	for _, t := range rv.threadsIn(p) {
 		if t.onLine(line) {
 			out = append(out, t)
@@ -152,8 +151,8 @@ func (rv *prReview) lineThreads(p string, line int) []*prThread {
 }
 
 // fileThreads returns the comments on file p as a whole.
-func (rv *prReview) fileThreads(p string) []*prThread {
-	var out []*prThread
+func (rv *prReview) fileThreads(p string) []*PrThread {
+	var out []*PrThread
 	for _, t := range rv.threadsIn(p) {
 		if t.File {
 			out = append(out, t)
@@ -173,12 +172,12 @@ func (rv *prReview) viewedCount(files []*diff.File) int {
 }
 
 // commentMark returns the marker color for line row (0-based) of t, or "".
-func (a *Core) commentMark(t *tab) func(row int) string {
-	if !a.prShown() || t.buf.Path == "" {
+func (a *Core) CommentMark(t *Tab) func(row int) string {
+	if !a.PrShown() || t.Buf.Path == "" {
 		return nil
 	}
-	p := a.repoPath(t.buf.Path)
-	if a.isStale(p) {
+	p := a.RepoPath(t.Buf.Path)
+	if a.IsStale(p) {
 		return nil // the marks would land on the wrong lines
 	}
 	rows := map[int]bool{}
@@ -192,7 +191,7 @@ func (a *Core) commentMark(t *tab) func(row int) string {
 	}
 	return func(row int) string {
 		if rows[row] {
-			return curTheme.Renamed
+			return CurTheme.Renamed
 		}
 		return ""
 	}
@@ -200,7 +199,7 @@ func (a *Core) commentMark(t *tab) func(row int) string {
 
 // ---- the Space v menu ----
 
-var reviewItems = []spaceItem{
+var ReviewItems = []SpaceItem{
 	{"c", "rv.item.comment", true},
 	{"C", "rv.item.filecomment", true},
 	{"t", "rv.item.thread", false},
@@ -214,8 +213,8 @@ var reviewItems = []spaceItem{
 
 // openReviewMenu handles Space v.
 func (a *Core) openReviewMenu() []Effect {
-	if !a.prShown() {
-		a.infoText(i18n.T("rv.needpr"))
+	if !a.PrShown() {
+		a.InfoText(i18n.T("rv.needpr"))
 		return nil
 	}
 	a.pending = "space v"
@@ -224,7 +223,7 @@ func (a *Core) openReviewMenu() []Effect {
 
 // reviewCommand runs Space v <key> from the command palette.
 func (a *Core) reviewCommand(key string) []Effect {
-	if !a.prShown() {
+	if !a.PrShown() {
 		return a.openReviewMenu() // says where reviewing works
 	}
 	return a.reviewKey(key)
@@ -232,7 +231,7 @@ func (a *Core) reviewCommand(key string) []Effect {
 
 // reviewKey runs the command of Space v <key>.
 func (a *Core) reviewKey(key string) []Effect {
-	if !a.prShown() {
+	if !a.PrShown() {
 		return nil
 	}
 	switch key {
@@ -260,12 +259,12 @@ func (a *Core) reviewKey(key string) []Effect {
 
 // reviewTarget is the file a review command acts on: the selected one in
 // CHANGES, otherwise the current tab's.
-func (a *Core) reviewTarget() (string, *tab) {
-	if a.focus == focusChanges {
+func (a *Core) reviewTarget() (string, *Tab) {
+	if a.focus == FocusChanges {
 		if f := a.gd.file(); f != nil {
 			abs := filepath.Join(a.gitTopDir(), f.Path())
 			for _, t := range a.tabs {
-				if t.path() == abs {
+				if t.Path() == abs {
 					return f.Path(), t
 				}
 			}
@@ -273,18 +272,18 @@ func (a *Core) reviewTarget() (string, *tab) {
 		}
 		return "", nil
 	}
-	if t := a.curText(); t != nil && t.buf.Path != "" {
-		return a.repoPath(t.buf.Path), t
+	if t := a.CurText(); t != nil && t.Buf.Path != "" {
+		return a.RepoPath(t.Buf.Path), t
 	}
 	return "", nil
 }
 
 // checkCommentable reports why file p of tab t cannot take comments, or nil.
-func (a *Core) checkCommentable(p string, t *tab) error {
+func (a *Core) checkCommentable(p string, t *Tab) error {
 	if p == "" || a.gd.byAbs[filepath.Join(a.gitTopDir(), p)] == nil {
 		return errors.New(i18n.T("rv.needchanged"))
 	}
-	if a.isStale(p) {
+	if a.IsStale(p) {
 		return errors.New(i18n.T("rv.localchanged"))
 	}
 	if t != nil && t.dirty() {
@@ -296,15 +295,15 @@ func (a *Core) checkCommentable(p string, t *tab) error {
 // commentLines starts a comment on the cursor line or the selected lines.
 func (a *Core) commentLines() []Effect {
 	p, t := a.reviewTarget()
-	if a.focus == focusChanges || t == nil {
-		a.fail(errors.New(i18n.T("rv.selectline")))
+	if a.focus == FocusChanges || t == nil {
+		a.Fail(errors.New(i18n.T("rv.selectline")))
 		return nil
 	}
 	if err := a.checkCommentable(p, t); err != nil {
-		a.fail(err)
+		a.Fail(err)
 		return nil
 	}
-	b := t.buf
+	b := t.Buf
 	first, last := b.Cur.Row, b.Cur.Row
 	if s, e, ok := b.Selection(); ok {
 		first, last = s.Row, e.Row
@@ -312,8 +311,8 @@ func (a *Core) commentLines() []Effect {
 			last-- // a whole-line selection ends at the start of the next line
 		}
 	}
-	if dv := a.diffFor(t); dv == nil || !dv.inHunk(first) || !dv.inHunk(last) {
-		a.fail(errors.New(i18n.T("rv.outofdiff")))
+	if dv := a.DiffFor(t); dv == nil || !dv.inHunk(first) || !dv.inHunk(last) {
+		a.Fail(errors.New(i18n.T("rv.outofdiff")))
 		return nil
 	}
 	var orig []string
@@ -325,12 +324,12 @@ func (a *Core) commentLines() []Effect {
 		where = fmt.Sprintf(i18n.T("rv.rangeof"), p, first+1, last+1)
 	}
 	return a.compose(i18n.T("rv.commentlabel")+where, "", orig, func(body string) []Effect {
-		th := &prThread{Path: p, Line: last + 1, Side: "RIGHT", Pending: true, Comments: []prComment{{Author: i18n.T("rv.you"), Body: body, Created: time.Now()}}}
+		th := &PrThread{Path: p, Line: last + 1, Side: "RIGHT", Pending: true, Comments: []prComment{{Author: i18n.T("rv.you"), Body: body, Created: time.Now()}}}
 		if last > first {
 			th.StartLine = first + 1
 		}
 		a.gd.rv.pending = append(a.gd.rv.pending, th)
-		a.infoText(i18n.T("rv.commentadded"))
+		a.InfoText(i18n.T("rv.commentadded"))
 		return nil
 	})
 }
@@ -339,13 +338,13 @@ func (a *Core) commentLines() []Effect {
 func (a *Core) commentFile() []Effect {
 	p, t := a.reviewTarget()
 	if err := a.checkCommentable(p, t); err != nil {
-		a.fail(err)
+		a.Fail(err)
 		return nil
 	}
 	return a.compose(i18n.T("rv.filecommentlabel")+p, "", nil, func(body string) []Effect {
-		a.gd.rv.pending = append(a.gd.rv.pending, &prThread{Path: p, Side: "RIGHT", File: true, Pending: true,
+		a.gd.rv.pending = append(a.gd.rv.pending, &PrThread{Path: p, Side: "RIGHT", File: true, Pending: true,
 			Comments: []prComment{{Author: i18n.T("rv.you"), Body: body, Created: time.Now()}}})
-		a.infoText(i18n.T("rv.filecommentadded"))
+		a.InfoText(i18n.T("rv.filecommentadded"))
 		return nil
 	})
 }
@@ -355,36 +354,36 @@ func (a *Core) commentFile() []Effect {
 func (a *Core) openThread() []Effect {
 	p, t := a.reviewTarget()
 	if p == "" {
-		a.fail(errors.New(i18n.T("rv.openfile")))
+		a.Fail(errors.New(i18n.T("rv.openfile")))
 		return nil
 	}
-	if t != nil && a.focus != focusChanges && !a.isStale(p) {
-		if ts := a.gd.rv.lineThreads(p, t.buf.Cur.Row+1); len(ts) == 1 {
-			a.card = &prCard{thread: ts[0], path: p}
+	if t != nil && a.focus != FocusChanges && !a.IsStale(p) {
+		if ts := a.gd.rv.lineThreads(p, t.Buf.Cur.Row+1); len(ts) == 1 {
+			a.card = &prCard{Thread: ts[0], Path: p}
 			return nil
 		}
 	}
 	all := a.gd.rv.threadsIn(p)
 	if len(all) == 0 {
-		a.infoText(i18n.T("rv.nocomments"))
+		a.InfoText(i18n.T("rv.nocomments"))
 		return nil
 	}
 	if len(all) == 1 {
-		a.card = &prCard{thread: all[0], path: p}
+		a.card = &prCard{Thread: all[0], Path: p}
 		return nil
 	}
 	items := make([]paletteItem, len(all))
 	for i, th := range all {
-		items[i] = paletteItem{label: threadWhere(th) + "  " + firstLine(th.Comments[0].Body), detail: "@" + th.Comments[0].Author + threadState(th)}
+		items[i] = paletteItem{label: threadWhere(th) + "  " + FirstLine(th.Comments[0].Body), detail: "@" + th.Comments[0].Author + threadState(th)}
 	}
 	return a.pal.pick(i18n.T("rv.commentlabel")+p, items, func(i int) []Effect {
-		a.card = &prCard{thread: all[i], path: p}
+		a.card = &prCard{Thread: all[i], Path: p}
 		return nil
 	})
 }
 
 // threadWhere names what a thread is about: "右 99 行目", "ファイル", ….
-func threadWhere(t *prThread) string {
+func threadWhere(t *PrThread) string {
 	side := i18n.T("rv.right")
 	if t.Side == "LEFT" {
 		side = i18n.T("rv.left")
@@ -400,7 +399,7 @@ func threadWhere(t *prThread) string {
 	return fmt.Sprintf(i18n.T("rv.line"), side, t.Line)
 }
 
-func threadState(t *prThread) string {
+func threadState(t *PrThread) string {
 	switch {
 	case t.Pending:
 		return i18n.T("rv.unsent")
@@ -421,7 +420,7 @@ type viewedMsg struct {
 func (a *Core) toggleViewed() []Effect {
 	p, _ := a.reviewTarget()
 	if p == "" {
-		a.fail(errors.New(i18n.T("rv.openfile")))
+		a.Fail(errors.New(i18n.T("rv.openfile")))
 		return nil
 	}
 	if a.gd.pr.ID == "" {
@@ -433,11 +432,11 @@ func (a *Core) toggleViewed() []Effect {
 }
 
 func (a *Core) handleViewed(m viewedMsg) {
-	if !a.prShown() || a.gd.pr.Number != m.num {
+	if !a.PrShown() || a.gd.pr.Number != m.num {
 		return // another pull request is shown now
 	}
 	if m.err != nil {
-		a.fail(m.err)
+		a.Fail(m.err)
 		return
 	}
 	if a.gd.rv.viewed == nil {
@@ -445,9 +444,9 @@ func (a *Core) handleViewed(m viewedMsg) {
 	}
 	a.gd.rv.viewed[m.path] = m.viewed
 	if m.viewed {
-		a.info(i18n.T("rv.viewedon"), m.path)
+		a.Info(i18n.T("rv.viewedon"), m.path)
 	} else {
-		a.info(i18n.T("rv.viewedoff"), m.path)
+		a.Info(i18n.T("rv.viewedoff"), m.path)
 	}
 }
 
@@ -458,7 +457,7 @@ func (a *Core) handleViewed(m viewedMsg) {
 type reviewSentMsg struct {
 	num  int    // the pull request it was sent to
 	done string // message on success
-	sent []*prThread
+	sent []*PrThread
 	err  error
 }
 
@@ -474,11 +473,11 @@ func (a *Core) startSubmit(event string) []Effect {
 	title := fmt.Sprintf(i18n.T("rv.submitprompt"), eventNames()[event], n)
 	cmd := a.compose(title, "", nil, func(body string) []Effect {
 		if event != "APPROVE" && body == "" && n == 0 {
-			a.fail(errors.New(i18n.T("rv.needbody")))
+			a.Fail(errors.New(i18n.T("rv.needbody")))
 			return nil
 		}
-		a.infoText(i18n.T("rv.submitting"))
-		root, pr, threads := a.root, a.gd.pr, append([]*prThread(nil), a.gd.rv.pending...)
+		a.InfoText(i18n.T("rv.submitting"))
+		root, pr, threads := a.root, a.gd.pr, append([]*PrThread(nil), a.gd.rv.pending...)
 		return async(func() Event {
 			err := submitReview(root, pr, event, body, threads)
 			return reviewSentMsg{num: pr.Number, done: fmt.Sprintf(i18n.T("rv.submitted"), eventNames()[event]), sent: threads, err: err}
@@ -490,11 +489,11 @@ func (a *Core) startSubmit(event string) []Effect {
 
 func (a *Core) handleReviewSent(m reviewSentMsg) []Effect {
 	if m.err != nil {
-		a.fail(m.err)
+		a.Fail(m.err)
 		return nil
 	}
 	if m.num == a.gd.rv.num && len(m.sent) > 0 {
-		var keep []*prThread
+		var keep []*PrThread
 		for _, t := range a.gd.rv.pending {
 			sent := false
 			for _, s := range m.sent {
@@ -506,11 +505,11 @@ func (a *Core) handleReviewSent(m reviewSentMsg) []Effect {
 		}
 		a.gd.rv.pending = keep
 	}
-	a.info("%s", m.done)
-	if a.card != nil && a.card.thread.Pending {
+	a.Info("%s", m.done)
+	if a.card != nil && a.card.Thread.Pending {
 		a.card = nil
 	}
-	if !a.prShown() || a.gd.pr.Number != m.num {
+	if !a.PrShown() || a.gd.pr.Number != m.num {
 		return nil
 	}
 	return a.loadReview()
@@ -520,20 +519,20 @@ func (a *Core) handleReviewSent(m reviewSentMsg) []Effect {
 
 // inHunk reports whether buffer line row lies in a hunk of the diff GitHub
 // shows: a changed line, or one of the 3 lines of context around a change.
-func (dv *diffView) inHunk(row int) bool {
-	if dv.single {
-		return row >= 0 && row < len(dv.newIdx) // the whole file is one added hunk
+func (dv *DiffView) inHunk(row int) bool {
+	if dv.Single {
+		return row >= 0 && row < len(dv.NewIdx) // the whole file is one added hunk
 	}
 	next := 0 // buffer line the rows so far end before
-	for _, r := range dv.rows {
-		if r.new >= 0 {
-			next = r.new + 1
+	for _, r := range dv.Rows {
+		if r.New >= 0 {
+			next = r.New + 1
 		}
 		if !r.changed {
 			continue
 		}
-		if r.new >= 0 {
-			if row >= r.new-3 && row <= r.new+3 {
+		if r.New >= 0 {
+			if row >= r.New-3 && row <= r.New+3 {
 				return true
 			}
 		} else if row >= next-3 && row <= next+2 {
@@ -548,18 +547,18 @@ func (dv *diffView) inHunk(row int) bool {
 
 // prCard is a thread shown like a hover popup. It takes the keys while open.
 type prCard struct {
-	thread    *prThread
-	path      string
+	Thread    *PrThread
+	Path      string
 	scroll    int
 	byPointer bool      // opened by resting the pointer: it takes no keys, like a hover
-	at        *screenPt // the marker it hangs from when the mouse opened it
+	At        *ScreenPt // the marker it hangs from when the mouse opened it
 }
 
 // cardDoc lays the thread out as markdown at width w (content only): for
 // each comment a header line, then its body, with a rule between comments.
-func (a *Core) cardDoc(c *prCard, w int) mdDoc {
-	t := c.thread
-	var doc mdDoc
+func (a *Core) cardDoc(c *prCard, w int) MdDoc {
+	t := c.Thread
+	var doc MdDoc
 	for i, cm := range t.Comments {
 		if i > 0 {
 			doc.Lines = append(doc.Lines, mdRow(screen.Span{Text: strings.Repeat("─", w), Style: screen.StyleDim}))
@@ -572,7 +571,7 @@ func (a *Core) cardDoc(c *prCard, w int) mdDoc {
 			head = append(head, screen.Span{Text: " · " + threadWhere(t) + threadState(t), Style: screen.StyleDim})
 		}
 		doc.Lines = append(doc.Lines, mdRow(cutSpans(head, 0, w)...))
-		body := renderMarkdown(cm.Body, w, mdOpts{mermaid: a.mermaidLines})
+		body := RenderMarkdown(cm.Body, w, MdOpts{mermaid: a.mermaidLines})
 		for _, im := range body.Images {
 			im.Row += len(doc.Lines)
 			doc.Images = append(doc.Images, im)
@@ -588,20 +587,20 @@ func (a *Core) cardDoc(c *prCard, w int) mdDoc {
 // line of the thread in the pane of its file (if that is the current one).
 // Lines hold the card's content, header lines included. It clamps c.scroll
 // and changes nothing else. Drawing it is drawCard's work.
-func (a *Core) cardOverlay(c *prCard, w, maxH int) screen.Overlay {
+func (a *Core) CardOverlay(c *prCard, w, maxH int) screen.Overlay {
 	doc := a.cardDoc(c, w)
 	h := min(len(doc.Lines), maxH)
-	c.scroll = clamp(c.scroll, 0, max(0, len(doc.Lines)-h))
+	c.scroll = Clamp(c.scroll, 0, max(0, len(doc.Lines)-h))
 	end := min(len(doc.Lines), c.scroll+h)
 	ov := screen.Overlay{
 		Kind: screen.OverlayReviewCard,
 		View: &screen.Viewport{Top: c.scroll, Rows: h, Cols: w, Total: len(doc.Lines)},
 		Hint: a.cardHint(c),
 	}
-	if t := a.curText(); t != nil && t.buf.Path != "" && a.repoPath(t.buf.Path) == c.path {
-		ov.Pane = t.path()
-		if c.thread.Line > 0 {
-			ov.At = &screen.Pos{Line: c.thread.Line - 1}
+	if t := a.CurText(); t != nil && t.Buf.Path != "" && a.RepoPath(t.Buf.Path) == c.Path {
+		ov.Pane = t.Path()
+		if c.Thread.Line > 0 {
+			ov.At = &screen.Pos{Line: c.Thread.Line - 1}
 		}
 	}
 	for i, l := range doc.Lines[c.scroll:end] {
@@ -635,7 +634,7 @@ func relTime(t time.Time) string {
 
 // cardHint lists the card's keys.
 func (a *Core) cardHint(c *prCard) string {
-	t := c.thread
+	t := c.Thread
 	if t.Pending {
 		return i18n.T("rv.hint.own")
 	}
@@ -652,7 +651,7 @@ func (a *Core) cardHint(c *prCard) string {
 
 func (a *Core) handleCardKey(msg Key) ([]Effect, bool) {
 	c := a.card
-	t := c.thread
+	t := c.Thread
 	switch key := msg.String(); key {
 	case "esc", "q":
 		a.card = nil
@@ -679,7 +678,7 @@ func (a *Core) handleCardKey(msg Key) ([]Effect, bool) {
 			}), true
 		}
 		return a.compose(i18n.T("rv.replylabel")+threadWhere(t), "", nil, func(body string) []Effect {
-			a.infoText(i18n.T("rv.replying"))
+			a.InfoText(i18n.T("rv.replying"))
 			root, id := a.root, t.ID
 			num := a.gd.pr.Number
 			return async(func() Event {
@@ -695,7 +694,7 @@ func (a *Core) handleCardKey(msg Key) ([]Effect, bool) {
 				}
 			}
 			a.card = nil
-			a.infoText(i18n.T("rv.deletedunsent"))
+			a.InfoText(i18n.T("rv.deletedunsent"))
 			return nil, true
 		}
 		root, id, resolve := a.root, t.ID, !t.Resolved
@@ -719,31 +718,31 @@ func (a *Core) handleCardKey(msg Key) ([]Effect, bool) {
 
 // gotoThread opens the thread's file with the cursor on its line.
 func (a *Core) gotoThread(c *prCard) []Effect {
-	abs := filepath.Join(a.gitTopDir(), c.path)
+	abs := filepath.Join(a.gitTopDir(), c.Path)
 	if !a.openFile(abs) {
 		return nil
 	}
 	// base side and outdated lines count in another version of the file
-	if t := a.curText(); t != nil && c.thread.onLine(c.thread.Line) {
-		t.buf.Anchor = nil
-		t.buf.Cur = t.buf.ClampPos(buffer.Pos{Row: c.thread.Line - 1})
+	if t := a.CurText(); t != nil && c.Thread.onLine(c.Thread.Line) {
+		t.Buf.Anchor = nil
+		t.Buf.Cur = t.Buf.ClampPos(buffer.Pos{Row: c.Thread.Line - 1})
 		a.follow = true
 	}
-	return a.setFocus(focusEditor)
+	return a.SetFocus(FocusEditor)
 }
 
 // threadLines returns the lines a thread is on, from the open buffer.
 func (a *Core) threadLines(c *prCard) []string {
-	t := c.thread
+	t := c.Thread
 	if t.File || t.Line <= 0 {
 		return nil
 	}
-	abs := filepath.Join(a.gitTopDir(), c.path)
+	abs := filepath.Join(a.gitTopDir(), c.Path)
 	for _, tb := range a.tabs {
-		if tb.path() == abs && tb.kind == tabText {
+		if tb.Path() == abs && tb.Kind == TabText {
 			var out []string
-			for r := t.first() - 1; r < t.Line && r < len(tb.buf.Lines); r++ {
-				out = append(out, string(tb.buf.Lines[r]))
+			for r := t.first() - 1; r < t.Line && r < len(tb.Buf.Lines); r++ {
+				out = append(out, string(tb.Buf.Lines[r]))
 			}
 			return out
 		}
@@ -753,7 +752,7 @@ func (a *Core) threadLines(c *prCard) []string {
 
 // suggestion returns the lines of the last ```suggestion block in the
 // thread, or nil.
-func suggestion(t *prThread) []string {
+func suggestion(t *PrThread) []string {
 	if t.File || t.Outdated || t.Side != "RIGHT" || t.Line <= 0 {
 		return nil
 	}
@@ -786,23 +785,23 @@ func suggestion(t *prThread) []string {
 
 // applySuggestion replaces the thread's lines with its suggestion and saves.
 func (a *Core) applySuggestion(c *prCard) []Effect {
-	if err := a.checkCommentable(c.path, nil); err != nil {
-		a.fail(errors.New(i18n.T("rv.sugglocal")))
+	if err := a.checkCommentable(c.Path, nil); err != nil {
+		a.Fail(errors.New(i18n.T("rv.sugglocal")))
 		return nil
 	}
-	lines := suggestion(c.thread)
-	if !a.openFile(filepath.Join(a.gitTopDir(), c.path)) {
+	lines := suggestion(c.Thread)
+	if !a.openFile(filepath.Join(a.gitTopDir(), c.Path)) {
 		return nil
 	}
-	t := a.curText()
-	b := t.buf
+	t := a.CurText()
+	b := t.Buf
 	if t.dirty() {
-		a.fail(errors.New(i18n.T("rv.suggunsaved")))
+		a.Fail(errors.New(i18n.T("rv.suggunsaved")))
 		return nil
 	}
-	first, last := c.thread.first()-1, c.thread.Line-1
+	first, last := c.Thread.first()-1, c.Thread.Line-1
 	if first < 0 || last >= len(b.Lines) {
-		a.fail(errors.New(i18n.T("rv.nolinefile")))
+		a.Fail(errors.New(i18n.T("rv.nolinefile")))
 		return nil
 	}
 	start, end := buffer.Pos{Row: first}, buffer.Pos{Row: last, Col: len(b.Lines[last])}
@@ -822,9 +821,9 @@ func (a *Core) applySuggestion(c *prCard) []Effect {
 	a.follow = true
 	cmd := a.saveTab(t)
 	if !a.msgErr {
-		a.info(i18n.T("rv.suggapplied"), c.path)
+		a.Info(i18n.T("rv.suggapplied"), c.Path)
 	}
-	return batch(cmd, a.setFocus(focusEditor))
+	return Batch(cmd, a.SetFocus(FocusEditor))
 }
 
 // ---- the comment editor ----
@@ -833,7 +832,7 @@ func (a *Core) applySuggestion(c *prCard) []Effect {
 // rendered preview under it.
 type composer struct {
 	title    string
-	ta       TextArea
+	Ta       TextArea
 	orig     []string // lines a suggestion starts from (Ctrl+S); nil = none
 	empty    bool     // an empty text may be sent
 	onSubmit func(string) []Effect
@@ -844,7 +843,7 @@ type composer struct {
 func (a *Core) compose(title, initial string, orig []string, onSubmit func(string) []Effect) []Effect {
 	ta := a.NewTextArea(initial)
 	a.comp, a.hoverText = nil, ""
-	a.composer = &composer{title: title, ta: ta, orig: orig, onSubmit: onSubmit}
+	a.composer = &composer{title: title, Ta: ta, orig: orig, onSubmit: onSubmit}
 	return nil
 }
 
@@ -853,31 +852,31 @@ func (a *Core) handleComposerKey(msg Key) []Effect {
 	switch msg.String() {
 	case "esc":
 		a.composer = nil
-		a.infoText(i18n.T("rv.inputcancelled"))
+		a.InfoText(i18n.T("rv.inputcancelled"))
 		return nil
 	case "enter":
-		body := strings.TrimSpace(c.ta.Value())
+		body := strings.TrimSpace(c.Ta.Value())
 		if body == "" && !c.empty {
 			return nil
 		}
 		a.composer = nil
 		return c.onSubmit(body)
 	case "shift+enter", "alt+enter", "ctrl+j":
-		c.ta.InsertString("\n")
+		c.Ta.InsertString("\n")
 		return nil
 	case "ctrl+s":
 		if c.orig == nil {
-			a.infoText(i18n.T("rv.suggestonline"))
+			a.InfoText(i18n.T("rv.suggestonline"))
 			return nil
 		}
 		block := "```suggestion\n" + strings.Join(c.orig, "\n") + "\n```\n"
-		if c.ta.Column() > 0 {
+		if c.Ta.Column() > 0 {
 			block = "\n" + block // a fence must start a line
 		}
-		c.ta.InsertString(block)
+		c.Ta.InsertString(block)
 		return nil
 	}
-	c.ta.Update(msg)
+	c.Ta.Update(msg)
 	return nil
 }
 
@@ -887,14 +886,14 @@ func (a *Core) handleComposerKey(msg Key) []Effect {
 // label takes the first row). Compose.PreviewLabel is empty when previewRows
 // is 0, as there is no room. It changes nothing. Drawing it is drawComposer's
 // work.
-func (a *Core) composerOverlay(iw, previewRows int) screen.Overlay {
+func (a *Core) ComposerOverlay(iw, previewRows int) screen.Overlay {
 	c := a.composer
 	ov := screen.Overlay{
 		Kind:    screen.OverlayReviewCard,
 		Title:   c.title,
 		Hint:    i18n.T("rv.hint.input"),
 		View:    &screen.Viewport{Rows: max(0, previewRows), Cols: iw},
-		Compose: &screen.Compose{Text: c.ta.Value(), Cursor: screen.Pos{Line: c.ta.Line(), Col: c.ta.Column()}},
+		Compose: &screen.Compose{Text: c.Ta.Value(), Cursor: screen.Pos{Line: c.Ta.Line(), Col: c.Ta.Column()}},
 	}
 	if c.orig != nil {
 		ov.Hint = i18n.T("rv.hint.inputsugg")
@@ -906,7 +905,7 @@ func (a *Core) composerOverlay(iw, previewRows int) screen.Overlay {
 	if strings.TrimSpace(ov.Compose.Text) == "" {
 		return ov
 	}
-	doc := renderMarkdown(ov.Compose.Text, iw, mdOpts{mermaid: a.mermaidLines})
+	doc := RenderMarkdown(ov.Compose.Text, iw, MdOpts{mermaid: a.mermaidLines})
 	n := min(len(doc.Lines), previewRows-1)
 	for i, l := range doc.Lines[:n] {
 		l.No = i
@@ -924,12 +923,12 @@ func (a *Core) composerOverlay(iw, previewRows int) screen.Overlay {
 func (a *Core) reviewMermaid() []string {
 	var out []string
 	if c := a.card; c != nil {
-		for _, cm := range c.thread.Comments {
+		for _, cm := range c.Thread.Comments {
 			out = append(out, mermaidBlocks(cm.Body)...)
 		}
 	}
 	if c := a.composer; c != nil {
-		out = append(out, mermaidBlocks(c.ta.Value())...)
+		out = append(out, mermaidBlocks(c.Ta.Value())...)
 	}
 	return out
 }
@@ -939,12 +938,12 @@ func (a *Core) reviewMermaid() []string {
 // reviewNote is what the file name line of a diff says about the review of
 // t's file: whether it differs from the pull request, and its comments
 // that have no line to sit on.
-func (a *Core) reviewNote(t *tab) string {
-	if !a.prShown() {
+func (a *Core) reviewNote(t *Tab) string {
+	if !a.PrShown() {
 		return ""
 	}
-	p := a.repoPath(t.buf.Path)
-	if a.isStale(p) {
+	p := a.RepoPath(t.Buf.Path)
+	if a.IsStale(p) {
 		s := i18n.T("rv.localdiff")
 		if n := len(a.gd.rv.threadsIn(p)); n > 0 {
 			s += fmt.Sprintf(i18n.T("rv.threadcount"), n)

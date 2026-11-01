@@ -134,7 +134,7 @@ func (p *snipParser) dollar() {
 // between its tab stops. A stop's start and end marks follow the edits made
 // while it is selected.
 type snippetSession struct {
-	tab    *tab
+	tab    *Tab
 	groups [][]snipSpan // stops that share a number, in visiting order
 	cur    int
 }
@@ -145,9 +145,9 @@ func (s *snippetSession) span0() snipSpan { return s.groups[s.cur][0] }
 
 // startSnippet replaces the text from start to the cursor with the snippet
 // and begins a session when it has tab stops to visit.
-func (a *Core) startSnippet(t *tab, start buffer.Pos, text string) {
+func (a *Core) startSnippet(t *Tab, start buffer.Pos, text string) {
 	a.endSnippet()
-	b := t.buf
+	b := t.Buf
 	body, stops := parseSnippet(text)
 	b.SelectRange(start, b.Cur)
 	b.InsertBlock(body)
@@ -225,7 +225,7 @@ func (a *Core) selectStop(i int) {
 	for _, sp := range s.groups[i] {
 		pairs = append(pairs, [2]buffer.Pos{sp.start.Pos, sp.end.Pos})
 	}
-	s.tab.buf.SelectRanges(pairs)
+	s.tab.Buf.SelectRanges(pairs)
 	a.follow = true
 	if i == len(s.groups)-1 {
 		a.endSnippet()
@@ -234,7 +234,7 @@ func (a *Core) selectStop(i int) {
 
 func (a *Core) endSnippet() {
 	if a.snip != nil {
-		a.snip.tab.buf.ClearMarks()
+		a.snip.tab.Buf.ClearMarks()
 		a.snip = nil
 	}
 }
@@ -246,13 +246,13 @@ func (a *Core) snippetActive() bool {
 	if s == nil {
 		return false
 	}
-	t := a.curText()
-	if t != s.tab || !t.buf.HasMarks() || a.focus != focusEditor || a.helix && a.mode != modeInsert {
+	t := a.CurText()
+	if t != s.tab || !t.Buf.HasMarks() || a.focus != FocusEditor || a.helix && a.mode != ModeInsert {
 		a.endSnippet()
 		return false
 	}
 	sp := s.span0()
-	if c := t.buf.Cur; c.Less(sp.start.Pos) || sp.end.Pos.Less(c) {
+	if c := t.Buf.Cur; c.Less(sp.start.Pos) || sp.end.Pos.Less(c) {
 		a.endSnippet()
 		return false
 	}

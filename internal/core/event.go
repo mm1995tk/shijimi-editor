@@ -28,7 +28,7 @@ type WatchTick struct{}
 // AutoSaveDue fires when a tab has been idle for the auto-save delay. It is
 // ignored if the buffer changed again before it fires.
 type AutoSaveDue struct {
-	tab *tab
+	tab *Tab
 	ver int
 }
 
@@ -76,9 +76,9 @@ func (HoverDwell) isEvent()     {}
 
 // lspEventMsg is something a server sent on its own: a diagnostic, a message,
 // an edit it wants applied, a document it wants shown.
-type lspEventMsg lsp.Event
+type LspEventMsg lsp.Event
 
-func (lspEventMsg) isEvent()           {}
+func (LspEventMsg) isEvent()           {}
 func (hoverMsg) isEvent()              {}
 func (locationsMsg) isEvent()          {}
 func (completionMsg) isEvent()         {}
@@ -135,7 +135,6 @@ type IDECancel struct{ Reply chan<- IDEReply }
 
 func (IDECall) isEvent()   {}
 func (IDECancel) isEvent() {}
-
 
 // ReplyIDE hands the answer to an IDECall back to the IDE connection. The
 // channel is buffered, so carrying it out never blocks.
@@ -228,7 +227,7 @@ func (RunProbe) isEffect()           {}
 
 // batch joins Effect lists into one. It is the counterpart of tea.Batch for
 // code that returns Effects.
-func batch(lists ...[]Effect) []Effect { return slices.Concat(lists...) }
+func Batch(lists ...[]Effect) []Effect { return slices.Concat(lists...) }
 
 // The work that used to travel as a tea.Msg: what the diff and review screens,
 // the formatters, the highlighter and the preview send back from their Run.
@@ -324,12 +323,12 @@ func (a *Core) HandleEvent(ev Event) []Effect {
 	case openURLMsg:
 		switch {
 		case ev.err != nil && ev.copyOnFail:
-			a.copyText(ev.url)
-			a.info(i18n.T("rv.openfailedcopied"), ev.url)
+			a.CopyText(ev.url)
+			a.Info(i18n.T("rv.openfailedcopied"), ev.url)
 		case ev.err != nil:
-			a.fail(ev.err)
+			a.Fail(ev.err)
 		default:
-			a.info(i18n.T("app.opened"), ev.url)
+			a.Info(i18n.T("app.opened"), ev.url)
 		}
 		return nil
 	case prFoundMsg:
@@ -349,9 +348,9 @@ func (a *Core) HandleEvent(ev Event) []Effect {
 		return a.handleReviewSent(ev)
 	case prListMsg:
 		return a.showPRList(ev)
-	case lspEventMsg:
+	case LspEventMsg:
 		// Ask for the next one first, so none waits while this is handled.
-		return append([]Effect{WaitLSP{a.lspEvents()}}, a.handleLSPEvent(lsp.Event(ev))...)
+		return append([]Effect{WaitLSP{a.LspEvents()}}, a.handleLSPEvent(lsp.Event(ev))...)
 	}
 	if effs, ok := a.handleAgentEvent(ev); ok {
 		return effs

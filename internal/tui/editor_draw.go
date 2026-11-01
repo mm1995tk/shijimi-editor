@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"slices"
 	"strings"
 
@@ -25,7 +26,7 @@ func styleFor(k cellStyle) lipgloss.Style {
 	}
 	s := bgfg(k.bg, k.fg)
 	if k.cursor != "" {
-		s = bgfg(k.cursor, curTheme.CursorFg)
+		s = bgfg(k.cursor, core.CurTheme.CursorFg)
 	}
 	if k.under != "" {
 		s = s.Underline(true)
@@ -37,7 +38,7 @@ func styleFor(k cellStyle) lipgloss.Style {
 // drawTextPane draws the Pane of a text file as exactly h lines of width w.
 // It reads only p and o: the cell width of characters, tab stops, the line
 // numbers and the colors of the theme are decided here.
-func drawTextPane(p screen.Pane, w, h int, o editorOpts) []string {
+func drawTextPane(p screen.Pane, w, h int, o core.EditorOpts) []string {
 	ld := newLineDrawer(p, w, o)
 	out := make([]string, 0, h)
 	for i := range h {
@@ -54,18 +55,18 @@ func drawTextPane(p screen.Pane, w, h int, o editorOpts) []string {
 // changed side of a diff) as cells of the width the pane has.
 type lineDrawer struct {
 	p         screen.Pane
-	o         editorOpts
+	o         core.EditorOpts
 	gw, textW int
 	scrollCol int
 	q         []rune
 	hasSel    bool
 }
 
-func newLineDrawer(p screen.Pane, w int, o editorOpts) lineDrawer {
-	gw := gutterWidthFor(p.Viewport.Total)
+func newLineDrawer(p screen.Pane, w int, o core.EditorOpts) lineDrawer {
+	gw := core.GutterWidthFor(p.Viewport.Total)
 	return lineDrawer{
 		p: p, o: o, gw: gw, textW: max(0, w-gw), scrollCol: p.Viewport.Left,
-		q:      []rune(strings.ToLower(o.query)),
+		q:      []rune(strings.ToLower(o.Query)),
 		hasSel: len(p.Selections) > 0 && p.Selections[0].Start != p.Selections[0].End,
 	}
 }
@@ -89,7 +90,7 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 		numSt = bgfg(lineBg, cLineNoCur)
 	}
 	n := row + 1
-	if o.relative && !isCur {
+	if o.Relative && !isCur {
 		n = row - p.CurLine
 		if n < 0 {
 			n = -n
@@ -97,17 +98,17 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 	}
 	var sb strings.Builder
 	var hd *screen.Diagnostic // the diagnostic shown at the end of the line
-	if d, ok := headDiagnostic(pl.Diag); ok {
+	if d, ok := core.HeadDiagnostic(pl.Diag); ok {
 		hd = &d
 	}
 	mark := ""
-	if o.gutterMark != nil {
-		mark = o.gutterMark(row)
+	if o.GutterMark != nil {
+		mark = o.GutterMark(row)
 	}
 	diagMark := ""
 	for _, m := range pl.Marks {
 		if m.Kind == screen.MarkDiag {
-			diagMark = styleColor(m.Style)
+			diagMark = core.StyleColor(m.Style)
 		}
 	}
 	if mark != "" {
@@ -123,7 +124,7 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 	var line []rune
 	var lc []string
 	for _, sp := range pl.Spans {
-		c := styleColor(sp.Style)
+		c := core.StyleColor(sp.Style)
 		for _, r := range sp.Text {
 			line = append(line, r)
 			lc = append(lc, c)
@@ -144,7 +145,7 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 	inSel := func(col int) bool {
 		at := screen.Pos{Line: row, Col: col}
 		for _, s := range p.Selections {
-			if !posLess(at, s.Start) && posLess(at, s.End) {
+			if !core.PosLess(at, s.Start) && core.PosLess(at, s.End) {
 				return true
 			}
 		}
@@ -164,7 +165,7 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 		bestRank := 99
 		for _, dg := range pl.Diag {
 			if col >= dg.Start && col < dg.End && int(dg.Severity) < bestRank {
-				best, bestRank = styleColor(diagStyle(dg.Severity)), int(dg.Severity)
+				best, bestRank = core.StyleColor(core.DiagStyle(dg.Severity)), int(dg.Severity)
 			}
 		}
 		return best
@@ -208,7 +209,7 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 		return lineBg
 	}
 	for col := 0; col <= len(line) && drawn < textW; col++ {
-		cursorHere := o.focused && isCursor(col)
+		cursorHere := o.Focused && isCursor(col)
 		var r rune = ' '
 		rw := 1
 		if col < len(line) {
@@ -236,7 +237,7 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 			k.fg = cIndentGuide
 		}
 		if cursorHere {
-			k.cursor = o.cursorColor
+			k.cursor = o.CursorColor
 		}
 		if r == '\t' || col == len(line) {
 			for c := 0; c < rw; c++ {
@@ -283,9 +284,9 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 	flush()
 	// inline diagnostic message (like Helix's inline diagnostics)
 	if hd != nil && drawn+6 < textW {
-		msg := "   ● " + firstLine(hd.Message)
-		msg = fit(msg, textW-drawn)
-		sb.WriteString(bgfg(lineBg, styleColor(diagStyle(hd.Severity))).Faint(true).Render(msg))
+		msg := "   ● " + core.FirstLine(hd.Message)
+		msg = core.Fit(msg, textW-drawn)
+		sb.WriteString(bgfg(lineBg, core.StyleColor(core.DiagStyle(hd.Severity))).Faint(true).Render(msg))
 		drawn = textW
 	}
 	if drawn < textW {
@@ -337,13 +338,13 @@ func renderWelcome(w, h int, helix bool) []string {
 			pad = max(0, (w-width)/2)
 			st = stWelcomeH
 		}
-		out[top+i] = st.Render(fit(strings.Repeat(" ", pad)+m.text, w))
+		out[top+i] = st.Render(core.Fit(strings.Repeat(" ", pad)+m.text, w))
 	}
 	return out
 }
 
 // renderEditor draws the visible part of a buffer as exactly h lines of
 // width w: the Pane of the buffer (buildTextPane), drawn as cells.
-func renderEditor(t *tab, w, h int, o editorOpts) []string {
-	return drawTextPane(buildTextPane(t, w, h, o.paneOpts), w, h, o)
+func renderEditor(t *core.Tab, w, h int, o core.EditorOpts) []string {
+	return drawTextPane(core.BuildTextPane(t, w, h, o.PaneOpts), w, h, o)
 }

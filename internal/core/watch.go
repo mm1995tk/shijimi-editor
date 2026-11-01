@@ -19,13 +19,13 @@ const treeRefreshTicks = 3
 const watchInterval = time.Second
 
 // watchTimer schedules the next WatchTick.
-func watchTimer() Effect { return StartTimer{After: watchInterval, Fire: WatchTick{}} }
+func WatchTimer() Effect { return StartTimer{After: watchInterval, Fire: WatchTick{}} }
 
 // handleWatch runs one WatchTick and schedules the next.
 func (a *Core) handleWatch() []Effect {
 	if a.single {
 		a.checkDiskChanges()
-		return []Effect{watchTimer()}
+		return []Effect{WatchTimer()}
 	}
 	reload := a.checkDiskChanges()
 	sg := a.suggestTick()
@@ -34,7 +34,7 @@ func (a *Core) handleWatch() []Effect {
 		a.treeTicks = 0
 		a.explorer.refresh()
 	}
-	effs := append([]Effect{watchTimer()}, sg...)
+	effs := append([]Effect{WatchTimer()}, sg...)
 	if a.gd.on {
 		a.gd.ticks++
 		if reload || a.gd.ticks%gitDiffRefreshTicks == 0 {
@@ -52,12 +52,12 @@ func (a *Core) checkDiskChanges() (reloaded bool) {
 	if !a.cfg.Editor.WatchFiles {
 		return false
 	}
-	var reloadedTabs, conflicts []*tab
+	var reloadedTabs, conflicts []*Tab
 	for _, t := range a.tabs {
-		if t.kind != tabText {
+		if t.Kind != TabText {
 			continue
 		}
-		if !t.buf.DiskChanged() {
+		if !t.Buf.DiskChanged() {
 			t.conflict = false
 			continue
 		}
@@ -69,16 +69,16 @@ func (a *Core) checkDiskChanges() (reloaded bool) {
 			continue
 		}
 		if err := t.reload(); err != nil {
-			a.fail(err)
+			a.Fail(err)
 			continue
 		}
 		reloadedTabs = append(reloadedTabs, t)
 	}
 	switch {
 	case len(conflicts) > 0:
-		a.msg, a.msgErr = i18n.T("watch.changed1")+a.rel(conflicts[0].buf.Path)+i18n.T("watch.changed2"), true
+		a.msg, a.msgErr = i18n.T("watch.changed1")+a.Rel(conflicts[0].Buf.Path)+i18n.T("watch.changed2"), true
 	case len(reloadedTabs) > 0:
-		a.info(i18n.T("watch.reflected"), a.rel(reloadedTabs[0].buf.Path))
+		a.Info(i18n.T("watch.reflected"), a.Rel(reloadedTabs[0].Buf.Path))
 	}
 	return len(reloadedTabs) > 0
 }

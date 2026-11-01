@@ -10,7 +10,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
-// paneOpts is what App decides about the contents of a text pane, apart from
+// PaneOpts is what App decides about the contents of a text pane, apart from
 // the buffer itself. How it is drawn (focus, search highlight, line number
 // style, diff colors) stays with editorOpts.
 // extraCursor is a cursor of a multi-cursor edit with its selection (an empty pair
@@ -20,7 +20,7 @@ type extraCursor struct {
 	sel    [2]buffer.Pos
 }
 
-type paneOpts struct {
+type PaneOpts struct {
 	cursorAt     buffer.Pos    // where the cursor is drawn
 	extras       []extraCursor // cursors of a multi-cursor edit
 	indentGuides bool          // fill Line.Guides
@@ -35,8 +35,8 @@ type paneOpts struct {
 // the pane with the line numbers; the line numbers themselves, the widths of
 // characters and the tab stops are the drawing side's work (the mapping from
 // a screen column back to a rune is buffer.ColFromVisual).
-func buildTextPane(t *tab, w, h int, o paneOpts) screen.Pane {
-	b := t.buf
+func BuildTextPane(t *Tab, w, h int, o PaneOpts) screen.Pane {
+	b := t.Buf
 	p := textPaneHead(t, w, h, o)
 	colors := t.hl.Colors(b)
 	unit := guideUnit(b, o)
@@ -51,7 +51,7 @@ func buildTextPane(t *tab, w, h int, o paneOpts) screen.Pane {
 }
 
 // guideUnit is the step of the indent guides of b (1 when there are none).
-func guideUnit(b *buffer.Buffer, o paneOpts) int {
+func guideUnit(b *buffer.Buffer, o PaneOpts) int {
 	if o.indentGuides {
 		return indentUnitWidth(b)
 	}
@@ -60,17 +60,17 @@ func guideUnit(b *buffer.Buffer, o paneOpts) int {
 
 // textPaneHead is buildTextPane without the lines: the title, the viewport and
 // the cursors and selections of the buffer of t.
-func textPaneHead(t *tab, w, h int, o paneOpts) screen.Pane {
-	b := t.buf
+func textPaneHead(t *Tab, w, h int, o PaneOpts) screen.Pane {
+	b := t.Buf
 	p := screen.Pane{
-		ID:   t.path(),
+		ID:   t.Path(),
 		Kind: screen.KindText,
 		Title: screen.Title{
 			Text:  t.title(),
 			Dirty: t.dirty(),
 		},
 		Viewport: screen.Viewport{
-			Top: b.ScrollRow, Rows: h, Cols: max(0, w-gutterWidth(b)),
+			Top: b.ScrollRow, Rows: h, Cols: max(0, w-GutterWidth(b)),
 			Left: b.ScrollCol, Total: len(b.Lines),
 		},
 		CurLine: b.Cur.Row,
@@ -80,17 +80,17 @@ func textPaneHead(t *tab, w, h int, o paneOpts) screen.Pane {
 	}
 
 	// Cursors[0] is the main one; Selections is parallel to Cursors.
-	p.Cursors = append(p.Cursors, toScreenPos(o.cursorAt))
+	p.Cursors = append(p.Cursors, ToScreenPos(o.cursorAt))
 	if s, e, ok := b.Selection(); ok {
-		p.Selections = append(p.Selections, screen.Range{Start: toScreenPos(s), End: toScreenPos(e)})
+		p.Selections = append(p.Selections, screen.Range{Start: ToScreenPos(s), End: ToScreenPos(e)})
 	} else {
 		p.Selections = append(p.Selections, screen.Range{Start: p.Cursors[0], End: p.Cursors[0]})
 	}
 	for _, x := range o.extras {
-		sp := toScreenPos(x.cursor)
+		sp := ToScreenPos(x.cursor)
 		r := screen.Range{Start: sp, End: sp}
 		if s := x.sel; s[0] != s[1] {
-			r = screen.Range{Start: toScreenPos(s[0]), End: toScreenPos(s[1])}
+			r = screen.Range{Start: ToScreenPos(s[0]), End: ToScreenPos(s[1])}
 		}
 		p.Cursors = append(p.Cursors, sp)
 		p.Selections = append(p.Selections, r)
@@ -101,7 +101,7 @@ func textPaneHead(t *tab, w, h int, o paneOpts) screen.Pane {
 
 // textLine is the line row of b with its colors (the highlighter's, may be
 // nil), diagnostics and indent guides (unit apart, see guideUnit).
-func textLine(b *buffer.Buffer, colors [][]string, row int, o paneOpts, unit int) screen.Line {
+func textLine(b *buffer.Buffer, colors [][]string, row int, o PaneOpts, unit int) screen.Line {
 	line := b.Lines[row]
 	var lc []string
 	if colors != nil && row < len(colors) {
@@ -109,8 +109,8 @@ func textLine(b *buffer.Buffer, colors [][]string, row int, o paneOpts, unit int
 	}
 	ln := screen.Line{No: row, Spans: spansOf(line, lc)}
 	ln.Diag = lineDiagnostics(line, row, o.diags)
-	if d, ok := headDiagnostic(ln.Diag); ok {
-		ln.Marks = append(ln.Marks, screen.Mark{Kind: screen.MarkDiag, Style: diagStyle(d.Severity)})
+	if d, ok := HeadDiagnostic(ln.Diag); ok {
+		ln.Marks = append(ln.Marks, screen.Mark{Kind: screen.MarkDiag, Style: DiagStyle(d.Severity)})
 	}
 	if o.indentGuides {
 		ln.Indent = indentGuideWidth(b, row)
@@ -121,9 +121,9 @@ func textLine(b *buffer.Buffer, colors [][]string, row int, o paneOpts, unit int
 	return ln
 }
 
-func toScreenPos(p buffer.Pos) screen.Pos { return screen.Pos{Line: p.Row, Col: p.Col} }
+func ToScreenPos(p buffer.Pos) screen.Pos { return screen.Pos{Line: p.Row, Col: p.Col} }
 
-func posLess(a, b screen.Pos) bool {
+func PosLess(a, b screen.Pos) bool {
 	return a.Line < b.Line || a.Line == b.Line && a.Col < b.Col
 }
 
@@ -168,11 +168,11 @@ var themeCache struct {
 }
 
 func themeTables() {
-	if themeCache.palette != nil && themeCache.gen == themeGen {
+	if themeCache.palette != nil && themeCache.gen == ThemeGen {
 		return
 	}
-	themeCache.gen = themeGen
-	themeCache.palette = curTheme.Palette()
+	themeCache.gen = ThemeGen
+	themeCache.palette = CurTheme.Palette()
 	themeCache.byColor = map[string]screen.Style{}
 	for _, st := range syntaxOrder {
 		c := normColor(themeCache.palette[st])
@@ -200,7 +200,7 @@ func syntaxStyleOf(hex string) screen.Style {
 }
 
 // styleColor is the color the current theme gives to st ("" when it has none).
-func styleColor(st screen.Style) string {
+func StyleColor(st screen.Style) string {
 	if st == "" {
 		return ""
 	}
@@ -209,7 +209,7 @@ func styleColor(st screen.Style) string {
 }
 
 // diagStyle is the name of the color of a diagnostic of severity sev.
-func diagStyle(sev screen.Severity) screen.Style {
+func DiagStyle(sev screen.Severity) screen.Style {
 	switch sev {
 	case screen.SeverityWarning:
 		return screen.StyleDiagWarn
@@ -250,7 +250,7 @@ func lineDiagnostics(line []rune, row int, diags []lsp.Diagnostic) []screen.Diag
 // headDiagnostic is the diagnostic that shows at the end of the line and in
 // the gutter: the most severe of those starting on the line, the first of
 // equals.
-func headDiagnostic(ds []screen.Diagnostic) (screen.Diagnostic, bool) {
+func HeadDiagnostic(ds []screen.Diagnostic) (screen.Diagnostic, bool) {
 	var best screen.Diagnostic
 	found := false
 	for _, d := range ds {

@@ -11,18 +11,18 @@ import (
 const hoverDelay = 500 * time.Millisecond
 
 // screenPt is a screen cell.
-type screenPt struct{ x, y int }
+type ScreenPt struct{ X, Y int }
 
 // wordSpan is the word under the pointer: columns [start, end) of one row. The
 // zero value is no word.
-type wordSpan struct{ row, start, end int }
+type WordSpan struct{ row, start, end int }
 
 // mouseHover says which pointer position a hover reply belongs to.
 type mouseHover struct {
-	tab  *tab
+	tab  *Tab
 	seq  int
 	pos  buffer.Pos
-	word wordSpan
+	word WordSpan
 }
 
 // MouseHover reports whether resting the pointer on a word shows its hover.
@@ -31,29 +31,29 @@ func (a *Core) MouseHover() bool { return a.cfg.Editor.MouseHover }
 // hoverBlocked reports whether something that owns the keys is open (palette,
 // project search, context menu, command line, resize mode, agent proposal), so
 // a popup must not appear over it.
-func (a *Core) hoverBlocked() bool {
+func (a *Core) HoverBlocked() bool {
 	return a.ctx != nil || a.overlayOpen() || a.cmdOpen || a.InResizeMode() || a.props.Len() > 0 || a.composer != nil || a.confirm != nil
 }
 
 // hoverDwell asks the language server about the word under a resting pointer.
 func (a *Core) hoverDwell(msg HoverDwell) []Effect {
-	if msg.seq != a.hoverSeq || a.focus != focusEditor || a.hoverBlocked() {
+	if msg.seq != a.hoverSeq || a.focus != FocusEditor || a.HoverBlocked() {
 		return nil
 	}
 	pos, word, ok := a.HoverCellWord()
 	if !ok {
 		return nil
 	}
-	t := a.cur()
-	if t == nil || t.kind != tabText || t.lang == nil {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText || t.lang == nil {
 		return nil
 	}
 	c := a.lsp.client(t, "hoverProvider")
 	if c == nil {
 		return nil // no server yet: stay silent, the pointer did not ask for an error
 	}
-	a.syncLSP()
-	path, lp := t.buf.Path, lspPos(t.buf, pos)
+	a.SyncLSP()
+	path, lp := t.Buf.Path, lspPos(t.Buf, pos)
 	origin := &mouseHover{tab: t, seq: msg.seq, pos: pos, word: word}
 	return []Effect{RunLSP{func(ctx context.Context) Event {
 		text, err := c.Hover(ctx, path, lp)
@@ -65,11 +65,14 @@ func (a *Core) hoverDwell(msg HoverDwell) []Effect {
 }
 
 // popupAnchorPos is the place in the file a popup hangs from.
-func (a *Core) popupAnchorPos(t *tab) buffer.Pos {
+func (a *Core) PopupAnchorPos(t *Tab) buffer.Pos {
 	if a.comp == nil && a.hoverAt != nil {
 		// The file may have shrunk (a reload) since the pointer opened it.
-		row := clamp(a.hoverAt.Row, 0, len(t.buf.Lines)-1)
-		return buffer.Pos{Row: row, Col: clamp(a.hoverAt.Col, 0, len(t.buf.Lines[row]))}
+		row := Clamp(a.hoverAt.Row, 0, len(t.Buf.Lines)-1)
+		return buffer.Pos{Row: row, Col: Clamp(a.hoverAt.Col, 0, len(t.Buf.Lines[row]))}
 	}
-	return t.buf.Cur
+	return t.Buf.Cur
 }
+
+// NewWordSpan is the word of line row from column start up to end.
+func NewWordSpan(row, start, end int) WordSpan { return WordSpan{row, start, end} }

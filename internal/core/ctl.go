@@ -5,11 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
-
 
 // handleCtl runs a control-socket request. The answer goes out as a ReplyCtl
 // Effect, followed by whatever the command itself asked for.
@@ -25,7 +23,7 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 				resp = ctl.Response{Error: i18n.T("ctl.cantopen") + m.Req.Path}
 				break
 			}
-			cmd = batch(cmd, a.setFocus(focusEditor))
+			cmd = Batch(cmd, a.SetFocus(FocusEditor))
 		}
 	case "exec":
 		resp, cmd = a.ctlExec(m.Req.Line)
@@ -49,7 +47,7 @@ func (a *Core) reviewToRoot(p string) string {
 	if base == "" {
 		base = a.root
 	}
-	return a.rel(filepath.Join(base, p))
+	return a.Rel(filepath.Join(base, p))
 }
 
 // agentForbidden lists ":" commands that an agent may not run: quitting would
@@ -92,7 +90,7 @@ func (a *Core) ctlExec(line string) (ctl.Response, []Effect) {
 	}
 	switch name {
 	case "reload", "rl", "bc", "bclose", "buffer-close":
-		if t := a.curText(); t != nil && t.dirty() {
+		if t := a.CurText(); t != nil && t.dirty() {
 			return ctl.Response{Error: i18n.T("ctl.unsaved1") + name + i18n.T("ctl.unsaved2")}, nil
 		}
 	}

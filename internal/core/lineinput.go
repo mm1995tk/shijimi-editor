@@ -21,7 +21,7 @@ type lineInput struct {
 	limit int
 
 	value   []rune
-	pos     int // caret, in runes
+	Pos     int // caret, in runes
 	focused bool
 }
 
@@ -29,7 +29,7 @@ type lineInput struct {
 func newLineInput(limit int) lineInput { return lineInput{limit: limit} }
 
 func (l *lineInput) Value() string { return string(l.value) }
-func (l *lineInput) Position() int { return l.pos }
+func (l *lineInput) Position() int { return l.Pos }
 func (l *lineInput) Focused() bool { return l.focused }
 func (l *lineInput) Focus()        { l.focused = true }
 func (l *lineInput) Blur()         { l.focused = false }
@@ -49,14 +49,14 @@ func (l *lineInput) setRunes(r []rune) {
 		r = r[:l.limit]
 	}
 	l.value = r
-	if (l.pos == 0 && empty) || l.pos > len(l.value) {
+	if (l.Pos == 0 && empty) || l.Pos > len(l.value) {
 		l.SetCursor(len(l.value))
 	}
 }
 
 // SetCursor moves the caret, clamped to the text.
 func (l *lineInput) SetCursor(pos int) {
-	l.pos = min(len(l.value), max(0, pos))
+	l.Pos = min(len(l.value), max(0, pos))
 }
 
 // sanitizeLine turns tabs and line breaks into spaces and drops other control
@@ -86,8 +86,8 @@ func (l *lineInput) Insert(s string) {
 		}
 		paste = paste[:min(room, len(paste))]
 	}
-	v := slices.Concat(l.value[:l.pos], paste, l.value[l.pos:])
-	l.pos += len(paste)
+	v := slices.Concat(l.value[:l.Pos], paste, l.value[l.Pos:])
+	l.Pos += len(paste)
 	l.setRunes(v)
 }
 
@@ -109,35 +109,35 @@ func (l *lineInput) key(k Key) {
 	case "alt+backspace", "ctrl+w", "ctrl+backspace":
 		l.deleteWordBackward()
 	case "backspace", "ctrl+h":
-		if l.pos > 0 {
-			l.value = slices.Delete(l.value, l.pos-1, l.pos)
-			l.SetCursor(l.pos - 1)
+		if l.Pos > 0 {
+			l.value = slices.Delete(l.value, l.Pos-1, l.Pos)
+			l.SetCursor(l.Pos - 1)
 		}
 	case "alt+left", "ctrl+left", "alt+b":
 		l.wordBackward()
 	case "left", "ctrl+b":
-		if l.pos > 0 {
-			l.SetCursor(l.pos - 1)
+		if l.Pos > 0 {
+			l.SetCursor(l.Pos - 1)
 		}
 	case "alt+right", "ctrl+right", "alt+f":
 		l.wordForward()
 	case "right", "ctrl+f":
-		if l.pos < len(l.value) {
-			l.SetCursor(l.pos + 1)
+		if l.Pos < len(l.value) {
+			l.SetCursor(l.Pos + 1)
 		}
 	case "home", "ctrl+a":
 		l.CursorStart()
 	case "delete", "ctrl+d":
-		if l.pos < len(l.value) {
-			l.value = slices.Delete(l.value, l.pos, l.pos+1)
+		if l.Pos < len(l.value) {
+			l.value = slices.Delete(l.value, l.Pos, l.Pos+1)
 		}
 	case "end", "ctrl+e":
 		l.CursorEnd()
 	case "ctrl+k":
-		l.value = l.value[:l.pos]
+		l.value = l.value[:l.Pos]
 		l.CursorEnd()
 	case "ctrl+u":
-		l.value = l.value[l.pos:]
+		l.value = l.value[l.Pos:]
 		l.SetCursor(0)
 	case "alt+delete", "alt+d", "ctrl+delete":
 		l.deleteWordForward()
@@ -150,11 +150,11 @@ func (l *lineInput) key(k Key) {
 }
 
 func (l *lineInput) deleteWordBackward() {
-	if l.pos == 0 || len(l.value) == 0 {
+	if l.Pos == 0 || len(l.value) == 0 {
 		return
 	}
-	old := l.pos
-	i := l.pos - 1
+	old := l.Pos
+	i := l.Pos - 1
 	for i > 0 && unicode.IsSpace(l.value[i]) {
 		i--
 	}
@@ -170,11 +170,11 @@ func (l *lineInput) deleteWordBackward() {
 }
 
 func (l *lineInput) deleteWordForward() {
-	if l.pos >= len(l.value) {
+	if l.Pos >= len(l.value) {
 		return
 	}
-	old := l.pos
-	i := l.pos + 1
+	old := l.Pos
+	i := l.Pos + 1
 	for i < len(l.value) && unicode.IsSpace(l.value[i]) {
 		i++
 	}
@@ -186,7 +186,7 @@ func (l *lineInput) deleteWordForward() {
 }
 
 func (l *lineInput) wordBackward() {
-	i := l.pos
+	i := l.Pos
 	for i > 0 && unicode.IsSpace(l.value[i-1]) {
 		i--
 	}
@@ -197,7 +197,7 @@ func (l *lineInput) wordBackward() {
 }
 
 func (l *lineInput) wordForward() {
-	i := l.pos
+	i := l.Pos
 	for i < len(l.value) && unicode.IsSpace(l.value[i]) {
 		i++
 	}

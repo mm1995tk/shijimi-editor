@@ -130,15 +130,15 @@ func init() {
 		return nil
 	}, "alt+;")
 	def("select_mode", false, func(a *Core, c *helixCtx) []Effect {
-		if a.mode == modeSelect {
-			a.mode = modeNormal
+		if a.mode == ModeSelect {
+			a.mode = ModeNormal
 		} else {
-			a.mode = modeSelect
+			a.mode = ModeSelect
 		}
 		return nil
 	}, "v")
 	def("normal_mode", true, func(a *Core, c *helixCtx) []Effect {
-		a.mode = modeNormal
+		a.mode = ModeNormal
 		a.comp = nil
 		c.b.ClearSelection()
 		return nil
@@ -158,7 +158,7 @@ func init() {
 			if yank {
 				a.clipboard = text
 			}
-			a.mode = modeNormal
+			a.mode = ModeNormal
 			return nil
 		}
 	}
@@ -184,7 +184,7 @@ func init() {
 	def("yank", true, func(a *Core, c *helixCtx) []Effect {
 		s, e := c.b.SelectionOrChar()
 		a.clipboard = c.b.TextRange(s, e)
-		a.info(i18n.T("helix.yanked"), len([]rune(a.clipboard)))
+		a.Info(i18n.T("helix.yanked"), len([]rune(a.clipboard)))
 		return nil
 	}, "y")
 	def("paste_after", true, func(a *Core, c *helixCtx) []Effect { a.paste(c.b, a.clipboard, true); return nil }, "p")
@@ -310,7 +310,7 @@ func (a *Core) loadKeymap() {
 	if len(w) > 1 {
 		msg += fmt.Sprintf(i18n.T("keys.more"), len(w)-1)
 	}
-	a.fail(errString(msg))
+	a.Fail(errString(msg))
 }
 
 // runBinding runs the command or ":" command a key is bound to.
@@ -326,7 +326,7 @@ func (a *Core) runBinding(bd binding, b *buffer.Buffer, ext bool, count int, had
 	} else {
 		out = cmd.run(a, c)
 	}
-	if insertCommands[bd.name] && a.mode == modeInsert && !a.replaying {
+	if insertCommands[bd.name] && a.mode == ModeInsert && !a.replaying {
 		a.recIns = &insertRecord{bd: bd, count: count, hadCount: hadCount}
 	}
 	return out
@@ -367,7 +367,7 @@ func (a *Core) repeatLastInsert(b *buffer.Buffer, ext bool) []Effect {
 	defer func() { a.replaying = false }()
 	cmds := [][]Effect{a.runBinding(r.bd, b, ext, r.count, r.hadCount)}
 	for _, s := range r.steps {
-		if a.mode != modeInsert {
+		if a.mode != ModeInsert {
 			break
 		}
 		if !s.completion {
@@ -382,10 +382,10 @@ func (a *Core) repeatLastInsert(b *buffer.Buffer, ext bool) []Effect {
 		})
 		a.follow = true
 	}
-	if a.mode == modeInsert {
+	if a.mode == ModeInsert {
 		cmds = append(cmds, a.handleInsertKey(Key{Code: KeyEscape}))
 	}
-	return batch(cmds...)
+	return Batch(cmds...)
 }
 
 // normalizeHelixKey turns a Helix key name ("C-s", "A-x", "S-tab", "ret")

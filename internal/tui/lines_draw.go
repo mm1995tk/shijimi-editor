@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -80,18 +81,18 @@ func drawStatus(s screen.Status, ov *screen.Overlay, w int) string {
 		left += "   " + s.Msg
 	}
 	lw := w - prefixW - ansi.StringWidth(right)
-	return prefix + st.Render(fit(left, lw)+right)
+	return prefix + st.Render(core.Fit(left, lw)+right)
 }
 
 // modeStyleOf is the lipgloss style of the mode color st.
 func modeStyleOf(st screen.Style) lipgloss.Style {
 	switch st {
 	case screen.StyleModeInsert:
-		return modeStyles[modeInsert]
+		return modeStyles[core.ModeInsert]
 	case screen.StyleModeSelect:
-		return modeStyles[modeSelect]
+		return modeStyles[core.ModeSelect]
 	}
-	return modeStyles[modeNormal]
+	return modeStyles[core.ModeNormal]
 }
 
 // drawCmdline draws the ":" / "/" line of width w. input is the text field as

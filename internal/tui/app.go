@@ -31,12 +31,12 @@ type App struct {
 	resizeMode  bool
 	resizing    core.ResizeTarget // border being dragged with the mouse
 	showAgent   bool
-	agentWPref  int    // panel width picked by the user (0 = automatic)
+	agentWPref  int         // panel width picked by the user (0 = automatic)
 	capture     core.Region // the region a held pointer button is captured by (see locate)
-	lastClick   click  // the previous left press (see clicks in inputtea.go)
-	keyReleases bool   // the terminal reports key releases
-	askReleases bool   // key releases were asked for in the last View
-	quitting    bool   // tea.Quit was returned (see exit)
+	lastClick   click       // the previous left press (see clicks in inputtea.go)
+	keyReleases bool        // the terminal reports key releases
+	askReleases bool        // key releases were asked for in the last View
+	quitting    bool        // tea.Quit was returned (see exit)
 }
 
 // New creates the app rooted at dir, optionally opening file.

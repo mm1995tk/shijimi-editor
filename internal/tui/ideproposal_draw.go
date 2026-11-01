@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -9,17 +10,17 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
-func (p *proposal) render(a *App, w, maxH int) []string {
+func renderProposalBox(p *core.ProposalView, a *App, w, maxH int) []string {
 	body := max(1, maxH-3)
-	title := fmt.Sprintf(i18n.T("idep.title"), a.rel(p.NewPath))
-	if a.proposalCount() > 1 {
-		title += fmt.Sprintf(i18n.T("idep.waiting"), a.proposalCount()-1)
+	title := fmt.Sprintf(i18n.T("idep.title"), a.Rel(p.NewPath))
+	if a.ProposalCount() > 1 {
+		title += fmt.Sprintf(i18n.T("idep.waiting"), a.ProposalCount()-1)
 	}
-	out := []string{stPaletteBox.Render(fit(title, w))}
-	for _, l := range p.Lines[p.scroll:min(len(p.Lines), p.scroll+body)] {
-		text := fit(" "+string(l.Kind)+" "+strings.ReplaceAll(l.Text, "\t", "    "), w)
+	out := []string{stPaletteBox.Render(core.Fit(title, w))}
+	for _, l := range p.Lines[p.Scroll:min(len(p.Lines), p.Scroll+body)] {
+		text := core.Fit(" "+string(l.Kind)+" "+strings.ReplaceAll(l.Text, "\t", "    "), w)
 		if l.Kind == '@' {
-			text = fit(" "+l.Text, w)
+			text = core.Fit(" "+l.Text, w)
 		}
 		switch l.Kind {
 		case '+':
@@ -33,16 +34,16 @@ func (p *proposal) render(a *App, w, maxH int) []string {
 		}
 	}
 	if len(p.Lines) > body {
-		out = append(out, stPaletteDim.Render(fit(fmt.Sprintf(i18n.T("ctx.lines"), p.scroll+1, min(len(p.Lines), p.scroll+body), len(p.Lines)), w)))
+		out = append(out, stPaletteDim.Render(core.Fit(fmt.Sprintf(i18n.T("ctx.lines"), p.Scroll+1, min(len(p.Lines), p.Scroll+body), len(p.Lines)), w)))
 	}
 	return out
 }
 
 func (a *App) renderProposal(rows []string) []string {
-	w := clamp(a.w*4/5, 30, 140)
-	box := a.propView().render(a, w, a.proposalH())
+	w := core.Clamp(a.w*4/5, 30, 140)
+	box := renderProposalBox(a.PropView(), a, w, a.ProposalH())
 	if ansi.StringWidth(box[0]) > w {
 		box[0] = ansi.Truncate(box[0], w, "")
 	}
-	return overlay(rows, box, (a.w-w)/2, 1)
+	return core.Overlay(rows, box, (a.w-w)/2, 1)
 }

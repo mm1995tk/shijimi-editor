@@ -40,23 +40,23 @@ type semanticMsg struct {
 // semantic tokens of t's current text, or nil when they are current, a request
 // is under way, or no server provides them. Edits made meanwhile are requested
 // once that one is applied.
-func (a *Core) semanticCmd(t *tab) []Effect {
+func (a *Core) semanticCmd(t *Tab) []Effect {
 	h := t.hl
 	s := &h.sem
-	if t.kind != tabText || t.lang == nil || s.running || len(t.buf.Lines) > maxHighlightLines ||
-		s.asked && s.version == t.buf.Version || t.lspVersion != t.buf.Version {
+	if t.Kind != TabText || t.lang == nil || s.running || len(t.Buf.Lines) > maxHighlightLines ||
+		s.asked && s.version == t.Buf.Version || t.lspVersion != t.Buf.Version {
 		return nil
 	}
 	c := a.lsp.client(t, "semanticTokensProvider")
 	if c == nil {
 		return nil
 	}
-	s.running, s.asked, s.version = true, true, t.buf.Version
-	lines := make([]string, len(t.buf.Lines))
-	for i, l := range t.buf.Lines {
+	s.running, s.asked, s.version = true, true, t.Buf.Version
+	lines := make([]string, len(t.Buf.Lines))
+	for i, l := range t.Buf.Lines {
 		lines[i] = string(l)
 	}
-	path, version := t.buf.Path, t.buf.Version
+	path, version := t.Buf.Path, t.Buf.Version
 	return a.lspReq(func(ctx context.Context) Event {
 		toks, err := c.SemanticTokens(ctx, path)
 		m := semanticMsg{h: h, version: version, lines: lines}
@@ -68,12 +68,12 @@ func (a *Core) semanticCmd(t *tab) []Effect {
 }
 
 // semanticTabs requests semantic tokens for every text tab that is behind.
-func (a *Core) semanticTabs() []Effect {
+func (a *Core) SemanticTabs() []Effect {
 	var cmds [][]Effect
 	for _, t := range a.tabs {
 		cmds = append(cmds, a.semanticCmd(t))
 	}
-	return batch(cmds...)
+	return Batch(cmds...)
 }
 
 // apply stores the result of a semanticCmd. A server that stops answering
@@ -90,7 +90,7 @@ func (s *semanticState) apply(m semanticMsg) {
 // overlay draws the semantic roles over base (chroma colors, possibly nil).
 // Lines edited since the tokens were taken have no roles, like alignColors.
 func (s *semanticState) overlay(b *buffer.Buffer, base [][]string) [][]string {
-	if s.cValid && s.cVersion == b.Version && s.cStamp == s.stamp && s.cGen == themeGen {
+	if s.cValid && s.cVersion == b.Version && s.cStamp == s.stamp && s.cGen == ThemeGen {
 		return s.merged
 	}
 	roles := s.roles
@@ -116,7 +116,7 @@ func (s *semanticState) overlay(b *buffer.Buffer, base [][]string) [][]string {
 		}
 		out[i] = merged
 	}
-	s.cValid, s.cVersion, s.cStamp, s.cGen, s.merged = true, b.Version, s.stamp, themeGen, out
+	s.cValid, s.cVersion, s.cStamp, s.cGen, s.merged = true, b.Version, s.stamp, ThemeGen, out
 	return out
 }
 
@@ -131,7 +131,7 @@ func sameLines(lexed []string, lines [][]rune) bool {
 
 // semanticColor returns the current theme's color for a role.
 func semanticColor(role string) string {
-	s := curTheme.Syntax
+	s := CurTheme.Syntax
 	switch role {
 	case "Type":
 		return s.Type

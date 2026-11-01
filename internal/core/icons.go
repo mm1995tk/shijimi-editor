@@ -75,7 +75,7 @@ func iconFor(n *node) fileIcon {
 
 // themedIcon applies the active theme's override for ic, if it has one.
 func themedIcon(ic fileIcon) fileIcon {
-	o, ok := curTheme.Icons[ic.kind]
+	o, ok := CurTheme.Icons[ic.kind]
 	if !ok {
 		return ic
 	}

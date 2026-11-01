@@ -15,15 +15,15 @@ import (
 
 // minSplitW is the narrowest editor area that is split: two panes of at
 // least 20 columns and the line between them.
-const minSplitW = 41
+const MinSplitW = 41
 
 // splitWanted reports whether the editor area is split now. Diff mode and
 // single-file mode use the whole area for one file, and the split comes back
 // when they end.
-func (a *Core) splitWanted() bool { return a.split && !a.single && !a.gd.on }
+func (a *Core) SplitWanted() bool { return a.split && !a.single && !a.gd.on }
 
 // tabIndex is the index of t in a.tabs, or -1.
-func (a *Core) tabIndex(t *tab) int {
+func (a *Core) tabIndex(t *Tab) int {
 	if t == nil {
 		return -1
 	}
@@ -38,18 +38,18 @@ func (a *Core) splitOpen() []Effect {
 	case a.single:
 		return nil
 	case a.split:
-		a.infoText(i18n.T("win.already"))
+		a.InfoText(i18n.T("win.already"))
 		return nil
 	case a.gd.on:
-		a.infoText(i18n.T("win.nodiff"))
+		a.InfoText(i18n.T("win.nodiff"))
 		return nil
-	case a.EditorCols() < minSplitW:
-		a.infoText(i18n.T("win.narrow"))
+	case a.EditorCols() < MinSplitW:
+		a.InfoText(i18n.T("win.narrow"))
 		return nil
 	}
-	cur := a.cur()
+	cur := a.Cur()
 	if cur == nil {
-		a.infoText(i18n.T("win.nofile"))
+		a.InfoText(i18n.T("win.nofile"))
 		return nil
 	}
 	cur.transient = false
@@ -61,23 +61,23 @@ func (a *Core) splitOpen() []Effect {
 	a.other, a.otherPrev = cur, nil
 	a.prevTab = nil
 	a.active = a.tabIndex(prev)
-	a.seenTab = a.cur()
+	a.seenTab = a.Cur()
 	a.follow = true
-	a.mode = modeNormal
+	a.mode = ModeNormal
 	a.comp = nil
 	if prev == nil {
 		return a.pal.show(a.root, "")
 	}
-	return a.setFocus(focusEditor)
+	return a.SetFocus(FocusEditor)
 }
 
 // focusPane moves the focus to the pane on side (0 = left, 1 = right).
-func (a *Core) focusPane(side int) []Effect {
-	if !a.splitWanted() {
+func (a *Core) FocusPane(side int) []Effect {
+	if !a.SplitWanted() {
 		if a.split {
-			a.infoText(i18n.T("win.nodiff"))
+			a.InfoText(i18n.T("win.nodiff"))
 		} else {
-			a.infoText(i18n.T("win.nosplit"))
+			a.InfoText(i18n.T("win.nosplit"))
 		}
 		return nil
 	}
@@ -85,22 +85,22 @@ func (a *Core) focusPane(side int) []Effect {
 		a.swapPanes()
 		a.pane = side
 	}
-	return a.setFocus(focusEditor)
+	return a.SetFocus(FocusEditor)
 }
 
 // focusOtherPane moves the focus to the other pane.
-func (a *Core) focusOtherPane() []Effect { return a.focusPane(1 - a.pane) }
+func (a *Core) focusOtherPane() []Effect { return a.FocusPane(1 - a.pane) }
 
 // swapPanes makes the other pane's file the focused one's, and the reverse.
 // The pane keeps its own "last file".
 func (a *Core) swapPanes() {
-	cur := a.cur()
+	cur := a.Cur()
 	a.active = a.tabIndex(a.other)
 	a.other = cur
 	a.prevTab, a.otherPrev = a.otherPrev, a.prevTab
-	a.seenTab = a.cur()
+	a.seenTab = a.Cur()
 	a.follow = true
-	a.mode = modeNormal
+	a.mode = ModeNormal
 	a.comp = nil
 }
 
@@ -108,7 +108,7 @@ func (a *Core) swapPanes() {
 // the other file stays open, only not shown.
 func (a *Core) closeSplit(keepFocused bool) {
 	if !a.split {
-		a.infoText(i18n.T("win.nosplit"))
+		a.InfoText(i18n.T("win.nosplit"))
 		return
 	}
 	if !keepFocused && a.other != nil {
@@ -125,19 +125,19 @@ func (a *Core) showInPane(i int) {
 		return
 	}
 	if a.split && a.tabs[i] == a.other {
-		a.other = a.cur()
+		a.other = a.Cur()
 		a.otherPrev, a.prevTab = a.prevTab, a.otherPrev
 	}
 	a.active = i
 	a.follow = true
-	a.mode = modeNormal
+	a.mode = ModeNormal
 	a.comp = nil
 }
 
 // normalizeSplit keeps the panes consistent after an event: a closed file
 // leaves its pane empty, an empty split is dropped, and a file chosen that the
 // other pane shows takes the focus to that pane.
-func (a *Core) normalizeSplit() {
+func (a *Core) NormalizeSplit() {
 	if !a.split {
 		a.other, a.otherPrev = nil, nil
 		return
@@ -145,7 +145,7 @@ func (a *Core) normalizeSplit() {
 	if a.tabIndex(a.other) < 0 {
 		a.other = nil
 	}
-	if cur := a.cur(); cur != nil && cur == a.other {
+	if cur := a.Cur(); cur != nil && cur == a.other {
 		a.other = a.seenTab
 		if a.tabIndex(a.other) < 0 || a.other == cur {
 			a.other = nil
@@ -154,7 +154,7 @@ func (a *Core) normalizeSplit() {
 		a.prevTab, a.otherPrev = a.otherPrev, a.prevTab
 		a.seenTab = cur
 	}
-	if a.cur() == nil && a.other == nil {
+	if a.Cur() == nil && a.other == nil {
 		a.split, a.pane = false, 0
 	}
 	if a.other != nil {
@@ -171,9 +171,9 @@ func (a *Core) windowKey(key string) []Effect {
 	case "v", "s":
 		return a.splitOpen()
 	case "h", "left":
-		return a.focusPane(0)
+		return a.FocusPane(0)
 	case "l", "right":
-		return a.focusPane(1)
+		return a.FocusPane(1)
 	case "w":
 		return a.focusOtherPane()
 	case "q":
@@ -193,13 +193,11 @@ func (a *Core) toggleEditorSplit() []Effect {
 	return a.splitOpen()
 }
 
-
-
 // openFileHere is openFile for commands that act on the focused pane (Ctrl+O,
 // Ctrl+I): a file the other pane shows is swapped into this one.
 func (a *Core) openFileHere(path string) bool {
 	abs, _ := filepath.Abs(path)
-	if a.split && a.other != nil && a.other.path() == abs {
+	if a.split && a.other != nil && a.other.Path() == abs {
 		a.showInPane(a.tabIndex(a.other))
 		return true
 	}
@@ -207,7 +205,7 @@ func (a *Core) openFileHere(path string) bool {
 }
 
 // windowItems is the Space w menu.
-var windowItems = []spaceItem{
+var WindowItems = []SpaceItem{
 	{"v", "win.item.split", false},
 	{"h", "win.item.left", false},
 	{"l", "win.item.right", false},

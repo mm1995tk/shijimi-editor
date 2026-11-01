@@ -17,12 +17,12 @@ func (a *Core) browser(arg string) []Effect {
 	switch sub {
 	case "forward", "fwd":
 		if len(args) < 1 || len(args) > 2 {
-			a.fail(fmt.Errorf("%s", browserUsage()))
+			a.Fail(fmt.Errorf("%s", browserUsage()))
 			return nil
 		}
 		ports, err := parsePorts(args)
 		if err != nil {
-			a.fail(err)
+			a.Fail(err)
 			return nil
 		}
 		listen := 0 // free port chosen by the OS
@@ -31,38 +31,38 @@ func (a *Core) browser(arg string) []Effect {
 		}
 		f, err := a.proxy.Start(a.cfg.Browser.ListenHost, ports[0], listen)
 		if err != nil {
-			a.fail(err)
+			a.Fail(err)
 			return nil
 		}
-		a.info(i18n.T("browser.started"), f.Listen, f.Target)
+		a.Info(i18n.T("browser.started"), f.Listen, f.Target)
 	case "list", "ls", "":
 		fs := a.proxy.List()
 		if len(fs) == 0 {
-			a.infoText(i18n.T("browser.none"))
+			a.InfoText(i18n.T("browser.none"))
 			return nil
 		}
 		items := make([]string, len(fs))
 		for i, f := range fs {
 			items[i] = fmt.Sprintf("%s → localhost:%d", f.Listen, f.Target)
 		}
-		a.info(i18n.T("browser.list"), strings.Join(items, " / "))
+		a.Info(i18n.T("browser.list"), strings.Join(items, " / "))
 	case "stop", "close":
 		if len(args) != 1 {
-			a.fail(fmt.Errorf("%s", browserUsage()))
+			a.Fail(fmt.Errorf("%s", browserUsage()))
 			return nil
 		}
 		ports, err := parsePorts(args)
 		if err != nil {
-			a.fail(err)
+			a.Fail(err)
 			return nil
 		}
 		if err := a.proxy.Stop(ports[0]); err != nil {
-			a.fail(err)
+			a.Fail(err)
 			return nil
 		}
-		a.info(i18n.T("browser.stopped"), ports[0])
+		a.Info(i18n.T("browser.stopped"), ports[0])
 	default:
-		a.fail(fmt.Errorf("%s", browserUsage()))
+		a.Fail(fmt.Errorf("%s", browserUsage()))
 	}
 	return nil
 }

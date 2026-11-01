@@ -12,13 +12,13 @@ import (
 // signaturePopup shows the parameters of the call the cursor is in, just above
 // the cursor. It lives while the cursor stays on the row it was opened on.
 type signaturePopup struct {
-	tab  *tab
+	tab  *Tab
 	row  int
 	help *lsp.SignatureHelp
 }
 
 type signatureMsg struct {
-	tab    *tab
+	tab    *Tab
 	pos    buffer.Pos // where the request was made
 	seq    int        // a.sigSeq at the time; a closed popup bumps it
 	manual bool       // asked for with :signature; say so when there is nothing
@@ -28,15 +28,15 @@ type signatureMsg struct {
 // signatureHelp asks the server for the signature at the cursor. Typing must
 // not report a missing or starting server; only an explicit request does.
 func (a *Core) signatureHelp(manual bool) []Effect {
-	t := a.curText()
+	t := a.CurText()
 	if t == nil {
 		return nil
 	}
-	pos, seq := t.buf.Cur, a.sigSeq+1
+	pos, seq := t.Buf.Cur, a.sigSeq+1
 	a.sigSeq = seq
-	lp := lspPos(t.buf, pos)
-	req := func(ctx context.Context, c *lsp.Client, t *tab) Event {
-		h, err := c.SignatureHelp(ctx, t.buf.Path, lp)
+	lp := lspPos(t.Buf, pos)
+	req := func(ctx context.Context, c *lsp.Client, t *Tab) Event {
+		h, err := c.SignatureHelp(ctx, t.Buf.Path, lp)
 		if err != nil {
 			if !manual {
 				return nil
@@ -52,19 +52,19 @@ func (a *Core) signatureHelp(manual bool) []Effect {
 	if c == nil {
 		return nil
 	}
-	a.syncLSP()
+	a.SyncLSP()
 	return a.lspReq(func(ctx context.Context) Event { return req(ctx, c, t) })
 }
 
 func (a *Core) showSignature(m signatureMsg) {
-	t := a.curText()
-	if t == nil || t != m.tab || m.seq != a.sigSeq || t.buf.Cur.Row != m.pos.Row || a.mode != modeInsert && a.helix && !m.manual {
+	t := a.CurText()
+	if t == nil || t != m.tab || m.seq != a.sigSeq || t.Buf.Cur.Row != m.pos.Row || a.mode != ModeInsert && a.helix && !m.manual {
 		return
 	}
 	if m.help == nil {
 		a.sig = nil
 		if m.manual {
-			a.infoText(i18n.T("sig.none"))
+			a.InfoText(i18n.T("sig.none"))
 		}
 		return
 	}
@@ -73,7 +73,7 @@ func (a *Core) showSignature(m signatureMsg) {
 
 // signatureTyped keeps the popup in step with a typed rune: ")" closes it, a
 // trigger character (re)opens it.
-func (a *Core) signatureTyped(t *tab, r rune) []Effect {
+func (a *Core) signatureTyped(t *Tab, r rune) []Effect {
 	if r == ')' {
 		a.closeSignature()
 		return nil
@@ -104,17 +104,16 @@ func (s *signaturePopup) overlay() screen.Overlay {
 	}
 	ov := screen.Overlay{Kind: screen.OverlaySignature, Lines: []screen.Line{ln}}
 	if s.tab != nil {
-		at := toScreenPos(s.tab.buf.Cur)
-		ov.Pane, ov.At = s.tab.path(), &at
+		at := ToScreenPos(s.tab.Buf.Cur)
+		ov.Pane, ov.At = s.tab.Path(), &at
 	}
 	return ov
 }
 
-
 // sigVisible reports whether the popup still belongs to the cursor's row.
 func (a *Core) sigVisible() bool {
-	t := a.curText()
-	return a.sig != nil && t == a.sig.tab && !a.fullPreview(t) && t.buf.Cur.Row == a.sig.row
+	t := a.CurText()
+	return a.sig != nil && t == a.sig.tab && !a.FullPreview(t) && t.Buf.Cur.Row == a.sig.row
 }
 
 // closeSignature hides the popup and drops replies to requests still in flight.

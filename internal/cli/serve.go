@@ -19,7 +19,6 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/server"
-	"github.com/mm1995tk/shijimi-editor/internal/tui"
 )
 
 // runServe is "shj serve": the headless server that GUI clients talk to over
@@ -47,7 +46,7 @@ func runServe(args []string) int {
 	} else {
 		fmt.Fprintln(os.Stderr, err)
 	}
-	ver, commit := tui.BuildVersion()
+	ver, commit := core.BuildVersion()
 	chName := "stable"
 	if channel.IsNightly() {
 		chName = channel.Nightly

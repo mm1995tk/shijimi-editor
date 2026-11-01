@@ -186,16 +186,16 @@ func (h agentHandler) RequestPermission(ctx context.Context, r acp.PermissionReq
 func (a *Core) runAgent(kind suggestKind, key, title string, build func() string) []Effect {
 	s := a.ag
 	if s.run != nil {
-		a.fail(errors.New(i18n.T("agent.busy")))
+		a.Fail(errors.New(i18n.T("agent.busy")))
 		return nil
 	}
 	if a.cfg.Agent.Command == "" {
 		dir, _ := config.UserDir()
-		a.fail(fmt.Errorf(i18n.T("agent.notconfigured"), filepath.Join(dir, "config.toml")))
+		a.Fail(fmt.Errorf(i18n.T("agent.notconfigured"), filepath.Join(dir, "config.toml")))
 		return nil
 	}
 	s.run = &agentRun{kind: kind, key: key, build: build}
-	if a.prShown() {
+	if a.PrShown() {
 		s.run.pr = a.gd.pr.Number
 	}
 	s.scroll = 0
@@ -212,7 +212,7 @@ func (a *Core) startAgent() Effect {
 	s := a.ag
 	s.gen++
 	gen, ch, root := s.gen, s.ch, a.root
-	o := acp.Options{Command: a.cfg.Agent.Command, Args: a.cfg.Agent.Args, Env: a.cfg.Agent.Env, Dir: root, Version: versionLabel()}
+	o := acp.Options{Command: a.cfg.Agent.Command, Args: a.cfg.Agent.Args, Env: a.cfg.Agent.Env, Dir: root, Version: VersionLabel()}
 	return RunAgent{Run: func() {
 		c, err := acp.Start(o, agentHandler{ch: ch, gen: gen})
 		if err != nil {
@@ -252,14 +252,14 @@ func (a *Core) sendPrompt() Effect {
 func (a *Core) cancelAgent() {
 	s := a.ag
 	if s.run == nil || s.client == nil {
-		a.infoText(i18n.T("agent.idle"))
+		a.InfoText(i18n.T("agent.idle"))
 		return
 	}
 	if err := s.client.Cancel(s.session); err != nil {
-		a.fail(err)
+		a.Fail(err)
 		return
 	}
-	a.infoText(i18n.T("agent.cancelrequested"))
+	a.InfoText(i18n.T("agent.cancelrequested"))
 }
 
 // stopAgent ends the agent process; the next suggestion starts a new one.
@@ -300,7 +300,7 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 		}
 		if m.err != nil {
 			s.add(logEntry{kind: logError, text: i18n.T("agent.startfail") + m.err.Error()})
-			a.fail(fmt.Errorf(i18n.T("agent.startfailw"), m.err))
+			a.Fail(fmt.Errorf(i18n.T("agent.startfailw"), m.err))
 			s.run = nil
 			return s.wait(), true
 		}
@@ -340,9 +340,9 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 			return s.wait(), true
 		}
 		s.perms = append(s.perms, m.ask)
-		if !a.AgentOpen() || a.focus != focusAgent {
+		if !a.AgentOpen() || a.focus != FocusAgent {
 			a.SetAgent(true)
-			a.infoText(i18n.T("agent.permask"))
+			a.InfoText(i18n.T("agent.permask"))
 		}
 		return s.wait(), true
 	case agentPermCancelMsg:
@@ -444,7 +444,7 @@ func (a *Core) agentRead(r acp.ReadRequest) (string, error) {
 	p := a.agentPath(r.Path)
 	var text string
 	if t := a.tabFor(p); t != nil {
-		text = t.buf.Text()
+		text = t.Buf.Text()
 	} else {
 		b, err := os.ReadFile(p)
 		if err != nil {
@@ -477,7 +477,7 @@ func (a *Core) agentWrite(r acp.WriteRequest) error {
 		return errors.New(i18n.T("agent.nowrite"))
 	}
 	if t := a.tabFor(p); t != nil && t.dirty() {
-		return fmt.Errorf(i18n.T("agent.unsaved"), a.rel(p))
+		return fmt.Errorf(i18n.T("agent.unsaved"), a.Rel(p))
 	}
 	mode := os.FileMode(0o644)
 	if fi, err := os.Stat(p); err == nil {
@@ -489,7 +489,7 @@ func (a *Core) agentWrite(r acp.WriteRequest) error {
 	if err := os.WriteFile(p, []byte(r.Content), mode); err != nil {
 		return err
 	}
-	a.ag.add(logEntry{kind: logInfo, text: "✎ " + a.rel(p)})
+	a.ag.add(logEntry{kind: logInfo, text: "✎ " + a.Rel(p)})
 	if run := a.ag.run; run != nil {
 		run.written = append(run.written, p)
 	}
@@ -545,12 +545,12 @@ func (a *Core) endTurn(m agentTurnMsg) []Effect {
 	s.perms = nil
 	if m.err != nil {
 		s.add(logEntry{kind: logError, text: m.err.Error()})
-		a.fail(m.err)
+		a.Fail(m.err)
 		return nil
 	}
 	if m.stop != "end_turn" {
 		s.add(logEntry{kind: logInfo, text: stopText(m.stop)})
-		a.info(i18n.T("agent.prefix"), stopText(m.stop))
+		a.Info(i18n.T("agent.prefix"), stopText(m.stop))
 		return nil
 	}
 	if run == nil {
@@ -560,13 +560,13 @@ func (a *Core) endTurn(m agentTurnMsg) []Effect {
 	case sgFailure:
 		a.sg.fixOffer = true
 		a.sg.fixSeq++
-		a.infoText(i18n.T("agent.diagnosed"))
+		a.InfoText(i18n.T("agent.diagnosed"))
 		return nil
 	case sgAIReview:
 		return a.placeReview(run)
 	}
 	s.add(logEntry{kind: logInfo, text: i18n.T("agent.donereview")})
-	a.infoText(i18n.T("agent.workdone"))
+	a.InfoText(i18n.T("agent.workdone"))
 	return a.showAgentChanges()
 }
 

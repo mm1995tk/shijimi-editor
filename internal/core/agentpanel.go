@@ -20,15 +20,15 @@ const (
 )
 
 // agentWidth is the panel width: the user's choice, or a quarter of the screen.
-func (a *Core) agentWidth() int {
+func (a *Core) AgentWidth() int {
 	if a.AgentWidthPref() > 0 {
-		return clamp(a.AgentWidthPref(), minAgentW, max(minAgentW, a.ScreenW()/2))
+		return Clamp(a.AgentWidthPref(), minAgentW, max(minAgentW, a.ScreenW()/2))
 	}
-	return clamp(a.ScreenW()/4, 30, 50)
+	return Clamp(a.ScreenW()/4, 30, 50)
 }
 
 // agentShown reports whether the panel fits beside the editor.
-func (a *Core) agentShown(sideW int) bool {
+func (a *Core) AgentShown(sideW int) bool {
 	if !a.AgentOpen() {
 		return false
 	}
@@ -36,7 +36,7 @@ func (a *Core) agentShown(sideW int) bool {
 	if a.SideShown() {
 		used = sideW + 1
 	}
-	return a.ScreenW()-used-a.agentWidth()-1 >= minEditorBeside
+	return a.ScreenW()-used-a.AgentWidth()-1 >= minEditorBeside
 }
 
 // toggleAgentPanel moves to the panel, opening it, or leaves and closes it.
@@ -44,36 +44,36 @@ func (a *Core) toggleAgentPanel() []Effect {
 	if a.single {
 		return nil
 	}
-	if a.focus == focusAgent {
+	if a.focus == FocusAgent {
 		a.SetAgent(false)
 		a.follow = true
 		if len(a.tabs) > 0 {
-			return a.setFocus(focusEditor)
+			return a.SetFocus(FocusEditor)
 		}
 		a.SetSide(true)
-		return a.setFocus(focusExplorer)
+		return a.SetFocus(FocusExplorer)
 	}
 	a.SetAgent(true)
 	a.follow = true
-	return a.setFocus(focusAgent)
+	return a.SetFocus(FocusAgent)
 }
 
 // leaveAgentPanel returns to the editor, keeping the panel open.
 func (a *Core) leaveAgentPanel() []Effect {
 	if len(a.tabs) > 0 {
-		return a.setFocus(focusEditor)
+		return a.SetFocus(FocusEditor)
 	}
 	a.SetSide(true)
-	return a.setFocus(focusExplorer)
+	return a.SetFocus(FocusExplorer)
 }
 
 func (a *Core) handleAgentKey(msg Key) []Effect {
 	n := len(a.suggestions())
 	switch msg.String() {
 	case "j", "down":
-		a.sg.sel = clamp(a.sg.sel+1, 0, max(0, n-1))
+		a.sg.sel = Clamp(a.sg.sel+1, 0, max(0, n-1))
 	case "k", "up":
-		a.sg.sel = clamp(a.sg.sel-1, 0, max(0, n-1))
+		a.sg.sel = Clamp(a.sg.sel-1, 0, max(0, n-1))
 	case "enter":
 		return a.runSuggestion()
 	case "x":
@@ -109,14 +109,14 @@ func (a *Core) agentCommand(arg string) []Effect {
 		a.cancelAgent()
 	case "stop":
 		if a.ag.client == nil {
-			a.infoText(i18n.T("agent.notrunning"))
+			a.InfoText(i18n.T("agent.notrunning"))
 			return nil
 		}
 		a.stopAgent()
 		a.ag.add(logEntry{kind: logInfo, text: i18n.T("agent.stoppedok")})
-		a.infoText(i18n.T("agent.stoppedok"))
+		a.InfoText(i18n.T("agent.stoppedok"))
 	default:
-		a.fail(fmt.Errorf(i18n.T("agent.badarg"), arg))
+		a.Fail(fmt.Errorf(i18n.T("agent.badarg"), arg))
 	}
 	return nil
 }
@@ -154,7 +154,7 @@ type agentLay struct {
 func (a *Core) agentLayout(w, h int, focused bool) agentLay {
 	var lay agentLay
 	lay.list = a.suggestions()
-	lay.sel = clamp(a.sg.sel, 0, max(0, len(lay.list)-1))
+	lay.sel = Clamp(a.sg.sel, 0, max(0, len(lay.list)-1))
 	lay.rows = a.suggestRows(lay.list, max(2, h/2-1))
 	lay.head = 1 + len(lay.rows)
 	if len(lay.list) == 0 {
@@ -174,7 +174,7 @@ func (a *Core) agentLayout(w, h int, focused bool) agentLay {
 			lay.hint = i18n.T("panel.hint.work")
 		}
 	}
-	lay.body = h - lay.head - boolInt(lay.hint != "")
+	lay.body = h - lay.head - BoolInt(lay.hint != "")
 	cards := 0
 	for _, p := range a.ag.perms {
 		lines := wrapPlain(permTitle(p.req), w-2)
@@ -189,7 +189,7 @@ func (a *Core) agentLayout(w, h int, focused bool) agentLay {
 // agentScreen is the panel as a screen.Agent, w columns wide and h rows
 // high. The log is the part of it that fitAgent put in view. It changes
 // nothing.
-func (a *Core) agentScreen(w, h int, focused bool) screen.Agent {
+func (a *Core) AgentScreen(w, h int, focused bool) screen.Agent {
 	lay := a.agentLayout(w, h, focused)
 	ag := screen.Agent{
 		Title: fmt.Sprintf(i18n.T("panel.suggestions"), len(lay.list)),
@@ -229,7 +229,7 @@ func (a *Core) agentScreen(w, h int, focused bool) screen.Agent {
 	return ag
 }
 
-func boolInt(b bool) int {
+func BoolInt(b bool) int {
 	if b {
 		return 1
 	}
@@ -258,7 +258,7 @@ func (a *Core) renderLog(w int) []logRow {
 	// styled rows are padded to w in the text, so that their background reaches the edge
 	addWrapped := func(text string, ww int, style, bg screen.Style) {
 		for _, r := range wrapPlainRows(text, ww) {
-			row := logSpanRow(w, screen.Span{Text: fit(" "+r.text, w), Style: style, Bg: bg})
+			row := logSpanRow(w, screen.Span{Text: Fit(" "+r.text, w), Style: style, Bg: bg})
 			row.cont, row.space = r.cont, r.space
 			out = append(out, row)
 		}
@@ -278,7 +278,7 @@ func (a *Core) renderLog(w int) []logRow {
 			}
 			cuts := map[int]cut{} // row of the markdown -> the cut above it
 			exact := map[int][2]int{}
-			doc := renderMarkdown(e.text, max(1, w-1), mdOpts{
+			doc := RenderMarkdown(e.text, max(1, w-1), MdOpts{
 				wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} },
 				exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
 			})
@@ -352,7 +352,7 @@ func wrapPlainRows(text string, w int) []wrapRow {
 
 // agentMouse handles the pointer over the panel. ok is false when (x, y)
 // is not on it.
-func (a *Core) agentMouse(msg Mouse) ([]Effect, bool) {
+func (a *Core) AgentMouse(msg Mouse) ([]Effect, bool) {
 	if msg.Region != RegionAgent {
 		return nil, false
 	}
@@ -365,8 +365,8 @@ func (a *Core) agentMouse(msg Mouse) ([]Effect, bool) {
 			a.hoverText, a.hoverAt = "", nil
 		}
 		a.hoverSeq++
-		a.hoverWord = wordSpan{}
-		a.hoverCell = screenPt{-1, -1}
+		a.hoverWord = WordSpan{}
+		a.hoverCell = ScreenPt{-1, -1}
 		return nil, true
 	}
 	if msg.Action != MousePress {
@@ -389,7 +389,7 @@ func (a *Core) agentMouse(msg Mouse) ([]Effect, bool) {
 	}
 	row := msg.Row - 1 // below the title
 	list := a.suggestions()
-	if rows := a.suggestRows(list, max(2, a.bodyH()/2-1)); row >= 0 && row < len(rows) {
+	if rows := a.suggestRows(list, max(2, a.BodyH()/2-1)); row >= 0 && row < len(rows) {
 		i := rows[row]
 		if i < 0 {
 			i = rows[row-1]
@@ -401,18 +401,18 @@ func (a *Core) agentMouse(msg Mouse) ([]Effect, bool) {
 		p, _, _ := a.logPos(msg)
 		a.ag.sel = agentSel{dragging: true, a: p, b: p}
 	}
-	return a.setFocus(focusAgent), true
+	return a.SetFocus(FocusAgent), true
 }
 
 // fitAgentPanel fits the panel's state to the area it is drawn in, w wide and
 // h tall: the selected suggestion, the scroll and the selection of the log,
 // and where the log sits (agentView, which the mouse reads). It is the part
 // of drawing the panel that changes state, so it runs before drawing (fit).
-func (a *Core) fitAgentPanel(w, h int) {
-	lay := a.agentLayout(w, h, a.focusIn(focusAgent))
+func (a *Core) FitAgentPanel(w, h int) {
+	lay := a.agentLayout(w, h, a.FocusIn(FocusAgent))
 	a.sg.sel = lay.sel
 	log := a.renderLog(w)
-	a.ag.scroll = clamp(a.ag.scroll, 0, max(0, len(log)-lay.logRows))
+	a.ag.scroll = Clamp(a.ag.scroll, 0, max(0, len(log)-lay.logRows))
 	end := len(log) - a.ag.scroll
 	start := max(0, end-lay.logRows)
 	if a.ag.view.w != w {

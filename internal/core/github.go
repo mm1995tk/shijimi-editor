@@ -16,7 +16,7 @@ import (
 // External commands (git, gh) and the GitHub pull request data they return.
 
 // prInfo is a pull request as `gh pr view --json prFields` reports it.
-type prInfo struct {
+type PrInfo struct {
 	ID          string `json:"id"`
 	Number      int    `json:"number"`
 	Title       string `json:"title"`
@@ -63,7 +63,7 @@ func run(dir string, stdin []byte, name string, args ...string) ([]byte, error) 
 		if msg == "" {
 			msg = err.Error()
 		}
-		return out, fmt.Errorf("%s: %s", name, firstLine(msg))
+		return out, fmt.Errorf("%s: %s", name, FirstLine(msg))
 	}
 	return out, nil
 }
@@ -81,7 +81,7 @@ func listPRs(root string) []Effect {
 }
 
 // viewPR returns pull request num, or the current branch's when num is 0.
-func viewPR(root string, num int) (*prInfo, error) {
+func viewPR(root string, num int) (*PrInfo, error) {
 	args := []string{"pr", "view"}
 	if num > 0 {
 		args = append(args, fmt.Sprint(num))
@@ -90,7 +90,7 @@ func viewPR(root string, num int) (*prInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	var pr prInfo
+	var pr PrInfo
 	if err := json.Unmarshal(out, &pr); err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (s prSync) text() string {
 // fetchPR brings the pull request's head commit and its base branch into the
 // local repository, so they can be compared with HEAD. Failures are ignored:
 // the comparison then reports what it can.
-func fetchPR(root string, pr *prInfo) {
+func fetchPR(root string, pr *PrInfo) {
 	run(root, nil, "git", "fetch", "--quiet", "origin", fmt.Sprintf("refs/pull/%d/head", pr.Number), pr.BaseRefName)
 }
 
@@ -192,7 +192,7 @@ type prComment struct {
 // prThread is a review thread: comments on a line, a range of lines, or a
 // whole file. Line numbers are 1-based and count in the pull request's head
 // commit (Side RIGHT) or its base (LEFT).
-type prThread struct {
+type PrThread struct {
 	ID        string
 	Path      string
 	Line      int // last line; 0 for a file comment or an outdated thread
@@ -206,7 +206,7 @@ type prThread struct {
 }
 
 // first returns the first line of the thread's range.
-func (t *prThread) first() int {
+func (t *PrThread) first() int {
 	if t.StartLine > 0 {
 		return t.StartLine
 	}
@@ -215,13 +215,13 @@ func (t *prThread) first() int {
 
 // onLine reports whether the thread is shown at line (1-based) of the
 // current side of a file.
-func (t *prThread) onLine(line int) bool {
+func (t *PrThread) onLine(line int) bool {
 	return !t.File && !t.Outdated && t.Side == "RIGHT" && t.Line == line
 }
 
 // prReviewData is what GitHub knows about the review of a pull request.
 type prReviewData struct {
-	threads []*prThread
+	threads []*PrThread
 	viewed  map[string]bool
 }
 
@@ -266,7 +266,7 @@ func pageVars(id, cursor string) map[string]any {
 
 // loadReview reads the review threads and viewed files of pull request pr,
 // every page of them.
-func loadReview(root string, pr *prInfo) (prReviewData, error) {
+func loadReview(root string, pr *PrInfo) (prReviewData, error) {
 	d := prReviewData{viewed: map[string]bool{}}
 	for cursor := ""; ; {
 		var resp struct {
@@ -300,7 +300,7 @@ func loadReview(root string, pr *prInfo) (prReviewData, error) {
 		}
 		rt := resp.Node.ReviewThreads
 		for _, n := range rt.Nodes {
-			t := &prThread{ID: n.ID, Path: n.Path, Side: n.DiffSide, Resolved: n.IsResolved, Outdated: n.IsOutdated, File: n.SubjectType == "FILE"}
+			t := &PrThread{ID: n.ID, Path: n.Path, Side: n.DiffSide, Resolved: n.IsResolved, Outdated: n.IsOutdated, File: n.SubjectType == "FILE"}
 			if n.Line != nil {
 				t.Line = *n.Line
 			} else if !t.File {
@@ -371,7 +371,7 @@ func resolveThread(root, id string, resolve bool) error {
 }
 
 // setViewed marks path of pull request pr as viewed, or not viewed.
-func setViewed(root string, pr *prInfo, path string, viewed bool) error {
+func setViewed(root string, pr *PrInfo, path string, viewed bool) error {
 	m := "markFileAsViewed"
 	if !viewed {
 		m = "unmarkFileAsViewed"
@@ -384,7 +384,7 @@ func setViewed(root string, pr *prInfo, path string, viewed bool) error {
 // APPROVE, REQUEST_CHANGES or COMMENT. The review is created as a draft,
 // filled, then submitted; on any failure the draft is deleted, so nothing
 // half-sent stays on GitHub.
-func submitReview(root string, pr *prInfo, event, body string, threads []*prThread) error {
+func submitReview(root string, pr *PrInfo, event, body string, threads []*PrThread) error {
 	// GitHub allows one draft review per person; one left over (from the web,
 	// or a send that could not clean up) would make every send fail
 	var drafts struct {

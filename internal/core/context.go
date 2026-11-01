@@ -10,9 +10,9 @@ import (
 )
 
 // ctxPreview is the confirmation box shown before the context is pasted.
-type ctxPreview struct {
-	text   string
-	scroll int
+type CtxPreview struct {
+	Text   string
+	Scroll int
 }
 
 // maxContextLines caps how much of a selection is sent; the rest is elided.
@@ -53,19 +53,19 @@ func formatContext(path string, startRow, endRow int, selected string, diags []l
 		if d.Source != "" {
 			src = " (" + d.Source + ")"
 		}
-		fmt.Fprintf(&sb, "%s:%d: [%s] %s%s\n", path, d.Range.Start.Line+1, name, firstLine(d.Message), src)
+		fmt.Fprintf(&sb, "%s:%d: [%s] %s%s\n", path, d.Range.Start.Line+1, name, FirstLine(d.Message), src)
 	}
 	return sb.String()
 }
 
 // currentContext builds the context text for the active text tab.
 func (a *Core) currentContext() (string, bool) {
-	t := a.curText()
-	if t == nil || t.buf.Path == "" {
+	t := a.CurText()
+	if t == nil || t.Buf.Path == "" {
 		return "", false
 	}
-	b := t.buf
-	path := a.rel(b.Path)
+	b := t.Buf
+	path := a.Rel(b.Path)
 	if s, e, ok := b.Selection(); ok {
 		selected := b.SelectedText()
 		endRow := e.Row
@@ -89,10 +89,10 @@ func (a *Core) sendContext() []Effect {
 	}
 	text, ok := a.currentContext()
 	if !ok {
-		a.fail(errors.New(i18n.T("ctx.savefirst")))
+		a.Fail(errors.New(i18n.T("ctx.savefirst")))
 		return nil
 	}
-	a.ctx = &ctxPreview{text: text}
+	a.ctx = &CtxPreview{Text: text}
 	return nil
 }
 
@@ -100,20 +100,20 @@ func (a *Core) sendContext() []Effect {
 func (a *Core) handleContextKey(msg Key) []Effect {
 	switch msg.String() {
 	case "enter":
-		text := a.ctx.text
+		text := a.ctx.Text
 		a.ctx = nil
 		if a.MuxOn() {
 			return a.MuxSend(text, false)
 		}
 		a.SetTerm(true)
-		cmd := a.setFocus(focusTerminal)
-		return batch(cmd, a.TermPaste(text))
+		cmd := a.SetFocus(FocusTerminal)
+		return Batch(cmd, a.TermPaste(text))
 	case "esc", "ctrl+c", "q":
 		a.ctx = nil
 	case "ctrl+d", "pgdown", "down", "j":
-		a.ctx.scroll++
+		a.ctx.Scroll++
 	case "ctrl+u", "pgup", "up", "k":
-		a.ctx.scroll = max(0, a.ctx.scroll-1)
+		a.ctx.Scroll = max(0, a.ctx.Scroll-1)
 	}
 	return nil
 }

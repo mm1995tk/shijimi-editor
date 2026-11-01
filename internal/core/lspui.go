@@ -18,7 +18,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
-const lspTimeout = 10 * time.Second
+const LspTimeout = 10 * time.Second
 
 // lspManager starts language servers on demand and keeps diagnostics.
 type lspManager struct {
@@ -42,13 +42,13 @@ func newLSPManager(cfg *config.Config, root string) *lspManager {
 
 // clientsFor returns running clients for a tab, starting them if needed.
 // Errors (e.g. server binary missing) are returned once per server.
-func (m *lspManager) clientsFor(t *tab) ([]*lsp.Client, []error) {
-	if t.kind != tabText || t.lang == nil || t.buf.Path == "" {
+func (m *lspManager) clientsFor(t *Tab) ([]*lsp.Client, []error) {
+	if t.Kind != TabText || t.lang == nil || t.Buf.Path == "" {
 		return nil, nil
 	}
 	var out []*lsp.Client
 	var errs []error
-	root := t.lang.FindRoot(t.buf.Path, m.root)
+	root := t.lang.FindRoot(t.Buf.Path, m.root)
 	for _, name := range t.lang.Servers {
 		key := name + "\x00" + root
 		if c, ok := m.clients[key]; ok {
@@ -77,7 +77,7 @@ func (m *lspManager) clientsFor(t *tab) ([]*lsp.Client, []error) {
 }
 
 // client returns the first client for t that supports capability.
-func (m *lspManager) client(t *tab, capability string) *lsp.Client {
+func (m *lspManager) client(t *Tab, capability string) *lsp.Client {
 	cs, _ := m.clientsFor(t)
 	for _, c := range cs {
 		if c.Supports(capability) {
@@ -119,7 +119,7 @@ func lspPos(b *buffer.Buffer, p buffer.Pos) lsp.Position {
 }
 
 func bufPos(b *buffer.Buffer, p lsp.Position) buffer.Pos {
-	row := clamp(p.Line, 0, len(b.Lines)-1)
+	row := Clamp(p.Line, 0, len(b.Lines)-1)
 	return buffer.Pos{Row: row, Col: lsp.FromUTF16(b.Lines[row], p.Character)}
 }
 
@@ -133,46 +133,46 @@ func toEdits(b *buffer.Buffer, tes []lsp.TextEdit) []buffer.Edit {
 
 // attachLSP configures a newly opened text tab for its language and opens
 // it on the language servers.
-func (a *Core) attachLSP(t *tab) {
-	if a.single || t.kind != tabText || t.buf.Path == "" {
+func (a *Core) attachLSP(t *Tab) {
+	if a.single || t.Kind != TabText || t.Buf.Path == "" {
 		return
 	}
-	t.lang = a.cfg.LanguageFor(t.buf.Path)
+	t.lang = a.cfg.LanguageFor(t.Buf.Path)
 	if t.lang == nil {
 		return
 	}
 	if t.lang.IndentUnit != "" {
-		t.buf.SetIndentUnit(t.lang.IndentUnit)
+		t.Buf.SetIndentUnit(t.lang.IndentUnit)
 	}
 	cs, errs := a.lsp.clientsFor(t)
 	for _, err := range errs {
-		a.fail(err)
+		a.Fail(err)
 	}
 	for _, c := range cs {
-		c.DidOpen(t.buf.Path, t.lang.ID(), t.buf.Text(), t.buf.Version+1)
+		c.DidOpen(t.Buf.Path, t.lang.ID(), t.Buf.Text(), t.Buf.Version+1)
 	}
-	t.lspVersion = t.buf.Version
+	t.lspVersion = t.Buf.Version
 }
 
-func (a *Core) detachLSP(t *tab) {
+func (a *Core) detachLSP(t *Tab) {
 	cs, _ := a.lsp.clientsFor(t)
 	for _, c := range cs {
-		c.DidClose(t.buf.Path)
+		c.DidClose(t.Buf.Path)
 	}
 }
 
 // syncLSP sends didChange for buffers edited since the last sync.
-func (a *Core) syncLSP() {
+func (a *Core) SyncLSP() {
 	for _, t := range a.tabs {
-		if t.kind != tabText || t.lang == nil || t.buf.Version == t.lspVersion {
+		if t.Kind != TabText || t.lang == nil || t.Buf.Version == t.lspVersion {
 			continue
 		}
 		cs, _ := a.lsp.clientsFor(t)
-		text := t.buf.Text()
+		text := t.Buf.Text()
 		for _, c := range cs {
-			c.DidChange(t.buf.Path, text, t.buf.Version+1)
+			c.DidChange(t.Buf.Path, text, t.Buf.Version+1)
 		}
-		t.lspVersion = t.buf.Version
+		t.lspVersion = t.Buf.Version
 	}
 }
 
@@ -185,14 +185,14 @@ type locationsMsg struct {
 	locs  []lsp.Location
 }
 type completionMsg struct {
-	tab     *tab
+	tab     *Tab
 	version int
 	start   buffer.Pos
 	items   []lsp.CompletionItem
 }
 type workspaceEditMsg struct{ edit lsp.WorkspaceEdit }
 type formatMsg struct {
-	tab   *tab
+	tab   *Tab
 	edits []lsp.TextEdit
 	save  bool
 }
@@ -203,27 +203,27 @@ func (a *Core) lspReq(run func(ctx context.Context) Event) []Effect {
 	return []Effect{RunLSP{Run: run}}
 }
 
-func (a *Core) lspRequest(capability string, f func(ctx context.Context, c *lsp.Client, t *tab) Event) []Effect {
-	t := a.cur()
-	if t == nil || t.kind != tabText {
+func (a *Core) lspRequest(capability string, f func(ctx context.Context, c *lsp.Client, t *Tab) Event) []Effect {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText {
 		return nil
 	}
 	if t.lang == nil {
-		a.fail(errors.New(i18n.T("lspui.noserver")))
+		a.Fail(errors.New(i18n.T("lspui.noserver")))
 		return nil
 	}
 	c := a.lsp.client(t, capability)
 	if c == nil {
-		a.fail(fmt.Errorf(i18n.T("lspui.unsupported"), capability))
+		a.Fail(fmt.Errorf(i18n.T("lspui.unsupported"), capability))
 		return nil
 	}
-	a.syncLSP()
+	a.SyncLSP()
 	return a.lspReq(func(ctx context.Context) Event { return f(ctx, c, t) })
 }
 
 func (a *Core) hover() []Effect {
-	return a.lspRequest("hoverProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
-		text, err := c.Hover(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
+	return a.lspRequest("hoverProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
+		text, err := c.Hover(ctx, t.Buf.Path, lspPos(t.Buf, t.Buf.Cur))
 		if err != nil {
 			return lspErrMsg{err}
 		}
@@ -232,19 +232,19 @@ func (a *Core) hover() []Effect {
 }
 
 func (a *Core) gotoDefinition() []Effect {
-	return a.lspRequest("definitionProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
-		pos := lspPos(t.buf, t.buf.Cur)
-		locs, err := c.Definition(ctx, t.buf.Path, pos)
+	return a.lspRequest("definitionProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
+		pos := lspPos(t.Buf, t.Buf.Cur)
+		locs, err := c.Definition(ctx, t.Buf.Path, pos)
 		if err != nil {
 			return lspErrMsg{err}
 		}
 		// Already on the definition: list the usages instead, like VS Code.
-		if onLocation(locs, t.buf.Path, pos) {
-			refs, err := c.References(ctx, t.buf.Path, pos)
+		if onLocation(locs, t.Buf.Path, pos) {
+			refs, err := c.References(ctx, t.Buf.Path, pos)
 			if err != nil {
 				return lspErrMsg{err}
 			}
-			return locationsMsg{i18n.T("lspui.references"), withoutLocation(refs, t.buf.Path, pos)}
+			return locationsMsg{i18n.T("lspui.references"), withoutLocation(refs, t.Buf.Path, pos)}
 		}
 		return locationsMsg{i18n.T("lspui.definition"), locs}
 	})
@@ -275,8 +275,8 @@ func onLocation(locs []lsp.Location, path string, pos lsp.Position) bool {
 }
 
 func (a *Core) references() []Effect {
-	return a.lspRequest("referencesProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
-		locs, err := c.References(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
+	return a.lspRequest("referencesProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
+		locs, err := c.References(ctx, t.Buf.Path, lspPos(t.Buf, t.Buf.Cur))
 		if err != nil {
 			return lspErrMsg{err}
 		}
@@ -285,15 +285,15 @@ func (a *Core) references() []Effect {
 }
 
 func (a *Core) completion() []Effect {
-	t := a.cur()
-	if t == nil || t.kind != tabText {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText {
 		return nil
 	}
-	start := wordStart(t.buf)
-	version := t.buf.Version
-	pos := t.buf.Cur
-	return a.lspRequest("completionProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
-		items, err := c.Completion(ctx, t.buf.Path, lspPos(t.buf, pos))
+	start := wordStart(t.Buf)
+	version := t.Buf.Version
+	pos := t.Buf.Cur
+	return a.lspRequest("completionProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
+		items, err := c.Completion(ctx, t.Buf.Path, lspPos(t.Buf, pos))
 		if err != nil {
 			return lspErrMsg{err}
 		}
@@ -302,23 +302,23 @@ func (a *Core) completion() []Effect {
 }
 
 func (a *Core) rename() []Effect {
-	t := a.cur()
-	if t == nil || t.kind != tabText {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText {
 		return nil
 	}
-	pos := t.buf.Cur
-	s := wordStart(t.buf)
+	pos := t.Buf.Cur
+	s := wordStart(t.Buf)
 	e := s
-	for line := t.buf.Lines[s.Row]; e.Col < len(line) && isIdent(line[e.Col]); e.Col++ {
+	for line := t.Buf.Lines[s.Row]; e.Col < len(line) && isIdent(line[e.Col]); e.Col++ {
 	}
-	old := t.buf.TextRange(s, e)
+	old := t.Buf.TextRange(s, e)
 	return a.pal.ask(i18n.T("app.newname"), old, func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
 		}
-		return a.lspRequest("renameProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
-			we, err := c.Rename(ctx, t.buf.Path, lspPos(t.buf, pos), v)
+		return a.lspRequest("renameProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
+			we, err := c.Rename(ctx, t.Buf.Path, lspPos(t.Buf, pos), v)
 			if err != nil {
 				return lspErrMsg{err}
 			}
@@ -328,16 +328,16 @@ func (a *Core) rename() []Effect {
 }
 
 func (a *Core) format(save bool) []Effect {
-	t := a.cur()
-	if t == nil || t.kind != tabText {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText {
 		return nil
 	}
 	if t.lang != nil && t.lang.Formatter != nil {
 		return a.runFormatter(t, t.lang.Formatter, save)
 	}
-	unit := t.buf.IndentUnit()
-	return a.lspRequest("documentFormattingProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
-		edits, err := c.Format(ctx, t.buf.Path, max(1, len(unit)), unit != "\t")
+	unit := t.Buf.IndentUnit()
+	return a.lspRequest("documentFormattingProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
+		edits, err := c.Format(ctx, t.Buf.Path, max(1, len(unit)), unit != "\t")
 		if err != nil {
 			return lspErrMsg{err}
 		}
@@ -357,13 +357,13 @@ type codeActionResolvedMsg struct {
 // codeAction lists the quick fixes and refactorings for the selection, or
 // for the cursor position when nothing is selected.
 func (a *Core) codeAction() []Effect {
-	t := a.cur()
-	if t == nil || t.kind != tabText {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText {
 		return nil
 	}
-	rng, diags := codeActionRange(t.buf, a.lsp.diagnostics(t.buf.Path))
-	return a.lspRequest("codeActionProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
-		actions, err := c.CodeActions(ctx, t.buf.Path, rng, diags)
+	rng, diags := codeActionRange(t.Buf, a.lsp.diagnostics(t.Buf.Path))
+	return a.lspRequest("codeActionProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
+		actions, err := c.CodeActions(ctx, t.Buf.Path, rng, diags)
 		if err != nil {
 			return lspErrMsg{err}
 		}
@@ -406,7 +406,7 @@ func codeActionRange(b *buffer.Buffer, all []lsp.Diagnostic) (lsp.Range, []lsp.D
 
 func (a *Core) showCodeActions(m codeActionsMsg) []Effect {
 	if len(m.actions) == 0 {
-		a.infoText(i18n.T("lspui.noactions"))
+		a.InfoText(i18n.T("lspui.noactions"))
 		return nil
 	}
 	actions := slices.Clone(m.actions)
@@ -446,11 +446,11 @@ func (a *Core) runCodeAction(m codeActionResolvedMsg) []Effect {
 	cmd := m.action.Command
 	if cmd == nil {
 		if len(m.action.Edit) == 0 {
-			a.infoText(i18n.T("lspui.noedit"))
+			a.InfoText(i18n.T("lspui.noedit"))
 		}
 		return nil
 	}
-	a.syncLSP()
+	a.SyncLSP()
 	return a.lspReq(func(ctx context.Context) Event {
 		if err := m.client.ExecuteCommand(ctx, *cmd); err != nil {
 			return lspErrMsg{err}
@@ -466,17 +466,17 @@ func (a *Core) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
 		if !a.openFile(path) {
 			continue
 		}
-		t := a.cur()
-		t.buf.ApplyEdits(toEdits(t.buf, edits))
+		t := a.Cur()
+		t.Buf.ApplyEdits(toEdits(t.Buf, edits))
 		files++
 		n += len(edits)
 	}
-	a.info(i18n.T("lspui.applied"), files, n)
+	a.Info(i18n.T("lspui.applied"), files, n)
 }
 
 func (a *Core) showLocations(m locationsMsg) []Effect {
 	if len(m.locs) == 0 {
-		a.fail(fmt.Errorf(i18n.T("lspui.notfound"), m.title))
+		a.Fail(fmt.Errorf(i18n.T("lspui.notfound"), m.title))
 		return nil
 	}
 	jump := a.jumpTo
@@ -486,7 +486,7 @@ func (a *Core) showLocations(m locationsMsg) []Effect {
 	items := make([]paletteItem, len(m.locs))
 	for i, l := range m.locs {
 		p := lsp.Path(l.URI)
-		items[i] = paletteItem{label: fmt.Sprintf("%s:%d", a.rel(p), l.Range.Start.Line+1), detail: strings.TrimSpace(lineAt(a, p, l.Range.Start.Line))}
+		items[i] = paletteItem{label: fmt.Sprintf("%s:%d", a.Rel(p), l.Range.Start.Line+1), detail: strings.TrimSpace(lineAt(a, p, l.Range.Start.Line))}
 	}
 	return a.pal.pick(m.title, items, func(i int) []Effect { return jump(m.locs[i]) })
 }
@@ -494,8 +494,8 @@ func (a *Core) showLocations(m locationsMsg) []Effect {
 // lineAt returns line n of a file, from an open buffer when possible.
 func lineAt(a *Core, path string, n int) string {
 	for _, t := range a.tabs {
-		if t.kind == tabText && t.buf.Path == path && n < len(t.buf.Lines) {
-			return string(t.buf.Lines[n])
+		if t.Kind == TabText && t.Buf.Path == path && n < len(t.Buf.Lines) {
+			return string(t.Buf.Lines[n])
 		}
 	}
 	data, err := os.ReadFile(path)
@@ -526,13 +526,13 @@ func (a *Core) diagnosticPicker() []Effect {
 		}
 	}
 	if len(all) == 0 {
-		a.infoText(i18n.T("lspui.nodiag"))
+		a.InfoText(i18n.T("lspui.nodiag"))
 		return nil
 	}
 	items := make([]paletteItem, len(all))
 	sevName := map[int]string{1: i18n.T("diag.error"), 2: i18n.T("diag.warning"), 3: i18n.T("diag.info"), 4: i18n.T("diag.hint")}
 	for i, e := range all {
-		items[i] = paletteItem{label: fmt.Sprintf("%s:%d %s", a.rel(e.path), e.d.Range.Start.Line+1, firstLine(e.d.Message)), detail: sevName[sevRank(e.d.Severity)]}
+		items[i] = paletteItem{label: fmt.Sprintf("%s:%d %s", a.Rel(e.path), e.d.Range.Start.Line+1, FirstLine(e.d.Message)), detail: sevName[sevRank(e.d.Severity)]}
 	}
 	return a.pal.pick(i18n.T("ctx.diagnostics"), items, func(i int) []Effect {
 		return a.showLocations(locationsMsg{i18n.T("ctx.diagnostics"), []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}})
@@ -541,20 +541,20 @@ func (a *Core) diagnosticPicker() []Effect {
 
 // gotoDiagnostic jumps to the next (dir=1) or previous (dir=-1) diagnostic.
 func (a *Core) gotoDiagnostic(dir int) {
-	t := a.cur()
-	if t == nil || t.kind != tabText {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText {
 		return
 	}
-	ds := a.lsp.diagnostics(t.buf.Path)
+	ds := a.lsp.diagnostics(t.Buf.Path)
 	if len(ds) == 0 {
-		a.infoText(i18n.T("lspui.nodiagfile"))
+		a.InfoText(i18n.T("lspui.nodiagfile"))
 		return
 	}
-	cur := t.buf.Cur
+	cur := t.Buf.Cur
 	var target *lsp.Diagnostic
 	if dir > 0 {
 		for i := range ds {
-			p := bufPos(t.buf, ds[i].Range.Start)
+			p := bufPos(t.Buf, ds[i].Range.Start)
 			if cur.Less(p) {
 				target = &ds[i]
 				break
@@ -565,7 +565,7 @@ func (a *Core) gotoDiagnostic(dir int) {
 		}
 	} else {
 		for i := len(ds) - 1; i >= 0; i-- {
-			p := bufPos(t.buf, ds[i].Range.Start)
+			p := bufPos(t.Buf, ds[i].Range.Start)
 			if p.Less(cur) {
 				target = &ds[i]
 				break
@@ -575,17 +575,17 @@ func (a *Core) gotoDiagnostic(dir int) {
 			target = &ds[len(ds)-1]
 		}
 	}
-	p := bufPos(t.buf, target.Range.Start)
-	t.buf.Anchor = nil
-	t.buf.SetCursor(p.Row, buffer.VisualCol(t.buf.Lines[p.Row], p.Col), false)
+	p := bufPos(t.Buf, target.Range.Start)
+	t.Buf.Anchor = nil
+	t.Buf.SetCursor(p.Row, buffer.VisualCol(t.Buf.Lines[p.Row], p.Col), false)
 	a.follow = true
-	a.info("%s", firstLine(target.Message))
+	a.Info("%s", FirstLine(target.Message))
 }
 
 // ---- completion popup ----
 
 type completionPopup struct {
-	tab   *tab
+	tab   *Tab
 	start buffer.Pos
 	all   []lsp.CompletionItem
 	items []lsp.CompletionItem
@@ -593,7 +593,7 @@ type completionPopup struct {
 }
 
 func (c *completionPopup) filter() {
-	b := c.tab.buf
+	b := c.tab.Buf
 	prefix := ""
 	if c.start.Row == b.Cur.Row && c.start.Col <= b.Cur.Col {
 		prefix = strings.ToLower(string(b.Lines[b.Cur.Row][c.start.Col:b.Cur.Col]))
@@ -628,7 +628,7 @@ func (c *completionPopup) filter() {
 		}
 		return ki < kj
 	})
-	c.sel = clamp(c.sel, 0, max(0, len(c.items)-1))
+	c.sel = Clamp(c.sel, 0, max(0, len(c.items)-1))
 }
 
 func (a *Core) acceptCompletion() {
@@ -638,7 +638,7 @@ func (a *Core) acceptCompletion() {
 		return
 	}
 	it := c.items[c.sel]
-	b := c.tab.buf
+	b := c.tab.Buf
 	start := c.start
 	text := it.InsertText
 	if text == "" {
@@ -689,10 +689,10 @@ func (c *completionPopup) overlay(maxH int) screen.Overlay {
 	if c.sel >= n {
 		start = c.sel - n + 1
 	}
-	at := toScreenPos(c.tab.buf.Cur)
+	at := ToScreenPos(c.tab.Buf.Cur)
 	ov := screen.Overlay{
 		Kind:   screen.OverlayCompletion,
-		Pane:   c.tab.path(),
+		Pane:   c.tab.Path(),
 		At:     &at,
 		Active: c.sel - start,
 	}
@@ -703,13 +703,13 @@ func (c *completionPopup) overlay(maxH int) screen.Overlay {
 }
 
 func (a *Core) lspStatus() string {
-	t := a.cur()
-	if t == nil || t.kind != tabText || t.lang == nil {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText || t.lang == nil {
 		return ""
 	}
 	var names []string
 	for _, n := range t.lang.Servers {
-		root := t.lang.FindRoot(t.buf.Path, a.root)
+		root := t.lang.FindRoot(t.Buf.Path, a.root)
 		if c, ok := a.lsp.clients[n+"\x00"+root]; ok {
 			select {
 			case <-c.Ready():
@@ -728,12 +728,12 @@ func (a *Core) jumpTo(l lsp.Location) []Effect {
 	if !a.openFile(lsp.Path(l.URI)) {
 		return nil
 	}
-	t := a.cur()
-	t.buf.Anchor = nil
-	p := bufPos(t.buf, l.Range.Start)
-	t.buf.SetCursor(p.Row, buffer.VisualCol(t.buf.Lines[p.Row], p.Col), false)
+	t := a.Cur()
+	t.Buf.Anchor = nil
+	p := bufPos(t.Buf, l.Range.Start)
+	t.Buf.SetCursor(p.Row, buffer.VisualCol(t.Buf.Lines[p.Row], p.Col), false)
 	a.follow = true
-	return a.setFocus(focusEditor)
+	return a.SetFocus(FocusEditor)
 }
 
 // handleLSPReply takes the Events a language server's reply becomes. ok is
@@ -745,8 +745,8 @@ func (a *Core) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 	case locationsMsg:
 		return a.showLocations(msg), true
 	case completionMsg:
-		t := a.curText()
-		if t == nil || t != msg.tab || a.mode != modeInsert && a.helix || len(msg.items) == 0 {
+		t := a.CurText()
+		if t == nil || t != msg.tab || a.mode != ModeInsert && a.helix || len(msg.items) == 0 {
 			return nil, true
 		}
 		a.comp = &completionPopup{tab: t, start: msg.start, all: msg.items}
@@ -770,14 +770,14 @@ func (a *Core) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 		return a.runCodeAction(msg), true
 	case formatMsg:
 		if len(msg.edits) > 0 {
-			msg.tab.buf.ApplyEdits(toEdits(msg.tab.buf, msg.edits))
+			msg.tab.Buf.ApplyEdits(toEdits(msg.tab.Buf, msg.edits))
 		}
 		if msg.save {
 			return a.saveTab(msg.tab), true
 		}
-		a.infoText(i18n.T("app.formatted"))
+		a.InfoText(i18n.T("app.formatted"))
 	case lspErrMsg:
-		a.fail(msg.err)
+		a.Fail(msg.err)
 	case semanticMsg:
 		msg.h.sem.apply(msg)
 	default:
@@ -787,11 +787,11 @@ func (a *Core) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 }
 
 func (a *Core) showHover(msg hoverMsg) {
-	if t := a.curText(); a.fullPreview(t) {
+	if t := a.CurText(); a.FullPreview(t) {
 		return // the popup would be anchored to the hidden buffer
 	}
 	if m := msg.mouse; m != nil {
-		if m.seq != a.hoverSeq || m.tab != a.cur() || strings.TrimSpace(msg.text) == "" {
+		if m.seq != a.hoverSeq || m.tab != a.Cur() || strings.TrimSpace(msg.text) == "" {
 			return
 		}
 		a.hoverText, a.hoverScroll = msg.text, 0
@@ -799,7 +799,7 @@ func (a *Core) showHover(msg hoverMsg) {
 		return
 	}
 	if strings.TrimSpace(msg.text) == "" {
-		a.infoText(i18n.T("app.nohover"))
+		a.InfoText(i18n.T("app.nohover"))
 	} else {
 		a.hoverText = msg.text
 		a.hoverScroll = 0

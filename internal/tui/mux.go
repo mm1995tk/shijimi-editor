@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
@@ -18,7 +19,6 @@ import (
 // The built-in panel stays in use when [experimental] multiplexer is off,
 // [terminal] multiplexer is "none", or the editor does not run in a
 // multiplexer that is supported.
-
 
 // muxBackend is what a multiplexer has to do for the terminal commands.
 // Adding a multiplexer means implementing it and adding it to newMuxBackend
@@ -98,7 +98,7 @@ func (a *App) resolveMux() {
 	m.resolved = true
 	old := m.b
 	m.b = nil
-	want := a.settings().Terminal.Multiplexer
+	want := a.Settings().Terminal.Multiplexer
 	explicit := want != "auto" && want != "" && want != "none"
 	kind := want
 	if want == "auto" || want == "" {
@@ -108,11 +108,11 @@ func (a *App) resolveMux() {
 		switch b := m.makeBackend(kind); {
 		case b == nil:
 			if explicit {
-				a.infoText(fmt.Sprintf(i18n.T("mux.unsupported"), want))
+				a.InfoText(fmt.Sprintf(i18n.T("mux.unsupported"), want))
 			}
 		case !muxUsable(kind):
 			if explicit {
-				a.infoText(fmt.Sprintf(i18n.T("mux.unavailable"), want))
+				a.InfoText(fmt.Sprintf(i18n.T("mux.unavailable"), want))
 			}
 		default:
 			m.b = b
@@ -128,7 +128,7 @@ func (a *App) resolveMux() {
 
 // muxOn reports whether the terminal commands should use a multiplexer pane.
 func (a *App) MuxOn() bool {
-	if a.singleFile() || a.settings() == nil || !a.settings().Experimental.Multiplexer {
+	if a.SingleFile() || a.Settings() == nil || !a.Settings().Experimental.Multiplexer {
 		return false
 	}
 	if !a.mux.resolved {
@@ -164,7 +164,7 @@ func (a *App) muxPaneEnv() []string {
 // muxCreate splits a new pane off the editor's pane and focuses it.
 func (a *App) muxCreate() error {
 	m := &a.mux
-	id, err := m.b.split(a.rootDir(), a.muxPaneEnv())
+	id, err := m.b.split(a.RootDir(), a.muxPaneEnv())
 	if err != nil {
 		return err
 	}
@@ -196,7 +196,7 @@ func (a *App) MuxHide() error {
 }
 
 // muxToggle is the toggle of Ctrl+`, Space t and :sh.
-func (a *App) MuxToggle() []Effect {
+func (a *App) MuxToggle() []core.Effect {
 	var err error
 	if a.mux.visible && a.mux.id != "" && a.mux.b.alive(a.mux.id) {
 		err = a.MuxHide()
@@ -207,7 +207,7 @@ func (a *App) MuxToggle() []Effect {
 }
 
 // muxSend opens the pane and sends text to it.
-func (a *App) MuxSend(text string, enter bool) []Effect {
+func (a *App) MuxSend(text string, enter bool) []core.Effect {
 	if err := a.MuxOpen(); err != nil {
 		return a.MuxResult(err)
 	}
@@ -223,9 +223,9 @@ func (a *App) MuxClose() {
 	m.id, m.visible = "", false
 }
 
-func (a *App) MuxResult(err error) []Effect {
+func (a *App) MuxResult(err error) []core.Effect {
 	if err != nil {
-		a.fail(a.muxError(err))
+		a.Fail(a.muxError(err))
 	}
 	return nil
 }
@@ -236,14 +236,14 @@ func (a *App) MuxResult(err error) []Effect {
 func (a *App) CommandEnded(code int) {
 	switch code {
 	case 0:
-		a.clearFailure(MuxFailTab)
+		a.ClearFailure(core.MuxFailTab)
 	case 130:
 		// Ctrl+C: the user stopped it on purpose.
 	default:
 		var tail []string
 		if a.mux.b != nil && a.mux.id != "" {
-			tail = a.mux.b.tail(a.mux.id, failTail)
+			tail = a.mux.b.tail(a.mux.id, core.FailTail)
 		}
-		a.addFailureTab(MuxFailTab, 1, code, "", tail)
+		a.AddFailureTab(core.MuxFailTab, 1, code, "", tail)
 	}
 }

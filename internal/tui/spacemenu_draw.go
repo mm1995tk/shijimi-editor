@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -10,18 +11,18 @@ import (
 // renderSpaceMenu draws the popup over the bottom-right corner of the editor
 // area while a leader key is waiting for its follow-up.
 func (a *App) renderSpaceMenu(rows []string, l layout) []string {
-	return a.renderMenu(rows, l, " Space", a.spaceMenuItems())
+	return a.renderMenu(rows, l, " Space", a.SpaceMenuItems())
 }
 
 // renderMenu draws a menu of leader key items titled title.
-func (a *App) renderMenu(rows []string, l layout, title string, items []spaceItem) []string {
-	box := drawMenu(menuOverlay(title, items), l.rightW)
+func (a *App) renderMenu(rows []string, l layout, title string, items []core.SpaceItem) []string {
+	box := drawMenu(core.MenuOverlay(title, items), l.rightW)
 	if box == nil {
 		return rows
 	}
 	x := l.rightX + l.rightW - ansi.StringWidth(box[0])
 	y := l.editY + l.editH - len(box)
-	return overlay(rows, box, x, max(0, y))
+	return core.Overlay(rows, box, x, max(0, y))
 }
 
 // drawMenu draws a menu Overlay as a box of cells no wider than maxW, or nil
@@ -45,7 +46,7 @@ func drawMenu(ov screen.Overlay, maxW int) []string {
 		return nil
 	}
 	inner := w - 2
-	box := []string{stPaletteBox.Render(fit(ov.Title, w))}
+	box := []string{stPaletteBox.Render(core.Fit(ov.Title, w))}
 	for r := range per {
 		var sb strings.Builder
 		sb.WriteString(stPalette.Render(" "))

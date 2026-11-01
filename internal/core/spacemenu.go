@@ -9,13 +9,13 @@ import (
 
 // spaceItem is one row of the Space menu popup. textOnly marks commands that
 // do nothing unless the current tab is a text tab.
-type spaceItem struct {
+type SpaceItem struct {
 	key, label string
 	textOnly   bool
 }
 
 // spaceItems lists the keys spaceMode understands, in display order.
-var spaceItems = []spaceItem{
+var spaceItems = []SpaceItem{
 	{"f", "space.openfile", false},
 	{"b", "space.buffers", false},
 	{"k", "space.hover", true},
@@ -44,16 +44,16 @@ var spaceItems = []spaceItem{
 }
 
 // spaceMenuItems returns the items usable right now.
-func (a *Core) spaceMenuItems() []spaceItem {
-	t := a.cur()
-	text := t != nil && t.kind == tabText
-	full := t != nil && a.fullPreview(t)
-	var out []spaceItem
+func (a *Core) SpaceMenuItems() []SpaceItem {
+	t := a.Cur()
+	text := t != nil && t.Kind == TabText
+	full := t != nil && a.FullPreview(t)
+	var out []SpaceItem
 	for _, it := range spaceItems {
 		if it.textOnly && !text {
 			continue
 		}
-		if it.key == "v" && !a.prShown() {
+		if it.key == "v" && !a.PrShown() {
 			continue
 		}
 		if it.key == "E" && !a.gd.on {
@@ -71,7 +71,7 @@ func (a *Core) spaceMenuItems() []spaceItem {
 // Each Item has the translated label in Label and the key in Detail. It has no
 // place in a pane (the drawer puts it in a corner). It changes nothing.
 // Drawing it as cells is drawMenu's work.
-func menuOverlay(title string, items []spaceItem) screen.Overlay {
+func MenuOverlay(title string, items []SpaceItem) screen.Overlay {
 	ov := screen.Overlay{Kind: screen.OverlayMenu, Title: title}
 	for _, it := range items {
 		ov.Items = append(ov.Items, screen.Item{Label: i18n.T(it.label), Detail: it.key})

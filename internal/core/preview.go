@@ -30,7 +30,7 @@ const mermaidDelay = 300 * time.Millisecond
 type previewJob struct {
 	done bool
 	err  string
-	img  *imageView
+	img  *ImageView
 
 	// stamp is the size and modification time of an image file when it was
 	// last read; a change makes it read again.
@@ -70,7 +70,7 @@ func mermaidBlocks(text string) []string {
 // previewSources returns the mermaid fences and the sources of the images
 // shown on their own line, as the preview finds them.
 func previewSources(text string) (blocks, images []string) {
-	renderMarkdown(text, 80, mdOpts{
+	RenderMarkdown(text, 80, MdOpts{
 		mermaid: func(code string, _ int) *mdMedia {
 			blocks = append(blocks, code)
 			return nil
@@ -101,7 +101,7 @@ func mdImagePath(mdPath, src string) string {
 type mdImageDoneMsg struct {
 	path  string
 	stamp fileStamp
-	img   *imageView
+	img   *ImageView
 }
 
 func (a *Core) mermaidKey(code string) string {
@@ -121,26 +121,26 @@ func mermaidCacheDir() string {
 type previewMode int
 
 const (
-	previewOff   previewMode = iota
-	previewSplit             // beside the buffer
-	previewFull              // the preview alone, using the whole editor area
+	PreviewOff   previewMode = iota
+	PreviewSplit             // beside the buffer
+	PreviewFull              // the preview alone, using the whole editor area
 )
 
 // togglePreview cycles off → beside the buffer → full width → off.
 func (a *Core) togglePreview() []Effect {
-	t := a.curText()
-	if t == nil || !isMarkdown(t.buf.Path) {
-		a.fail(errors.New(i18n.T("preview.needmd")))
+	t := a.CurText()
+	if t == nil || !isMarkdown(t.Buf.Path) {
+		a.Fail(errors.New(i18n.T("preview.needmd")))
 		return nil
 	}
-	t.preview = (t.preview + 1) % (previewFull + 1)
+	t.Preview = (t.Preview + 1) % (PreviewFull + 1)
 	t.scanned = false
 	// the editor width changed: follow the cursor again from the left edge,
 	// or a column scrolled to in the narrower view stays scrolled when it widens
-	t.buf.ScrollCol, a.follow = 0, true
+	t.Buf.ScrollCol, a.follow = 0, true
 	a.comp, a.hoverText = nil, "" // popups are anchored to the hidden buffer
-	if t.preview == previewFull && a.mode == modeInsert {
-		a.mode = modeNormal // keystrokes must not edit a buffer that is not visible
+	if t.Preview == PreviewFull && a.mode == ModeInsert {
+		a.mode = ModeNormal // keystrokes must not edit a buffer that is not visible
 	}
 	return nil
 }
@@ -148,11 +148,11 @@ func (a *Core) togglePreview() []Effect {
 // syncPreview starts rendering for mermaid blocks and loading the images of
 // the visible preview. The lists are cached per buffer version, so each call
 // only does a few map lookups and a stat of each image.
-func (a *Core) syncPreview() []Effect {
+func (a *Core) SyncPreview() []Effect {
 	cmds := [][]Effect{a.syncMDImages()}
 	blocks := a.wantedMermaid()
 	if len(blocks) == 0 {
-		return batch(cmds...)
+		return Batch(cmds...)
 	}
 	if a.mermaid == nil {
 		a.mermaid = map[string]*previewJob{}
@@ -176,7 +176,7 @@ func (a *Core) syncPreview() []Effect {
 		code := code
 		cmds = append(cmds, []Effect{StartTimer{After: mermaidDelay, Fire: mermaidStartMsg{key, code}}})
 	}
-	return batch(cmds...)
+	return Batch(cmds...)
 }
 
 func (a *Core) handleMermaidStart(m mermaidStartMsg) []Effect {
@@ -230,8 +230,8 @@ func (a *Core) handleMermaidDone(m mermaidDoneMsg) {
 		return
 	}
 	job.img = newImageView(m.png)
-	if job.img.err != nil {
-		job.err = job.img.err.Error()
+	if job.img.Err != nil {
+		job.err = job.img.Err.Error()
 		job.img = nil
 	}
 }
@@ -241,14 +241,14 @@ func (a *Core) handleMermaidDone(m mermaidDoneMsg) {
 // large image does not stall typing. Images no longer in the preview are
 // freed.
 func (a *Core) syncMDImages() []Effect {
-	t := a.curText()
-	if t == nil || t.preview == previewOff {
+	t := a.CurText()
+	if t == nil || t.Preview == PreviewOff {
 		return nil
 	}
 	wanted := map[string]bool{}
 	var cmds [][]Effect
 	for _, src := range t.images() {
-		path := mdImagePath(t.buf.Path, src)
+		path := mdImagePath(t.Buf.Path, src)
 		if path == "" || wanted[path] {
 			continue
 		}
@@ -280,7 +280,7 @@ func (a *Core) syncMDImages() []Effect {
 			a.previewGen++
 		}
 	}
-	return batch(cmds...)
+	return Batch(cmds...)
 }
 
 func (a *Core) handleMDImageDone(m mdImageDoneMsg) {
@@ -293,7 +293,7 @@ func (a *Core) handleMDImageDone(m mdImageDoneMsg) {
 	}
 	job.done, job.img, job.err = true, nil, ""
 	a.previewGen++
-	if err := m.img.err; err != nil {
+	if err := m.img.Err; err != nil {
 		// the path is shown already; keep only the reason
 		if pe, ok := errors.AsType[*fs.PathError](err); ok {
 			err = pe.Err
@@ -329,7 +329,7 @@ const (
 
 // previewImage is the image that a Blob of the preview names, nil when it is
 // gone.
-func (a *Core) previewImage(blob string) *imageView {
+func (a *Core) PreviewImage(blob string) *ImageView {
 	if path, ok := strings.CutPrefix(blob, blobFile); ok {
 		if job := a.mdImages[path]; job != nil {
 			return job.img
@@ -353,7 +353,7 @@ func jobLines(job *previewJob, blob string, w int, loading, errPrefix string, ab
 		if err {
 			st = screen.StyleError
 		}
-		return &mdMedia{Lines: append(above(), mdRow(screen.Span{Text: fit(" "+text, w), Style: st}))}
+		return &mdMedia{Lines: append(above(), mdRow(screen.Span{Text: Fit(" "+text, w), Style: st}))}
 	}
 	switch {
 	case job == nil || !job.done:
@@ -361,8 +361,8 @@ func jobLines(job *previewJob, blob string, w int, loading, errPrefix string, ab
 	case job.err != "" || job.img == nil:
 		return note(errPrefix+job.err, true)
 	}
-	b := job.img.img.Bounds()
-	rows := make([]screen.Line, clamp(job.img.rowsFor(w), 3, 28))
+	b := job.img.Img.Bounds()
+	rows := make([]screen.Line, Clamp(job.img.rowsFor(w), 3, 28))
 	for i := range rows {
 		rows[i] = mdRow()
 	}
@@ -383,25 +383,25 @@ func (a *Core) mermaidLines(code string, w int) *mdMedia {
 // around the editor cursor is visible. It changes nothing but the cache of the
 // document rendered at width w (prevCache), which is made again when the
 // width, the buffer or an image changed.
-func (a *Core) buildPreviewPane(t *tab, w, h int) screen.Pane {
-	if t.prevCache == nil || t.prevW != w || t.prevVer != t.buf.Version || t.prevGen != a.previewGen {
-		doc := renderMarkdown(t.buf.Text(), w, mdOpts{mermaid: a.mermaidLines, image: a.mdImageLines(t.buf.Path), frontMatter: true})
+func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
+	if t.prevCache == nil || t.prevW != w || t.prevVer != t.Buf.Version || t.prevGen != a.previewGen {
+		doc := RenderMarkdown(t.Buf.Text(), w, MdOpts{mermaid: a.mermaidLines, image: a.mdImageLines(t.Buf.Path), frontMatter: true})
 		t.prevCache = &doc
-		t.prevW, t.prevVer, t.prevGen = w, t.buf.Version, a.previewGen
+		t.prevW, t.prevVer, t.prevGen = w, t.Buf.Version, a.previewGen
 	}
 	all := t.prevCache.Lines
 	top := 0
 	if span := len(all) - h; span > 0 {
-		n := max(1, len(t.buf.Lines)-1)
-		top = clamp(t.buf.Cur.Row*span/n, 0, span)
+		n := max(1, len(t.Buf.Lines)-1)
+		top = Clamp(t.Buf.Cur.Row*span/n, 0, span)
 	}
 	end := min(len(all), top+max(0, h))
 	p := screen.Pane{
-		ID:       t.path() + "#preview",
+		ID:       t.Path() + "#preview",
 		Kind:     screen.KindPreview,
 		Title:    screen.Title{Text: t.title(), Dirty: t.dirty()},
 		Viewport: screen.Viewport{Top: top, Rows: h, Cols: w, Total: len(all)},
-		CurLine:  t.buf.Cur.Row,
+		CurLine:  t.Buf.Cur.Row,
 		Preview:  &screen.PreviewInfo{Top: top, Rows: len(all), Images: []screen.PreviewImage{}},
 	}
 	for i, l := range all[top:end] {
@@ -420,35 +420,35 @@ func (a *Core) buildPreviewPane(t *tab, w, h int) screen.Pane {
 // preview, and in an open review comment or comment editor.
 func (a *Core) wantedMermaid() []string {
 	var out []string
-	if t := a.curText(); t != nil && t.preview != previewOff {
+	if t := a.CurText(); t != nil && t.Preview != PreviewOff {
 		out = t.mermaidBlocks()
 	}
 	return append(append([]string(nil), out...), a.reviewMermaid()...)
 }
 
 // mermaidBlocks returns the tab's mermaid fences.
-func (t *tab) mermaidBlocks() []string {
+func (t *Tab) mermaidBlocks() []string {
 	t.scan()
 	return t.scanBlocks
 }
 
 // images returns the sources of the tab's images that have a line of their own.
-func (t *tab) images() []string {
+func (t *Tab) images() []string {
 	t.scan()
 	return t.scanImages
 }
 
 // scan finds the mermaid fences and images again, only after the buffer changed.
-func (t *tab) scan() {
-	if !t.scanned || t.scanVer != t.buf.Version {
-		t.scanBlocks, t.scanImages = previewSources(t.buf.Text())
-		t.scanVer, t.scanned = t.buf.Version, true
+func (t *Tab) scan() {
+	if !t.scanned || t.scanVer != t.Buf.Version {
+		t.scanBlocks, t.scanImages = previewSources(t.Buf.Text())
+		t.scanVer, t.scanned = t.Buf.Version, true
 	}
 }
 
 // fullPreview reports whether t is showing the Markdown preview alone. In
 // diff mode the diff takes the whole area instead, so the buffer stays
 // visible and editable.
-func (a *Core) fullPreview(t *tab) bool {
-	return t != nil && t.preview == previewFull && a.diffFile(t) == nil
+func (a *Core) FullPreview(t *Tab) bool {
+	return t != nil && t.Preview == PreviewFull && a.DiffFile(t) == nil
 }

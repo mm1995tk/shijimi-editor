@@ -96,7 +96,7 @@ func (s agentSel) rowCols(i int, plain string, w int) (int, int) {
 }
 
 // markRow draws the columns [s0, s1) of the row reversed, keeping its colors.
-func markRow(row string, w, s0, s1 int) string {
+func MarkRow(row string, w, s0, s1 int) string {
 	if s0 >= s1 {
 		return row
 	}
@@ -163,7 +163,7 @@ func (s agentSel) text(rows []logRow, w int) string {
 func (a *Core) logPos(msg Mouse) (p agentPos, above, below bool) {
 	v := a.ag.view
 	y := msg.Row - v.y0
-	p.col = clamp(msg.Col, 0, max(0, v.w-1))
+	p.col = Clamp(msg.Col, 0, max(0, v.w-1))
 	switch {
 	case y < 0:
 		above = true
@@ -174,7 +174,7 @@ func (a *Core) logPos(msg Mouse) (p agentPos, above, below bool) {
 	default:
 		p.row = v.start + y
 	}
-	p.row = clamp(p.row, 0, max(0, len(v.rows)-1))
+	p.row = Clamp(p.row, 0, max(0, len(v.rows)-1))
 	return
 }
 
@@ -187,7 +187,7 @@ func (a *Core) inLog(msg Mouse) bool {
 
 // agentDrag follows a drag that began on the log, wherever the pointer goes.
 // ok is false when the event is not part of it.
-func (a *Core) agentDrag(msg Mouse) ([]Effect, bool) {
+func (a *Core) AgentDrag(msg Mouse) ([]Effect, bool) {
 	s := &a.ag.sel
 	switch {
 	case msg.Action == MousePress && (msg.Button == MouseWheelUp || msg.Button == MouseWheelDown):
@@ -200,18 +200,18 @@ func (a *Core) agentDrag(msg Mouse) ([]Effect, bool) {
 	switch {
 	case above:
 		a.ag.scroll++
-		p.row = clamp(a.ag.view.start-1, 0, max(0, len(a.ag.view.rows)-1))
+		p.row = Clamp(a.ag.view.start-1, 0, max(0, len(a.ag.view.rows)-1))
 	case below:
 		a.ag.scroll = max(0, a.ag.scroll-1)
-		p.row = clamp(a.ag.view.start+a.ag.view.n, 0, max(0, len(a.ag.view.rows)-1))
+		p.row = Clamp(a.ag.view.start+a.ag.view.n, 0, max(0, len(a.ag.view.rows)-1))
 	}
 	s.b = p
 	s.on = s.a != s.b
 	if msg.Action == MouseRelease {
 		s.dragging = false
 		if txt := s.text(a.ag.view.rows, a.ag.view.w); txt != "" {
-			a.copyText(txt)
-			a.info(i18n.T("agentsel.copied"), utf8.RuneCountInString(txt))
+			a.CopyText(txt)
+			a.Info(i18n.T("agentsel.copied"), utf8.RuneCountInString(txt))
 		}
 	}
 	return nil, true

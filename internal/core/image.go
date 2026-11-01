@@ -33,52 +33,52 @@ func isImage(path string) bool {
 // imageView shows an image with the Kitty graphics protocol: the pixels are
 // sent to the terminal out of band (see queueGraphics) and the view itself
 // only holds Unicode placeholder cells that the terminal draws the image on.
-type imageView struct {
+type ImageView struct {
 	path   string
-	img    image.Image
+	Img    image.Image
 	format string
 	size   int64
-	err    error
-	id     uint32 // Kitty image id
+	Err    error
+	Id     uint32 // Kitty image id
 
 	sentCols, sentRows, sentPW, sentPH int // placement the terminal holds
 
-	cacheW, cacheH int
-	cacheCell      [2]int // cell size the cache was built for
-	cacheGen       int    // themeGen the cache was built for
-	cache          []string
+	CacheW, CacheH int
+	CacheCell      [2]int // cell size the cache was built for
+	CacheGen       int    // themeGen the cache was built for
+	Cache          []string
 }
 
-func newImageView(path string) *imageView {
-	v := &imageView{path: path, id: nextImageID()}
+func newImageView(path string) *ImageView {
+	v := &ImageView{path: path, Id: nextImageID()}
 	f, err := os.Open(path)
 	if err != nil {
-		v.err = err
+		v.Err = err
 		return v
 	}
 	defer f.Close()
 	if st, err := f.Stat(); err == nil {
 		v.size = st.Size()
 	}
-	v.img, v.format, v.err = image.Decode(f)
+	v.Img, v.format, v.Err = image.Decode(f)
 	return v
 }
 
 // newImageViewFromData shows already-loaded image bytes (for example a
 // rendered web page) under the given display name.
-func newImageViewFromData(name string, data []byte) *imageView {
-	v := &imageView{path: name, size: int64(len(data)), id: nextImageID()}
-	v.img, v.format, v.err = image.Decode(bytes.NewReader(data))
+func newImageViewFromData(name string, data []byte) *ImageView {
+	v := &ImageView{path: name, size: int64(len(data)), Id: nextImageID()}
+	v.Img, v.format, v.Err = image.Decode(bytes.NewReader(data))
 	return v
 }
 
-func (v *imageView) name() string { return filepath.Base(v.path) }
+func (v *ImageView) name() string { return filepath.Base(v.path) }
 
-func (v *imageView) info() string {
-	if v.err != nil {
-		return i18n.T("image.cantload") + v.err.Error()
+func (v *ImageView) info() string {
+	if v.Err != nil {
+		return i18n.T("image.cantload") + v.Err.Error()
 	}
-	b := v.img.Bounds()
+	b := v.Img.Bounds()
 	return fmt.Sprintf("%s  %d×%d  %s", strings.ToUpper(v.format), b.Dx(), b.Dy(), humanSize(v.size))
 }
 
@@ -95,13 +95,13 @@ func humanSize(n int64) string {
 // Cell size in pixels, used to keep an image's aspect ratio and to send it at
 // the resolution it is shown at. Terminals that do not report it get a
 // typical 1:2 cell.
-var cellW, cellH = 10, 20
+var CellW, CellH = 10, 20
 
 // updateCellSize records the cell size the terminal reports; zeros (not
 // reported) keep the previous value.
-func updateCellSize(w, h int) {
+func UpdateCellSize(w, h int) {
 	if w > 0 && h > 0 {
-		cellW, cellH = w, h
+		CellW, CellH = w, h
 	}
 }
 
@@ -131,7 +131,7 @@ var graphics []string
 func queueGraphics(s string) { graphics = append(graphics, s) }
 
 // takeGraphics returns the queued sequences and empties the queue.
-func takeGraphics() string {
+func TakeGraphics() string {
 	s := strings.Join(graphics, "")
 	graphics = nil
 	return s
@@ -139,48 +139,48 @@ func takeGraphics() string {
 
 // fitImage returns the size an image of sw x sh pixels is shown at in a box
 // of w x h cells: its pixel size (never enlarged) and the cells it spans.
-func fitImage(sw, sh, w, h int) (pw, ph, cols, rows int) {
+func FitImage(sw, sh, w, h int) (pw, ph, cols, rows int) {
 	maxCols, maxRows := min(w, kitty.MaxCells), min(h, kitty.MaxCells)
-	scale := min(float64(maxCols*cellW)/float64(sw), float64(maxRows*cellH)/float64(sh), 1)
+	scale := min(float64(maxCols*CellW)/float64(sw), float64(maxRows*CellH)/float64(sh), 1)
 	pw = max(1, int(math.Round(float64(sw)*scale)))
 	ph = max(1, int(math.Round(float64(sh)*scale)))
-	cols = clamp((pw+cellW-1)/cellW, 1, max(1, maxCols))
-	rows = clamp((ph+cellH-1)/cellH, 1, max(1, maxRows))
+	cols = Clamp((pw+CellW-1)/CellW, 1, max(1, maxCols))
+	rows = Clamp((ph+CellH-1)/CellH, 1, max(1, maxRows))
 	return pw, ph, cols, rows
 }
 
 // rowsFor returns the rows the image needs when it is w columns wide at most.
-func (v *imageView) rowsFor(w int) int {
-	b := v.img.Bounds()
-	_, _, _, rows := fitImage(b.Dx(), b.Dy(), w, kitty.MaxCells)
+func (v *ImageView) rowsFor(w int) int {
+	b := v.Img.Bounds()
+	_, _, _, rows := FitImage(b.Dx(), b.Dy(), w, kitty.MaxCells)
 	return rows
 }
 
 // send queues the image scaled to pw x ph pixels, placed on cols x rows cells,
 // unless the terminal already holds exactly that.
-func (v *imageView) send(pw, ph, cols, rows int) {
+func (v *ImageView) Send(pw, ph, cols, rows int) {
 	if v.sentCols == cols && v.sentRows == rows && v.sentPW == pw && v.sentPH == ph {
 		return
 	}
-	src := v.img.Bounds()
-	img := v.img
+	src := v.Img.Bounds()
+	img := v.Img
 	if pw != src.Dx() || ph != src.Dy() {
 		dst := image.NewRGBA(image.Rect(0, 0, pw, ph))
-		draw.CatmullRom.Scale(dst, dst.Bounds(), v.img, src, draw.Src, nil)
+		draw.CatmullRom.Scale(dst, dst.Bounds(), v.Img, src, draw.Src, nil)
 		img = dst
 	}
 	var buf bytes.Buffer
 	if err := (&png.Encoder{CompressionLevel: png.BestSpeed}).Encode(&buf, img); err != nil {
 		return
 	}
-	queueGraphics(kitty.Transmit(v.id, buf.Bytes(), cols, rows))
+	queueGraphics(kitty.Transmit(v.Id, buf.Bytes(), cols, rows))
 	v.sentCols, v.sentRows, v.sentPW, v.sentPH = cols, rows, pw, ph
 }
 
 // close frees the image in the terminal.
-func (v *imageView) close() {
+func (v *ImageView) close() {
 	if v.sentCols != 0 {
-		queueGraphics(kitty.Delete(v.id))
+		queueGraphics(kitty.Delete(v.Id))
 		v.sentCols = 0
 	}
 }
@@ -188,7 +188,7 @@ func (v *imageView) close() {
 // buildImagePane makes the Pane of the image tab t, w columns wide and h rows
 // high: what the image is (Caption, and Image when it could be read; the pixels
 // are what Image.Blob names). It changes nothing.
-func (a *Core) buildImagePane(t *tab, w, h int) screen.Pane {
+func (a *Core) BuildImagePane(t *Tab, w, h int) screen.Pane {
 	v := t.img
 	p := screen.Pane{
 		ID:       v.path,
@@ -197,8 +197,8 @@ func (a *Core) buildImagePane(t *tab, w, h int) screen.Pane {
 		Viewport: screen.Viewport{Rows: h, Cols: w},
 		Caption:  v.info(),
 	}
-	if v.err == nil {
-		b := v.img.Bounds()
+	if v.Err == nil {
+		b := v.Img.Bounds()
 		p.Image = &screen.ImageRef{Blob: blobFile + v.path, Width: b.Dx(), Height: b.Dy(), Format: v.format, Size: v.size}
 	}
 	return p
@@ -206,13 +206,13 @@ func (a *Core) buildImagePane(t *tab, w, h int) screen.Pane {
 
 // blobImage is the image that a Blob names (blob.get): a local file, which may
 // be open in a tab, or a mermaid diagram of the preview. nil when it is gone.
-func (a *Core) blobImage(blob string) *imageView {
-	if iv := a.previewImage(blob); iv != nil {
+func (a *Core) BlobImage(blob string) *ImageView {
+	if iv := a.PreviewImage(blob); iv != nil {
 		return iv
 	}
 	if path, ok := strings.CutPrefix(blob, blobFile); ok {
 		for _, t := range a.tabs {
-			if t.kind == tabImage && t.img.path == path {
+			if t.Kind == TabImage && t.img.path == path {
 				return t.img
 			}
 		}
@@ -220,7 +220,7 @@ func (a *Core) blobImage(blob string) *imageView {
 	return nil
 }
 
-func rgbParams(hex string) string {
+func RgbParams(hex string) string {
 	var r, g, b int
 	fmt.Sscanf(hex, "#%02x%02x%02x", &r, &g, &b)
 	return fmt.Sprintf("%d;%d;%d", r, g, b)

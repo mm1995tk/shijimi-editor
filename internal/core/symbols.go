@@ -36,18 +36,18 @@ func (p *palette) queryLater() []Effect {
 
 // documentSymbols lists the functions, types and variables of the current file.
 func (a *Core) documentSymbols() []Effect {
-	return a.lspRequest("documentSymbolProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
-		syms, err := c.DocumentSymbols(ctx, t.buf.Path)
+	return a.lspRequest("documentSymbolProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
+		syms, err := c.DocumentSymbols(ctx, t.Buf.Path)
 		if err != nil {
 			return lspErrMsg{err}
 		}
-		return symbolsMsg{t.buf.Path, syms}
+		return symbolsMsg{t.Buf.Path, syms}
 	})
 }
 
 func (a *Core) showSymbols(m symbolsMsg) []Effect {
 	if len(m.syms) == 0 {
-		a.infoText(i18n.T("symui.none"))
+		a.InfoText(i18n.T("symui.none"))
 		return nil
 	}
 	items := make([]paletteItem, len(m.syms))
@@ -76,20 +76,20 @@ func symbolDetail(s lsp.Symbol, file string) string {
 // workspaceSymbols opens a picker over the project's symbols. The language
 // server does the matching: the list is asked for again as the input changes.
 func (a *Core) workspaceSymbols() []Effect {
-	t := a.cur()
-	if t == nil || t.kind != tabText {
+	t := a.Cur()
+	if t == nil || t.Kind != TabText {
 		return nil
 	}
 	if t.lang == nil {
-		a.fail(errors.New(i18n.T("lspui.noserver")))
+		a.Fail(errors.New(i18n.T("lspui.noserver")))
 		return nil
 	}
 	c := a.lsp.client(t, "workspaceSymbolProvider")
 	if c == nil {
-		a.fail(errors.New(i18n.T("symui.wsunsupported")))
+		a.Fail(errors.New(i18n.T("symui.wsunsupported")))
 		return nil
 	}
-	a.syncLSP()
+	a.SyncLSP()
 	a.wsSyms = nil
 	a.wsClient = c
 	return a.pal.pickLive(i18n.T("space.wsymbols"), func(i int) []Effect {
@@ -126,7 +126,7 @@ func (a *Core) showWorkspaceSymbols(m workspaceSymbolsMsg) {
 	a.wsSyms = m.syms
 	items := make([]paletteItem, len(m.syms))
 	for i, s := range m.syms {
-		items[i] = paletteItem{label: s.Name, detail: symbolDetail(s, a.rel(lsp.Path(s.URI)))}
+		items[i] = paletteItem{label: s.Name, detail: symbolDetail(s, a.Rel(lsp.Path(s.URI)))}
 	}
 	p.setPickItems(items)
 }

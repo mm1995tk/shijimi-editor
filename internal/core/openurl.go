@@ -74,21 +74,21 @@ var urlFullRe = regexp.MustCompile(`^https?://\S+$`)
 func (a *Core) openURL(arg string) []Effect {
 	url := strings.TrimSpace(arg)
 	if url == "" {
-		t := a.curText()
+		t := a.CurText()
 		if t == nil {
-			a.fail(errors.New(i18n.T("open.needurl")))
+			a.Fail(errors.New(i18n.T("open.needurl")))
 			return nil
 		}
-		cur := t.buf.Cur
-		u, ok := urlAt(t.buf.Lines[cur.Row], cur.Col)
+		cur := t.Buf.Cur
+		u, ok := urlAt(t.Buf.Lines[cur.Row], cur.Col)
 		if !ok {
-			a.fail(errors.New(i18n.T("open.nourl")))
+			a.Fail(errors.New(i18n.T("open.nourl")))
 			return nil
 		}
 		url = u
 	}
 	if !urlFullRe.MatchString(url) {
-		a.fail(fmt.Errorf(i18n.T("open.badurl"), url))
+		a.Fail(fmt.Errorf(i18n.T("open.badurl"), url))
 		return nil
 	}
 	return async(func() Event { return openURLMsg{url: url, err: a.openInBrowser(url)} })
@@ -102,8 +102,8 @@ var isRemoteSession = func() bool {
 
 // copyPRURL copies the URL of the pull request being reviewed.
 func (a *Core) copyPRURL() []Effect {
-	a.copyText(a.gd.pr.URL)
-	a.info(i18n.T("rv.urlcopied"), a.gd.pr.URL)
+	a.CopyText(a.gd.pr.URL)
+	a.Info(i18n.T("rv.urlcopied"), a.gd.pr.URL)
 	return nil
 }
 
@@ -112,8 +112,8 @@ func (a *Core) copyPRURL() []Effect {
 func (a *Core) openPRURL() []Effect {
 	url := a.gd.pr.URL
 	if a.host == nil && isRemoteSession() {
-		a.copyText(url)
-		a.info(i18n.T("rv.sshcopied"), url)
+		a.CopyText(url)
+		a.Info(i18n.T("rv.sshcopied"), url)
 		return nil
 	}
 	return async(func() Event { return openURLMsg{url: url, err: a.openInBrowser(url), copyOnFail: true} })

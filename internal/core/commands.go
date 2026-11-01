@@ -30,7 +30,7 @@ func defaultCommands() []command {
 		{i18n.T("cmd.closetab"), "Ctrl+W / :bc", func(a *Core) []Effect { return a.closeTab(false) }},
 		{i18n.T("cmd.buffers"), "Space b", func(a *Core) []Effect { return a.bufferPicker() }},
 		{i18n.T("cmd.sidebar"), "Ctrl+B", func(a *Core) []Effect { a.toggleSide(); return nil }},
-		{i18n.T("cmd.focustree"), "Ctrl+E / Space e", func(a *Core) []Effect { a.SetSide(true); return a.setFocus(focusExplorer) }},
+		{i18n.T("cmd.focustree"), "Ctrl+E / Space e", func(a *Core) []Effect { a.SetSide(true); return a.SetFocus(FocusExplorer) }},
 		{i18n.T("cmd.preview"), "Space m / :preview", func(a *Core) []Effect { return a.togglePreview() }},
 		{i18n.T("cmd.terminal"), "Ctrl+`", func(a *Core) []Effect { return a.toggleTerm() }},
 		{i18n.T("cmd.resize"), "Alt+R", func(a *Core) []Effect { return a.StartResize() }},
@@ -51,7 +51,7 @@ func defaultCommands() []command {
 		{i18n.T("cmd.undo"), "u / Ctrl+Z", func(a *Core) []Effect { a.withBuf(func(b *buffer.Buffer) { b.Undo() }); return nil }},
 		{i18n.T("cmd.redo"), "U / Ctrl+Y", func(a *Core) []Effect { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
 		{i18n.T("cmd.togglecomment"), "Ctrl+C / Ctrl+/", func(a *Core) []Effect { a.toggleComment(); return nil }},
-		{i18n.T("cmd.grep"), "Space /", func(a *Core) []Effect { return a.openSearch(fQuery) }},
+		{i18n.T("cmd.grep"), "Space /", func(a *Core) []Effect { return a.openSearch(FQuery) }},
 		{i18n.T("cmd.sendcontext"), "Space a / Alt+A", func(a *Core) []Effect { return a.sendContext() }},
 		{i18n.T("cmd.agentpanel"), "Space i / Alt+I / :agent", func(a *Core) []Effect { return a.toggleAgentPanel() }},
 		{i18n.T("cmd.agentcancel"), ":agent cancel", func(a *Core) []Effect { a.cancelAgent(); return nil }},
@@ -70,7 +70,7 @@ func defaultCommands() []command {
 		{i18n.T("cmd.diffhead"), "Ctrl+G / Space G / :gitdiff", func(a *Core) []Effect { return a.openDiff(baseHead) }},
 		{i18n.T("cmd.diffpr"), "Space g", func(a *Core) []Effect { return a.openDiff(basePR) }},
 		{i18n.T("cmd.diffprpick"), i18n.T("cmd.diffprpick.key"), func(a *Core) []Effect { return a.prPicker() }},
-		{i18n.T("cmd.diffsplit"), ":gitdiff split|unified", func(a *Core) []Effect { a.toggleSplit(); return nil }},
+		{i18n.T("cmd.diffsplit"), ":gitdiff split|unified", func(a *Core) []Effect { a.ToggleSplit(); return nil }},
 		{i18n.T("cmd.diffchanges"), "", func(a *Core) []Effect { return a.focusChangesList() }},
 		{i18n.T("cmd.rvcomment"), "Space v c", func(a *Core) []Effect { return a.reviewCommand("c") }},
 		{i18n.T("cmd.rvfilecomment"), "Space v C", func(a *Core) []Effect { return a.reviewCommand("C") }},
@@ -102,8 +102,8 @@ func (a *Core) openCmdline(kind string) []Effect {
 	a.cmdKind = kind[:1]
 	a.cmdInput.SetValue(kind[1:])
 	a.cmdInput.CursorEnd()
-	if t := a.curText(); t != nil {
-		a.cmdFrom = t.buf.Cur
+	if t := a.CurText(); t != nil {
+		a.cmdFrom = t.Buf.Cur
 	}
 	a.cmdInput.Focus()
 	return nil
@@ -133,9 +133,9 @@ func (a *Core) handleCmdlineKey(msg Key) []Effect {
 		if v != "" {
 			a.lastSearch = v
 			a.searchBackward = kind == "?"
-			if t := a.curText(); t != nil {
-				t.buf.Cur = a.cmdFrom
-				t.buf.Anchor = nil
+			if t := a.CurText(); t != nil {
+				t.Buf.Cur = a.cmdFrom
+				t.Buf.Anchor = nil
 			}
 			a.pushJump()
 			a.searchNext(false)
@@ -156,7 +156,6 @@ func (a *Core) cmdlineInput(msg Input) []Effect {
 	return nil
 }
 
-
 // execCommand runs a Helix-style ":" command.
 func (a *Core) execCommand(line string) []Effect {
 	if line == "" {
@@ -165,18 +164,18 @@ func (a *Core) execCommand(line string) []Effect {
 	if n, err := strconv.Atoi(line); err == nil {
 		a.pushJump()
 		a.withBuf(func(b *buffer.Buffer) { b.GotoLine(n) })
-		return a.setFocus(focusEditor)
+		return a.SetFocus(FocusEditor)
 	}
 	name, arg, _ := strings.Cut(line, " ")
 	arg = strings.TrimSpace(arg)
 	if a.single && singleBlockedCommand(name) {
-		a.fail(fmt.Errorf(i18n.T("cmd.nosubst"), name))
+		a.Fail(fmt.Errorf(i18n.T("cmd.nosubst"), name))
 		return nil
 	}
 	switch name {
 	case "w", "write", "w!", "write!":
 		if arg != "" {
-			if t := a.curText(); t != nil {
+			if t := a.CurText(); t != nil {
 				return a.saveTo(t, arg)
 			}
 			return nil
@@ -186,7 +185,7 @@ func (a *Core) execCommand(line string) []Effect {
 		return a.saveAll()
 	case "q", "quit", "qa", "quit-all":
 		if d := a.dirtyCount(); d > 0 {
-			a.fail(fmt.Errorf(i18n.T("cmd.quitunsaved"), d))
+			a.Fail(fmt.Errorf(i18n.T("cmd.quitunsaved"), d))
 			return nil
 		}
 		return a.exit()
@@ -198,7 +197,7 @@ func (a *Core) execCommand(line string) []Effect {
 			return nil
 		}
 		if d := a.dirtyCount(); d > 0 && !strings.HasSuffix(name, "!") {
-			a.fail(fmt.Errorf(i18n.T("cmd.moreunsaved"), d))
+			a.Fail(fmt.Errorf(i18n.T("cmd.moreunsaved"), d))
 			return nil
 		}
 		return a.exit()
@@ -218,7 +217,7 @@ func (a *Core) execCommand(line string) []Effect {
 		}
 		a.pushJump()
 		if a.openFile(p) {
-			return a.setFocus(focusEditor)
+			return a.SetFocus(FocusEditor)
 		}
 	case "n", "new":
 		return a.newFile()
@@ -237,11 +236,11 @@ func (a *Core) execCommand(line string) []Effect {
 	case "symbol-all", "sym-all":
 		return a.workspaceSymbols()
 	case "reload", "rl":
-		if t := a.curText(); t != nil && t.buf.Path != "" {
+		if t := a.CurText(); t != nil && t.Buf.Path != "" {
 			if err := t.reload(); err != nil {
-				a.fail(err)
+				a.Fail(err)
 			} else {
-				a.infoText(i18n.T("cmd.reloaded"))
+				a.InfoText(i18n.T("cmd.reloaded"))
 			}
 		}
 	case "sh", "run", "!":
@@ -258,8 +257,8 @@ func (a *Core) execCommand(line string) []Effect {
 			return a.toggleTerm()
 		}
 		a.SetTerm(true)
-		cmd := a.setFocus(focusTerminal)
-		return batch(cmd, a.TermRun(arg))
+		cmd := a.SetFocus(FocusTerminal)
+		return Batch(cmd, a.TermRun(arg))
 	case "preview", "md":
 		return a.togglePreview()
 	case "vsplit", "vs", "split", "sp":
@@ -285,11 +284,11 @@ func (a *Core) execCommand(line string) []Effect {
 	case "lsp-restart":
 		a.lsp.restart()
 		for _, t := range a.tabs {
-			if t.kind == tabText {
+			if t.Kind == TabText {
 				a.attachLSP(t)
 			}
 		}
-		a.infoText(i18n.T("cmd.lsprestarted"))
+		a.InfoText(i18n.T("cmd.lsprestarted"))
 	case "config-reload":
 		a.cfg = config.Load(a.root)
 		a.MuxReset() // [terminal] multiplexer may have changed
@@ -301,23 +300,23 @@ func (a *Core) execCommand(line string) []Effect {
 		a.helix = a.cfg.Editor.Keymap != "vscode"
 		// No theme (or an unknown one) falls back to the default theme, as at startup.
 		if name := a.cfg.Editor.Theme; name == "" || !a.setTheme(name) {
-			a.setTheme(defaultTheme.Name)
+			a.setTheme(DefaultTheme.Name)
 			if name != "" {
-				a.fail(fmt.Errorf(i18n.T("cmd.unknowntheme.default"), name))
+				a.Fail(fmt.Errorf(i18n.T("cmd.unknowntheme.default"), name))
 				return nil
 			}
 		}
-		a.info(i18n.T("cmd.configreloaded"), strings.Join(a.cfg.Sources, ", "))
+		a.Info(i18n.T("cmd.configreloaded"), strings.Join(a.cfg.Sources, ", "))
 		a.loadKeymap()
 	case "theme":
 		if arg == "" {
 			return a.themePicker()
 		}
 		if !a.setTheme(arg) {
-			a.fail(fmt.Errorf(i18n.T("cmd.unknowntheme"), arg, strings.Join(themeNames(), ", ")))
+			a.Fail(fmt.Errorf(i18n.T("cmd.unknowntheme"), arg, strings.Join(themeNames(), ", ")))
 			return nil
 		}
-		a.info(i18n.T("cmd.themeis"), curTheme.Name)
+		a.Info(i18n.T("cmd.themeis"), CurTheme.Name)
 	case "keymap":
 		switch arg {
 		case "helix":
@@ -327,19 +326,19 @@ func (a *Core) execCommand(line string) []Effect {
 		default:
 			a.helix = !a.helix
 		}
-		a.mode = modeNormal
+		a.mode = ModeNormal
 		if a.helix {
-			a.infoText(i18n.T("cmd.keymap.helix"))
+			a.InfoText(i18n.T("cmd.keymap.helix"))
 		} else {
-			a.infoText(i18n.T("cmd.keymap.vscode"))
+			a.InfoText(i18n.T("cmd.keymap.vscode"))
 		}
 	case "open-url", "browse":
 		return a.openURL(arg)
 	case "tree", "explorer":
 		a.SetSide(true)
-		return a.setFocus(focusExplorer)
+		return a.SetFocus(FocusExplorer)
 	default:
-		a.fail(fmt.Errorf(i18n.T("cmd.unknowncmd"), name))
+		a.Fail(fmt.Errorf(i18n.T("cmd.unknowncmd"), name))
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
 )
@@ -14,7 +15,7 @@ func (a *App) SetCaret(w *caret.Writer) { a.caret = w }
 // in pixels (0, 0 when unknown). Images are sized with it.
 func (a *App) SetCellSize(f func() (w, h int)) {
 	a.cellSize = f
-	updateCellSize(f())
+	core.UpdateCellSize(f())
 }
 
 // caretCursor is where the user is typing in the frame View is about to
@@ -30,19 +31,19 @@ func (a *App) caretCursor(l layout) *tea.Cursor {
 // caretPos is the screen cell where typed text goes, if any.
 func (a *App) caretPos(l layout) (x, y int, ok bool) {
 	switch {
-	case a.composing():
+	case a.Composing():
 		return a.composerCaret(l)
-	case a.cmdlineOpen():
-		x = a.cmdlineCaretCols()
+	case a.CmdlineOpen():
+		x = a.CmdlineCaretCols()
 		return min(x, a.w-1), a.h - 1, true
-	case a.searchOpen():
-		return a.searchCaret()
-	case a.paletteOpen():
-		pw := a.paletteWidth()
-		return (a.w-pw)/2 + a.paletteCaretCols(), 2, true
-	case a.findShown():
-		return l.rightX + a.findCaretCols(), l.editY - 1, true
-	case a.focusIs(focusTerminal) && a.showTerm:
+	case a.SearchOpen():
+		return a.SearchCaret()
+	case a.PaletteOpen():
+		pw := a.PaletteWidth()
+		return (a.w-pw)/2 + a.PaletteCaretCols(), 2, true
+	case a.FindShown():
+		return l.rightX + a.FindCaretCols(), l.editY - 1, true
+	case a.FocusIs(core.FocusTerminal) && a.showTerm:
 		tab := a.term.cur()
 		if tab == nil {
 			return 0, 0, false
@@ -54,9 +55,9 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 		// The panel's first two rows are its border and tab bar.
 		x, y = l.fullX+sn.CursorX, l.panelY+2+sn.CursorY
 		return x, y, x < a.w && y < l.statusY
-	case a.focusIs(focusEditor):
-		t := a.curText()
-		if t == nil || a.fullPreview(t) {
+	case a.FocusIs(core.FocusEditor):
+		t := a.CurText()
+		if t == nil || a.FullPreview(t) {
 			return 0, 0, false
 		}
 		x, y = a.cursorScreen(t, l)

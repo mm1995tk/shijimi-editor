@@ -10,15 +10,15 @@ import (
 )
 
 // Version and Commit are set at build time with
-// -ldflags "-X github.com/mm1995tk/shijimi-editor/internal/tui.Version=... -X github.com/mm1995tk/shijimi-editor/internal/tui.Commit=...".
+// -ldflags "-X github.com/mm1995tk/shijimi-editor/internal/core.Version=... -X github.com/mm1995tk/shijimi-editor/internal/core.Commit=...".
 // The channel (stable or nightly) is channel.Channel, set the same way.
 var Version, Commit = "", ""
 
-// versionLabel is the build's version as shown on the status line, such as
+// VersionLabel is the build's version as shown on the status line, such as
 // "v0.1 (be64521)", or "v0.1-nightly (be64521)" on the nightly channel.
 // Values missing from ldflags come from the build info: the module version
 // recorded by go install and the commit recorded by go build.
-func versionLabel() string {
+func VersionLabel() string {
 	return formatVersion(BuildVersion())
 }
 
@@ -40,8 +40,6 @@ func BuildVersion() (version, commit string) {
 	return v, c
 }
 
-// VersionLabel is versionLabel for use outside the package, such as shj --version.
-func VersionLabel() string { return versionLabel() }
 
 func buildSetting(bi *debug.BuildInfo, key string) string {
 	for _, s := range bi.Settings {

@@ -156,7 +156,7 @@ var lightPlus = Theme{
 var themes = []*Theme{&darkPlus, &githubDark, &lightPlus}
 
 // defaultTheme is used when no theme (or an unknown one) is configured.
-var defaultTheme = &githubDark
+var DefaultTheme = &githubDark
 
 // themeAliases maps other names (notably Helix theme names) to built-ins.
 var themeAliases = map[string]string{
@@ -203,16 +203,16 @@ func lookupTheme(name string) (*Theme, bool) {
 }
 
 var (
-	curTheme *Theme
+	CurTheme *Theme
 	// themeGen increments on every applyTheme so caches can invalidate.
-	themeGen int
+	ThemeGen int
 )
 
 func themeOrDefault(name string) *Theme {
 	if t, ok := lookupTheme(name); ok {
 		return t
 	}
-	return defaultTheme
+	return DefaultTheme
 }
 
 // ActivateTheme makes t the theme core reads: the current Theme, the token
@@ -220,8 +220,8 @@ func themeOrDefault(name string) *Theme {
 // caches built from the old one are dropped. The front end calls it from its
 // own applyTheme (setPalette), which also rebuilds what it draws with.
 func ActivateTheme(t *Theme) {
-	curTheme = t
-	themeGen++
+	CurTheme = t
+	ThemeGen++
 	s := t.Syntax
 	chromaStyle = chroma.MustNewStyle(t.Name, chroma.StyleEntries{
 		chroma.Text:                s.Text,
@@ -254,4 +254,4 @@ func ActivateTheme(t *Theme) {
 }
 
 // init makes the default theme the active one before any config is read.
-func init() { ActivateTheme(defaultTheme) }
+func init() { ActivateTheme(DefaultTheme) }

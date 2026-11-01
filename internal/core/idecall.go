@@ -9,11 +9,9 @@ import (
 	"slices"
 	"strings"
 
-
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
-
 
 // SetIDE attaches the MCP server internal/cli made for the program, so the
 // editor can push events. The server is not the core's: a GUI server makes its own.
@@ -39,16 +37,16 @@ func (a *Core) ideFile(s string) string {
 // currentSelection describes the active text tab's selection; ok is false
 // when no named file is open.
 func (a *Core) currentSelection() (Selection, bool) {
-	t := a.curText()
+	t := a.CurText()
 	if t == nil {
 		return Selection{}, false
 	}
-	return SelectionOf(t.buf)
+	return SelectionOf(t.Buf)
 }
 
 // notifySelection pushes selection_changed when the cursor or selection of
 // the active file moved since the last push.
-func (a *Core) notifySelection() {
+func (a *Core) NotifySelection() {
 	if a.ide == nil || !a.ide.Connected() {
 		return
 	}
@@ -78,13 +76,13 @@ func (a *Core) mentionContext() bool {
 		"lineStart": start,
 		"lineEnd":   end,
 	})
-	a.info(i18n.T("ide.sent"), a.rel(sel.FilePath))
+	a.Info(i18n.T("ide.sent"), a.Rel(sel.FilePath))
 	return true
 }
 
-func (a *Core) tabFor(path string) *tab {
+func (a *Core) tabFor(path string) *Tab {
 	for _, t := range a.tabs {
-		if t.kind == tabText && t.buf.Path == path {
+		if t.Kind == TabText && t.Buf.Path == path {
 			return t
 		}
 	}
@@ -142,7 +140,7 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 	case "getOpenEditors":
 		tabs := []map[string]any{}
 		for i, t := range a.tabs {
-			if t.kind != tabText || t.buf.Path == "" {
+			if t.Kind != TabText || t.Buf.Path == "" {
 				continue
 			}
 			lang := ""
@@ -150,7 +148,7 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 				lang = t.lang.ID()
 			}
 			tabs = append(tabs, map[string]any{
-				"uri": FileURL(t.buf.Path), "isActive": i == a.active, "label": filepath.Base(t.buf.Path),
+				"uri": FileURL(t.Buf.Path), "isActive": i == a.active, "label": filepath.Base(t.Buf.Path),
 				"languageId": lang, "isDirty": t.dirty(),
 			})
 		}
@@ -198,8 +196,8 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 			return fail(i18n.T("ide.cantopen"), p)
 		}
 		a.follow = true
-		if t := a.curText(); t != nil && args.StartText != "" {
-			SelectText(t.buf, args.StartText, args.EndText)
+		if t := a.CurText(); t != nil && args.StartText != "" {
+			SelectText(t.Buf, args.StartText, args.EndText)
 		}
 		return IDEReply{Content: []ide.Content{ide.Text("Opened file: " + p)}}, nil, false
 	case "checkDocumentDirty":

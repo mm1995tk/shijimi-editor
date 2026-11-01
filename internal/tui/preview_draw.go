@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"slices"
 	"strings"
 
@@ -10,8 +11,8 @@ import (
 )
 
 // previewLines draws the Markdown preview of t in an area w x h.
-func (a *App) previewLines(t *tab, w, h int) []string {
-	return a.drawPreview(a.buildPreviewPane(t, w, h), w, h)
+func (a *App) previewLines(t *core.Tab, w, h int) []string {
+	return a.drawPreview(a.BuildPreviewPane(t, w, h), w, h)
 }
 
 // drawPreview draws the Pane of a Markdown preview as h lines of w cells.
@@ -24,13 +25,13 @@ func (a *App) drawPreview(p screen.Pane, w, h int) []string {
 }
 
 // drawMdDoc draws a rendered Markdown document as lines of w cells.
-func (a *App) drawMdDoc(doc mdDoc, w int) []string {
+func (a *App) drawMdDoc(doc core.MdDoc, w int) []string {
 	return a.drawMdRows(doc.Lines, 0, doc.Images, w)
 }
 
 // markdownLines renders src as lines of w cells.
-func (a *App) markdownLines(src string, w int, o mdOpts) []string {
-	return a.drawMdDoc(renderMarkdown(src, w, o), w)
+func (a *App) markdownLines(src string, w int, o core.MdOpts) []string {
+	return a.drawMdDoc(core.RenderMarkdown(src, w, o), w)
 }
 
 // drawMdRows draws lines, which are the rows of a document from row top, as
@@ -49,8 +50,8 @@ func (a *App) drawMdRows(lines []screen.Line, top int, images []screen.PreviewIm
 		im := images[idx]
 		if rows[idx] == nil {
 			iw := max(0, w-im.Col)
-			if iv := a.previewImage(im.Image.Blob); iv != nil {
-				rows[idx] = iv.body(iw, im.Rows)
+			if iv := a.PreviewImage(im.Image.Blob); iv != nil {
+				rows[idx] = imageBody(iv, iw, im.Rows)
 			} else { // gone: drawn again when the preview is made again
 				blank := stEmpty.Render(strings.Repeat(" ", iw))
 				rows[idx] = slices.Repeat([]string{blank}, im.Rows)
@@ -78,7 +79,7 @@ func drawMdLine(l screen.Line, w int) string {
 		if sp.Text == "" {
 			continue
 		}
-		k := mdSpanKey{styleColor(sp.Style), styleColor(sp.Bg), sp.Bold, sp.Italic, sp.Underline, sp.Strike}
+		k := mdSpanKey{core.StyleColor(sp.Style), core.StyleColor(sp.Bg), sp.Bold, sp.Italic, sp.Underline, sp.Strike}
 		if k.fg == "" {
 			k.fg = cEditorFg
 		}

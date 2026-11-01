@@ -99,7 +99,7 @@ func (e *explorer) flatten() {
 		}
 	}
 	walk(e.root)
-	e.sel = clamp(e.sel, 0, max(0, len(e.flat)-1))
+	e.sel = Clamp(e.sel, 0, max(0, len(e.flat)-1))
 }
 
 // refresh reloads every expanded directory from disk.
@@ -124,7 +124,7 @@ func (e *explorer) refresh() {
 			e.sel = i
 		}
 	}
-	e.sel = clamp(e.sel, 0, max(0, len(e.flat)-1))
+	e.sel = Clamp(e.sel, 0, max(0, len(e.flat)-1))
 	e.loadGitStatus()
 }
 
@@ -223,7 +223,7 @@ func (e *explorer) ensureVisible(h int) {
 	if e.sel >= e.scroll+h {
 		e.scroll = e.sel - h + 1
 	}
-	e.scroll = clamp(e.scroll, 0, max(0, len(e.flat)-h))
+	e.scroll = Clamp(e.scroll, 0, max(0, len(e.flat)-h))
 }
 
 // screen is the tree as a screen.Explorer: the rows in view, h rows high with
