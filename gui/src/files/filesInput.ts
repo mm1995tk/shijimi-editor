@@ -112,7 +112,9 @@ export function createKeyInput(o: {
 
   /**
    * IME の候補の窓がカーソルの近くに出るよう、textarea をカーソルのマス目に置く。
-   * コマンド行（E3）が開いていれば、そのカーソルに置く（本文の外なので、本文からの位置は下にはみ出す）。
+   * コマンド行（E3）が開いていれば、そのカーソルの桁に置く。コマンド行は本文の外（下）にあるので、
+   * 高さは本文の最後の行に収める（本文の外に出すと、変換中に WebKit がキャレットを見せようとして
+   * overflow: hidden の本文をスクロールさせ、行が上にずれたまま残るため）。候補の窓はコマンド行のすぐ上に出る。
    */
   function placeIme() {
     const ime = o.ime();
@@ -124,8 +126,11 @@ export function createKeyInput(o: {
     if (!cur) return;
     const b = body.getBoundingClientRect();
     const c = cur.getBoundingClientRect();
-    ime.style.left = `${c.left - b.left}px`;
-    ime.style.top = `${c.top - b.top}px`;
+    const left = Math.min(c.left - b.left, body.clientWidth - c.width);
+    ime.style.left = `${Math.max(0, left)}px`;
+    const top = Math.min(c.top - b.top, body.clientHeight - LINE_HEIGHT);
+    ime.style.top = `${Math.max(0, top)}px`;
+    body.scrollTop = 0;
   }
 
   function sendComposition() {

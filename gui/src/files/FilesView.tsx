@@ -138,6 +138,11 @@ export function FilesView(props: {
         ref={body}
         onMouseDown={pointer.onMouseDown}
         onContextMenu={(e) => e.preventDefault()}
+        // 本文はスクロールさせない（行の位置は shj が決める）。IME のキャレットなどでずれたら戻す
+        onScroll={(e) => {
+          e.currentTarget.scrollTop = 0;
+          e.currentTarget.scrollLeft = 0;
+        }}
       >
         <span class="files-measure" ref={measure} aria-hidden="true">
           {"0".repeat(64)}
