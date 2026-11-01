@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/term"
 )
 
 // cmuxBackend is the muxBackend for cmux (the macOS terminal app for coding
@@ -133,7 +134,7 @@ func (c *cmuxBackend) split(cwd string, env []string) (string, error) {
 	if c.editorPane != "" {
 		args = append(args, "--surface", c.editorPane)
 	}
-	args = append(args, "--command", cmuxCommand(cwd, env, shell()))
+	args = append(args, "--command", cmuxCommand(cwd, env, term.DefaultShell()))
 	out, err := c.do(cmuxArgs(args...)...)
 	if err != nil {
 		return "", err

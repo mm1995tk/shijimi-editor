@@ -14,6 +14,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/channel"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
@@ -86,7 +87,7 @@ func runServe(args []string) int {
 	// Code connects when its directory is inside one, and the server does not
 	// know the workspaces' roots when it starts.
 	if home, err := os.UserHomeDir(); err == nil {
-		if is, err := srv.StartIDE(home, tui.IDETools()); err == nil {
+		if is, err := srv.StartIDE(home, core.IDETools()); err == nil {
 			os.Setenv(ide.EnvPort, strconv.Itoa(is.Port()))
 			os.Setenv(ide.EnvEnable, "true")
 			os.Setenv(ide.EnvForceTerminal, "true")

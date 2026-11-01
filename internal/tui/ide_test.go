@@ -13,7 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
@@ -103,8 +103,8 @@ func TestIDEOpenDiffAccept(t *testing.T) {
 	a.openFile(f)
 	args := map[string]any{"old_file_path": f, "new_file_path": f, "new_file_contents": "one\n2\nthree\n", "tab_name": "edit"}
 	ch, _, done := ideCallRaw(a, "openDiff", args)
-	if done || len(a.props) != 1 {
-		t.Fatalf("done=%v props=%d", done, len(a.props))
+	if done || a.props.Len() != 1 {
+		t.Fatalf("done=%v props=%d", done, a.props.Len())
 	}
 	a.update(Key{Code: KeyEnter})
 	r := <-ch
@@ -114,7 +114,7 @@ func TestIDEOpenDiffAccept(t *testing.T) {
 	if b, _ := os.ReadFile(f); string(b) != "one\ntwo\nthree\n" {
 		t.Errorf("editor wrote the file; Claude Code does that: %q", b)
 	}
-	if len(a.props) != 0 {
+	if a.props.Len() != 0 {
 		t.Error("proposal remains")
 	}
 }
@@ -154,62 +154,21 @@ func TestIDECloseAndCancel(t *testing.T) {
 		t.Errorf("close_tab status = %q", a.msg)
 	}
 	a.cancelProposal(c3)
-	if len(a.props) != 1 || a.props[0].name != "two" {
-		t.Errorf("props after cancel = %d", len(a.props))
+	if a.props.Len() != 1 || a.props.First().Name != "two" {
+		t.Errorf("props after cancel = %d", a.props.Len())
 	}
 	if _, r, _ := ideCallRaw(a, "closeAllDiffTabs", nil); r.Content[0].Text != "CLOSED_1_DIFF_TABS" {
 		t.Errorf("closeAll = %+v", r)
 	}
-	if len(a.props) != 0 {
+	if a.props.Len() != 0 {
 		t.Error("proposals remain")
-	}
-}
-
-func TestUnifiedDiff(t *testing.T) {
-	var old, cur []string
-	for i := 1; i <= 20; i++ {
-		old = append(old, "l"+string(rune('a'+i)))
-	}
-	cur = append(cur, old...)
-	cur[10] = "CHANGED"
-	got := unifiedDiff(strings.Join(old, "\n")+"\n", strings.Join(cur, "\n")+"\n")
-	var sb strings.Builder
-	for _, l := range got {
-		if l.kind == '@' {
-			sb.WriteString(l.text + "\n")
-			continue
-		}
-		sb.WriteString(string(l.kind) + l.text + "\n")
-	}
-	want := "@@ -8,7 +8,7 @@\n li\n lj\n lk\n-ll\n+CHANGED\n lm\n ln\n lo\n"
-	if sb.String() != want {
-		t.Errorf("diff =\n%s\nwant\n%s", sb.String(), want)
-	}
-	if d := unifiedDiff("a\n", "a\n"); len(d) != 1 {
-		t.Errorf("no-change diff = %v", d)
-	}
-	if d := unifiedDiff("", "x\ny\n"); d[0].text != "@@ -1,0 +1,2 @@" || len(d) != 3 {
-		t.Errorf("new file diff = %v", d)
-	}
-}
-
-func TestSelectText(t *testing.T) {
-	b := buffer.New()
-	b.Insert("héllo wörld\nfoo bar")
-	selectText(b, "wör", "ld")
-	if got := b.SelectedText(); got != "wörld" {
-		t.Errorf("selected %q", got)
-	}
-	selectText(b, "bar", "")
-	if got := b.SelectedText(); got != "bar" {
-		t.Errorf("selected %q", got)
 	}
 }
 
 func TestIDENotifications(t *testing.T) {
 	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 	a, f := ideApp(t)
-	srv, err := ide.Start(a.root, IDETools(), func(context.Context, string, json.RawMessage) ([]ide.Content, error) { return nil, nil })
+	srv, err := ide.Start(a.root, core.IDETools(), func(context.Context, string, json.RawMessage) ([]ide.Content, error) { return nil, nil })
 	if err != nil {
 		t.Fatal(err)
 	}

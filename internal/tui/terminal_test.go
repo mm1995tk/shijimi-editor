@@ -121,10 +121,10 @@ func TestRenderVTRowKeepsWidthWhenHostDrawsDifferently(t *testing.T) {
 }
 
 func TestRenderVTRowCursorOnDefaultCell(t *testing.T) {
-	term := vt.New(vt.Options{Cols: 10, Rows: 1})
-	term.Write([]byte("a"))
+	tv := vt.New(vt.Options{Cols: 10, Rows: 1})
+	tv.Write([]byte("a"))
 	var s vt.Snapshot
-	term.Snapshot(&s)
+	tv.Snapshot(&s)
 	row := renderVTRow(s.Cells[0], 10, s.CursorX)
 	if !strings.Contains(row, sgr(0, 0, 0, true)) {
 		t.Fatalf("cursor cell not drawn: %q", row)
@@ -136,9 +136,8 @@ func TestRenderVTRowCursorOnDefaultCell(t *testing.T) {
 
 func TestTerminalHasOneShell(t *testing.T) {
 	tm := newTerminal(t.TempDir())
-	tm.sh = &termTab{id: 1, vt: vt.New(vt.Options{Cols: 20, Rows: 5})}
 	// F2 and Ctrl+PgUp/PgDn no longer manage tabs; with no PTY they are only written.
-	tm.sh.ptmx, _ = os.CreateTemp(t.TempDir(), "pty")
+	tm.sh = &termTab{id: 1, vt: vt.New(vt.Options{Cols: 20, Rows: 5})}
 	for _, k := range []Key{{Code: KeyF2}, {Code: KeyPgDown, Mod: ModCtrl}} {
 		tm.key(k)
 	}

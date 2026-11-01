@@ -11,6 +11,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
@@ -86,7 +87,7 @@ func Main() {
 	closeIDE := func() {}
 	// Single-file mode starts neither the IDE integration nor the control socket.
 	if abs, err := filepath.Abs(dir); err == nil && !single {
-		if srv, err := ide.Start(abs, tui.IDETools(), tui.IDEHandler(p)); err == nil {
+		if srv, err := ide.Start(abs, core.IDETools(), tui.IDEHandler(p)); err == nil {
 			closeIDE = srv.Close
 			app.SetIDE(srv)
 			os.Setenv(ide.EnvPort, strconv.Itoa(srv.Port()))

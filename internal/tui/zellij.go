@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/term"
 )
 
 // zellijBackend is the muxBackend for zellij. Every operation is a call of
@@ -131,7 +132,7 @@ func (z *zellijBackend) split(cwd string, env []string) (string, error) {
 	// started through env(1). -c closes the pane when the shell exits.
 	args := []string{"new-pane", "--direction", "down", "--close-on-exit", "--near-current-pane", "--cwd", cwd, "--", "env"}
 	args = append(args, env...)
-	args = append(args, shell())
+	args = append(args, term.DefaultShell())
 	out, err := z.do(args...)
 	if err != nil {
 		return "", err

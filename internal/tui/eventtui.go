@@ -2,20 +2,15 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
-
-// teaEffect carries a tea.Cmd through the Effect list. Only the terminal panel is
-// left on it: it waits on a PTY and has no Event of its own yet (P13-06, #382,
-// decides).
-type teaEffect struct{ cmd tea.Cmd }
-
-func (teaEffect) isEffect() {}
 
 // effectCmd turns Effects into the tea.Cmd that carries them out. An Event
 // that a timer delivers reaches Update as the tea.Msg itself.
@@ -47,6 +42,9 @@ func (a *App) effectCmd(effs ...Effect) tea.Cmd {
 				}
 				return nil
 			})
+		case WaitTerm:
+			from := e.From
+			cmds = append(cmds, func() tea.Msg { return <-from })
 		case WaitAgent:
 			from := e.From
 			cmds = append(cmds, func() tea.Msg { return <-from })
@@ -78,8 +76,6 @@ func (a *App) effectCmd(effs ...Effect) tea.Cmd {
 				}
 				return nil
 			})
-		case teaEffect:
-			cmds = append(cmds, e.cmd)
 		}
 	}
 	return tea.Batch(cmds...)
@@ -104,6 +100,8 @@ func (a *App) handleEvent(ev Event) []Effect {
 	case SearchDone:
 		a.searchDone(ev)
 		return nil
+	case termOutputMsg, termDoneMsg:
+		return a.handleTermEvent(ev)
 	case CtlRequest:
 		return a.handleCtl(ev)
 	case IDECall:
@@ -168,10 +166,48 @@ func (a *App) handleEvent(ev Event) []Effect {
 	return nil
 }
 
-// teaEffects wraps a terminal tea.Cmd.
-func teaEffects(cmd tea.Cmd) []Effect {
-	if cmd == nil {
-		return nil
+// handleTermEvent is the shell of the terminal panel printing or ending.
+func (a *App) handleTermEvent(ev Event) []Effect {
+	effs := a.term.update(ev)
+	// A program in the terminal panel (Claude Code, tmux, …) copies with
+	// OSC 52; pass the text on to the clipboard. Any program there can do
+	// this unasked, so every copy is shown.
+	if tab := a.term.sh; tab != nil {
+		c, ok := tab.vt.TakeClipboard()
+		switch {
+		case !ok:
+		case c.TooLarge:
+			a.fail(errors.New(i18n.T("app.termcopybig")))
+		default:
+			a.copyText(c.Text)
+			a.info(i18n.T("app.termcopied"), utf8.RuneCountInString(c.Text))
+		}
 	}
-	return []Effect{teaEffect{cmd}}
+	if a.term.sh == nil && a.showTerm {
+		a.showTerm = false
+		if a.focus == focusTerminal {
+			return batch(effs, a.setFocus(focusEditor))
+		}
+	}
+	return effs
+}
+
+// termFailed is no shell starting: say so and close the panel.
+func (a *App) termFailed(err error) []Effect {
+	a.fail(err)
+	if a.term.sh == nil && a.showTerm {
+		a.showTerm = false
+		if a.focus == focusTerminal {
+			return a.setFocus(focusEditor)
+		}
+	}
+	return nil
+}
+
+// termEffects is the result of a terminal call that may fail to start a shell.
+func (a *App) termEffects(effs []Effect, err error) []Effect {
+	if err != nil {
+		return batch(effs, a.termFailed(err))
+	}
+	return effs
 }

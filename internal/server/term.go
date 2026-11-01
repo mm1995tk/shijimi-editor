@@ -24,6 +24,7 @@ import (
 	"github.com/creack/pty"
 
 	"github.com/mm1995tk/shijimi-editor/internal/rpc"
+	"github.com/mm1995tk/shijimi-editor/internal/term"
 )
 
 const (
@@ -180,33 +181,30 @@ func (m *termManager) create(p termCreateParams) (any, error) {
 	}
 	sh := p.Shell
 	if sh == "" {
-		sh = os.Getenv("SHELL")
+		sh = term.DefaultShell()
 	}
-	if sh == "" {
-		sh = "/bin/sh"
-	}
-	cmd := exec.Command(sh)
-	cmd.Dir = cwd
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
+	var env []string
 	for k, v := range p.Env {
 		if k == "" || strings.ContainsAny(k, "=\x00") {
 			return nil, rpc.Errorf(rpc.CodeInvalidParams, "invalid env name: %q", k)
 		}
-		cmd.Env = append(cmd.Env, k+"="+v)
+		env = append(env, k+"="+v)
 	}
 	m.mu.Lock()
 	if m.closed {
 		m.mu.Unlock()
 		return nil, rpc.Errorf(rpc.CodeBusy, "server is shutting down")
 	}
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(p.Rows), Cols: uint16(p.Cols)})
+	// PTY の起動は internal/term と同じ（TUI のターミナルも使う）。読み出しと流量制御はここで持つ。
+	sess, err := term.Start(term.Options{Shell: sh, Dir: cwd, Env: env, Cols: p.Cols, Rows: p.Rows})
 	if err != nil {
 		m.mu.Unlock()
 		return nil, rpc.Errorf(rpc.CodeInternalError, "start shell: %v", err)
 	}
+	ptmx, cmd := sess.File(), sess.Cmd()
 	m.next++
 	t := &terminal{
-		mgr: m, id: fmt.Sprintf("t%d", m.next), pid: cmd.Process.Pid,
+		mgr: m, id: fmt.Sprintf("t%d", m.next), pid: sess.Pid(),
 		ptmx: ptmx, cmd: cmd, cols: p.Cols, rows: p.Rows, alive: true,
 		ring: make([]byte, ringSize),
 	}
