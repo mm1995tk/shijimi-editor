@@ -68,16 +68,11 @@ func TestFileKnowledge(t *testing.T) {
 	}
 }
 
-// tuiFields are the fields of App that belong to the TUI (the table in
-// docs/design/gui-protocol.md): the size of the screen, which regions are
-// shown and the terminal under the editor.
-var tuiFields = []string{"w", "h", "showSide", "showTerm", "showAgent", "term"}
-
 // TestRenderFrameReadsQueries keeps renderFrame from reading the state of App
 // directly. What is shown comes from the screens (Screen, Pane, Overlay) and
 // from questions App answers (a.cur(), a.diffMode(), a.focusIn(...)), which
 // become core.Screen() and core's query methods when App is split (#384).
-// Only the TUI's own fields may be read by name.
+// Only the fields that stay on App (appOnlyFields) may be read by name.
 func TestRenderFrameReadsQueries(t *testing.T) {
 	fset := token.NewFileSet()
 	appFile, err := parser.ParseFile(fset, "app.go", nil, 0)
@@ -87,7 +82,7 @@ func TestRenderFrameReadsQueries(t *testing.T) {
 	fields := map[string]bool{}
 	ast.Inspect(appFile, func(n ast.Node) bool {
 		ts, ok := n.(*ast.TypeSpec)
-		if !ok || ts.Name.Name != "App" {
+		if !ok || ts.Name.Name != "App" && ts.Name.Name != "Core" {
 			return true
 		}
 		for _, f := range ts.Type.(*ast.StructType).Fields.List {
@@ -95,8 +90,11 @@ func TestRenderFrameReadsQueries(t *testing.T) {
 				fields[id.Name] = true
 			}
 		}
-		return false
+		return true
 	})
+	if len(fields) == 0 || !fields["gd"] {
+		t.Fatal("the fields of App and Core were not found in app.go")
+	}
 	drawFile, err := parser.ParseFile(fset, "app_draw.go", nil, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +111,7 @@ func TestRenderFrameReadsQueries(t *testing.T) {
 			if !ok {
 				return true
 			}
-			if id, ok := sel.X.(*ast.Ident); ok && id.Name == "a" && fields[sel.Sel.Name] && !slices.Contains(tuiFields, sel.Sel.Name) {
+			if id, ok := sel.X.(*ast.Ident); ok && id.Name == "a" && fields[sel.Sel.Name] && !slices.Contains(appOnlyFields, sel.Sel.Name) {
 				t.Errorf("renderFrame reads a.%s; ask a method of App instead (%s)", sel.Sel.Name, fset.Position(sel.Pos()))
 			}
 			return true
@@ -183,20 +181,22 @@ func TestCoreFields(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		reads := ""
+		var reads []string
 		ast.Inspect(f, func(n ast.Node) bool {
 			if sel, ok := n.(*ast.SelectorExpr); ok {
 				if id, ok := sel.X.(*ast.Ident); ok && id.Name == "a" && slices.Contains(appOnlyFields, sel.Sel.Name) {
-					reads = sel.Sel.Name
+					if !slices.Contains(reads, sel.Sel.Name) {
+						reads = append(reads, sel.Sel.Name)
+					}
 				}
 			}
-			return reads == ""
+			return true
 		})
 		todo := slices.Contains(appFieldTodo, name)
-		if reads != "" && !todo && !slices.Contains(appFieldFiles, name) {
-			t.Errorf("%s reads a.%s, which stays on App; only %v may (and the files to be moved: appFieldTodo)", name, reads, appFieldFiles)
+		if len(reads) > 0 && !todo && !slices.Contains(appFieldFiles, name) {
+			t.Errorf("%s reads %v of App, which stay on App; only %v may (and the files to be moved: appFieldTodo)", name, reads, appFieldFiles)
 		}
-		if reads == "" && todo {
+		if len(reads) == 0 && todo {
 			t.Errorf("%s no longer reads the App-only fields; remove it from appFieldTodo", name)
 		}
 	}
