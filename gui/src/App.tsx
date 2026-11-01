@@ -4,7 +4,8 @@
 // つなぐ先の一覧に接続の状態を出す。別の GUI に引き継がれたら、そう出してボタンでつなぎ直せるようにする（C7）。
 // 左にはつないだマシンごとの見出しとワークスペースの帯を出し、帯を押すとフォーカスを移す（D1）。
 // フォーカスしているワークスペースの帯の下にはツリーを出す。開閉とスクロールの位置はワークスペースごとに覚え、
-// フォーカスを外して戻しても残す（D2）。編集の画面は E 以降で作る。
+// フォーカスを外して戻しても残す（D2）。マシンごとに色を決めて覚え、見出しと帯の左端の線に使う（D4）。
+// 編集の画面は E 以降で作る。
 import {
   createEffect,
   createMemo,
@@ -26,6 +27,7 @@ import {
   machineLabel,
   type WorkspaceFocus,
 } from "./sidebar/model.ts";
+import { machineColors } from "./sidebar/colors.ts";
 import { Sidebar } from "./sidebar/Sidebar.tsx";
 import "./app.css";
 import { LOCAL, type AskpassRequest, type ShellApi } from "./ssh/api.ts";
@@ -232,8 +234,18 @@ export function App(props: {
     }
   }
 
+  // 初めて出たマシンには色を割り当てて保存する（つなぐマシンが変わったときだけ計算し直す）
+  const colors = createMemo(() =>
+    machineColors(store, Object.keys(sessions())),
+  );
   const groups = createMemo(() =>
-    buildSidebar(Object.keys(sessions()), states(), workspaces(), focus()),
+    buildSidebar(
+      Object.keys(sessions()),
+      states(),
+      workspaces(),
+      focus(),
+      colors(),
+    ),
   );
 
   // フォーカスしているワークスペースのツリーだけを動かし（監視と取り直し）、

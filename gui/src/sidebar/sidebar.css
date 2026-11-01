@@ -1,5 +1,5 @@
 /* 左の一覧（D1）。親 #271 のモック「案：フラットな一覧」の寸法と色に合わせる。
-   マシンごとの色（D4）は --machine-color で差し替える。決まるまでは 1 色。
+   マシンごとの色（D4）は --machine-color。Sidebar.tsx が .machine の style に入れる（決め方は colors.ts）。
    上下の固定（D3）は Sidebar.tsx の説明のとおり、sticky と要素の組み方で決める。 */
 
 .sidebar {
@@ -29,6 +29,7 @@
 }
 
 .machine {
+  /* style で入れていないときの色（colors.ts の候補の最初） */
   --machine-color: #8fb4ff;
 }
 

@@ -1,7 +1,8 @@
 // 左の一覧（D1）：つないだマシンごとに見出しとワークスペースの帯を出す。帯を押すとフォーカスを移す。
 // フォーカスしているワークスペースの帯の下にはツリーを出す（D2、描くのは tree/TreeView.tsx）。
 // スクロールしても、上にフォーカスしているマシンの見出し → 帯 → 親フォルダを、下にそれより後ろの帯を固定する（D3）。
-// 組み立ては model.ts、見た目は sidebar.css。
+// マシンごとの色（D4）は section の --machine-color に入れ、見出しと帯の左端の線とアイコンに使う。
+// 組み立ては model.ts、色の決め方は colors.ts、見た目は sidebar.css。
 import { createMemo, For, onCleanup, onMount, Show, type JSX } from "solid-js";
 
 import type { WorkspaceId } from "../rpc/protocol.ts";
@@ -121,6 +122,7 @@ export function Sidebar(
             {/* 見出しの無いマシンの要素にして、マシンの色（--machine-color）を同じにする */}
             <section
               class="machine machine-rest"
+              style={{ "--machine-color": split().after.color }}
               data-target={split().after.target}
               aria-label={split().after.label}
             >
@@ -167,7 +169,12 @@ function Machine(
 ): JSX.Element {
   const g = () => props.group;
   return (
-    <section class="machine" data-target={g().target} aria-label={g().label}>
+    <section
+      class="machine"
+      style={{ "--machine-color": g().color }}
+      data-target={g().target}
+      aria-label={g().label}
+    >
       <h2
         class="machine-heading"
         data-sticky={props.sticky ? "top" : undefined}
