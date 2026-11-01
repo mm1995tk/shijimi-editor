@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func resizeApp(t *testing.T) *App {
@@ -15,7 +17,7 @@ func resizeApp(t *testing.T) *App {
 }
 
 func press(a *App, key string) {
-	a.handleKey(textKey(key))
+	a.HandleKey(textKey(key))
 }
 
 func TestResizeKeys(t *testing.T) {
@@ -23,28 +25,28 @@ func TestResizeKeys(t *testing.T) {
 	a.showTerm = true
 	side, panel := a.layout().sideW, a.layout().panelH
 
-	a.startResize()
-	a.handleKey(Key{Code: KeyRight})
-	a.handleKey(Key{Code: KeyUp})
+	a.StartResize()
+	a.HandleKey(core.Key{Code: KeyRight})
+	a.HandleKey(core.Key{Code: KeyUp})
 	l := a.layout()
 	if l.sideW != side+resizeStep || l.panelH != panel+resizeStep {
 		t.Fatalf("side %d->%d panel %d->%d", side, l.sideW, panel, l.panelH)
 	}
 
 	// keys do not leak to the editor while resizing, and Esc leaves the mode
-	a.handleKey(Key{Code: KeyEsc})
+	a.HandleKey(core.Key{Code: KeyEsc})
 	if a.resizeMode {
 		t.Fatal("still in resize mode")
 	}
 
 	// the size is kept across close and reopen
-	a.toggleSide()
-	a.toggleSide()
+	a.ToggleSide()
+	a.ToggleSide()
 	if a.layout().sideW != side+resizeStep {
 		t.Fatalf("size lost: %d", a.layout().sideW)
 	}
 
-	a.startResize()
+	a.StartResize()
 	press(a, "=")
 	if l := a.layout(); l.sideW != side || l.panelH != panel {
 		t.Fatalf("reset: %d %d", l.sideW, l.panelH)
@@ -54,17 +56,17 @@ func TestResizeKeys(t *testing.T) {
 func TestResizeClamp(t *testing.T) {
 	a := resizeApp(t)
 	a.showTerm = true
-	a.startResize()
+	a.StartResize()
 	for range 200 {
-		a.handleKey(Key{Code: KeyLeft})
-		a.handleKey(Key{Code: KeyDown})
+		a.HandleKey(core.Key{Code: KeyLeft})
+		a.HandleKey(core.Key{Code: KeyDown})
 	}
 	if l := a.layout(); l.sideW != minSideW || l.panelH != 6 {
 		t.Fatalf("min: %d %d", l.sideW, l.panelH)
 	}
 	for range 200 {
-		a.handleKey(Key{Code: KeyRight})
-		a.handleKey(Key{Code: KeyUp})
+		a.HandleKey(core.Key{Code: KeyRight})
+		a.HandleKey(core.Key{Code: KeyUp})
 	}
 	l := a.layout()
 	if l.sideW > a.w/2 || l.panelH > a.h-8 {
@@ -85,7 +87,7 @@ func TestResizePreviewRatio(t *testing.T) {
 	if def != (l.rightW-1)/2 {
 		t.Fatalf("default split changed: %d", def)
 	}
-	a.startResize()
+	a.StartResize()
 	press(a, ">")
 	if a.editorWidth(l.rightW) <= def {
 		t.Fatal("editor should grow")
@@ -102,20 +104,20 @@ func TestResizeMouseDrag(t *testing.T) {
 	a := resizeApp(t)
 	a.showTerm = true
 	l := a.layout()
-	mouse := func(act MouseAction, x, y int) {
-		a.handleMouse(a.locate(x, y, Mouse{Action: act, Button: MouseLeft}))
+	mouse := func(act core.MouseAction, x, y int) {
+		a.HandleMouse(a.locate(x, y, core.Mouse{Action: act, Button: core.MouseLeft}))
 	}
 
-	mouse(MousePress, l.sideW, 5)
-	mouse(MouseMotion, 40, 5)
-	mouse(MouseRelease, 40, 5)
-	if a.layout().sideW != 40 || a.resizing != resizeNone {
+	mouse(core.MousePress, l.sideW, 5)
+	mouse(core.MouseMotion, 40, 5)
+	mouse(core.MouseRelease, 40, 5)
+	if a.layout().sideW != 40 || a.resizing != core.ResizeNone {
 		t.Fatalf("side drag: %d", a.layout().sideW)
 	}
 
-	mouse(MousePress, 60, l.panelY)
-	mouse(MouseMotion, 60, l.panelY-5)
-	mouse(MouseRelease, 60, l.panelY-5)
+	mouse(core.MousePress, 60, l.panelY)
+	mouse(core.MouseMotion, 60, l.panelY-5)
+	mouse(core.MouseRelease, 60, l.panelY-5)
 	if got := a.layout().panelH; got != l.panelH+5 {
 		t.Fatalf("panel drag: %d want %d", got, l.panelH+5)
 	}
@@ -124,10 +126,10 @@ func TestResizeMouseDrag(t *testing.T) {
 func TestResizeWithCompletionOpen(t *testing.T) {
 	a := resizeApp(t)
 	a.showTerm = true
-	a.comp = &completionPopup{}
+	a.Comp = &core.CompletionPopup{}
 	panel := a.layout().panelH
-	a.startResize()
-	a.handleKey(Key{Code: KeyUp})
+	a.StartResize()
+	a.HandleKey(core.Key{Code: KeyUp})
 	if a.layout().panelH != panel+resizeStep {
 		t.Fatalf("panel %d->%d", panel, a.layout().panelH)
 	}
@@ -135,9 +137,9 @@ func TestResizeWithCompletionOpen(t *testing.T) {
 
 func TestResizeLostRelease(t *testing.T) {
 	a := resizeApp(t)
-	a.resizing = resizeSide
-	a.handleMouse(a.locate(60, 5, Mouse{Action: MousePress, Button: MouseLeft}))
-	if a.resizing != resizeNone {
+	a.resizing = core.ResizeSide
+	a.HandleMouse(a.locate(60, 5, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+	if a.resizing != core.ResizeNone {
 		t.Fatal("stale drag state kept")
 	}
 }
@@ -150,7 +152,7 @@ func TestDiffSplitResize(t *testing.T) {
 		t.Fatalf("default %d", got)
 	}
 
-	a.resizing = resizeDiff
+	a.resizing = core.ResizeDiff
 	a.dragResize(l, l.rightX+30, l.editY)
 	if got := a.diffLeftWidth(w); got < 29 || got > 30 {
 		t.Fatalf("drag to 30: %d", got)
@@ -165,8 +167,8 @@ func TestDiffSplitResize(t *testing.T) {
 		t.Fatalf("right min: left %d of %d", got, w)
 	}
 
-	a.resizing = resizeNone
-	a.startResize()
+	a.resizing = core.ResizeNone
+	a.StartResize()
 	press(a, "=")
 	if got := a.diffLeftWidth(w); got != (w-1)/2 {
 		t.Fatalf("reset %d", got)
@@ -175,18 +177,18 @@ func TestDiffSplitResize(t *testing.T) {
 
 func TestResizeKeysFollowFocus(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	a.gd.split = true
+	a.Gd.Split = true
 	a.showTerm = true
-	if a.render(); !a.splitShown() || a.diffFile(a.curText()) == nil {
+	if a.render(); !a.SplitShown() || a.DiffFile(a.CurText()) == nil {
 		t.Skip("split is not shown")
 	}
 	l := a.layout()
-	w := a.dvGeom(l).rightW + a.dvGeom(l).leftW + 1
-	side, panel, left, tree := l.sideW, l.panelH, a.diffLeftWidth(w), a.explorerH()
+	w := a.dvGeom(l).RightW + a.dvGeom(l).LeftW + 1
+	side, panel, left, tree := l.sideW, l.panelH, a.diffLeftWidth(w), a.ExplorerH()
 
 	// the editor: ← → move the │ of the split diff, ↑ ↓ the terminal
-	a.focus = focusEditor
-	a.startResize()
+	a.Focus = core.FocusEditor
+	a.StartResize()
 	press(a, "l")
 	press(a, "k")
 	if got := a.diffLeftWidth(w); got <= left {
@@ -202,22 +204,22 @@ func TestResizeKeysFollowFocus(t *testing.T) {
 	}
 
 	// CHANGES: ← → move the sidebar edge, ↑ ↓ the border above CHANGES
-	a.focus = focusChanges
+	a.Focus = core.FocusChanges
 	press(a, "right")
 	press(a, "up")
 	if got := a.layout().sideW; got != side+resizeStep {
 		t.Fatalf("side %d -> %d", side, got)
 	}
-	if got := a.explorerH(); got != tree-resizeStep {
+	if got := a.ExplorerH(); got != tree-resizeStep {
 		t.Fatalf("tree %d -> %d", tree, got)
 	}
 	press(a, "down")
-	if got := a.explorerH(); got != tree {
+	if got := a.ExplorerH(); got != tree {
 		t.Fatalf("tree back %d -> %d", tree, got)
 	}
 
 	// the terminal: ← → move the sidebar edge
-	a.focus = focusTerminal
+	a.Focus = core.FocusTerminal
 	press(a, "left")
 	if got := a.layout().sideW; got != side {
 		t.Fatalf("side back %d -> %d", side, got)
@@ -227,25 +229,25 @@ func TestResizeKeysFollowFocus(t *testing.T) {
 // On a wide screen one percent is more than a key step; the border still moves.
 func TestResizeKeysWideScreen(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	a.gd.split = true
+	a.Gd.Split = true
 	a.Update(tea.WindowSizeMsg{Width: 300, Height: 300})
-	if a.render(); !a.splitShown() || a.diffFile(a.curText()) == nil {
+	if a.render(); !a.SplitShown() || a.DiffFile(a.CurText()) == nil {
 		t.Skip("split is not shown")
 	}
-	a.focus = focusEditor
-	a.startResize()
+	a.Focus = core.FocusEditor
+	a.StartResize()
 	for _, k := range []string{"l", "h"} {
-		before := a.dvGeom(a.layout()).leftW
+		before := a.dvGeom(a.layout()).LeftW
 		press(a, k)
-		if got := a.dvGeom(a.layout()).leftW; got == before {
+		if got := a.dvGeom(a.layout()).LeftW; got == before {
 			t.Fatalf("%s: diff left stays %d", k, got)
 		}
 	}
-	a.focus = focusChanges
+	a.Focus = core.FocusChanges
 	for _, k := range []string{"j", "k"} {
-		before := a.explorerH()
+		before := a.ExplorerH()
 		press(a, k)
-		if got := a.explorerH(); got == before {
+		if got := a.ExplorerH(); got == before {
 			t.Fatalf("%s: tree stays %d", k, got)
 		}
 	}
@@ -257,8 +259,8 @@ func TestResizeKeysEditorBorders(t *testing.T) {
 	os.WriteFile(file, []byte("# a\n"), 0o644)
 	a := New(dir, file)
 	a.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
-	a.focus = focusEditor
-	a.startResize()
+	a.Focus = core.FocusEditor
+	a.StartResize()
 
 	// nothing on the right: the sidebar edge
 	side := a.layout().sideW
@@ -279,11 +281,11 @@ func TestResizeKeysEditorBorders(t *testing.T) {
 	}
 
 	// the Markdown preview comes before the panel
-	a.curText().preview = previewSplit
+	a.CurText().Preview = core.PreviewSplit
 	l := a.layout()
-	edit := a.editW(a.curText(), l)
+	edit := a.editW(a.CurText(), l)
 	press(a, "l")
-	if got := a.editW(a.curText(), a.layout()); got <= edit {
+	if got := a.editW(a.CurText(), a.layout()); got <= edit {
 		t.Fatalf("editor %d -> %d", edit, got)
 	}
 	if got := a.layout().agentW; got != agent+resizeStep {

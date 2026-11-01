@@ -6,58 +6,52 @@ import (
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
+
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
-	"github.com/rivo/uniseg"
 )
 
-// dvGeom is where the parts of a diff view sit on screen.
-type dvGeom struct {
-	top, h         int // first content row and number of content rows
-	leftW          int // width of the base pane (0 when unified)
-	rightX, rightW int // the editable pane
-	barX           int // the change bar at the right edge
-}
-
-func (a *App) dvGeom(l layout) dvGeom {
+func (a *App) dvGeom(l layout) core.DiffGeom {
 	w := max(0, l.rightW-1) // the last column is the change bar
-	g := dvGeom{top: l.editY + 1, h: max(0, l.editH-1), rightX: l.rightX, rightW: w, barX: l.rightX + w}
-	if a.splitShown() {
-		g.leftW = a.diffLeftWidth(w)
-		g.rightX = l.rightX + g.leftW + 1
-		g.rightW = w - g.leftW - 1
+	g := core.DiffGeom{Top: l.editY + 1, H: max(0, l.editH-1), RightX: l.rightX, RightW: w, BarX: l.rightX + w}
+	if a.SplitShown() {
+		g.LeftW = a.diffLeftWidth(w)
+		g.RightX = l.rightX + g.LeftW + 1
+		g.RightW = w - g.LeftW - 1
 	}
 	return g
 }
 
 // cursorScreen returns the screen position of the cursor cell.
-func (a *App) cursorScreen(t *tab, l layout) (x, y int) { return a.posScreen(t, l, t.buf.Cur) }
+func (a *App) cursorScreen(t *core.Tab, l layout) (x, y int) { return a.posScreen(t, l, t.Buf.Cur) }
 
 // posScreen is the screen cell of the character at p in t's buffer.
-func (a *App) posScreen(t *tab, l layout, p buffer.Pos) (x, y int) {
-	b := t.buf
-	x = l.rightX + gutterWidth(b) + buffer.VisualCol(b.Lines[p.Row], p.Col) - b.ScrollCol
+func (a *App) posScreen(t *core.Tab, l layout, p buffer.Pos) (x, y int) {
+	b := t.Buf
+	x = l.rightX + core.GutterWidth(b) + buffer.VisualCol(b.Lines[p.Row], p.Col) - b.ScrollCol
 	y = l.editY + p.Row - b.ScrollRow
-	if dv := a.diffFor(t); dv != nil {
+	if dv := a.DiffFor(t); dv != nil {
 		g := a.dvGeom(l)
-		x += g.rightX - l.rightX
-		y = g.top + dv.newIdx[min(b.Cur.Row, len(dv.newIdx)-1)] - dv.start(b.ScrollRow)
+		x += g.RightX - l.rightX
+		y = g.Top + dv.NewIdx[min(b.Cur.Row, len(dv.NewIdx)-1)] - dv.Start(b.ScrollRow)
 	}
 	return x, y
 }
 
 // renderDiffText draws the diff view of t in the area l gives the file: the
-// header, then the Panes (buildDiffPanes) with the change bar.
-func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []string {
+// header, then the Panes (BuildDiffPanes) with the change bar.
+func (a *App) renderDiffText(t *core.Tab, dv *core.DiffView, l layout, focused bool) []string {
 	g := a.dvGeom(l)
-	opts := a.editorOpts(t, focused)
-	opts.gutterMark = a.commentMark(t)
-	panes := a.buildDiffPanes(t, dv, g, opts.paneOpts)
+	opts := a.EditorOpts(t, focused)
+	opts.GutterMark = a.CommentMark(t)
+	panes := a.BuildDiffPanes(t, dv, g, opts.PaneOpts)
 
 	hint := i18n.T("gd.splittoggle")
-	if dv.single {
+	if dv.Single {
 		hint = "" // one pane: there is nothing to switch
 	}
 	out := make([]string, 0, l.editH)
@@ -67,31 +61,31 @@ func (a *App) renderDiffText(t *tab, dv *diffView, l layout, focused bool) []str
 
 // diffMouseToCursor moves the cursor to the buffer line under (x, y) in a
 // diff view. Rows that exist only on the base side snap to the next line.
-func (a *App) diffMouseToCursor(t *tab, dv *diffView, l layout, row, col int, extend bool) {
+func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, col int, extend bool) {
 	g := a.dvGeom(l)
-	b := t.buf
+	b := t.Buf
 	// g is in screen cells; row and col count from the pane's corner.
-	gTop, gLeft := g.top-l.top, g.rightX-l.rightX
-	col = clamp(col, gLeft, gLeft+g.rightW-1)
+	gTop, gLeft := g.Top-l.top, g.RightX-l.rightX
+	col = core.Clamp(col, gLeft, gLeft+g.RightW-1)
 	if row < gTop {
 		b.MoveLines(-1, extend)
-	} else if row >= gTop+g.h {
+	} else if row >= gTop+g.H {
 		b.MoveLines(1, extend)
 	}
-	idx := clamp(dv.start(b.ScrollRow)+clamp(row-gTop, 0, max(0, g.h-1)), 0, len(dv.rows)-1)
+	idx := core.Clamp(dv.Start(b.ScrollRow)+core.Clamp(row-gTop, 0, max(0, g.H-1)), 0, len(dv.Rows)-1)
 	newRow := -1
-	for i := idx; i < len(dv.rows) && newRow < 0; i++ {
-		newRow = dv.rows[i].new
+	for i := idx; i < len(dv.Rows) && newRow < 0; i++ {
+		newRow = dv.Rows[i].New
 	}
 	for i := idx; i >= 0 && newRow < 0; i-- {
-		newRow = dv.rows[i].new
+		newRow = dv.Rows[i].New
 	}
 	if newRow < 0 {
 		return
 	}
-	vis := max(0, col-gLeft-gutterWidth(b)) + b.ScrollCol
+	vis := max(0, col-gLeft-core.GutterWidth(b)) + b.ScrollCol
 	b.SetCursor(newRow, vis, extend)
-	a.followCursor()
+	a.FollowCursor()
 }
 
 // drawChanges draws the list of changed files as h lines of w cells.
@@ -99,14 +93,14 @@ func drawChanges(ch screen.Changes, w, h int, focused bool) []string {
 	out := make([]string, 0, h)
 	chip := ch.Chip
 	tw := max(0, w-ansi.StringWidth(chip))
-	out = append(out, stSideTitle.Render(fit(ch.Title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(fit(chip, w-tw)))
+	out = append(out, stSideTitle.Render(core.Fit(ch.Title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(core.Fit(chip, w-tw)))
 	for i := range max(0, h-1) {
 		if i >= len(ch.Rows) {
 			msg := ""
 			if i == 0 {
 				msg = ch.Empty
 			}
-			out = append(out, stSide.Render(fit(msg, w)))
+			out = append(out, stSide.Render(core.Fit(msg, w)))
 			continue
 		}
 		row := ch.Rows[i]
@@ -123,10 +117,10 @@ func drawChanges(ch screen.Changes, w, h int, focused bool) []string {
 			if row.Closed {
 				mark = "▸ "
 			}
-			out = append(out, bgfg(bg, curTheme.SubSel).Render(fit(indent+mark+row.Name, w)))
+			out = append(out, bgfg(bg, core.CurTheme.SubSel).Render(core.Fit(indent+mark+row.Name, w)))
 			continue
 		}
-		col := styleColor(row.LetterStyle)
+		col := core.StyleColor(row.LetterStyle)
 		add, del := fmt.Sprintf(" +%d", row.Added), fmt.Sprintf(" -%d ", row.Deleted)
 		viewed, notes := " ", ""
 		if row.Viewed {
@@ -137,7 +131,7 @@ func drawChanges(ch screen.Changes, w, h int, focused bool) []string {
 		}
 		nameW := max(0, w-ansi.StringWidth(indent)-2-ansi.StringWidth(notes+add+del))
 		line := bgfg(bg, cAddSign).Render(viewed) + bgfg(bg, cSideFg).Render(indent[1:]) + bgfg(bg, col).Bold(true).Render(row.Letter) +
-			bgfg(bg, cSideFg).Render(" "+fit(row.Name, nameW)) + bgfg(bg, curTheme.Renamed).Render(notes) +
+			bgfg(bg, cSideFg).Render(" "+core.Fit(row.Name, nameW)) + bgfg(bg, core.CurTheme.Renamed).Render(notes) +
 			bgfg(bg, cAddSign).Render(add) + bgfg(bg, cDelSign).Render(del)
 		out = append(out, fitStyled(line, w, bgfg(bg, cSideFg)))
 	}
@@ -147,10 +141,10 @@ func drawChanges(ch screen.Changes, w, h int, focused bool) []string {
 // changeBar draws the bar of a diff Pane h cells high: a mark per change,
 // and a lighter background over the rows on screen.
 func changeBar(d *screen.DiffInfo, h int) []string {
-	kinds := barKinds(d.Rows, h, d.Hunks)
+	kinds := core.BarKinds(d.Rows, h, d.Hunks)
 	out := make([]string, h)
 	for i, k := range kinds {
-		lo, hi := barRange(i, h, d.Rows)
+		lo, hi := core.BarRange(i, h, d.Rows)
 		bg := cEditorBg
 		if hi > d.Top && lo < d.Top+h {
 			bg = cBarView
@@ -175,48 +169,48 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 	name := " " + title.Text
 	stats := fmt.Sprintf("  +%d", title.Added)
 	dels := fmt.Sprintf(" -%d", title.Deleted)
-	noteFg := curTheme.Renamed
+	noteFg := core.CurTheme.Renamed
 	if title.NoteWarn {
-		noteFg = curTheme.DiagWarn
+		noteFg = core.CurTheme.DiagWarn
 	}
 	hw := 0
 	if hint != "" {
 		hw = ansi.StringWidth(hint) + 1
 	}
 	nw := max(0, min(ansi.StringWidth(name), w-hw-ansi.StringWidth(stats+dels)))
-	head := bgfg(cTabBarBg, curTheme.Strong).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
+	head := bgfg(cTabBarBg, core.CurTheme.Strong).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
 		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +
 		bgfg(cTabBarBg, noteFg).Render(title.Note)
-	return fitStyled(head, max(0, w-hw), bgfg(cTabBarBg, curTheme.Strong)) +
-		bgfg(cTabBarBg, curTheme.Dim).Render(fit(" "+hint, hw))
+	return fitStyled(head, max(0, w-hw), bgfg(cTabBarBg, core.CurTheme.Strong)) +
+		bgfg(cTabBarBg, core.CurTheme.Dim).Render(core.Fit(" "+hint, hw))
 }
 
 // drawDiff draws the rows of the Panes of a diff (the last one is the current
-// side and has the change bar) as g.h lines.
-func drawDiff(panes []screen.Pane, g dvGeom, o editorOpts) []string {
+// side and has the change bar) as g.H lines.
+func drawDiff(panes []screen.Pane, g core.DiffGeom, o core.EditorOpts) []string {
 	cur := panes[len(panes)-1]
 	two := len(panes) == 2
-	bar := changeBar(cur.Diff, g.h)
-	ld := newLineDrawer(cur, g.rightW, o)
-	width := g.rightW
+	bar := changeBar(cur.Diff, g.H)
+	ld := newLineDrawer(cur, g.RightW, o)
+	width := g.RightW
 	if two {
-		width += g.leftW + 1
+		width += g.LeftW + 1
 	}
-	out := make([]string, 0, g.h)
-	for i := range g.h {
+	out := make([]string, 0, g.H)
+	for i := range g.H {
 		if i >= len(cur.Lines) {
-			out = append(out, stEmpty.Render(fit("", width))+bar[i])
+			out = append(out, stEmpty.Render(core.Fit("", width))+bar[i])
 			continue
 		}
 		pl := cur.Lines[i]
 		var line string
 		if pl.Blank || isDeletedLine(pl) { // the deleted lines of a unified diff
-			line = drawOldLine(cur, pl, g.rightW)
+			line = drawOldLine(cur, pl, g.RightW)
 		} else {
 			line = ld.draw(pl)
 		}
 		if two {
-			line = drawOldLine(panes[0], panes[0].Lines[i], g.leftW) + stSeparator.Render("│") + line
+			line = drawOldLine(panes[0], panes[0].Lines[i], g.LeftW) + stSeparator.Render("│") + line
 		}
 		out = append(out, line+bar[i])
 	}
@@ -227,9 +221,9 @@ func drawDiff(panes []screen.Pane, g dvGeom, o editorOpts) []string {
 // none), w cells wide.
 func drawOldLine(p screen.Pane, pl screen.Line, w int) string {
 	if pl.Blank {
-		return bgfg(cSideBg, cLineNo).Render(fit("", w))
+		return bgfg(cSideBg, cLineNo).Render(core.Fit("", w))
 	}
-	gw := gutterWidthFor(p.Viewport.Total)
+	gw := core.GutterWidthFor(p.Viewport.Total)
 	bg, sc, sign := cEditorBg, cLineNo, " "
 	if isDeletedLine(pl) {
 		bg, sc, sign = cDelBg, cDelSign, "-"
@@ -241,11 +235,11 @@ func drawOldLine(p screen.Pane, pl screen.Line, w int) string {
 // drawCompareBar draws the line above everything in diff mode: what is
 // compared with what. pr is the pull request whose base is compared with, nil
 // for HEAD; branch is the one checked out.
-func drawCompareBar(branch string, pr *prInfo, w int) string {
+func drawCompareBar(branch string, pr *core.PrInfo, w int) string {
 	bg := cTabBarBg
-	dim := bgfg(bg, curTheme.Dim)
+	dim := bgfg(bg, core.CurTheme.Dim)
 	text := bgfg(bg, cEditorFg)
-	strong := bgfg(bg, curTheme.Strong).Bold(true)
+	strong := bgfg(bg, core.CurTheme.Strong).Bold(true)
 	var sb strings.Builder
 	sb.WriteString(text.Render(" "))
 	tree := i18n.T("gd.worktree")
@@ -253,14 +247,14 @@ func drawCompareBar(branch string, pr *prInfo, w int) string {
 		tree = fmt.Sprintf(i18n.T("gd.worktreebranch"), branch)
 	}
 	if pr != nil {
-		sb.WriteString(bgfg(curTheme.Renamed, curTheme.CursorFg).Bold(true).Render(fmt.Sprintf(" PR #%d ", pr.Number)))
+		sb.WriteString(bgfg(core.CurTheme.Renamed, core.CurTheme.CursorFg).Bold(true).Render(fmt.Sprintf(" PR #%d ", pr.Number)))
 		sb.WriteString(strong.Render(" " + pr.Title))
 		state, col := pr.State, cAddSign
 		switch {
 		case pr.IsDraft && pr.State == "OPEN":
-			state, col = "DRAFT", curTheme.Dim
+			state, col = "DRAFT", core.CurTheme.Dim
 		case pr.State == "MERGED":
-			col = curTheme.Renamed
+			col = core.CurTheme.Renamed
 		case pr.State == "CLOSED":
 			col = cDelSign
 		}
@@ -270,15 +264,15 @@ func drawCompareBar(branch string, pr *prInfo, w int) string {
 		}
 		sb.WriteString(dim.Render(i18n.T("gd.comparing")) + strong.Render(pr.BaseRefName) + text.Render(i18n.T("gd.prbase")+tree))
 	} else {
-		sb.WriteString(bgfg(cAccent, curTheme.AccentFg).Bold(true).Render(" DIFF "))
+		sb.WriteString(bgfg(cAccent, core.CurTheme.AccentFg).Bold(true).Render(" DIFF "))
 		sb.WriteString(dim.Render(i18n.T("gd.comparing")) + strong.Render("HEAD") + text.Render(" ↔ "+tree))
 	}
 	return fitStyled(sb.String(), w, text)
 }
 
-// drawDiffHelp draws the keys of diff mode (diffHelp) on the line below it.
+// drawDiffHelp draws the keys of diff mode (DiffHelp) on the line below it.
 func drawDiffHelp(help string, w int) string {
-	return bgfg(cSideBg, curTheme.Dim).Render(fit(help, w))
+	return bgfg(cSideBg, core.CurTheme.Dim).Render(core.Fit(help, w))
 }
 
 // changedLine reports whether pl is a line of a change on the current side of
@@ -359,7 +353,7 @@ func drawSpans(spans []screen.Span, bg string, words []screen.Cols, wordBg strin
 		return used < w
 	}
 	for _, sp := range spans {
-		fg := styleColor(sp.Style)
+		fg := core.StyleColor(sp.Style)
 		if fg == "" {
 			fg = cEditorFg
 		}
@@ -374,8 +368,8 @@ func drawSpans(spans []screen.Span, bg string, words []screen.Cols, wordBg strin
 	return sb.String()
 }
 
-// highlightText draws text with syntax colors on bg, w cells wide (lexSpans
+// highlightText draws text with syntax colors on bg, w cells wide (LexSpans
 // drawn by drawSpans). The runes inside spans get markBg instead.
 func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, markBg string, w, skip int) string {
-	return drawSpans(lexSpans(text, lex), bg, colsOf(spans), markBg, w, skip)
+	return drawSpans(core.LexSpans(text, lex), bg, core.ColsOf(spans), markBg, w, skip)
 }

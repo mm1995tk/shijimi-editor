@@ -4,49 +4,29 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
-func TestLookupTheme(t *testing.T) {
-	cases := map[string]string{
-		"dark-plus":                  "dark-plus",
-		"Dark_Plus":                  "dark-plus",
-		"github_dark":                "github-dark",
-		"github_dark_dimmed":         "github-dark",
-		"github_light_high_contrast": "light-plus",
-		"light":                      "light-plus",
-		"light-plus":                 "light-plus",
-	}
-	for in, want := range cases {
-		th, ok := lookupTheme(in)
-		if !ok || th.Name != want {
-			t.Errorf("lookupTheme(%q) = %v, %v; want %s", in, th, ok, want)
-		}
-	}
-	if _, ok := lookupTheme("nope"); ok {
-		t.Error("unknown theme should not resolve")
-	}
-}
-
 func TestApplyThemeChangesColors(t *testing.T) {
-	defer applyTheme(defaultTheme)
-	applyTheme(&darkPlus)
+	defer applyTheme(core.DefaultTheme)
+	applyTheme(&core.DarkPlus)
 	dark := cEditorBg
-	applyTheme(&lightPlus)
-	if cEditorBg == dark || cEditorBg != lightPlus.EditorBg {
+	applyTheme(&core.LightPlus)
+	if cEditorBg == dark || cEditorBg != core.LightPlus.EditorBg {
 		t.Fatalf("cEditorBg = %s", cEditorBg)
 	}
-	if diagColor(1) != lightPlus.DiagError {
+	if core.DiagColor(1) != core.LightPlus.DiagError {
 		t.Fatal("diagnostic colors not themed")
 	}
-	if chromaStyle.Name != "light-plus" {
+	if core.ChromaStyle.Name != "light-plus" {
 		t.Fatal("syntax style not themed")
 	}
 }
 
 func TestTerminalDefaultColorsFollowTheme(t *testing.T) {
-	defer applyTheme(defaultTheme)
-	for _, th := range []*Theme{&darkPlus, &lightPlus} {
+	defer applyTheme(core.DefaultTheme)
+	for _, th := range []*core.Theme{&core.DarkPlus, &core.LightPlus} {
 		applyTheme(th)
 		bg := hexRGB(th.EditorBg)
 		want := fmt.Sprintf("48;2;%d;%d;%d", bg[0], bg[1], bg[2])

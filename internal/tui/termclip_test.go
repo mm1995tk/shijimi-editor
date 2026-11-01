@@ -1,10 +1,12 @@
 package tui
 
 import (
-	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
@@ -20,23 +22,23 @@ func TestTerminalOSC52Copies(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	tab := addTermTab(a)
 	tab.vt.Write([]byte("\x1b]52;c;5pel5pys6Kqe\x07"))
-	a.Update(termOutputMsg{id: tab.id})
-	if a.clipboard != "日本語" {
-		t.Fatalf("clipboard = %q, want 日本語", a.clipboard)
+	a.Update(core.TermOutputMsg{ID: tab.id})
+	if a.Clipboard != "日本語" {
+		t.Fatalf("clipboard = %q, want 日本語", a.Clipboard)
 	}
-	if a.msgErr || !strings.Contains(a.msg, "3 文字") {
-		t.Fatalf("msg = %q (err=%v), want a notice with 3 文字", a.msg, a.msgErr)
+	if a.MsgErr || !strings.Contains(a.Msg, "3 文字") {
+		t.Fatalf("msg = %q (err=%v), want a notice with 3 文字", a.Msg, a.MsgErr)
 	}
 }
 
 func TestTerminalOSC52TooLarge(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	a.clipboard = "keep"
+	a.Clipboard = "keep"
 	tab := addTermTab(a)
 	tab.vt.Write([]byte("\x1b]52;c;" + strings.Repeat("A", 3<<20) + "\x07"))
-	a.Update(termOutputMsg{id: tab.id})
-	if a.clipboard != "keep" || !a.msgErr {
-		t.Fatalf("clipboard = %q msg = %q (err=%v); want unchanged and an error", a.clipboard, a.msg, a.msgErr)
+	a.Update(core.TermOutputMsg{ID: tab.id})
+	if a.Clipboard != "keep" || !a.MsgErr {
+		t.Fatalf("clipboard = %q msg = %q (err=%v); want unchanged and an error", a.Clipboard, a.Msg, a.MsgErr)
 	}
 }
 
@@ -49,19 +51,19 @@ func TestTerminalDragSelectCopies(t *testing.T) {
 	a.View()
 	l := a.layout()
 	x0, y0 := l.rightX, l.panelY+2
-	a.handleMouse(a.locate(x0+6, y0, Mouse{Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(x0+3, y0+1, Mouse{Action: MouseMotion, Button: MouseLeft}))
-	a.handleMouse(a.locate(x0+3, y0+1, Mouse{Action: MouseRelease, Button: MouseLeft}))
-	if want := "world\n日本"; a.clipboard != want {
-		t.Fatalf("clipboard = %q, want %q", a.clipboard, want)
+	a.HandleMouse(a.locate(x0+6, y0, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+	a.HandleMouse(a.locate(x0+3, y0+1, core.Mouse{Action: core.MouseMotion, Button: core.MouseLeft}))
+	a.HandleMouse(a.locate(x0+3, y0+1, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+	if want := "world\n日本"; a.Clipboard != want {
+		t.Fatalf("clipboard = %q, want %q", a.Clipboard, want)
 	}
-	if a.focus != focusTerminal || !strings.Contains(a.msg, "8 文字") {
-		t.Fatalf("focus = %v msg = %q", a.focus, a.msg)
+	if a.Focus != core.FocusTerminal || !strings.Contains(a.Msg, "8 文字") {
+		t.Fatalf("focus = %v msg = %q", a.Focus, a.Msg)
 	}
 	if !a.term.sel.on {
 		t.Fatal("selection should stay drawn after the release")
 	}
-	a.Update(Key{Code: 'a', Text: "a"})
+	a.Update(core.Key{Code: 'a', Text: "a"})
 	if a.term.sel.on {
 		t.Fatal("a key press should clear the selection")
 	}
@@ -73,12 +75,12 @@ func TestTerminalClickDoesNotCopy(t *testing.T) {
 	tab := addTermTab(a)
 	a.View()
 	tab.vt.Write([]byte("hello"))
-	a.clipboard = "keep"
+	a.Clipboard = "keep"
 	l := a.layout()
-	a.handleMouse(a.locate(l.rightX+1, l.panelY+2, Mouse{Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(l.rightX+1, l.panelY+2, Mouse{Action: MouseRelease, Button: MouseLeft}))
-	if a.clipboard != "keep" || a.term.sel.on {
-		t.Fatalf("clipboard = %q sel = %+v; a click should not copy", a.clipboard, a.term.sel)
+	a.HandleMouse(a.locate(l.rightX+1, l.panelY+2, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+	a.HandleMouse(a.locate(l.rightX+1, l.panelY+2, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+	if a.Clipboard != "keep" || a.term.sel.on {
+		t.Fatalf("clipboard = %q sel = %+v; a click should not copy", a.Clipboard, a.term.sel)
 	}
 }
 
@@ -91,11 +93,11 @@ func TestTerminalShiftDragSelectsInMouseProgram(t *testing.T) {
 	a.View()
 	l := a.layout()
 	y := l.panelY + 2
-	a.handleMouse(a.locate(l.rightX, y, Mouse{Action: MousePress, Button: MouseLeft, Shift: true}))
-	a.handleMouse(a.locate(l.rightX+2, y, Mouse{Action: MouseMotion, Button: MouseLeft, Shift: true}))
-	a.handleMouse(a.locate(l.rightX+2, y, Mouse{Action: MouseRelease, Button: MouseLeft, Shift: true}))
-	if a.clipboard != "abc" || a.term.grab {
-		t.Fatalf("clipboard = %q grab = %v, want abc copied without the program", a.clipboard, a.term.grab)
+	a.HandleMouse(a.locate(l.rightX, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft, Shift: true}))
+	a.HandleMouse(a.locate(l.rightX+2, y, core.Mouse{Action: core.MouseMotion, Button: core.MouseLeft, Shift: true}))
+	a.HandleMouse(a.locate(l.rightX+2, y, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft, Shift: true}))
+	if a.Clipboard != "abc" || a.term.grab {
+		t.Fatalf("clipboard = %q grab = %v, want abc copied without the program", a.Clipboard, a.term.grab)
 	}
 }
 

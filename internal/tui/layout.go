@@ -1,9 +1,11 @@
 package tui
 
+import "github.com/mm1995tk/shijimi-editor/internal/core"
+
 // layout.go is where the screen is laid out in terminal cells: how wide each
 // pane is and where it starts. It belongs to the TUI. The state that decides
 // what is shown (core) never takes a layout; it asks the few questions below
-// (editRows, textCols, ...), which answer in rows and columns of a region.
+// (EditRows, TextCols, ...), which answer in rows and columns of a region.
 // Mouse positions arrive as a region plus a row and column in it (see Mouse),
 // and only the TUI turns those into screen cells.
 
@@ -23,8 +25,8 @@ type layout struct {
 func (a *App) layout() layout {
 	var l layout
 	l.statusY = a.h - 1
-	l.bodyH = a.bodyH()
-	if a.diffMode() {
+	l.bodyH = a.BodyH()
+	if a.DiffMode() {
 		l.top = 1
 	}
 	if a.showSide {
@@ -32,24 +34,24 @@ func (a *App) layout() layout {
 		l.rightX = l.sideW + 1
 	}
 	l.rightW = max(0, a.w-l.rightX)
-	if a.agentShown(l.sideW) {
-		l.agentW = a.agentWidth()
+	if a.AgentShown(l.sideW) {
+		l.agentW = a.AgentWidth()
 		l.agentX = a.w - l.agentW
 		l.rightW = max(0, l.agentX-1-l.rightX)
 	}
 	l.fullX, l.fullW = l.rightX, l.rightW
-	if a.splitWanted() && l.fullW >= minSplitW {
+	if a.SplitWanted() && l.fullW >= core.MinSplitW {
 		l.split = true
 		first := (l.fullW - 1) / 2
 		second := l.fullW - 1 - first
-		if a.focusedFirst() {
+		if a.FocusedFirst() {
 			l.rightW, l.otherX, l.otherW = first, l.fullX+first+1, second
 		} else {
 			l.rightX, l.rightW, l.otherX, l.otherW = l.fullX+first+1, second, l.fullX, first
 		}
 	}
 	l.editY = l.top + 1
-	if a.findShown() {
+	if a.FindShown() {
 		l.editY++
 	}
 	if a.showTerm {
@@ -60,28 +62,28 @@ func (a *App) layout() layout {
 	return l
 }
 
-// editRows is the number of text rows the editor shows.
-func (a *App) editRows() int { return a.layout().editH }
+// EditRows is the number of text rows the editor shows.
+func (a *App) EditRows() int { return a.layout().editH }
 
-// textCols is the width of the pane of t, its line numbers included,
-// from which a sideways scroll subtracts gutterWidth.
-func (a *App) textCols(t *tab) int { return a.editW(t, a.layout()) }
+// TextCols is the width of the pane of t, its line numbers included,
+// from which a sideways scroll subtracts GutterWidth.
+func (a *App) TextCols(t *core.Tab) int { return a.editW(t, a.layout()) }
 
-// diffBaseCols is the width of the base side of a split diff.
-func (a *App) diffBaseCols() int { return a.dvGeom(a.layout()).leftW }
+// DiffBaseCols is the width of the base side of a split diff.
+func (a *App) DiffBaseCols() int { return a.dvGeom(a.layout()).LeftW }
 
-// editorCols is the width of the editor area, which a split divides.
-func (a *App) editorCols() int { return a.layout().fullW }
+// EditorCols is the width of the editor area, which a split divides.
+func (a *App) EditorCols() int { return a.layout().fullW }
 
-// suggestionsShown reports whether the suggestion panel is open, in which case
+// SuggestionsShown reports whether the suggestion panel is open, in which case
 // the status line leaves the suggestion count to it.
-func (a *App) suggestionsShown() bool { return a.layout().agentW > 0 }
+func (a *App) SuggestionsShown() bool { return a.layout().agentW > 0 }
 
 // inEditorText reports whether the pointer is over the text of the current text
 // tab, where the sideways wheel scrolls it.
-func (a *App) inEditorText(l layout, msg Mouse) bool {
-	t := a.cur()
-	if t == nil || t.kind != tabText || a.fullPreview(t) || msg.Region != RegionEditor {
+func (a *App) inEditorText(l layout, msg core.Mouse) bool {
+	t := a.Cur()
+	if t == nil || t.Kind != core.TabText || a.FullPreview(t) || msg.Region != core.RegionEditor {
 		return false
 	}
 	top := l.editY - l.top
@@ -91,11 +93,23 @@ func (a *App) inEditorText(l layout, msg Mouse) bool {
 // cursorShown reports whether the cursor drawn at (x, y) is inside the text
 // of its pane: sideways scrolling can take it over the line numbers, the
 // base side of a split diff or off the edge.
-func (a *App) cursorShown(t *tab, l layout, x, y int) bool {
+func (a *App) cursorShown(t *core.Tab, l layout, x, y int) bool {
 	left, w, top, h := l.rightX, a.editW(t, l), l.editY, l.editH
-	if dv := a.diffFor(t); dv != nil {
+	if dv := a.DiffFor(t); dv != nil {
 		g := a.dvGeom(l)
-		left, top, h = g.rightX, g.top, g.h
+		left, top, h = g.RightX, g.Top, g.H
 	}
-	return x >= left+gutterWidth(t.buf) && x < left+w && x < a.w && y >= top && y < top+h
+	return x >= left+core.GutterWidth(t.Buf) && x < left+w && x < a.w && y >= top && y < top+h
+}
+
+// otherLayout is l for the pane that is not focused.
+func (l layout) otherLayout() layout {
+	l.rightX, l.rightW = l.otherX, l.otherW
+	return l
+}
+
+// inOtherPane reports whether the cell (x, y) is in the unfocused pane,
+// including its title row.
+func (l layout) inOtherPane(x, y int) bool {
+	return l.split && x >= l.otherX && x < l.otherX+l.otherW && y >= l.top && y < l.panelY
 }

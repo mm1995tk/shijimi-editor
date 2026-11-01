@@ -2,14 +2,14 @@ package tui
 
 import (
 	"charm.land/lipgloss/v2"
-	"github.com/alecthomas/chroma/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // applyTheme makes t the active theme: it rewrites the palette variables,
 // rebuilds precomputed styles, and invalidates color caches.
-func applyTheme(t *Theme) {
-	curTheme = t
-	themeGen++
+func applyTheme(t *core.Theme) {
+	core.ActivateTheme(t)
 
 	cEditorBg, cEditorFg, cSideBg, cSideFg = t.EditorBg, t.EditorFg, t.SideBg, t.SideFg
 	cTabBarBg, cTabInact, cTabInactFg = t.TabBarBg, t.TabInact, t.TabInactFg
@@ -28,45 +28,15 @@ func applyTheme(t *Theme) {
 	cHoverBg, cHoverFg, cHoverBorder = t.PaletteBg, t.EditorFg, t.Accent
 	cHoverRule = t.HoverRule
 
-	modeStyles = map[editMode]lipgloss.Style{
-		modeNormal: bgfg(t.ModeNormal, t.CursorFg).Bold(true),
-		modeInsert: bgfg(t.ModeInsert, t.CursorFg).Bold(true),
-		modeSelect: bgfg(t.ModeSelect, t.CursorFg).Bold(true),
+	modeStyles = map[core.EditMode]lipgloss.Style{
+		core.ModeNormal: bgfg(t.ModeNormal, t.CursorFg).Bold(true),
+		core.ModeInsert: bgfg(t.ModeInsert, t.CursorFg).Bold(true),
+		core.ModeSelect: bgfg(t.ModeSelect, t.CursorFg).Bold(true),
 	}
 
-	s := t.Syntax
-	chromaStyle = chroma.MustNewStyle(t.Name, chroma.StyleEntries{
-		chroma.Text:                s.Text,
-		chroma.Comment:             s.Comment,
-		chroma.CommentPreproc:      s.Preproc,
-		chroma.Keyword:             s.Keyword,
-		chroma.KeywordNamespace:    s.Namespace,
-		chroma.KeywordType:         s.Type,
-		chroma.Name:                s.Name,
-		chroma.NameBuiltin:         s.Type,
-		chroma.NameFunction:        s.Function,
-		chroma.NameClass:           s.Type,
-		chroma.NameConstant:        s.Const,
-		chroma.NameTag:             s.Keyword,
-		chroma.NameAttribute:       s.Name,
-		chroma.NameDecorator:       s.Function,
-		chroma.LiteralString:       s.String,
-		chroma.LiteralStringEscape: s.Escape,
-		chroma.LiteralNumber:       s.Number,
-		chroma.Operator:            s.Text,
-		chroma.Punctuation:         s.Text,
-		chroma.GenericHeading:      "bold " + s.Keyword,
-		chroma.GenericSubheading:   "bold " + s.Keyword,
-		chroma.GenericInserted:     s.Number,
-		chroma.GenericDeleted:      s.String,
-		chroma.GenericEmph:         "italic",
-		chroma.GenericStrong:       "bold",
-	})
-
 	cellStyles = map[cellStyle]lipgloss.Style{}
-	tokenColors = map[chroma.TokenType]string{}
 	rebuildStyles(t)
 }
 
 // init makes the default theme the active one before any config is read.
-func init() { applyTheme(defaultTheme) }
+func init() { applyTheme(core.DefaultTheme) }

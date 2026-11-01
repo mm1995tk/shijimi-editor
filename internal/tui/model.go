@@ -1,9 +1,14 @@
 package tui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
+)
 
 // model.go is the part of App that talks to bubbletea: what it draws and asks
-// of the terminal each frame, and the two calls bubbletea makes (Init, Update). It stays in tui.
+// of the terminal each frame, and the two calls bubbletea makes (Init,
+// Update).
 
 // View is bubbletea's view of the app: the frame (after fit brought the state up
 // to date) and the modes it needs of the terminal (alt screen, mouse motion,
@@ -13,7 +18,7 @@ func (a *App) View() tea.View {
 	frame, caretAt := a.renderFrame()
 	v := tea.NewView(frame)
 	// Image data goes out before the frame whose placeholder cells show it.
-	if g := takeGraphics(); g != "" && a.caret != nil {
+	if g := core.TakeGraphics(); g != "" && a.caret != nil {
 		_ = a.caret.Send([]byte(g))
 	}
 	v.AltScreen = true
@@ -34,22 +39,16 @@ func (a *App) View() tea.View {
 // timer; unless in single-file mode, waiting on the language servers and
 // probing the repository).
 func (a *App) Init() tea.Cmd {
-	if a.singleFile() {
-		return a.effectCmd(watchTimer())
+	if a.SingleFile() {
+		return a.effectCmd(core.WatchTimer())
 	}
-	return a.effectCmd(append([]Effect{WaitLSP{a.lspEvents()}, watchTimer()}, a.probeRepo()...)...)
+	return a.effectCmd(append([]core.Effect{core.WaitLSP{a.LspEvents()}, core.WatchTimer()}, a.ProbeRepo()...)...)
 }
 
+var _ tea.Model = (*App)(nil)
+
 // Update is bubbletea's call for each message: fromTea turns it into an Input
-// or an Event for Core.update, the state is brought up to date (transients,
-// split, last tab, LSP, selection), and the effects of the message and the
-// ones every round owes (auto-save, preview, lexing) become one tea.Cmd.
+// or an Event for Core.Update, whose Effects become one tea.Cmd.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	effs := a.update(a.fromTea(msg))
-	a.keepTransients()
-	a.normalizeSplit()
-	a.trackLast()
-	a.syncLSP()
-	a.notifySelection()
-	return a, a.effectCmd(batch(effs, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs(), a.semanticTabs())...)
+	return a, a.effectCmd(a.Core.Update(a.fromTea(msg))...)
 }

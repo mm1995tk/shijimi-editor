@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -14,7 +16,7 @@ func signaturePos(l layout, w, cx, cy int, box []string) (x, y int) {
 	for _, s := range box {
 		bw = max(bw, ansi.StringWidth(s))
 	}
-	x = clamp(cx, l.rightX, max(l.rightX, w-bw))
+	x = core.Clamp(cx, l.rightX, max(l.rightX, w-bw))
 	y = cy - len(box)
 	if y < l.editY {
 		y = cy + 1
@@ -36,7 +38,7 @@ func drawSignature(ov screen.Overlay, maxW int) []string {
 	sb.WriteString(stPalette.Render(" "))
 	line := sb.String()
 	if ansi.StringWidth(line) > maxW {
-		line = fit(line, maxW)
+		line = core.Fit(line, maxW)
 	}
 	return []string{line}
 }

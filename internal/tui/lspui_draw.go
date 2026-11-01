@@ -2,6 +2,8 @@ package tui
 
 import (
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -16,10 +18,10 @@ func drawCompletion(ov screen.Overlay) []string {
 	for i, it := range ov.Items {
 		st, dim := stPalette, stPaletteDim
 		if i == ov.Active {
-			st, dim = stPaletteSel, bgfg(cListSel, curTheme.SubSel)
+			st, dim = stPaletteSel, bgfg(cListSel, core.CurTheme.SubSel)
 		}
-		label := fit(" "+it.Label, w-9)
-		out = append(out, st.Render(label)+dim.Render(fit(" "+it.Kind, 9)))
+		label := core.Fit(" "+it.Label, w-9)
+		out = append(out, st.Render(label)+dim.Render(core.Fit(" "+it.Kind, 9)))
 	}
 	return out
 }

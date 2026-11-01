@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // fakeTmux plays the tmux server: it records the commands and keeps the zoom
@@ -74,7 +76,7 @@ func tmuxApp(t *testing.T) (*App, *fakeTmux) {
 	t.Helper()
 	t.Setenv("TMUX", "/tmp/tmux-1000/default,1,0")
 	a := newTestApp(t, "hello")
-	a.cfg.Experimental.Multiplexer = true
+	a.Cfg.Experimental.Multiplexer = true
 	f := &fakeTmux{}
 	a.mux.newBackend = func(kind string) muxBackend {
 		if kind == "tmux" {
@@ -82,19 +84,19 @@ func tmuxApp(t *testing.T) (*App, *fakeTmux) {
 		}
 		return nil
 	}
-	a.cfg.Terminal.Multiplexer = "tmux"
+	a.Cfg.Terminal.Multiplexer = "tmux"
 	return a, f
 }
 
 func TestTmuxToggle(t *testing.T) {
 	a, f := tmuxApp(t)
-	ctrlBacktick := Key{Code: '`', Mod: ModCtrl}
-	a.focus = focusEditor
+	ctrlBacktick := core.Key{Code: '`', Mod: core.ModCtrl}
+	a.Focus = core.FocusEditor
 	a.Update(ctrlBacktick)
 	if a.showTerm || a.term.cur() != nil {
 		t.Fatal("the built-in terminal must stay closed")
 	}
-	if !f.has("split-window -v -l 30% -c "+a.root+" -P -F #{pane_id}") || a.mux.id != "%2" || !a.mux.visible {
+	if !f.has("split-window -v -l 30% -c "+a.Root+" -P -F #{pane_id}") || a.mux.id != "%2" || !a.mux.visible {
 		t.Fatalf("not created: %v id=%q", f.calls, a.mux.id)
 	}
 	var split string
@@ -124,7 +126,7 @@ func TestTmuxToggle(t *testing.T) {
 		t.Fatalf("ended pane: split %d times, want 2", n)
 	}
 	// Quitting closes the pane.
-	a.quit()
+	a.Quit()
 	if !f.has("kill-pane -t %2") {
 		t.Fatalf("pane not closed: %v", f.calls)
 	}
@@ -140,25 +142,25 @@ func TestTmuxHideWhenAlreadyZoomed(t *testing.T) {
 
 func TestTmuxCommands(t *testing.T) {
 	a, f := tmuxApp(t)
-	a.execCommand("sh make test")
+	a.ExecCommand("sh make test")
 	if !f.has("send-keys -t %2 -l -- make test") || !f.has("send-keys -t %2 Enter") {
 		t.Fatalf("calls: %v", f.calls)
 	}
-	a.execCommand("sh hide")
+	a.ExecCommand("sh hide")
 	if !f.zoomed {
 		t.Fatalf("calls: %v", f.calls)
 	}
 	f.calls = nil
-	a.ctx = &ctxPreview{text: "ctx"}
-	a.handleContextKey(Key{Code: KeyEnter})
+	a.Ctx = &core.CtxPreview{Text: "ctx"}
+	a.HandleContextKey(core.Key{Code: KeyEnter})
 	if !f.has("set-buffer -b shijimi -- ctx") || !f.has("paste-buffer -d -p -b shijimi -t %2") || f.has("send-keys") {
 		t.Fatalf("context must be pasted without Enter: %v", f.calls)
 	}
 	f.fail = "resize-pane"
-	a.msg = ""
-	a.execCommand("sh hide")
-	if !a.msgErr || !strings.Contains(a.msg, "boom") {
-		t.Fatalf("error not shown: %q", a.msg)
+	a.Msg = ""
+	a.ExecCommand("sh hide")
+	if !a.MsgErr || !strings.Contains(a.Msg, "boom") {
+		t.Fatalf("error not shown: %q", a.Msg)
 	}
 }
 
@@ -176,18 +178,18 @@ func TestTmuxSplitEnv(t *testing.T) {
 
 func TestTmuxOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := tmuxApp(t)
-	a.cfg.Experimental.Multiplexer = false
-	if a.muxOn() {
+	a.Cfg.Experimental.Multiplexer = false
+	if a.MuxOn() {
 		t.Fatal("tmux must be off when the setting is off")
 	}
 	a.resolveMux()
 	t.Setenv("TMUX", "")
-	a.cfg.Experimental.Multiplexer = true
+	a.Cfg.Experimental.Multiplexer = true
 	a.resolveMux()
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("tmux must be off outside tmux")
 	}
-	a.toggleTerm()
+	a.ToggleTerm()
 	if !a.showTerm || len(f.calls) != 0 {
 		t.Fatalf("built-in terminal expected: showTerm=%v calls=%v", a.showTerm, f.calls)
 	}
@@ -198,24 +200,24 @@ func TestTmuxCommandEnd(t *testing.T) {
 	a, _ := tmuxApp(t)
 	a.mux.id = "%2"
 	a.resolveMux()
-	a.commandEnded(1)
-	if len(a.sg.fails) != 1 || a.sg.fails[0].code != 1 {
-		t.Fatalf("fails: %+v", a.sg.fails)
+	a.CommandEnded(1)
+	if len(a.Sg.Fails) != 1 || a.Sg.Fails[0].Code != 1 {
+		t.Fatalf("fails: %+v", a.Sg.Fails)
 	}
-	if out := a.sg.fails[0].output; len(out) == 0 || out[len(out)-1] != "make: *** error" {
+	if out := a.Sg.Fails[0].Output; len(out) == 0 || out[len(out)-1] != "make: *** error" {
 		t.Fatalf("output must lose the padding: %q", out)
 	}
-	a.commandEnded(0)
-	if len(a.sg.fails) != 0 {
-		t.Fatalf("success must clear: %+v", a.sg.fails)
+	a.CommandEnded(0)
+	if len(a.Sg.Fails) != 0 {
+		t.Fatalf("success must clear: %+v", a.Sg.Fails)
 	}
 }
 
 func TestTmuxAutoFollowsParents(t *testing.T) {
 	a, _ := tmuxApp(t)
-	a.cfg.Terminal.Multiplexer = "auto"
+	a.Cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "tmux: server", "systemd")
-	if !a.muxOn() || a.mux.b.name() != "tmux" {
+	if !a.MuxOn() || a.mux.b.name() != "tmux" {
 		t.Fatalf("tmux parent not used: %v", a.mux.b)
 	}
 }

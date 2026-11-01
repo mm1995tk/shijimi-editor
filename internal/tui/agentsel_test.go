@@ -5,42 +5,44 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // agentSelApp opens the panel with a log and returns the layout.
-func agentSelApp(t *testing.T, log ...logEntry) (*App, layout) {
+func agentSelApp(t *testing.T, log ...core.LogEntry) (*App, layout) {
 	t.Helper()
 	a := newTestApp(t, "x\n")
-	a.handleKey(Key{Code: 'i', Mod: ModAlt})
-	a.ag.log = log
+	a.HandleKey(core.Key{Code: 'i', Mod: core.ModAlt})
+	a.Ag.Log = log
 	a.render()
 	return a, a.layout()
 }
 
-func agentRowY(a *App, l layout, i int) int { return l.top + a.ag.view.y0 + (i - a.ag.view.start) }
+func agentRowY(a *App, l layout, i int) int { return l.top + a.Ag.View.Y0 + (i - a.Ag.View.Start) }
 
 func TestAgentDragSelectCopies(t *testing.T) {
-	a, l := agentSelApp(t, logEntry{kind: logInfo, text: "hello world\n日本語です"})
+	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: "hello world\n日本語です"})
 	y := agentRowY(a, l, 0)
 	// the log starts with one column of indent
-	a.handleMouse(a.locate(l.agentX+7, y, Mouse{Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(l.agentX+4, y+1, Mouse{Action: MouseMotion, Button: MouseLeft}))
-	a.handleMouse(a.locate(l.agentX+4, y+1, Mouse{Action: MouseRelease, Button: MouseLeft}))
-	if want := "world\n日本"; a.clipboard != want {
-		t.Fatalf("clipboard = %q, want %q", a.clipboard, want)
+	a.HandleMouse(a.locate(l.agentX+7, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+	a.HandleMouse(a.locate(l.agentX+4, y+1, core.Mouse{Action: core.MouseMotion, Button: core.MouseLeft}))
+	a.HandleMouse(a.locate(l.agentX+4, y+1, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+	if want := "world\n日本"; a.Clipboard != want {
+		t.Fatalf("clipboard = %q, want %q", a.Clipboard, want)
 	}
-	if !strings.Contains(a.msg, "8 文字") || !a.ag.sel.on {
-		t.Fatalf("msg = %q sel = %+v", a.msg, a.ag.sel)
+	if !strings.Contains(a.Msg, "8 文字") || !a.Ag.Sel.On {
+		t.Fatalf("msg = %q sel = %+v", a.Msg, a.Ag.Sel)
 	}
 	drawn := strings.Join(a.renderAgent(l.agentW, l.bodyH, true), "\n")
-	a.ag.sel.on = false
+	a.Ag.Sel.On = false
 	plain := strings.Join(a.renderAgent(l.agentW, l.bodyH, true), "\n")
-	a.ag.sel.on = true
+	a.Ag.Sel.On = true
 	if drawn == plain || ansi.Strip(drawn) != ansi.Strip(plain) {
 		t.Fatal("selection should change only the style of the text")
 	}
-	a.Update(Key{Code: 'a', Text: "a"})
-	if a.ag.sel.on {
+	a.Update(core.Key{Code: 'a', Text: "a"})
+	if a.Ag.Sel.On {
 		t.Fatal("a key press should clear the selection")
 	}
 }
@@ -48,19 +50,19 @@ func TestAgentDragSelectCopies(t *testing.T) {
 func TestAgentSelectionJoinsWrappedRows(t *testing.T) {
 	long := strings.Repeat("word ", 20) + "https://example.com/" + strings.Repeat("x", 80)
 	a, l := agentSelApp(t,
-		logEntry{kind: logAgent, text: long},
-		logEntry{kind: logInfo, text: long})
-	n := len(a.ag.view.rows)
+		core.LogEntry{Kind: core.LogAgent, Text: long},
+		core.LogEntry{Kind: core.LogInfo, Text: long})
+	n := len(a.Ag.View.Rows)
 	if n < 6 {
 		t.Fatalf("only %d rows", n)
 	}
-	a.ag.scroll = 0
+	a.Ag.Scroll = 0
 	a.render()
-	top := a.ag.view.start
-	w := a.ag.view.w
+	top := a.Ag.View.Start
+	w := a.Ag.View.W
 	// from the first row to the last, all of it
-	a.ag.sel = agentSel{on: true, a: agentPos{top, 0}, b: agentPos{top + n - 1, w - 1}}
-	got := a.ag.sel.text(a.ag.view.rows, w)
+	a.Ag.Sel = core.AgentSel{On: true, A: core.AgentPos{top, 0}, B: core.AgentPos{top + n - 1, w - 1}}
+	got := a.Ag.Sel.Text(a.Ag.View.Rows, w)
 	if want := long + "\n" + long; got != want {
 		t.Fatalf("copied\n%q\nwant\n%q", got, want)
 	}
@@ -68,62 +70,49 @@ func TestAgentSelectionJoinsWrappedRows(t *testing.T) {
 }
 
 func TestAgentSelectionOutsidePanel(t *testing.T) {
-	a, l := agentSelApp(t, logEntry{kind: logInfo, text: "abc\ndef"})
+	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: "abc\ndef"})
 	y := agentRowY(a, l, 0)
-	a.handleMouse(a.locate(l.agentX+1, y, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.HandleMouse(a.locate(l.agentX+1, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
 	// dragged far left of the panel and below it
-	a.handleMouse(a.locate(0, y+1, Mouse{Action: MouseMotion, Button: MouseLeft}))
-	a.handleMouse(a.locate(0, a.h-1, Mouse{Action: MouseRelease, Button: MouseLeft}))
-	if a.ag.sel.dragging || a.clipboard == "" || strings.Contains(a.clipboard, "x") {
-		t.Fatalf("sel = %+v clipboard = %q", a.ag.sel, a.clipboard)
+	a.HandleMouse(a.locate(0, y+1, core.Mouse{Action: core.MouseMotion, Button: core.MouseLeft}))
+	a.HandleMouse(a.locate(0, a.h-1, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+	if a.Ag.Sel.Dragging || a.Clipboard == "" || strings.Contains(a.Clipboard, "x") {
+		t.Fatalf("sel = %+v clipboard = %q", a.Ag.Sel, a.Clipboard)
 	}
 }
 
 func TestAgentClickDoesNotCopy(t *testing.T) {
-	a, l := agentSelApp(t, logEntry{kind: logInfo, text: "hello"})
-	a.focus = focusEditor
-	a.clipboard = "keep"
+	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: "hello"})
+	a.Focus = core.FocusEditor
+	a.Clipboard = "keep"
 	y := agentRowY(a, l, 0)
-	a.handleMouse(a.locate(l.agentX+2, y, Mouse{Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(l.agentX+2, y, Mouse{Action: MouseRelease, Button: MouseLeft}))
-	if a.clipboard != "keep" || a.ag.sel.on || a.focus != focusAgent {
-		t.Fatalf("clipboard = %q sel = %+v focus = %v", a.clipboard, a.ag.sel, a.focus)
+	a.HandleMouse(a.locate(l.agentX+2, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+	a.HandleMouse(a.locate(l.agentX+2, y, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+	if a.Clipboard != "keep" || a.Ag.Sel.On || a.Focus != core.FocusAgent {
+		t.Fatalf("clipboard = %q sel = %+v focus = %v", a.Clipboard, a.Ag.Sel, a.Focus)
 	}
 }
 
 func TestAgentSelectionStaysOnTextWhenScrolled(t *testing.T) {
-	var log []logEntry
+	var log []core.LogEntry
 	for i := range 60 {
-		log = append(log, logEntry{kind: logInfo, text: strings.Repeat("a", i%9+1)})
+		log = append(log, core.LogEntry{Kind: core.LogInfo, Text: strings.Repeat("a", i%9+1)})
 	}
 	a, l := agentSelApp(t, log...)
-	y := agentRowY(a, l, a.ag.view.start+2)
-	a.handleMouse(a.locate(l.agentX+1, y, Mouse{Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(l.agentX+3, y, Mouse{Action: MouseRelease, Button: MouseLeft}))
-	before := ansi.Strip(a.ag.view.rows[a.ag.sel.a.row].plain)
-	a.handleMouse(a.locate(l.agentX+3, y, Mouse{Action: MousePress, Button: MouseWheelUp}))
+	y := agentRowY(a, l, a.Ag.View.Start+2)
+	a.HandleMouse(a.locate(l.agentX+1, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+	a.HandleMouse(a.locate(l.agentX+3, y, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+	before := ansi.Strip(a.Ag.View.Rows[a.Ag.Sel.A.Row].Plain)
+	a.HandleMouse(a.locate(l.agentX+3, y, core.Mouse{Action: core.MousePress, Button: core.MouseWheelUp}))
 	a.render()
-	if !a.ag.sel.on || ansi.Strip(a.ag.view.rows[a.ag.sel.a.row].plain) != before {
-		t.Fatalf("selection moved: %+v", a.ag.sel)
-	}
-}
-
-func TestAgentSelectionDropsQuoteBars(t *testing.T) {
-	long := "quoted text that is long enough to wrap around the panel more than once so we see the bar"
-	a, _ := agentSelApp(t, logEntry{kind: logAgent, text: "> " + long})
-	rows, w := a.ag.view.rows, a.ag.view.w
-	if len(rows) < 3 {
-		t.Fatalf("only %d rows", len(rows))
-	}
-	s := agentSel{on: true, a: agentPos{0, 0}, b: agentPos{len(rows) - 1, w - 1}}
-	if got, want := s.text(rows, w), "▎ "+long; got != want {
-		t.Fatalf("copied %q, want %q", got, want)
+	if !a.Ag.Sel.On || ansi.Strip(a.Ag.View.Rows[a.Ag.Sel.A.Row].Plain) != before {
+		t.Fatalf("selection moved: %+v", a.Ag.Sel)
 	}
 }
 
 func TestMarkRowKeepsColors(t *testing.T) {
 	row := stStatusError.Render("abcd")
-	got := markRow(row, 4, 1, 3)
+	got := core.MarkRow(row, 4, 1, 3)
 	if ansi.Strip(got) != "abcd" || !strings.Contains(got, "\x1b[7m") || strings.Count(got, "\x1b[27m") != 1 {
 		t.Fatalf("got %q", got)
 	}
@@ -132,21 +121,34 @@ func TestMarkRowKeepsColors(t *testing.T) {
 	}
 }
 
+// renderAgent draws the panel from the state fit left, the way View does.
+func (a *App) renderAgent(w, h int, focused bool) []string {
+	return drawAgent(a.AgentScreen(w, h, focused), w, h, focused)
+}
+
+func TestAgentSelectionDropsQuoteBars(t *testing.T) {
+	long := "quoted text that is long enough to wrap around the panel more than once so we see the bar"
+	a, _ := agentSelApp(t, core.LogEntry{Kind: core.LogAgent, Text: "> " + long})
+	rows, w := a.Ag.View.Rows, a.Ag.View.W
+	if len(rows) < 3 {
+		t.Fatalf("only %d rows", len(rows))
+	}
+	s := core.AgentSel{On: true, A: core.AgentPos{0, 0}, B: core.AgentPos{len(rows) - 1, w - 1}}
+	if got, want := s.Text(rows, w), "▎ "+long; got != want {
+		t.Fatalf("copied %q, want %q", got, want)
+	}
+}
+
 func TestAgentSelectionKeepsSpacesOfWrappedCode(t *testing.T) {
 	code := "x := 1" + strings.Repeat(" ", 37) + "// note\twith\ta tab and 日本語 that goes on and on past the edge"
-	a, _ := agentSelApp(t, logEntry{kind: logAgent, text: "```go\n" + code + "\n```"})
-	rows, w := a.ag.view.rows, a.ag.view.w
+	a, _ := agentSelApp(t, core.LogEntry{Kind: core.LogAgent, Text: "```go\n" + code + "\n```"})
+	rows, w := a.Ag.View.Rows, a.Ag.View.W
 	if len(rows) < 5 {
 		t.Fatalf("code not wrapped: %d rows", len(rows))
 	}
 	// the rows of the code line, between the language label and the bottom edge
-	a.ag.sel = agentSel{on: true, a: agentPos{1, 0}, b: agentPos{len(rows) - 2, w - 1}}
-	if got := a.ag.sel.text(rows, w); got != strings.ReplaceAll(code, "\t", "    ") {
+	a.Ag.Sel = core.AgentSel{On: true, A: core.AgentPos{1, 0}, B: core.AgentPos{len(rows) - 2, w - 1}}
+	if got := a.Ag.Sel.Text(rows, w); got != strings.ReplaceAll(code, "\t", "    ") {
 		t.Fatalf("copied\n%q\nwant\n%q", got, code)
 	}
-}
-
-// renderAgent draws the panel from the state fit left, the way View does.
-func (a *App) renderAgent(w, h int, focused bool) []string {
-	return drawAgent(a.agentScreen(w, h, focused), w, h, focused)
 }

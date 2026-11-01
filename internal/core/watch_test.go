@@ -1,0 +1,137 @@
+package core
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+func touchLater(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	future := time.Now().Add(time.Minute)
+	os.Chtimes(path, future, future)
+}
+
+func TestWatchReloadsCleanBuffer(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	tb := a.CurText()
+	touchLater(t, tb.Buf.Path, "agent\n")
+	a.Update(WatchTick{})
+	if got := tb.Buf.Text(); got != "agent\n" || tb.dirty() {
+		t.Fatalf("not reloaded: %q dirty=%v", got, tb.dirty())
+	}
+	if a.MsgErr || a.Msg == "" {
+		t.Fatalf("no info message: %q", a.Msg)
+	}
+}
+
+func TestWatchKeepsUnsavedEdits(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	tb := a.CurText()
+	keys(a, "i", "x")
+	touchLater(t, tb.Buf.Path, "agent\n")
+	a.Update(WatchTick{})
+	if got := tb.Buf.Text(); got != "xone\n" || !tb.conflict || !a.MsgErr {
+		t.Fatalf("edits lost or no warning: %q conflict=%v", got, tb.conflict)
+	}
+	// auto-save must not overwrite the other process's change
+	a.Update(AutoSaveDue{tab: tb, ver: tb.Buf.Version})
+	if b, _ := os.ReadFile(tb.Buf.Path); string(b) != "agent\n" {
+		t.Fatalf("auto-save overwrote disk: %q", b)
+	}
+	// :reload takes the disk version
+	a.ExecCommand("reload")
+	if got := tb.Buf.Text(); got != "agent\n" || tb.Buf.DiskChanged() {
+		t.Fatalf("reload: %q", got)
+	}
+	a.Update(WatchTick{})
+	if tb.conflict {
+		t.Fatal("conflict not cleared")
+	}
+}
+
+func TestWatchDisabled(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	a.Cfg.Editor.WatchFiles = false
+	tb := a.CurText()
+	touchLater(t, tb.Buf.Path, "agent\n")
+	a.Update(WatchTick{})
+	if tb.Buf.Text() != "one\n" {
+		t.Fatal("reloaded while disabled")
+	}
+}
+
+func TestWatchIgnoresDeletedFile(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	tb := a.CurText()
+	os.Remove(tb.Buf.Path)
+	a.Update(WatchTick{})
+	if got := tb.Buf.Text(); got != "one\n" || tb.dirty() {
+		t.Fatalf("buffer changed after delete: %q", got)
+	}
+}
+
+func TestWatchRefreshesTreeAfterExternalChange(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
+	a := newTestApp(t, "one\n")
+	dir := a.Explorer.root.Path
+	// b.txt is not open in a tab, so only the periodic refresh can notice it.
+	path := filepath.Join(dir, "b.txt")
+	os.WriteFile(path, []byte("b\n"), 0o644)
+	if out, err := run(dir, nil, "git", "init", "-q"); err != nil {
+		t.Skipf("git unavailable: %v %s", err, out)
+	}
+	git := []string{"-c", "user.name=t", "-c", "user.email=t@t"}
+	if out, err := run(dir, nil, "git", append(git, "add", "a.txt", "b.txt")...); err != nil {
+		t.Skipf("git add failed: %v %s", err, out)
+	}
+	if out, err := run(dir, nil, "git", append(git, "commit", "-qm", "init")...); err != nil {
+		t.Skipf("git commit failed: %v %s", err, out)
+	}
+	a.Explorer.Refresh()
+	if a.Explorer.Git[path] != "" {
+		t.Fatalf("clean file marked: %q", a.Explorer.Git[path])
+	}
+	tick := func(n int) {
+		for range n {
+			a.Update(WatchTick{})
+		}
+	}
+	hasNode := func(name string) bool {
+		for _, n := range a.Explorer.Flat {
+			if n.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+
+	os.WriteFile(filepath.Join(dir, "new.txt"), []byte("x"), 0o644)
+	os.WriteFile(path, []byte("changed\n"), 0o644)
+	tick(treeRefreshTicks - 1)
+	if a.Explorer.Git[path] != "" || hasNode("new.txt") {
+		t.Fatal("tree refreshed before treeRefreshTicks")
+	}
+	tick(1)
+	if a.Explorer.Git[path] != "M" {
+		t.Fatalf("modified mark missing: %q", a.Explorer.Git[path])
+	}
+	if !hasNode("new.txt") {
+		t.Fatal("externally created file not in tree")
+	}
+
+	run(dir, nil, "git", "checkout", ".")
+	tick(treeRefreshTicks - 1)
+	if a.Explorer.Git[path] != "M" {
+		t.Fatalf("mark cleared before treeRefreshTicks: %q", a.Explorer.Git[path])
+	}
+	tick(1)
+	if a.Explorer.Git[path] != "" {
+		t.Fatalf("stale mark: %q", a.Explorer.Git[path])
+	}
+}
