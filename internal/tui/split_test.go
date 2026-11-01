@@ -123,3 +123,81 @@ func TestRenderFrameReadsQueries(t *testing.T) {
 		t.Fatal("renderFrame not found in app_draw.go")
 	}
 }
+
+// appOnlyFields are the fields that stay on App when it is split: they are
+// not in Core (the struct, in app.go).
+var appOnlyFields = []string{
+	"caret", "cellSize", "w", "h", "term", "mux", "showSide", "showTerm", "showAgent",
+	"sideWPref", "panelHPref", "previewPct", "diffLeftPct", "explorerPct", "agentWPref",
+	"resizeMode", "resizing", "keyReleases", "askReleases", "quitting", "capture",
+}
+
+// appFieldFiles are the files that stay in tui and so may read appOnlyFields.
+var appFieldFiles = []string{
+	"app_draw.go", "caret.go", "layout.go", "mouse.go", "resize.go", "mux.go",
+	"eventtui.go", "inputtea.go", "ideproposal_draw.go", "prreview_draw.go",
+}
+
+// appFieldTodo are files that go to core but still read appOnlyFields (the
+// size of the screen, whether a region is shown, the terminal). Each reads
+// them for a question core must answer without them: shrink this list, never
+// add to it.
+var appFieldTodo = []string{
+	"agent.go", "agentpanel.go", "app.go", "commands.go", "context.go", "gitdiff.go",
+	"halfpage.go", "helix.go", "hovermouse.go", "ideproposal.go", "linenumber.go",
+	"palette.go", "paste.go", "searchui.go", "suggest.go",
+}
+
+// TestCoreFields keeps Core free of the fields that stay on App, and files
+// that go to core from reading them (a ratchet: appFieldTodo only shrinks).
+func TestCoreFields(t *testing.T) {
+	fset := token.NewFileSet()
+	appFile, err := parser.ParseFile(fset, "app.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ast.Inspect(appFile, func(n ast.Node) bool {
+		ts, ok := n.(*ast.TypeSpec)
+		if !ok || ts.Name.Name != "Core" {
+			return true
+		}
+		for _, f := range ts.Type.(*ast.StructType).Fields.List {
+			for _, id := range f.Names {
+				if slices.Contains(appOnlyFields, id.Name) {
+					t.Errorf("Core has the field %s, which stays on App", id.Name)
+				}
+			}
+		}
+		return false
+	})
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		reads := ""
+		ast.Inspect(f, func(n ast.Node) bool {
+			if sel, ok := n.(*ast.SelectorExpr); ok {
+				if id, ok := sel.X.(*ast.Ident); ok && id.Name == "a" && slices.Contains(appOnlyFields, sel.Sel.Name) {
+					reads = sel.Sel.Name
+				}
+			}
+			return reads == ""
+		})
+		todo := slices.Contains(appFieldTodo, name)
+		if reads != "" && !todo && !slices.Contains(appFieldFiles, name) {
+			t.Errorf("%s reads a.%s, which stays on App; only %v may (and the files to be moved: appFieldTodo)", name, reads, appFieldFiles)
+		}
+		if reads == "" && todo {
+			t.Errorf("%s no longer reads the App-only fields; remove it from appFieldTodo", name)
+		}
+	}
+}
