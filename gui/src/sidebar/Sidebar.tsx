@@ -12,6 +12,7 @@ const healthLabel: Record<Health, string> = {
   down: "つながっていません",
 };
 
+/** 左の一覧。つないだマシンごとに見出しとワークスペースの帯を出し、帯を押すと onFocus を呼ぶ。 */
 export function Sidebar(props: {
   groups: MachineGroup[];
   onFocus: (target: string, id: WorkspaceId) => void;

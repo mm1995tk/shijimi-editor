@@ -125,4 +125,28 @@ describe("keepFocus", () => {
     assert.equal(keepFocus(cur, {}), null);
     assert.equal(keepFocus(null, {}), null);
   });
+
+  it("外れたら、ほかのマシンの shj のフォーカスで一覧にあるものを使う", () => {
+    const cur = { target: "a", id: "x" };
+    const lists = {
+      a: [],
+      b: [ws({ id: "y", root: "/y" })],
+      c: [ws({ id: "z", root: "/z" })],
+    };
+    assert.deepEqual(keepFocus(cur, lists, { a: "x", b: null, c: "z" }), {
+      target: "c",
+      id: "z",
+    });
+    assert.deepEqual(keepFocus(null, lists, { b: "y", c: "z" }), {
+      target: "b",
+      id: "y",
+    });
+    // 一覧に無いフォーカスは使わない
+    assert.equal(keepFocus(cur, lists, { b: "gone" }), null);
+    // まだあれば、ほかの候補では動かさない
+    assert.equal(
+      keepFocus({ target: "b", id: "y" }, lists, { c: "z" })?.target,
+      "b",
+    );
+  });
 });

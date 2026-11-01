@@ -17,6 +17,7 @@ export interface WorkspaceFocus {
 /** 見出しの横の丸。つながっている・つなぎ直している・それ以外。 */
 export type Health = "up" | "pending" | "down";
 
+/** ワークスペース 1 つ分の帯に出すもの。 */
 export interface Band {
   id: WorkspaceId;
   /** 帯の名前。目印（.git / .shijimi-editor/）が無いワークスペースはルートのパス */
@@ -30,6 +31,7 @@ export interface Band {
   focused: boolean;
 }
 
+/** マシン 1 台分（見出しと、その下の帯）に出すもの。 */
 export interface MachineGroup {
   target: string;
   /** 見出しの文字（このマシン / ssh のホスト名） */
@@ -104,8 +106,8 @@ export function buildSidebar(
 }
 
 /**
- * フォーカスがまだ無いときに、shj が教えてくれたフォーカスを使うか。
- * GUI のフォーカスは 1 つなので、先に分かったマシンのものを使い、あとから分かったものでは動かさない。
+ * shj が教えてくれたフォーカスを GUI のフォーカスに反映する。GUI のフォーカスは 1 つなので、
+ * フォーカスが無ければそれを使い、同じマシンのものなら追い（null なら外す）、別のマシンのものでは動かさない。
  */
 export function adoptFocus(
   current: WorkspaceFocus | null,
@@ -113,7 +115,7 @@ export function adoptFocus(
   shjFocus: WorkspaceId | null,
 ): WorkspaceFocus | null {
   if (current) {
-    // そのマシンでフォーカス先が消えたら、フォーカスを外す
+    // 同じマシンで shj のフォーカスが変われば追い、消えれば外す
     if (current.target === target && shjFocus !== current.id) {
       return shjFocus === null ? null : { target, id: shjFocus };
     }
@@ -122,12 +124,23 @@ export function adoptFocus(
   return shjFocus === null ? null : { target, id: shjFocus };
 }
 
-/** そのマシンの一覧が変わった・切ったあとに、フォーカス先がまだあるかを確かめる。 */
+/**
+ * 一覧が変わった・切った・フォーカスが外れたあとに、フォーカス先がまだあるかを確かめる。
+ * 無くなっていたら、ほかのマシンの shj のフォーカス（shjFocus の順）のうち一覧にあるものを使う
+ * （起動直後の「先に分かったものを使う」に合わせ、印の無い状態を続けない）。どれも無ければ null。
+ */
 export function keepFocus(
   current: WorkspaceFocus | null,
   workspaces: Record<string, Workspace[] | undefined>,
+  shjFocus: Record<string, WorkspaceId | null | undefined> = {},
 ): WorkspaceFocus | null {
-  if (!current) return null;
-  const ws = workspaces[current.target];
-  return ws?.some((w) => w.id === current.id) ? current : null;
+  const exists = (f: WorkspaceFocus) =>
+    workspaces[f.target]?.some((w) => w.id === f.id) ?? false;
+  if (current && exists(current)) return current;
+  for (const [target, id] of Object.entries(shjFocus)) {
+    if (id == null) continue;
+    const f = { target, id };
+    if (exists(f)) return f;
+  }
+  return null;
 }

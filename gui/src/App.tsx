@@ -36,8 +36,6 @@ import {
 import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
 
-const label = machineLabel;
-
 /** 一覧に出す 1 行の状態。 */
 export function describeState(
   s: SessionState | undefined,
@@ -140,6 +138,13 @@ export function App(props: {
     }
   });
 
+  /** マシンごとの shj のフォーカス（GUI のフォーカスが外れたときの代わりの候補）。 */
+  function shjFocuses(): Record<string, WorkspaceId | null> {
+    return Object.fromEntries(
+      Object.entries(sessions()).map(([t, s]) => [t, s.focus]),
+    );
+  }
+
   function connect(target: string) {
     const old = sessions()[target];
     if (old) {
@@ -154,10 +159,12 @@ export function App(props: {
     const offWs = s.onWorkspaces((ws) => {
       recordWorkspaces(store, target, ws.length);
       setWorkspaces((m) => ({ ...m, [target]: ws }));
-      setFocus((f) => keepFocus(f, workspaces()));
+      setFocus((f) => keepFocus(f, workspaces(), shjFocuses()));
     });
     const offFocus = s.onFocus((id) =>
-      setFocus((f) => adoptFocus(f, target, id)),
+      setFocus((f) =>
+        keepFocus(adoptFocus(f, target, id), workspaces(), shjFocuses()),
+      ),
     );
     offStates.set(target, () => {
       off();
@@ -177,7 +184,7 @@ export function App(props: {
     setSessions(({ [target]: _, ...rest }) => rest);
     setStates(({ [target]: _, ...rest }) => rest);
     setWorkspaces(({ [target]: _, ...rest }) => rest);
-    setFocus((f) => keepFocus(f, workspaces()));
+    setFocus((f) => keepFocus(f, workspaces(), shjFocuses()));
     await s.close();
   }
 
@@ -193,7 +200,7 @@ export function App(props: {
     } catch (e) {
       if (seq !== focusSeq) return;
       setFocusError(
-        `${label(target)} のワークスペースに移れませんでした：${
+        `${machineLabel(target)} のワークスペースに移れませんでした：${
           e instanceof Error ? e.message : String(e)
         }`,
       );
@@ -237,7 +244,7 @@ export function App(props: {
                     }
                     onClick={() => connect(t)}
                   >
-                    {label(t)}
+                    {machineLabel(t)}
                   </button>{" "}
                   <span role="status">{describeState(st(), now())}</span>
                   <Show
@@ -261,7 +268,7 @@ export function App(props: {
                   </Show>
                   <Show when={st()?.kind === "needs-install"}>
                     <InstallPrompt
-                      target={label(t)}
+                      target={machineLabel(t)}
                       state={
                         st() as Extract<SessionState, { kind: "needs-install" }>
                       }
@@ -271,7 +278,7 @@ export function App(props: {
                   </Show>
                   <Show when={kind() === "superseded"}>
                     <p role="alert">
-                      {label(t)} の作業は、あとからつないだ別の GUI
+                      {machineLabel(t)} の作業は、あとからつないだ別の GUI
                       に移りました。
                       取り合いにならないよう、自動ではつなぎ直しません。
                       「つなぎ直す」を押すとこちらに戻し、あちらの GUI
