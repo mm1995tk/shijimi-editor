@@ -83,7 +83,11 @@ export function App(props: {
   );
   // GUI のフォーカスは 1 つ（どのマシンの、どのワークスペースか）
   const [focus, setFocus] = createSignal<WorkspaceFocus | null>(null);
-  const [focusError, setFocusError] = createSignal("");
+  // ワークスペースに移れなかった・ファイルを開けなかったときの知らせ（見出しと本文）。無ければ null
+  const [focusError, setFocusError] = createSignal<{
+    title: string;
+    error: string;
+  } | null>(null);
   let focusSeq = 0;
   /** workspace.focus の返事を待っている（ワークスペースを移している途中） */
   let switching = false;
@@ -318,7 +322,7 @@ export function App(props: {
     const s = sessions()[target];
     if (!s) return;
     const seq = ++focusSeq; // 続けて押したら、最後に押したものだけを使う
-    setFocusError("");
+    setFocusError(null);
     switching = true;
     try {
       const termId = await s.focusWorkspace(id);
@@ -331,11 +335,10 @@ export function App(props: {
     } catch (e) {
       if (seq !== focusSeq) return;
       switching = false;
-      setFocusError(
-        `${machineLabel(target)} のワークスペースに移れませんでした：${
-          e instanceof Error ? e.message : String(e)
-        }`,
-      );
+      setFocusError({
+        title: `${machineLabel(target)} のワークスペースに移れませんでした`,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
@@ -396,9 +399,13 @@ export function App(props: {
     const s = sessions()[target];
     if (!s || switching || s.focus !== id) return;
     const seq = ++openSeq; // 続けて押したら、最後に押したものの失敗だけを出す
-    setFocusError("");
+    setFocusError(null);
     const sent = s.input("file.open", { workspaceId: id, path }, (e) => {
-      if (seq === openSeq) setFocusError(openErrorText(path, e));
+      if (seq === openSeq)
+        setFocusError({
+          title: "ファイルを開けませんでした",
+          error: openErrorText(path, e),
+        });
     });
     if (sent !== undefined && mode() === "ide") focusFiles();
   }
@@ -470,12 +477,13 @@ export function App(props: {
     ),
   );
 
-  // 知らせのオブジェクトは、元の状態（SessionState・focusError の文）が同じなら使い回す。
+  // 知らせのオブジェクトは、元のもの（SessionState・focusError のオブジェクト）が同じなら使い回す。
   // 作り直すと Notices が描き直し、ほかのマシンの状態が変わるだけで読み上げ直し、ボタンのフォーカスも消えるため
   const noticeOf = new WeakMap<SessionState, Notice | null>();
-  let focusNotice: { err: string; notice: Notice } | undefined;
+  let focusNotice:
+    { err: { title: string; error: string }; notice: Notice } | undefined;
 
-  /** 右下に積む知らせ。つながらない・別の GUI に移った・ワークスペースに移れなかった。 */
+  /** 右下に積む知らせ。つながらない・別の GUI に移った・ワークスペースに移れなかった・ファイルを開けなかった。 */
   const notices = createMemo<Notice[]>(() => {
     const out: Notice[] = [];
     const err = focusError();
@@ -484,9 +492,9 @@ export function App(props: {
         focusNotice = {
           err,
           notice: {
-            title: "ワークスペースに移れませんでした",
-            error: err,
-            primary: { label: "閉じる", run: () => setFocusError("") },
+            title: err.title,
+            error: err.error,
+            primary: { label: "閉じる", run: () => setFocusError(null) },
           },
         };
       }
