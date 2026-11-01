@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -14,43 +15,43 @@ import (
 )
 
 const (
-	maxSearchHits     = 5000
+	MaxSearchHits     = 5000
 	maxSearchFileSize = 2 << 20
 )
 
-// searchOpts are the conditions of one project-wide search.
-type searchOpts struct {
-	query, repl      string
-	include, exclude []string
-	caseSens, word   bool
-	regex, keepCase  bool
+// SearchOpts are the conditions of one project-wide search.
+type SearchOpts struct {
+	Query, Repl      string
+	Include, Exclude []string
+	CaseSens, Word   bool
+	Regex, KeepCase  bool
 }
 
-// searchHit is one matching line. All occurrences on the line are replaced
+// SearchHit is one matching line. All occurrences on the line are replaced
 // together; skip excludes the line from the replacement.
-type searchHit struct {
-	path  string
-	row   int
-	line  string
-	spans [][2]int // rune offsets of each occurrence in line
-	repls []string // replacement text of each occurrence
-	new   string   // line after the replacement
-	skip  bool
+type SearchHit struct {
+	Path  string
+	Row   int
+	Line  string
+	Spans [][2]int // rune offsets of each occurrence in line
+	Repls []string // replacement text of each occurrence
+	New   string   // line after the replacement
+	Skip  bool
 }
 
-type searchResult struct {
-	hits      []*searchHit
-	files     int
-	truncated bool
-	err       error
+type SearchResult struct {
+	Hits      []*SearchHit
+	Files     int
+	Truncated bool
+	Err       error
 }
 
-func (o searchOpts) compile() (*regexp.Regexp, error) {
-	pat := o.query
-	if !o.regex {
+func (o SearchOpts) compile() (*regexp.Regexp, error) {
+	pat := o.Query
+	if !o.Regex {
 		pat = regexp.QuoteMeta(pat)
 	}
-	if !o.caseSens {
+	if !o.CaseSens {
 		pat = "(?i)" + pat
 	}
 	return regexp.Compile(pat)
@@ -112,35 +113,35 @@ func wordBounded(line string, start, end int) bool {
 
 // planHit finds the occurrences in one line and computes their replacements;
 // ok is false when the line does not match.
-func planHit(re *regexp.Regexp, o searchOpts, line string) (h *searchHit, ok bool) {
-	h = &searchHit{line: line}
+func planHit(re *regexp.Regexp, o SearchOpts, line string) (h *SearchHit, ok bool) {
+	h = &SearchHit{Line: line}
 	var sb strings.Builder
 	last := 0
 	for _, loc := range re.FindAllStringSubmatchIndex(line, -1) {
 		if loc[0] == loc[1] {
 			continue
 		}
-		if o.word && !wordBounded(line, loc[0], loc[1]) {
+		if o.Word && !wordBounded(line, loc[0], loc[1]) {
 			continue
 		}
-		repl := o.repl
-		if o.regex {
-			repl = string(re.ExpandString(nil, o.repl, line, loc))
+		repl := o.Repl
+		if o.Regex {
+			repl = string(re.ExpandString(nil, o.Repl, line, loc))
 		}
-		if o.keepCase {
+		if o.KeepCase {
 			repl = preserveCase(line[loc[0]:loc[1]], repl)
 		}
 		sb.WriteString(line[last:loc[0]])
 		sb.WriteString(repl)
 		last = loc[1]
-		h.spans = append(h.spans, [2]int{utf8.RuneCountInString(line[:loc[0]]), utf8.RuneCountInString(line[:loc[1]])})
-		h.repls = append(h.repls, repl)
+		h.Spans = append(h.Spans, [2]int{utf8.RuneCountInString(line[:loc[0]]), utf8.RuneCountInString(line[:loc[1]])})
+		h.Repls = append(h.Repls, repl)
 	}
-	if len(h.spans) == 0 {
+	if len(h.Spans) == 0 {
 		return nil, false
 	}
 	sb.WriteString(line[last:])
-	h.new = sb.String()
+	h.New = sb.String()
 	return h, true
 }
 
@@ -148,7 +149,9 @@ func planHit(re *regexp.Regexp, o searchOpts, line string) (h *searchHit, ok boo
 // tracked and untracked-but-not-ignored files in a git work tree, otherwise a
 // walk that skips the usual build directories.
 func projectFiles(root string) []string {
-	if out, err := run(root, nil, "git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"); err == nil {
+	cmd := exec.Command("git", "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+	cmd.Dir = root
+	if out, err := cmd.Output(); err == nil {
 		var files []string
 		for f := range strings.SplitSeq(string(out), "\x00") {
 			if f != "" {
@@ -163,7 +166,7 @@ func projectFiles(root string) []string {
 			return nil
 		}
 		if d.IsDir() {
-			if p != root && skipDirs[d.Name()] {
+			if p != root && SkipDirs[d.Name()] {
 				return filepath.SkipDir
 			}
 			return nil
@@ -191,17 +194,17 @@ func readTextLines(p string) (lines []string, ok bool) {
 	return strings.Split(s, "\n"), true
 }
 
-// runSearch scans the project. open maps absolute paths of open buffers to
+// RunSearch scans the project. open maps absolute paths of open buffers to
 // their (possibly unsaved) lines, which take precedence over the disk.
 // cancelled is polled between files so a superseded search stops early.
-func runSearch(root string, o searchOpts, open map[string][]string, cancelled func() bool) searchResult {
-	var res searchResult
-	if o.query == "" {
+func RunSearch(root string, o SearchOpts, open map[string][]string, cancelled func() bool) SearchResult {
+	var res SearchResult
+	if o.Query == "" {
 		return res
 	}
 	re, err := o.compile()
 	if err != nil {
-		res.err = err
+		res.Err = err
 		return res
 	}
 	paths := projectFiles(root)
@@ -212,15 +215,15 @@ func runSearch(root string, o searchOpts, open map[string][]string, cancelled fu
 	// unsaved buffers may be on disk only partially, or not at all
 	for p := range open {
 		if !seen[p] && inRoot(root, p) {
-			paths = append(paths, filepath.ToSlash(relTo(root, p)))
+			paths = append(paths, filepath.ToSlash(RelTo(root, p)))
 		}
 	}
-	inc, exc := globMatcher(o.include), globMatcher(o.exclude)
+	inc, exc := globMatcher(o.Include), globMatcher(o.Exclude)
 	for _, rel := range paths {
 		if cancelled() {
 			return res
 		}
-		if (len(o.include) > 0 && !inc(rel)) || exc(rel) {
+		if (len(o.Include) > 0 && !inc(rel)) || exc(rel) {
 			continue
 		}
 		p := filepath.Join(root, filepath.FromSlash(rel))
@@ -236,16 +239,16 @@ func runSearch(root string, o searchOpts, open map[string][]string, cancelled fu
 			if !ok {
 				continue
 			}
-			if len(res.hits) >= maxSearchHits {
-				res.truncated = true
+			if len(res.Hits) >= MaxSearchHits {
+				res.Truncated = true
 				return res
 			}
-			h.path, h.row = p, row
-			res.hits = append(res.hits, h)
+			h.Path, h.Row = p, row
+			res.Hits = append(res.Hits, h)
 			n++
 		}
 		if n > 0 {
-			res.files++
+			res.Files++
 		}
 	}
 	return res
@@ -256,30 +259,30 @@ func inRoot(root, p string) bool {
 	return err == nil && !strings.HasPrefix(r, "..")
 }
 
-// hitEdits builds the buffer edits for hits (all in one file) against the
+// HitEdits builds the buffer edits for hits (all in one file) against the
 // current buffer lines. Lines whose content no longer matches what was found
 // are counted in stale and left untouched.
-func hitEdits(hits []*searchHit, cur [][]rune) (edits []buffer.Edit, replaced, stale int) {
+func HitEdits(hits []*SearchHit, cur [][]rune) (edits []buffer.Edit, replaced, stale int) {
 	for _, h := range hits {
-		if h.skip {
+		if h.Skip {
 			continue
 		}
-		if h.row >= len(cur) || string(cur[h.row]) != h.line {
+		if h.Row >= len(cur) || string(cur[h.Row]) != h.Line {
 			stale++
 			continue
 		}
 		replaced++
-		for i, sp := range h.spans {
-			edits = append(edits, buffer.Edit{Start: buffer.Pos{Row: h.row, Col: sp[0]}, End: buffer.Pos{Row: h.row, Col: sp[1]}, Text: h.repls[i]})
+		for i, sp := range h.Spans {
+			edits = append(edits, buffer.Edit{Start: buffer.Pos{Row: h.Row, Col: sp[0]}, End: buffer.Pos{Row: h.Row, Col: sp[1]}, Text: h.Repls[i]})
 		}
 	}
 	return
 }
 
-// gitGlobs converts a glob to git pathspec globs: a bare pattern such as
+// GitGlobs converts a glob to git pathspec globs: a bare pattern such as
 // "*.lock" matches at any depth, and a name that matches a directory also
 // matches everything under it.
-func gitGlobs(g string) []string {
+func GitGlobs(g string) []string {
 	g = strings.TrimSuffix(g, "/")
 	if !strings.Contains(g, "/") {
 		g = "**/" + g
@@ -298,7 +301,7 @@ func gitGlobs(g string) []string {
 func globMatcher(globs []string) func(rel string) bool {
 	var res []*regexp.Regexp
 	for _, g := range globs {
-		for _, p := range gitGlobs(g) {
+		for _, p := range GitGlobs(g) {
 			var sb strings.Builder
 			sb.WriteString("^")
 			for i := 0; i < len(p); i++ {
@@ -335,8 +338,8 @@ func globMatcher(globs []string) func(rel string) bool {
 // `:replace [-x globs] [-i globs] query => replacement`.
 const replaceSep = " => "
 
-// splitReplaceArgs separates `query => replacement` (the first " => " wins).
-func splitReplaceArgs(arg string) (query, repl string, ok bool) {
+// SplitReplaceArgs separates `query => replacement` (the first " => " wins).
+func SplitReplaceArgs(arg string) (query, repl string, ok bool) {
 	q, r, ok := strings.Cut(arg, replaceSep)
 	if !ok {
 		// allow an empty replacement: `query =>`
@@ -345,4 +348,16 @@ func splitReplaceArgs(arg string) (query, repl string, ok bool) {
 		}
 	}
 	return q, r, ok
+}
+
+// SkipDirs are the directories that file walks (project search, the file
+// palette) do not descend into.
+var SkipDirs = map[string]bool{".git": true, "node_modules": true, ".direnv": true, "target": true, "dist": true, ".next": true}
+
+// RelTo is p relative to root, or p itself when it is outside root.
+func RelTo(root, p string) string {
+	if r, err := filepath.Rel(root, p); err == nil && !strings.HasPrefix(r, "..") {
+		return r
+	}
+	return p
 }

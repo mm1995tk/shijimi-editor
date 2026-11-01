@@ -32,9 +32,9 @@ func findClipTool() *clipTool {
 	return nil
 }
 
-// writeSystemClipboard copies s to the OS clipboard when a helper tool is
+// WriteSystemClipboard copies s to the OS clipboard when a helper tool is
 // available. Failures are ignored; the in-app clipboard is always updated.
-func writeSystemClipboard(s string) {
+func WriteSystemClipboard(s string) {
 	t := findClipTool()
 	if t == nil {
 		return
@@ -45,7 +45,7 @@ func writeSystemClipboard(s string) {
 	go cmd.Wait()
 }
 
-func readSystemClipboard() (string, bool) {
+func ReadSystemClipboard() (string, bool) {
 	t := findClipTool()
 	if t == nil {
 		return "", false

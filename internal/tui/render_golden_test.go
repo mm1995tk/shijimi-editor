@@ -162,7 +162,7 @@ func TestRenderGolden(t *testing.T) {
 	t.Run("search", func(t *testing.T) {
 		a := goldenApp(t)
 		drive(a, a.openSearchArgs("fmt", false))
-		if !a.search.open || len(a.search.res.hits) == 0 {
+		if !a.search.open || len(a.search.res.Hits) == 0 {
 			t.Fatalf("search not showing hits: open=%v", a.search.open)
 		}
 		checkGolden(t, "search", a)

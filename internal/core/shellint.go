@@ -19,7 +19,7 @@ import (
 // first of ~/.bash_profile, ~/.bash_login and ~/.profile, or ~/.bashrc when
 // none exists) and puts the hook first in PROMPT_COMMAND.
 
-const zshEnv = `# shijimi: report each command's exit code to the terminal panel (OSC 133;D)
+const ZshEnv = `# shijimi: report each command's exit code to the terminal panel (OSC 133;D)
 if [[ -n ${SHIJIMI_ZDOTDIR+x} ]]; then
   ZDOTDIR=$SHIJIMI_ZDOTDIR
 else
@@ -83,7 +83,7 @@ func integrationDir() string {
 		if err != nil {
 			return
 		}
-		if os.WriteFile(filepath.Join(d, ".zshenv"), []byte(zshEnv), 0o600) != nil ||
+		if os.WriteFile(filepath.Join(d, ".zshenv"), []byte(ZshEnv), 0o600) != nil ||
 			os.WriteFile(filepath.Join(d, "bashrc"), []byte(bashRC), 0o600) != nil {
 			os.RemoveAll(d)
 			return
@@ -93,10 +93,10 @@ func integrationDir() string {
 	return shellDir
 }
 
-// shellIntegration returns the arguments and extra environment that start
+// ShellIntegration returns the arguments and extra environment that start
 // shell sh as a login shell reporting exit codes. Unsupported shells, or a
 // failed setup, get a plain login shell.
-func shellIntegration(sh string) (args, env []string) {
+func ShellIntegration(sh string) (args, env []string) {
 	plain := []string{"-l"}
 	switch filepath.Base(sh) {
 	case "zsh":
@@ -119,8 +119,8 @@ func shellIntegration(sh string) (args, env []string) {
 	return plain, nil
 }
 
-// removeShellIntegration deletes the files shellIntegration wrote.
-func removeShellIntegration() {
+// RemoveShellIntegration deletes the files shellIntegration wrote.
+func RemoveShellIntegration() {
 	if shellDir != "" {
 		os.RemoveAll(shellDir)
 	}

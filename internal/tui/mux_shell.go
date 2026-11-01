@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // Shell integration of the multiplexer panes: the shell reports its exit codes
@@ -23,7 +25,7 @@ const zshReportOSC = `print -n "\e]133;D;$s\a"`
 func shQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
 func muxZshEnv(exe string) string {
-	return strings.ReplaceAll(zshEnv, zshReportOSC, "{ "+shQuote(exe)+` command-end $s >/dev/null 2>&1 &! }`)
+	return strings.ReplaceAll(core.ZshEnv, zshReportOSC, "{ "+shQuote(exe)+` command-end $s >/dev/null 2>&1 &! }`)
 }
 
 // muxBashPrompt is the PROMPT_COMMAND of a bash in the pane. A multiplexer pane

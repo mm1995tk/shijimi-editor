@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -365,7 +366,7 @@ func (a *App) spaceMode(key string) tea.Cmd {
 		}
 	case "p", "P":
 		if t := a.cur(); t != nil && t.kind == tabText {
-			if s, ok := readSystemClipboard(); ok {
+			if s, ok := core.ReadSystemClipboard(); ok {
 				a.paste(t.buf, s, key == "p")
 			}
 		}

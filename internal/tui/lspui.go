@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -743,13 +742,6 @@ func (a *App) lspStatus() string {
 		}
 	}
 	return strings.Join(names, ",")
-}
-
-func relTo(root, p string) string {
-	if r, err := filepath.Rel(root, p); err == nil && !strings.HasPrefix(r, "..") {
-		return r
-	}
-	return p
 }
 
 // jumpTo opens the file of l and puts the cursor at the start of its range.

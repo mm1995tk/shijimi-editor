@@ -12,6 +12,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -54,7 +55,7 @@ type searchPanel struct {
 
 	seq     atomic.Int64 // id of the latest requested search
 	busy    bool
-	res     searchResult
+	res     core.SearchResult
 	skipped map[string]bool // lines left out of the replacement, by path and row
 
 	cursor, scroll int
@@ -76,16 +77,16 @@ func newSearchPanel(def config.Search) *searchPanel {
 	return s
 }
 
-func (s *searchPanel) opts() searchOpts {
-	return searchOpts{
-		query:    s.in[fQuery].Value(),
-		repl:     s.in[fRepl].Value(),
-		include:  splitGlobs(s.in[fInclude].Value()),
-		exclude:  splitGlobs(s.in[fExclude].Value()),
-		caseSens: s.caseSens,
-		word:     s.word,
-		regex:    s.regex,
-		keepCase: s.keepCase,
+func (s *searchPanel) opts() core.SearchOpts {
+	return core.SearchOpts{
+		Query:    s.in[fQuery].Value(),
+		Repl:     s.in[fRepl].Value(),
+		Include:  splitGlobs(s.in[fInclude].Value()),
+		Exclude:  splitGlobs(s.in[fExclude].Value()),
+		CaseSens: s.caseSens,
+		Word:     s.word,
+		Regex:    s.regex,
+		KeepCase: s.keepCase,
 	}
 }
 
@@ -108,23 +109,23 @@ func (s *searchPanel) close() {
 	}
 }
 
-func (s *searchPanel) cur() *searchHit {
-	if s.cursor < 0 || s.cursor >= len(s.res.hits) {
+func (s *searchPanel) cur() *core.SearchHit {
+	if s.cursor < 0 || s.cursor >= len(s.res.Hits) {
 		return nil
 	}
-	return s.res.hits[s.cursor]
+	return s.res.Hits[s.cursor]
 }
 
 func (s *searchPanel) move(d int) {
-	s.cursor = clamp(s.cursor+d, 0, max(0, len(s.res.hits)-1))
+	s.cursor = clamp(s.cursor+d, 0, max(0, len(s.res.Hits)-1))
 }
 
-func skipKey(h *searchHit) string { return fmt.Sprintf("%s\x00%d", h.path, h.row) }
+func skipKey(h *core.SearchHit) string { return fmt.Sprintf("%s\x00%d", h.Path, h.Row) }
 
 func (s *searchPanel) toggleSkip() {
 	if h := s.cur(); h != nil {
-		h.skip = !h.skip
-		if h.skip {
+		h.Skip = !h.Skip
+		if h.Skip {
 			s.skipped[skipKey(h)] = true
 		} else {
 			delete(s.skipped, skipKey(h))
@@ -135,8 +136,8 @@ func (s *searchPanel) toggleSkip() {
 // counts returns the number of lines that will be replaced and the number
 // left out.
 func (s *searchPanel) counts() (target, skipped int) {
-	for _, h := range s.res.hits {
-		if h.skip {
+	for _, h := range s.res.Hits {
+		if h.Skip {
 			skipped++
 		} else {
 			target++
@@ -174,7 +175,7 @@ func (a *App) openSearchArgs(arg string, replace bool) tea.Cmd {
 	s := a.search
 	body, repl := arg, ""
 	if replace {
-		body, repl, _ = splitReplaceArgs(arg)
+		body, repl, _ = core.SplitReplaceArgs(arg)
 	}
 	q, include, exclude := parseGrepArgs(body, a.cfg.Search)
 	s.in[fQuery].SetValue(q)
@@ -232,7 +233,7 @@ func (a *App) searchEffects(seq int64) []Effect {
 	o, root, open := s.opts(), a.root, a.openBufferLines()
 	cancelled := func() bool { return s.seq.Load() != seq }
 	return []Effect{RunSearch{Run: func() Event {
-		return SearchDone{seq: seq, res: runSearch(root, o, open, cancelled)}
+		return SearchDone{seq: seq, res: core.RunSearch(root, o, open, cancelled)}
 	}}}
 }
 
@@ -248,18 +249,18 @@ func (a *App) searchDone(m SearchDone) {
 	s.busy = false
 	s.res = m.res
 	s.cursor = 0
-	for i, h := range s.res.hits {
-		h.skip = s.skipped[skipKey(h)]
+	for i, h := range s.res.Hits {
+		h.Skip = s.skipped[skipKey(h)]
 		if keep != "" && skipKey(h) == keep {
 			s.cursor = i
 		}
 	}
 	if s.restore {
 		at := s.restoreAt
-		if at < len(s.res.hits) && skipKey(s.res.hits[at]) == s.restoreKey {
+		if at < len(s.res.Hits) && skipKey(s.res.Hits[at]) == s.restoreKey {
 			at++
 		}
-		s.cursor = clamp(at, 0, max(0, len(s.res.hits)-1))
+		s.cursor = clamp(at, 0, max(0, len(s.res.Hits)-1))
 		s.restore = false
 	}
 	s.view.path = ""
@@ -354,12 +355,12 @@ func (a *App) searchOpenHit() tea.Cmd {
 	q, regex := s.in[fQuery].Value(), s.regex
 	s.close()
 	a.pushJump()
-	if !a.openFile(h.path) {
+	if !a.openFile(h.Path) {
 		return nil
 	}
 	if t := a.curText(); t != nil {
-		t.buf.GotoLine(h.row + 1)
-		t.buf.Cur.Col = min(h.spans[0][0], len(t.buf.Lines[t.buf.Cur.Row]))
+		t.buf.GotoLine(h.Row + 1)
+		t.buf.Cur.Col = min(h.Spans[0][0], len(t.buf.Lines[t.buf.Cur.Row]))
 		if !regex {
 			a.lastSearch = q
 		}
@@ -377,17 +378,17 @@ func (a *App) searchReplaceAll() tea.Cmd {
 		a.fail(errors.New(i18n.T("search.busy")))
 		return nil
 	}
-	if s.res.truncated {
-		a.fail(fmt.Errorf(i18n.T("search.toomany"), maxSearchHits))
+	if s.res.Truncated {
+		a.fail(fmt.Errorf(i18n.T("search.toomany"), core.MaxSearchHits))
 		return nil
 	}
 	if n, _ := s.counts(); n == 0 {
 		a.fail(errors.New(i18n.T("search.nothingtoreplace")))
 		return nil
 	}
-	var hits []*searchHit
-	for _, h := range s.res.hits {
-		if !h.skip {
+	var hits []*core.SearchHit
+	for _, h := range s.res.Hits {
+		if !h.Skip {
 			hits = append(hits, h)
 		}
 	}
@@ -409,13 +410,13 @@ func (a *App) searchReplaceOne() tea.Cmd {
 		a.fail(errors.New(i18n.T("search.nothingtoreplace")))
 		return nil
 	}
-	if h.skip {
+	if h.Skip {
 		// picking a line to replace is explicit, so it overrides the exclusion
-		h.skip = false
+		h.Skip = false
 		delete(s.skipped, skipKey(h))
 	}
 	idx, key := s.cursor, skipKey(h)
-	if !a.replaceHits([]*searchHit{h}) {
+	if !a.replaceHits([]*core.SearchHit{h}) {
 		return nil
 	}
 	s.restore, s.restoreAt, s.restoreKey = true, idx, key
@@ -424,14 +425,14 @@ func (a *App) searchReplaceOne() tea.Cmd {
 
 // replaceHits applies the replacement to hits, opening each affected file as
 // a buffer. It reports whether every file could be opened.
-func (a *App) replaceHits(hits []*searchHit) bool {
+func (a *App) replaceHits(hits []*core.SearchHit) bool {
 	var paths []string
-	byPath := map[string][]*searchHit{}
+	byPath := map[string][]*core.SearchHit{}
 	for _, h := range hits {
-		if _, ok := byPath[h.path]; !ok {
-			paths = append(paths, h.path)
+		if _, ok := byPath[h.Path]; !ok {
+			paths = append(paths, h.Path)
 		}
-		byPath[h.path] = append(byPath[h.path], h)
+		byPath[h.Path] = append(byPath[h.Path], h)
 	}
 	var failed []string
 	done, stale, changed := 0, 0, 0
@@ -444,7 +445,7 @@ func (a *App) replaceHits(hits []*searchHit) bool {
 		if t == nil {
 			continue
 		}
-		edits, n, st := hitEdits(byPath[p], t.buf.Lines)
+		edits, n, st := core.HitEdits(byPath[p], t.buf.Lines)
 		stale += st
 		if len(edits) > 0 {
 			t.buf.ApplyEdits(edits)
@@ -528,18 +529,18 @@ func digits(n int) int { return len(fmt.Sprint(n)) }
 
 func (s *searchPanel) statusLine() string {
 	switch {
-	case s.res.err != nil:
-		return bgfg(cPaletteBg, cError).Render(" " + firstLine(s.res.err.Error()))
+	case s.res.Err != nil:
+		return bgfg(cPaletteBg, cError).Render(" " + firstLine(s.res.Err.Error()))
 	case s.in[fQuery].Value() == "":
 		return stPaletteDim.Render(i18n.T("search.needquery"))
 	case s.busy:
 		return stPaletteDim.Render(i18n.T("search.searching"))
 	}
 	more := ""
-	if s.res.truncated {
+	if s.res.Truncated {
 		more = i18n.T("search.more")
 	}
-	out := fmt.Sprintf(i18n.T("search.summary"), s.res.files, len(s.res.hits), more)
+	out := fmt.Sprintf(i18n.T("search.summary"), s.res.Files, len(s.res.Hits), more)
 	if target, skipped := s.counts(); s.in[fRepl].Value() != "" || skipped > 0 {
 		out += fmt.Sprintf(i18n.T("search.replacetargets"), target, skipped)
 	}
@@ -682,18 +683,18 @@ func (s *searchPanel) fit(a *App) {
 	if s.cursor >= s.scroll+g.bodyH {
 		s.scroll = s.cursor - g.bodyH + 1
 	}
-	s.scroll = clamp(s.scroll, 0, max(0, len(s.res.hits)-g.bodyH))
+	s.scroll = clamp(s.scroll, 0, max(0, len(s.res.Hits)-g.bodyH))
 	if hit := s.cur(); hit != nil {
-		a.loadView(hit.path)
+		a.loadView(hit.Path)
 	}
 }
 
 func (s *searchPanel) matchedRows(a *App, w, h int) []string {
 	var out []string
-	for i := s.scroll; i < len(s.res.hits) && len(out) < h; i++ {
-		out = append(out, a.matchedRow(s.res.hits[i], w, i == s.cursor))
+	for i := s.scroll; i < len(s.res.Hits) && len(out) < h; i++ {
+		out = append(out, a.matchedRow(s.res.Hits[i], w, i == s.cursor))
 	}
-	if len(s.res.hits) == 0 && s.in[fQuery].Value() != "" && !s.busy && s.res.err == nil {
+	if len(s.res.Hits) == 0 && s.in[fQuery].Value() != "" && !s.busy && s.res.Err == nil {
 		out = append(out, stPaletteDim.Render(fit(i18n.T("search.nolines"), w)))
 	}
 	for len(out) < h {
@@ -702,33 +703,33 @@ func (s *searchPanel) matchedRows(a *App, w, h int) []string {
 	return out
 }
 
-func (a *App) matchedRow(h *searchHit, w int, selected bool) string {
+func (a *App) matchedRow(h *core.SearchHit, w int, selected bool) string {
 	bg, fg, dim := cPaletteBg, cEditorFg, cLineNo
 	if selected {
 		bg, fg, dim = cListSel, curTheme.Strong, curTheme.SubSel
 	}
 	marker := "  "
 	switch {
-	case h.skip:
+	case h.Skip:
 		marker = "x "
 	case selected:
 		marker = "> "
 	}
-	label := fmt.Sprintf("%s:%d", a.rel(h.path), h.row+1)
+	label := fmt.Sprintf("%s:%d", a.rel(h.Path), h.Row+1)
 	if maxL := max(12, w*3/5); ansi.StringWidth(label) > maxL {
 		label = "…" + ansi.TruncateLeft(label, ansi.StringWidth(label)-maxL+1, "")
 	}
 	prefix := marker + label + "  "
-	rs := []rune(h.line)
+	rs := []rune(h.Line)
 	lead := 0
 	for lead < len(rs) && (rs[lead] == ' ' || rs[lead] == '\t') {
 		lead++
 	}
-	if len(h.spans) > 0 {
-		lead = min(lead, h.spans[0][0])
+	if len(h.Spans) > 0 {
+		lead = min(lead, h.Spans[0][0])
 	}
 	avail := max(1, w-ansi.StringWidth(prefix))
-	return bgfg(bg, dim).Render(prefix) + styledRunes(rs, nil, firstColumn(h.spans, lead, avail), avail, bg, fg, h.spans)
+	return bgfg(bg, dim).Render(prefix) + styledRunes(rs, nil, firstColumn(h.Spans, lead, avail), avail, bg, fg, h.Spans)
 }
 
 // loadView reads the file for the View area (from the open buffer if there is
@@ -755,18 +756,18 @@ func (s *searchPanel) viewRows(a *App, w, h int) []string {
 	var out []string
 	if hit := s.cur(); hit != nil && h > 0 {
 		v := s.view // loaded in fit
-		out = append(out, bgfg(cPaletteBg, curTheme.Heading).Bold(true).Render(fit(fmt.Sprintf(" %s:%d", a.rel(hit.path), hit.row+1), w)), blank)
+		out = append(out, bgfg(cPaletteBg, curTheme.Heading).Bold(true).Render(fit(fmt.Sprintf(" %s:%d", a.rel(hit.Path), hit.Row+1), w)), blank)
 
 		nd := max(3, digits(len(v.lines)))
 		cw := max(1, w-nd-3)
 		gutter := bgfg(cPaletteBg, cLineNo)
-		xoff := firstColumn(hit.spans, 0, cw)
-		diff := s.in[fRepl].Value() != "" && hit.new != hit.line
+		xoff := firstColumn(hit.Spans, 0, cw)
+		diff := s.in[fRepl].Value() != "" && hit.New != hit.Line
 		budget := max(1, h-2)
 		if diff {
 			budget = max(1, budget-2)
 		}
-		start := max(0, hit.row-budget/2)
+		start := max(0, hit.Row-budget/2)
 		end := min(len(v.lines), start+budget)
 		start = max(0, end-budget)
 		for r := start; r < end; r++ {
@@ -775,14 +776,14 @@ func (s *searchPanel) viewRows(a *App, w, h int) []string {
 				colors = v.colors[r]
 			}
 			var spans [][2]int
-			if r == hit.row {
-				spans = hit.spans
+			if r == hit.Row {
+				spans = hit.Spans
 			}
 			out = append(out, gutter.Render(fmt.Sprintf("%*d │ ", nd, r+1))+styledRunes(v.lines[r], colors, xoff, cw, cPaletteBg, cEditorFg, spans))
-			if r == hit.row && diff {
+			if r == hit.Row && diff {
 				out = append(out,
-					gutter.Render(fmt.Sprintf("%*s - ", nd, ""))+styledRunes([]rune(hit.line), nil, xoff, cw, cDelBg, cEditorFg, nil),
-					gutter.Render(fmt.Sprintf("%*s + ", nd, ""))+styledRunes([]rune(hit.new), nil, xoff, cw, cAddBg, cEditorFg, nil))
+					gutter.Render(fmt.Sprintf("%*s - ", nd, ""))+styledRunes([]rune(hit.Line), nil, xoff, cw, cDelBg, cEditorFg, nil),
+					gutter.Render(fmt.Sprintf("%*s + ", nd, ""))+styledRunes([]rune(hit.New), nil, xoff, cw, cAddBg, cEditorFg, nil))
 			}
 		}
 	}

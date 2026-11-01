@@ -14,6 +14,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/acp/acptest"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
@@ -435,7 +436,7 @@ func TestZshReportsExitCodes(t *testing.T) {
 	os.Unsetenv("ZDOTDIR") // the user's files are then read from HOME
 	home := t.TempDir()
 	os.WriteFile(filepath.Join(home, ".zshenv"), []byte("export FROM_USER_ZSHENV=1\n"), 0o644)
-	args, env := shellIntegration(zsh)
+	args, env := core.ShellIntegration(zsh)
 	cmd := exec.Command(zsh, append(args, "-i")...)
 	cmd.Env = append([]string{"HOME=" + home, "TERM=dumb", "PATH=" + os.Getenv("PATH")}, env...)
 	f, err := pty.Start(cmd)
@@ -499,7 +500,7 @@ func TestBashReportsExitCodes(t *testing.T) {
 	}
 	home := t.TempDir()
 	os.WriteFile(filepath.Join(home, ".bash_profile"), []byte("export FROM_PROFILE=1\nHISTCONTROL=ignoreboth\nPROMPT_COMMAND='echo user-hook'\n"), 0o644)
-	args, env := shellIntegration(bash)
+	args, env := core.ShellIntegration(bash)
 	cmd := exec.Command(bash, args...)
 	cmd.Env = append([]string{"HOME=" + home, "TERM=dumb", "PATH=" + os.Getenv("PATH")}, env...)
 	// a repeated command and one starting with a space stay out of the history

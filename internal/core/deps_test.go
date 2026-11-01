@@ -12,7 +12,7 @@ func TestNoTerminalDeps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go list -deps: %v", err)
 	}
-	for _, dep := range strings.Fields(string(out)) {
+	for dep := range strings.FieldsSeq(string(out)) {
 		for _, banned := range []string{"charm.land/bubbletea", "charm.land/lipgloss", "github.com/charmbracelet/", "github.com/mm1995tk/shijimi-editor/internal/tui"} {
 			if strings.HasPrefix(dep, banned) {
 				t.Errorf("internal/core depends on %s", dep)
