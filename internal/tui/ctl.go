@@ -35,7 +35,7 @@ func (a *App) handleCtl(m CtlRequest) []Effect {
 				resp = ctl.Response{Error: i18n.T("ctl.cantopen") + m.Req.Path}
 				break
 			}
-			cmd = tea.Batch(cmd, a.setFocus(focusEditor))
+			cmd = tea.Batch(cmd, a.effectCmd(a.setFocus(focusEditor)...))
 		}
 	case "exec":
 		resp, cmd = a.ctlExec(m.Req.Line)
@@ -116,10 +116,10 @@ func (a *App) ctlExec(line string) (ctl.Response, tea.Cmd) {
 	if a.pal.open || a.cmdOpen {
 		a.pal.close()
 		a.closeCmdline()
-		return ctl.Response{Error: ":" + name + i18n.T("ctl.needhuman")}, cmd
+		return ctl.Response{Error: ":" + name + i18n.T("ctl.needhuman")}, a.effectCmd(cmd...)
 	}
 	if a.msgErr {
-		return ctl.Response{Error: a.msg}, cmd
+		return ctl.Response{Error: a.msg}, a.effectCmd(cmd...)
 	}
-	return ctl.Response{OK: true, Message: a.msg}, cmd
+	return ctl.Response{OK: true, Message: a.msg}, a.effectCmd(cmd...)
 }

@@ -1,8 +1,6 @@
 package tui
 
 import (
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -93,7 +91,7 @@ func (a *App) resetPanes() {
 	a.follow = true
 }
 
-func (a *App) startResize() tea.Cmd {
+func (a *App) startResize() []Effect {
 	a.comp = nil
 	a.hoverText = ""
 	a.resizeMode = true
@@ -181,7 +179,7 @@ func (a *App) moveBorder(l layout, target resizeTarget, d int) {
 
 // handleResizeKey runs while resize mode is on; every key either resizes or
 // leaves the mode.
-func (a *App) handleResizeKey(key string) tea.Cmd {
+func (a *App) handleResizeKey(key string) []Effect {
 	l := a.layout()
 	switch key {
 	case "left", "h":

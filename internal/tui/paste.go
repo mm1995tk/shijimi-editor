@@ -3,18 +3,16 @@ package tui
 import (
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // handlePaste sends a bracketed paste to whatever has the keyboard, the same
 // way handleKey routes keys. Overlays that take no text ignore it.
-func (a *App) handlePaste(msg Paste) tea.Cmd {
+func (a *App) handlePaste(msg Paste) []Effect {
 	a.msg = ""
 	switch {
 	case a.search.open:
-		return a.searchInput(msg)
+		return cmdEffects(a.searchInput(msg))
 	case a.pal.open:
 		return a.paletteInput(msg)
 	case a.composer != nil:
@@ -28,7 +26,7 @@ func (a *App) handlePaste(msg Paste) tea.Cmd {
 		return a.cmdlineInput(msg)
 	case a.focus == focusTerminal:
 		s := strings.ReplaceAll(strings.ReplaceAll(msg.Content, "\r\n", "\r"), "\n", "\r")
-		return a.term.paste(s)
+		return cmdEffects(a.term.paste(s))
 	case a.focus != focusEditor:
 		return nil
 	}

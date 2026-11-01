@@ -380,10 +380,10 @@ func (a *App) openThread() tea.Cmd {
 	for i, th := range all {
 		items[i] = paletteItem{label: threadWhere(th) + "  " + firstLine(th.Comments[0].Body), detail: "@" + th.Comments[0].Author + threadState(th)}
 	}
-	return a.pal.pick(i18n.T("rv.commentlabel")+p, items, func(i int) tea.Cmd {
+	return a.effectCmd(a.pal.pick(i18n.T("rv.commentlabel")+p, items, func(i int) []Effect {
 		a.card = &prCard{thread: all[i], path: p}
 		return nil
-	})
+	})...)
 }
 
 // threadWhere names what a thread is about: "右 99 行目", "ファイル", ….
@@ -778,7 +778,7 @@ func (a *App) gotoThread(c *prCard) tea.Cmd {
 		t.buf.Cur = t.buf.ClampPos(buffer.Pos{Row: c.thread.Line - 1})
 		a.follow = true
 	}
-	return a.setFocus(focusEditor)
+	return a.effectCmd(a.setFocus(focusEditor)...)
 }
 
 // threadLines returns the lines a thread is on, from the open buffer.
@@ -873,7 +873,7 @@ func (a *App) applySuggestion(c *prCard) tea.Cmd {
 	if !a.msgErr {
 		a.info(i18n.T("rv.suggapplied"), c.path)
 	}
-	return tea.Batch(cmd, a.setFocus(focusEditor))
+	return tea.Batch(a.effectCmd(cmd...), a.effectCmd(a.setFocus(focusEditor)...))
 }
 
 // ---- the comment editor ----

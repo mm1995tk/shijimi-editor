@@ -366,7 +366,7 @@ func (a *App) searchOpenHit() tea.Cmd {
 		}
 	}
 	a.follow = true
-	return a.setFocus(focusEditor)
+	return a.effectCmd(a.setFocus(focusEditor)...)
 }
 
 // searchReplaceAll replaces the checked lines. Every affected file is opened

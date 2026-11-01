@@ -3,8 +3,6 @@ package tui
 import (
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -28,7 +26,7 @@ func TestPaletteOverlay(t *testing.T) {
 		t.Errorf("matched = %v, want [0 3]", got)
 	}
 
-	a.pal.ask("名前", "x", func(string) tea.Cmd { return nil })
+	a.pal.ask("名前", "x", func(string) []Effect { return nil })
 	ov = a.pal.overlay()
 	if ov.Title != "名前" || ov.Field.Prefix != ":" || ov.Hint != "" || len(ov.Items) != 0 {
 		t.Errorf("prompt overlay = %+v", ov)
@@ -41,7 +39,7 @@ func TestPaletteOverlayScrolls(t *testing.T) {
 	for i := range items {
 		items[i] = paletteItem{label: string(rune('a' + i%26))}
 	}
-	a.pal.pick("t", items, func(int) tea.Cmd { return nil })
+	a.pal.pick("t", items, func(int) []Effect { return nil })
 	a.fit()
 	a.pal.sel = 20
 	ov := a.pal.overlay()

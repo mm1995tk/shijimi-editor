@@ -142,13 +142,13 @@ func TestRenderGolden(t *testing.T) {
 
 	t.Run("palette-prompt", func(t *testing.T) {
 		a := goldenApp(t)
-		a.pal.ask("名前", "abc", func(string) tea.Cmd { return nil })
+		a.pal.ask("名前", "abc", func(string) []Effect { return nil })
 		checkGolden(t, "palette-prompt", a)
 	})
 
 	t.Run("palette-pick", func(t *testing.T) {
 		a := goldenApp(t)
-		a.pal.pick("テーマ", []paletteItem{{label: "dark", detail: "ダーク"}, {label: "light"}, {label: "solar"}}, func(int) tea.Cmd { return nil })
+		a.pal.pick("テーマ", []paletteItem{{label: "dark", detail: "ダーク"}, {label: "light"}, {label: "solar"}}, func(int) []Effect { return nil })
 		keys(a, "l")
 		checkGolden(t, "palette-pick", a)
 	})
@@ -179,7 +179,7 @@ func TestRenderGolden(t *testing.T) {
 
 	t.Run("find", func(t *testing.T) {
 		a := goldenApp(t)
-		drive(a, a.openFind())
+		drive(a, a.effectCmd(a.openFind()...))
 		keys(a, "f", "m", "t")
 		if !a.findOpen {
 			t.Fatal("the find bar is not open")

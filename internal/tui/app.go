@@ -292,7 +292,7 @@ func (a *App) Init() tea.Cmd {
 	if a.single {
 		return a.effectCmd(watchTimer())
 	}
-	return tea.Batch(a.effectCmd(WaitLSP{a.lsp.events}, watchTimer()), a.effectCmd(a.probeRepo()...))
+	return a.effectCmd(append([]Effect{WaitLSP{a.lsp.events}, watchTimer()}, a.probeRepo()...)...)
 }
 
 // ---- layout ----
@@ -381,14 +381,14 @@ func (a *App) fail(err error) {
 	a.msg, a.msgErr = err.Error(), true
 }
 
-func (a *App) setFocus(f focus) tea.Cmd {
+func (a *App) setFocus(f focus) []Effect {
 	if a.single {
 		f = focusEditor
 	}
 	a.focus = f
 	a.term.blur()
 	if f == focusTerminal {
-		return a.term.focus()
+		return cmdEffects(a.term.focus())
 	}
 	return nil
 }
@@ -484,7 +484,7 @@ func (a *App) keepTransients() {
 	}
 }
 
-func (a *App) save() tea.Cmd {
+func (a *App) save() []Effect {
 	t := a.curText()
 	if t == nil {
 		return nil
@@ -495,7 +495,7 @@ func (a *App) save() tea.Cmd {
 	return a.saveTab(t)
 }
 
-func (a *App) saveTab(t *tab) tea.Cmd {
+func (a *App) saveTab(t *tab) []Effect {
 	if err := t.buf.Save(); err != nil {
 		a.fail(err)
 		return nil
@@ -507,10 +507,10 @@ func (a *App) saveTab(t *tab) tea.Cmd {
 	}
 	a.explorer.loadGitStatus()
 	a.info(i18n.T("app.saved"), a.rel(t.buf.Path))
-	return a.afterSave()
+	return cmdEffects(a.afterSave())
 }
 
-func (a *App) saveAll() tea.Cmd {
+func (a *App) saveAll() []Effect {
 	n := 0
 	for _, t := range a.tabs {
 		if t.dirty() && t.buf.Path != "" {
@@ -525,7 +525,7 @@ func (a *App) saveAll() tea.Cmd {
 	return nil
 }
 
-func (a *App) saveAs() tea.Cmd {
+func (a *App) saveAs() []Effect {
 	t := a.curText()
 	if t == nil {
 		return nil
@@ -534,12 +534,12 @@ func (a *App) saveAs() tea.Cmd {
 	if t.buf.Path != "" {
 		initial = t.buf.Path
 	}
-	return a.pal.ask(i18n.T("app.saveas"), initial, func(v string) tea.Cmd {
+	return a.pal.ask(i18n.T("app.saveas"), initial, func(v string) []Effect {
 		return a.saveTo(t, v)
 	})
 }
 
-func (a *App) saveTo(t *tab, v string) tea.Cmd {
+func (a *App) saveTo(t *tab, v string) []Effect {
 	v = strings.TrimSpace(v)
 	if v == "" {
 		return nil
@@ -559,7 +559,7 @@ func (a *App) saveTo(t *tab, v string) tea.Cmd {
 	return cmd
 }
 
-func (a *App) newFile() tea.Cmd {
+func (a *App) newFile() []Effect {
 	if a.single {
 		return nil
 	}
@@ -567,8 +567,8 @@ func (a *App) newFile() tea.Cmd {
 	return a.setFocus(focusEditor)
 }
 
-func (a *App) newFileIn(dir string) tea.Cmd {
-	return a.pal.ask(i18n.T("app.newfile"), dir+string(filepath.Separator), func(v string) tea.Cmd {
+func (a *App) newFileIn(dir string) []Effect {
+	return a.pal.ask(i18n.T("app.newfile"), dir+string(filepath.Separator), func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || strings.HasSuffix(v, string(filepath.Separator)) {
 			return nil
@@ -594,8 +594,8 @@ func (a *App) newFileIn(dir string) tea.Cmd {
 	})
 }
 
-func (a *App) newFolder() tea.Cmd {
-	return a.pal.ask(i18n.T("app.newfolder"), a.explorer.targetDir()+string(filepath.Separator), func(v string) tea.Cmd {
+func (a *App) newFolder() []Effect {
+	return a.pal.ask(i18n.T("app.newfolder"), a.explorer.targetDir()+string(filepath.Separator), func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" {
 			return nil
@@ -613,13 +613,13 @@ func (a *App) newFolder() tea.Cmd {
 	})
 }
 
-func (a *App) renameFile() tea.Cmd {
+func (a *App) renameFile() []Effect {
 	n := a.explorer.selected()
 	if n == nil {
 		return nil
 	}
 	old := n.path
-	return a.pal.ask(i18n.T("app.newname"), old, func(v string) tea.Cmd {
+	return a.pal.ask(i18n.T("app.newname"), old, func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
@@ -653,13 +653,13 @@ func (a *App) renameFile() tea.Cmd {
 	})
 }
 
-func (a *App) deleteFile() tea.Cmd {
+func (a *App) deleteFile() []Effect {
 	n := a.explorer.selected()
 	if n == nil {
 		return nil
 	}
 	target := n.path
-	return a.pal.ask(fmt.Sprintf(i18n.T("app.confirmdelete"), a.rel(target)), "", func(v string) tea.Cmd {
+	return a.pal.ask(fmt.Sprintf(i18n.T("app.confirmdelete"), a.rel(target)), "", func(v string) []Effect {
 		if strings.TrimSpace(strings.ToLower(v)) != "y" {
 			return nil
 		}
@@ -673,7 +673,7 @@ func (a *App) deleteFile() tea.Cmd {
 	})
 }
 
-func (a *App) closeTab(force bool) tea.Cmd {
+func (a *App) closeTab(force bool) []Effect {
 	t := a.cur()
 	if t == nil {
 		return nil
@@ -749,12 +749,12 @@ func (a *App) toggleSide() {
 	}
 }
 
-func (a *App) toggleTerm() tea.Cmd {
+func (a *App) toggleTerm() []Effect {
 	if a.single {
 		return nil
 	}
 	if a.muxOn() {
-		return a.muxToggle()
+		return cmdEffects(a.muxToggle())
 	}
 	if a.showTerm && a.focus == focusTerminal {
 		a.showTerm = false
@@ -774,7 +774,7 @@ func (a *App) dirtyCount() int {
 	return n
 }
 
-func (a *App) quit() tea.Cmd {
+func (a *App) quit() []Effect {
 	if d := a.dirtyCount(); d > 0 && !a.confirmQuit {
 		a.confirmQuit = true
 		a.msg, a.msgErr = fmt.Sprintf(i18n.T("app.quitunsaved"), d), true
@@ -790,9 +790,9 @@ func (a *App) quit() tea.Cmd {
 // the same keyboard enhancements: when they change, Bubble Tea queries the
 // terminal, and the reply (CSI ? flags u) can arrive after input is no longer
 // read, so the shell would get it as typed text such as "3u".
-func (a *App) exit() tea.Cmd { return a.effectCmd(Quit{}) }
+func (a *App) exit() []Effect { return []Effect{Quit{}} }
 
-func (a *App) openFind() tea.Cmd {
+func (a *App) openFind() []Effect {
 	t := a.curText()
 	if t == nil {
 		return nil
@@ -886,13 +886,13 @@ func (a *App) pasteText() string {
 // ---- update ----
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	cmd := a.update(msg)
+	effs := a.update(msg)
 	a.keepTransients()
 	a.normalizeSplit()
 	a.trackLast()
 	a.syncLSP()
 	a.notifySelection()
-	return a, tea.Batch(cmd, a.effectCmd(a.scheduleAutoSave()...), a.syncPreview(), a.lexTabs(), a.semanticTabs())
+	return a, a.effectCmd(batch(effs, a.scheduleAutoSave(), cmdEffects(a.syncPreview()), cmdEffects(a.lexTabs()), cmdEffects(a.semanticTabs()))...)
 }
 
 // scheduleAutoSave starts a timer for every named tab edited since the last
@@ -920,13 +920,13 @@ func (a *App) handleAutoSave(m AutoSaveDue) []Effect {
 	if t.buf.DiskChanged() {
 		return nil // never overwrite another process's change silently
 	}
-	return []Effect{cmdEffect{a.saveTab(t)}}
+	return a.saveTab(t)
 }
 
-func (a *App) update(msg tea.Msg) tea.Cmd {
+func (a *App) update(msg tea.Msg) []Effect {
 	switch msg := msg.(type) {
 	case Event:
-		return a.effectCmd(a.handleEvent(msg)...)
+		return a.handleEvent(msg)
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
 		if a.cellSize != nil {
@@ -952,10 +952,10 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		if a.term.sh == nil && a.showTerm {
 			a.showTerm = false
 			if a.focus == focusTerminal {
-				return tea.Batch(cmd, a.setFocus(focusEditor))
+				return batch(cmdEffects(cmd), a.setFocus(focusEditor))
 			}
 		}
-		return cmd
+		return cmdEffects(cmd)
 	case termErrMsg:
 		a.fail(msg.err)
 		if a.term.sh == nil && a.showTerm {
@@ -966,13 +966,13 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		}
 		return nil
 	case mermaidStartMsg:
-		return a.handleMermaidStart(msg)
+		return cmdEffects(a.handleMermaidStart(msg))
 	case mermaidDoneMsg:
 		a.handleMermaidDone(msg)
 	case mdImageDoneMsg:
 		a.handleMDImageDone(msg)
 	case formatterDoneMsg:
-		return a.handleFormatterDone(msg)
+		return cmdEffects(a.handleFormatterDone(msg))
 	case openURLMsg:
 		if msg.err != nil && msg.copyOnFail {
 			a.copyText(msg.url)
@@ -993,21 +993,21 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 		a.holdScrollRelease(k)
 		a.lineFlipRelease(k)
 	case prFoundMsg:
-		return a.handlePRFound(msg)
+		return cmdEffects(a.handlePRFound(msg))
 	case branchPRsMsg:
-		return a.handleBranchPRs(msg)
+		return cmdEffects(a.handleBranchPRs(msg))
 	case prCheckedOutMsg:
-		return a.handlePRCheckedOut(msg)
+		return cmdEffects(a.handlePRCheckedOut(msg))
 	case prPulledMsg:
-		return a.handlePRPulled(msg)
+		return cmdEffects(a.handlePRPulled(msg))
 	case prReviewMsg:
-		return a.handlePRReview(msg)
+		return cmdEffects(a.handlePRReview(msg))
 	case viewedMsg:
 		a.handleViewed(msg)
 	case reviewSentMsg:
-		return a.handleReviewSent(msg)
+		return cmdEffects(a.handleReviewSent(msg))
 	case prListMsg:
-		return a.showPRList(msg)
+		return cmdEffects(a.showPRList(msg))
 	case tea.MouseMsg:
 		return a.handleInput(a.mouseFromTea(msg))
 	case tea.KeyPressMsg:
@@ -1021,7 +1021,7 @@ func (a *App) update(msg tea.Msg) tea.Cmd {
 }
 
 // handleInput takes an Input from whichever front end made it.
-func (a *App) handleInput(in Input) tea.Cmd {
+func (a *App) handleInput(in Input) []Effect {
 	switch msg := in.(type) {
 	case Mouse:
 		return a.handleMouse(msg)
@@ -1036,11 +1036,11 @@ func (a *App) handleInput(in Input) tea.Cmd {
 		// Fast typing can deliver several runes in one message; Helix-style
 		// commands need them one at a time.
 		if utf8.RuneCountInString(msg.Text) > 1 {
-			var cmds []tea.Cmd
+			var cmds [][]Effect
 			for _, r := range msg.Text {
 				cmds = append(cmds, a.handleKey(Key{Code: r, Text: string(r), Mod: msg.Mod}))
 			}
-			return tea.Batch(cmds...)
+			return batch(cmds...)
 		}
 		return a.handleKey(msg)
 	case Paste:
@@ -1055,7 +1055,7 @@ func (a *App) handleInput(in Input) tea.Cmd {
 	return nil
 }
 
-func (a *App) handleLSPEvent(e lsp.Event) tea.Cmd {
+func (a *App) handleLSPEvent(e lsp.Event) []Effect {
 	switch {
 	case e.Err != nil:
 		a.fail(e.Err)
@@ -1072,7 +1072,7 @@ func (a *App) handleLSPEvent(e lsp.Event) tea.Cmd {
 			}
 			return nil
 		}
-		return a.openURL(e.Document)
+		return cmdEffects(a.openURL(e.Document))
 	case e.URI != "":
 		p := lsp.Path(e.URI)
 		if a.lsp.diags[p] == nil {
@@ -1083,7 +1083,7 @@ func (a *App) handleLSPEvent(e lsp.Event) tea.Cmd {
 	return nil
 }
 
-func (a *App) handleKey(msg Key) tea.Cmd {
+func (a *App) handleKey(msg Key) []Effect {
 	key := msg.String()
 	a.msg = ""
 	if a.sig != nil && (key == "esc" || !a.sigVisible()) {
@@ -1105,22 +1105,22 @@ func (a *App) handleKey(msg Key) tea.Cmd {
 	}
 
 	if a.search.open {
-		return a.handleSearchKey(msg)
+		return cmdEffects(a.handleSearchKey(msg))
 	}
 	if a.pal.open {
 		return a.handlePaletteKey(msg)
 	}
 	if a.composer != nil {
-		return a.handleComposerKey(msg)
+		return cmdEffects(a.handleComposerKey(msg))
 	}
 	if a.confirm != nil {
-		return a.handleConfirmKey(key)
+		return cmdEffects(a.handleConfirmKey(key))
 	}
 	if len(a.props) > 0 {
-		return a.handleProposalKey(msg)
+		return cmdEffects(a.handleProposalKey(msg))
 	}
 	if a.ctx != nil {
-		return a.handleContextKey(msg)
+		return cmdEffects(a.handleContextKey(msg))
 	}
 	if a.cmdOpen {
 		return a.handleCmdlineKey(msg)
@@ -1130,7 +1130,7 @@ func (a *App) handleKey(msg Key) tea.Cmd {
 	}
 	if a.card != nil {
 		if cmd, handled := a.handleCardKey(msg); handled {
-			return cmd
+			return cmdEffects(cmd)
 		}
 	}
 	if a.hoverText != "" {
@@ -1154,7 +1154,7 @@ func (a *App) handleKey(msg Key) tea.Cmd {
 	}
 	if a.snip != nil {
 		if cmd, handled := a.handleSnippetKey(msg); handled {
-			return cmd
+			return cmdEffects(cmd)
 		}
 	}
 
@@ -1168,13 +1168,13 @@ func (a *App) handleKey(msg Key) tea.Cmd {
 		case "ctrl+`":
 			return a.toggleTerm()
 		case "alt+i":
-			return a.toggleAgentPanel()
+			return cmdEffects(a.toggleAgentPanel())
 		case "alt+r":
 			return a.startResize()
 		case "f1":
 			return a.pal.show(a.root, ">")
 		}
-		return a.term.key(msg)
+		return cmdEffects(a.term.key(msg))
 	}
 
 	insert := a.helix && a.mode == modeInsert && a.focus == focusEditor
@@ -1203,14 +1203,14 @@ func (a *App) handleKey(msg Key) tea.Cmd {
 		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
 		// mode, or Helix insert mode.
 		if key == "ctrl+j" && a.muxOn() {
-			return a.muxResult(a.muxOpen())
+			return cmdEffects(a.muxResult(a.muxOpen()))
 		}
 		typing := a.typing()
 		if key == "ctrl+j" || !typing {
 			return a.toggleTerm()
 		}
 	case "ctrl+g":
-		return a.openDiff(baseHead)
+		return cmdEffects(a.openDiff(baseHead))
 	case "ctrl+e":
 		if a.focus == focusExplorer && len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
@@ -1235,9 +1235,9 @@ func (a *App) handleKey(msg Key) tea.Cmd {
 	case "ctrl+2":
 		return a.focusPane(1)
 	case "alt+a":
-		return a.sendContext()
+		return cmdEffects(a.sendContext())
 	case "alt+i":
-		return a.toggleAgentPanel()
+		return cmdEffects(a.toggleAgentPanel())
 	case "alt+r":
 		return a.startResize()
 	}
@@ -1246,9 +1246,9 @@ func (a *App) handleKey(msg Key) tea.Cmd {
 	case focusExplorer:
 		return a.handleExplorerKey(msg)
 	case focusChanges:
-		return a.handleChangesKey(msg)
+		return cmdEffects(a.handleChangesKey(msg))
 	case focusAgent:
-		return a.handleAgentKey(msg)
+		return cmdEffects(a.handleAgentKey(msg))
 	}
 	t := a.cur()
 	if t == nil {
@@ -1272,7 +1272,7 @@ func (a *App) handleKey(msg Key) tea.Cmd {
 		}
 		if a.pending == "space v" {
 			a.pending = ""
-			return a.reviewKey(key)
+			return cmdEffects(a.reviewKey(key))
 		}
 		if a.pending == "space w" {
 			a.pending = ""
@@ -1301,7 +1301,7 @@ func (a *App) handleKey(msg Key) tea.Cmd {
 	return a.handleEditorKey(msg)
 }
 
-func (a *App) handleCompletionKey(msg Key) (tea.Cmd, bool) {
+func (a *App) handleCompletionKey(msg Key) ([]Effect, bool) {
 	c := a.comp
 	switch msg.String() {
 	case "up", "ctrl+p", "shift+tab":
@@ -1320,7 +1320,7 @@ func (a *App) handleCompletionKey(msg Key) (tea.Cmd, bool) {
 	return nil, false
 }
 
-func (a *App) handlePaletteKey(msg Key) tea.Cmd {
+func (a *App) handlePaletteKey(msg Key) []Effect {
 	p := a.pal
 	switch msg.String() {
 	case "esc", "ctrl+c":
@@ -1343,19 +1343,19 @@ func (a *App) handlePaletteKey(msg Key) tea.Cmd {
 }
 
 // paletteInput passes a key or a paste to the palette's query.
-func (a *App) paletteInput(msg Input) tea.Cmd {
+func (a *App) paletteInput(msg Input) []Effect {
 	p := a.pal
 	old := p.input.Value()
 	a.lineInputUpdate(&p.input, msg)
 	p.sel = 0
 	p.filter(a.commands)
 	if p.picking && p.live && p.input.Value() != old {
-		return p.queryLater()
+		return cmdEffects(p.queryLater())
 	}
 	return nil
 }
 
-func (a *App) submitPalette() tea.Cmd {
+func (a *App) submitPalette() []Effect {
 	p := a.pal
 	v := p.input.Value()
 	p.close()
@@ -1390,12 +1390,12 @@ func (a *App) submitPalette() tea.Cmd {
 	return nil
 }
 
-func (a *App) handleExplorerKey(msg Key) tea.Cmd {
+func (a *App) handleExplorerKey(msg Key) []Effect {
 	e := a.explorer
 	key := msg.String()
 	if a.pending == "space v" {
 		a.pending = ""
-		return a.reviewKey(key)
+		return cmdEffects(a.reviewKey(key))
 	}
 	if a.pending == "space w" {
 		a.pending = ""
@@ -1470,7 +1470,7 @@ func (a *App) handleExplorerKey(msg Key) tea.Cmd {
 	return nil
 }
 
-func (a *App) handleFindKey(msg Key) tea.Cmd {
+func (a *App) handleFindKey(msg Key) []Effect {
 	t := a.curText()
 	if t == nil {
 		a.closeFind()
@@ -1497,7 +1497,7 @@ func (a *App) handleFindKey(msg Key) tea.Cmd {
 }
 
 // findInputUpdate passes a key or a paste to the find bar.
-func (a *App) findInputUpdate(msg Input) tea.Cmd {
+func (a *App) findInputUpdate(msg Input) []Effect {
 	before := a.findInput.Value()
 	a.lineInputUpdate(&a.findInput, msg)
 	if a.findInput.Value() != before {
@@ -1508,7 +1508,7 @@ func (a *App) findInputUpdate(msg Input) tea.Cmd {
 
 // handleEditorKey is the modeless (VS Code style) editing used by the
 // vscode keymap and by Helix insert mode.
-func (a *App) handleEditorKey(msg Key) tea.Cmd {
+func (a *App) handleEditorKey(msg Key) []Effect {
 	t := a.curText()
 	if t != nil && t.buf.HasExtra() && multiEditable(msg) {
 		a.comp = nil
@@ -1534,7 +1534,7 @@ func multiEditable(msg Key) bool {
 	return false
 }
 
-func (a *App) editorKey(t *tab, msg Key) tea.Cmd {
+func (a *App) editorKey(t *tab, msg Key) []Effect {
 	if t == nil {
 		return nil
 	}
@@ -1647,13 +1647,13 @@ func (a *App) editorKey(t *tab, msg Key) tea.Cmd {
 	case "ctrl+_", "ctrl+/":
 		a.toggleComment()
 	case "ctrl+space":
-		return a.completion()
+		return cmdEffects(a.completion())
 	case "f12":
-		return a.gotoDefinition()
+		return cmdEffects(a.gotoDefinition())
 	case "shift+f12":
-		return a.references()
+		return cmdEffects(a.references())
 	case "f2":
-		return a.rename()
+		return cmdEffects(a.rename())
 	case "space":
 		b.Insert(" ")
 		a.comp = nil
@@ -1671,14 +1671,14 @@ func (a *App) editorKey(t *tab, msg Key) tea.Cmd {
 }
 
 // afterTyping opens or refreshes the completion and signature popups.
-func (a *App) afterTyping(t *tab, typed []rune) tea.Cmd {
+func (a *App) afterTyping(t *tab, typed []rune) []Effect {
 	if len(typed) != 1 {
 		return nil
 	}
-	return tea.Batch(a.signatureTyped(t, typed[0]), a.completionTyped(t, typed[0]))
+	return batch(cmdEffects(a.signatureTyped(t, typed[0])), a.completionTyped(t, typed[0]))
 }
 
-func (a *App) completionTyped(t *tab, r rune) tea.Cmd {
+func (a *App) completionTyped(t *tab, r rune) []Effect {
 	if a.comp != nil {
 		if isIdent(r) {
 			a.comp.filter()
@@ -1697,19 +1697,19 @@ func (a *App) completionTyped(t *tab, r rune) tea.Cmd {
 	cs, _ := a.lsp.clientsFor(t)
 	for _, c := range cs {
 		if c.IsCompletionTrigger(r) {
-			return a.completion()
+			return cmdEffects(a.completion())
 		}
 	}
 	if isIdent(r) {
 		ws := wordStart(t.buf)
 		if t.buf.Cur.Col-ws.Col == 2 {
-			return a.completion()
+			return cmdEffects(a.completion())
 		}
 	}
 	return nil
 }
 
-func (a *App) refreshCompletion() tea.Cmd {
+func (a *App) refreshCompletion() []Effect {
 	if a.comp == nil {
 		return nil
 	}
@@ -1732,7 +1732,7 @@ func (a *App) refreshCompletion() tea.Cmd {
 // the program, its drag and release do too, wherever the pointer is. Otherwise
 // (or with Shift held) a left drag selects text and copies it on release. ok
 // is false when the event is not for the terminal.
-func (a *App) termMouse(l layout, msg Mouse) (cmd tea.Cmd, ok bool) {
+func (a *App) termMouse(l layout, msg Mouse) (cmd []Effect, ok bool) {
 	t := a.term
 	if !a.showTerm {
 		return nil, false
@@ -1780,9 +1780,9 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd tea.Cmd, ok bool) {
 	return nil, sent || grabbed
 }
 
-func (a *App) handleMouse(msg Mouse) tea.Cmd {
+func (a *App) handleMouse(msg Mouse) []Effect {
 	if a.search.open {
-		return a.searchMouse(msg)
+		return cmdEffects(a.searchMouse(msg))
 	}
 	if a.pal.open {
 		if msg.Action == MousePress && msg.Button == MouseLeft {
@@ -1804,18 +1804,18 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 	}
 	if a.ag.sel.dragging {
 		if cmd, ok := a.agentDrag(l, msg); ok {
-			return cmd
+			return cmdEffects(cmd)
 		}
 	}
 	if a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
 		if cmd, ok := a.agentMouse(l, msg); ok {
-			return cmd
+			return cmdEffects(cmd)
 		}
 	}
 	// Some terminals report a drag as motion with no button; while a border
 	// or a selection is being dragged, motion is the drag whatever it says.
 	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
-		return a.passiveMotion(l, msg)
+		return cmdEffects(a.passiveMotion(l, msg))
 	}
 	x, y := msg.X, msg.Y
 	wheel := 0
@@ -1963,7 +1963,7 @@ func (a *App) handleMouse(msg Mouse) tea.Cmd {
 					g.setFolder(r, g.closed[g.rows[r].path])
 					return a.setFocus(focusChanges)
 				}
-				return a.openChange(g.files[g.sel])
+				return cmdEffects(a.openChange(g.files[g.sel]))
 			}
 			return a.setFocus(focusChanges)
 		}

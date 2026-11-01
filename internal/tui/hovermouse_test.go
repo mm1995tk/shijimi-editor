@@ -9,7 +9,7 @@ import (
 )
 
 func move(a *App, x, y int) tea.Cmd {
-	return a.handleMouse(a.locate(Mouse{X: x, Y: y, Action: MouseMotion, Button: MouseNone}))
+	return a.effectCmd(a.handleMouse(a.locate(Mouse{X: x, Y: y, Action: MouseMotion, Button: MouseNone}))...)
 }
 
 func TestMouseHoverDwellKeepsCursor(t *testing.T) {

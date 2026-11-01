@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -37,7 +36,7 @@ func (a *App) tabIndex(t *tab) int {
 // splitOpen splits the editor area. The file stays in the left pane, and the
 // right pane, which gets the focus, shows the last file (ga) or, with none,
 // asks for a file.
-func (a *App) splitOpen() tea.Cmd {
+func (a *App) splitOpen() []Effect {
 	l := a.layout()
 	switch {
 	case a.single:
@@ -77,7 +76,7 @@ func (a *App) splitOpen() tea.Cmd {
 }
 
 // focusPane moves the focus to the pane on side (0 = left, 1 = right).
-func (a *App) focusPane(side int) tea.Cmd {
+func (a *App) focusPane(side int) []Effect {
 	if !a.splitWanted() {
 		if a.split {
 			a.infoText(i18n.T("win.nodiff"))
@@ -94,7 +93,7 @@ func (a *App) focusPane(side int) tea.Cmd {
 }
 
 // focusOtherPane moves the focus to the other pane.
-func (a *App) focusOtherPane() tea.Cmd { return a.focusPane(1 - a.pane) }
+func (a *App) focusOtherPane() []Effect { return a.focusPane(1 - a.pane) }
 
 // swapPanes makes the other pane's file the focused one's, and the reverse.
 // The pane keeps its own "last file".
@@ -168,7 +167,7 @@ func (a *App) normalizeSplit() {
 }
 
 // windowKey runs Space w <key> (Helix's window menu).
-func (a *App) windowKey(key string) tea.Cmd {
+func (a *App) windowKey(key string) []Effect {
 	if a.single {
 		return nil
 	}
@@ -190,7 +189,7 @@ func (a *App) windowKey(key string) tea.Cmd {
 }
 
 // toggleEditorSplit is Ctrl+\: split, or go back to one pane.
-func (a *App) toggleEditorSplit() tea.Cmd {
+func (a *App) toggleEditorSplit() []Effect {
 	if a.split {
 		a.closeSplit(true)
 		return nil
