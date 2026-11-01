@@ -152,3 +152,32 @@ func TestCloseFilesKeepsUnsaved(t *testing.T) {
 		}
 	})
 }
+
+// The file shown stays shown when files before it are closed.
+func TestCloseFilesKeepsShownFile(t *testing.T) {
+	r := t.TempDir()
+	var ps []string
+	for _, n := range []string{"a", "b", "c", "d"} {
+		ps = append(ps, writeFile(t, r, n+".txt", n+"\n"))
+	}
+	ws := NewWorkspaces(NewShared(), nil)
+	defer ws.CloseAll()
+	ws.Open(r).Do(func(c *Core) {
+		for _, p := range ps {
+			c.OpenFile(p)
+		}
+		if len(c.Tabs) != 4 {
+			t.Fatalf("open files = %v", c.OpenPaths())
+		}
+		c.Tabs[1].Buf.Dirty = true // b
+		c.Tabs[3].Buf.Dirty = true // d
+		c.Active = 1
+		c.CloseFiles()
+		if !slices.Equal(c.OpenPaths(), []string{ps[1], ps[3]}) {
+			t.Fatalf("open files = %v", c.OpenPaths())
+		}
+		if got := c.Cur().Path(); got != ps[1] {
+			t.Errorf("shown %s, want %s", got, ps[1])
+		}
+	})
+}

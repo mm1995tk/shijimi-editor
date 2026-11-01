@@ -54,7 +54,11 @@ func runServe(args []string) int {
 	logger := slog.New(slog.NewTextHandler(logw, nil))
 	var idle time.Duration
 	if home, err := os.UserHomeDir(); err == nil {
-		idle = time.Duration(config.Load(home).Serve.IdleStopDays) * 24 * time.Hour
+		cfg := config.Load(home)
+		idle = time.Duration(cfg.Serve.IdleStopDays) * 24 * time.Hour
+		// The UI language is the process's: the home config sets it once, and
+		// the workspaces' cores leave it alone (core.NewIn).
+		i18n.SetLang(cfg.Editor.UILanguage)
 	}
 	srv, err := server.Listen(server.Options{
 		SocketPath: sock,

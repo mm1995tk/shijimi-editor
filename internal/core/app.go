@@ -139,18 +139,25 @@ type Core struct {
 // end it is drawn by. The core has the process-wide parts (Shared) to itself,
 // as in the TUI: Close closes them too.
 func New(fe FrontEnd, dir, file string) *Core {
-	a := NewIn(NewShared(), fe, dir, file)
+	a := newCore(NewShared(), fe, dir, file, true)
 	a.ownShared = true
 	return a
 }
 
 // NewIn creates the core rooted at dir on the process-wide parts sh, which
 // other cores may share; Close leaves them open. `shj serve` makes a core per
-// workspace this way (Workspaces).
+// workspace this way (Workspaces). The UI language is the process's, so NewIn
+// leaves it as it is (New sets it from the root's config).
 func NewIn(sh *Shared, fe FrontEnd, dir, file string) *Core {
+	return newCore(sh, fe, dir, file, false)
+}
+
+func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) *Core {
 	abs, _ := filepath.Abs(dir)
 	cfg := config.Load(abs)
-	i18n.SetLang(cfg.Editor.UILanguage)
+	if setLang {
+		i18n.SetLang(cfg.Editor.UILanguage)
+	}
 	a := &Core{
 		FrontEnd: fe,
 		Root:     abs,

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -14,7 +15,7 @@ import (
 // workspace is closed. The TUI does not use it: it has its one core.
 type Workspaces struct {
 	shared *Shared
-	// front makes the front end of a new core. nil makes a Headless.
+	// front makes the front end of a new core. nil makes a headless.
 	front func() FrontEnd
 
 	mu    sync.Mutex
@@ -25,7 +26,7 @@ type Workspaces struct {
 // its own goroutine yet, so whoever touches the core does it inside Do, which
 // runs one caller at a time.
 type Workspace struct {
-	Root string
+	Root string // the workspace root, an absolute path
 	mu   sync.Mutex
 	core *Core
 }
@@ -38,7 +39,7 @@ func (w *Workspace) Do(fn func(c *Core)) {
 }
 
 // NewWorkspaces makes the cores' registry on sh. front makes the front end of
-// each new core; nil gives each a Headless.
+// each new core; nil gives each a headless.
 func NewWorkspaces(sh *Shared, front func() FrontEnd) *Workspaces {
 	return &Workspaces{shared: sh, front: front, cores: map[string]*Workspace{}}
 }
@@ -53,19 +54,27 @@ func cleanRoot(root string) string {
 // Open is the workspace at root, made with a new core if it has none.
 func (ws *Workspaces) Open(root string) *Workspace {
 	root = cleanRoot(root)
-	ws.mu.Lock()
-	defer ws.mu.Unlock()
-	if w := ws.cores[root]; w != nil {
+	if w := ws.Lookup(root); w != nil {
 		return w
 	}
+	// Making a core reads the config and runs git, so it is done without the
+	// lock: a slow workspace does not hold up the others.
 	var fe FrontEnd
 	if ws.front != nil {
 		fe = ws.front()
 	} else {
-		fe = NewHeadless()
+		fe = newHeadless()
 	}
 	w := &Workspace{Root: root, core: NewIn(ws.shared, fe, root, "")}
+	ws.mu.Lock()
+	if got := ws.cores[root]; got != nil {
+		// someone made it meanwhile; theirs stays
+		ws.mu.Unlock()
+		w.core.Close()
+		return got
+	}
 	ws.cores[root] = w
+	ws.mu.Unlock()
 	return w
 }
 
@@ -84,15 +93,7 @@ func (ws *Workspaces) List() []*Workspace {
 		out = append(out, w)
 	}
 	ws.mu.Unlock()
-	slices.SortFunc(out, func(a, b *Workspace) int {
-		switch {
-		case a.Root < b.Root:
-			return -1
-		case a.Root > b.Root:
-			return 1
-		}
-		return 0
-	})
+	slices.SortFunc(out, func(a, b *Workspace) int { return cmp.Compare(a.Root, b.Root) })
 	return out
 }
 
@@ -152,18 +153,29 @@ func (a *Core) HasOpenFiles() bool { return len(a.Tabs) > 0 }
 // CloseFiles closes the files that have no unsaved edits and keeps the others
 // open, so that closing never loses an edit. It returns how many it kept.
 func (a *Core) CloseFiles() int {
+	cur := a.Cur()
 	for i, v := range slices.Backward(a.Tabs) {
 		if !v.dirty() {
 			a.dropTab(i)
 		}
 	}
-	if a.Split && (a.Other == nil || !slices.Contains(a.Tabs, a.Other)) {
+	curKept := slices.Contains(a.Tabs, cur)
+	otherKept := a.Other != nil && slices.Contains(a.Tabs, a.Other)
+	if a.Split && (!curKept || !otherKept) {
+		// one pane lost its file: the file left fills the area
+		if !curKept && otherKept {
+			cur, curKept = a.Other, true
+		}
 		a.Split, a.Pane, a.Other, a.otherPrev = false, 0, nil, nil
 	}
 	if !slices.Contains(a.Tabs, a.PrevTab) {
 		a.PrevTab = nil
 	}
-	a.Active = min(a.Active, len(a.Tabs)-1)
+	if curKept {
+		a.Active = a.tabIndex(cur)
+	} else {
+		a.Active = min(a.Active, len(a.Tabs)-1)
+	}
 	if len(a.Tabs) == 0 {
 		a.Active = 0
 		a.Comp = nil

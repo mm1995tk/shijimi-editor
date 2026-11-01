@@ -11,7 +11,7 @@ import "github.com/mm1995tk/shijimi-editor/internal/proxy"
 // they always were: the theme by the front end (FrontEnd.SetPalette) and the
 // language by i18n.SetLang when a core reads its config.
 type Shared struct {
-	Proxy *proxy.Manager
+	Proxy *proxy.Manager // the port forwards (:browser), for every core
 }
 
 // NewShared makes the process-wide parts.

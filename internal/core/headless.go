@@ -2,70 +2,71 @@ package core
 
 import "github.com/mm1995tk/shijimi-editor/internal/buffer"
 
-// Headless is the front end of a core nothing draws yet: a workspace of `shj
+// headless is the front end of a core nothing draws yet: a workspace of `shj
 // serve` before a GUI looks at it. It has a screen of W x H cells with only the
 // editor on it, no terminal panel and no multiplexer. The GUI will tell the
 // sizes of its regions (view.resize) and pick the theme (theme.get); until
 // then the core keeps its state as it would behind any screen.
-type Headless struct {
+type headless struct {
+	// the screen in cells
 	W, H int
 }
 
-// NewHeadless is a Headless of 80 x 24 cells.
-func NewHeadless() *Headless { return &Headless{W: 80, H: 24} }
+// newHeadless is a headless front end of 80 x 24 cells.
+func newHeadless() *headless { return &headless{W: 80, H: 24} }
 
-func (h *Headless) ScreenW() int                  { return h.W }
-func (h *Headless) ScreenH() int                  { return h.H }
-func (h *Headless) SideShown() bool               { return false }
-func (h *Headless) TermShown() bool               { return false }
-func (h *Headless) AgentOpen() bool               { return false }
-func (h *Headless) SetSide(bool)                  {}
-func (h *Headless) SetTerm(bool)                  {}
-func (h *Headless) SetAgent(bool)                 {}
-func (h *Headless) AgentWidthPref() int           { return 0 }
-func (h *Headless) ExplorerShare() int            { return 0 }
-func (h *Headless) InResizeMode() bool            { return false }
-func (h *Headless) DragBorder(ResizeTarget)       {}
-func (h *Headless) ReleasesReported() bool        { return false }
-func (h *Headless) SetReleasesReported(bool)      {}
-func (h *Headless) SendClipboard(string)          {}
-func (h *Headless) TermBlur()                     {}
-func (h *Headless) TermFocus() []Effect           { return nil }
-func (h *Headless) TermCloseAll()                 {}
-func (h *Headless) TermKey(Key)                   {}
-func (h *Headless) TermRun(string) []Effect       { return nil }
-func (h *Headless) TermPaste(string) []Effect     { return nil }
-func (h *Headless) TermShell() Shell              { return nil }
-func (h *Headless) MuxReset()                     {}
-func (h *Headless) MuxOn() bool                   { return false }
-func (h *Headless) MuxOpen() error                { return nil }
-func (h *Headless) MuxHide() error                { return nil }
-func (h *Headless) MuxToggle() []Effect           { return nil }
-func (h *Headless) MuxSend(string, bool) []Effect { return nil }
-func (h *Headless) MuxClose()                     {}
-func (h *Headless) MuxResult(error) []Effect      { return nil }
-func (h *Headless) CommandEnded(int)              {}
-func (h *Headless) StartResize() []Effect         { return nil }
-func (h *Headless) HandleResizeKey(string) []Effect {
+func (h *headless) ScreenW() int                  { return h.W }
+func (h *headless) ScreenH() int                  { return h.H }
+func (h *headless) SideShown() bool               { return false }
+func (h *headless) TermShown() bool               { return false }
+func (h *headless) AgentOpen() bool               { return false }
+func (h *headless) SetSide(bool)                  {}
+func (h *headless) SetTerm(bool)                  {}
+func (h *headless) SetAgent(bool)                 {}
+func (h *headless) AgentWidthPref() int           { return 0 }
+func (h *headless) ExplorerShare() int            { return 0 }
+func (h *headless) InResizeMode() bool            { return false }
+func (h *headless) DragBorder(ResizeTarget)       {}
+func (h *headless) ReleasesReported() bool        { return false }
+func (h *headless) SetReleasesReported(bool)      {}
+func (h *headless) SendClipboard(string)          {}
+func (h *headless) TermBlur()                     {}
+func (h *headless) TermFocus() []Effect           { return nil }
+func (h *headless) TermCloseAll()                 {}
+func (h *headless) TermKey(Key)                   {}
+func (h *headless) TermRun(string) []Effect       { return nil }
+func (h *headless) TermPaste(string) []Effect     { return nil }
+func (h *headless) TermShell() Shell              { return nil }
+func (h *headless) MuxReset()                     {}
+func (h *headless) MuxOn() bool                   { return false }
+func (h *headless) MuxOpen() error                { return nil }
+func (h *headless) MuxHide() error                { return nil }
+func (h *headless) MuxToggle() []Effect           { return nil }
+func (h *headless) MuxSend(string, bool) []Effect { return nil }
+func (h *headless) MuxClose()                     {}
+func (h *headless) MuxResult(error) []Effect      { return nil }
+func (h *headless) CommandEnded(int)              {}
+func (h *headless) StartResize() []Effect         { return nil }
+func (h *headless) HandleResizeKey(string) []Effect {
 	return nil
 }
-func (h *Headless) ScrollHover(int) {}
-func (h *Headless) HoverCellWord() (buffer.Pos, WordSpan, bool) {
+func (h *headless) ScrollHover(int) {}
+func (h *headless) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	return buffer.Pos{}, WordSpan{}, false
 }
 
 // EditRows leaves out the status line.
-func (h *Headless) EditRows() int                  { return max(0, h.H-1) }
-func (h *Headless) TextCols(*Tab) int              { return h.W }
-func (h *Headless) DiffBaseCols() int              { return 0 }
-func (h *Headless) SuggestionsShown() bool         { return false }
-func (h *Headless) EditorCols() int                { return h.W }
-func (h *Headless) ResetPanes()                    {}
-func (h *Headless) SetScreen(w, ht int)            { h.W, h.H = w, ht }
-func (h *Headless) SetPalette(*Theme)              {} // the theme is the process's (ActivateTheme); the GUI asks for it with theme.get
-func (h *Headless) HandleTermEvent(Event) []Effect { return nil }
-func (h *Headless) HandleMouse(Mouse) []Effect     { return nil }
-func (h *Headless) NewTextArea(initial string) TextArea {
+func (h *headless) EditRows() int                  { return max(0, h.H-1) }
+func (h *headless) TextCols(*Tab) int              { return h.W }
+func (h *headless) DiffBaseCols() int              { return 0 }
+func (h *headless) SuggestionsShown() bool         { return false }
+func (h *headless) EditorCols() int                { return h.W }
+func (h *headless) ResetPanes()                    {}
+func (h *headless) SetScreen(w, ht int)            { h.W, h.H = w, ht }
+func (h *headless) SetPalette(*Theme)              {} // the theme is the process's (ActivateTheme); the GUI asks for it with theme.get
+func (h *headless) HandleTermEvent(Event) []Effect { return nil }
+func (h *headless) HandleMouse(Mouse) []Effect     { return nil }
+func (h *headless) NewTextArea(initial string) TextArea {
 	return &plainArea{text: initial}
 }
 

@@ -319,12 +319,23 @@ func (ss *session) workspaceRequest(req *rpc.Message) (res any, err error, handl
 		return struct{}{}, nil, true
 	}
 	// フォーカスを移したワークスペースの core を用意する。core は外しても残る。
+	// recompute と同じロックの中で、まだワークスペースがあるのを確かめてから作る
+	// （消えたあとに作った core は、誰も止めなくなる）。
+	w.recomputeMu.Lock()
+	w.mu.Lock()
+	_, ok := w.list[p.ID]
+	w.mu.Unlock()
+	if !ok {
+		w.recomputeMu.Unlock()
+		return nil, rpc.Errorf(rpc.CodeNotFound, "no such workspace: %s", p.ID), true
+	}
 	if cores != nil {
 		cores.Open(x.Root)
 	}
 	w.mu.Lock()
 	w.focus = p.ID
 	w.mu.Unlock()
+	w.recomputeMu.Unlock()
 	rev := ss.srv.bumpRev()
 	out := map[string]any{"rev": rev}
 	if !slices.Contains(terms, last) {
