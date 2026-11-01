@@ -187,3 +187,63 @@ func TestCoreFields(t *testing.T) {
 		}
 	}
 }
+
+// tuiMethodFiles are the files whose methods stay on App: they draw, locate a
+// screen cell, or talk to bubbletea or the multiplexer. The methods of every
+// other file are Core's.
+var tuiMethodFiles = []string{
+	"app_draw.go", "caret.go", "frontend.go", "model.go", "layout.go", "mouse.go", "resize.go",
+	"mux.go", "eventtui.go", "inputtea.go", "ideproposal_draw.go", "prreview_draw.go",
+	"editor_draw.go", "explorer_draw.go", "gitdiff_draw.go", "inputview.go", "lines_draw.go",
+	"preview_draw.go", "signature_draw.go", "spacemenu_draw.go", "styles.go", "theme_apply.go",
+}
+
+// appMethodTodo are methods on App in files that otherwise belong to Core:
+// the bubbletea entry points (Init, Update), the dispatch they start
+// (update, handleInput, handleKey, which reach the mouse and the resize keys),
+// the palette's two key handlers and two drawing methods. Shrink this list;
+// never add to it.
+var appMethodTodo = []string{
+	"Init", "Update", "update", "handleInput", "handleKey", "handlePaletteKey", "submitPalette",
+	"drawCard", "drawComposer", "renderPane",
+}
+
+// TestCoreMethods keeps the methods of the files that go to core on Core.
+func TestCoreMethods(t *testing.T) {
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	left := map[string]bool{}
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || slices.Contains(tuiMethodFiles, name) {
+			continue
+		}
+		f, err := parser.ParseFile(token.NewFileSet(), name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range f.Decls {
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok || fd.Recv == nil || len(fd.Recv.List) != 1 {
+				continue
+			}
+			star, ok := fd.Recv.List[0].Type.(*ast.StarExpr)
+			if !ok {
+				continue
+			}
+			if id, ok := star.X.(*ast.Ident); ok && id.Name == "App" {
+				if !slices.Contains(appMethodTodo, fd.Name.Name) {
+					t.Errorf("%s: %s is a method of App; the methods of this file are Core's", name, fd.Name.Name)
+				}
+				left[fd.Name.Name] = true
+			}
+		}
+	}
+	for _, n := range appMethodTodo {
+		if !left[n] {
+			t.Errorf("%s is no longer a method of App in a core file; remove it from appMethodTodo", n)
+		}
+	}
+}
