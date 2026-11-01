@@ -198,22 +198,12 @@ var tuiMethodFiles = []string{
 	"preview_draw.go", "signature_draw.go", "spacemenu_draw.go", "styles.go", "theme_apply.go",
 }
 
-// appMethodTodo are methods on App in files that otherwise belong to Core:
-// the bubbletea entry points (Init, Update), the dispatch they start
-// (update, handleInput, handleKey, which reach the mouse and the resize keys),
-// the palette's two key handlers and two drawing methods. Shrink this list;
-// never add to it.
-var appMethodTodo = []string{
-	"update", "handleInput", "handleKey", "handlePaletteKey", "submitPalette",
-}
-
 // TestCoreMethods keeps the methods of the files that go to core on Core.
 func TestCoreMethods(t *testing.T) {
 	entries, err := os.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	left := map[string]bool{}
 	for _, e := range entries {
 		name := e.Name()
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || slices.Contains(tuiMethodFiles, name) {
@@ -233,16 +223,8 @@ func TestCoreMethods(t *testing.T) {
 				continue
 			}
 			if id, ok := star.X.(*ast.Ident); ok && id.Name == "App" {
-				if !slices.Contains(appMethodTodo, fd.Name.Name) {
-					t.Errorf("%s: %s is a method of App; the methods of this file are Core's", name, fd.Name.Name)
-				}
-				left[fd.Name.Name] = true
+				t.Errorf("%s: %s is a method of App; the methods of this file are Core's", name, fd.Name.Name)
 			}
-		}
-	}
-	for _, n := range appMethodTodo {
-		if !left[n] {
-			t.Errorf("%s is no longer a method of App in a core file; remove it from appMethodTodo", n)
 		}
 	}
 }

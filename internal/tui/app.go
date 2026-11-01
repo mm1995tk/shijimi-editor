@@ -862,7 +862,7 @@ func (a *Core) handleAutoSave(m AutoSaveDue) []Effect {
 
 // update takes what fromTea (inputtea.go) made of a tea.Msg: an Input or an
 // Event.
-func (a *App) update(msg any) []Effect {
+func (a *Core) update(msg any) []Effect {
 	switch msg := msg.(type) {
 	case Event:
 		return a.handleEvent(msg)
@@ -881,7 +881,7 @@ func (a *App) update(msg any) []Effect {
 }
 
 // handleInput takes an Input from whichever front end made it.
-func (a *App) handleInput(in Input) []Effect {
+func (a *Core) handleInput(in Input) []Effect {
 	switch msg := in.(type) {
 	case Mouse:
 		return a.handleMouse(msg)
@@ -943,7 +943,7 @@ func (a *Core) handleLSPEvent(e lsp.Event) []Effect {
 	return nil
 }
 
-func (a *App) handleKey(msg Key) []Effect {
+func (a *Core) handleKey(msg Key) []Effect {
 	key := msg.String()
 	a.msg = ""
 	if a.sig != nil && (key == "esc" || !a.sigVisible()) {
@@ -1181,7 +1181,7 @@ func (a *Core) handleCompletionKey(msg Key) ([]Effect, bool) {
 	return nil, false
 }
 
-func (a *App) handlePaletteKey(msg Key) []Effect {
+func (a *Core) handlePaletteKey(msg Key) []Effect {
 	p := a.pal
 	switch msg.String() {
 	case "esc", "ctrl+c":
@@ -1216,7 +1216,7 @@ func (a *Core) paletteInput(msg Input) []Effect {
 	return nil
 }
 
-func (a *App) submitPalette() []Effect {
+func (a *Core) submitPalette() []Effect {
 	p := a.pal
 	v := p.input.Value()
 	p.close()
@@ -1237,7 +1237,7 @@ func (a *App) submitPalette() []Effect {
 		return a.execCommand(strings.TrimSpace(v[1:]))
 	case strings.HasPrefix(v, ">"):
 		if p.sel < len(p.items) {
-			return a.commands[p.items[p.sel].index].run(a.Core)
+			return a.commands[p.items[p.sel].index].run(a)
 		}
 	default:
 		if p.sel < len(p.items) {
