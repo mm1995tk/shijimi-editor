@@ -108,9 +108,7 @@ export function anchorCell(
 
 /** 1 列の差分で消した行。 */
 function isDeleted(l: Line): boolean {
-  return (l.marks ?? []).some(
-    (m) => (m as { kind?: string } | null)?.kind === "deleted",
-  );
+  return (l.marks ?? []).some((m) => m?.kind === "deleted");
 }
 
 function clamp(v: number, lo: number, hi: number): number {

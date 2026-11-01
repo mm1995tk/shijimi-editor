@@ -68,6 +68,16 @@
   color: var(--files-lineno-current);
 }
 
+/* 行番号の横の印（E5）。「●」はフォントによって幅が違うので、1 桁に収める */
+.files-gutter-mark {
+  display: inline-block;
+  width: 1ch;
+  height: var(--files-line-height);
+  vertical-align: top;
+  overflow: hidden;
+  text-align: center;
+}
+
 /* 区間の幅はマス目（ch）で style に入れる。全角の文字も 2ch に収める */
 .files-run {
   display: inline-block;

@@ -80,15 +80,38 @@ export interface Span {
   strike?: boolean;
 }
 
+/** 行番号の横の印。Go の screen.Mark。 */
+export interface Mark {
+  kind: "added" | "modified" | "deleted" | "diag";
+  /** 印の色（テーマ上の名前） */
+  style?: string;
+}
+
+/** 診断の重さ（LSP の DiagnosticSeverity と同じ数）。1 がエラー、2 が警告、3 が情報、4 がヒント。 */
+export type Severity = 1 | 2 | 3 | 4;
+
+/** 1 つの診断。Go の screen.Diagnostic。範囲は行の中の rune の位置 [start, end)。 */
+export interface Diagnostic {
+  start: number;
+  end: number;
+  severity: Severity;
+  message: string;
+  /** 前の行から続く診断。下線だけ引き、行末の文言と行番号の横の印には使わない */
+  cont?: boolean;
+}
+
 export interface Line {
   /** バッファの行番号（0 始まり） */
   no: number;
   spans: Span[];
-  marks?: unknown[];
-  diag?: unknown[];
+  /** 行番号の横の印 */
+  marks?: Mark[];
+  diag?: Diagnostic[];
+  /** インデントガイドを引く桁（表示上の桁、小さい順）。文字の上の空白でも、空行の行末より右でも引く */
   guides?: number[];
   blank?: boolean;
   words?: { start: number; end: number }[];
+  /** ガイドが及ぶ幅（桁）。ガイドを引かないときは 0 */
   indent?: number;
   band?: string;
   rule?: boolean;

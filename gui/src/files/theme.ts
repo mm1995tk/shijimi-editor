@@ -31,6 +31,12 @@ const FALLBACK: Record<string, string> = {
   error: "#f07178",
   "hover.code.bg": "#1f232b",
   "hover.rule": "#2a2f39",
+  // 診断・インデントガイド（E5）
+  "diag.error": "#f07178",
+  "diag.warn": "#e2c08d",
+  "diag.info": "#8fb4ff",
+  "diag.hint": "#8fb4ff",
+  "indent.guide": "#3a414e",
 };
 
 /** name の色。テーマに無ければ控えの色、それも無ければ undefined。 */
@@ -59,10 +65,24 @@ export function runStyle(
   }
   if (r.bold) st["font-weight"] = "bold";
   if (r.italic) st["font-style"] = "italic";
-  const deco = [r.underline && "underline", r.strike && "line-through"]
+  const deco = [
+    (r.underline || r.diag) && "underline",
+    r.strike && "line-through",
+  ]
     .filter(Boolean)
     .join(" ");
-  if (deco) st["text-decoration"] = deco;
+  if (deco) st["text-decoration-line"] = deco;
+  // 診断は重さの色の波線（文字の色はスタイルのまま）
+  const diag = colorOf(theme, r.diag);
+  if (diag) {
+    st["text-decoration-style"] = "wavy";
+    st["text-decoration-color"] = diag;
+    st["text-underline-offset"] = "3px";
+  }
+  // インデントガイドはマス目の左端の 1px の線（カーソルの上には引かない）
+  const guide = r.guide && !r.cursor && colorOf(theme, "indent.guide");
+  if (guide) st["box-shadow"] = `inset 1px 0 0 ${guide}`;
+  if (r.faint) st.opacity = "0.6";
   return st;
 }
 
