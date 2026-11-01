@@ -11,6 +11,11 @@ on:
           - minor
           - major
         default: patch
+      ref:
+        # 毎日のリリース判定は、nightly で 3 日以上試したコミットを渡す（docs/releasing.md）。
+        description: "リリースするコミット（main の上のもの）。空なら main の最新"
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -36,6 +41,26 @@ jobs:
           # 履歴を全部取る（1 コミット分だけだと push が拒否される）。
           fetch-depth: 0
 
+      - name: リリースするコミットに移る
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          if ! target=$(git rev-parse --verify --quiet "${REF:-HEAD}^{commit}"); then
+            echo "::error::コミット $REF が見つかりません"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$target" origin/main; then
+            echo "::error::$target は main の上のコミットではありません"
+            exit 1
+          fi
+          # 前のリリースは main の flake.nix の version で決める（タグの並びは使わない。v1.0.1 は retract のためだけのタグ）
+          last=$(sed -n 's/^ *version = "\([0-9]*\.[0-9]*\.[0-9]*\)";$/\1/p' flake.nix)
+          if ! git merge-base --is-ancestor "v$last" "$target" || [ "$(git rev-parse "v$last^{commit}")" = "$target" ]; then
+            echo "::error::$target は前のリリース v$last より後のコミットではありません"
+            exit 1
+          fi
+          git switch -q --detach "$target"
+
       - name: バージョンを上げる
         id: ver
         env:
@@ -53,6 +78,11 @@ jobs:
             patch) patch=$((patch + 1)) ;;
           esac
           next="$major.$minor.$patch"
+          # 1.0.0 は誤って出して取り消した版で、npm では二度と使えない。1.0.1 は Go の retract のためだけのタグ。
+          # そのため、0.x から major を上げるときは 1.1.0 にする
+          if [ "$next" = 1.0.0 ]; then
+            next=1.1.0
+          fi
           if git ls-remote --exit-code --tags origin "refs/tags/v$next" >/dev/null; then
             echo "::error::タグ v$next はすでにあります"
             exit 1
@@ -69,16 +99,22 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -am "v$NEXT"
           git tag "v$NEXT"
-          # コミット・タグ・release ブランチを同時に push する（どれかが失敗したら全部失敗する）。
+          # リリースしたコミットを main に取り込む。main の flake.nix の version を上げ、次のリリースのとき
+          # release ブランチが早送りで進めるようにするため。リリースするコミットが main の最新なら早送りになる。
+          git switch -q --detach origin/main
+          git merge --no-edit -m "v$NEXT を main に取り込む" "v$NEXT"
+          # main・タグ・release ブランチを同時に push する（どれかが失敗したら全部失敗する）。
           # release ブランチは最新のリリースを指し、Nix の利用者は github:mm1995tk/shijimi-editor/release で
           # main の未リリースの変更を取らずに済む。
-          git push --atomic origin HEAD:main HEAD:refs/heads/release "v$NEXT"
+          git push --atomic origin HEAD:main "v$NEXT^{commit}:refs/heads/release" "v$NEXT"
 
       - name: GitHub Release を作る
         env:
           GH_TOKEN: ${{ github.token }}
+          CURRENT: ${{ steps.ver.outputs.current }}
           NEXT: ${{ steps.ver.outputs.next }}
-        run: gh release create "v$NEXT" --title "v$NEXT" --generate-notes --verify-tag
+        # 前のタグを明示する（一番新しいタグの v1.0.1 は retract のためだけのもの）
+        run: gh release create "v$NEXT" --title "v$NEXT" --generate-notes --notes-start-tag "v$CURRENT" --verify-tag
 
   # 打ったタグから OS と CPU ごとの shj をビルドし、npm のパッケージ（tarball）にする。publish はしない
   npm-pack:
