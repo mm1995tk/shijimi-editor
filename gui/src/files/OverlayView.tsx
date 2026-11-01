@@ -15,12 +15,13 @@ import {
   COMPLETION_KIND_W,
   composeRows,
   isComposer,
-  labelParts,
+  itemLine,
   menuLayout,
   overlayBox,
   overlayRuns,
   paletteLabel,
   scrollIndicator,
+  textLine,
   type Area,
   type Box,
 } from "./overlay.ts";
@@ -108,7 +109,7 @@ function OverlayBody(props: {
   const ov = () => props.overlay;
   switch (props.overlay.kind) {
     case "completion":
-      return <CompletionBody overlay={ov()} />;
+      return <CompletionBody overlay={ov()} cols={props.box.w} />;
     case "hover":
       return <ScrollBody overlay={ov()} box={props.box} theme={props.theme} />;
     case "signature":
@@ -128,9 +129,9 @@ function OverlayBody(props: {
         <ScrollBody overlay={ov()} box={props.box} theme={props.theme} />
       );
     case "menu":
-      return <MenuBody overlay={ov()} box={props.box} />;
+      return <MenuBody overlay={ov()} box={props.box} theme={props.theme} />;
     case "palette":
-      return <PaletteBody overlay={ov()} box={props.box} />;
+      return <PaletteBody overlay={ov()} box={props.box} theme={props.theme} />;
     default:
       return null;
   }
@@ -157,7 +158,10 @@ function LineRuns(props: {
 }
 
 /** 補完の候補。名前と、右に種類。 */
-function CompletionBody(props: { overlay: Overlay }): JSX.Element {
+function CompletionBody(props: {
+  overlay: Overlay;
+  cols: number;
+}): JSX.Element {
   return (
     <div role="listbox">
       <Index each={props.overlay.items ?? []}>
@@ -168,7 +172,13 @@ function CompletionBody(props: { overlay: Overlay }): JSX.Element {
             aria-selected={i === props.overlay.active}
             data-active={i === props.overlay.active ? "" : undefined}
           >
-            <span class="files-pop-label"> {it().label}</span>
+            <span class="files-pop-label">
+              <LineRuns
+                line={textLine([{ text: ` ${it().label}` }])}
+                cols={props.cols - COMPLETION_KIND_W}
+                theme={null}
+              />
+            </span>
             <span
               class="files-pop-dim"
               style={{ width: `${COMPLETION_KIND_W}ch`, flex: "none" }}
@@ -226,23 +236,7 @@ function ScrollBody(props: {
   );
 }
 
-/** 項目の名前（検索に合った文字を強く）と、右に薄く補足。 */
-function ItemLabel(props: { item: Item }): JSX.Element {
-  return (
-    <>
-      <span class="files-pop-label">
-        <For each={labelParts(props.item)}>
-          {(p) => (p.hi ? <span class="files-pop-hi">{p.text}</span> : p.text)}
-        </For>
-        <Show when={props.item.detail && props.item.detail !== "."}>
-          <span class="files-pop-dim">{"  " + props.item.detail}</span>
-        </Show>
-      </span>
-    </>
-  );
-}
-
-/** 入力欄の文字。カーソルの文字を cursor の色で塗る。 */
+/** 入力欄の文字。カーソルの文字を cursor の色で塗る。全角の幅は本文と同じく区間の幅（ch）でそろえる。 */
 function FieldText(props: {
   text: string;
   cursor: number;
@@ -255,13 +249,26 @@ function FieldText(props: {
       Math.max(1, props.cells),
     ),
   );
+  const big = 1 << 16;
   return (
     <span class="files-pop-field">
-      {parts().before}
-      <span class="files-pop-cursor" data-cursor="">
+      <LineRuns
+        line={textLine([{ text: parts().before }])}
+        cols={big}
+        theme={null}
+      />
+      <span
+        class="files-run files-pop-cursor"
+        data-cursor=""
+        style={{ width: `${textCells(parts().at)}ch` }}
+      >
         {parts().at}
       </span>
-      {parts().after}
+      <LineRuns
+        line={textLine([{ text: parts().after }])}
+        cols={big}
+        theme={null}
+      />
       <Show when={!props.text && props.placeholder}>
         <span class="files-pop-dim">{props.placeholder}</span>
       </Show>
@@ -270,7 +277,11 @@ function FieldText(props: {
 }
 
 /** コマンドパレット。見出しと入力欄、項目、候補が無いときの案内。 */
-function PaletteBody(props: { overlay: Overlay; box: Box }): JSX.Element {
+function PaletteBody(props: {
+  overlay: Overlay;
+  box: Box;
+  theme: Theme | null;
+}): JSX.Element {
   const ov = () => props.overlay;
   const label = () => paletteLabel(ov().title, ov().field?.prefix ?? ">");
   return (
@@ -294,7 +305,13 @@ function PaletteBody(props: { overlay: Overlay; box: Box }): JSX.Element {
               data-active={i === ov().active ? "" : undefined}
             >
               <span style={{ width: "1ch", flex: "none" }} />
-              <ItemLabel item={it()} />
+              <span class="files-pop-label">
+                <LineRuns
+                  line={itemLine(it())}
+                  cols={props.box.w - 3}
+                  theme={props.theme}
+                />
+              </span>
             </div>
           )}
         </Index>
@@ -307,7 +324,11 @@ function PaletteBody(props: { overlay: Overlay; box: Box }): JSX.Element {
 }
 
 /** メニュー（スペースキーの後など）。見出しと、キーと名前の並び（1 列か 2 列）。 */
-function MenuBody(props: { overlay: Overlay; box: Box }): JSX.Element {
+function MenuBody(props: {
+  overlay: Overlay;
+  box: Box;
+  theme: Theme | null;
+}): JSX.Element {
   const items = () => props.overlay.items ?? [];
   const m = createMemo(() => menuLayout(items(), props.box.w));
   const rows = createMemo(() =>
@@ -332,7 +353,18 @@ function MenuBody(props: { overlay: Overlay; box: Box }): JSX.Element {
                   class="files-pop-menu-item"
                   style={{ width: `${m().cellW}ch` }}
                 >
-                  <span class="files-pop-hi">{it.detail ?? ""}</span> {it.label}
+                  <LineRuns
+                    line={textLine([
+                      {
+                        text: it.detail ?? "",
+                        style: "palette.hi",
+                        bold: true,
+                      },
+                      { text: ` ${it.label}` },
+                    ])}
+                    cols={m().cellW}
+                    theme={props.theme}
+                  />
                 </span>
               )}
             </For>
@@ -365,7 +397,13 @@ function ComposerBody(props: {
             <div class="files-pop-row files-pop-pad">
               <Show
                 when={input().first + i === ov().compose?.cursor.line}
-                fallback={text()}
+                fallback={
+                  <LineRuns
+                    line={textLine([{ text: text() }])}
+                    cols={cols()}
+                    theme={null}
+                  />
+                }
               >
                 <FieldText
                   text={text()}

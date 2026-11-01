@@ -49,10 +49,12 @@ describe("anchorCell", () => {
     assert.deepEqual(anchorCell(files, "a.go", { line: 11, col: 2 }), {
       x: 11,
       y: 1,
+      shown: true,
     });
     assert.deepEqual(anchorCell(files, "a.go", { line: 11, col: 3 }), {
       x: 15,
       y: 1,
+      shown: true,
     });
   });
 
@@ -67,6 +69,7 @@ describe("anchorCell", () => {
     assert.deepEqual(anchorCell(files, "a.go", { line: 15, col: 6 }), {
       x: 7,
       y: 5,
+      shown: false,
     });
   });
 
@@ -90,9 +93,27 @@ describe("anchorCell", () => {
     assert.deepEqual(anchorCell(files, "r", { line: 0, col: 0 }), {
       x: 36,
       y: 0,
+      shown: true,
     });
     assert.equal(anchorCell(files, "x", { line: 0, col: 0 }), undefined);
     assert.equal(anchorCell(files, "r", undefined), undefined);
+  });
+
+  it("1 列の差分では、同じ番号の消した行を飛ばす", () => {
+    const files: Files = {
+      panes: [
+        pane({
+          kind: "diff",
+          viewport: { top: 0, rows: 5, cols: 30, left: 0, total: 5 },
+          lines: [
+            { no: 3, spans: [], marks: [{ kind: "deleted" }] },
+            { no: 3, spans: [] },
+          ],
+        }),
+      ],
+      active: 0,
+    };
+    assert.equal(anchorCell(files, "a.go", { line: 3, col: 0 })?.y, 1);
   });
 });
 
@@ -162,6 +183,27 @@ describe("overlayBox", () => {
       w: 8,
       h: 2,
     });
+  });
+
+  it("シグネチャはカーソルが見えていなければ出さない", () => {
+    const sig = (line: number, col = 0): Overlay => ({
+      kind: "signature",
+      pane: "a.go",
+      at: { line, col },
+      active: 0,
+      lines: [{ no: 0, spans: [{ text: "f(a int)" }] }],
+    });
+    assert.deepEqual(overlayBox(sig(10), files, area), {
+      x: 7,
+      y: 1,
+      w: 10,
+      h: 1,
+    });
+    // 上と下にはみ出した行（ホイールでカーソルの行が外れた）
+    assert.equal(overlayBox(sig(9), files, area), undefined);
+    assert.equal(overlayBox(sig(40), files, area), undefined);
+    // 横にスクロールして外れた桁
+    assert.equal(overlayBox(sig(10, 200), files, area), undefined);
   });
 
   it("確認は箱にしない（状態行に出す）", () => {

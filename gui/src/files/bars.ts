@@ -3,7 +3,7 @@
 // gitdiff_draw.go の drawDiffHeader）に合わせ、見た目はモック「案：フラットな一覧」に合わせる。
 // 文言は shj が組み立てて送るので、ここでは足さない（記号だけを付ける）。
 
-import type { Cmdline, Overlay, Status, Title } from "../rpc/protocol.ts";
+import type { Cmdline, Line, Overlay, Status, Title } from "../rpc/protocol.ts";
 import { runeWidth } from "./width.ts";
 
 /** タイトル行の名前の欄に出すファイル名と、右に出すフォルダを含んだパス。 */
@@ -104,9 +104,14 @@ export function cmdlineText(c: Cmdline, cells: number): CmdlineText {
   };
 }
 
+/** 区間の並びで来た行の文字。 */
+export function lineText(line: Line | undefined): string {
+  return (line?.spans ?? []).map((s) => s.text).join("");
+}
+
 /** 確認の問いの文言。 */
 export function confirmText(ov: Overlay): string {
-  return (ov.lines?.[0]?.spans ?? []).map((s) => s.text).join("");
+  return lineText(ov.lines?.[0]);
 }
 
 /** 文字列の幅（マス目）。 */

@@ -7,8 +7,16 @@
 //   その行の文字の幅（全角・タブ）でマス目にする（幅の計算は描く側の仕事。設計書 1 章）。
 // - 確認（confirm）は TUI と同じく状態行に出すので、箱にしない（bars.ts の statusLeft）。
 
-import type { Files, Item, Line, Overlay, Pane, Pos } from "../rpc/protocol.ts";
-import { textCells } from "./bars.ts";
+import type {
+  Files,
+  Item,
+  Line,
+  Overlay,
+  Pane,
+  Pos,
+  Span,
+} from "../rpc/protocol.ts";
+import { lineText, textCells } from "./bars.ts";
 import { gutterWidth, layoutLine, paneCells, type Run } from "./layout.ts";
 import { runeWidth } from "./width.ts";
 
@@ -30,6 +38,11 @@ export interface Box {
 export interface Cell {
   x: number;
   y: number;
+}
+
+/** ペインの中の位置の、本文のマス目。shown は、その位置が今ペインに見えているか（行も桁も）。 */
+export interface Anchor extends Cell {
+  shown: boolean;
 }
 
 /** 補完の窓の幅の下限と上限（TUI の drawCompletion と同じ）。 */
@@ -70,24 +83,34 @@ function runesCells(line: Line, col: number): number {
 /**
  * ペイン id の中の位置 at が、本文のどのマス目に当たるか。ペインが無ければ undefined。
  * 行が見えていないときは、ビューポートの先頭からの差で数える（はみ出したまま返す）。
+ * 1 列の差分のペインでは、消した行も古い側の行番号を持つので、消した行（印が deleted）は飛ばす。
  */
 export function anchorCell(
   files: Files | undefined,
   id: string | undefined,
   at: Pos | undefined,
-): Cell | undefined {
+): Anchor | undefined {
   if (!id || !at) return undefined;
   const left = paneLeft(files, id);
   const p = files?.panes.find((q) => q.id === id);
   if (left === undefined || !p) return undefined;
   const lines = p.lines ?? [];
-  const row = lines.findIndex((l) => l.no === at.line);
+  const row = lines.findIndex((l) => l.no === at.line && !isDeleted(l));
   const y = row >= 0 ? row : at.line - p.viewport.top;
   const line = row >= 0 ? lines[row] : undefined;
   const vis = line ? runesCells(line, at.col) : at.col;
   const gutter = p.kind === "text" ? gutterWidth(p.viewport.total) : 0;
-  const col = Math.max(0, Math.min(vis - p.viewport.left, p.viewport.cols - 1));
-  return { x: left + gutter + col, y };
+  const rel = vis - p.viewport.left;
+  const col = Math.max(0, Math.min(rel, p.viewport.cols - 1));
+  const shown = row >= 0 && rel >= 0 && rel < p.viewport.cols;
+  return { x: left + gutter + col, y, shown };
+}
+
+/** 1 列の差分で消した行。 */
+function isDeleted(l: Line): boolean {
+  return (l.marks ?? []).some(
+    (m) => (m as { kind?: string } | null)?.kind === "deleted",
+  );
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -147,11 +170,6 @@ export function paletteWidth(area: Area): number {
   return Math.min(area.cols, clamp(Math.floor((area.cols * 3) / 5), 30, 100));
 }
 
-/** 文字の区間の並び（シグネチャの 1 行など）の幅。 */
-function lineCells(line: Line | undefined): number {
-  return textCells((line?.spans ?? []).map((s) => s.text).join(""));
-}
-
 /** ホバー・レビューカードの枠の下に出す、見えている行の位置（「↑ 12/40 ↓」）。全部見えていれば空。 */
 export function scrollIndicator(ov: Overlay): string {
   const v = ov.view;
@@ -188,13 +206,23 @@ export function overlayBox(
     case "hover": {
       // 上に「コピー」、下に案内と位置の行。左右に 1 桁ずつ空ける
       const a = anchorCell(files, ov.pane, ov.at) ?? { x: 0, y: 0 };
-      const w = fit((ov.view?.cols ?? 1) + 2);
-      return placeBelow(a, w, (ov.lines?.length ?? 0) + 2, area);
+      return placeBelow(
+        a,
+        viewBoxWidth(ov, area),
+        (ov.lines?.length ?? 0) + 2,
+        area,
+      );
     }
     case "signature": {
+      // カーソルが見えていなければ出さない（TUI の cursorShown。ホイールはカーソルを動かさない）
       const a = anchorCell(files, ov.pane, ov.at);
-      if (!a) return undefined;
-      return placeAbove(a, fit(lineCells(ov.lines?.[0]) + 2), 1, area);
+      if (!a?.shown || a.y >= area.rows) return undefined;
+      return placeAbove(
+        a,
+        fit(textCells(lineText(ov.lines?.[0])) + 2),
+        1,
+        area,
+      );
     }
     case "reviewCard":
       return isComposer(ov) ? composerBox(ov, area) : cardBox(ov, files, area);
@@ -220,9 +248,14 @@ export function overlayBox(
   }
 }
 
+/** view.cols の行が入る箱の幅（ホバー・カード・コメントの入力欄）。左右に 1 桁ずつ空け、欄より広くしない。 */
+function viewBoxWidth(ov: Overlay, area: Area): number {
+  return Math.max(1, Math.min((ov.view?.cols ?? 1) + 2, area.cols));
+}
+
 /** レビューのスレッドのカード。スレッドの行の下に、見えていなければ左上に置く（TUI の cardBox）。 */
 function cardBox(ov: Overlay, files: Files | undefined, area: Area): Box {
-  const w = Math.max(1, Math.min((ov.view?.cols ?? 1) + 2, area.cols));
+  const w = viewBoxWidth(ov, area);
   const h = (ov.lines?.length ?? 0) + 1;
   const a = anchorCell(files, ov.pane, ov.at && { line: ov.at.line, col: 0 });
   const seen = a && a.y >= 0 && a.y < area.rows;
@@ -234,7 +267,7 @@ function cardBox(ov: Overlay, files: Files | undefined, area: Area): Box {
  * 本文の下の真ん中に置く（TUI の composerBox）。
  */
 function composerBox(ov: Overlay, area: Area): Box {
-  const w = Math.max(1, Math.min((ov.view?.cols ?? 1) + 2, area.cols));
+  const w = viewBoxWidth(ov, area);
   const preview = ov.compose?.previewLabel ? 1 + (ov.lines?.length ?? 0) : 0;
   const h = 1 + COMPOSE_ROWS + 1 + preview;
   return {
@@ -308,4 +341,22 @@ export function composeRows(
     Math.min(cursorLine - COMPOSE_ROWS + 1, all.length - COMPOSE_ROWS),
   );
   return { first, rows: all.slice(first, first + COMPOSE_ROWS) };
+}
+
+/** 文字の区間の並びから、ポップアップに描く 1 行を作る（overlayRuns に渡して全角の幅を本文とそろえる）。 */
+export function textLine(spans: readonly Span[]): Line {
+  return { no: -1, spans: spans.filter((s) => s.text !== "") };
+}
+
+/**
+ * 項目（パレット）の 1 行。検索に合った文字は palette.hi の太字、補足（detail）は薄く後ろに付ける。
+ * 色の無い文字は、行の色（選択中の項目なら strong）で描く。
+ */
+export function itemLine(it: Item): Line {
+  const spans: Span[] = labelParts(it).map((p) =>
+    p.hi ? { text: p.text, style: "palette.hi", bold: true } : { text: p.text },
+  );
+  if (it.detail && it.detail !== ".")
+    spans.push({ text: `  ${it.detail}`, style: "lineno" });
+  return textLine(spans);
 }
