@@ -14,6 +14,7 @@ const (
 	RegionChanges  Region = "changes"
 	RegionAgent    Region = "agent"
 	RegionTerminal Region = "terminal"
+	RegionStatus   Region = "status"
 	RegionCmdline  Region = "cmdline"
 	RegionOverlay  Region = "overlay"
 )
@@ -406,4 +407,27 @@ type AgentRow struct {
 	// 選ばれている桁の範囲 [SelFrom, SelTo)（マス目）。無いときは SelFrom >= SelTo。
 	SelFrom int `json:"selFrom,omitempty"`
 	SelTo   int `json:"selTo,omitempty"`
+}
+
+// Size は領域の大きさ（等幅のマス目で数える）。
+type Size struct {
+	Cols int `json:"cols"`
+	Rows int `json:"rows,omitempty"`
+}
+
+// View は GUI が view.resize で送る、領域ごとの大きさ。Files.Rows はペインの本文の行数で、タイトル行は含めない。
+// ペインを 2 つ並べるときの割り方は core が Files の中で決める。
+type View struct {
+	Files   Size `json:"files"`
+	Status  Size `json:"status"`
+	Cmdline Size `json:"cmdline"`
+	Overlay Size `json:"overlay"`
+}
+
+// DefaultView は GUI が view.resize を送るまでの大きさ。
+var DefaultView = View{
+	Files:   Size{Cols: 80, Rows: 22},
+	Status:  Size{Cols: 80},
+	Cmdline: Size{Cols: 80},
+	Overlay: Size{Cols: 80, Rows: 22},
 }

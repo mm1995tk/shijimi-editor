@@ -95,7 +95,7 @@ func (w *wsManager) recompute() {
 	prev := w.list
 	w.list = next
 	if _, ok := next[w.focus]; !ok {
-		// フォーカスが消えた。GUI は removed から知る。Screen の宛先が要るとき（B9）に通知を足す。
+		// フォーカスが消えた。GUI は removed から知る。画面（Screen）は次のフォーカスまで送らない。
 		w.focus = ""
 	}
 	added, updated, removed := diffWorkspaces(prev, next)
@@ -315,6 +315,7 @@ func (ss *session) workspaceRequest(req *rpc.Message) (res any, err error, handl
 		if cores != nil {
 			cores.CloseFiles(x.Root)
 			w.recompute()
+			ss.srv.ScreenChanged()
 		}
 		return struct{}{}, nil, true
 	}
@@ -337,6 +338,8 @@ func (ss *session) workspaceRequest(req *rpc.Message) (res any, err error, handl
 	w.mu.Unlock()
 	w.recomputeMu.Unlock()
 	rev := ss.srv.bumpRev()
+	// 画面（Screen）はこのワークスペースの core のものに切り替わる。
+	ss.srv.ScreenChanged()
 	out := map[string]any{"rev": rev}
 	if !slices.Contains(terms, last) {
 		last = ""

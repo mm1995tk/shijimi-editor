@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 	"github.com/mm1995tk/shijimi-editor/internal/server"
 )
 
@@ -65,4 +67,42 @@ func writeBackups(ws *core.Workspaces, log *slog.Logger) {
 	if err != nil {
 		log.Error("writing unsaved edits", "err", err)
 	}
+}
+
+var _ server.Screens = serveCores{}
+
+// Screen builds the screen of root's core at the regions' sizes v.
+func (s serveCores) Screen(root string, v screen.View) (sc screen.Screen, ok bool) {
+	w := s.ws.Lookup(root)
+	if w == nil {
+		return sc, false
+	}
+	w.Do(func(c *core.Core) { sc = c.BuildScreen(v) })
+	return sc, true
+}
+
+// Theme is the process's theme. It is read inside root's core when there is
+// one, as a theme is switched from inside a core.
+func (s serveCores) Theme(root string) (server.Theme, bool) {
+	var th server.Theme
+	read := func() { th = server.ThemeOf(core.CurTheme.Name, core.CurTheme.Palette()) }
+	if w := s.ws.Lookup(root); w != nil {
+		w.Do(func(*core.Core) { read() })
+	} else {
+		read()
+	}
+	return th, true
+}
+
+// Blob is the image a pane of root's core shows.
+func (s serveCores) Blob(root, id string) (mime string, data []byte, err error) {
+	w := s.ws.Lookup(root)
+	if w == nil {
+		return "", nil, server.ErrNoBlob
+	}
+	w.Do(func(c *core.Core) { mime, data, err = c.BlobData(id) })
+	if errors.Is(err, core.ErrNoBlob) {
+		err = server.ErrNoBlob
+	}
+	return mime, data, err
 }
