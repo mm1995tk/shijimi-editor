@@ -8,6 +8,8 @@
 //   イベントの受け方は filesInput.ts、パラメータの作り方は input.ts、OS のクリップボードは clipboard.ts。
 // - 上にペインごとのタイトル行、下に状態行（コマンド行が開いているときはコマンド行）を出す
 //   （E3。BarsView.tsx、中身は bars.ts）。
+// - 補完・ホバー・パレットなどのポップアップ（E4）を本文の上に重ねる（OverlayView.tsx、置き場所は
+//   overlay.ts）。確認は状態行に出す。
 // - 行番号の横の印・診断・インデントガイド（E5）、画像・プレビュー・差分（E6）はまだ描かない。
 //   差分とプレビューのペインは、行の文字だけを出す。
 import {
@@ -33,6 +35,7 @@ import {
   type SendInput,
 } from "./filesInput.ts";
 import { isMac } from "./input.ts";
+import { OverlayLayer } from "./OverlayView.tsx";
 import {
   cellsFor,
   gutterText,
@@ -66,8 +69,9 @@ export function FilesView(props: {
   let measure: HTMLSpanElement | undefined;
   let ime: HTMLTextAreaElement | undefined;
   let last: FilesSize | undefined;
-  // 欄の桁数（コマンド行の入る幅に使う）
-  const [cols, setCols] = createSignal(0);
+  // 欄の桁数と行数（コマンド行の入る幅と、ポップアップの置き場所に使う）
+  const [size, setSize] = createSignal<FilesSize>({ cols: 0, rows: 0 });
+  const cols = () => size().cols;
 
   /** 等幅のマス目 1 つの幅（px）。 */
   function cellWidth(): number {
@@ -80,7 +84,7 @@ export function FilesView(props: {
     const size = cellsFor(body.clientWidth, body.clientHeight, cellWidth());
     if (last && last.cols === size.cols && last.rows === size.rows) return;
     last = size;
-    setCols(size.cols);
+    setSize(size);
     props.onResize(size);
   }
   onMount(() => {
@@ -180,6 +184,13 @@ export function FilesView(props: {
             </Index>
           )}
         </Show>
+        <OverlayLayer
+          overlays={props.screen?.overlay}
+          files={files()}
+          area={size()}
+          theme={props.theme}
+          onMouseDown={keepFocus}
+        />
       </div>
       <BottomBar
         screen={props.screen}

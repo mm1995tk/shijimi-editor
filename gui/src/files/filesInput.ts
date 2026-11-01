@@ -115,6 +115,7 @@ export function createKeyInput(o: {
    * コマンド行（E3）が開いていれば、そのカーソルの桁に置く。コマンド行は本文の外（下）にあるので、
    * 高さは本文の最後の行に収める（本文の外に出すと、変換中に WebKit がキャレットを見せようとして
    * overflow: hidden の本文をスクロールさせ、行が上にずれたまま残るため）。候補の窓はコマンド行のすぐ上に出る。
+   * 入力欄のあるポップアップ（パレット・レビューのコメント。E4）が出ていれば、その入力欄のカーソルに置く。
    */
   function placeIme() {
     const ime = o.ime();
@@ -122,6 +123,7 @@ export function createKeyInput(o: {
     if (!ime || !body) return;
     const cur =
       body.parentElement?.querySelector<HTMLElement>(".files-cmdline-cursor") ??
+      body.querySelector<HTMLElement>(".files-overlay [data-cursor]") ??
       body.querySelector<HTMLElement>(".files-pane[data-active] [data-cursor]");
     if (!cur) return;
     const b = body.getBoundingClientRect();
