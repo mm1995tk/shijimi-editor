@@ -8,13 +8,15 @@ type Line = (e: { id: string; line: string }) => void;
 
 /** 接続ごとに挙動を決められる偽の殻。 */
 function fakeShell(opts: {
-  serverIds: string[]; // n 回目の接続の serverId。"fail" なら ssh が終わる
+  serverIds: string[]; // n 回目の接続の serverId。"fail" なら ssh が終わる、"missing" なら shj が無い（97）
+  installFails?: string; // 入れるのがこの理由で失敗する
   pingReply?: () => boolean;
 }) {
   const lines: Line[] = [];
   const closeds: ((e: ClosedEvent) => void)[] = [];
   const sent: { id: string; msg: any }[] = [];
   let n = 0;
+  const installs: string[] = [];
   const serverOf = new Map<string, string>();
   const emit = (id: string, obj: unknown) =>
     lines.forEach((f) => f({ id, line: JSON.stringify(obj) }));
@@ -23,9 +25,11 @@ function fakeShell(opts: {
     connect: async (id) => {
       const sid = opts.serverIds[Math.min(n, opts.serverIds.length - 1)];
       n++;
-      if (sid === "fail") {
+      if (sid === "fail" || sid === "missing") {
         queueMicrotask(() =>
-          closeds.forEach((f) => f({ id, code: 255, stderr: "refused" })),
+          closeds.forEach((f) =>
+            f({ id, code: sid === "missing" ? 97 : 255, stderr: "refused" }),
+          ),
         );
         return;
       }
@@ -72,11 +76,25 @@ function fakeShell(opts: {
       return () => void closeds.splice(closeds.indexOf(f), 1);
     },
     onAskpass: async () => () => {},
+    installPlan: async () => ({
+      version: "0.0.0",
+      path: "~/.cache/shijimi-editor/0.0.0/shj",
+      release_url: "https://example.invalid/r",
+    }),
+    installRemote: async (_id, target) => {
+      installs.push(target);
+      if (opts.installFails) throw new Error(opts.installFails);
+      // 入れたので、次からは shj がある
+      opts.serverIds.splice(0, opts.serverIds.length, "A");
+      n = 0;
+      return { path: "p", asset: "a", sha256: "h" };
+    },
     onAskpassDone: async () => () => {},
   };
   return {
     api,
     sent,
+    installs,
     emit,
     /** ssh が切れた */
     drop(id: string) {
@@ -305,5 +323,73 @@ describe("applyWorkspaceChange", () => {
       removed: ["b"],
     });
     assert.deepEqual(r, [w("a", "A"), w("c")]);
+  });
+});
+
+describe("shj が無いリモート", () => {
+  it("つなぎ直さず、聞く段階で止まる。ユーザーが答えるまで何も入れない", async () => {
+    const f = fakeShell({ serverIds: ["missing"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    const st = await waitFor(s, (x) => x.kind === "needs-install");
+    assert.equal(st.kind === "needs-install" && st.plan.version, "0.0.0");
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(f.connects, 1, "つなぎ直しを繰り返さない");
+    assert.deepEqual(f.installs, [], "聞く前に入れない");
+    await s.close();
+  });
+
+  it("入れると答えたら入れて、つなぎ直して connected になる", async () => {
+    const f = fakeShell({ serverIds: ["missing"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    const done = s.install();
+    assert.equal(s.state.kind, "installing");
+    await done;
+    await waitFor(s, (x) => x.kind === "connected");
+    assert.deepEqual(f.installs, ["h"]);
+    await s.close();
+  });
+
+  it("入れるのに失敗したら、理由付きで聞く段階に戻る（つながない）", async () => {
+    const f = fakeShell({
+      serverIds: ["missing"],
+      installFails: "SHA-256 mismatch",
+    });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    await s.install();
+    assert.ok(
+      s.state.kind === "needs-install" &&
+        s.state.error?.includes("SHA-256 mismatch"),
+    );
+    assert.equal(f.connects, 1);
+    await s.close();
+  });
+
+  it("入れないと答えたら何も入れず failed。つなぎ直すと、もう一度聞く", async () => {
+    const f = fakeShell({ serverIds: ["missing"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    s.declineInstall();
+    assert.equal(s.state.kind, "failed");
+    assert.deepEqual(f.installs, []);
+    s.retry();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    assert.deepEqual(f.installs, []);
+    await s.close();
+  });
+
+  it("聞く段階以外では install() は何もしない", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "connected");
+    await s.install();
+    assert.deepEqual(f.installs, []);
+    await s.close();
   });
 });

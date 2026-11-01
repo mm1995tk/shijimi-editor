@@ -9,6 +9,8 @@ export const tauriShell: ShellApi = {
   connect: (id, target) => invoke("connect", { id, target }),
   send: (id, text) => invoke("send", { id, text }),
   disconnect: (id) => invoke("disconnect", { id }),
+  installPlan: () => invoke("install_plan"),
+  installRemote: (id, target) => invoke("install_remote", { id, target }),
   askpassReply: (requestId, value) =>
     invoke("askpass_reply", { requestId, value }),
   onLine: (h) =>

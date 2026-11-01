@@ -3,7 +3,12 @@
 
 import { Client, type Transport } from "../rpc/client.ts";
 import type { HelloResult } from "../rpc/protocol.ts";
-import type { ShellApi, Unlisten } from "./api.ts";
+import {
+  EXIT_SHJ_MISSING,
+  LOCAL,
+  type ShellApi,
+  type Unlisten,
+} from "./api.ts";
 
 export const GUI_NAME = "shijimi-editor-gui";
 export const GUI_VERSION = "0.0.0";
@@ -26,8 +31,19 @@ export class ConnectError extends Error {
   }
 }
 
+/**
+ * リモートに shj が無い（ssh は通ったが、入れる場所に実行ファイルが無い）。
+ * ユーザーに聞いてから入れる（設計書 3 章）。つなぎ直しを繰り返さず、聞く段階に進むための印。
+ */
+export class ShjMissingError extends ConnectError {
+  constructor(stderr = "") {
+    super("shj is not installed on the remote", stderr);
+    this.name = "ShjMissingError";
+  }
+}
+
 let counter = 0;
-function newId(): string {
+export function newId(): string {
   counter += 1;
   return `c${Date.now().toString(36)}-${counter}`;
 }
@@ -74,10 +90,12 @@ export async function connectShj(
     }),
   );
   let stderr = "";
+  let exitCode = null as number | null;
   unlisten.push(
     await api.onClosed((e) => {
       if (e.id !== id) return;
       stderr = e.stderr;
+      exitCode = e.code;
       client.close(
         e.code == null
           ? "connection ended"
@@ -117,6 +135,11 @@ export async function connectShj(
     await new Promise((r) => setTimeout(r, 0));
     const msg = e instanceof Error ? e.message : String(e);
     cleanup();
+    // 終了コード 97 は、リモートのシェルが「shj が無い」と返したとき。ssh 自身の失敗（255 など）とは別。
+    // LOCAL は ssh を挟まないので対象外
+    if (target !== LOCAL && exitCode === EXIT_SHJ_MISSING) {
+      throw new ShjMissingError(stderr);
+    }
     throw new ConnectError(msg, stderr);
   }
 }

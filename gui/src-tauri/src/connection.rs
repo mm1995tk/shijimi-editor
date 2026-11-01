@@ -41,18 +41,54 @@ pub struct Connections {
 }
 
 /// リモートの shj の場所。`~` はリモートのシェルが展開する。版ごとに分ける（設計書 3 章）。
-fn remote_shj() -> String {
-    std::env::var("SHIJIMI_REMOTE_SHJ")
-        .unwrap_or_else(|_| format!("~/.cache/shijimi-editor/{}/shj", env!("CARGO_PKG_VERSION")))
+pub fn remote_shj() -> String {
+    std::env::var("SHIJIMI_REMOTE_SHJ").unwrap_or_else(|_| default_remote_shj())
+}
+
+/// 入れる先（`~/.cache/shijimi-editor/<GUI の版>/shj`）。PATH の `shj` ではない。
+pub fn default_remote_shj() -> String {
+    format!("~/.cache/shijimi-editor/{}/shj", env!("CARGO_PKG_VERSION"))
 }
 
 /// ssh の引数に渡してよいホスト名か。`-` で始まるとオプションになり、空白や制御文字は別の引数に化ける。
-fn valid_host(h: &str) -> bool {
+pub fn valid_host(h: &str) -> bool {
     !h.is_empty()
         && h.len() <= 255
         && !h.starts_with('-')
         && !h.starts_with('@')
         && !h.chars().any(|c| c.is_whitespace() || c.is_control())
+}
+
+/// shj が無かったとき、リモートのシェルがこの終了コードで終わる。ssh は遠隔コマンドの終了コードをそのまま返すので、
+/// 画面側は「ssh が失敗した」と「shj が入っていない」を見分けられる（入れる前にユーザーに聞く。設計書 3 章）。
+pub const EXIT_SHJ_MISSING: i32 = 97;
+
+/// `ssh -T <host> -- <remote_command>` の土台。askpass の環境変数もここで付ける。
+pub fn ssh_command(
+    target: &str,
+    ask: &AskpassServer,
+    id: &str,
+    remote_command: &str,
+) -> Result<Command, String> {
+    if !valid_host(target) {
+        return Err(format!("invalid host name: {target:?}"));
+    }
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let mut c = Command::new("ssh");
+    c.args(["-T", target, "--"])
+        .arg(remote_command)
+        .env("SSH_ASKPASS", exe)
+        // DISPLAY が無くても、端末が無くても askpass を使わせる（OpenSSH 8.4 以降）
+        .env("SSH_ASKPASS_REQUIRE", "force")
+        .env(askpass::ENV_SOCK, &ask.sock)
+        .env(askpass::ENV_TOKEN, &ask.token)
+        .env(askpass::ENV_CONN, id);
+    Ok(c)
+}
+
+/// リモートで実行する `shj attach`。shj が無ければ（実行できなければ）EXIT_SHJ_MISSING で終わる。
+fn attach_command(shj: &str) -> String {
+    format!("[ -x {shj} ] || exit {EXIT_SHJ_MISSING}; {shj} attach")
 }
 
 fn build_command(target: &str, ask: &AskpassServer, id: &str) -> Result<Command, String> {
@@ -62,20 +98,7 @@ fn build_command(target: &str, ask: &AskpassServer, id: &str) -> Result<Command,
         c.arg("attach");
         return Ok(c);
     }
-    if !valid_host(target) {
-        return Err(format!("invalid host name: {target:?}"));
-    }
-    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let mut c = Command::new("ssh");
-    c.args(["-T", target, "--"])
-        .arg(format!("{} attach", remote_shj()))
-        .env("SSH_ASKPASS", exe)
-        // DISPLAY が無くても、端末が無くても askpass を使わせる（OpenSSH 8.4 以降）
-        .env("SSH_ASKPASS_REQUIRE", "force")
-        .env(askpass::ENV_SOCK, &ask.sock)
-        .env(askpass::ENV_TOKEN, &ask.token)
-        .env(askpass::ENV_CONN, id);
-    Ok(c)
+    ssh_command(target, ask, id, &attach_command(&remote_shj()))
 }
 
 impl Connections {
@@ -196,5 +219,13 @@ mod tests {
         assert!(!valid_host("a b"));
         assert!(!valid_host(""));
         assert!(!valid_host(LOCAL));
+    }
+
+    #[test]
+    fn attach_exits_97_without_shj() {
+        assert_eq!(
+            attach_command("~/.cache/shijimi-editor/1.2.3/shj"),
+            "[ -x ~/.cache/shijimi-editor/1.2.3/shj ] || exit 97; ~/.cache/shijimi-editor/1.2.3/shj attach"
+        );
     }
 }

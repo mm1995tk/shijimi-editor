@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { AskpassRequest, ClosedEvent, ShellApi } from "./api.ts";
-import { connectShj, ConnectError } from "./connect.ts";
+import { connectShj, ConnectError, ShjMissingError } from "./connect.ts";
 
 type Handlers = {
   line: ((e: { id: string; line: string }) => void)[];
@@ -71,6 +71,12 @@ function fakeApi(onConnect: (h: Handlers, id: string, target: string) => void) {
     onLine: (f) => reg(h.line, f),
     onClosed: (f) => reg(h.closed, f),
     onAskpass: (f) => reg(h.askpass, f),
+    installPlan: async () => ({
+      version: "0.0.0",
+      path: "p",
+      release_url: "u",
+    }),
+    installRemote: async () => ({ path: "p", asset: "a", sha256: "h" }),
     onAskpassDone: async () => () => {},
   };
   return { api, h, sent, connects, disconnects };
@@ -117,5 +123,30 @@ describe("connectShj", () => {
     const c = await connectShj(f.api, "@local", { id: "t3" });
     assert.equal(f.connects[0].target, "@local");
     await c.close();
+  });
+
+  it("リモートのシェルが 97 で終わったら ShjMissingError（ssh の 255 とは別）", async () => {
+    const f = fakeApi((h, id) => {
+      queueMicrotask(() =>
+        h.closed.forEach((fn) => fn({ id, code: 97, stderr: "" })),
+      );
+    });
+    await assert.rejects(
+      connectShj(f.api, "nohost", { id: "t4" }),
+      (e: unknown) => e instanceof ShjMissingError && e instanceof ConnectError,
+    );
+  });
+
+  it("このマシンの 97 は ShjMissingError にしない（入れる先がない）", async () => {
+    const f = fakeApi((h, id) => {
+      queueMicrotask(() =>
+        h.closed.forEach((fn) => fn({ id, code: 97, stderr: "" })),
+      );
+    });
+    await assert.rejects(
+      connectShj(f.api, "@local", { id: "t5" }),
+      (e: unknown) =>
+        e instanceof ConnectError && !(e instanceof ShjMissingError),
+    );
   });
 });
