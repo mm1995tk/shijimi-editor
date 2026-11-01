@@ -10,7 +10,12 @@ function dropWoffFallback(): Plugin {
     enforce: "pre",
     transform(code, id) {
       if (!/[\\/]@fontsource[\\/].*\.css$/.test(id)) return;
-      return code.replace(/,\s*url\([^)]*\.woff\)\s*format\('woff'\)/g, "");
+      const out = code.replace(/,\s*url\([^)]*\.woff\)\s*format\('woff'\)/g, "");
+      // @fontsource の書き方が変わって当たらなくなったら、黙って woff が戻らないようにビルドを止める
+      if (/\.woff["']?\)/.test(out)) {
+        this.error(`woff を消せなかった（@fontsource の CSS の書き方が変わった？）: ${id}`);
+      }
+      return out;
     },
   };
 }
