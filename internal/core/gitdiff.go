@@ -1101,11 +1101,11 @@ func (a *Core) DiffFor(t *Tab) *DiffView {
 	if f == nil {
 		return nil
 	}
-	if t.Dv == nil || t.Dv.rev != a.Gd.rev || t.Dv.Single != a.DiffSingle(f) {
+	if !a.diffBaseFresh(t.Dv, f) {
 		t.Dv = a.newDiffView(f)
 	}
 	dv := t.Dv
-	if !dv.valid || dv.ver != t.Buf.Version || dv.split != a.Gd.Split {
+	if !a.diffBuilt(dv, t) {
 		dv.build(t, a.Gd.Split)
 	}
 	return dv
@@ -1119,14 +1119,24 @@ func (a *Core) DiffOf(t *Tab) *DiffView {
 	if f == nil {
 		return nil
 	}
-	single := a.DiffSingle(f)
-	if dv := t.Dv; dv != nil && dv.rev == a.Gd.rev && dv.Single == single &&
-		dv.valid && dv.ver == t.Buf.Version && dv.split == a.Gd.Split {
+	if dv := t.Dv; a.diffBaseFresh(dv, f) && a.diffBuilt(dv, t) {
 		return dv
 	}
 	dv := a.newDiffView(f)
 	dv.build(t, a.Gd.Split)
 	return dv
+}
+
+// diffBaseFresh reports whether dv (nil: none) compares against the base of
+// the changed file f as diff mode has it now.
+func (a *Core) diffBaseFresh(dv *DiffView, f *diff.File) bool {
+	return dv != nil && dv.rev == a.Gd.rev && dv.Single == a.DiffSingle(f)
+}
+
+// diffBuilt reports whether dv's rows are built from t's buffer as it is and
+// for the layout (split or unified) diff mode has now.
+func (a *Core) diffBuilt(dv *DiffView, t *Tab) bool {
+	return dv.valid && dv.ver == t.Buf.Version && dv.split == a.Gd.Split
 }
 
 // newDiffView is the diff view of the changed file f against the compared

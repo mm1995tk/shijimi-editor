@@ -12,14 +12,39 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
+// cardOverlay is the open card as it shows in layout l; ok is false when the
+// editor area is too narrow for it.
+func (a *App) cardOverlay(l layout) (ov screen.Overlay, ok bool) {
+	cols, maxH, ok := core.CardSize(l.rightW, l.editH)
+	if !ok {
+		return screen.Overlay{}, false
+	}
+	return a.CardOverlay(a.OpenCard(), cols, maxH), true
+}
+
+// fitCard keeps the open card's scroll inside its rows in layout l and sends
+// the images in view to the terminal (see cardBox).
+func (a *App) fitCard(l layout) {
+	if !a.CardOpen() {
+		return
+	}
+	cols, maxH, ok := core.CardSize(l.rightW, l.editH)
+	if !ok {
+		return
+	}
+	a.FitCard(cols, maxH)
+	ov := a.CardOverlay(a.OpenCard(), cols, maxH)
+	a.sendMdImages(ov.Images, ov.View.Cols)
+}
+
 // cardBox lays out the open card for layout l.
 func (a *App) cardBox(l layout) (rows []string, x, y int) {
 	c := a.OpenCard()
-	w := min(84, l.rightW-2)
-	if w < 20 {
+	ov, ok := a.cardOverlay(l)
+	if !ok {
 		return nil, 0, 0
 	}
-	rows = a.drawCard(a.CardOverlay(c, w-4, max(3, l.editH*2/3-2)))
+	rows = a.drawCard(ov)
 	cx, cy := l.rightX+2, l.editY+1
 	if c.At != nil {
 		cx, cy = c.At.X, c.At.Y
@@ -43,24 +68,33 @@ func composerWidth(l layout) (w, iw int) {
 	return w, w - 4
 }
 
+// composerParts is the open comment editor as it shows in layout l: the box's
+// width, the text area as the widget draws it and the rest as an Overlay.
+func (a *App) composerParts(l layout) (w int, input []string, ov screen.Overlay) {
+	w, iw := composerWidth(l)
+	input = strings.Split(a.OpenComposer().Ta.View(), "\n")
+	prevH := max(0, l.editH-(len(input)+2)-1)
+	return w, input, a.ComposerOverlay(iw, min(prevH, 12))
+}
+
 // fitComposer gives the open comment editor's text area the width it is drawn
-// in (see composerBox).
+// in and sends the images of its preview to the terminal (see composerBox).
 func (a *App) fitComposer(l layout) {
 	if !a.Composing() {
 		return
 	}
 	_, iw := composerWidth(l)
 	a.OpenComposer().Ta.SetWidth(iw)
+	if _, _, ov := a.composerParts(l); ov.Compose != nil && ov.Compose.PreviewLabel != "" {
+		a.sendMdImages(ov.Images, ov.View.Cols)
+	}
 }
 
 // composerBox draws the editor over the bottom of the editor area. The text
 // area's width was set by fitComposer.
 func (a *App) composerBox(l layout) (rows []string, x, y int) {
-	c := a.OpenComposer()
-	w, iw := composerWidth(l)
-	input := strings.Split(c.Ta.View(), "\n")
-	prevH := max(0, l.editH-(len(input)+2)-1)
-	rows = a.drawComposer(a.ComposerOverlay(iw, min(prevH, 12)), input)
+	w, input, ov := a.composerParts(l)
+	rows = a.drawComposer(ov, input)
 	x = l.rightX + max(0, (l.rightW-w)/2)
 	y = max(l.editY, l.editY+l.editH-len(rows))
 	return rows, x, y

@@ -21,6 +21,10 @@ func TestImageViewSendsOncePerSize(t *testing.T) {
 	v := &core.ImageView{Path: "a.png", Img: image.NewRGBA(image.Rect(0, 0, 400, 400)), Format: "png", Id: 7}
 	a := appOf(&core.Core{Tabs: []*core.Tab{{Kind: core.TabImage, Img: v}}})
 	lines := a.imageLines(a.Tabs[0], 30, 12)
+	if g := core.TakeGraphics(); g != "" {
+		t.Errorf("drawing sent the image")
+	}
+	a.sendImagePane(a.Tabs[0], 30, 12)
 	if len(lines) != 12 {
 		t.Fatalf("got %d lines", len(lines))
 	}
@@ -34,6 +38,7 @@ func TestImageViewSendsOncePerSize(t *testing.T) {
 		t.Errorf("transmit not queued: %q", g[:min(len(g), 60)])
 	}
 	core.ThemeGen++ // rebuild the lines without changing the size
+	a.sendImagePane(a.Tabs[0], 30, 12)
 	a.imageLines(a.Tabs[0], 30, 12)
 	if g := core.TakeGraphics(); g != "" {
 		t.Errorf("same size sent again")

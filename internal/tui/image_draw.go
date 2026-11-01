@@ -9,9 +9,36 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
-// body draws the image on the w x h cells that are given to it, centred, and
-// sends it to the terminal at the size it is shown at. Blank when it could not
-// be read.
+// sendImage sends v (nil: none) to the terminal at the size imageBody shows it
+// in w x h cells, unless the terminal already holds it at that size. fit calls
+// it for the images about to be drawn, so drawing sends nothing.
+func sendImage(v *core.ImageView, w, h int) {
+	if v == nil || v.Err != nil || v.Img == nil || h <= 0 || w <= 0 {
+		return
+	}
+	src := v.Img.Bounds()
+	v.Send(core.FitImage(src.Dx(), src.Dy(), w, h))
+}
+
+// sendMdImages sends the images of a Markdown document drawn w cells wide
+// (drawMdRows) to the terminal.
+func (a *App) sendMdImages(images []screen.PreviewImage, w int) {
+	for _, im := range images {
+		sendImage(a.PreviewImage(im.Image.Blob), max(0, w-im.Col), im.Rows)
+	}
+}
+
+// sendImagePane sends the image of the image tab t, drawn in w x h cells
+// (imageLines), to the terminal.
+func (a *App) sendImagePane(t *core.Tab, w, h int) {
+	if p := a.BuildImagePane(t, w, h); p.Image != nil {
+		sendImage(a.BlobImage(p.Image.Blob), w, h-1)
+	}
+}
+
+// imageBody draws the image on the w x h cells that are given to it, centred,
+// as the placeholders of the image sendImage sent. Blank when it could not be
+// read.
 func imageBody(v *core.ImageView, w, h int) []string {
 	cell := [2]int{core.CellW, core.CellH}
 	if v.Cache != nil && v.CacheW == w && v.CacheH == h && v.CacheCell == cell && v.CacheGen == core.ThemeGen {
@@ -26,8 +53,7 @@ func imageBody(v *core.ImageView, w, h int) []string {
 		return out
 	}
 	src := v.Img.Bounds()
-	pw, ph, cols, rows := core.FitImage(src.Dx(), src.Dy(), w, h)
-	v.Send(pw, ph, cols, rows)
+	_, _, cols, rows := core.FitImage(src.Dx(), src.Dy(), w, h)
 
 	padL := (w - cols) / 2
 	padT := (h - rows) / 2

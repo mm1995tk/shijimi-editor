@@ -24,6 +24,9 @@ func (a *Core) BuildScreen(v screen.View) screen.Screen {
 	a.fitSlots(slots, rows)
 	a.FitPalette()
 	a.FitFields(max(1, v.Cmdline.Cols-2), max(1, v.Cmdline.Cols))
+	if cols, maxH, ok := CardSize(max(1, v.Overlay.Cols), max(1, v.Overlay.Rows)); ok {
+		a.FitCard(cols, maxH)
+	}
 
 	sc := screen.Screen{
 		Focus:   a.screenFocus(),
@@ -74,21 +77,17 @@ func (a *Core) screenSlots(cols int) []screenSlot {
 	return []screenSlot{theirs, mine}
 }
 
-// fitSlots scrolls the texts of the slots to their cursors in rows rows, as
-// the TUI's App.fit does.
+// fitSlots makes the diff views and the Markdown previews of the slots'
+// texts and scrolls them to their cursors in rows rows, as the TUI's App.fit
+// does, so screenPanes only reads them.
 func (a *Core) fitSlots(slots []screenSlot, rows int) {
 	for _, s := range slots {
 		if s.t == nil || s.t.Kind != TabText {
 			continue
 		}
 		a.DiffFor(s.t)
-		if a.DiffFile(s.t) == nil {
-			switch s.t.Preview { // the widths screenPanes gives the preview
-			case PreviewFull:
-				a.FitPreview(s.t, s.w)
-			case PreviewSplit:
-				a.FitPreview(s.t, s.w-previewSplitW(s.w)-1)
-			}
+		if pw := a.screenPreviewW(s.t, s.w); pw > 0 {
+			a.FitPreview(s.t, pw)
 		}
 		if s.t != a.Cur() && !a.FullPreview(s.t) {
 			EnsureCursorVisible(s.t.Buf, a.screenEditW(s.t, s.w), rows)
@@ -201,6 +200,22 @@ func (a *Core) screenDiffGeom(w, h int) DiffGeom {
 // w columns wide; the preview has the rest but the column between them.
 func previewSplitW(w int) int { return (w - 1) / 2 }
 
+// screenPreviewW is the width of t's Markdown preview in a pane w columns
+// wide: all of it for a full preview, the rest beside the text otherwise, and
+// 0 when none is shown (off, or the diff view in its place).
+func (a *Core) screenPreviewW(t *Tab, w int) int {
+	if a.DiffFile(t) != nil {
+		return 0
+	}
+	switch t.Preview {
+	case PreviewFull:
+		return w
+	case PreviewSplit:
+		return w - previewSplitW(w) - 1
+	}
+	return 0
+}
+
 // screenPanes is the Panes that show t in a pane w columns wide and h rows
 // high: one, or two for a split diff or a text beside its preview. editable
 // is the index of the one that has the cursor and takes the keys.
@@ -219,10 +234,9 @@ func (a *Core) screenPanes(t *Tab, w, h int, focused bool) (panes []screen.Pane,
 	}
 	switch t.Preview {
 	case PreviewFull:
-		return []screen.Pane{a.BuildPreviewPane(t, w, h)}, 0
+		return []screen.Pane{a.BuildPreviewPane(t, a.screenPreviewW(t, w), h)}, 0
 	case PreviewSplit:
-		ew := previewSplitW(w)
-		return []screen.Pane{BuildTextPane(t, ew, h, o.PaneOpts), a.BuildPreviewPane(t, w-ew-1, h)}, 0
+		return []screen.Pane{BuildTextPane(t, previewSplitW(w), h, o.PaneOpts), a.BuildPreviewPane(t, a.screenPreviewW(t, w), h)}, 0
 	}
 	return []screen.Pane{BuildTextPane(t, w, h, o.PaneOpts)}, 0
 }
@@ -252,8 +266,8 @@ func (a *Core) screenOverlays(v screen.View) []screen.Overlay {
 		out = append(out, ov)
 	}
 	if a.CardOpen() {
-		if w := min(84, ow-2); w >= 20 {
-			out = append(out, a.CardOverlay(a.OpenCard(), w-4, max(3, oh*2/3-2)))
+		if cols, maxH, ok := CardSize(ow, oh); ok {
+			out = append(out, a.CardOverlay(a.OpenCard(), cols, maxH))
 		}
 	}
 	if a.Composing() {

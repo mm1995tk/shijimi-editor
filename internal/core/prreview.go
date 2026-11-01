@@ -581,20 +581,41 @@ func (a *Core) cardDoc(c *PrCard, w int) MdDoc {
 	return doc
 }
 
+// CardSize is the open card's content width and most rows in an area areaW x
+// areaH (the TUI's editor area, the GUI's overlay region); ok is false when
+// the area is too narrow to show it.
+func CardSize(areaW, areaH int) (cols, maxH int, ok bool) {
+	w := min(84, areaW-2)
+	return w - 4, max(3, areaH*2/3-2), w >= 20
+}
+
+// FitCard keeps the open card's scroll inside its rows when it shows cols
+// wide and at most maxH rows high (see CardSize): the keys scroll it without
+// an upper bound. The front end calls it before drawing.
+func (a *Core) FitCard(cols, maxH int) {
+	c := a.Card
+	if c == nil {
+		return
+	}
+	n := len(a.cardDoc(c, cols).Lines)
+	c.scroll = Clamp(c.scroll, 0, max(0, n-min(n, maxH)))
+}
+
 // CardOverlay is the open card c as a screen.Overlay: the rows in view when
 // scrolled by c.scroll (the rest stays in core), at most maxH of them, w cells
 // wide, with View telling where they are among all of them. It hangs on the
 // line of the thread in the pane of its file (if that is the current one).
-// Lines hold the card's content, header lines included. It clamps c.scroll
-// and changes nothing else. Drawing it is drawCard's work.
+// Lines hold the card's content, header lines included. It changes nothing:
+// FitCard keeps c.scroll in range before the frame (here it is clamped for
+// this call alone). Drawing it is drawCard's work.
 func (a *Core) CardOverlay(c *PrCard, w, maxH int) screen.Overlay {
 	doc := a.cardDoc(c, w)
 	h := min(len(doc.Lines), maxH)
-	c.scroll = Clamp(c.scroll, 0, max(0, len(doc.Lines)-h))
-	end := min(len(doc.Lines), c.scroll+h)
+	top := Clamp(c.scroll, 0, max(0, len(doc.Lines)-h))
+	end := min(len(doc.Lines), top+h)
 	ov := screen.Overlay{
 		Kind: screen.OverlayReviewCard,
-		View: &screen.Viewport{Top: c.scroll, Rows: h, Cols: w, Total: len(doc.Lines)},
+		View: &screen.Viewport{Top: top, Rows: h, Cols: w, Total: len(doc.Lines)},
 		Hint: a.cardHint(c),
 	}
 	if t := a.CurText(); t != nil && t.Buf.Path != "" && a.RepoPath(t.Buf.Path) == c.Path {
@@ -603,12 +624,12 @@ func (a *Core) CardOverlay(c *PrCard, w, maxH int) screen.Overlay {
 			ov.At = &screen.Pos{Line: c.Thread.Line - 1}
 		}
 	}
-	for i, l := range doc.Lines[c.scroll:end] {
-		l.No = c.scroll + i
+	for i, l := range doc.Lines[top:end] {
+		l.No = top + i
 		ov.Lines = append(ov.Lines, l)
 	}
 	for _, im := range doc.Images {
-		if im.Row < end && im.Row+im.Rows > c.scroll {
+		if im.Row < end && im.Row+im.Rows > top {
 			ov.Images = append(ov.Images, im)
 		}
 	}
