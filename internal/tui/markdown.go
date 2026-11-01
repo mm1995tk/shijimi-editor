@@ -368,8 +368,13 @@ func fitSpans(spans []screen.Span, w int) []screen.Span {
 
 // renderMarkdown formats src into lines for a pane w columns wide. The lines
 // are not padded to w: the drawing side fills the rest with the editor
-// background.
+// background. The structure of src is parseMarkdown's; the widths are here.
 func renderMarkdown(src string, w int, o mdOpts) mdDoc {
+	return formatMarkdown(parseMarkdown(src, o.frontMatter), w, o)
+}
+
+// formatMarkdown lays the blocks of a document out for a pane w columns wide.
+func formatMarkdown(blocks []mdBlock, w int, o mdOpts) mdDoc {
 	var out []screen.Line
 	var images []screen.PreviewImage
 	gapAt := -1     // the index in out of the empty line that separates blocks
@@ -428,99 +433,51 @@ func renderMarkdown(src string, w int, o mdOpts) mdDoc {
 		out = append(out, rows...)
 	}
 
-	lines := strings.Split(strings.ReplaceAll(src, "\r\n", "\n"), "\n")
-	start := 0
-	if o.frontMatter && len(lines) > 0 && strings.TrimRight(lines[0], " \t") == "---" {
-		for j := 1; j < len(lines); j++ {
-			if t := strings.TrimRight(lines[j], " \t"); t == "---" || t == "..." {
-				codeBlock(lines[1:j], "yaml")
-				gap()
-				start = j + 1
-				break
-			}
-		}
-	}
-	var para []string
-	flushPara := func() {
-		if len(para) == 0 {
-			return
-		}
-		text := strings.Join(para, " ")
-		if alt, src, ok := soleImage(text); ok && o.image != nil {
-			if rendered := o.image(alt, src, w); rendered != nil {
-				media(rendered)
-				para = nil
-				gap()
-				return
-			}
-		}
-		emit(screen.Span{}, wrap(inlineCells(text, mdStyle{}), w), screen.Span{})
-		para = nil
-		gap()
-	}
+	for _, b := range blocks {
+		switch b.Kind {
+		case mdGap:
+			gap()
 
-	for i := start; i < len(lines); i++ {
-		line := strings.TrimRight(lines[i], " \t")
-
-		if m := mdFenceRe.FindStringSubmatch(line); m != nil {
-			flushPara()
-			fence, lang := m[1], m[2]
-			var code []string
-			for i++; i < len(lines); i++ {
-				if t := strings.TrimSpace(lines[i]); len(t) >= len(fence) && strings.Trim(t, string(fence[0])) == "" {
-					break
-				}
-				code = append(code, lines[i])
-			}
-			text := strings.Join(code, "\n")
-			if strings.EqualFold(lang, "mermaid") && o.mermaid != nil {
-				if rendered := o.mermaid(text, w); rendered != nil {
+		case mdPara:
+			if alt, src, ok := soleImage(b.Text); ok && o.image != nil {
+				if rendered := o.image(alt, src, w); rendered != nil {
 					media(rendered)
 					gap()
 					continue
 				}
 			}
-			codeBlock(code, lang)
+			emit(screen.Span{}, wrap(inlineCells(b.Text, mdStyle{}), w), screen.Span{})
 			gap()
-			continue
-		}
 
-		switch {
-		case strings.TrimSpace(line) == "":
-			flushPara()
+		case mdFence:
+			if strings.EqualFold(b.Lang, "mermaid") && o.mermaid != nil {
+				if rendered := o.mermaid(strings.Join(b.Code, "\n"), w); rendered != nil {
+					media(rendered)
+					gap()
+					continue
+				}
+			}
+			codeBlock(b.Code, b.Lang)
 			gap()
-			continue
-		case isRule(line):
-			flushPara()
+
+		case mdRule:
 			rule()
 			gap()
-			continue
-		}
 
-		if m := mdHeadingRe.FindStringSubmatch(line); m != nil {
-			flushPara()
+		case mdHeading:
 			gap()
-			level := len(m[1])
-			fg := map[int]screen.Style{1: screen.StyleMdH1, 2: screen.StyleMdH2}[level]
+			fg := map[int]screen.Style{1: screen.StyleMdH1, 2: screen.StyleMdH2}[b.Level]
 			if fg == "" {
 				fg = screen.StyleMdH3
 			}
-			cells := wrap(inlineCells(m[2], mdStyle{fg: fg, bold: true}), w)
+			cells := wrap(inlineCells(b.Text, mdStyle{fg: fg, bold: true}), w)
 			emit(screen.Span{}, cells, screen.Span{})
-			if level <= 2 {
+			if b.Level <= 2 {
 				rule()
 			}
 			gap()
-			continue
-		}
 
-		if strings.HasPrefix(strings.TrimSpace(line), ">") {
-			flushPara()
-			var q []string
-			for ; i < len(lines) && strings.HasPrefix(strings.TrimSpace(lines[i]), ">"); i++ {
-				q = append(q, strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(lines[i]), ">"), " "))
-			}
-			i--
+		case mdQuote:
 			bar := screen.Span{Text: "▎ ", Style: screen.StyleMdQuote}
 			qo, base := o, len(out)
 			qo.frontMatter = false
@@ -530,7 +487,7 @@ func renderMarkdown(src string, w int, o mdOpts) mdDoc {
 			if o.exact != nil {
 				qo.exact = func(row, from, to int) { o.exact(base+row, from+2, to+2) }
 			}
-			inner := renderMarkdown(strings.Join(q, "\n"), max(1, w-2), qo)
+			inner := formatMarkdown(b.Inner, max(1, w-2), qo)
 			for _, l := range inner.Lines {
 				l.Spans = append([]screen.Span{bar}, l.Spans...)
 				out = append(out, l)
@@ -541,54 +498,20 @@ func renderMarkdown(src string, w int, o mdOpts) mdDoc {
 				images = append(images, im)
 			}
 			gap()
-			continue
-		}
 
-		if i+1 < len(lines) && strings.Contains(line, "|") && mdTableSep.MatchString(lines[i+1]) && strings.Contains(lines[i+1], "-") {
-			flushPara()
-			rows := [][]string{splitRow(line)}
-			aligns := splitRow(lines[i+1])
-			for i += 2; i < len(lines) && strings.Contains(lines[i], "|") && strings.TrimSpace(lines[i]) != ""; i++ {
-				rows = append(rows, splitRow(lines[i]))
-			}
-			i--
-			out = append(out, mdTable(rows, aligns, w)...)
+		case mdTableBlock:
+			out = append(out, mdTable(b.Rows, b.Aligns, w)...)
 			gap()
-			continue
-		}
 
-		if lm := listItem(line); lm != nil {
-			flushPara()
-			depth := lm.indent / 2
-			prefix := strings.Repeat("  ", depth) + lm.marker + " "
-			// continuation lines belonging to this item
-			text := lm.text
-			for i+1 < len(lines) && strings.TrimSpace(lines[i+1]) != "" && listItem(lines[i+1]) == nil && strings.HasPrefix(lines[i+1], " ") && !mdFenceRe.MatchString(lines[i+1]) {
-				i++
-				text += " " + strings.TrimSpace(lines[i])
-			}
-			pw := ansi.StringWidth(prefix)
-			var cells [][]mdCell
-			if strings.HasPrefix(text, "[ ] ") || strings.HasPrefix(text, "[x] ") || strings.HasPrefix(text, "[X] ") {
-				box := "☐ "
-				if text[1] != ' ' {
-					box = "☑ "
-				}
-				text = text[4:]
-				prefix += box
-				pw += 2
-			}
-			cells = wrap(inlineCells(text, mdStyle{}), max(1, w-pw))
-			emit(screen.Span{Text: prefix, Style: screen.StyleMdListMark}, cells, plainSpan(strings.Repeat(" ", pw)))
-			if i+1 >= len(lines) || listItem(lines[i+1]) == nil {
+		case mdList:
+			pw := ansi.StringWidth(b.Prefix)
+			cells := wrap(inlineCells(b.Text, mdStyle{}), max(1, w-pw))
+			emit(screen.Span{Text: b.Prefix, Style: screen.StyleMdListMark}, cells, plainSpan(strings.Repeat(" ", pw)))
+			if b.GapAfter {
 				gap()
 			}
-			continue
 		}
-
-		para = append(para, strings.TrimSpace(line))
 	}
-	flushPara()
 	for len(out) > 0 && gapAt == len(out)-1 {
 		out = out[:len(out)-1]
 		gapAt = -1
