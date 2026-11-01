@@ -10,7 +10,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -298,13 +297,6 @@ func (a *Core) Close() {
 	a.muxClose()
 	core.RemoveShellIntegration()
 	removeMuxShellIntegration()
-}
-
-func (a *App) Init() tea.Cmd {
-	if a.single {
-		return a.effectCmd(watchTimer())
-	}
-	return a.effectCmd(append([]Effect{WaitLSP{a.lsp.events}, watchTimer()}, a.probeRepo()...)...)
 }
 
 // ---- helpers ----
@@ -840,16 +832,6 @@ func (a *Core) pasteText() string {
 
 // ---- update ----
 
-func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	effs := a.update(a.fromTea(msg))
-	a.keepTransients()
-	a.normalizeSplit()
-	a.trackLast()
-	a.syncLSP()
-	a.notifySelection()
-	return a, a.effectCmd(batch(effs, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs(), a.semanticTabs())...)
-}
-
 // scheduleAutoSave starts a timer for every named tab edited since the last
 // call. The timer is ignored if the buffer changed again before it fires.
 func (a *Core) scheduleAutoSave() []Effect {
@@ -880,7 +862,7 @@ func (a *Core) handleAutoSave(m AutoSaveDue) []Effect {
 
 // update takes what fromTea (inputtea.go) made of a tea.Msg: an Input or an
 // Event.
-func (a *App) update(msg any) []Effect {
+func (a *Core) update(msg any) []Effect {
 	switch msg := msg.(type) {
 	case Event:
 		return a.handleEvent(msg)
@@ -899,7 +881,7 @@ func (a *App) update(msg any) []Effect {
 }
 
 // handleInput takes an Input from whichever front end made it.
-func (a *App) handleInput(in Input) []Effect {
+func (a *Core) handleInput(in Input) []Effect {
 	switch msg := in.(type) {
 	case Mouse:
 		return a.handleMouse(msg)
@@ -961,7 +943,7 @@ func (a *Core) handleLSPEvent(e lsp.Event) []Effect {
 	return nil
 }
 
-func (a *App) handleKey(msg Key) []Effect {
+func (a *Core) handleKey(msg Key) []Effect {
 	key := msg.String()
 	a.msg = ""
 	if a.sig != nil && (key == "esc" || !a.sigVisible()) {
@@ -1199,7 +1181,7 @@ func (a *Core) handleCompletionKey(msg Key) ([]Effect, bool) {
 	return nil, false
 }
 
-func (a *App) handlePaletteKey(msg Key) []Effect {
+func (a *Core) handlePaletteKey(msg Key) []Effect {
 	p := a.pal
 	switch msg.String() {
 	case "esc", "ctrl+c":
@@ -1234,7 +1216,7 @@ func (a *Core) paletteInput(msg Input) []Effect {
 	return nil
 }
 
-func (a *App) submitPalette() []Effect {
+func (a *Core) submitPalette() []Effect {
 	p := a.pal
 	v := p.input.Value()
 	p.close()
@@ -1255,7 +1237,7 @@ func (a *App) submitPalette() []Effect {
 		return a.execCommand(strings.TrimSpace(v[1:]))
 	case strings.HasPrefix(v, ">"):
 		if p.sel < len(p.items) {
-			return a.commands[p.items[p.sel].index].run(a.Core)
+			return a.commands[p.items[p.sel].index].run(a)
 		}
 	default:
 		if p.sel < len(p.items) {
