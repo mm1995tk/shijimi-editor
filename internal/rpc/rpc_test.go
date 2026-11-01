@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -221,6 +222,60 @@ func TestNotificationsKeepOrder(t *testing.T) {
 	case <-done:
 	case <-time.After(5 * time.Second):
 		t.Fatal("timeout")
+	}
+	for i, n := range got {
+		if i != n {
+			t.Fatalf("out of order: %v", got)
+		}
+	}
+}
+
+// Requests of the methods Options.Ordered picks run one at a time in the order
+// they were read, even when an earlier one takes longer; the others do not wait.
+func TestOrderedRequests(t *testing.T) {
+	var mu sync.Mutex
+	var got []int
+	release := make(chan struct{})
+	h := func(_ context.Context, r *Message) (any, error) {
+		if r.Method == "free" {
+			return "free", nil
+		}
+		var n int
+		_ = json.Unmarshal(r.Params, &n)
+		if n == 0 {
+			<-release
+		}
+		mu.Lock()
+		got = append(got, n)
+		mu.Unlock()
+		return n, nil
+	}
+	a, b := Pipe()
+	cb := NewConnWith(b, JSON{}, h, Options{Ordered: func(m string) bool { return m == "in" }})
+	t.Cleanup(func() { a.Close(); cb.Close() })
+	raw := JSON{}.NewCodec(a, a)
+	for i := range 20 {
+		if err := raw.Write(&Message{ID: IntID(int64(i + 1)), Method: "in", Params: json.RawMessage(fmt.Sprint(i))}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := raw.Write(&Message{ID: IntID(100), Method: "free"}); err != nil {
+		t.Fatal(err)
+	}
+	m, err := raw.Read()
+	if err != nil || m.ID.String() != "100" {
+		t.Fatalf("a request not ordered waited: %+v %v", m, err)
+	}
+	close(release)
+	for range 20 {
+		if _, err := raw.Read(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) != 20 {
+		t.Fatalf("got %v", got)
 	}
 	for i, n := range got {
 		if i != n {

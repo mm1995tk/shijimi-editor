@@ -70,6 +70,8 @@ type viewState struct {
 	lastRev  int64          // GUI が持っているはずの版
 	inflight int64          // 返事の来ていない更新の版。無ければ 0
 	pending  bool           // inflight の間に画面が変わった
+	ackSeq   uint64         // 反映した入力の seq の最大（input.go）
+	sentAck  uint64         // GUI に送った ackSeq
 	theme    *Theme         // 最後に GUI に渡したテーマ。theme.get の前は nil で、theme.changed を送らない
 	blob     struct {       // 分けて取るときに作り直さないよう、最後に取った画像を覚える
 		id, mime string
@@ -132,6 +134,7 @@ func (s *Server) buildScreen(vs *viewState) (sc screen.Screen, root string, err 
 		return sc, "", rpc.Errorf(rpc.CodeNotFound, "the focused workspace has no core")
 	}
 	keepRegions(&sc, vs.regions)
+	sc.AckSeq = vs.ackSeq
 	return sc, root, nil
 }
 
@@ -183,12 +186,16 @@ func (s *Server) pushScreen() {
 	}
 	upd := diffScreen(prev, &sc, vs.regions)
 	if upd == nil {
-		return
+		if sc.AckSeq == vs.sentAck {
+			return
+		}
+		// 見た目の変わらない入力でも、反映したことは ackSeq で知らせる。
+		upd = map[string]any{}
 	}
 	rev := s.bumpRev()
 	upd["rev"], upd["baseRev"], upd["ackSeq"] = rev, vs.lastRev, sc.AckSeq
 	sc.Rev = uint64(rev)
-	vs.last, vs.lastRoot, vs.lastRev, vs.inflight = &sc, root, rev, rev
+	vs.last, vs.lastRoot, vs.lastRev, vs.inflight, vs.sentAck = &sc, root, rev, rev, sc.AckSeq
 	if err := ss.conn.Notify("screen.update", upd); err != nil {
 		s.log.Info("screen.update", "err", err)
 	}
@@ -350,7 +357,7 @@ func (ss *session) screenGetReq() (any, error, bool) {
 	if len(saved) > 0 {
 		vs.last, vs.lastRoot = &sc, root
 	}
-	vs.lastRev = rev
+	vs.lastRev, vs.sentAck = rev, sc.AckSeq
 	// 返事を待っていた更新は、この画面が置き換える。
 	vs.inflight = 0
 	again := vs.pending

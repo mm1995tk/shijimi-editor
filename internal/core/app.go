@@ -114,6 +114,7 @@ type Core struct {
 	confirmClose bool
 	Follow       bool // scroll to the cursor on next render
 	dragging     bool
+	preedit      *Composition // the text a GUI's input method is composing, or nil (see guiinput.go)
 	Hold         holdScroll
 	HoldSeq      int  // tells the current hold-scroll tick chain from stale ones
 	LineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
@@ -866,7 +867,19 @@ func (a *Core) handleAutoSave(m AutoSaveDue) []Effect {
 // split, last tab, LSP, selection) and returns the Effects of the message and
 // the ones every round owes (auto-save, preview, lexing).
 func (a *Core) Update(msg any) []Effect {
-	effs := a.handle(msg)
+	return a.round(a.handle(msg))
+}
+
+// Apply is Update for a change that is not a message: fn changes the state
+// (the GUI's file.open and command.run), and the round's bookkeeping follows
+// as after any message.
+func (a *Core) Apply(fn func() []Effect) []Effect {
+	return a.round(fn())
+}
+
+// round brings the state up to date after a message and adds the Effects
+// every round owes to effs.
+func (a *Core) round(effs []Effect) []Effect {
 	a.KeepTransients()
 	a.NormalizeSplit()
 	a.TrackLast()
@@ -906,6 +919,7 @@ func (a *Core) handleInput(in Input) []Effect {
 		a.lineFlipOtherKey(msg)
 		a.HoverSeq++ // a pending mouse hover is stale once the user types
 		a.HoverWord = WordSpan{}
+		a.preedit = nil // a key the input method let through ends what it composed
 		// Fast typing can deliver several runes in one message; Helix-style
 		// commands need them one at a time.
 		if utf8.RuneCountInString(msg.Text) > 1 {
@@ -921,9 +935,14 @@ func (a *Core) handleInput(in Input) []Effect {
 		a.HoverWord = WordSpan{}
 		return a.HandlePaste(msg)
 	case Composition:
-		// Nothing uses a composition yet: a terminal never composes, and a GUI sends
-		// the committed text as input.key (its text), so taking it here too would
-		// type it twice. B10 decides what a composition does.
+		// A composition is only shown (underlined at the cursor, see
+		// splicePreedit); it never edits the buffer. A GUI sends the committed text
+		// as input.key (its text), so typing it here too would type it twice. A
+		// terminal never composes.
+		a.preedit = nil
+		if msg.Phase != CompositionEnd && msg.Text != "" {
+			a.preedit = &msg
+		}
 	}
 	return nil
 }

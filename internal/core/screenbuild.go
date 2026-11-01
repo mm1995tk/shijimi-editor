@@ -53,13 +53,14 @@ func (a *Core) fitScreenSize(cols, rows int) {
 type screenSlot struct {
 	t       *Tab
 	w       int
-	focused bool
+	focused bool // the editor has the keys and this is the focused pane
+	mine    bool // this is the focused pane (Cur), whether or not the editor has the keys
 }
 
 // screenSlots splits cols columns between the panes of the editor: all of them
 // to the current file, or two halves with a column between them when split.
 func (a *Core) screenSlots(cols int) []screenSlot {
-	mine := screenSlot{t: a.Cur(), w: cols, focused: a.FocusIn(FocusEditor)}
+	mine := screenSlot{t: a.Cur(), w: cols, focused: a.FocusIn(FocusEditor), mine: true}
 	if !a.Split {
 		return []screenSlot{mine}
 	}
@@ -99,23 +100,44 @@ func (a *Core) fitSlots(slots []screenSlot, rows int) {
 // split may show the same file; the second gets "#2" on its ID.
 func (a *Core) screenFiles(slots []screenSlot, rows int) *screen.Files {
 	files := &screen.Files{Panes: []screen.Pane{}}
+	for i, p := range a.placePanes(slots, rows) {
+		if p.slot.mine && p.editable {
+			files.Active = i
+		}
+		files.Panes = append(files.Panes, p.Pane)
+	}
+	return files
+}
+
+// placedPane is a Pane of the files region with the slot it is in.
+type placedPane struct {
+	screen.Pane
+	slot     screenSlot
+	editable bool // the pane of the slot that has the cursor (see screenPanes)
+}
+
+// placePanes is the Panes of the slots, rows high, in the order the GUI gets
+// them. The text an input method is composing shows in the pane that takes
+// the keys.
+func (a *Core) placePanes(slots []screenSlot, rows int) []placedPane {
+	var out []placedPane
 	seen := map[string]int{}
 	for _, s := range slots {
 		panes, editable := a.screenPanes(s.t, s.w, rows, s.focused)
-		if s.t == a.Cur() {
-			files.Active = len(files.Panes) + editable
-		}
-		for _, p := range panes {
+		for i, p := range panes {
 			if n := seen[p.ID]; n > 0 {
 				seen[p.ID]++
 				p.ID = fmt.Sprintf("%s#%d", p.ID, n+1)
 			} else {
 				seen[p.ID] = 1
 			}
-			files.Panes = append(files.Panes, p)
+			if s.focused && i == editable && p.Kind == screen.KindText && a.preedit != nil && !a.CmdOpen && !a.FindOpen {
+				splicePreedit(&p, ToScreenPos(s.t.Buf.Cur), a.preedit.Text)
+			}
+			out = append(out, placedPane{Pane: p, slot: s, editable: i == editable})
 		}
 	}
-	return files
+	return out
 }
 
 // screenFocus is the region that has the keys.

@@ -10,10 +10,20 @@ import "github.com/mm1995tk/shijimi-editor/internal/buffer"
 type headless struct {
 	// the screen in cells
 	W, H int
+	// core is the core it fronts (newHeadlessCore). The pointer is worked out
+	// in the core, from the panes the GUI was sent (paneMouse).
+	core *Core
 }
 
 // newHeadless is a headless front end of 80 x 24 cells.
 func newHeadless() *headless { return &headless{W: 80, H: 24} }
+
+// newHeadlessCore is a core rooted at dir on a headless front end.
+func newHeadlessCore(sh *Shared, dir string) *Core {
+	h := newHeadless()
+	h.core = NewIn(sh, h, dir, "")
+	return h.core
+}
 
 func (h *headless) ScreenW() int                  { return h.W }
 func (h *headless) ScreenH() int                  { return h.H }
@@ -65,7 +75,12 @@ func (h *headless) ResetPanes()                    {}
 func (h *headless) SetScreen(w, ht int)            { h.W, h.H = w, ht }
 func (h *headless) SetPalette(*Theme)              {} // the theme is the process's (ActivateTheme); the GUI asks for it with theme.get
 func (h *headless) HandleTermEvent(Event) []Effect { return nil }
-func (h *headless) HandleMouse(Mouse) []Effect     { return nil }
+func (h *headless) HandleMouse(m Mouse) []Effect {
+	if h.core == nil {
+		return nil
+	}
+	return h.core.paneMouse(m)
+}
 func (h *headless) NewTextArea(initial string) TextArea {
 	return &plainArea{text: initial}
 }
