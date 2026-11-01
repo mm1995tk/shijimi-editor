@@ -43,7 +43,7 @@ func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) []Effect {
 			a.scrollKeepCursor(b, dir*a.pageSize()/2, ext)
 		} else {
 			b.MoveLines(dir*a.pageSize()/2, ext)
-			b.ScrollRow = max(0, b.Cur.Row-a.layout().editH/2)
+			b.ScrollRow = max(0, b.Cur.Row-a.editRows()/2)
 		}
 		return nil
 	}
@@ -104,7 +104,7 @@ func (a *App) wantKeyReleases() bool {
 // the edge. It reports whether the view moved; the view stops when the first
 // or the last line is at the edge of the screen.
 func (a *App) scrollKeepCursor(b *buffer.Buffer, n int, ext bool) bool {
-	h := a.layout().editH
+	h := a.editRows()
 	if h <= 0 {
 		return false
 	}

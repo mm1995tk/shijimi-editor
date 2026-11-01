@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -292,61 +291,6 @@ func (a *App) Init() tea.Cmd {
 		return a.effectCmd(watchTimer())
 	}
 	return a.effectCmd(append([]Effect{WaitLSP{a.lsp.events}, watchTimer()}, a.probeRepo()...)...)
-}
-
-// ---- layout ----
-
-type layout struct {
-	top, bodyH     int // rows between the diff mode header and the help/status lines
-	sideW          int
-	rightX, rightW int // the focused editor pane (the whole editor area unless split)
-	fullX, fullW   int // the editor area, which the terminal under it also spans
-	split          bool
-	otherX, otherW int // the other editor pane while split
-	agentX, agentW int // the suggestion panel; agentW is 0 when it is not shown
-	editY, editH   int
-	panelY, panelH int
-	statusY        int
-}
-
-func (a *App) layout() layout {
-	var l layout
-	l.statusY = a.h - 1
-	l.bodyH = a.bodyH()
-	if a.gd.on {
-		l.top = 1
-	}
-	if a.showSide {
-		l.sideW = a.sideWidth()
-		l.rightX = l.sideW + 1
-	}
-	l.rightW = max(0, a.w-l.rightX)
-	if a.agentShown(l.sideW) {
-		l.agentW = a.agentWidth()
-		l.agentX = a.w - l.agentW
-		l.rightW = max(0, l.agentX-1-l.rightX)
-	}
-	l.fullX, l.fullW = l.rightX, l.rightW
-	if a.splitWanted() && l.fullW >= minSplitW {
-		l.split = true
-		first := (l.fullW - 1) / 2
-		second := l.fullW - 1 - first
-		if a.pane == 0 {
-			l.rightW, l.otherX, l.otherW = first, l.fullX+first+1, second
-		} else {
-			l.rightX, l.rightW, l.otherX, l.otherW = l.fullX+first+1, second, l.fullX, first
-		}
-	}
-	l.editY = l.top + 1
-	if a.findOpen {
-		l.editY++
-	}
-	if a.showTerm {
-		l.panelH = a.panelHeight()
-	}
-	l.editH = max(0, l.top+l.bodyH-l.editY-l.panelH)
-	l.panelY = l.editY + l.editH
-	return l
 }
 
 // ---- helpers ----
@@ -2218,26 +2162,7 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 	return o
 }
 
-// renderTitle is the line above the editor: the path of the file being
-// edited (● when it is unsaved). Open files are listed with "Space b".
-func (a *App) renderTitle(t *tab, w int, focused bool) string {
-	return drawTitle(a.titleOf(t), w, focused)
-}
-
 func findLabel() string { return i18n.T("app.findlabel") }
-
-// findInputCells is the width of the find bar between its label and hint.
-func findInputCells(w int) int {
-	return w - lipgloss.Width(stFindLabel.Render(findLabel())) - lipgloss.Width(stFind.Render(i18n.T("app.findhint")))
-}
-
-func (a *App) renderFind(w int) string {
-	return drawFind(*a.findState(), a.findInput.view(inputStyleOn(cPaletteBg)), w)
-}
-
-var modeStyles map[editMode]lipgloss.Style
-
-func (a *App) renderStatus() string { return drawStatus(a.statusOf(), a.confirmOverlay(), a.w) }
 
 // popupPos places box below the cursor cell (cx, cy), or above it when there
 // is no room below, clamped to the editor area of a screen w cells wide.
