@@ -186,6 +186,7 @@ func TestTreeDeniedOutsideRoot(t *testing.T) {
 	os.Symlink(outside, filepath.Join(root, "escape"))
 	os.Symlink(filepath.Join(outside, "secret"), filepath.Join(root, "esc-file"))
 	write(t, filepath.Join(root, "ok.txt"), "")
+	os.Symlink(".git", filepath.Join(root, "gitlink"))
 
 	for _, p := range []string{"..", "../x", "a/../../x", "/etc", outside, "escape", "escape/sub"} {
 		if err := call(t, c, "tree.list", map[string]any{"workspaceId": id, "path": p}, nil); rpcCode(err) != rpc.CodeDenied {
@@ -195,7 +196,7 @@ func TestTreeDeniedOutsideRoot(t *testing.T) {
 	// ルートの外を指すリンクは、リンクのまま一覧には出る（中は開けない）。
 	var l tList
 	call(t, c, "tree.list", map[string]any{"workspaceId": id, "path": ""}, &l)
-	if !eq(names(l), []string{"escape", "esc-file", "ok.txt"}) {
+	if !eq(names(l), []string{"escape", "gitlink", "esc-file", "ok.txt"}) {
 		t.Errorf("links must be listed: %v", names(l))
 	}
 	for _, m := range []struct {
@@ -211,6 +212,9 @@ func TestTreeDeniedOutsideRoot(t *testing.T) {
 		{"tree.delete", map[string]any{"path": "escape/secret"}},
 		{"tree.delete", map[string]any{"path": "../x"}},
 		{"tree.delete", map[string]any{"path": ".git"}},
+		{"tree.delete", map[string]any{"path": "gitlink/objects"}},
+		{"tree.create", map[string]any{"path": "gitlink/x", "kind": "file"}},
+		{"tree.rename", map[string]any{"from": "ok.txt", "to": "gitlink/ok.txt"}},
 		{"tree.watch", map[string]any{"paths": []string{"escape"}}},
 	} {
 		m.p["workspaceId"] = id

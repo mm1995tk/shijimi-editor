@@ -107,9 +107,13 @@ func (w *treeWatcher) scan() {
 // refresh は id の監視フォルダの署名を取り直し、変わったものを tree.changed にする。
 // only が空でなければ、そのフォルダ（相対パス）だけを見る。
 func (w *treeWatcher) refresh(id, root string, only []string) {
-	for i := range only {
-		only[i] = normRel(only[i])
-	}
+	only = slices.Collect(func(yield func(string) bool) {
+		for _, o := range only {
+			if !yield(normRel(o)) {
+				return
+			}
+		}
+	})
 	w.run.Lock()
 	defer w.run.Unlock()
 	w.mu.Lock()

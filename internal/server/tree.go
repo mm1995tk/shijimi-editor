@@ -34,7 +34,7 @@ type treeEntry struct {
 	Git         string `json:"git,omitempty"`
 	GitChildren bool   `json:"gitChildren,omitempty"`
 
-	isDir bool // シンボリックリンクの先がフォルダでも true（並べるときだけ使う）
+	isDir bool // シンボリックリンクの先がフォルダでも true（並べ方と gitChildren の判定に使う）
 }
 
 type treeManager struct {
@@ -103,9 +103,6 @@ func resolveEntry(root, rel string) (string, error) {
 	if rel == "" {
 		return "", rpc.Errorf(rpc.CodeInvalidParams, "the workspace root cannot be changed")
 	}
-	if slices.Contains(strings.Split(rel, "/"), ".git") {
-		return "", rpc.Errorf(rpc.CodeDenied, ".git cannot be changed: %s", rel)
-	}
 	full := filepath.Join(root, filepath.FromSlash(rel))
 	dir, base := filepath.Split(full)
 	dir = filepath.Clean(dir)
@@ -117,7 +114,12 @@ func resolveEntry(root, rel string) (string, error) {
 				return "", errDenied(rel)
 			}
 			parts := append([]string{real}, rest...)
-			return filepath.Join(append(parts, base)...), nil
+			res := filepath.Join(append(parts, base)...)
+			// .git は、リンクをたどった実パスで調べる（.git を指すリンク越しでも触らせない）。
+			if r, err := filepath.Rel(root, res); err == nil && slices.Contains(strings.Split(r, string(filepath.Separator)), gitDirName) {
+				return "", rpc.Errorf(rpc.CodeDenied, ".git cannot be changed: %s", rel)
+			}
+			return res, nil
 		}
 		if !errors.Is(err, fs.ErrNotExist) || dir == root {
 			return "", rpc.Errorf(rpc.CodeInternalError, "%v", err)
@@ -221,7 +223,9 @@ func listDir(abs, rel string, g *gitState) ([]treeEntry, bool, error) {
 	return out, truncated, nil
 }
 
-func hiddenName(n string) bool { return n == ".git" }
+const gitDirName = ".git"
+
+func hiddenName(n string) bool { return n == gitDirName }
 
 // treeRequest は tree.* と git.status のうち返事のあるもの。
 func (ss *session) treeRequest(req *rpc.Message) (res any, err error, handled bool) {
