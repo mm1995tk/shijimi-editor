@@ -24,7 +24,7 @@ Import the flake's `homeManagerModules.default`.
 
 - `settings` is written to `~/.config/shijimi-editor/config.toml`.
 - `languages` is written to `~/.config/shijimi-editor/languages.toml`.
-- With `package = inputs.shijimi.packages.${pkgs.system}.shj-nightly` you get the nightly build ([Installation](install.md)). It reads the files above as long as `~/.config/shijimi-editor-nightly/` does not exist.
+- With `package = inputs.shijimi.packages.${pkgs.system}.shj-nightly` you get the nightly build ([Installation](install.md)). The two files above are then written to `~/.config/shijimi-editor-nightly/` instead.
 
 ```nix
 {

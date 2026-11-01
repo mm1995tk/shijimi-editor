@@ -9,6 +9,10 @@ self:
 let
   cfg = config.programs.shijimi-editor;
   toml = pkgs.formats.toml { };
+  # The nightly package is shj-nightly and reads its config from shijimi-editor-nightly/,
+  # so the directory follows the package's main program (see internal/channel).
+  bin = cfg.package.meta.mainProgram or "shj";
+  configDir = "shijimi-editor${lib.removePrefix "shj" bin}";
 in
 {
   options.programs.shijimi-editor = {
@@ -30,7 +34,7 @@ in
           editor.line-number = "relative";
         }
       '';
-      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/config.toml` (same structure as Helix's config.toml).";
+      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/config.toml` (same structure as Helix's config.toml), or {file}`shijimi-editor-nightly/config.toml` for the nightly package.";
     };
 
     languages = lib.mkOption {
@@ -42,7 +46,7 @@ in
           language = [{ name = "go"; language-servers = ["gopls"]; }];
         }
       '';
-      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/languages.toml` (same structure as Helix's languages.toml).";
+      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/languages.toml` (same structure as Helix's languages.toml), or {file}`shijimi-editor-nightly/languages.toml` for the nightly package.";
     };
 
     gui = {
@@ -75,7 +79,7 @@ in
               {
                 key = cfg.herdr.hideKey;
                 type = "shell";
-                command = "${cfg.package}/bin/shj exec ':sh hide'";
+                command = "${cfg.package}/bin/${bin} exec ':sh hide'";
               }
             ]
           else
@@ -88,10 +92,10 @@ in
 
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package ] ++ lib.optional cfg.gui.enable cfg.gui.package;
-    xdg.configFile."shijimi-editor/config.toml" = lib.mkIf (cfg.settings != { }) {
+    xdg.configFile."${configDir}/config.toml" = lib.mkIf (cfg.settings != { }) {
       source = toml.generate "shijimi-config.toml" cfg.settings;
     };
-    xdg.configFile."shijimi-editor/languages.toml" = lib.mkIf (cfg.languages != { }) {
+    xdg.configFile."${configDir}/languages.toml" = lib.mkIf (cfg.languages != { }) {
       source = toml.generate "shijimi-languages.toml" cfg.languages;
     };
   };
