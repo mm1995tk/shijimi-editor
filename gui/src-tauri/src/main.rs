@@ -5,6 +5,8 @@ mod askpass;
 mod connection;
 mod install;
 mod ssh_config;
+mod update;
+mod version;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -95,8 +97,14 @@ fn main() {
         std::process::exit(askpass::run_helper(&prompt));
     }
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // 自動更新（AppImage と .dmg の版だけ。update.rs）
+    #[cfg(feature = "updater")]
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    builder
+        .manage(update::Updates::default())
         .setup(|app| {
+            version::init(app.package_info().version.to_string());
             let askpass = AskpassServer::start(app.handle().clone())?;
             app.manage(AppState {
                 conns: Connections::default(),
@@ -112,7 +120,9 @@ fn main() {
             askpass_reply,
             install_plan,
             install_remote,
-            install_cancel
+            install_cancel,
+            update::update_check,
+            update::update_install
         ])
         .build(tauri::generate_context!())
         .expect("failed to build the shijimi-editor GUI")
