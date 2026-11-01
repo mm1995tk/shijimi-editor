@@ -1,4 +1,5 @@
-/* 画面全体の割り付け。左に一覧（sidebar.css）、右に残り（今は「つなぐ先」）。 */
+/* 画面全体の割り付け。左に一覧（sidebar.css）、右に残り。
+   右は上がファイルの欄（files/files.css）、下が「つなぐ先」（ターミナルは F で右下に入る）。 */
 html,
 body,
 #root {
@@ -11,9 +12,16 @@ body,
   height: 100%;
 }
 
-.connections {
+.main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.connections {
+  flex: none;
+  max-height: 40%;
   overflow: auto;
   padding: 0 16px;
 }
