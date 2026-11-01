@@ -29,7 +29,7 @@ let
     inherit version;
     src = ../gui;
     # package-lock.json を変えたら、ここを lib.fakeHash にして nix build .#gui を回し、出た値に直す
-    npmDepsHash = "sha256-ujo7vr4Xozk8jNWprl17FSDjNPfanEexjYYhMuUT0as=";
+    npmDepsHash = "sha256-o88Hy2e9d3WIWPG9gwVwMWWlCUm2q7eTdcv+k2pkBs4=";
     # tauri の CLI は殻のビルドには使わない（cargo を直接回す）。バイナリの取得を避ける
     npmFlags = [ "--ignore-scripts" ];
     installPhase = ''
