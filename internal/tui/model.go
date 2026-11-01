@@ -5,6 +5,9 @@ import tea "charm.land/bubbletea/v2"
 // model.go is the part of App that talks to bubbletea: what it draws and asks
 // of the terminal each frame. It stays in tui.
 
+// View is bubbletea's view of the app: the frame (after fit brought the state up
+// to date) and the modes it needs of the terminal (alt screen, mouse motion,
+// key releases, where the IME composes).
 func (a *App) View() tea.View {
 	a.fit()
 	frame, caretAt := a.renderFrame()

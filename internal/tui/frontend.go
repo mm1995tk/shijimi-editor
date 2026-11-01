@@ -19,7 +19,9 @@ func (a *App) setScreen(w, h int) {
 	}
 }
 
-// sideShown, termShown and agentShown... say which regions are on screen.
+// sideShown, termShown and agentOpen say which regions the user has on screen,
+// and setSide, setTerm and setAgent turn them on and off. (agentShown, in
+// agentpanel.go, is another question: whether the panel fits beside the editor.)
 func (a *App) sideShown() bool  { return a.showSide }
 func (a *App) termShown() bool  { return a.showTerm }
 func (a *App) agentOpen() bool  { return a.showAgent }
