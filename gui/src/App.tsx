@@ -1,7 +1,8 @@
-// 接続の画面（C3〜C5）。起動時は、前回ワークスペースがあったマシンにだけ自動でつなぐ（C5）。
+// 接続の画面（C3〜C7）。起動時は、前回ワークスペースがあったマシンにだけ自動でつなぐ（C5）。
 // つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで shj につなぎ、
 // ssh の質問（パスワードなど）を窓に出す。切れたら Session が自動でつなぎ直し、
-// つなぐ先の一覧に接続の状態を出す。編集の画面は D 以降で作る。
+// つなぐ先の一覧に接続の状態を出す。別の GUI に引き継がれたら、そう出してボタンでつなぎ直せるようにする（C7）。
+// 編集の画面は D 以降で作る。
 import {
   createSignal,
   For,
@@ -56,11 +57,27 @@ export function describeState(
       return "shj を入れています…";
     case "failed":
       return "つながりません";
-    case "superseded":
-      return "別の GUI に移りました";
+    case "superseded": {
+      const who = s.by ? describeClient(s.by) : "";
+      return who ? `別の GUI に移りました（${who}）` : "別の GUI に移りました";
+    }
     case "closed":
       return "";
   }
+}
+
+/** 引き継いだ GUI を短く言う（「名前 版、HH:MM から」）。読めないところは省き、何も無ければ ""。 */
+export function describeClient(
+  by: NonNullable<Extract<SessionState, { kind: "superseded" }>["by"]>,
+): string {
+  const name = [by.client?.name, by.client?.version]
+    .filter((x) => typeof x === "string" && x !== "")
+    .join(" ");
+  const at = new Date(by.connectedAt);
+  const time = Number.isNaN(at.getTime())
+    ? ""
+    : `${at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} から`;
+  return [name, time].filter((x) => x !== "").join("、");
 }
 
 export function App(props: {
@@ -193,6 +210,14 @@ export function App(props: {
                     onYes={() => void sessions()[t]?.install()}
                     onNo={() => sessions()[t]?.declineInstall()}
                   />
+                </Show>
+                <Show when={kind() === "superseded"}>
+                  <p role="alert">
+                    {label(t)} の作業は、あとからつないだ別の GUI に移りました。
+                    取り合いにならないよう、自動ではつなぎ直しません。
+                    「つなぎ直す」を押すとこちらに戻し、あちらの GUI
+                    が切れます。
+                  </p>
                 </Show>
                 <Show when={st()?.kind === "failed"}>
                   <pre role="alert">
