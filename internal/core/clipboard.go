@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"os"
@@ -32,9 +32,9 @@ func findClipTool() *clipTool {
 	return nil
 }
 
-// writeSystemClipboard copies s to the OS clipboard when a helper tool is
+// WriteSystemClipboard copies s to the OS clipboard when a helper tool is
 // available. Failures are ignored; the in-app clipboard is always updated.
-func writeSystemClipboard(s string) {
+func WriteSystemClipboard(s string) {
 	t := findClipTool()
 	if t == nil {
 		return
@@ -45,7 +45,9 @@ func writeSystemClipboard(s string) {
 	go cmd.Wait()
 }
 
-func readSystemClipboard() (string, bool) {
+// ReadSystemClipboard returns the text on the system clipboard. ok is false
+// when no clipboard helper is installed or it fails.
+func ReadSystemClipboard() (string, bool) {
 	t := findClipTool()
 	if t == nil {
 		return "", false

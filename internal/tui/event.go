@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
@@ -142,7 +143,7 @@ type SearchTick struct{ seq int64 }
 // newer search was started since (seq no longer matches).
 type SearchDone struct {
 	seq int64
-	res searchResult
+	res core.SearchResult
 }
 
 func (SearchTick) isEvent() {}

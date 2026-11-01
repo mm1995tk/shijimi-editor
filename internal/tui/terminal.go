@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/creack/pty"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
@@ -110,7 +111,7 @@ func (t *terminal) wait() tea.Cmd {
 
 // start runs a login shell in the current directory on a fresh PTY.
 func (t *terminal) start() tea.Cmd {
-	args, env := shellIntegration(shell())
+	args, env := core.ShellIntegration(shell())
 	cmd := exec.Command(shell(), args...)
 	cmd.Dir = t.cwd
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func TestParseGrepArgs(t *testing.T) {
@@ -38,8 +39,8 @@ func TestGitGlobs(t *testing.T) {
 		"/a/b":     {"a/b", "a/b/**"},
 		"internal": {"**/internal", "**/internal/**"},
 	} {
-		if got := gitGlobs(in); !reflect.DeepEqual(got, want) {
-			t.Errorf("gitGlobs(%q) = %v, want %v", in, got, want)
+		if got := core.GitGlobs(in); !reflect.DeepEqual(got, want) {
+			t.Errorf("core.GitGlobs(%q) = %v, want %v", in, got, want)
 		}
 	}
 }

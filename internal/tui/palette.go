@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
@@ -18,8 +19,6 @@ const (
 	maxPaletteItems = 12
 	maxIndexedFiles = 50000
 )
-
-var skipDirs = map[string]bool{".git": true, "node_modules": true, ".direnv": true, "target": true, "dist": true, ".next": true}
 
 type paletteItem struct {
 	label   string
@@ -64,7 +63,7 @@ func indexFiles(root string) []string {
 			return nil
 		}
 		if d.IsDir() {
-			if p != root && skipDirs[d.Name()] {
+			if p != root && core.SkipDirs[d.Name()] {
 				return filepath.SkipDir
 			}
 			return nil

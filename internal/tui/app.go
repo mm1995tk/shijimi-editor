@@ -18,6 +18,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
@@ -283,7 +284,7 @@ func (a *App) Close() {
 		a.stopAgent()
 	}
 	a.muxClose()
-	removeShellIntegration()
+	core.RemoveShellIntegration()
 	removeMuxShellIntegration()
 }
 
@@ -392,7 +393,7 @@ func (a *App) setFocus(f focus) tea.Cmd {
 	return nil
 }
 
-func (a *App) rel(p string) string { return relTo(a.root, p) }
+func (a *App) rel(p string) string { return core.RelTo(a.root, p) }
 
 func (a *App) addTab(t *tab) {
 	a.tabs = append(a.tabs, t)
@@ -841,7 +842,7 @@ func (a *App) copyText(s string) {
 		a.host.WriteClipboard(s)
 		return
 	}
-	writeSystemClipboard(s)
+	core.WriteSystemClipboard(s)
 	// Over SSH there is no local helper tool; the outer terminal can still
 	// take the text through OSC 52.
 	if a.caret != nil {
@@ -876,7 +877,7 @@ func (a *App) copyPath(p string, abs bool) {
 }
 
 func (a *App) pasteText() string {
-	if s, ok := readSystemClipboard(); ok {
+	if s, ok := core.ReadSystemClipboard(); ok {
 		return s
 	}
 	return a.clipboard
