@@ -5,26 +5,28 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // renderCells draws cells on bg, padded with spaces to w cells.
-func renderCells(cs []hoverCell, bg string, w int) string {
+func renderCells(cs []core.HoverCell, bg string, w int) string {
 	var sb strings.Builder
 	width := 0
 	for i := 0; i < len(cs); {
 		j := i
 		var run strings.Builder
-		for j < len(cs) && cs[j].st == cs[i].st {
-			run.WriteRune(cs[j].r)
-			width += ansi.StringWidth(string(cs[j].r))
+		for j < len(cs) && cs[j].St == cs[i].St {
+			run.WriteRune(cs[j].R)
+			width += ansi.StringWidth(string(cs[j].R))
 			j++
 		}
-		fg := styleColor(cs[i].st)
+		fg := core.StyleColor(cs[i].St)
 		if fg == "" {
 			fg = cHoverFg
 		}
-		sb.WriteString(bgfg(bg, fg).Bold(cs[i].st == screen.StyleHoverHead).Render(run.String()))
+		sb.WriteString(bgfg(bg, fg).Bold(cs[i].St == screen.StyleHoverHead).Render(run.String()))
 		i = j
 	}
 	if width < w {
@@ -53,19 +55,19 @@ func drawHover(ov screen.Overlay) []string {
 	for _, l := range ov.Lines {
 		bg := cHoverBg
 		if l.Band != "" {
-			bg = styleColor(l.Band)
+			bg = core.StyleColor(l.Band)
 		}
 		pad := bgfg(bg, cHoverFg).Render(" ")
-		var cells []hoverCell
+		var cells []core.HoverCell
 		if l.Rule {
-			cells = make([]hoverCell, width)
+			cells = make([]core.HoverCell, width)
 			for i := range cells {
-				cells[i] = hoverCell{r: '─', st: screen.StyleHoverRule}
+				cells[i] = core.HoverCell{R: '─', St: screen.StyleHoverRule}
 			}
 		}
 		for _, sp := range l.Spans {
 			for _, r := range sp.Text {
-				cells = append(cells, hoverCell{r: r, st: sp.Style})
+				cells = append(cells, core.HoverCell{R: r, St: sp.Style})
 			}
 		}
 		out = append(out, bd.Render("│")+pad+renderCells(cells, bg, width)+pad+bd.Render("│"))

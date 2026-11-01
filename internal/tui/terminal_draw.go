@@ -1,6 +1,10 @@
 package tui
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
+)
 
 func (t *terminal) render(w, h int, focused bool) []string {
 	out := make([]string, 0, h)
@@ -20,7 +24,7 @@ func (t *terminal) render(w, h int, focused bool) []string {
 	tab := t.cur()
 	if tab == nil || w < 1 || body < 1 {
 		for len(out) < h {
-			out = append(out, stPanel.Render(fit("", w)))
+			out = append(out, stPanel.Render(core.Fit("", w)))
 		}
 		return out[:h]
 	}

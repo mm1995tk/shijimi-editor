@@ -187,7 +187,7 @@ type PropLine struct {
 	Text string
 }
 
-// Proposal is a change the agent asked to apply with openDiff. Accepting
+// Proposal is a change the agent asked to apply with OpenDiff. Accepting
 // answers FILE_SAVED; Claude Code then writes the file itself, as it does for
 // the VS Code extension, and the file watcher picks the change up.
 type Proposal struct {

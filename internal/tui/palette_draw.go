@@ -4,24 +4,26 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // drawPalette draws a palette Overlay as a box w cells wide. in is the TUI's
 // state of the input (what is in view of a long text); the Overlay holds the
 // text and the caret.
-func drawPalette(ov screen.Overlay, in *inputField, w int) []string {
+func drawPalette(ov screen.Overlay, in *core.InputField, w int) []string {
 	var out []string
-	label := paletteLabel(ov.Title, ov.Field.Prefix)
-	out = append(out, stPaletteBox.Render(fit("", w)))
-	out = append(out, stPaletteBox.Render(label)+fitStyled(in.view(inputStyleOn(cPaletteBg)), w-ansi.StringWidth(label), stPalette))
+	label := core.PaletteLabel(ov.Title, ov.Field.Prefix)
+	out = append(out, stPaletteBox.Render(core.Fit("", w)))
+	out = append(out, stPaletteBox.Render(label)+fitStyled(viewField(in, inputStyleOn(cPaletteBg)), w-ansi.StringWidth(label), stPalette))
 	for i, it := range ov.Items {
 		out = append(out, renderItem(it, w, i == ov.Active))
 	}
 	if ov.Hint != "" {
-		out = append(out, stPaletteDim.Render(fit(ov.Hint, w)))
+		out = append(out, stPaletteDim.Render(core.Fit(ov.Hint, w)))
 	}
-	out = append(out, stPalette.Render(fit("", w)))
+	out = append(out, stPalette.Render(core.Fit("", w)))
 	return out
 }
 
@@ -55,7 +57,7 @@ func renderItem(it screen.Item, w int, selected bool) string {
 		if used+dw < w {
 			st := stPaletteDim
 			if selected {
-				st = bgfg(cListSel, curTheme.SubSel)
+				st = bgfg(cListSel, core.CurTheme.SubSel)
 			}
 			sb.WriteString(st.Render(d))
 			used += dw

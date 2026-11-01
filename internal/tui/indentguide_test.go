@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func guideRows(src string, on bool) []string {
@@ -14,8 +16,8 @@ func guideRows(src string, on bool) []string {
 	for l := range strings.SplitSeq(src, "\n") {
 		b.Lines = append(b.Lines, []rune(l))
 	}
-	rows := renderEditor(newTab(b), 40, len(b.Lines), editorOpts{indentGuides: on})
-	gw := gutterWidth(b)
+	rows := renderEditor(core.NewTab(b), 40, len(b.Lines), core.EditorOpts{IndentGuides: on})
+	gw := core.GutterWidth(b)
 	out := make([]string, len(rows))
 	for i, r := range rows {
 		out[i] = strings.TrimRight(string([]rune(ansi.Strip(r))[gw:]), " ")

@@ -26,7 +26,7 @@ func Main() {
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
 		if arg == "-v" || arg == "--version" {
-			fmt.Println("shijimi " + tui.VersionLabel())
+			fmt.Println("shijimi " + core.VersionLabel())
 			return
 		}
 		if arg == "-h" || arg == "--help" {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/kitty"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
@@ -11,22 +12,22 @@ import (
 // body draws the image on the w x h cells that are given to it, centred, and
 // sends it to the terminal at the size it is shown at. Blank when it could not
 // be read.
-func (v *imageView) body(w, h int) []string {
-	cell := [2]int{cellW, cellH}
-	if v.cache != nil && v.cacheW == w && v.cacheH == h && v.cacheCell == cell && v.cacheGen == themeGen {
-		return v.cache
+func imageBody(v *core.ImageView, w, h int) []string {
+	cell := [2]int{core.CellW, core.CellH}
+	if v.Cache != nil && v.CacheW == w && v.CacheH == h && v.CacheCell == cell && v.CacheGen == core.ThemeGen {
+		return v.Cache
 	}
 	out := make([]string, 0, h)
 	blank := stEmpty.Render(strings.Repeat(" ", max(0, w)))
-	if v.err != nil || v.img == nil || h <= 0 || w <= 0 {
+	if v.Err != nil || v.Img == nil || h <= 0 || w <= 0 {
 		for len(out) < h {
 			out = append(out, blank)
 		}
 		return out
 	}
-	src := v.img.Bounds()
-	pw, ph, cols, rows := fitImage(src.Dx(), src.Dy(), w, h)
-	v.send(pw, ph, cols, rows)
+	src := v.Img.Bounds()
+	pw, ph, cols, rows := core.FitImage(src.Dx(), src.Dy(), w, h)
+	v.Send(pw, ph, cols, rows)
 
 	padL := (w - cols) / 2
 	padT := (h - rows) / 2
@@ -34,8 +35,8 @@ func (v *imageView) body(w, h int) []string {
 		out = append(out, blank)
 	}
 	// The cells under a transparent image show the editor background.
-	bg := fmt.Sprintf("\x1b[48;2;%sm", rgbParams(cEditorBg))
-	for _, line := range kitty.Placeholders(v.id, cols, rows) {
+	bg := fmt.Sprintf("\x1b[48;2;%sm", core.RgbParams(cEditorBg))
+	for _, line := range kitty.Placeholders(v.Id, cols, rows) {
 		if len(out) >= h {
 			break
 		}
@@ -45,20 +46,20 @@ func (v *imageView) body(w, h int) []string {
 	for len(out) < h {
 		out = append(out, blank)
 	}
-	v.cacheW, v.cacheH, v.cacheCell, v.cacheGen, v.cache = w, h, cell, themeGen, out
+	v.CacheW, v.CacheH, v.CacheCell, v.CacheGen, v.Cache = w, h, cell, core.ThemeGen, out
 	return out
 }
 
 // drawImagePane draws the Pane of an image as h lines of w cells: the caption
 // line, then the image iv (nil: none) in the terminal (see body).
-func drawImagePane(p screen.Pane, iv *imageView, w, h int) []string {
+func drawImagePane(p screen.Pane, iv *core.ImageView, w, h int) []string {
 	out := make([]string, 0, h)
-	out = append(out, stPanelDim.Render(fit("  "+p.Caption, w)))
+	out = append(out, stPanelDim.Render(core.Fit("  "+p.Caption, w)))
 	if iv == nil {
-		iv = &imageView{} // unreadable or gone: blank
+		iv = &core.ImageView{} // unreadable or gone: blank
 	}
 	if h-1 > 0 {
-		out = append(out, iv.body(w, h-1)...)
+		out = append(out, imageBody(iv, w, h-1)...)
 	}
 	blank := stEmpty.Render(strings.Repeat(" ", max(0, w)))
 	for len(out) < h {
@@ -68,11 +69,11 @@ func drawImagePane(p screen.Pane, iv *imageView, w, h int) []string {
 }
 
 // imageLines draws the image tab t in an area w x h.
-func (a *App) imageLines(t *tab, w, h int) []string {
-	p := a.buildImagePane(t, w, h)
-	var iv *imageView
+func (a *App) imageLines(t *core.Tab, w, h int) []string {
+	p := a.BuildImagePane(t, w, h)
+	var iv *core.ImageView
 	if p.Image != nil {
-		iv = a.blobImage(p.Image.Blob)
+		iv = a.BlobImage(p.Image.Blob)
 	}
 	return drawImagePane(p, iv, w, h)
 }

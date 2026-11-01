@@ -14,3 +14,6 @@ var (
 	cAddBg, cDelBg, cAddSign, cDelSign, cHunkFg, cHunkBg, cNoteBg string
 	cAddWordBg, cDelWordBg, cModSign, cBarView                    string
 )
+
+// The hover box's colors.
+var cHoverBg, cHoverFg, cHoverBorder, cHoverRule string

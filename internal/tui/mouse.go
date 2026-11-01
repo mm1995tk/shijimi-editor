@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -21,7 +22,7 @@ import (
 // the program, its drag and release do too, wherever the pointer is. Otherwise
 // (or with Shift held) a left drag selects text and copies it on release. ok
 // is false when the event is not for the terminal.
-func (a *App) termMouse(l layout, msg Mouse) (cmd []Effect, ok bool) {
+func (a *App) termMouse(l layout, msg core.Mouse) (cmd []core.Effect, ok bool) {
 	t := a.term
 	if !a.showTerm {
 		return nil, false
@@ -29,13 +30,13 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd []Effect, ok bool) {
 	x, y := msg.Col, msg.Row
 	if t.sel.dragging {
 		switch msg.Action {
-		case MouseMotion:
+		case core.MouseMotion:
 			t.dragTo(x, y)
-		case MouseRelease:
+		case core.MouseRelease:
 			t.dragTo(x, y)
 			if s := t.endSelect(); s != "" {
-				a.copyText(s)
-				a.info(i18n.T("app.termcopied"), utf8.RuneCountInString(s))
+				a.CopyText(s)
+				a.Info(i18n.T("app.termcopied"), utf8.RuneCountInString(s))
 			}
 		default:
 			t.sel.dragging = false // the release was lost
@@ -43,7 +44,7 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd []Effect, ok bool) {
 		}
 		return nil, true
 	}
-	inBody := msg.Region == RegionTerminal && x >= 0 && x < l.fullW && y >= 0
+	inBody := msg.Region == core.RegionTerminal && x >= 0 && x < l.fullW && y >= 0
 	grabbed := t.grab
 	if !grabbed && !inBody {
 		return nil, false
@@ -53,144 +54,145 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd []Effect, ok bool) {
 		sent = t.mouse(msg, x, y)
 	}
 	switch msg.Action {
-	case MousePress:
+	case core.MousePress:
 		if sent {
 			t.sel = termSel{}
 			t.grab = true
-			return a.setFocus(focusTerminal), true
+			return a.SetFocus(core.FocusTerminal), true
 		}
-		if msg.Button == MouseLeft {
+		if msg.Button == core.MouseLeft {
 			t.selectAt(x, y)
-			return a.setFocus(focusTerminal), true
+			return a.SetFocus(core.FocusTerminal), true
 		}
-	case MouseRelease:
+	case core.MouseRelease:
 		t.grab = false
 	}
 	return nil, sent || grabbed
 }
 
-func (a *App) handleMouse(msg Mouse) []Effect {
-	if a.searchOpen() {
+// HandleMouse handles a pointer event.
+func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
+	if a.SearchOpen() {
 		return a.searchMouse(msg)
 	}
-	if a.paletteOpen() {
-		if msg.Action == MousePress && msg.Button == MouseLeft {
-			a.closePalette()
+	if a.PaletteOpen() {
+		if msg.Action == core.MousePress && msg.Button == core.MouseLeft {
+			a.ClosePalette()
 		}
 		return nil
 	}
 	l := a.layout()
 	// A press or the wheel over the other pane first moves the focus there.
-	if msg.Region == RegionOther && msg.Action == MousePress && (msg.Button == MouseLeft || msg.Button == MouseWheelUp || msg.Button == MouseWheelDown) {
-		a.focusPane(a.otherPane())
+	if msg.Region == core.RegionOther && msg.Action == core.MousePress && (msg.Button == core.MouseLeft || msg.Button == core.MouseWheelUp || msg.Button == core.MouseWheelDown) {
+		a.FocusPane(a.OtherPane())
 		l = a.layout()
 		// The pane under the pointer is the focused one now. Its corner has not
 		// moved, so Row and Col stay; only the name of the region changes.
-		msg.Region = RegionEditor
-		if a.capture == RegionOther {
-			a.capture = RegionEditor
+		msg.Region = core.RegionEditor
+		if a.capture == core.RegionOther {
+			a.capture = core.RegionEditor
 		}
 	}
-	if a.agentDragging() {
-		if cmd, ok := a.agentDrag(msg); ok {
+	if a.AgentDragging() {
+		if cmd, ok := a.AgentDrag(msg); ok {
 			return cmd
 		}
 	}
-	if a.resizing == resizeNone && !a.isDragging() && !a.term.sel.dragging {
-		if cmd, ok := a.agentMouse(msg); ok {
+	if a.resizing == core.ResizeNone && !a.IsDragging() && !a.term.sel.dragging {
+		if cmd, ok := a.AgentMouse(msg); ok {
 			return cmd
 		}
 	}
 	// Some terminals report a drag as motion with no button; while a border
 	// or a selection is being dragged, motion is the drag whatever it says.
-	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.isDragging() && !a.term.sel.dragging {
+	if msg.Action == core.MouseMotion && msg.Button == core.MouseNone && a.resizing == core.ResizeNone && !a.IsDragging() && !a.term.sel.dragging {
 		return a.passiveMotion(l, msg)
 	}
 	x, y := a.screenCell(l, msg)
 	wheel := 0
 	switch msg.Button {
-	case MouseWheelUp:
+	case core.MouseWheelUp:
 		wheel = -3
-	case MouseWheelDown:
+	case core.MouseWheelDown:
 		wheel = 3
 	}
 	// Sideways: the horizontal wheel, or the vertical one with Shift held.
 	hwheel := 0
 	switch {
-	case msg.Button == MouseWheelLeft:
-		hwheel = -hscrollWheel
-	case msg.Button == MouseWheelRight:
-		hwheel = hscrollWheel
+	case msg.Button == core.MouseWheelLeft:
+		hwheel = -core.HscrollWheel
+	case msg.Button == core.MouseWheelRight:
+		hwheel = core.HscrollWheel
 	}
 	// A popup the pointer opened only owns the wheel while the pointer is on it.
-	if wheel != 0 && a.hovering() && (!a.hoverByPointer() || a.inHoverBox(l, screenPt{x, y})) {
-		if msg.Action == MousePress {
-			a.scrollHover(wheel)
+	if wheel != 0 && a.Hovering() && (!a.HoverByPointer() || a.inHoverBox(l, core.ScreenPt{x, y})) {
+		if msg.Action == core.MousePress {
+			a.ScrollHover(wheel)
 		}
 		return nil
 	}
-	if a.hovering() && msg.Button == MouseLeft {
+	if a.Hovering() && msg.Button == core.MouseLeft {
 		// The button copies on press; the matching release must not close the hover.
-		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).copyHit(x-bx, y-by) {
-			if msg.Action == MousePress {
-				a.copyHover()
+		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).CopyHit(x-bx, y-by) {
+			if msg.Action == core.MousePress {
+				a.CopyHover()
 			}
 			return nil
 		}
 	}
-	if a.openCard() != nil && msg.Action == MousePress {
+	if a.OpenCard() != nil && msg.Action == core.MousePress {
 		if box, bx, by := a.cardBox(l); box != nil && x >= bx && y >= by && y < by+len(box) && x < bx+ansi.StringWidth(box[0]) {
 			if wheel != 0 {
-				a.scrollCard(wheel)
+				a.ScrollCard(wheel)
 			}
 			return nil // reading the card
 		}
 		if wheel == 0 {
-			a.closeCard()
+			a.CloseCard()
 		}
 	}
 	// Past the branches that keep the popup open: the pointer's hover is over.
-	a.pointerMoved()
-	if msg.Action == MousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, msg) {
-		hwheel = wheel / 3 * hscrollWheel // Shift turns the vertical wheel sideways, over the text only
+	a.PointerMoved()
+	if msg.Action == core.MousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, msg) {
+		hwheel = wheel / 3 * core.HscrollWheel // Shift turns the vertical wheel sideways, over the text only
 	}
-	if hwheel != 0 && msg.Action == MousePress {
+	if hwheel != 0 && msg.Action == core.MousePress {
 		if a.inEditorText(l, msg) {
-			a.scrollCols(a.cur(), hwheel)
+			a.ScrollCols(a.Cur(), hwheel)
 			return nil
 		}
 	}
-	if wheel != 0 && msg.Action == MousePress {
+	if wheel != 0 && msg.Action == core.MousePress {
 		switch {
-		case msg.Region == RegionNone:
+		case msg.Region == core.RegionNone:
 			// the diff mode header and help lines
-		case msg.Region == RegionExplorer:
-			a.wheelSide(msg.Row, l.bodyH, wheel)
-		case msg.Region == RegionTerminal:
+		case msg.Region == core.RegionExplorer:
+			a.WheelSide(msg.Row, l.bodyH, wheel)
+		case msg.Region == core.RegionTerminal:
 			a.term.wheel(msg, msg.Col, msg.Row, wheel)
 		default:
-			a.wheelEditor(wheel)
+			a.WheelEditor(wheel)
 		}
 		return nil
 	}
 
-	if a.resizing != resizeNone {
+	if a.resizing != core.ResizeNone {
 		switch msg.Action {
-		case MouseMotion:
+		case core.MouseMotion:
 			a.dragResize(l, x, y)
 			return nil
-		case MouseRelease:
-			a.resizing = resizeNone
+		case core.MouseRelease:
+			a.resizing = core.ResizeNone
 			return nil
 		}
 		// A press means the release was lost (pointer left the window).
-		a.resizing = resizeNone
+		a.resizing = core.ResizeNone
 	}
-	if msg.Action == MousePress && msg.Button == MouseLeft {
-		if r := a.resizeHit(l, x, y); r != resizeNone {
+	if msg.Action == core.MousePress && msg.Button == core.MouseLeft {
+		if r := a.resizeHit(l, x, y); r != core.ResizeNone {
 			a.resizing = r
-			if r == resizeExplorer {
-				return a.setFocus(focusChanges)
+			if r == core.ResizeExplorer {
+				return a.SetFocus(core.FocusChanges)
 			}
 			return nil
 		}
@@ -200,13 +202,13 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 		return cmd
 	}
 
-	left := msg.Button == MouseLeft
+	left := msg.Button == core.MouseLeft
 	switch msg.Action {
-	case MouseRelease:
-		a.setDragging(false)
+	case core.MouseRelease:
+		a.SetDragging(false)
 		return nil
-	case MouseMotion:
-		if a.isDragging() {
+	case core.MouseMotion:
+		if a.IsDragging() {
 			a.mouseToCursor(l, msg.Row, msg.Col, true)
 		}
 		return nil
@@ -217,57 +219,57 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 	double := msg.Clicks >= 2
 
 	switch {
-	case msg.Region == RegionNone:
+	case msg.Region == core.RegionNone:
 		return nil // the diff mode header and help lines
-	case msg.Region == RegionExplorer:
-		return a.clickSide(msg.Row, double)
-	case msg.Region == RegionTerminal:
-		return a.setFocus(focusTerminal)
-	case msg.Region == RegionEditor && msg.Row >= l.editY-l.top && msg.Row < l.editY-l.top+l.editH:
-		t := a.cur()
+	case msg.Region == core.RegionExplorer:
+		return a.ClickSide(msg.Row, double)
+	case msg.Region == core.RegionTerminal:
+		return a.SetFocus(core.FocusTerminal)
+	case msg.Region == core.RegionEditor && msg.Row >= l.editY-l.top && msg.Row < l.editY-l.top+l.editH:
+		t := a.Cur()
 		if t == nil {
 			return nil
 		}
-		if t.kind == tabText {
-			if a.diffFile(t) != nil {
+		if t.Kind == core.TabText {
+			if a.DiffFile(t) != nil {
 				if msg.Row == l.editY-l.top { // the title row
-					if !a.diffSingle(a.diffFile(t)) {
-						a.toggleSplit()
+					if !a.DiffSingle(a.DiffFile(t)) {
+						a.ToggleSplit()
 					}
 					return nil
 				}
 				g := a.dvGeom(l)
-				if msg.Col >= g.barX-l.rightX {
-					if dv := a.diffFor(t); dv != nil {
-						a.diffBarClick(t, dv, g, y)
+				if msg.Col >= g.BarX-l.rightX {
+					if dv := a.DiffFor(t); dv != nil {
+						a.DiffBarClick(t, dv, g, y)
 					}
 					return nil
 				}
-				if msg.Col < g.rightX-l.rightX {
+				if msg.Col < g.RightX-l.rightX {
 					return nil // the base side is read-only
 				}
 				if th := a.markerAt(l, x, y); th != nil {
-					a.showCard(th, t.buf.Path, x, y, false)
+					a.ShowCard(th, t.Buf.Path, x, y, false)
 					return nil
 				}
-			} else if t.preview != previewOff && msg.Col >= a.editW(t, l) {
+			} else if t.Preview != core.PreviewOff && msg.Col >= a.editW(t, l) {
 				return nil // the preview pane is read-only
 			}
-			a.closeCompletion()
+			a.CloseCompletion()
 			a.mouseToCursor(l, msg.Row, msg.Col, false)
-			a.setDragging(true)
-			return a.setFocus(focusEditor)
+			a.SetDragging(true)
+			return a.SetFocus(core.FocusEditor)
 		}
 	}
 	return nil
 }
 
 func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
-	t := a.curText()
+	t := a.CurText()
 	if t == nil {
 		return
 	}
-	if dv := a.diffFor(t); dv != nil {
+	if dv := a.DiffFor(t); dv != nil {
 		a.diffMouseToCursor(t, dv, l, row, col, extend)
 		return
 	}
@@ -275,68 +277,68 @@ func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
 	// (and the find bar).
 	body := row - (l.editY - l.top)
 	col = min(col, a.editW(t, l)-1)
-	b := t.buf
+	b := t.Buf
 	if body < 0 {
 		b.MoveLines(-1, extend)
 	} else if body >= l.editH {
 		b.MoveLines(1, extend)
 	}
-	r := b.ScrollRow + clamp(body, 0, max(0, l.editH-1))
-	vis := max(0, col-gutterWidth(b)) + b.ScrollCol
+	r := b.ScrollRow + core.Clamp(body, 0, max(0, l.editH-1))
+	vis := max(0, col-core.GutterWidth(b)) + b.ScrollCol
 	b.SetCursor(r, vis, extend)
-	a.followCursor()
+	a.FollowCursor()
 }
 
 // passiveMotion handles pointer movement with no button held. It never moves
 // the cursor: it only starts the dwell timer, or closes a popup the pointer
 // left.
-func (a *App) passiveMotion(l layout, msg Mouse) []Effect {
+func (a *App) passiveMotion(l layout, msg core.Mouse) []core.Effect {
 	x, y := a.screenCell(l, msg)
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
 	}
-	if th := a.markerAt(l, x, y); th != nil && a.settings().Editor.MouseHover && a.focusIs(focusEditor) && !a.hoverBlocked() && a.resizing == resizeNone {
+	if th := a.markerAt(l, x, y); th != nil && a.Settings().Editor.MouseHover && a.FocusIs(core.FocusEditor) && !a.HoverBlocked() && a.resizing == core.ResizeNone {
 		// resting on a comment marker shows its thread
-		if !a.cardOnThread(th) {
-			a.showCard(th, a.curText().buf.Path, x, y, true)
-			a.closeHover()
+		if !a.CardOnThread(th) {
+			a.ShowCard(th, a.CurText().Buf.Path, x, y, true)
+			a.CloseHover()
 		}
 		return nil
 	}
-	if a.pointerCard() {
+	if a.PointerCard() {
 		// like a hover, it stays while the pointer reads it, and closes when it leaves
 		if box, bx, by := a.cardBox(l); box == nil || x < bx || y < by || y >= by+len(box) || x >= bx+ansi.StringWidth(box[0]) {
-			a.closeCard()
+			a.CloseCard()
 		}
 	}
-	if !a.settings().Editor.MouseHover || a.hoverBlocked() || a.resizing != resizeNone {
+	if !a.Settings().Editor.MouseHover || a.HoverBlocked() || a.resizing != core.ResizeNone {
 		return nil
 	}
-	if !a.focusIs(focusEditor) {
+	if !a.FocusIs(core.FocusEditor) {
 		// The keys belong to another pane; a popup must not open over them.
-		if a.hoverByPointer() {
-			a.closeHover()
+		if a.HoverByPointer() {
+			a.CloseHover()
 		}
 		return nil
 	}
-	pt := screenPt{x, y}
-	if a.restedOn(pt) {
+	pt := core.ScreenPt{x, y}
+	if a.RestedOn(pt) {
 		return nil
 	}
 	_, word, ok := a.mouseWord(l, pt)
-	return a.pointerRests(word, ok, a.hovering() && a.inHoverBox(l, pt))
+	return a.PointerRests(word, ok, a.Hovering() && a.inHoverBox(l, pt))
 }
 
 // mouseBufPos maps a screen cell to the buffer position of the character under
 // it. ok is false outside the text of a plain editor, including past the end
 // of a line.
 func (a *App) mouseBufPos(l layout, x, y int) (buffer.Pos, bool) {
-	t := a.curText()
-	if t == nil || a.fullPreview(t) || a.diffFor(t) != nil {
+	t := a.CurText()
+	if t == nil || a.FullPreview(t) || a.DiffFor(t) != nil {
 		return buffer.Pos{}, false
 	}
-	b := t.buf
-	gw := gutterWidth(b)
+	b := t.Buf
+	gw := core.GutterWidth(b)
 	if y < l.editY || y >= l.editY+l.editH || x < l.rightX+gw || x >= l.rightX+a.editW(t, l) {
 		return buffer.Pos{}, false
 	}
@@ -353,17 +355,17 @@ func (a *App) mouseBufPos(l layout, x, y int) (buffer.Pos, bool) {
 }
 
 // mouseWord is mouseBufPos plus the word the character belongs to.
-func (a *App) mouseWord(l layout, pt screenPt) (buffer.Pos, wordSpan, bool) {
-	pos, ok := a.mouseBufPos(l, pt.x, pt.y)
+func (a *App) mouseWord(l layout, pt core.ScreenPt) (buffer.Pos, core.WordSpan, bool) {
+	pos, ok := a.mouseBufPos(l, pt.X, pt.Y)
 	if !ok {
-		return pos, wordSpan{}, false
+		return pos, core.WordSpan{}, false
 	}
-	s, e := buffer.WordRange(a.curText().buf.Lines[pos.Row], pos.Col)
-	return pos, wordSpan{pos.Row, s, e}, true
+	s, e := buffer.WordRange(a.CurText().Buf.Lines[pos.Row], pos.Col)
+	return pos, core.NewWordSpan(pos.Row, s, e), true
 }
 
 // inHoverBox reports whether pt is on the open hover popup.
-func (a *App) inHoverBox(l layout, pt screenPt) bool {
+func (a *App) inHoverBox(l layout, pt core.ScreenPt) bool {
 	x, y, ok := a.hoverPos(l)
 	if !ok {
 		return false
@@ -373,26 +375,26 @@ func (a *App) inHoverBox(l layout, pt screenPt) bool {
 	for _, s := range box {
 		bw = max(bw, ansi.StringWidth(s))
 	}
-	return pt.x >= x && pt.x < x+bw && pt.y >= y && pt.y < y+len(box)
+	return pt.X >= x && pt.X < x+bw && pt.Y >= y && pt.Y < y+len(box)
 }
 
-func (a *App) searchMouse(msg Mouse) []Effect {
-	if msg.Action != MousePress {
+func (a *App) searchMouse(msg core.Mouse) []core.Effect {
+	if msg.Action != core.MousePress {
 		return nil
 	}
 	switch msg.Button {
-	case MouseWheelUp:
-		a.searchScroll(-3)
-	case MouseWheelDown:
-		a.searchScroll(3)
-	case MouseLeft:
+	case core.MouseWheelUp:
+		a.SearchScroll(-3)
+	case core.MouseWheelDown:
+		a.SearchScroll(3)
+	case core.MouseLeft:
 		x, y := a.screenCell(a.layout(), msg)
-		a.searchClick(x, y)
+		a.SearchClick(x, y)
 	}
 	return nil
 }
 
-// hoverCellWord is mouseWord for the cell the pointer last rested on.
-func (a *App) hoverCellWord() (buffer.Pos, wordSpan, bool) {
-	return a.mouseWord(a.layout(), a.hoverCellPos())
+// HoverCellWord is mouseWord for the cell the pointer last rested on.
+func (a *App) HoverCellWord() (buffer.Pos, core.WordSpan, bool) {
+	return a.mouseWord(a.layout(), a.HoverCellPos())
 }
