@@ -934,7 +934,10 @@ func (a *Core) handleLSPEvent(e lsp.Event) []Effect {
 	return nil
 }
 
-// HandleKey handles a key press while the editor has the focus.
+// HandleKey is the entry for every key press: it closes what a key closes (the
+// pointer's popups, the signature help) and hands the key to whatever takes
+// it: an open overlay, the command line, the resize mode, or the focused
+// region.
 func (a *Core) HandleKey(msg Key) []Effect {
 	key := msg.String()
 	a.Msg = ""
