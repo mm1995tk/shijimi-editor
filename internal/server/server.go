@@ -1,7 +1,8 @@
 // Package server は画面を持たない常駐プロセス「shj serve」の中身。
 // Unix ソケットで JSON-RPC を話す。設計は docs/design/gui-protocol.md の 3 章。
 //
-// 今あるメソッドは session.* / server.info / term.*（term.go）/ workspace.*（workspace.go）/ tree.*・git.status（tree.go、treewatch.go、gitstat.go）。
+// 今あるメソッドは session.* / server.info / term.*（term.go）/ workspace.*（workspace.go）/ tree.*・git.status（tree.go、treewatch.go、gitstat.go）/
+// view.*・screen.*・theme.get・blob.get（view.go、view_diff.go）。
 package server
 
 import (
@@ -72,13 +73,16 @@ type Server struct {
 	terms      *termManager
 	ws         *wsManager
 	tree       *treeManager
-	rev        int64       // サーバー全体の版（mu で守る）
-	stopping   bool        // stop が始まった
-	beforeStop []func()    // 止まる前に走らせる（AddBeforeStop）
-	focus      Workspace   // ctl と ide の届け先。無ければ nil
-	cores      Cores       // ワークスペースごとの core（SetCores）。無ければ nil
-	ctlSrv     *ctl.Server // StartControl で開く
-	ideSrv     *ide.Server // StartIDE で開く
+	rev        int64         // サーバー全体の版（mu で守る）
+	stopping   bool          // stop が始まった
+	beforeStop []func()      // 止まる前に走らせる（AddBeforeStop）
+	focus      Workspace     // ctl と ide の届け先。無ければ nil
+	cores      Cores         // ワークスペースごとの core（SetCores）。無ければ nil
+	screens    Screens       // 画面の作り手（SetScreens）。無ければ nil
+	screenKick chan struct{} // ScreenChanged の知らせ（1 つまで溜める）
+	screenMu   sync.Mutex    // 画面の配信（session.view と送る順）を守る
+	ctlSrv     *ctl.Server   // StartControl で開く
+	ideSrv     *ide.Server   // StartIDE で開く
 }
 
 // ErrRunning はすでに別の shj serve が動いているときのエラー。
@@ -110,11 +114,12 @@ func Listen(opts Options) (*Server, error) {
 		log = slog.New(slog.DiscardHandler)
 	}
 	srv := &Server{
-		opts:     opts,
-		log:      log,
-		ln:       ln,
-		serverID: hex.EncodeToString(id),
-		sessions: map[*session]struct{}{},
+		opts:       opts,
+		log:        log,
+		ln:         ln,
+		serverID:   hex.EncodeToString(id),
+		sessions:   map[*session]struct{}{},
+		screenKick: make(chan struct{}, 1),
 	}
 	srv.startedAt = srv.now()
 	srv.terms = newTermManager(srv)
@@ -136,6 +141,7 @@ func (s *Server) Serve(ctx context.Context) error {
 	go s.watchIdle(idleDone)
 	go s.ws.watch(idleDone)
 	go s.tree.watch(idleDone)
+	go s.screenLoop(idleDone)
 	for {
 		c, err := s.ln.Accept()
 		if err != nil {
@@ -233,6 +239,8 @@ type session struct {
 	client      ClientInfo // session.hello で名乗ったもの
 	connectedAt time.Time  // session.hello が通った時刻
 	superseded  bool       // 後からつないだ GUI に引き継がれた。以後の要求は not_owner
+
+	view *viewState // 画面の配信の状態（srv.screenMu で守る）。view.subscribe などで作る
 }
 
 // ClientInfo は GUI が session.hello で名乗る内容。
@@ -287,6 +295,7 @@ type InfoResult struct {
 func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 	if req.IsNotification() {
 		ss.termNotify(req)
+		ss.viewNotify(req)
 		return nil, nil // 知らない通知は無視する
 	}
 	if ss.isSuperseded() {
@@ -296,6 +305,9 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 		return res, err
 	}
 	if res, err, ok := ss.workspaceRequest(req); ok {
+		return res, err
+	}
+	if res, err, ok := ss.viewRequest(req); ok {
 		return res, err
 	}
 	if res, err, ok := ss.treeRequest(req); ok {
