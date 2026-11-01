@@ -29,14 +29,14 @@ func (a *Core) browser(arg string) []Effect {
 		if len(ports) == 2 {
 			listen = ports[1]
 		}
-		f, err := a.proxy.Start(a.Cfg.Browser.ListenHost, ports[0], listen)
+		f, err := a.shared.Proxy.Start(a.Cfg.Browser.ListenHost, ports[0], listen)
 		if err != nil {
 			a.Fail(err)
 			return nil
 		}
 		a.Info(i18n.T("browser.started"), f.Listen, f.Target)
 	case "list", "ls", "":
-		fs := a.proxy.List()
+		fs := a.shared.Proxy.List()
 		if len(fs) == 0 {
 			a.InfoText(i18n.T("browser.none"))
 			return nil
@@ -56,7 +56,7 @@ func (a *Core) browser(arg string) []Effect {
 			a.Fail(err)
 			return nil
 		}
-		if err := a.proxy.Stop(ports[0]); err != nil {
+		if err := a.shared.Proxy.Stop(ports[0]); err != nil {
 			a.Fail(err)
 			return nil
 		}

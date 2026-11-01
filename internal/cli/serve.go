@@ -54,7 +54,11 @@ func runServe(args []string) int {
 	logger := slog.New(slog.NewTextHandler(logw, nil))
 	var idle time.Duration
 	if home, err := os.UserHomeDir(); err == nil {
-		idle = time.Duration(config.Load(home).Serve.IdleStopDays) * 24 * time.Hour
+		cfg := config.Load(home)
+		idle = time.Duration(cfg.Serve.IdleStopDays) * 24 * time.Hour
+		// The UI language is the process's: the home config sets it once, and
+		// the workspaces' cores leave it alone (core.NewIn).
+		i18n.SetLang(cfg.Editor.UILanguage)
 	}
 	srv, err := server.Listen(server.Options{
 		SocketPath: sock,
@@ -70,6 +74,14 @@ func runServe(args []string) int {
 		}
 		return 1
 	}
+	// A core per workspace, on one set of process-wide parts. A core is made
+	// when its workspace takes the focus and kept while it has files open.
+	shared := core.NewShared()
+	defer shared.Close()
+	cores := core.NewWorkspaces(shared, nil)
+	defer cores.CloseAll()
+	srv.SetCores(serveCores{cores})
+	srv.AddBeforeStop(func() { writeBackups(cores, logger) })
 	// Like the TUI, the control socket and the Claude Code connection are best
 	// effort. The server has one of each for all workspaces; requests go to the
 	// focused workspace. The socket is <pid>.sock as in the TUI, so shj finds it

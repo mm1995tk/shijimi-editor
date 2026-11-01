@@ -177,15 +177,21 @@ func (b *Buffer) Text() string {
 	return sb.String()
 }
 
+// Encoded is the buffer as Save writes it: with the file's own line endings.
+func (b *Buffer) Encoded() string {
+	text := b.Text()
+	if b.crlf {
+		text = strings.ReplaceAll(text, "\n", "\r\n")
+	}
+	return text
+}
+
 // Save writes the buffer to its path.
 func (b *Buffer) Save() error {
 	if b.Path == "" {
 		return errors.New(i18n.T("buffer.noname"))
 	}
-	text := b.Text()
-	if b.crlf {
-		text = strings.ReplaceAll(text, "\n", "\r\n")
-	}
+	text := b.Encoded()
 	mode := os.FileMode(0o644)
 	if st, err := os.Stat(b.Path); err == nil {
 		mode = st.Mode().Perm()

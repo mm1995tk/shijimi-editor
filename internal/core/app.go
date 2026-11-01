@@ -14,7 +14,6 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
-	"github.com/mm1995tk/shijimi-editor/internal/proxy"
 )
 
 // Focus is the part of the screen that takes the keys.
@@ -48,8 +47,9 @@ type Core struct {
 	Lsp       *lspManager
 	Focus     Focus
 	Explorer  *Explorer
-	treeTicks int // watch ticks since the tree was last reloaded
-	proxy     *proxy.Manager
+	treeTicks int     // watch ticks since the tree was last reloaded
+	shared    *Shared // the port forwards, which the process has one of
+	ownShared bool    // the core made shared itself (New), so Close closes it
 	Pal       *Palette
 	wsSyms    []lsp.Symbol // rows of the project symbol picker
 	wsClient  *lsp.Client  // server the project symbol picker asks
@@ -136,18 +136,35 @@ type Core struct {
 }
 
 // New creates the core rooted at dir, optionally opening file. fe is the front
-// end it is drawn by.
+// end it is drawn by. The core has the process-wide parts (Shared) to itself,
+// as in the TUI: Close closes them too.
 func New(fe FrontEnd, dir, file string) *Core {
+	a := newCore(NewShared(), fe, dir, file, true)
+	a.ownShared = true
+	return a
+}
+
+// NewIn creates the core rooted at dir on the process-wide parts sh, which
+// other cores may share; Close leaves them open. `shj serve` makes a core per
+// workspace this way (Workspaces). The UI language is the process's, so NewIn
+// leaves it as it is (New sets it from the root's config).
+func NewIn(sh *Shared, fe FrontEnd, dir, file string) *Core {
+	return newCore(sh, fe, dir, file, false)
+}
+
+func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) *Core {
 	abs, _ := filepath.Abs(dir)
 	cfg := config.Load(abs)
-	i18n.SetLang(cfg.Editor.UILanguage)
+	if setLang {
+		i18n.SetLang(cfg.Editor.UILanguage)
+	}
 	a := &Core{
 		FrontEnd: fe,
 		Root:     abs,
 		Cfg:      cfg,
 		Lsp:      newLSPManager(cfg, abs),
 		Explorer: NewExplorer(abs),
-		proxy:    proxy.NewManager(),
+		shared:   sh,
 		Pal:      newPalette(),
 		Search:   newSearchPanel(cfg.Search),
 		Focus:    FocusExplorer,
@@ -186,19 +203,20 @@ func NewSingle(fe FrontEnd, file string) (*Core, error) {
 	cfg := config.Load(dir)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &Core{
-		FrontEnd: fe,
-		Root:     dir,
-		Cfg:      cfg,
-		Lsp:      newLSPManager(cfg, dir),
-		Explorer: &Explorer{root: &Node{Name: filepath.Base(dir), Path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
-		proxy:    proxy.NewManager(),
-		Pal:      newPalette(),
-		Search:   newSearchPanel(cfg.Search),
-		Focus:    FocusEditor,
-		Helix:    cfg.Editor.Keymap != "vscode",
-		Gd:       gitDiff{Split: true},
-		Ag:       newAgentState(),
-		single:   true,
+		FrontEnd:  fe,
+		Root:      dir,
+		Cfg:       cfg,
+		Lsp:       newLSPManager(cfg, dir),
+		Explorer:  &Explorer{root: &Node{Name: filepath.Base(dir), Path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
+		shared:    NewShared(),
+		ownShared: true,
+		Pal:       newPalette(),
+		Search:    newSearchPanel(cfg.Search),
+		Focus:     FocusEditor,
+		Helix:     cfg.Editor.Keymap != "vscode",
+		Gd:        gitDiff{Split: true},
+		Ag:        newAgentState(),
+		single:    true,
 	}
 	if cfg.Editor.Theme != "" {
 		a.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
@@ -258,7 +276,9 @@ func (a *Core) Close() {
 		a.stopAgent()
 	}
 	a.MuxClose()
-	RemoveShellIntegration()
+	if a.ownShared && a.shared != nil {
+		a.shared.Close()
+	}
 }
 
 // ---- helpers ----
@@ -707,7 +727,9 @@ func (a *Core) Quit() []Effect {
 	}
 	a.TermCloseAll()
 	a.MuxClose()
-	a.proxy.StopAll()
+	if a.ownShared && a.shared != nil {
+		a.shared.Proxy.StopAll()
+	}
 	return a.exit()
 }
 
