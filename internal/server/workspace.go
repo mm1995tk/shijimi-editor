@@ -294,3 +294,14 @@ func (ss *session) workspaceRequest(req *rpc.Message) (res any, err error, handl
 	}
 	return out, nil, true
 }
+
+// rootOf は id のワークスペースのルート（正規化済み）。
+func (w *wsManager) rootOf(id string) (string, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	x := w.list[id]
+	if x == nil {
+		return "", false
+	}
+	return x.Root, true
+}
