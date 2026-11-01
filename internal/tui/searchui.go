@@ -48,7 +48,7 @@ type searchView struct {
 // lower right.
 type searchPanel struct {
 	open  bool
-	in    [numFields]lineInput
+	in    [numFields]inputField
 	field int
 
 	caseSens, word, regex, keepCase bool
@@ -70,7 +70,7 @@ type searchPanel struct {
 func newSearchPanel(def config.Search) *searchPanel {
 	s := &searchPanel{skipped: map[string]bool{}}
 	for i := range s.in {
-		s.in[i] = newLineInput(4096)
+		s.in[i] = newInputField(4096)
 	}
 	s.in[fInclude].SetValue(strings.Join(def.Include, ","))
 	s.in[fExclude].SetValue(strings.Join(def.Exclude, ","))

@@ -31,7 +31,7 @@ type paletteItem struct {
 // (">" prefix), go-to-line (":" prefix) and free-text prompts.
 type palette struct {
 	open  bool
-	input lineInput
+	input inputField
 	sel   int
 	items []paletteItem
 	files []string
@@ -53,7 +53,7 @@ type palette struct {
 }
 
 func newPalette() *palette {
-	return &palette{input: newLineInput(4096)}
+	return &palette{input: newInputField(4096)}
 }
 
 func indexFiles(root string) []string {
@@ -244,7 +244,7 @@ func (p *palette) overlay() screen.Overlay {
 // drawPalette draws a palette Overlay as a box w cells wide. in is the TUI's
 // state of the input (what is in view of a long text); the Overlay holds the
 // text and the caret.
-func drawPalette(ov screen.Overlay, in *lineInput, w int) []string {
+func drawPalette(ov screen.Overlay, in *inputField, w int) []string {
 	var out []string
 	label := paletteLabel(ov.Title, ov.Field.Prefix)
 	out = append(out, stPaletteBox.Render(fit("", w)))
