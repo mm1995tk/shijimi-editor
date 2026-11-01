@@ -20,13 +20,13 @@ func (a *App) handlePaste(msg Paste) []Effect {
 		return nil
 	case a.confirm != nil:
 		return nil
-	case len(a.props) > 0, a.ctx != nil, a.resizeMode:
+	case a.props.Len() > 0, a.ctx != nil, a.resizeMode:
 		return nil
 	case a.cmdOpen:
 		return a.cmdlineInput(msg)
 	case a.focus == focusTerminal:
 		s := strings.ReplaceAll(strings.ReplaceAll(msg.Content, "\r\n", "\r"), "\n", "\r")
-		return teaEffects(a.term.paste(s))
+		return a.termEffects(a.term.paste(s))
 	case a.focus != focusEditor:
 		return nil
 	}

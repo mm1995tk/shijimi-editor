@@ -95,7 +95,7 @@ func (a *App) holdScrollRelease(msg Key) {
 // typed there, so losing IME input to key-release reporting does no harm.
 func (a *App) wantKeyReleases() bool {
 	return a.helix && a.mode != modeInsert && a.focus == focusEditor && a.curText() != nil &&
-		!a.overlayOpen() && !a.cmdOpen && !a.findOpen && len(a.props) == 0 && a.ctx == nil
+		!a.overlayOpen() && !a.cmdOpen && !a.findOpen && a.props.Len() == 0 && a.ctx == nil
 }
 
 // scrollKeepCursor scrolls the view by n lines (Ctrl+Alt+D / Ctrl+Alt+U) and

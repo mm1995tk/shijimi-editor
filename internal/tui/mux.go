@@ -7,6 +7,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
+	"github.com/mm1995tk/shijimi-editor/internal/term"
 )
 
 // Inside a terminal multiplexer (herdr, tmux, zellij, cmux), the terminal commands (Ctrl+`, :sh,
@@ -157,7 +158,7 @@ func (a *App) muxPaneEnv() []string {
 		}
 	}
 	if exe, err := os.Executable(); err == nil {
-		env = append(env, a.mux.b.shellEnv(shell(), exe)...)
+		env = append(env, a.mux.b.shellEnv(term.DefaultShell(), exe)...)
 	}
 	return env
 }

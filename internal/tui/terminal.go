@@ -4,21 +4,22 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/creack/pty"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/term"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
+// termOutputMsg says the shell printed something, termDoneMsg that it ended
+// and termErrMsg that none could be started. The pump of the PTY
+// (internal/term) sends the first two on terminal.ch; WaitTerm hands them to
+// Update, which gives them to handleTermEvent.
 type termOutputMsg struct{ id int }
 
 type termDoneMsg struct {
@@ -26,12 +27,19 @@ type termDoneMsg struct {
 	err error
 }
 
-// termTab is the shell running on its own PTY, drawn through a VT emulator.
+// termErrMsg reports a failure to start a shell.
+type termErrMsg struct{ err error }
+
+func (termOutputMsg) isEvent() {}
+func (termDoneMsg) isEvent()   {}
+func (termErrMsg) isEvent()    {}
+
+// termTab is the shell running on its own PTY (internal/term), drawn through
+// a VT emulator.
 type termTab struct {
 	id      int
 	vt      *vt.Term
-	ptmx    *os.File
-	cmd     *exec.Cmd
+	sess    *term.Session
 	cols    int
 	rows    int
 	title   string
@@ -40,13 +48,14 @@ type termTab struct {
 }
 
 // terminal is the bottom panel: one PTY-backed login shell. When it exits,
-// sh is nil until the panel is opened again.
+// sh is nil until the panel is opened again. The PTY and the process belong
+// to internal/term; this holds what the panel shows of it.
 type terminal struct {
 	sh     *termTab
 	cwd    string
 	nextID int
-	ch     chan tea.Msg
-	armed  bool // a wait() command is outstanding
+	ch     chan Event
+	armed  bool // a WaitTerm is outstanding
 	w, h   int  // size of the body last rendered
 	grab   bool // a mouse press was sent to the program; its drag and release follow
 	sel    termSel
@@ -76,93 +85,72 @@ func (s termSel) ordered() (termPos, termPos) {
 }
 
 func newTerminal(cwd string) *terminal {
-	return &terminal{cwd: cwd, ch: make(chan tea.Msg, 64), w: 80, h: 24}
-}
-
-func shell() string {
-	if s := os.Getenv("SHELL"); s != "" {
-		return s
-	}
-	return "/bin/sh"
+	return &terminal{cwd: cwd, ch: make(chan Event, 64), w: 80, h: 24}
 }
 
 func (t *terminal) cur() *termTab { return t.sh }
 
 // focus makes sure a shell exists so the panel is never empty.
-func (t *terminal) focus() tea.Cmd {
+func (t *terminal) focus() ([]Effect, error) {
 	if t.sh == nil {
 		return t.start()
 	}
-	return t.wait()
+	return t.wait(), nil
 }
 
 func (t *terminal) blur() {}
 
-// wait returns a command that delivers the next PTY event. Only one is ever
-// outstanding; update re-arms it after every event.
-func (t *terminal) wait() tea.Cmd {
+// wait asks for the next PTY event to be delivered. Only one is ever
+// outstanding; handleTermEvent asks again after every event.
+func (t *terminal) wait() []Effect {
 	if t.armed {
 		return nil
 	}
 	t.armed = true
-	ch := t.ch
-	return func() tea.Msg { return <-ch }
+	return []Effect{WaitTerm{From: t.ch}}
 }
 
 // start runs a login shell in the current directory on a fresh PTY.
-func (t *terminal) start() tea.Cmd {
-	args, env := core.ShellIntegration(shell())
-	cmd := exec.Command(shell(), args...)
-	cmd.Dir = t.cwd
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color", "COLORTERM=truecolor")
-	cmd.Env = append(cmd.Env, env...)
+func (t *terminal) start() ([]Effect, error) {
+	sh := term.DefaultShell()
+	args, env := core.ShellIntegration(sh)
 	cols, rows := max(1, t.w), max(1, t.h)
-	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(rows), Cols: uint16(cols)})
+	sess, err := term.Start(term.Options{Shell: sh, Args: args, Dir: t.cwd, Env: env, Cols: cols, Rows: rows})
 	if err != nil {
-		return func() tea.Msg { return termErrMsg{err} }
+		return nil, err
 	}
 	t.nextID++
 	tab := &termTab{
-		id: t.nextID, ptmx: ptmx, cmd: cmd, cols: cols, rows: rows,
-		vt: vt.New(vt.Options{Cols: cols, Rows: rows, Reply: ptmx}),
+		id: t.nextID, sess: sess, cols: cols, rows: rows,
+		vt: vt.New(vt.Options{Cols: cols, Rows: rows, Reply: sess}),
 	}
 	t.sh = tab
 	go t.pump(tab)
-	return t.wait()
+	return t.wait(), nil
 }
-
-// termErrMsg reports a failure to start a shell.
-type termErrMsg struct{ err error }
 
 // pump copies PTY output into the emulator and wakes the UI.
 func (t *terminal) pump(tab *termTab) {
-	buf := make([]byte, 32*1024)
-	for {
-		n, err := tab.ptmx.Read(buf)
-		if n > 0 {
-			tab.vt.Write(buf[:n])
-			select {
-			case t.ch <- termOutputMsg{id: tab.id}:
-			default: // a notification is already queued
-			}
+	err := tab.sess.Pump(func(b []byte) {
+		tab.vt.Write(b)
+		select {
+		case t.ch <- termOutputMsg{id: tab.id}:
+		default: // a notification is already queued
 		}
-		if err != nil {
-			break
-		}
-	}
-	werr := tab.cmd.Wait()
-	t.ch <- termDoneMsg{id: tab.id, err: werr}
+	})
+	t.ch <- termDoneMsg{id: tab.id, err: err}
 }
 
-func (t *terminal) update(msg tea.Msg) tea.Cmd {
-	switch msg := msg.(type) {
+// update takes a PTY event off the channel; the caller asks for the next one.
+func (t *terminal) update(ev Event) []Effect {
+	switch ev := ev.(type) {
 	case termOutputMsg:
 		t.armed = false
 		return t.wait()
 	case termDoneMsg:
 		t.armed = false
-		if t.sh != nil && t.sh.id == msg.id {
-			t.sh.ptmx.Close()
+		if t.sh != nil && t.sh.id == ev.id {
+			t.sh.close()
 			t.sh = nil
 			t.sel = termSel{}
 		}
@@ -172,39 +160,38 @@ func (t *terminal) update(msg tea.Msg) tea.Cmd {
 }
 
 // key sends a key press to the shell.
-func (t *terminal) key(msg Key) tea.Cmd {
+func (t *terminal) key(msg Key) {
 	t.sel = termSel{}
 	if tab := t.cur(); tab != nil {
 		tab.vt.ScrollToBottom()
-		tab.ptmx.Write(termKeyBytes(msg, tab.vt.Modes().AppCursor))
+		tab.write(termKeyBytes(msg, tab.vt.Modes().AppCursor))
 	}
-	return nil
 }
 
 // run types a command line into the shell, as if the user entered it.
-func (t *terminal) run(line string) tea.Cmd {
-	var cmd tea.Cmd
+func (t *terminal) run(line string) ([]Effect, error) {
+	var effs []Effect
 	if t.sh == nil {
-		cmd = t.start()
+		var err error
+		if effs, err = t.start(); err != nil {
+			return nil, err
+		}
 	} else if t.sh.vt.Modes().AltScreen {
 		// A full-screen program owns the only terminal; typing into it would
 		// send the command to that program.
-		return func() tea.Msg { return termErrMsg{errors.New(i18n.T("term.busy"))} }
+		return nil, errors.New(i18n.T("term.busy"))
 	}
 	if tab := t.cur(); tab != nil {
 		tab.vt.ScrollToBottom()
-		tab.ptmx.Write([]byte(line + "\r"))
+		tab.write([]byte(line + "\r"))
 	}
-	return tea.Batch(cmd, t.wait())
+	return batch(effs, t.wait()), nil
 }
 
 // closeAll ends the shell. Closing the PTY master hangs up the session.
 func (t *terminal) closeAll() {
 	if tab := t.sh; tab != nil {
-		tab.ptmx.Close()
-		if tab.cmd.Process != nil {
-			tab.cmd.Process.Kill()
-		}
+		tab.close()
 	}
 }
 
@@ -213,7 +200,7 @@ func (t *termTab) label() string {
 	if s := strings.TrimSpace(t.title); s != "" {
 		return s
 	}
-	return filepath.Base(shell())
+	return filepath.Base(term.DefaultShell())
 }
 
 // fit brings the terminal up to date for a panel w x h cells: it remembers the
@@ -231,7 +218,7 @@ func (t *terminal) fit(w, h int) {
 	}
 	if tab.cols != w || tab.rows != body {
 		tab.cols, tab.rows = w, body
-		pty.Setsize(tab.ptmx, &pty.Winsize{Rows: uint16(body), Cols: uint16(w)})
+		tab.resize(w, body)
 		tab.vt.Resize(w, body)
 	}
 	tab.vt.Snapshot(&tab.snap)
@@ -572,19 +559,22 @@ func termKeyBytes(msg Key, appCursor bool) []byte {
 
 // paste sends text to the shell without a trailing Enter. Programs that
 // enabled bracketed paste receive it wrapped, so it arrives as one paste.
-func (t *terminal) paste(text string) tea.Cmd {
-	var cmd tea.Cmd
+func (t *terminal) paste(text string) ([]Effect, error) {
+	var effs []Effect
 	if t.sh == nil {
-		cmd = t.start()
+		var err error
+		if effs, err = t.start(); err != nil {
+			return nil, err
+		}
 	}
 	if tab := t.cur(); tab != nil {
 		tab.vt.ScrollToBottom()
 		if tab.vt.Modes().Bracketed {
 			text = "\x1b[200~" + text + "\x1b[201~"
 		}
-		tab.ptmx.Write([]byte(text))
+		tab.write([]byte(text))
 	}
-	return tea.Batch(cmd, t.wait())
+	return batch(effs, t.wait()), nil
 }
 
 // mouse sends a mouse event at cell (x, y) of the terminal body to the
@@ -631,7 +621,7 @@ func (t *terminal) mouse(msg Mouse, x, y int) bool {
 	if len(b) == 0 {
 		return false
 	}
-	tab.ptmx.Write(b)
+	tab.write(b)
 	return true
 }
 
@@ -654,7 +644,7 @@ func (t *terminal) wheel(msg Mouse, x, y, lines int) {
 			key = KeyUp
 		}
 		for range abs(lines) {
-			tab.ptmx.Write(termKeyBytes(Key{Code: key}, m.AppCursor))
+			tab.write(termKeyBytes(Key{Code: key}, m.AppCursor))
 		}
 		return
 	}
@@ -666,4 +656,24 @@ func abs(n int) int {
 		return -n
 	}
 	return n
+}
+
+// write sends bytes to the shell. A tab with no session (a test's) takes them
+// and drops them.
+func (t *termTab) write(b []byte) {
+	if t.sess != nil {
+		t.sess.Write(b)
+	}
+}
+
+func (t *termTab) resize(cols, rows int) {
+	if t.sess != nil {
+		t.sess.Resize(cols, rows)
+	}
+}
+
+func (t *termTab) close() {
+	if t.sess != nil {
+		t.sess.Close()
+	}
 }

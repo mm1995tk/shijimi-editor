@@ -262,7 +262,7 @@ func (a *App) execCommand(line string) []Effect {
 		}
 		a.showTerm = true
 		cmd := a.setFocus(focusTerminal)
-		return batch(cmd, teaEffects(a.term.run(arg)))
+		return batch(cmd, a.termEffects(a.term.run(arg)))
 	case "preview", "md":
 		return a.togglePreview()
 	case "vsplit", "vs", "split", "sp":

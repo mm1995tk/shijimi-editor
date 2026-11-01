@@ -115,10 +115,10 @@ type App struct {
 	ctx         *ctxPreview
 
 	// Claude Code IDE integration (see ide.go)
-	ide     *ide.Server
-	props   []*proposal // agent changes waiting for the user's decision
-	lastSel *ideSelection
-	sentSel *ideSelection
+	ide       *ide.Server
+	props     core.Proposals // agent changes waiting for the user's decision
+	propShown *proposal      // the first of them as drawn (propView)
+	selTrack  core.SelectionTracker
 
 	// suggestion panel and ACP agent (see suggest.go, agent.go)
 	ag         *agentState
@@ -387,7 +387,7 @@ func (a *App) setFocus(f focus) []Effect {
 	a.focus = f
 	a.term.blur()
 	if f == focusTerminal {
-		return teaEffects(a.term.focus())
+		return a.termEffects(a.term.focus())
 	}
 	return nil
 }
@@ -923,8 +923,7 @@ func (a *App) handleAutoSave(m AutoSaveDue) []Effect {
 }
 
 // update takes what fromTea (inputtea.go) made of a tea.Msg: an Input or an
-// Event. The terminal panel's own messages (termOutputMsg and the like) are not
-// tea types.
+// Event.
 func (a *App) update(msg any) []Effect {
 	switch msg := msg.(type) {
 	case Event:
@@ -935,38 +934,6 @@ func (a *App) update(msg any) []Effect {
 			updateCellSize(a.cellSize())
 		}
 		a.follow = true
-	case termOutputMsg, termDoneMsg:
-		cmd := teaEffects(a.term.update(msg))
-		// A program in the terminal panel (Claude Code, tmux, …) copies with
-		// OSC 52; pass the text on to the clipboard. Any program there can do
-		// this unasked, so every copy is shown.
-		if tab := a.term.sh; tab != nil {
-			c, ok := tab.vt.TakeClipboard()
-			switch {
-			case !ok:
-			case c.TooLarge:
-				a.fail(errors.New(i18n.T("app.termcopybig")))
-			default:
-				a.copyText(c.Text)
-				a.info(i18n.T("app.termcopied"), utf8.RuneCountInString(c.Text))
-			}
-		}
-		if a.term.sh == nil && a.showTerm {
-			a.showTerm = false
-			if a.focus == focusTerminal {
-				return batch(cmd, a.setFocus(focusEditor))
-			}
-		}
-		return cmd
-	case termErrMsg:
-		a.fail(msg.err)
-		if a.term.sh == nil && a.showTerm {
-			a.showTerm = false
-			if a.focus == focusTerminal {
-				return a.setFocus(focusEditor)
-			}
-		}
-		return nil
 	case ReleasesReported:
 		a.keyReleases = msg.On
 	case KeyReleased:
@@ -1074,7 +1041,7 @@ func (a *App) handleKey(msg Key) []Effect {
 	if a.confirm != nil {
 		return a.handleConfirmKey(key)
 	}
-	if len(a.props) > 0 {
+	if a.props.Len() > 0 {
 		return a.handleProposalKey(msg)
 	}
 	if a.ctx != nil {
@@ -1132,7 +1099,8 @@ func (a *App) handleKey(msg Key) []Effect {
 		case "f1":
 			return a.pal.show(a.root, ">")
 		}
-		return teaEffects(a.term.key(msg))
+		a.term.key(msg)
+		return nil
 	}
 
 	insert := a.helix && a.mode == modeInsert && a.focus == focusEditor
@@ -2194,7 +2162,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	if a.ctx != nil {
 		rows = a.renderContext(rows)
 	}
-	if len(a.props) > 0 {
+	if a.props.Len() > 0 {
 		rows = a.renderProposal(rows)
 	}
 
@@ -2434,7 +2402,7 @@ func (a *App) fit() {
 		}
 	}
 	a.fitAgent(l)
-	if len(a.props) > 0 {
-		a.props[0].fit(a)
+	if a.props.Len() > 0 {
+		a.propView().fit(a)
 	}
 }

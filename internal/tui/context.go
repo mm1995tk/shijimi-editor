@@ -109,7 +109,7 @@ func (a *App) handleContextKey(msg Key) []Effect {
 		}
 		a.showTerm = true
 		cmd := a.setFocus(focusTerminal)
-		return batch(cmd, teaEffects(a.term.paste(text)))
+		return batch(cmd, a.termEffects(a.term.paste(text)))
 	case "esc", "ctrl+c", "q":
 		a.ctx = nil
 	case "ctrl+d", "pgdown", "down", "j":

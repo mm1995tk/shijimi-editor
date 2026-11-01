@@ -179,6 +179,7 @@ func TestZellijOffKeepsBuiltinTerminal(t *testing.T) {
 	if a.muxOn() {
 		t.Fatal("zellij must be off outside zellij")
 	}
+	t.Setenv("SHELL", "/bin/sh") // a shell that fails to start closes the panel at once
 	a.toggleTerm()
 	if !a.showTerm || len(f.calls) != 0 {
 		t.Fatalf("built-in terminal expected: showTerm=%v calls=%v", a.showTerm, f.calls)

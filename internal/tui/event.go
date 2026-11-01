@@ -8,7 +8,6 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
-	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -138,10 +137,7 @@ func (IDECall) isEvent()   {}
 func (IDECancel) isEvent() {}
 
 // IDEReply is the result of an IDE tool call.
-type IDEReply struct {
-	Content []ide.Content
-	Err     error
-}
+type IDEReply = core.IDEReply
 
 // ReplyIDE hands the answer to an IDECall back to the IDE connection. The
 // channel is buffered, so carrying it out never blocks.
@@ -202,6 +198,14 @@ type RunAgent struct{ Run func() }
 
 func (WaitAgent) isEffect() {}
 func (RunAgent) isEffect()  {}
+
+// WaitTerm asks for the next thing the terminal panel's shell did (printed,
+// ended) to be delivered as an Event. It is asked again after each one
+// (terminal.armed keeps it to one at a time). The PTY itself is
+// internal/term's; the Events are termOutputMsg, termDoneMsg and termErrMsg.
+type WaitTerm struct{ From <-chan Event }
+
+func (WaitTerm) isEffect() {}
 
 // RepoProbed carries what the suggestion panel's background look at the
 // repository found (branch, conflicts, pull requests).
