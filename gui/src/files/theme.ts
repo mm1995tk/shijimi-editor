@@ -23,6 +23,14 @@ const FALLBACK: Record<string, string> = {
   dirty: "#e2c08d",
   "mode.normal": "#7cc4b0",
   "status.fg": "#0f1114",
+  // ポップアップ（E4）
+  "palette.bg": "#181b21",
+  "palette.hi": "#8fb4ff",
+  "list.selected": "#2c3a55",
+  strong: "#ffffff",
+  error: "#f07178",
+  "hover.code.bg": "#1f232b",
+  "hover.rule": "#2a2f39",
 };
 
 /** name の色。テーマに無ければ控えの色、それも無ければ undefined。 */
@@ -74,5 +82,11 @@ export function filesVars(
     "--files-border": c("border"),
     "--files-accent": c("accent"),
     "--files-inactive-fg": c("tab.inactive.fg"),
+    // ポップアップ（E4）
+    "--files-pop-bg": c("palette.bg"),
+    "--files-pop-hi": c("palette.hi"),
+    "--files-pop-sel": c("list.selected"),
+    "--files-pop-sel-fg": c("strong"),
+    "--files-pop-rule": c("hover.rule"),
   };
 }

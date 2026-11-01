@@ -244,3 +244,106 @@
   padding-left: 1ch;
   color: var(--files-bar-fg);
 }
+
+/* ---- ポップアップ（E4）。モックの窓（背景 #181b21、細い枠、角丸）に寄せる。
+   箱の位置と大きさは OverlayView.tsx がマス目（ch と行の高さ）で style に入れる。
+   枠と影は外側に描き、中のマス目をずらさない ---- */
+
+.files-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.files-pop {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  pointer-events: auto;
+  cursor: default;
+  background: var(--files-pop-bg);
+  color: var(--files-fg);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px var(--files-border),
+    0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.files-pop-row {
+  height: var(--files-line-height);
+  display: flex;
+  overflow: hidden;
+}
+
+/* 左右に 1 桁ずつ空ける */
+.files-pop-pad {
+  padding: 0 1ch;
+}
+
+.files-pop-item[data-active] {
+  background: var(--files-pop-sel);
+  color: var(--files-pop-sel-fg);
+}
+
+.files-pop-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.files-pop-dim {
+  color: var(--files-lineno);
+}
+
+.files-pop-hi {
+  color: var(--files-pop-hi);
+  font-weight: bold;
+}
+
+.files-pop-accent {
+  color: var(--files-accent);
+}
+
+.files-pop-head {
+  justify-content: flex-end;
+}
+
+.files-pop-foot {
+  justify-content: space-between;
+  gap: 1ch;
+}
+
+.files-pop-rule {
+  flex: 1;
+  align-self: center;
+  border-top: 1px solid var(--files-pop-rule);
+}
+
+.files-pop-input {
+  border-bottom: 1px solid var(--files-border);
+  box-sizing: border-box;
+}
+
+.files-pop-field {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.files-pop-cursor {
+  background: var(--files-fg);
+  color: var(--files-pop-bg);
+}
+
+.files-pop-menu-row {
+  gap: 2ch;
+}
+
+.files-pop-menu-item {
+  flex: none;
+  overflow: hidden;
+}
+
+.files-pop-compose {
+  background: var(--files-bg);
+}

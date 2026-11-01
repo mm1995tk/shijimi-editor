@@ -7,6 +7,7 @@ import { createMemo, For, Index, Show, type JSX } from "solid-js";
 import type {
   Cmdline,
   Files,
+  Overlay,
   Pane,
   Screen,
   Status,
@@ -22,6 +23,7 @@ import {
   type StatusItem,
 } from "./bars.ts";
 import { paneCells } from "./layout.ts";
+import { confirmOf } from "./overlay.ts";
 import { colorOf } from "./theme.ts";
 
 /** タイトル行の並び。ペインごとのタイトルを、本文と同じ幅で左右に並べる。files が無ければ空の行。 */
@@ -66,6 +68,7 @@ export function BottomBar(props: {
       fallback={
         <StatusView
           status={props.screen?.status ?? null}
+          confirm={confirmOf(props.screen?.overlay)}
           theme={props.theme}
           onMouseDown={props.onMouseDown}
         />
@@ -158,6 +161,8 @@ function TitleView(props: {
 /** 状態行。左にモード・ブランチ・診断・メッセージ、右に位置・字下げ・言語・版。 */
 function StatusView(props: {
   status: Status | null;
+  /** 確認（E4）。出ていれば状態行に問いを出す */
+  confirm?: Overlay;
   theme: Theme | null;
   onMouseDown: (e: MouseEvent) => void;
 }): JSX.Element {
@@ -190,9 +195,9 @@ function StatusView(props: {
                 </span>
               )}
             </Show>
-            <For each={statusLeft(s())}>{item}</For>
+            <For each={statusLeft(s(), props.confirm)}>{item}</For>
             <span class="files-status-right">
-              <For each={statusRight(s())}>{item}</For>
+              <For each={statusRight(s(), props.confirm)}>{item}</For>
             </span>
           </>
         )}

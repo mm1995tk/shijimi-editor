@@ -4,7 +4,7 @@
 // 生成にしなかった理由：Go 側のメソッドの型はまだ無く（B2 以降）、設計書の表が唯一の元なので。
 // Go 側ができたら、ここと突き合わせるテストを足す。
 //
-// `Screen` の中身の細かい部分（状態行・オーバーレイなど）は画面を作る Issue（D・E）で詰めるので、
+// `Screen` の中身の細かい部分は画面を作る Issue（D・E）で詰めるので、
 // ここではペインの中身までを型にし、残りは緩く（unknown）持つ。元の形は Go の internal/screen。
 
 export type WorkspaceId = string;
@@ -172,6 +172,70 @@ export interface Cmdline {
   hint?: string;
 }
 
+/** ポップアップの種類。Go の screen.OverlayKind。 */
+export type OverlayKind =
+  | "completion"
+  | "hover"
+  | "signature"
+  | "confirm"
+  | "palette"
+  | "menu"
+  | "reviewCard";
+
+/** 一覧の 1 行（補完の候補、パレットの項目、メニュー）。Go の screen.Item。 */
+export interface Item {
+  label: string;
+  detail?: string;
+  kind?: string;
+  /** label の中で検索に合った文字の位置（rune、小さい順） */
+  matched?: number[];
+}
+
+/** パレットの 1 行の入力欄。Go の screen.Field。 */
+export interface Field {
+  /** 見出しの後ろの印。":"（文言を聞く）か ">"（探す・選ぶ） */
+  prefix: string;
+  text: string;
+  /** rune の位置 */
+  cursor: number;
+  /** text が空のときに見せる薄い文言 */
+  placeholder?: string;
+}
+
+/** レビューカードの編集（返信・コメント）の入力欄。Go の screen.Compose。 */
+export interface Compose {
+  text: string;
+  /** 入力欄の中の行と桁（rune） */
+  cursor: Pos;
+  /** プレビューの見出し。置き場所が無いときは空 */
+  previewLabel?: string;
+}
+
+/**
+ * ペインの上に重ねるもの。Go の screen.Overlay。at はペイン（pane は Pane.id）の中の位置で、
+ * 無ければ描く側が置き場所を決める。
+ */
+export interface Overlay {
+  kind: OverlayKind;
+  pane?: string;
+  at?: Pos;
+  title?: string;
+  lines?: Line[];
+  items?: Item[];
+  /** items の選択位置 */
+  active: number;
+  field?: Field;
+  /** ホバーとレビューカード。lines は見えている行だけで、view がその位置を表す */
+  view?: Viewport;
+  /** 枠の下の案内 */
+  hint?: string;
+  /** 枠の上の右端の「コピー」 */
+  copyLabel?: string;
+  /** レビューカードの中の画像（E6 で描く） */
+  images?: unknown[];
+  compose?: Compose;
+}
+
 /** 全部の画面。`screen.get` の結果。 */
 export interface Screen {
   rev: number;
@@ -182,7 +246,8 @@ export interface Screen {
   status: Status | null;
   /** 閉じているときは null か無い */
   cmdline?: Cmdline | null;
-  overlay?: unknown[];
+  /** 何も無ければ空か無い */
+  overlay?: Overlay[] | null;
 }
 
 /** `screen.update` の `files.panes[]`。付いている項目だけが変わった。 */
@@ -210,7 +275,8 @@ export interface ScreenUpdate {
   status?: Status;
   /** 閉じたら null */
   cmdline?: Cmdline | null;
-  overlay?: unknown[];
+  /** 何も無ければ空か無い */
+  overlay?: Overlay[] | null;
 }
 
 export interface Style {

@@ -3,7 +3,7 @@
 // gitdiff_draw.go の drawDiffHeader）に合わせ、見た目はモック「案：フラットな一覧」に合わせる。
 // 文言は shj が組み立てて送るので、ここでは足さない（記号だけを付ける）。
 
-import type { Cmdline, Status, Title } from "../rpc/protocol.ts";
+import type { Cmdline, Overlay, Status, Title } from "../rpc/protocol.ts";
 import { runeWidth } from "./width.ts";
 
 /** タイトル行の名前の欄に出すファイル名と、右に出すフォルダを含んだパス。 */
@@ -28,8 +28,11 @@ export interface StatusItem {
   style?: string;
 }
 
-/** 状態行の左（モードの後ろ）に並べるもの。ブランチ、領域の名前、診断の数、提案、メッセージ。 */
-export function statusLeft(s: Status): StatusItem[] {
+/**
+ * 状態行の左（モードの後ろ）に並べるもの。ブランチ、領域の名前、診断の数、提案、メッセージ。
+ * 確認（confirm。E4）が出ていれば、メッセージの代わりにその問いを出す（TUI の drawStatus と同じ）。
+ */
+export function statusLeft(s: Status, confirm?: Overlay): StatusItem[] {
   const out: StatusItem[] = [];
   if (s.branch) out.push({ text: `⎇ ${s.branch}` });
   if (s.pane) out.push({ text: s.pane });
@@ -40,12 +43,19 @@ export function statusLeft(s: Status): StatusItem[] {
     out.push({ text: `▲ ${warnings}`, style: "diag.warn" });
   }
   if (s.suggestions) out.push({ text: s.suggestions });
-  if (s.msg) out.push({ text: s.msg, style: s.msgErr ? "error" : "editor.fg" });
+  const ask = confirm ? confirmText(confirm) : "";
+  if (ask) out.push({ text: ask, style: "error" });
+  else if (s.msg)
+    out.push({ text: s.msg, style: s.msgErr ? "error" : "editor.fg" });
   return out;
 }
 
-/** 状態行の右に並べるもの。未送信のコメント、位置、字下げ、言語、shj の版。 */
-export function statusRight(s: Status): StatusItem[] {
+/**
+ * 状態行の右に並べるもの。未送信のコメント、位置、字下げ、言語、shj の版。
+ * y/n の確認が出ているときは、問いが切れないよう何も出さない（TUI の drawStatus と同じ）。
+ */
+export function statusRight(s: Status, confirm?: Overlay): StatusItem[] {
+  if (confirm?.items?.length) return [];
   return [s.unsent, s.position, s.indent, s.language, s.version]
     .filter((t): t is string => !!t)
     .map((text) => ({ text }));
@@ -92,6 +102,11 @@ export function cmdlineText(c: Cmdline, cells: number): CmdlineText {
     at: cur < chars.length ? chars[cur]! : " ",
     after: chars.slice(cur + 1, Math.max(cur + 1, end)).join(""),
   };
+}
+
+/** 確認の問いの文言。 */
+export function confirmText(ov: Overlay): string {
+  return (ov.lines?.[0]?.spans ?? []).map((s) => s.text).join("");
 }
 
 /** 文字列の幅（マス目）。 */

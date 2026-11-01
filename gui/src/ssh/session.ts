@@ -109,8 +109,13 @@ export type InputMethod =
   | "input.paste"
   | "input.focus";
 
-/** 購読する領域。ファイルの欄と状態行とコマンド行を描く（ポップアップは E4 で足す）。 */
-export const SUBSCRIBED_REGIONS: Region[] = ["files", "status", "cmdline"];
+/** 購読する領域。ファイルの欄と状態行とコマンド行と、その上に重ねるポップアップ（E4）を描く。 */
+export const SUBSCRIBED_REGIONS: Region[] = [
+  "files",
+  "status",
+  "cmdline",
+  "overlay",
+];
 
 /** 1, 2, 4, 8, 16, 30 秒…（最後の値を繰り返す）。10 回で待ちは合わせて 151 秒ほど（ssh の接続待ちは別）。 */
 export const DEFAULT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
@@ -200,7 +205,8 @@ export class Session {
 
   /**
    * ファイルの欄の大きさ（等幅のマス目の桁数と行数。タイトル行を含めない）を shj に送る（view.resize）。
-   * 状態行とコマンド行は欄と同じ幅なので、同じ桁数を送る。
+   * 状態行とコマンド行は欄と同じ幅なので、同じ桁数を送る。ポップアップ（overlay）は欄の本文の上に
+   * 重ねるので、欄と同じ桁数と行数を送る。
    * つながっていなければ覚えておき、つないだときに送る。
    */
   resize(size: { cols: number; rows: number }): void {
@@ -220,6 +226,7 @@ export class Session {
           files: size,
           status: { cols: size.cols },
           cmdline: { cols: size.cols },
+          overlay: size,
         },
       })
       .catch((e) => this.discard("view.resize", e));
