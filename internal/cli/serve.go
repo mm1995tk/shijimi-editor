@@ -81,6 +81,7 @@ func runServe(args []string) int {
 	cores := core.NewWorkspaces(shared, nil)
 	defer cores.CloseAll()
 	srv.SetCores(serveCores{cores})
+	srv.SetScreens(serveCores{cores})
 	srv.AddBeforeStop(func() { writeBackups(cores, logger) })
 	// Like the TUI, the control socket and the Claude Code connection are best
 	// effort. The server has one of each for all workspaces; requests go to the
