@@ -1,4 +1,5 @@
-// 接続の画面（C3, C4）。つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで shj につなぎ、
+// 接続の画面（C3〜C5）。起動時は、前回ワークスペースがあったマシンにだけ自動でつなぐ（C5）。
+// つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで shj につなぎ、
 // ssh の質問（パスワードなど）を窓に出す。切れたら Session が自動でつなぎ直し、
 // つなぐ先の一覧に接続の状態を出す。編集の画面は D 以降で作る。
 import {
@@ -12,6 +13,13 @@ import {
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
 import { LOCAL, type AskpassRequest, type ShellApi } from "./ssh/api.ts";
+import {
+  autoConnectTargets,
+  browserStore,
+  loadLastTargets,
+  recordWorkspaces,
+  type KeyValueStore,
+} from "./ssh/last.ts";
 import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
 
@@ -51,8 +59,13 @@ export function describeState(
   }
 }
 
-export function App(props: { api?: ShellApi }): JSX.Element {
+export function App(props: {
+  api?: ShellApi;
+  /** 前回の記録の置き場。省くと localStorage */
+  store?: KeyValueStore;
+}): JSX.Element {
   const api = props.api ?? tauriShell;
+  const store = props.store ?? browserStore();
   const [hosts, setHosts] = createSignal<string[]>([]);
   const [sessions, setSessions] = createSignal<Record<string, Session>>({});
   const [states, setStates] = createSignal<Record<string, SessionState>>({});
@@ -70,13 +83,21 @@ export function App(props: { api?: ShellApi }): JSX.Element {
     for (const s of Object.values(sessions())) void s.close();
   });
   onMount(async () => {
-    setHosts(await api.listSshHosts().catch(() => []));
+    const found = await api.listSshHosts().catch(() => []);
+    setHosts(found);
     offs.push(
       await api.onAskpass((e) => setAsks((a) => [...a, e])),
       await api.onAskpassDone((id) =>
         setAsks((a) => a.filter((x) => x.requestId !== id)),
       ),
     );
+    // 質問の窓口を用意してから、前回ワークスペースがあったマシンにだけつなぐ
+    for (const t of autoConnectTargets(loadLastTargets(store), [
+      LOCAL,
+      ...found,
+    ])) {
+      connect(t);
+    }
   });
 
   function connect(target: string) {
@@ -90,7 +111,13 @@ export function App(props: { api?: ShellApi }): JSX.Element {
     }
     const s = new Session(api, target);
     const off = s.onState((st) => setStates((m) => ({ ...m, [target]: st })));
-    offStates.set(target, off);
+    const offWs = s.onWorkspaces((ws) =>
+      recordWorkspaces(store, target, ws.length),
+    );
+    offStates.set(target, () => {
+      off();
+      offWs();
+    });
     setSessions((m) => ({ ...m, [target]: s }));
     setStates((m) => ({ ...m, [target]: s.state }));
     s.start();

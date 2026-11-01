@@ -88,6 +88,9 @@ export class Session {
   private readonly stateHandlers = new Set<(s: SessionState) => void>();
   private readonly screenHandlers = new Set<(s: Screen) => void>();
   private readonly updateHandlers = new Set<(u: ScreenUpdate) => void>();
+  private readonly workspaceHandlers = new Set<
+    (w: HelloResult["workspaces"]) => void
+  >();
 
   constructor(api: ShellApi, target: string, opts: SessionOptions = {}) {
     this.api = api;
@@ -118,6 +121,11 @@ export class Session {
   onState(h: (s: SessionState) => void): () => void {
     this.stateHandlers.add(h);
     return () => this.stateHandlers.delete(h);
+  }
+  /** ワークスペースの一覧が変わったとき（つながったとき、workspace.changed）。 */
+  onWorkspaces(h: (w: HelloResult["workspaces"]) => void): () => void {
+    this.workspaceHandlers.add(h);
+    return () => this.workspaceHandlers.delete(h);
   }
   /** 全部の画面を取り直したとき（つなぎ直し、版の食い違い）。 */
   onScreen(h: (s: Screen) => void): () => void {
@@ -250,6 +258,7 @@ export class Session {
       conn.client.on("screen.update", (u) => this.handleUpdate(conn, gen, u)),
       conn.client.on("workspace.changed", (c) => {
         this._workspaces = applyWorkspaceChange(this._workspaces, c);
+        this.emitWorkspaces();
       }),
       startPing(conn.client, this.opts.pingIntervalMs, this.opts.pingTimeoutMs),
     ];
@@ -265,6 +274,7 @@ export class Session {
     });
 
     this.setState({ kind: "connected", hello: conn.hello });
+    this.emitWorkspaces();
 
     if (replaced) {
       // shj が作り直された。古い画面は捨て、ワークスペースの一覧から取り直す（画面は D 以降）
@@ -272,6 +282,10 @@ export class Session {
     } else {
       await this.fetchScreen(conn, gen);
     }
+  }
+
+  private emitWorkspaces(): void {
+    for (const h of [...this.workspaceHandlers]) h(this._workspaces);
   }
 
   private handleUpdate(conn: Connection, gen: number, u: ScreenUpdate): void {
