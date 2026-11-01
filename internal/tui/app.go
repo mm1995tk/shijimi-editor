@@ -21,7 +21,6 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 	"github.com/mm1995tk/shijimi-editor/internal/proxy"
-	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 type focus int
@@ -36,25 +35,23 @@ const (
 
 type span struct{ x0, x1 int }
 
-// App is the root Bubble Tea model.
-type App struct {
+// Core is the state that decides what is shown: the files, the cursor, the
+// keys' state, the language servers. It is what moves to internal/core (#384);
+// App keeps what only a terminal has (the size of the screen, which regions
+// are shown, the terminal, the pane sizes the user picked).
+type Core struct {
 	root      string
 	gitTop    string
 	cfg       *config.Config
 	keymap    helixKeymap
-	lastIns   *insertRecord     // what "." repeats
-	recIns    *insertRecord     // the insert being recorded, until Esc
-	replaying bool              // "." is running; do not record
-	caret     *caret.Writer     // the terminal output; nil in tests
-	host      Host              // the GUI of `shj serve`; nil in the TUI
-	cellSize  func() (w, h int) // terminal cell size in pixels; nil in tests
+	lastIns   *insertRecord // what "." repeats
+	recIns    *insertRecord // the insert being recorded, until Esc
+	replaying bool          // "." is running; do not record
+	host      Host          // the GUI of `shj serve`; nil in the TUI
 	lsp       *lspManager
-	w, h      int
 	focus     focus
 	explorer  *explorer
 	treeTicks int // watch ticks since the tree was last reloaded
-	term      *terminal
-	mux       muxPane // the multiplexer pane that replaces term inside a multiplexer
 	proxy     *proxy.Manager
 	pal       *palette
 	wsSyms    []lsp.Symbol // rows of the project symbol picker
@@ -70,17 +67,7 @@ type App struct {
 	card      *prCard   // a review thread shown like a hover
 	composer  *composer // the editor for a review comment
 
-	showSide bool
-	showTerm bool
-
 	// pane sizes picked by the user (0 = automatic), see resize.go
-	sideWPref   int
-	panelHPref  int
-	previewPct  int
-	diffLeftPct int // base pane share of a split diff; 0 = half
-	explorerPct int // file tree share of the diff mode sidebar; 0 = 7/10
-	resizeMode  bool
-	resizing    resizeTarget // border being dragged with the mouse
 
 	// Helix modal state
 	helix          bool
@@ -120,10 +107,8 @@ type App struct {
 	selTrack  core.SelectionTracker
 
 	// suggestion panel and ACP agent (see suggest.go, agent.go)
-	ag         *agentState
-	sg         suggestState
-	showAgent  bool
-	agentWPref int // panel width picked by the user (0 = automatic)
+	ag *agentState
+	sg suggestState
 
 	clipboard    string
 	msg          string
@@ -132,11 +117,7 @@ type App struct {
 	confirmClose bool
 	follow       bool // scroll to the cursor on next render
 	dragging     bool
-	lastClick    click  // the previous left press (adapter state: see clicks in inputtea.go)
-	capture      Region // the region a held pointer button is captured by (see locate)
-	keyReleases  bool   // the terminal reports key releases
-	askReleases  bool   // key releases were asked for in the last View
-	quitting     bool   // tea.Quit was returned (see exit)
+	lastClick    click // the previous left press (adapter state: see clicks in inputtea.go)
 	hold         holdScroll
 	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
 	lineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
@@ -158,25 +139,53 @@ type App struct {
 	previewGen int
 }
 
+// App is the root Bubble Tea model: a Core and what draws it to a terminal.
+type App struct {
+	*Core
+
+	caret       *caret.Writer     // the terminal output; nil in tests
+	cellSize    func() (w, h int) // terminal cell size in pixels; nil in tests
+	w, h        int
+	term        *terminal
+	mux         muxPane // the multiplexer pane that replaces term inside a multiplexer
+	showSide    bool
+	showTerm    bool
+	sideWPref   int
+	panelHPref  int
+	previewPct  int
+	diffLeftPct int // base pane share of a split diff; 0 = half
+	explorerPct int // file tree share of the diff mode sidebar; 0 = 7/10
+	resizeMode  bool
+	resizing    resizeTarget // border being dragged with the mouse
+	showAgent   bool
+	agentWPref  int    // panel width picked by the user (0 = automatic)
+	capture     Region // the region a held pointer button is captured by (see locate)
+	keyReleases bool   // the terminal reports key releases
+	askReleases bool   // key releases were asked for in the last View
+	quitting    bool   // tea.Quit was returned (see exit)
+}
+
 // New creates the app rooted at dir, optionally opening file.
 func New(dir, file string) *App {
 	abs, _ := filepath.Abs(dir)
 	cfg := config.Load(abs)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
-		root:     abs,
-		cfg:      cfg,
-		lsp:      newLSPManager(cfg, abs),
-		explorer: newExplorer(abs),
+		Core: &Core{
+			root:     abs,
+			cfg:      cfg,
+			lsp:      newLSPManager(cfg, abs),
+			explorer: newExplorer(abs),
+			proxy:    proxy.NewManager(),
+			pal:      newPalette(),
+			search:   newSearchPanel(cfg.Search),
+			focus:    focusExplorer,
+			helix:    cfg.Editor.Keymap != "vscode",
+			gd:       gitDiff{split: true},
+			ag:       newAgentState(),
+		},
 		term:     newTerminal(abs),
-		proxy:    proxy.NewManager(),
-		pal:      newPalette(),
-		search:   newSearchPanel(cfg.Search),
 		showSide: true,
-		focus:    focusExplorer,
-		helix:    cfg.Editor.Keymap != "vscode",
-		gd:       gitDiff{split: true},
-		ag:       newAgentState(),
 	}
 	a.explorer.icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
@@ -209,20 +218,21 @@ func NewSingle(file string) (*App, error) {
 	cfg := config.Load(dir)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
-		root:     dir,
-		cfg:      cfg,
-		lsp:      newLSPManager(cfg, dir),
-		explorer: &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
-		term:     newTerminal(dir),
-		proxy:    proxy.NewManager(),
-		pal:      newPalette(),
-		search:   newSearchPanel(cfg.Search),
-		focus:    focusEditor,
-		helix:    cfg.Editor.Keymap != "vscode",
-		gd:       gitDiff{split: true},
-		ag:       newAgentState(),
-		single:   true,
-		showSide: false,
+		Core: &Core{
+			root:     dir,
+			cfg:      cfg,
+			lsp:      newLSPManager(cfg, dir),
+			explorer: &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
+			proxy:    proxy.NewManager(),
+			pal:      newPalette(),
+			search:   newSearchPanel(cfg.Search),
+			focus:    focusEditor,
+			helix:    cfg.Editor.Keymap != "vscode",
+			gd:       gitDiff{split: true},
+			ag:       newAgentState(),
+			single:   true,
+		},
+		term: newTerminal(dir),
 	}
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
@@ -1595,365 +1605,7 @@ func (a *App) refreshCompletion() []Effect {
 	return nil
 }
 
-// ---- mouse ----
-
-// termMouse passes presses, drags and releases over the terminal body to a
-// program that asked for mouse input (vim, htop, tmux). Once a press went to
-// the program, its drag and release do too, wherever the pointer is. Otherwise
-// (or with Shift held) a left drag selects text and copies it on release. ok
-// is false when the event is not for the terminal.
-func (a *App) termMouse(l layout, msg Mouse) (cmd []Effect, ok bool) {
-	t := a.term
-	if !a.showTerm {
-		return nil, false
-	}
-	x, y := msg.Col, msg.Row
-	if t.sel.dragging {
-		switch msg.Action {
-		case MouseMotion:
-			t.dragTo(x, y)
-		case MouseRelease:
-			t.dragTo(x, y)
-			if s := t.endSelect(); s != "" {
-				a.copyText(s)
-				a.info(i18n.T("app.termcopied"), utf8.RuneCountInString(s))
-			}
-		default:
-			t.sel.dragging = false // the release was lost
-			return nil, false
-		}
-		return nil, true
-	}
-	inBody := msg.Region == RegionTerminal && x >= 0 && x < l.fullW && y >= 0
-	grabbed := t.grab
-	if !grabbed && !inBody {
-		return nil, false
-	}
-	sent := false
-	if grabbed || !msg.Shift {
-		sent = t.mouse(msg, x, y)
-	}
-	switch msg.Action {
-	case MousePress:
-		if sent {
-			t.sel = termSel{}
-			t.grab = true
-			return a.setFocus(focusTerminal), true
-		}
-		if msg.Button == MouseLeft {
-			t.selectAt(x, y)
-			return a.setFocus(focusTerminal), true
-		}
-	case MouseRelease:
-		t.grab = false
-	}
-	return nil, sent || grabbed
-}
-
-func (a *App) handleMouse(msg Mouse) []Effect {
-	if a.search.open {
-		return a.searchMouse(msg)
-	}
-	if a.pal.open {
-		if msg.Action == MousePress && msg.Button == MouseLeft {
-			a.pal.close()
-		}
-		return nil
-	}
-	l := a.layout()
-	// A press or the wheel over the other pane first moves the focus there.
-	if msg.Region == RegionOther && msg.Action == MousePress && (msg.Button == MouseLeft || msg.Button == MouseWheelUp || msg.Button == MouseWheelDown) {
-		a.focusPane(1 - a.pane)
-		l = a.layout()
-		// The pane under the pointer is the focused one now. Its corner has not
-		// moved, so Row and Col stay; only the name of the region changes.
-		msg.Region = RegionEditor
-		if a.capture == RegionOther {
-			a.capture = RegionEditor
-		}
-	}
-	if a.ag.sel.dragging {
-		if cmd, ok := a.agentDrag(l, msg); ok {
-			return cmd
-		}
-	}
-	if a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
-		if cmd, ok := a.agentMouse(l, msg); ok {
-			return cmd
-		}
-	}
-	// Some terminals report a drag as motion with no button; while a border
-	// or a selection is being dragged, motion is the drag whatever it says.
-	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
-		return a.passiveMotion(l, msg)
-	}
-	x, y := a.screenCell(l, msg)
-	wheel := 0
-	switch msg.Button {
-	case MouseWheelUp:
-		wheel = -3
-	case MouseWheelDown:
-		wheel = 3
-	}
-	// Sideways: the horizontal wheel, or the vertical one with Shift held.
-	hwheel := 0
-	switch {
-	case msg.Button == MouseWheelLeft:
-		hwheel = -hscrollWheel
-	case msg.Button == MouseWheelRight:
-		hwheel = hscrollWheel
-	}
-	// A popup the pointer opened only owns the wheel while the pointer is on it.
-	if wheel != 0 && a.hoverText != "" && (a.hoverAt == nil || a.inHoverBox(l, screenPt{x, y})) {
-		if msg.Action == MousePress {
-			a.scrollHover(wheel)
-		}
-		return nil
-	}
-	if a.hoverText != "" && msg.Button == MouseLeft {
-		// The button copies on press; the matching release must not close the hover.
-		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).copyHit(x-bx, y-by) {
-			if msg.Action == MousePress {
-				a.copyHover()
-			}
-			return nil
-		}
-	}
-	if a.card != nil && msg.Action == MousePress {
-		if box, bx, by := a.cardBox(l); box != nil && x >= bx && y >= by && y < by+len(box) && x < bx+ansi.StringWidth(box[0]) {
-			if wheel != 0 {
-				a.card.scroll = max(0, a.card.scroll+wheel)
-			}
-			return nil // reading the card
-		}
-		if wheel == 0 {
-			a.card = nil
-		}
-	}
-	// Past the branches that keep the popup open: the pointer's hover is over.
-	a.hoverSeq++
-	a.hoverWord = wordSpan{}
-	a.hoverCell = screenPt{-1, -1}
-	a.hoverText, a.hoverAt = "", nil
-	if msg.Action == MousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, msg) {
-		hwheel = wheel / 3 * hscrollWheel // Shift turns the vertical wheel sideways, over the text only
-	}
-	if hwheel != 0 && msg.Action == MousePress {
-		if a.inEditorText(l, msg) {
-			a.scrollCols(a.cur(), hwheel)
-			return nil
-		}
-	}
-	if wheel != 0 && msg.Action == MousePress {
-		switch {
-		case msg.Region == RegionNone:
-			// the diff mode header and help lines
-		case msg.Region == RegionExplorer:
-			e := a.explorer
-			if a.gd.on && msg.Row >= a.explorerH() {
-				g := &a.gd
-				body := l.bodyH - a.explorerH() - 1
-				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.vis())-body))
-				g.keepSelVisible(body)
-			} else {
-				eh := a.explorerH()
-				e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(eh-1)))
-				e.sel = clamp(e.sel, e.scroll, e.scroll+eh-2)
-			}
-		case msg.Region == RegionTerminal:
-			a.term.wheel(msg, msg.Col, msg.Row, wheel)
-		default:
-			if t := a.cur(); t != nil {
-				switch t.kind {
-				case tabText:
-					if a.fullPreview(t) {
-						t.buf.MoveLines(wheel, false) // the preview scrolls with the cursor
-						break
-					}
-					t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
-				}
-			}
-		}
-		return nil
-	}
-
-	if a.resizing != resizeNone {
-		switch msg.Action {
-		case MouseMotion:
-			a.dragResize(l, x, y)
-			return nil
-		case MouseRelease:
-			a.resizing = resizeNone
-			return nil
-		}
-		// A press means the release was lost (pointer left the window).
-		a.resizing = resizeNone
-	}
-	if msg.Action == MousePress && msg.Button == MouseLeft {
-		if r := a.resizeHit(l, x, y); r != resizeNone {
-			a.resizing = r
-			if r == resizeExplorer {
-				return a.setFocus(focusChanges)
-			}
-			return nil
-		}
-	}
-
-	if cmd, ok := a.termMouse(l, msg); ok {
-		return cmd
-	}
-
-	left := msg.Button == MouseLeft
-	switch msg.Action {
-	case MouseRelease:
-		a.dragging = false
-		return nil
-	case MouseMotion:
-		if a.dragging {
-			a.mouseToCursor(l, msg.Row, msg.Col, true)
-		}
-		return nil
-	}
-	if !left {
-		return nil
-	}
-	double := msg.Clicks >= 2
-
-	switch {
-	case msg.Region == RegionNone:
-		return nil // the diff mode header and help lines
-	case msg.Region == RegionExplorer:
-		sy := msg.Row
-		if a.gd.on && sy >= a.explorerH() {
-			g := &a.gd
-			if vis, i := g.vis(), sy-1-a.explorerH()+g.scroll; sy > a.explorerH() && i < len(vis) {
-				r := vis[i]
-				g.selectRow(r)
-				if g.rows[r].file < 0 {
-					g.setFolder(r, g.closed[g.rows[r].path])
-					return a.setFocus(focusChanges)
-				}
-				return a.openChange(g.files[g.sel])
-			}
-			return a.setFocus(focusChanges)
-		}
-		row := sy - 1 + a.explorer.scroll
-		if sy >= 1 && row < len(a.explorer.flat) {
-			a.explorer.sel = row
-			n := a.explorer.flat[row]
-			switch {
-			case n.isDir:
-				a.explorer.toggle(n)
-			case !double:
-				a.openTransient(n.path)
-			case a.openFile(n.path):
-				return a.setFocus(focusEditor)
-			}
-		}
-		return a.setFocus(focusExplorer)
-	case msg.Region == RegionTerminal:
-		return a.setFocus(focusTerminal)
-	case msg.Region == RegionEditor && msg.Row >= l.editY-l.top && msg.Row < l.editY-l.top+l.editH:
-		t := a.cur()
-		if t == nil {
-			return nil
-		}
-		if t.kind == tabText {
-			if a.diffFile(t) != nil {
-				if msg.Row == l.editY-l.top { // the title row
-					if !a.diffSingle(a.diffFile(t)) {
-						a.toggleSplit()
-					}
-					return nil
-				}
-				g := a.dvGeom(l)
-				if msg.Col >= g.barX-l.rightX {
-					if dv := a.diffFor(t); dv != nil {
-						a.diffBarClick(t, dv, g, y)
-					}
-					return nil
-				}
-				if msg.Col < g.rightX-l.rightX {
-					return nil // the base side is read-only
-				}
-				if th := a.markerAt(l, x, y); th != nil {
-					a.card = &prCard{thread: th, path: a.repoPath(t.buf.Path), at: &screenPt{x, y}}
-					return nil
-				}
-			} else if t.preview != previewOff && msg.Col >= a.editW(t, l) {
-				return nil // the preview pane is read-only
-			}
-			a.comp = nil
-			a.mouseToCursor(l, msg.Row, msg.Col, false)
-			a.dragging = true
-			return a.setFocus(focusEditor)
-		}
-	}
-	return nil
-}
-
-func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
-	t := a.curText()
-	if t == nil {
-		return
-	}
-	if dv := a.diffFor(t); dv != nil {
-		a.diffMouseToCursor(t, dv, l, row, col, extend)
-		return
-	}
-	// row and col count from the pane's corner; the text starts below the title
-	// (and the find bar).
-	body := row - (l.editY - l.top)
-	col = min(col, a.editW(t, l)-1)
-	b := t.buf
-	if body < 0 {
-		b.MoveLines(-1, extend)
-	} else if body >= l.editH {
-		b.MoveLines(1, extend)
-	}
-	r := b.ScrollRow + clamp(body, 0, max(0, l.editH-1))
-	vis := max(0, col-gutterWidth(b)) + b.ScrollCol
-	b.SetCursor(r, vis, extend)
-	a.follow = true
-}
-
 // ---- view ----
-
-// editW is the width of the text editor, narrower while the Markdown preview
-// is open and zero while the preview fills the area.
-func (a *App) editW(t *tab, l layout) int {
-	if a.diffFile(t) != nil {
-		return a.dvGeom(l).rightW
-	}
-	switch t.preview {
-	case previewSplit:
-		return a.editorWidth(l.rightW)
-	case previewFull:
-		return 0
-	}
-	return l.rightW
-}
-
-func (a *App) renderText(t *tab, l layout, focused bool) []string {
-	if dv := a.diffFor(t); dv != nil {
-		return a.renderDiffText(t, dv, l, focused)
-	}
-	if t.preview == previewFull {
-		return a.previewLines(t, l.rightW, l.editH)
-	}
-	ew := a.editW(t, l)
-	edit := renderEditor(t, ew, l.editH, a.editorOpts(t, focused))
-	if t.preview == previewOff {
-		return edit
-	}
-	pw := l.rightW - ew - 1
-	prev := a.previewLines(t, pw, l.editH)
-	sep := stSeparator.Render("│")
-	for i := range edit {
-		edit[i] += sep + prev[i]
-	}
-	return edit
-}
 
 func (a *App) View() tea.View {
 	a.fit()
@@ -1975,147 +1627,6 @@ func (a *App) View() tea.View {
 	// its composition where it is.
 	v.Cursor = caretAt
 	return v
-}
-
-// renderFrame draws the frame and returns, with it, where the terminal cursor
-// goes (nil when it is hidden). The cursor is a result of drawing, not state
-// kept on App.
-func (a *App) renderFrame() (string, *tea.Cursor) {
-	if a.w <= 0 || a.h <= 0 {
-		return "", nil
-	}
-	if a.w < 30 || a.h < 8 {
-		return i18n.T("app.toosmall"), nil
-	}
-	l := a.layout()
-
-	right := make([]string, 0, l.bodyH)
-	editorFocused := a.focus == focusEditor && !a.overlayOpen()
-	mine := a.renderPane(a.cur(), l, true, editorFocused)
-	if l.split {
-		theirs := a.renderPane(a.other, l.otherLayout(), false, false)
-		if a.pane == 0 {
-			right = append(right, joinPanes(mine, theirs, l.rightW, l.otherW)...)
-		} else {
-			right = append(right, joinPanes(theirs, mine, l.otherW, l.rightW)...)
-		}
-	} else {
-		right = append(right, mine...)
-	}
-	t := a.cur()
-	if a.showTerm {
-		right = append(right, a.term.render(l.fullW, l.panelH, a.focus == focusTerminal && !a.overlayOpen())...)
-	}
-
-	rows := make([]string, l.bodyH)
-	var side []string
-	activePath := ""
-	if t != nil {
-		activePath = t.path()
-	}
-	if a.showSide {
-		side = drawExplorer(a.explorer.screen(a.explorerH(), activePath), l.sideW, a.explorerH(), a.focus == focusExplorer && !a.overlayOpen())
-		if a.gd.on {
-			side = append(side, drawChanges(a.changesScreen(l.sideW, l.bodyH-a.explorerH()), l.sideW, l.bodyH-a.explorerH(), a.focus == focusChanges && !a.overlayOpen())...)
-		}
-	}
-	var agent []string
-	if l.agentW > 0 {
-		focused := a.focus == focusAgent && !a.overlayOpen()
-		agent = drawAgent(a.agentScreen(l.agentW, l.bodyH, focused), l.agentW, l.bodyH, focused)
-	}
-	for i := range rows {
-		var sb strings.Builder
-		if a.showSide {
-			sb.WriteString(side[i])
-			sb.WriteString(stSeparator.Render("│"))
-		}
-		if i < len(right) {
-			sb.WriteString(right[i])
-		}
-		if agent != nil {
-			if i < len(right) {
-				if rw := ansi.StringWidth(right[i]); rw < l.fullW {
-					sb.WriteString(stEmpty.Render(strings.Repeat(" ", l.fullW-rw)))
-				}
-			} else {
-				sb.WriteString(stEmpty.Render(strings.Repeat(" ", l.fullW)))
-			}
-			sb.WriteString(stSeparator.Render("│"))
-			sb.WriteString(agent[i])
-		}
-		rows[i] = sb.String()
-	}
-	if a.gd.on {
-		rows = append([]string{a.renderDiffHeader(a.w)}, rows...)
-		rows = append(rows, a.renderDiffHelp(a.w))
-	}
-
-	// popups anchored at the cursor
-	if t := a.curText(); t != nil && !a.fullPreview(t) && (a.comp != nil || a.hoverText != "") {
-		cx, cy := a.popupAnchor(t, l)
-		var box []string
-		if a.comp != nil {
-			box = drawCompletion(a.comp.overlay(max(3, l.editH/2)))
-		} else {
-			box = a.hoverBox(l)
-		}
-		x, y := popupPos(l, a.w, cx, cy, box)
-		rows = overlay(rows, box, x, y)
-	}
-
-	if a.sig != nil && a.comp == nil && a.hoverText == "" && a.sigVisible() {
-		if cx, cy := a.cursorScreen(a.sig.tab, l); a.cursorShown(a.sig.tab, l, cx, cy) {
-			box := drawSignature(a.sig.overlay(), max(10, a.w-l.rightX))
-			x, y := signaturePos(l, a.w, cx, cy, box)
-			rows = overlay(rows, box, x, y)
-		}
-	}
-
-	if a.card != nil && a.composer == nil {
-		if box, x, y := a.cardBox(l); box != nil {
-			rows = overlay(rows, box, x, y)
-		}
-	}
-	if a.composer != nil {
-		box, x, y := a.composerBox(l)
-		rows = overlay(rows, box, x, y)
-	}
-
-	if a.pending == " " && !a.pal.open && !a.cmdOpen {
-		rows = a.renderSpaceMenu(rows, l)
-	}
-	if a.pending == "space v" && !a.pal.open && !a.cmdOpen {
-		rows = a.renderMenu(rows, l, i18n.T("app.reviewhint"), reviewItems)
-	}
-	if a.pending == "space w" && !a.pal.open && !a.cmdOpen {
-		rows = a.renderMenu(rows, l, i18n.T("win.hint"), windowItems)
-	}
-
-	if a.pal.open {
-		pw := a.paletteWidth()
-		box := drawPalette(a.pal.overlay(), &a.pal.input, pw)
-		rows = overlay(rows, box, (a.w-pw)/2, 1)
-	}
-
-	if a.search.open {
-		x, y, box := a.renderSearch()
-		rows = overlay(rows, box, x, y)
-	}
-
-	if a.ctx != nil {
-		rows = a.renderContext(rows)
-	}
-	if a.props.Len() > 0 {
-		rows = a.renderProposal(rows)
-	}
-
-	if a.cmdOpen {
-		rows = append(rows, a.renderCmdline())
-	} else {
-		rows = append(rows, a.renderStatus())
-	}
-	return strings.Join(rows, "\n"), a.caretCursor(l)
 }
 
 func (a *App) editorOpts(t *tab, focused bool) editorOpts {
@@ -2164,67 +1675,11 @@ func (a *App) editorOpts(t *tab, focused bool) editorOpts {
 
 func findLabel() string { return i18n.T("app.findlabel") }
 
-// popupPos places box below the cursor cell (cx, cy), or above it when there
-// is no room below, clamped to the editor area of a screen w cells wide.
-func popupPos(l layout, w, cx, cy int, box []string) (x, y int) {
-	bw := 0
-	for _, s := range box {
-		bw = max(bw, ansi.StringWidth(s))
-	}
-	x = clamp(cx, l.rightX, max(l.rightX, w-bw))
-	y = cy + 1
-	if y+len(box) > l.editY+l.editH && cy-len(box) >= l.editY {
-		y = cy - len(box)
-	}
-	y = max(l.editY, min(y, l.editY+l.editH-len(box)))
-	return x, y
-}
-
-// hoverPos is the screen position of the hover popup's top-left corner.
-func (a *App) hoverPos(l layout) (x, y int, ok bool) {
-	t := a.curText()
-	if t == nil || a.fullPreview(t) {
-		return 0, 0, false
-	}
-	cx, cy := a.popupAnchor(t, l)
-	x, y = popupPos(l, a.w, cx, cy, a.hoverBox(l))
-	return x, y, true
-}
-
 // copyHover copies the hover markdown source to the clipboard.
 func (a *App) copyHover() {
 	a.copyText(a.hoverText)
 	a.infoText(i18n.T("app.hovercopied"))
 }
-
-// hoverView lays out the current hover text for layout l. The box height is
-// capped to the larger free side of the cursor so it never overflows.
-func (a *App) hoverView(l layout) hoverView {
-	h := l.editH * 2 / 3
-	if t := a.curText(); t != nil {
-		_, cy := a.popupAnchor(t, l)
-		below := l.editY + l.editH - (cy + 1)
-		above := cy - l.editY
-		h = min(h, max(below, above))
-	}
-	return newHoverView(a.hoverText, min(80, l.rightW-2), max(h, 3))
-}
-
-// hoverOverlay is the open hover popup as a screen.Overlay, hanging from the
-// character it describes: the pointer's for a hover it triggered, the cursor's
-// otherwise. Drawing it as cells is drawHover's work.
-func (a *App) hoverOverlay(l layout) screen.Overlay {
-	ov := a.hoverView(l).overlay(a.hoverScroll)
-	if t := a.curText(); t != nil {
-		ov.Pane = t.path()
-		at := toScreenPos(a.popupAnchorPos(t))
-		ov.At = &at
-	}
-	return ov
-}
-
-// hoverBox is the hover popup as a box of cells.
-func (a *App) hoverBox(l layout) []string { return drawHover(a.hoverOverlay(l)) }
 
 // hoverScrollKey maps a key to a hover scroll amount (0 = not a scroll key).
 func hoverScrollKey(key string) int {
@@ -2237,11 +1692,6 @@ func hoverScrollKey(key string) int {
 	return 0
 }
 
-func (a *App) scrollHover(d int) {
-	v := a.hoverView(a.layout())
-	a.hoverScroll = clamp(a.hoverScroll+d, 0, v.maxScroll())
-}
-
 // overlayOpen reports whether a floating window (palette or project search)
 // has the keyboard.
 func (a *App) overlayOpen() bool { return a.pal.open || a.search.open }
@@ -2249,85 +1699,4 @@ func (a *App) overlayOpen() bool { return a.pal.open || a.search.open }
 // infoText shows an already-formatted message in the status line.
 func (a *App) infoText(s string) {
 	a.msg, a.msgErr = s, false
-}
-
-// fit brings the state that depends on the window size and on what is open
-// up to date for the frame about to be drawn: the scroll that follows the
-// cursor, the palette's filtered list and the widths of the inputs. It runs
-// before renderFrame, which only reads the state.
-func (a *App) fit() {
-	// Key releases let Ctrl+D / Ctrl+U scroll only while held. Some terminals
-	// (herdr 0.9.5) then drop text committed by an IME, so they are asked
-	// for only where those keys scroll. The request is frozen once quitting
-	// (see exit).
-	if !a.quitting {
-		a.askReleases = a.wantKeyReleases()
-	}
-	if a.w < 30 || a.h < 8 {
-		return
-	}
-	l := a.layout()
-	// The panes: a tab's diff view is made here, and the scroll of a pane
-	// that is not being edited follows its cursor in the width it has now.
-	type pane struct {
-		t       *tab
-		focused bool
-	}
-	panes := []pane{{a.cur(), a.focus == focusEditor && !a.overlayOpen()}}
-	if l.split {
-		panes = append(panes, pane{a.other, false})
-	}
-	for _, p := range panes {
-		pl := l
-		if p.t == a.other && l.split {
-			pl = l.otherLayout()
-		}
-		if p.t == nil || p.t.kind == tabImage {
-			continue
-		}
-		if p.t.kind == tabText {
-			a.diffFor(p.t)
-		}
-		if !p.focused && !a.fullPreview(p.t) {
-			ensureCursorVisible(p.t.buf, a.editW(p.t, pl), pl.editH) // the width changed under it
-		}
-	}
-	if t := a.curText(); t != nil {
-		if a.follow {
-			if dv := a.diffFor(t); dv != nil {
-				a.ensureDiffVisible(t, dv, a.editW(t, l), a.dvGeom(l).h)
-			} else if !a.fullPreview(t) { // the hidden editor is 0 wide: following it would scroll to the cursor column
-				ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
-			}
-			a.follow = false
-		}
-		t.buf.ScrollRow = clamp(t.buf.ScrollRow, 0, max(0, len(t.buf.Lines)-1))
-	}
-	if a.pal.open {
-		a.pal.filter(a.commands)
-		pw := a.paletteWidth()
-		a.pal.input.SetWidth(max(1, pw-ansi.StringWidth(a.pal.label())-2))
-	}
-	if a.search.open {
-		a.search.fit(a)
-	}
-	if a.showTerm {
-		a.term.fit(l.fullW, l.panelH)
-	}
-	if a.findOpen {
-		a.findInput.SetWidth(max(1, findInputCells(l.rightW)-1))
-	}
-	if a.cmdOpen {
-		a.cmdInput.SetWidth(max(1, a.w-3))
-	}
-	if a.showSide {
-		a.explorer.ensureVisible(a.explorerH() - 1)
-		if a.gd.on {
-			a.fitChanges(l.bodyH - a.explorerH() - 1)
-		}
-	}
-	a.fitAgent(l)
-	if a.props.Len() > 0 {
-		a.propView().fit(a)
-	}
 }

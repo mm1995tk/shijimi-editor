@@ -186,30 +186,6 @@ func (a *App) agentLayout(w, h int, focused bool) agentLay {
 	return lay
 }
 
-// fitAgent fits the panel's state to the area it is drawn in: the selected
-// suggestion, the scroll and the selection of the log, and where the log
-// sits (agentView, which the mouse reads). It is the part of drawing the
-// panel that changes state, so it runs before drawing (fit).
-func (a *App) fitAgent(l layout) {
-	if l.agentW <= 0 {
-		return
-	}
-	w := l.agentW
-	lay := a.agentLayout(w, l.bodyH, a.focus == focusAgent && !a.overlayOpen())
-	a.sg.sel = lay.sel
-	log := a.renderLog(w)
-	a.ag.scroll = clamp(a.ag.scroll, 0, max(0, len(log)-lay.logRows))
-	end := len(log) - a.ag.scroll
-	start := max(0, end-lay.logRows)
-	if a.ag.view.w != w {
-		a.ag.sel = agentSel{}
-	}
-	a.ag.view = agentView{rows: log, y0: lay.head + lay.cardRows, start: start, n: end - start, w: w}
-	if a.ag.sel.a.row >= len(log) || a.ag.sel.b.row >= len(log) {
-		a.ag.sel = agentSel{}
-	}
-}
-
 // agentScreen is the panel as a screen.Agent, w columns wide and h rows
 // high. The log is the part of it that fitAgent put in view. It changes
 // nothing.
@@ -431,7 +407,7 @@ func wrapPlainRows(text string, w int) []wrapRow {
 
 // agentMouse handles the pointer over the panel. ok is false when (x, y)
 // is not on it.
-func (a *App) agentMouse(l layout, msg Mouse) ([]Effect, bool) {
+func (a *App) agentMouse(msg Mouse) ([]Effect, bool) {
 	if msg.Region != RegionAgent {
 		return nil, false
 	}
@@ -468,7 +444,7 @@ func (a *App) agentMouse(l layout, msg Mouse) ([]Effect, bool) {
 	}
 	row := msg.Row - 1 // below the title
 	list := a.suggestions()
-	if rows := a.suggestRows(list, max(2, l.bodyH/2-1)); row >= 0 && row < len(rows) {
+	if rows := a.suggestRows(list, max(2, a.bodyH()/2-1)); row >= 0 && row < len(rows) {
 		i := rows[row]
 		if i < 0 {
 			i = rows[row-1]
@@ -476,8 +452,8 @@ func (a *App) agentMouse(l layout, msg Mouse) ([]Effect, bool) {
 		a.sg.sel = i
 	}
 	a.ag.sel = agentSel{}
-	if a.inLog(l, msg) {
-		p, _, _ := a.logPos(l, msg)
+	if a.inLog(msg) {
+		p, _, _ := a.logPos(msg)
 		a.ag.sel = agentSel{dragging: true, a: p, b: p}
 	}
 	return a.setFocus(focusAgent), true

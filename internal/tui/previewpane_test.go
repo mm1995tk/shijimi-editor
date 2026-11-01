@@ -16,7 +16,7 @@ func previewApp(t *testing.T, dir, src string) *App {
 	b := buffer.New()
 	b.Insert(src)
 	b.Path = filepath.Join(dir, "x.md")
-	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}
+	a := &App{Core: &Core{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}}
 	a.tabs[0].buf.Cur.Row = 0
 	a.tabs[0].preview = previewSplit
 	return a

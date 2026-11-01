@@ -92,7 +92,7 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 	b.Insert("# t\n\n```mermaid\ngraph TD; A-->B\n```\n")
 	b.Path = "x.md"
 	cfg := &config.Config{Editor: config.Editor{MermaidCommand: "cp " + shellQuote(src) + " {out}"}}
-	a := &App{cfg: cfg, tabs: []*tab{newTab(b)}}
+	a := &App{Core: &Core{cfg: cfg, tabs: []*tab{newTab(b)}}}
 	a.tabs[0].preview = previewSplit
 
 	if cmd := a.syncPreview(); cmd == nil {
@@ -154,7 +154,7 @@ func TestMermaidJobRestoredAfterTabSwitch(t *testing.T) {
 	b1 := buffer.New()
 	b1.Insert("other")
 	b1.Path = "b.md"
-	a := &App{cfg: &config.Config{Editor: config.Editor{MermaidCommand: "true {in} {out}"}}, tabs: []*tab{newTab(a1), newTab(b1)}}
+	a := &App{Core: &Core{cfg: &config.Config{Editor: config.Editor{MermaidCommand: "true {in} {out}"}}, tabs: []*tab{newTab(a1), newTab(b1)}}}
 	a.tabs[0].preview = previewSplit
 
 	if a.syncPreview() == nil {
@@ -182,7 +182,7 @@ func TestTogglePreviewCyclesToFullWidth(t *testing.T) {
 	b := buffer.New()
 	b.Insert("# 見出し\n")
 	b.Path = "x.md"
-	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}
+	a := &App{Core: &Core{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}}
 	l := layout{rightW: 81, editH: 5}
 	tb := a.tabs[0]
 
@@ -213,7 +213,7 @@ func TestFullPreviewBlocksEditing(t *testing.T) {
 	b := buffer.New()
 	b.Insert("# 見出し\n")
 	b.Path = "x.md"
-	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}, helix: true, mode: modeInsert}
+	a := &App{Core: &Core{cfg: &config.Config{}, tabs: []*tab{newTab(b)}, helix: true, mode: modeInsert}}
 	tb := a.tabs[0]
 	tb.preview = previewFull
 	ver := b.Version
@@ -243,7 +243,7 @@ func TestFullPreviewBlocksLeaderPasteAndVscodeKeymap(t *testing.T) {
 	b := buffer.New()
 	b.Insert("abc\n")
 	b.Path = "x.md"
-	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}, helix: true, pal: &palette{}, search: &searchPanel{}}
+	a := &App{Core: &Core{cfg: &config.Config{}, tabs: []*tab{newTab(b)}, helix: true, pal: &palette{}, search: &searchPanel{}}}
 	a.tabs[0].preview = previewFull
 	ver := b.Version
 
@@ -381,7 +381,7 @@ func TestMarkdownImageInPreview(t *testing.T) {
 	b := buffer.New()
 	b.Insert("# t\n\n![図](a.png)\n\n![無い](missing.png)\n\n![外](https://example.com/x.png)\n")
 	b.Path = filepath.Join(dir, "x.md")
-	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}
+	a := &App{Core: &Core{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}}
 	a.tabs[0].preview = previewSplit
 	const w = 30
 
@@ -436,7 +436,7 @@ func TestMarkdownImageReloadedWhenFileChanges(t *testing.T) {
 	b := buffer.New()
 	b.Insert("![図](out.png)\n")
 	b.Path = filepath.Join(dir, "x.md")
-	a := &App{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}
+	a := &App{Core: &Core{cfg: &config.Config{}, tabs: []*tab{newTab(b)}}}
 	a.tabs[0].preview = previewSplit
 	load := func() {
 		t.Helper()
