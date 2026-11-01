@@ -229,7 +229,7 @@ export class Session {
     const c = this.conn;
     this.conn = undefined;
     this.setState({ kind: "closed" });
-    // 入れている最中なら、待っている askpass の質問を取り消す（窓が残って、答えると入れ続けるのを防ぐ）
+    // 入れている最中なら取り消す（質問の窓が残ったり、パスワードの聞き直しで入れ続けたりしないように）
     const installId = this.installId;
     this.installId = undefined;
     if (installId) void this.api.installCancel(installId).catch(() => {});

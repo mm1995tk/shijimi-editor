@@ -52,7 +52,7 @@ export interface ShellApi {
    * checksums と合わなければ、入れずに失敗する。
    */
   installRemote(id: string, target: string): Promise<InstallResult>;
-  /** 入れている最中の取り消し。待っている askpass の質問を取り消す（installRemote は失敗して終わる） */
+  /** 入れている最中の取り消し。待っている質問と、あとで来る質問を断り、転送中の ssh を止める（installRemote は失敗して終わる） */
   installCancel(id: string): Promise<void>;
   onLine(h: (e: { id: string; line: string }) => void): Promise<Unlisten>;
   onClosed(h: (e: ClosedEvent) => void): Promise<Unlisten>;

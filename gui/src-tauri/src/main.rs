@@ -75,10 +75,11 @@ async fn install_remote(
         .map_err(|e| e.to_string())?
 }
 
-/// 入れている最中の取り消し（「切る」）。待っている ssh の質問を取り消す。質問に答えられないので、入れる処理は失敗して終わる。
+/// 入れている最中の取り消し（「切る」）。待っている ssh の質問を消し、あとで来る質問（ssh のパスワードの聞き直し）も断り、
+/// 転送中の ssh を殺す。入れる処理は `cancelled` で終わる（取得中の curl は終わるのを待つ）。
 #[tauri::command]
 fn install_cancel(state: State<AppState>, id: String) {
-    state.askpass.cancel_conn(&id);
+    state.askpass.abort_conn(&id);
 }
 
 /// ssh の質問（askpass）への答え。`None` は取り消し。

@@ -7,8 +7,9 @@
 //!  - 取った実行ファイルは、同じ Release の `SHA256SUMS` の値と合わなければ、ssh を起動する前に捨てる。
 //!  - 送ったあと、リモートで SHA-256 を計り直し、同じ値のときだけ実行できる名前にする（合わなければ消す）。
 
-use std::io::Write;
+use std::io::{Read, Write};
 use std::process::{Command, Stdio};
+use std::time::Duration;
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -262,6 +263,7 @@ pub fn install(target: &str, ask: &AskpassServer, id: &str) -> Result<InstallRes
     let r = install_inner(target, ask, id);
     // 終わったあとに残った質問（ssh が先に終わったときなど）を片付ける
     ask.cancel_conn(id);
+    ask.forget(id);
     r
 }
 
@@ -271,9 +273,12 @@ fn install_inner(target: &str, ask: &AskpassServer, id: &str) -> Result<InstallR
         return Err("SHIJIMI_REMOTE_SHJ is set; refusing to install".into());
     }
     let plan = plan()?;
+    check_not_aborted(ask, id)?;
     let uname = remote_uname(target, ask, id)?;
+    check_not_aborted(ask, id)?;
     let asset = asset_name(&plan.version, &uname)?;
     let (bin, expected) = download_verified(&plan.version, &asset)?;
+    check_not_aborted(ask, id)?;
 
     let mut child = ssh_command(
         target,
@@ -287,29 +292,53 @@ fn install_inner(target: &str, ask: &AskpassServer, id: &str) -> Result<InstallR
     .spawn()
     .map_err(|e| format!("failed to run ssh: {e}"))?;
     let mut stdin = child.stdin.take().ok_or("no stdin")?;
-    // 書くのは別スレッドで（ssh が先に終わっても、標準エラーを読む側が詰まらないように）
+    let mut stderr = child.stderr.take().ok_or("no stderr")?;
+    // 書くのと標準エラーを読むのは別スレッドで（ssh が先に終わっても、どちらも詰まらないように）
     let writer = std::thread::spawn(move || stdin.write_all(&bin).and_then(|_| stdin.flush()));
-    let out = child
-        .wait_with_output()
-        .map_err(|e| format!("ssh failed: {e}"))?;
+    let reader = std::thread::spawn(move || {
+        let mut s = Vec::new();
+        let _ = stderr.read_to_end(&mut s);
+        String::from_utf8_lossy(&s).trim().to_string()
+    });
+    // 「切る」が押されたら ssh を殺す（途中のファイルはリモートの一時ファイルに残りうるが、shj の名前にはならない）
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(s)) => break s,
+            Ok(None) if ask.is_aborted(id) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = writer.join();
+                let _ = reader.join();
+                return Err("cancelled".into());
+            }
+            Ok(None) => std::thread::sleep(Duration::from_millis(100)),
+            Err(e) => return Err(format!("ssh failed: {e}")),
+        }
+    };
     let _ = writer.join();
-    if !out.status.success() {
-        let why = if out.status.code() == Some(EXIT_CHECKSUM_MISMATCH) {
+    let stderr = reader.join().unwrap_or_default();
+    if !status.success() {
+        let why = if status.code() == Some(EXIT_CHECKSUM_MISMATCH) {
             "the file on the remote did not match the SHA-256 (it was removed)"
         } else {
             "installing failed"
         };
-        return Err(format!(
-            "{why} ({}): {}",
-            out.status,
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
+        return Err(format!("{why} ({status}): {stderr}"));
     }
     Ok(InstallResult {
         path: plan.path,
         asset,
         sha256: expected,
     })
+}
+
+/// 「切る」で取り消されていたら Err。
+fn check_not_aborted(ask: &AskpassServer, id: &str) -> Result<(), String> {
+    if ask.is_aborted(id) {
+        Err("cancelled".into())
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
