@@ -32,12 +32,12 @@
 }
 
 /* 開いたフォルダの行は、中身（.tree-group の中）をスクロールしている間だけ上に固定する（D3）。
-   深さごとに 1 行ずつ下にずらして親から順に積む。--tree-sticky-top は上に固定するほか（見出しと帯）の高さ。
+   深さごとに 1 行ずつ下にずらして親から順に積む。押し出される子の行は親の行の下に潜るよう、深いほど下に描く。--tree-sticky-top は上に固定するほか（見出しと帯）の高さ。
    後ろの行が透けないよう、背景を敷く。固定されているあいだ（data-stuck、Sidebar.tsx が付ける）はモックの色にする */
 .tree-row[data-sticky] {
   position: sticky;
   top: calc(var(--tree-sticky-top, 0px) + var(--tree-depth, 0) * 22px);
-  z-index: 1;
+  z-index: calc(100 - var(--tree-depth, 0));
   background: var(--sidebar-bg, #181b21);
 }
 .tree-row[data-stuck] {

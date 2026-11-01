@@ -32,10 +32,10 @@
   --machine-color: #8fb4ff;
 }
 
-/* マシンの区切り。下に固定する要素（.sidebar-after）の中の最初のマシンも、上のものと区切る */
+/* マシンの区切り。下に固定する要素（.sidebar-after）の中の最初のマシンも、上のものと区切る。
+   ただし、フォーカスしているマシンの残りの帯（.machine-rest）は同じマシンなので区切らない */
 .machine + .machine,
-.machine + .sidebar-after > .machine:first-child,
-.sidebar-after > .bands + .machine {
+.machine + .sidebar-after > .machine:first-child:not(.machine-rest) {
   margin-top: 6px;
   border-top: 1px solid var(--sidebar-border);
 }
@@ -125,16 +125,17 @@
   font-weight: 600;
 }
 
-/* 上下の固定（D3）。見出し → 帯 → ツリーのフォルダの行（tree.css）の順に積み、下の要素はその上に重ねる */
+/* 上下の固定（D3）。見出し → 帯 → ツリーのフォルダの行（tree.css）の順に積み、下の要素はその上に重ねる。
+   z-index はフォルダの行（100 - 深さ）より上にする */
 .machine-heading[data-sticky] {
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 102;
 }
 .band[data-sticky] {
   position: sticky;
   top: var(--heading-height);
-  z-index: 2;
+  z-index: 101;
 }
 .sidebar .tree {
   --tree-sticky-top: calc(var(--heading-height) + var(--band-height));
@@ -142,11 +143,11 @@
 .sidebar-after {
   position: sticky;
   bottom: 0;
-  z-index: 4;
+  z-index: 103;
   background: var(--sidebar-bg);
 }
 /* フォーカスしている帯の続きの帯は、上の帯と同じだけ空ける */
-.sidebar-after > .bands:first-child {
+.sidebar-after > .machine-rest {
   padding-top: 2px;
 }
 /* 固定されたものの境目に影を落とす（モックと同じ）。上は一番下に固定されたものの下、下は要素の上 */

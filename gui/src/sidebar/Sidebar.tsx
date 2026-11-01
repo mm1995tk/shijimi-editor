@@ -2,7 +2,7 @@
 // フォーカスしているワークスペースの帯の下にはツリーを出す（D2、描くのは tree/TreeView.tsx）。
 // スクロールしても、上にフォーカスしているマシンの見出し → 帯 → 親フォルダを、下にそれより後ろの帯を固定する（D3）。
 // 組み立ては model.ts、見た目は sidebar.css。
-import { For, onCleanup, onMount, Show, type JSX } from "solid-js";
+import { createMemo, For, onCleanup, onMount, Show, type JSX } from "solid-js";
 
 import type { WorkspaceId } from "../rpc/protocol.ts";
 import type { TreeRow } from "../tree/model.ts";
@@ -44,14 +44,16 @@ export function Sidebar(
     ref?: (el: HTMLElement) => void;
   },
 ): JSX.Element {
-  const split = () => splitAtFocus(props.groups);
+  const split = createMemo(() => splitAtFocus(props.groups));
   const hasAfter = () =>
     split().after.rest.length > 0 || split().after.groups.length > 0;
   let nav!: HTMLElement;
 
   // 固定されているものに data-stuck を付ける（背景と影をモックに合わせる）。
-  // 上に固定するものは、親の要素の上端より下にずれていれば固定されている。下の要素は、一覧の終わりまで
-  // スクロールしていなければ固定されている。影（data-shadow）は、上に固定されたものの一番下と、下の要素に付ける
+  // 上に固定するものは、sticky の位置（一覧の上端から top）にいて、親の要素の上端より下にずれていれば
+  // 固定されている（中身を通り過ぎて押し出された行は sticky の位置より上にいるので外れる）。
+  // 下の要素は、一覧の終わりまでスクロールしていなければ固定されている。
+  // 影（data-shadow）は、上に固定されたものの一番下と、下の要素に付ける
   onMount(() => {
     let frame = 0;
     const update = () => {
@@ -64,10 +66,15 @@ export function Sidebar(
           stuck = nav.scrollTop + nav.clientHeight < nav.scrollHeight - 0.5;
         } else {
           const parent = el.parentElement;
+          const top = el.getBoundingClientRect().top;
+          const at =
+            nav.getBoundingClientRect().top +
+            nav.clientTop +
+            (parseFloat(getComputedStyle(el).top) || 0);
           stuck =
             parent !== null &&
-            el.getBoundingClientRect().top >
-              parent.getBoundingClientRect().top + 0.5;
+            Math.abs(top - at) < 0.5 &&
+            top > parent.getBoundingClientRect().top + 0.5;
           if (stuck) last = el;
         }
         el.toggleAttribute("data-stuck", stuck);
@@ -111,21 +118,24 @@ export function Sidebar(
       <Show when={hasAfter()}>
         <div class="sidebar-after" data-sticky="bottom">
           <Show when={split().after.rest.length > 0}>
-            <ul
-              class="bands"
+            {/* 見出しの無いマシンの要素にして、マシンの色（--machine-color）を同じにする */}
+            <section
+              class="machine machine-rest"
               data-target={split().after.target}
               aria-label={split().after.label}
             >
-              <For each={split().after.rest}>
-                {(b) => (
-                  <BandItem
-                    target={split().after.target}
-                    band={b}
-                    {...handlers(props)}
-                  />
-                )}
-              </For>
-            </ul>
+              <ul class="bands">
+                <For each={split().after.rest}>
+                  {(b) => (
+                    <BandItem
+                      target={split().after.target}
+                      band={b}
+                      {...handlers(props)}
+                    />
+                  )}
+                </For>
+              </ul>
+            </section>
           </Show>
           <For each={split().after.groups}>
             {(g) => <Machine group={g} {...handlers(props)} />}
