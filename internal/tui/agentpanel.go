@@ -21,22 +21,22 @@ const (
 
 // agentWidth is the panel width: the user's choice, or a quarter of the screen.
 func (a *App) agentWidth() int {
-	if a.agentWPref > 0 {
-		return clamp(a.agentWPref, minAgentW, max(minAgentW, a.w/2))
+	if a.agentWidthPref() > 0 {
+		return clamp(a.agentWidthPref(), minAgentW, max(minAgentW, a.screenW()/2))
 	}
-	return clamp(a.w/4, 30, 50)
+	return clamp(a.screenW()/4, 30, 50)
 }
 
 // agentShown reports whether the panel fits beside the editor.
 func (a *App) agentShown(sideW int) bool {
-	if !a.showAgent {
+	if !a.agentOpen() {
 		return false
 	}
 	used := 0
-	if a.showSide {
+	if a.sideShown() {
 		used = sideW + 1
 	}
-	return a.w-used-a.agentWidth()-1 >= minEditorBeside
+	return a.screenW()-used-a.agentWidth()-1 >= minEditorBeside
 }
 
 // toggleAgentPanel moves to the panel, opening it, or leaves and closes it.
@@ -45,15 +45,15 @@ func (a *App) toggleAgentPanel() []Effect {
 		return nil
 	}
 	if a.focus == focusAgent {
-		a.showAgent = false
+		a.setAgent(false)
 		a.follow = true
 		if len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
 		}
-		a.showSide = true
+		a.setSide(true)
 		return a.setFocus(focusExplorer)
 	}
-	a.showAgent = true
+	a.setAgent(true)
 	a.follow = true
 	return a.setFocus(focusAgent)
 }
@@ -63,7 +63,7 @@ func (a *App) leaveAgentPanel() []Effect {
 	if len(a.tabs) > 0 {
 		return a.setFocus(focusEditor)
 	}
-	a.showSide = true
+	a.setSide(true)
 	return a.setFocus(focusExplorer)
 }
 
@@ -439,7 +439,7 @@ func (a *App) agentMouse(msg Mouse) ([]Effect, bool) {
 		return nil, true
 	}
 	if msg.Col == -1 { // the border
-		a.resizing = resizeAgent
+		a.dragBorder(resizeAgent)
 		return nil, true
 	}
 	row := msg.Row - 1 // below the title

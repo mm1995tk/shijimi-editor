@@ -32,7 +32,7 @@ func (a *App) MouseHover() bool { return a.cfg.Editor.MouseHover }
 // project search, context menu, command line, resize mode, agent proposal), so
 // a popup must not appear over it.
 func (a *App) hoverBlocked() bool {
-	return a.ctx != nil || a.overlayOpen() || a.cmdOpen || a.resizeMode || a.props.Len() > 0 || a.composer != nil || a.confirm != nil
+	return a.ctx != nil || a.overlayOpen() || a.cmdOpen || a.inResizeMode() || a.props.Len() > 0 || a.composer != nil || a.confirm != nil
 }
 
 // hoverDwell asks the language server about the word under a resting pointer.

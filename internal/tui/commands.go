@@ -30,7 +30,7 @@ func defaultCommands() []command {
 		{i18n.T("cmd.closetab"), "Ctrl+W / :bc", func(a *App) []Effect { return a.closeTab(false) }},
 		{i18n.T("cmd.buffers"), "Space b", func(a *App) []Effect { return a.bufferPicker() }},
 		{i18n.T("cmd.sidebar"), "Ctrl+B", func(a *App) []Effect { a.toggleSide(); return nil }},
-		{i18n.T("cmd.focustree"), "Ctrl+E / Space e", func(a *App) []Effect { a.showSide = true; return a.setFocus(focusExplorer) }},
+		{i18n.T("cmd.focustree"), "Ctrl+E / Space e", func(a *App) []Effect { a.setSide(true); return a.setFocus(focusExplorer) }},
 		{i18n.T("cmd.preview"), "Space m / :preview", func(a *App) []Effect { return a.togglePreview() }},
 		{i18n.T("cmd.terminal"), "Ctrl+`", func(a *App) []Effect { return a.toggleTerm() }},
 		{i18n.T("cmd.resize"), "Alt+R", func(a *App) []Effect { return a.startResize() }},
@@ -157,7 +157,7 @@ func (a *App) cmdlineInput(msg Input) []Effect {
 }
 
 func (a *App) renderCmdline() string {
-	return drawCmdline(*a.cmdlineState(), a.cmdInput.view(inputStyleOn(cEditorBg)), a.w)
+	return drawCmdline(*a.cmdlineState(), a.cmdInput.view(inputStyleOn(cEditorBg)), a.screenW())
 }
 
 // execCommand runs a Helix-style ":" command.
@@ -260,9 +260,9 @@ func (a *App) execCommand(line string) []Effect {
 		if arg == "" {
 			return a.toggleTerm()
 		}
-		a.showTerm = true
+		a.setTerm(true)
 		cmd := a.setFocus(focusTerminal)
-		return batch(cmd, a.termEffects(a.term.run(arg)))
+		return batch(cmd, a.termRun(arg))
 	case "preview", "md":
 		return a.togglePreview()
 	case "vsplit", "vs", "split", "sp":
@@ -295,7 +295,7 @@ func (a *App) execCommand(line string) []Effect {
 		a.infoText(i18n.T("cmd.lsprestarted"))
 	case "config-reload":
 		a.cfg = config.Load(a.root)
-		a.mux.resolved = false // [terminal] multiplexer may have changed
+		a.muxReset() // [terminal] multiplexer may have changed
 		i18n.SetLang(a.cfg.Editor.UILanguage)
 		a.commands = defaultCommands()
 		a.findInput.Placeholder = i18n.T("app.find")
@@ -339,7 +339,7 @@ func (a *App) execCommand(line string) []Effect {
 	case "open-url", "browse":
 		return a.openURL(arg)
 	case "tree", "explorer":
-		a.showSide = true
+		a.setSide(true)
 		return a.setFocus(focusExplorer)
 	default:
 		a.fail(fmt.Errorf(i18n.T("cmd.unknowncmd"), name))

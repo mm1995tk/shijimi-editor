@@ -339,9 +339,9 @@ func (a *App) setFocus(f focus) []Effect {
 		f = focusEditor
 	}
 	a.focus = f
-	a.term.blur()
+	a.termBlur()
 	if f == focusTerminal {
-		return a.termEffects(a.term.focus())
+		return a.termFocus()
 	}
 	return nil
 }
@@ -696,8 +696,8 @@ func (a *App) toggleSide() {
 	if a.single {
 		return
 	}
-	a.showSide = !a.showSide
-	if !a.showSide && (a.focus == focusExplorer || a.focus == focusChanges) {
+	a.setSide(!a.sideShown())
+	if !a.sideShown() && (a.focus == focusExplorer || a.focus == focusChanges) {
 		a.focus = focusEditor
 	}
 }
@@ -709,11 +709,11 @@ func (a *App) toggleTerm() []Effect {
 	if a.muxOn() {
 		return a.muxToggle()
 	}
-	if a.showTerm && a.focus == focusTerminal {
-		a.showTerm = false
+	if a.termShown() && a.focus == focusTerminal {
+		a.setTerm(false)
 		return a.setFocus(focusEditor)
 	}
-	a.showTerm = true
+	a.setTerm(true)
 	return a.setFocus(focusTerminal)
 }
 
@@ -733,7 +733,7 @@ func (a *App) quit() []Effect {
 		a.msg, a.msgErr = fmt.Sprintf(i18n.T("app.quitunsaved"), d), true
 		return nil
 	}
-	a.term.closeAll()
+	a.termCloseAll()
 	a.muxClose()
 	a.proxy.StopAll()
 	return a.exit()
@@ -798,9 +798,7 @@ func (a *App) copyText(s string) {
 	core.WriteSystemClipboard(s)
 	// Over SSH there is no local helper tool; the outer terminal can still
 	// take the text through OSC 52.
-	if a.caret != nil {
-		_ = a.caret.Send([]byte(ansi.SetSystemClipboard(s)))
-	}
+	a.sendToTerminal([]byte(ansi.SetSystemClipboard(s)))
 }
 
 // activePath is the file of the current tab, or "" when it has none.
@@ -883,13 +881,10 @@ func (a *App) update(msg any) []Effect {
 	case Event:
 		return a.handleEvent(msg)
 	case Resized:
-		a.w, a.h = msg.W, msg.H
-		if a.cellSize != nil {
-			updateCellSize(a.cellSize())
-		}
+		a.setScreen(msg.W, msg.H)
 		a.follow = true
 	case ReleasesReported:
-		a.keyReleases = msg.On
+		a.setReleasesReported(msg.On)
 	case KeyReleased:
 		a.holdScrollRelease(msg.Key)
 		a.lineFlipRelease(msg.Key)
@@ -1004,7 +999,7 @@ func (a *App) handleKey(msg Key) []Effect {
 	if a.cmdOpen {
 		return a.handleCmdlineKey(msg)
 	}
-	if a.resizeMode {
+	if a.inResizeMode() {
 		return a.handleResizeKey(key)
 	}
 	if a.card != nil {
@@ -1053,7 +1048,7 @@ func (a *App) handleKey(msg Key) []Effect {
 		case "f1":
 			return a.pal.show(a.root, ">")
 		}
-		a.term.key(msg)
+		a.termKey(msg)
 		return nil
 	}
 
@@ -1095,7 +1090,7 @@ func (a *App) handleKey(msg Key) []Effect {
 		if a.focus == focusExplorer && len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
 		}
-		a.showSide = true
+		a.setSide(true)
 		return a.setFocus(focusExplorer)
 	case "ctrl+n":
 		if !insert {
@@ -1133,7 +1128,7 @@ func (a *App) handleKey(msg Key) []Effect {
 	t := a.cur()
 	if t == nil {
 		if key == "esc" || key == "tab" || key == "space" {
-			a.showSide = true
+			a.setSide(true)
 			return a.setFocus(focusExplorer)
 		}
 		if key == ":" {
@@ -1291,9 +1286,9 @@ func (a *App) handleExplorerKey(msg Key) []Effect {
 	case "down", "j":
 		e.sel = min(len(e.flat)-1, e.sel+1)
 	case "pgup", "ctrl+u":
-		e.sel = max(0, e.sel-(a.h-3)/2)
+		e.sel = max(0, e.sel-(a.screenH()-3)/2)
 	case "pgdown", "ctrl+d":
-		e.sel = min(len(e.flat)-1, e.sel+(a.h-3)/2)
+		e.sel = min(len(e.flat)-1, e.sel+(a.screenH()-3)/2)
 	case "home", "g":
 		e.sel = 0
 	case "end", "G":
@@ -1603,30 +1598,6 @@ func (a *App) refreshCompletion() []Effect {
 		a.comp = nil
 	}
 	return nil
-}
-
-// ---- view ----
-
-func (a *App) View() tea.View {
-	a.fit()
-	frame, caretAt := a.renderFrame()
-	v := tea.NewView(frame)
-	// Image data goes out before the frame whose placeholder cells show it.
-	if g := takeGraphics(); g != "" && a.caret != nil {
-		_ = a.caret.Send([]byte(g))
-	}
-	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
-	if a.MouseHover() {
-		// A resting pointer is only noticed if motion without a button is reported.
-		v.MouseMode = tea.MouseModeAllMotion
-	}
-	// askReleases is decided in fit.
-	v.KeyboardEnhancements.ReportEventTypes = a.askReleases
-	// The terminal cursor stays hidden (see package caret), but an IME shows
-	// its composition where it is.
-	v.Cursor = caretAt
-	return v
 }
 
 func (a *App) editorOpts(t *tab, focused bool) editorOpts {

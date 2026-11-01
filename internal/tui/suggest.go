@@ -181,7 +181,7 @@ func (a *App) suggestTick() []Effect {
 // (OSC 133;D, see shellIntegration) and FAIL lines of test runners.
 func (a *App) scanTerminals() {
 	alive := map[int]bool{}
-	if t := a.term.sh; t != nil {
+	if t := a.termShell(); t != nil {
 		alive[t.id] = true
 		for _, code := range t.vt.TakeCommandEnds() {
 			switch code {

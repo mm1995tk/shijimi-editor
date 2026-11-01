@@ -132,22 +132,12 @@ var appOnlyFields = []string{
 
 // appFieldFiles are the files that stay in tui and so may read appOnlyFields.
 var appFieldFiles = []string{
-	"app_draw.go", "caret.go", "layout.go", "mouse.go", "resize.go", "mux.go",
+	"app_draw.go", "caret.go", "frontend.go", "model.go", "layout.go", "mouse.go", "resize.go", "mux.go",
 	"eventtui.go", "inputtea.go", "ideproposal_draw.go", "prreview_draw.go",
 }
 
-// appFieldTodo are files that go to core but still read appOnlyFields (the
-// size of the screen, whether a region is shown, the terminal). Each reads
-// them for a question core must answer without them: shrink this list, never
-// add to it.
-var appFieldTodo = []string{
-	"agent.go", "agentpanel.go", "app.go", "commands.go", "context.go", "gitdiff.go",
-	"halfpage.go", "helix.go", "hovermouse.go", "ideproposal.go", "linenumber.go",
-	"palette.go", "paste.go", "searchui.go", "suggest.go",
-}
-
 // TestCoreFields keeps Core free of the fields that stay on App, and files
-// that go to core from reading them (a ratchet: appFieldTodo only shrinks).
+// that go to core from reading them (they ask the front end: frontend.go).
 func TestCoreFields(t *testing.T) {
 	fset := token.NewFileSet()
 	appFile, err := parser.ParseFile(fset, "app.go", nil, 0)
@@ -192,12 +182,8 @@ func TestCoreFields(t *testing.T) {
 			}
 			return true
 		})
-		todo := slices.Contains(appFieldTodo, name)
-		if len(reads) > 0 && !todo && !slices.Contains(appFieldFiles, name) {
-			t.Errorf("%s reads %v of App, which stay on App; only %v may (and the files to be moved: appFieldTodo)", name, reads, appFieldFiles)
-		}
-		if len(reads) == 0 && todo {
-			t.Errorf("%s no longer reads the App-only fields; remove it from appFieldTodo", name)
+		if len(reads) > 0 && !slices.Contains(appFieldFiles, name) {
+			t.Errorf("%s reads %v of App, which stay on App; only %v may", name, reads, appFieldFiles)
 		}
 	}
 }

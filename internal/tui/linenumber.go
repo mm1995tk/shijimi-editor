@@ -10,7 +10,7 @@ package tui
 const lineFlipKey = '\\'
 
 func (a *App) flipLineNumbers() {
-	if !a.keyReleases {
+	if !a.releasesReported() {
 		a.lineFlip = !a.lineFlip
 		return
 	}
@@ -20,7 +20,7 @@ func (a *App) flipLineNumbers() {
 // lineFlipOtherKey ends the flip when a key other than \ is pressed while
 // the terminal reports key releases.
 func (a *App) lineFlipOtherKey(msg Key) {
-	if a.keyReleases && msg.Code != lineFlipKey {
+	if a.releasesReported() && msg.Code != lineFlipKey {
 		a.lineFlip = false
 	}
 }
