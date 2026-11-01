@@ -42,6 +42,8 @@ import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
 import { rows as treeRows } from "./tree/model.ts";
 import { WorkspaceTrees } from "./tree/trees.ts";
+import { TermLink } from "./terminal/link.ts";
+import { TerminalView } from "./terminal/TerminalView.tsx";
 
 /** 一覧に出す 1 行の状態。 */
 export function describeState(
@@ -115,6 +117,18 @@ export function App(props: {
   const [focusError, setFocusError] = createSignal("");
   let focusSeq = 0;
   const offStates = new Map<string, () => void>();
+  // マシンごとのターミナル（F1）。右下には、フォーカスしているマシン（無ければ最初につながったマシン）の
+  // ものを 1 つ出す。ワークスペースはシェルの cwd から決まるので、フォーカスが無くても出す
+  const termLinks = new Map<string, TermLink>();
+  const termTarget = createMemo(
+    () =>
+      focus()?.target ??
+      [LOCAL, ...hosts()].find((t) => states()[t]?.kind === "connected"),
+  );
+  const termLink = createMemo(() => {
+    const t = termTarget();
+    return t !== undefined && sessions()[t] ? termLinks.get(t) : undefined;
+  });
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
   const [treeVersion, setTreeVersion] = createSignal(0);
@@ -172,7 +186,12 @@ export function App(props: {
       onError: (m) => console.warn(`[${target}] ${m}`),
     });
     trees.set(target, tr);
+    const link = new TermLink(s, (m) => console.warn(`[${target}] ${m}`));
+    termLinks.set(target, link);
+    const offTerm = s.onTerm((e) => link.handle(e));
     const off = s.onState((st) => {
+      // つなぎ直したら、ターミナルの溜めた出力を続きから取り直す（右下に出す前なら何もしない）
+      if (st.kind === "connected") link.reconnected();
       setStates((m) => ({ ...m, [target]: st }));
       // つなぎ直したら、今のワークスペースのツリーと git の印を取り直す
       if (st.kind === "connected") tr.reconnected();
@@ -191,6 +210,7 @@ export function App(props: {
       ),
     );
     offStates.set(target, () => {
+      offTerm();
       off();
       offTree();
       offGit();
@@ -208,6 +228,7 @@ export function App(props: {
     offStates.get(target)?.(); // close() の closed を一覧に書き戻させない
     offStates.delete(target);
     trees.delete(target);
+    termLinks.delete(target); // シェルは止めない（次につないだら term.list で見つけてつなぐ）
     setSessions(({ [target]: _, ...rest }) => rest);
     setStates(({ [target]: _, ...rest }) => rest);
     setWorkspaces(({ [target]: _, ...rest }) => rest);
@@ -372,6 +393,7 @@ export function App(props: {
           </For>
         </ul>
       </section>
+      <TerminalView link={termLink()} />
       <AskpassDialog ask={asks()[0]} onReply={reply} />
     </main>
   );
