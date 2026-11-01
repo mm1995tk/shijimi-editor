@@ -1,5 +1,5 @@
-/* 画面全体の割り付け。左に一覧（sidebar.css）、右に残り（今は「つなぐ先」）。
-   右の下はターミナル（F1。terminal/terminal.css）。高さはモックの 300px。 */
+/* 画面全体の割り付け。左に一覧（sidebar.css）、右に残り。
+   右は上がファイルの欄（files/files.css）、その下に「つなぐ先」、右下がターミナル（F1。terminal/terminal.css）。 */
 html,
 body,
 #root {
@@ -8,23 +8,26 @@ body,
 }
 
 .app {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) 300px;
+  display: flex;
   height: 100%;
 }
 
-.app > .sidebar {
-  grid-row: 1 / -1;
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .connections {
-  min-width: 0;
+  flex: none;
+  max-height: 40%;
   overflow: auto;
   padding: 0 16px;
 }
 
-.app > .terminal {
-  grid-column: 2;
-  grid-row: 2;
+/* 右下のターミナル（F1。terminal/terminal.css）。高さはモックの 300px */
+.main > .terminal {
+  flex: none;
+  height: 300px;
 }

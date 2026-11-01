@@ -5,7 +5,7 @@
 // Go 側ができたら、ここと突き合わせるテストを足す。
 //
 // `Screen` の中身の細かい部分（状態行・オーバーレイなど）は画面を作る Issue（D・E）で詰めるので、
-// ここではペインの中身までを型にし、残りは緩く（unknown）持つ。
+// ここではペインの中身までを型にし、残りは緩く（unknown）持つ。元の形は Go の internal/screen。
 
 export type WorkspaceId = string;
 export type TermId = string;
@@ -118,10 +118,14 @@ export interface Pane {
   title: Title;
   kind: string;
   viewport: Viewport;
-  lines?: Line[];
+  /** 見えている行だけ。上から並ぶ */
+  lines?: Line[] | null;
+  /** カーソルのある行（バッファの行番号）。行の強調の基準 */
   curLine: number;
-  cursors?: Pos[];
-  selections?: Range[];
+  /** 描くカーソルの位置。先頭が主のカーソル */
+  cursors?: Pos[] | null;
+  /** cursors と同じ並び。選択の無いカーソルは start と end が同じ */
+  selections?: Range[] | null;
   [more: string]: unknown;
 }
 
@@ -149,8 +153,10 @@ export interface PaneUpdate {
   viewport?: Viewport;
   /** `rows` のキーは「ビューポートの中で上から何行目か」（0 始まり）。`count` は見えている行数 */
   lines?: { rows: Record<string, Line>; count: number };
-  cursors?: Pos[];
-  selections?: Range[];
+  curLine?: number;
+  /** 無くなったときは null（Go 側の空の並び） */
+  cursors?: Pos[] | null;
+  selections?: Range[] | null;
   [more: string]: unknown;
 }
 

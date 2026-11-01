@@ -5,7 +5,8 @@
 // 左にはつないだマシンごとの見出しとワークスペースの帯を出し、帯を押すとフォーカスを移す（D1）。
 // フォーカスしているワークスペースの帯の下にはツリーを出す。開閉とスクロールの位置はワークスペースごとに覚え、
 // フォーカスを外して戻しても残す（D2）。マシンごとに色を決めて覚え、見出しと帯の左端の線に使う（D4）。
-// 編集の画面は E 以降で作る。
+// 右上にはフォーカスしているマシンの shj が送る画面のファイルの欄を描く（E1）。欄の大きさは、つないだ
+// どのマシンにも送る（どのマシンにフォーカスを移しても、同じ大きさの欄に描くため）。
 import {
   createEffect,
   createMemo,
@@ -19,7 +20,8 @@ import {
 } from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
-import type { Workspace, WorkspaceId } from "./rpc/protocol.ts";
+import { FilesView, type FilesSize } from "./files/FilesView.tsx";
+import type { Screen, Theme, Workspace, WorkspaceId } from "./rpc/protocol.ts";
 import {
   adoptFocus,
   buildSidebar,
@@ -132,6 +134,11 @@ export function App(props: {
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
   const [treeVersion, setTreeVersion] = createSignal(0);
+  // マシンごとの画面とテーマ（E1）。Session が持つものを写す
+  const [screens, setScreens] = createSignal<Record<string, Screen | null>>({});
+  const [themes, setThemes] = createSignal<Record<string, Theme | null>>({});
+  // ファイルの欄の大きさ。新しくつなぐマシンにも送る
+  let filesSize: FilesSize | undefined;
   let nav: HTMLElement | undefined;
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
   // 「あと何秒」を動かす
@@ -209,6 +216,12 @@ export function App(props: {
         keepFocus(adoptFocus(f, target, id), workspaces(), shjFocuses()),
       ),
     );
+    const showScreen = () => setScreens((m) => ({ ...m, [target]: s.screen }));
+    const offScreen = s.onScreen(showScreen);
+    const offUpdate = s.onUpdate(showScreen);
+    const offTheme = s.onTheme((th) =>
+      setThemes((m) => ({ ...m, [target]: th })),
+    );
     offStates.set(target, () => {
       offTerm();
       off();
@@ -216,7 +229,11 @@ export function App(props: {
       offGit();
       offWs();
       offFocus();
+      offScreen();
+      offUpdate();
+      offTheme();
     });
+    if (filesSize) s.resize(filesSize);
     setSessions((m) => ({ ...m, [target]: s }));
     setStates((m) => ({ ...m, [target]: s.state }));
     s.start();
@@ -232,8 +249,16 @@ export function App(props: {
     setSessions(({ [target]: _, ...rest }) => rest);
     setStates(({ [target]: _, ...rest }) => rest);
     setWorkspaces(({ [target]: _, ...rest }) => rest);
+    setScreens(({ [target]: _, ...rest }) => rest);
+    setThemes(({ [target]: _, ...rest }) => rest);
     setFocus((f) => keepFocus(f, workspaces(), shjFocuses()));
     await s.close();
+  }
+
+  /** ファイルの欄の大きさが変わった。つないでいるどのマシンにも送る。 */
+  function resizeFiles(size: FilesSize) {
+    filesSize = size;
+    for (const s of Object.values(sessions())) s.resize(size);
   }
 
   /** 帯を押した。shj に workspace.focus を送り、受け付けられたら GUI のフォーカスも移す。 */
@@ -319,81 +344,92 @@ export function App(props: {
           el.addEventListener("scroll", rememberScroll, { passive: true });
         }}
       />
-      <section class="connections" aria-label="つなぐ先">
-        <h1>つなぐ先</h1>
-        <Show when={focusError()}>
-          <p role="alert">{focusError()}</p>
-        </Show>
-        <ul>
-          <For each={[LOCAL, ...hosts()]}>
-            {(t) => {
-              const st = () => states()[t];
-              const kind = () => st()?.kind;
-              return (
-                <li data-state={kind() ?? "idle"}>
-                  <button
-                    disabled={
-                      kind() === "connecting" ||
-                      kind() === "connected" ||
-                      kind() === "reconnecting" ||
-                      kind() === "needs-install" ||
-                      kind() === "installing"
-                    }
-                    onClick={() => connect(t)}
-                  >
-                    {machineLabel(t)}
-                  </button>{" "}
-                  <span role="status">{describeState(st(), now())}</span>
-                  <Show
-                    when={
-                      (kind() === "reconnecting" || kind() === "connecting") &&
-                      (st() as { retryAt?: number }).retryAt !== undefined
-                    }
-                  >
-                    {" "}
-                    <button onClick={() => sessions()[t]?.retryNow()}>
-                      今すぐつなぐ
-                    </button>
-                  </Show>
-                  <Show when={kind() === "failed" || kind() === "superseded"}>
-                    {" "}
-                    <button onClick={() => connect(t)}>つなぎ直す</button>
-                  </Show>
-                  <Show when={st() && kind() !== "closed"}>
-                    {" "}
-                    <button onClick={() => void disconnect(t)}>切る</button>
-                  </Show>
-                  <Show when={st()?.kind === "needs-install"}>
-                    <InstallPrompt
-                      target={machineLabel(t)}
-                      state={
-                        st() as Extract<SessionState, { kind: "needs-install" }>
+      <div class="main">
+        <FilesView
+          screen={focus() ? (screens()[focus()!.target] ?? null) : null}
+          theme={focus() ? (themes()[focus()!.target] ?? null) : null}
+          onResize={resizeFiles}
+        />
+        <section class="connections" aria-label="つなぐ先">
+          <h1>つなぐ先</h1>
+          <Show when={focusError()}>
+            <p role="alert">{focusError()}</p>
+          </Show>
+          <ul>
+            <For each={[LOCAL, ...hosts()]}>
+              {(t) => {
+                const st = () => states()[t];
+                const kind = () => st()?.kind;
+                return (
+                  <li data-state={kind() ?? "idle"}>
+                    <button
+                      disabled={
+                        kind() === "connecting" ||
+                        kind() === "connected" ||
+                        kind() === "reconnecting" ||
+                        kind() === "needs-install" ||
+                        kind() === "installing"
                       }
-                      onYes={() => void sessions()[t]?.install()}
-                      onNo={() => sessions()[t]?.declineInstall()}
-                    />
-                  </Show>
-                  <Show when={kind() === "superseded"}>
-                    <p role="alert">
-                      {machineLabel(t)} の作業は、あとからつないだ別の GUI
-                      に移りました。
-                      取り合いにならないよう、自動ではつなぎ直しません。
-                      「つなぎ直す」を押すとこちらに戻し、あちらの GUI
-                      が切れます。
-                    </p>
-                  </Show>
-                  <Show when={st()?.kind === "failed"}>
-                    <pre role="alert">
-                      {(st() as { message: string }).message}
-                    </pre>
-                  </Show>
-                </li>
-              );
-            }}
-          </For>
-        </ul>
-      </section>
-      <TerminalView link={termLink()} />
+                      onClick={() => connect(t)}
+                    >
+                      {machineLabel(t)}
+                    </button>{" "}
+                    <span role="status">{describeState(st(), now())}</span>
+                    <Show
+                      when={
+                        (kind() === "reconnecting" ||
+                          kind() === "connecting") &&
+                        (st() as { retryAt?: number }).retryAt !== undefined
+                      }
+                    >
+                      {" "}
+                      <button onClick={() => sessions()[t]?.retryNow()}>
+                        今すぐつなぐ
+                      </button>
+                    </Show>
+                    <Show when={kind() === "failed" || kind() === "superseded"}>
+                      {" "}
+                      <button onClick={() => connect(t)}>つなぎ直す</button>
+                    </Show>
+                    <Show when={st() && kind() !== "closed"}>
+                      {" "}
+                      <button onClick={() => void disconnect(t)}>切る</button>
+                    </Show>
+                    <Show when={st()?.kind === "needs-install"}>
+                      <InstallPrompt
+                        target={machineLabel(t)}
+                        state={
+                          st() as Extract<
+                            SessionState,
+                            { kind: "needs-install" }
+                          >
+                        }
+                        onYes={() => void sessions()[t]?.install()}
+                        onNo={() => sessions()[t]?.declineInstall()}
+                      />
+                    </Show>
+                    <Show when={kind() === "superseded"}>
+                      <p role="alert">
+                        {machineLabel(t)} の作業は、あとからつないだ別の GUI
+                        に移りました。
+                        取り合いにならないよう、自動ではつなぎ直しません。
+                        「つなぎ直す」を押すとこちらに戻し、あちらの GUI
+                        が切れます。
+                      </p>
+                    </Show>
+                    <Show when={st()?.kind === "failed"}>
+                      <pre role="alert">
+                        {(st() as { message: string }).message}
+                      </pre>
+                    </Show>
+                  </li>
+                );
+              }}
+            </For>
+          </ul>
+        </section>
+        <TerminalView link={termLink()} />
+      </div>
       <AskpassDialog ask={asks()[0]} onReply={reply} />
     </main>
   );

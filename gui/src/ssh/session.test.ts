@@ -16,7 +16,10 @@ function fakeShell(opts: {
   pingError?: () => { code: number; message: string } | undefined;
   /** workspace.list で返すフォーカス */
   focus?: string | null;
+  /** screen.get の返事を held に積んで待たせる（呼ぶと返す） */
+  holdScreenGet?: boolean;
 }) {
+  const held: (() => void)[] = [];
   const lines: Line[] = [];
   const closeds: ((e: ClosedEvent) => void)[] = [];
   const sent: { id: string; msg: any }[] = [];
@@ -62,8 +65,18 @@ function fakeShell(opts: {
             rev: 3,
           });
           break;
-        case "screen.get":
-          reply({ rev: 7, ackSeq: 0, focus: "w", status: null });
+        case "screen.get": {
+          const sc = { rev: 7, ackSeq: 0, focus: "w", status: null };
+          if (opts.holdScreenGet) held.push(() => reply(sc));
+          else reply(sc);
+          break;
+        }
+        case "view.subscribe":
+        case "view.resize":
+          reply({});
+          break;
+        case "theme.get":
+          reply({ name: "dark", tokens: { "editor.bg": { fg: "#000000" } } });
           break;
         case "workspace.list":
           reply({
@@ -141,6 +154,7 @@ function fakeShell(opts: {
   return {
     api,
     sent,
+    held,
     installs,
     cancels,
     installIds,
@@ -458,14 +472,149 @@ describe("待ち時間と閉じる", () => {
     await waitFor(s, (st) => st.kind === "connected");
     await new Promise((r) => setTimeout(r, 10));
     const id = connectedId(f);
-    for (const rev of [20, 21, 22])
+    // 20 で取り直しが始まり、返事（rev 7）を待つ間に来た 6 と 7 は、取り直した画面に入っている
+    for (const [rev, baseRev] of [
+      [20, 15],
+      [6, 5],
+      [7, 6],
+    ])
       f.emit(id, {
         jsonrpc: "2.0",
         method: "screen.update",
-        params: { rev, baseRev: rev - 5, ackSeq: 0 },
+        params: { rev, baseRev, ackSeq: 0 },
       });
     await new Promise((r) => setTimeout(r, 10));
     assert.equal(f.sent.filter((x) => x.msg.method === "screen.get").length, 2);
+    await s.close();
+  });
+});
+
+describe("画面の購読（E1）", () => {
+  const settle = () => new Promise((r) => setTimeout(r, 10));
+  const sentOf = (f: ReturnType<typeof fakeShell>, method: string) =>
+    f.sent.filter((x) => x.msg.method === method);
+
+  it("つなぐと files を購読し、覚えている大きさを送り、テーマを取る", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    const themes: string[] = [];
+    s.onTheme((t) => themes.push(t.name));
+    s.resize({ cols: 100, rows: 30 });
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await settle();
+    assert.deepEqual(sentOf(f, "view.subscribe")[0]!.msg.params, {
+      regions: ["files"],
+    });
+    assert.deepEqual(sentOf(f, "view.resize")[0]!.msg.params, {
+      regions: { files: { cols: 100, rows: 30 } },
+    });
+    assert.deepEqual(themes, ["dark"]);
+    assert.equal(s.theme?.tokens["editor.bg"]?.fg, "#000000");
+
+    // 大きさが変わったら送る。同じなら送らない
+    s.resize({ cols: 100, rows: 30 });
+    s.resize({ cols: 90, rows: 30 });
+    await settle();
+    assert.equal(sentOf(f, "view.resize").length, 2);
+
+    // theme.changed で入れ替わる
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "theme.changed",
+      params: { name: "light", tokens: {} },
+    });
+    await settle();
+    assert.deepEqual(themes, ["dark", "light"]);
+    await s.close();
+  });
+
+  it("つなぎ直したら、購読と大きさを送り直す", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await settle();
+    assert.equal(
+      sentOf(f, "view.resize").length,
+      0,
+      "大きさを知らなければ送らない",
+    );
+    s.resize({ cols: 80, rows: 20 });
+    await settle();
+    f.drop(connectedId(f));
+    await waitFor(s, (st) => st.kind === "reconnecting");
+    await waitFor(s, (st) => st.kind === "connected");
+    await settle();
+    assert.equal(sentOf(f, "view.subscribe").length, 2);
+    assert.deepEqual(sentOf(f, "view.resize").at(-1)!.msg.params, {
+      regions: { files: { cols: 80, rows: 20 } },
+    });
+    await s.close();
+  });
+
+  it("続いた更新を画面に当て、当てたら screen.ack を返す", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await settle();
+    let seen: unknown;
+    s.onUpdate(() => (seen = s.screen?.focus));
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "screen.update",
+      params: { rev: 8, baseRev: 7, ackSeq: 0, focus: "cmdline" },
+    });
+    await settle();
+    assert.equal(seen, "cmdline", "描く側に渡すときには、もう当ててある");
+    assert.deepEqual(
+      sentOf(f, "screen.ack").map((x) => x.msg.params),
+      [{ rev: 8 }],
+    );
+    await s.close();
+  });
+
+  it("取り直しの返事を待つ間に来た、取り直した画面から続く更新は捨てずに当てる", async () => {
+    const f = fakeShell({ serverIds: ["A"], holdScreenGet: true });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await settle();
+    // shj は screen.get（rev 7）を返す前に、その画面からの更新を送ることがある
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "screen.update",
+      params: { rev: 8, baseRev: 7, ackSeq: 0, focus: "overlay" },
+    });
+    await settle();
+    assert.equal(sentOf(f, "screen.ack").length, 0);
+    f.held.shift()!();
+    await settle();
+    assert.equal(s.screen?.rev, 8);
+    assert.equal(s.screen?.focus, "overlay");
+    assert.deepEqual(
+      sentOf(f, "screen.ack").map((x) => x.msg.params),
+      [{ rev: 8 }],
+    );
+    assert.equal(sentOf(f, "screen.get").length, 1);
+    await s.close();
+  });
+
+  it("取り直しの最中にフォーカスを移したら、終わってからもう一度取り直す", async () => {
+    const f = fakeShell({ serverIds: ["A"], holdScreenGet: true });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await settle();
+    await s.focusWorkspace("w-A");
+    await settle();
+    assert.equal(sentOf(f, "screen.get").length, 1, "重ねない");
+    f.held.shift()!();
+    await settle();
+    assert.equal(sentOf(f, "screen.get").length, 2);
+    f.held.shift()!();
+    await settle();
     await s.close();
   });
 });
