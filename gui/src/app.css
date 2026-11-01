@@ -1,0 +1,19 @@
+/* 画面全体の割り付け。左に一覧（sidebar.css）、右に残り（今は「つなぐ先」）。 */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.app {
+  display: flex;
+  height: 100%;
+}
+
+.connections {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 0 16px;
+}

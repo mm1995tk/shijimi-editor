@@ -2,8 +2,10 @@
 // つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで shj につなぎ、
 // ssh の質問（パスワードなど）を窓に出す。切れたら Session が自動でつなぎ直し、
 // つなぐ先の一覧に接続の状態を出す。別の GUI に引き継がれたら、そう出してボタンでつなぎ直せるようにする（C7）。
-// 編集の画面は D 以降で作る。
+// 左にはつないだマシンごとの見出しとワークスペースの帯を出し、帯を押すとフォーカスを移す（D1）。
+// ツリーと編集の画面は D2・E 以降で作る。
 import {
+  createMemo,
   createSignal,
   For,
   onCleanup,
@@ -13,6 +15,16 @@ import {
 } from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
+import type { Workspace, WorkspaceId } from "./rpc/protocol.ts";
+import {
+  adoptFocus,
+  buildSidebar,
+  keepFocus,
+  machineLabel,
+  type WorkspaceFocus,
+} from "./sidebar/model.ts";
+import { Sidebar } from "./sidebar/Sidebar.tsx";
+import "./app.css";
 import { LOCAL, type AskpassRequest, type ShellApi } from "./ssh/api.ts";
 import {
   autoConnectTargets,
@@ -23,8 +35,6 @@ import {
 } from "./ssh/last.ts";
 import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
-
-const label = (t: string) => (t === LOCAL ? "このマシン" : t);
 
 /** 一覧に出す 1 行の状態。 */
 export function describeState(
@@ -90,6 +100,13 @@ export function App(props: {
   const [hosts, setHosts] = createSignal<string[]>([]);
   const [sessions, setSessions] = createSignal<Record<string, Session>>({});
   const [states, setStates] = createSignal<Record<string, SessionState>>({});
+  const [workspaces, setWorkspaces] = createSignal<Record<string, Workspace[]>>(
+    {},
+  );
+  // GUI のフォーカスは 1 つ（どのマシンの、どのワークスペースか）
+  const [focus, setFocus] = createSignal<WorkspaceFocus | null>(null);
+  const [focusError, setFocusError] = createSignal("");
+  let focusSeq = 0;
   const offStates = new Map<string, () => void>();
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
   // 「あと何秒」を動かす
@@ -121,6 +138,13 @@ export function App(props: {
     }
   });
 
+  /** マシンごとの shj のフォーカス（GUI のフォーカスが外れたときの代わりの候補）。 */
+  function shjFocuses(): Record<string, WorkspaceId | null> {
+    return Object.fromEntries(
+      Object.entries(sessions()).map(([t, s]) => [t, s.focus]),
+    );
+  }
+
   function connect(target: string) {
     const old = sessions()[target];
     if (old) {
@@ -132,12 +156,20 @@ export function App(props: {
     }
     const s = new Session(api, target);
     const off = s.onState((st) => setStates((m) => ({ ...m, [target]: st })));
-    const offWs = s.onWorkspaces((ws) =>
-      recordWorkspaces(store, target, ws.length),
+    const offWs = s.onWorkspaces((ws) => {
+      recordWorkspaces(store, target, ws.length);
+      setWorkspaces((m) => ({ ...m, [target]: ws }));
+      setFocus((f) => keepFocus(f, workspaces(), shjFocuses()));
+    });
+    const offFocus = s.onFocus((id) =>
+      setFocus((f) =>
+        keepFocus(adoptFocus(f, target, id), workspaces(), shjFocuses()),
+      ),
     );
     offStates.set(target, () => {
       off();
       offWs();
+      offFocus();
     });
     setSessions((m) => ({ ...m, [target]: s }));
     setStates((m) => ({ ...m, [target]: s.state }));
@@ -151,8 +183,33 @@ export function App(props: {
     offStates.delete(target);
     setSessions(({ [target]: _, ...rest }) => rest);
     setStates(({ [target]: _, ...rest }) => rest);
+    setWorkspaces(({ [target]: _, ...rest }) => rest);
+    setFocus((f) => keepFocus(f, workspaces(), shjFocuses()));
     await s.close();
   }
+
+  /** 帯を押した。shj に workspace.focus を送り、受け付けられたら GUI のフォーカスも移す。 */
+  async function focusWorkspace(target: string, id: WorkspaceId) {
+    const s = sessions()[target];
+    if (!s) return;
+    const seq = ++focusSeq; // 続けて押したら、最後に押したものだけを使う
+    setFocusError("");
+    try {
+      await s.focusWorkspace(id);
+      if (seq === focusSeq) setFocus({ target, id });
+    } catch (e) {
+      if (seq !== focusSeq) return;
+      setFocusError(
+        `${machineLabel(target)} のワークスペースに移れませんでした：${
+          e instanceof Error ? e.message : String(e)
+        }`,
+      );
+    }
+  }
+
+  const groups = createMemo(() =>
+    buildSidebar(Object.keys(sessions()), states(), workspaces(), focus()),
+  );
 
   function reply(requestId: number, value: string | null) {
     setAsks((a) => a.filter((x) => x.requestId !== requestId));
@@ -160,75 +217,85 @@ export function App(props: {
   }
 
   return (
-    <main aria-label="shijimi-editor">
-      <h1>つなぐ先</h1>
-      <ul>
-        <For each={[LOCAL, ...hosts()]}>
-          {(t) => {
-            const st = () => states()[t];
-            const kind = () => st()?.kind;
-            return (
-              <li data-state={kind() ?? "idle"}>
-                <button
-                  disabled={
-                    kind() === "connecting" ||
-                    kind() === "connected" ||
-                    kind() === "reconnecting" ||
-                    kind() === "needs-install" ||
-                    kind() === "installing"
-                  }
-                  onClick={() => connect(t)}
-                >
-                  {label(t)}
-                </button>{" "}
-                <span role="status">{describeState(st(), now())}</span>
-                <Show
-                  when={
-                    (kind() === "reconnecting" || kind() === "connecting") &&
-                    (st() as { retryAt?: number }).retryAt !== undefined
-                  }
-                >
-                  {" "}
-                  <button onClick={() => sessions()[t]?.retryNow()}>
-                    今すぐつなぐ
-                  </button>
-                </Show>
-                <Show when={kind() === "failed" || kind() === "superseded"}>
-                  {" "}
-                  <button onClick={() => connect(t)}>つなぎ直す</button>
-                </Show>
-                <Show when={st() && kind() !== "closed"}>
-                  {" "}
-                  <button onClick={() => void disconnect(t)}>切る</button>
-                </Show>
-                <Show when={st()?.kind === "needs-install"}>
-                  <InstallPrompt
-                    target={label(t)}
-                    state={
-                      st() as Extract<SessionState, { kind: "needs-install" }>
+    <main aria-label="shijimi-editor" class="app">
+      <Sidebar
+        groups={groups()}
+        onFocus={(t, id) => void focusWorkspace(t, id)}
+      />
+      <section class="connections" aria-label="つなぐ先">
+        <h1>つなぐ先</h1>
+        <Show when={focusError()}>
+          <p role="alert">{focusError()}</p>
+        </Show>
+        <ul>
+          <For each={[LOCAL, ...hosts()]}>
+            {(t) => {
+              const st = () => states()[t];
+              const kind = () => st()?.kind;
+              return (
+                <li data-state={kind() ?? "idle"}>
+                  <button
+                    disabled={
+                      kind() === "connecting" ||
+                      kind() === "connected" ||
+                      kind() === "reconnecting" ||
+                      kind() === "needs-install" ||
+                      kind() === "installing"
                     }
-                    onYes={() => void sessions()[t]?.install()}
-                    onNo={() => sessions()[t]?.declineInstall()}
-                  />
-                </Show>
-                <Show when={kind() === "superseded"}>
-                  <p role="alert">
-                    {label(t)} の作業は、あとからつないだ別の GUI に移りました。
-                    取り合いにならないよう、自動ではつなぎ直しません。
-                    「つなぎ直す」を押すとこちらに戻し、あちらの GUI
-                    が切れます。
-                  </p>
-                </Show>
-                <Show when={st()?.kind === "failed"}>
-                  <pre role="alert">
-                    {(st() as { message: string }).message}
-                  </pre>
-                </Show>
-              </li>
-            );
-          }}
-        </For>
-      </ul>
+                    onClick={() => connect(t)}
+                  >
+                    {machineLabel(t)}
+                  </button>{" "}
+                  <span role="status">{describeState(st(), now())}</span>
+                  <Show
+                    when={
+                      (kind() === "reconnecting" || kind() === "connecting") &&
+                      (st() as { retryAt?: number }).retryAt !== undefined
+                    }
+                  >
+                    {" "}
+                    <button onClick={() => sessions()[t]?.retryNow()}>
+                      今すぐつなぐ
+                    </button>
+                  </Show>
+                  <Show when={kind() === "failed" || kind() === "superseded"}>
+                    {" "}
+                    <button onClick={() => connect(t)}>つなぎ直す</button>
+                  </Show>
+                  <Show when={st() && kind() !== "closed"}>
+                    {" "}
+                    <button onClick={() => void disconnect(t)}>切る</button>
+                  </Show>
+                  <Show when={st()?.kind === "needs-install"}>
+                    <InstallPrompt
+                      target={machineLabel(t)}
+                      state={
+                        st() as Extract<SessionState, { kind: "needs-install" }>
+                      }
+                      onYes={() => void sessions()[t]?.install()}
+                      onNo={() => sessions()[t]?.declineInstall()}
+                    />
+                  </Show>
+                  <Show when={kind() === "superseded"}>
+                    <p role="alert">
+                      {machineLabel(t)} の作業は、あとからつないだ別の GUI
+                      に移りました。
+                      取り合いにならないよう、自動ではつなぎ直しません。
+                      「つなぎ直す」を押すとこちらに戻し、あちらの GUI
+                      が切れます。
+                    </p>
+                  </Show>
+                  <Show when={st()?.kind === "failed"}>
+                    <pre role="alert">
+                      {(st() as { message: string }).message}
+                    </pre>
+                  </Show>
+                </li>
+              );
+            }}
+          </For>
+        </ul>
+      </section>
       <AskpassDialog ask={asks()[0]} onReply={reply} />
     </main>
   );
