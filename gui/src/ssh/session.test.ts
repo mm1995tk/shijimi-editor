@@ -228,6 +228,25 @@ describe("Session", () => {
     assert.equal(f.sent.filter((x) => x.msg.method === "screen.get").length, 2);
     await s.close();
   });
+
+  it("onWorkspaces は、つながったときと workspace.changed のあとに一覧を渡す", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    const seen: string[][] = [];
+    s.onWorkspaces((ws) => seen.push(ws.map((w) => w.id)));
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await new Promise((r) => setTimeout(r, 10));
+    assert.deepEqual(seen, [["w-A"]]);
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "workspace.changed",
+      params: { removed: ["w-A"] },
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.deepEqual(seen, [["w-A"], []]);
+    await s.close();
+  });
 });
 
 describe("待ち時間と閉じる", () => {
