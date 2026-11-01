@@ -15,7 +15,8 @@ import (
 // 戻り値は捨てられる。重い処理はここでしない（読みが止まる）。
 // ここから Conn.Call してはいけない（応答を読む人がいなくなり、必ず詰まる）。必要なら別の goroutine で呼ぶ。
 //
-// 要求は 1 件ごとに別の goroutine で呼ばれ、戻り値が応答になる。
+// 要求は 1 件ごとに別の goroutine で呼ばれ、戻り値が応答になる。ただし Options.Ordered が true を返す
+// メソッドの要求は、読んだ順に 1 件ずつ（前のが返ってから次を）呼ばれる。
 // result は json.Marshal できる値。err が *Error ならそのまま、それ以外は CodeInternalError にする。
 // ctx は接続が閉じると取り消される。要求の Handler の中からは Conn.Call してもよい。
 type Handler func(ctx context.Context, req *Message) (result any, err error)
@@ -40,11 +41,27 @@ type Conn struct {
 
 	done chan struct{} // 読みが終わると閉じる
 	wg   sync.WaitGroup
+
+	ordered  func(method string) bool // Options.Ordered
+	queue    []*Message               // 順に処理する要求の待ち（mu で守る）
+	draining bool                     // queue を処理する goroutine が動いている（mu で守る）
+}
+
+// Options は NewConnWith に渡すもの。
+type Options struct {
+	// Ordered が true を返すメソッドの要求は、読んだ順に 1 件ずつ処理する（入力のように順が意味を持つもの）。
+	// それ以外の要求とは並んで動く。nil ならすべての要求を別々の goroutine で処理する。
+	Ordered func(method string) bool
 }
 
 // NewConn は rwc の上に enc で接続を作り、読みを始める。h は nil でもよい（来た要求には method_not_found を返す）。
 // 閉じるときは Close を呼ぶ（rwc も閉じる）。
 func NewConn(rwc io.ReadWriteCloser, enc Encoding, h Handler) *Conn {
+	return NewConnWith(rwc, enc, h, Options{})
+}
+
+// NewConnWith は NewConn に Options を足したもの。
+func NewConnWith(rwc io.ReadWriteCloser, enc Encoding, h Handler, o Options) *Conn {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Conn{
 		codec:   enc.NewCodec(rwc, rwc),
@@ -54,6 +71,7 @@ func NewConn(rwc io.ReadWriteCloser, enc Encoding, h Handler) *Conn {
 		cancel:  cancel,
 		pending: map[string]chan *Message{},
 		done:    make(chan struct{}),
+		ordered: o.Ordered,
 	}
 	go c.readLoop()
 	return c
@@ -201,10 +219,37 @@ func (c *Conn) dispatch(m *Message) {
 		if c.handler != nil {
 			c.handler(c.ctx, m) //nolint:errcheck // 通知の戻り値は捨てる
 		}
+	case c.ordered != nil && c.ordered(m.Method):
+		c.mu.Lock()
+		c.queue = append(c.queue, m)
+		start := !c.draining
+		c.draining = true
+		c.mu.Unlock()
+		// Add は読みの goroutine の中なので、Close の Wait（読みが終わってから）より前に来る。
+		if start {
+			c.wg.Go(c.drain)
+		}
 	default:
 		c.wg.Go(func() {
 			c.serve(m)
 		})
+	}
+}
+
+// drain は順に処理する要求を、待ちが空になるまで 1 件ずつ処理する。
+func (c *Conn) drain() {
+	for {
+		c.mu.Lock()
+		if len(c.queue) == 0 {
+			c.draining = false
+			c.mu.Unlock()
+			return
+		}
+		m := c.queue[0]
+		c.queue[0] = nil
+		c.queue = c.queue[1:]
+		c.mu.Unlock()
+		c.serve(m)
 	}
 }
 

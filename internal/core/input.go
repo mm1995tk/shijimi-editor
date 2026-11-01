@@ -125,8 +125,14 @@ const (
 // stays the one the press was in (see App.locate) and Row and Col may fall
 // outside it. For RegionNone, which has no corner of its own, Row and Col count
 // from the top-left of the screen.
+//
+// A GUI names the pane instead (Pane, a screen.Pane.ID), and Row and Col
+// count from the top-left of that pane's text: the first row below its title
+// and the first column right of its line numbers (see guiinput.go). The TUI
+// leaves Pane empty.
 type Mouse struct {
 	Region           Region
+	Pane             string
 	Row, Col         int
 	Button           MouseButton
 	Action           MouseAction

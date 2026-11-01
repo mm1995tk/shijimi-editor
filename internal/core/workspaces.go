@@ -2,11 +2,13 @@ package core
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
 	"sync"
+	"time"
 )
 
 // Workspaces is the cores of `shj serve`: one per workspace root, on one
@@ -18,17 +20,22 @@ type Workspaces struct {
 	// front makes the front end of a new core. nil makes a headless.
 	front func() FrontEnd
 
-	mu    sync.Mutex
-	cores map[string]*Workspace // root -> its core
+	mu       sync.Mutex
+	cores    map[string]*Workspace // root -> its core
+	onChange func()                // SetOnChange
 }
 
-// Workspace is the core of one workspace root. Nothing runs a core's events on
-// its own goroutine yet, so whoever touches the core does it inside Do, which
-// runs one caller at a time.
+// Workspace is the core of one workspace root. Whoever touches the core does
+// it inside Do, Update or Apply, which run one caller at a time. Update and
+// Apply also carry out the Effects the core asks for, as the TUI's event loop
+// does: the work runs on goroutines of its own and its Events come back
+// through Update.
 type Workspace struct {
-	Root string // the workspace root, an absolute path
-	mu   sync.Mutex
-	core *Core
+	Root     string // the workspace root, an absolute path
+	mu       sync.Mutex
+	core     *Core
+	closed   bool   // Close stopped the core; late Events are dropped
+	onChange func() // called after an Event that came back changed the core
 }
 
 // Do runs fn with the core, one caller at a time.
@@ -38,10 +45,87 @@ func (w *Workspace) Do(fn func(c *Core)) {
 	fn(w.core)
 }
 
+// Update hands msg (an Input or an Event) to the core and carries out the
+// Effects it asks for.
+func (w *Workspace) Update(msg any) {
+	w.Apply(func(c *Core) []Effect { return c.Update(msg) })
+}
+
+// Apply runs fn with the core, one caller at a time, and carries out the
+// Effects fn returns. fn calls Core.Update or Core.Apply.
+func (w *Workspace) Apply(fn func(c *Core) []Effect) {
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		return
+	}
+	effs := fn(w.core)
+	w.mu.Unlock()
+	w.run(effs)
+}
+
+// deliver hands an Event that came back from an Effect to the core.
+func (w *Workspace) deliver(ev Event) {
+	if ev == nil {
+		return
+	}
+	w.Update(ev)
+	if w.onChange != nil {
+		w.onChange()
+	}
+}
+
+// run carries out effs as internal/tui's effectCmd does. A core of `shj serve`
+// never quits: Quit is dropped (closing the GUI leaves the server running).
+func (w *Workspace) run(effs []Effect) {
+	for _, e := range effs {
+		switch e := e.(type) {
+		case StartTimer:
+			fire := e.Fire
+			time.AfterFunc(e.After, func() { w.deliver(fire) })
+		case RunLSP:
+			run := e.Run
+			go func() {
+				ctx, cancel := context.WithTimeout(context.Background(), LspTimeout)
+				defer cancel()
+				w.deliver(run(ctx))
+			}()
+		case WaitLSP:
+			from := e.From
+			go func() { w.deliver(LspEventMsg(<-from)) }()
+		case RunSearch:
+			go func() { w.deliver(e.Run()) }()
+		case RunProbe:
+			go func() { w.deliver(e.Run()) }()
+		case Run:
+			go func() { w.deliver(e.Run()) }()
+		case WaitTerm:
+			go func() { w.deliver(<-e.From) }()
+		case WaitAgent:
+			go func() { w.deliver(<-e.From) }()
+		case RunAgent:
+			go e.Run()
+		case ReplyCtl:
+			e.To <- e.Resp
+		case ReplyIDE:
+			e.To <- e.Reply
+		}
+	}
+}
+
 // NewWorkspaces makes the cores' registry on sh. front makes the front end of
 // each new core; nil gives each a headless.
 func NewWorkspaces(sh *Shared, front func() FrontEnd) *Workspaces {
 	return &Workspaces{shared: sh, front: front, cores: map[string]*Workspace{}}
+}
+
+// SetOnChange sets what is called when a core changed on its own: an Event
+// came back from the work it asked for (a language server's reply, a timer).
+// The server rebuilds the screen then. It applies to the cores made after.
+func (ws *Workspaces) SetOnChange(fn func()) {
+	ws.mu.Lock()
+	ws.onChange = fn
+	ws.mu.Unlock()
 }
 
 func cleanRoot(root string) string {
@@ -51,7 +135,9 @@ func cleanRoot(root string) string {
 	return filepath.Clean(root)
 }
 
-// Open is the workspace at root, made with a new core if it has none.
+// Open is the workspace at root, made with a new core if it has none. A new
+// core starts as the TUI's does: it waits on its language servers and watches
+// its files on disk.
 func (ws *Workspaces) Open(root string) *Workspace {
 	root = cleanRoot(root)
 	if w := ws.Lookup(root); w != nil {
@@ -59,14 +145,14 @@ func (ws *Workspaces) Open(root string) *Workspace {
 	}
 	// Making a core reads the config and runs git, so it is done without the
 	// lock: a slow workspace does not hold up the others.
-	var fe FrontEnd
+	var c *Core
 	if ws.front != nil {
-		fe = ws.front()
+		c = NewIn(ws.shared, ws.front(), root, "")
 	} else {
-		fe = newHeadless()
+		c = newHeadlessCore(ws.shared, root)
 	}
-	w := &Workspace{Root: root, core: NewIn(ws.shared, fe, root, "")}
 	ws.mu.Lock()
+	w := &Workspace{Root: root, core: c, onChange: ws.onChange}
 	if got := ws.cores[root]; got != nil {
 		// someone made it meanwhile; theirs stays
 		ws.mu.Unlock()
@@ -75,6 +161,7 @@ func (ws *Workspaces) Open(root string) *Workspace {
 	}
 	ws.cores[root] = w
 	ws.mu.Unlock()
+	w.run([]Effect{WaitLSP{c.LspEvents()}, WatchTimer()})
 	return w
 }
 
@@ -107,7 +194,7 @@ func (ws *Workspaces) Close(root string) {
 	delete(ws.cores, root)
 	ws.mu.Unlock()
 	if w != nil {
-		w.Do(func(c *Core) { c.Close() })
+		w.Do(func(c *Core) { c.Close(); w.closed = true })
 	}
 }
 

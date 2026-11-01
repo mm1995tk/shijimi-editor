@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 	"github.com/mm1995tk/shijimi-editor/internal/server"
 )
@@ -105,4 +106,146 @@ func (s serveCores) Blob(root, id string) (mime string, data []byte, err error) 
 		err = server.ErrNoBlob
 	}
 	return mime, data, err
+}
+
+var _ server.Inputs = serveCores{}
+
+// update hands in to root's core, if it has one.
+func (s serveCores) update(root string, in core.Input) {
+	if w := s.ws.Lookup(root); w != nil {
+		w.Update(in)
+	}
+}
+
+// Key is input.key. A release is not an input of its own: the core of `shj
+// serve` asks for no releases (ReleasesReported), as a terminal that does not
+// report them.
+func (s serveCores) Key(root string, in server.KeyInput) {
+	if in.Phase == "release" {
+		return
+	}
+	k, ok := core.KeyFromW3C(in.Key, in.Text, core.ModOf(in.Mods))
+	if !ok {
+		return
+	}
+	k.Repeat, k.Seq = in.Phase == "repeat", in.Seq
+	s.update(root, k)
+}
+
+// Composition is input.composition: the caret sits at the end of the range
+// the input method marks.
+func (s serveCores) Composition(root string, in server.CompositionInput) {
+	c := core.Composition{Text: in.Text, Phase: core.CompositionUpdate, Seq: in.Seq}
+	if in.Cursor == nil {
+		c.Phase = core.CompositionEnd
+	} else {
+		c.Cursor = in.Cursor[1]
+	}
+	s.update(root, c)
+}
+
+// Mouse is input.mouse. A wheel turn of dy rows (dx columns) is that many
+// steps of one row (one column).
+func (s serveCores) Mouse(root string, in server.MouseInput) {
+	mod := core.ModOf(in.Mods)
+	m := core.Mouse{
+		Region: core.RegionEditor,
+		Pane:   in.Pane,
+		Row:    in.Row,
+		Col:    in.Col,
+		Shift:  mod.Has(core.ModShift),
+		Alt:    mod.Has(core.ModAlt),
+		Ctrl:   mod.Has(core.ModCtrl),
+		Clicks: in.Clicks,
+		Seq:    in.Seq,
+	}
+	if in.Kind == "wheel" {
+		steps := func(n int, neg, pos core.MouseButton) {
+			b := pos
+			if n < 0 {
+				n, b = -n, neg
+			}
+			for range n {
+				m.Button = b
+				s.update(root, m)
+			}
+		}
+		m.Action = core.MousePress
+		steps(in.Dy, core.MouseWheelUp, core.MouseWheelDown)
+		steps(in.Dx, core.MouseWheelLeft, core.MouseWheelRight)
+		return
+	}
+	switch in.Kind {
+	case "down":
+		m.Action = core.MousePress
+	case "up":
+		m.Action = core.MouseRelease
+	default:
+		m.Action = core.MouseMotion
+	}
+	if in.Button != nil {
+		switch *in.Button {
+		case 0:
+			m.Button = core.MouseLeft
+		case 1:
+			m.Button = core.MouseMiddle
+		case 2:
+			m.Button = core.MouseRight
+		default:
+			m.Button = core.MouseOther
+		}
+	}
+	s.update(root, m)
+}
+
+// Paste is input.paste.
+func (s serveCores) Paste(root string, in server.PasteInput) {
+	s.update(root, core.Paste{Content: in.Text, Seq: in.Seq})
+}
+
+// Focus is input.focus. Only the files region is the core's: the GUI keeps
+// the focus of its other parts (the tree, the terminals) itself.
+func (s serveCores) Focus(root string, in server.FocusInput) {
+	if in.Region != screen.RegionFiles {
+		return
+	}
+	if w := s.ws.Lookup(root); w != nil {
+		w.Apply(func(c *core.Core) []core.Effect { return c.Apply(c.FocusFiles) })
+	}
+}
+
+// Command is command.run.
+func (s serveCores) Command(root, line string) (ok bool, message string) {
+	w := s.ws.Lookup(root)
+	if w == nil {
+		return false, "no core for " + root
+	}
+	var resp ctl.Response
+	w.Apply(func(c *core.Core) []core.Effect {
+		return c.Apply(func() []core.Effect {
+			r, effs := c.Exec(line)
+			resp = r
+			return effs
+		})
+	})
+	if !resp.OK {
+		return false, resp.Error
+	}
+	return true, resp.Message
+}
+
+// OpenFile is file.open, in root's core (made if it has none).
+func (s serveCores) OpenFile(root, path string, line, col int, pane string) error {
+	w := s.ws.Open(root)
+	var err error
+	w.Apply(func(c *core.Core) []core.Effect {
+		return c.Apply(func() []core.Effect {
+			effs, ok := c.OpenAt(path, line, col, pane)
+			if !ok {
+				err = errors.New(c.Msg)
+			}
+			return effs
+		})
+	})
+	return err
 }

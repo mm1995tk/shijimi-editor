@@ -2,7 +2,7 @@
 // Unix ソケットで JSON-RPC を話す。設計は docs/design/gui-protocol.md の 3 章。
 //
 // 今あるメソッドは session.* / server.info / term.*（term.go）/ workspace.*（workspace.go）/ tree.*・git.status（tree.go、treewatch.go、gitstat.go）/
-// view.*・screen.*・theme.get・blob.get（view.go、view_diff.go）。
+// view.*・screen.*・theme.get・blob.get（view.go、view_diff.go）/ input.*・command.run・file.open（input.go）。
 package server
 
 import (
@@ -79,6 +79,7 @@ type Server struct {
 	focus      Workspace     // ctl と ide の届け先。無ければ nil
 	cores      Cores         // ワークスペースごとの core（SetCores）。無ければ nil
 	screens    Screens       // 画面の作り手（SetScreens）。無ければ nil
+	inputs     Inputs        // 入力の届け先（SetInputs）。無ければ nil
 	screenKick chan struct{} // ScreenChanged の知らせ（1 つまで溜める）
 	screenMu   sync.Mutex    // 画面の配信（session.view と送る順）を守る
 	ctlSrv     *ctl.Server   // StartControl で開く
@@ -187,7 +188,7 @@ func (s *Server) shutdown() {
 
 func (s *Server) accept(c net.Conn) {
 	ss := &session{srv: s}
-	ss.conn = rpc.NewConn(c, rpc.JSON{}, ss.handle)
+	ss.conn = rpc.NewConnWith(c, rpc.JSON{}, ss.handle, rpc.Options{Ordered: isInputMethod})
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -308,6 +309,9 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 		return res, err
 	}
 	if res, err, ok := ss.viewRequest(req); ok {
+		return res, err
+	}
+	if res, err, ok := ss.inputRequest(req); ok {
 		return res, err
 	}
 	if res, err, ok := ss.treeRequest(req); ok {
