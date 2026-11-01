@@ -23,7 +23,7 @@ import (
 // testdata/render/<name>.txt. After an intended change of the look, rewrite
 // them with
 //
-//	go test ./internal/ui -run TestRenderGolden -update
+//	go test ./internal/tui -run TestRenderGolden -update
 //
 // and look at the diff.
 var updateGolden = flag.Bool("update", false, "rewrite the golden files of TestRenderGolden")
