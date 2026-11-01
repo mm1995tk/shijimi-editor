@@ -45,6 +45,10 @@ type Options struct {
 	SocketPath string
 	Shj        Shj
 	Logger     *slog.Logger // nil なら捨てる
+	// IdleStop は GUI が何もつながらないままこの時間が過ぎたら止まる設定（[server] idle_stop_days）。0 なら止まらない。
+	IdleStop  time.Duration
+	IdleCheck time.Duration    // 止まる時刻を調べる間隔。0 なら 1 分
+	Now       func() time.Time // nil なら time.Now。テストで差し替える
 }
 
 // Server は Unix ソケットで待ち受けるサーバー。
@@ -62,6 +66,8 @@ type Server struct {
 	owner      *session  // いま受けつけている GUI（session.hello を済ませた最新の接続）。無ければ nil
 	wg         sync.WaitGroup
 	terms      *termManager
+	stopping   bool        // stop が始まった
+	beforeStop []func()    // 止まる前に走らせる（AddBeforeStop）
 	focus      Workspace   // ctl と ide の届け先。無ければ nil
 	ctlSrv     *ctl.Server // StartControl で開く
 	ideSrv     *ide.Server // StartIDE で開く
@@ -96,13 +102,13 @@ func Listen(opts Options) (*Server, error) {
 		log = slog.New(slog.DiscardHandler)
 	}
 	srv := &Server{
-		opts:      opts,
-		log:       log,
-		ln:        ln,
-		serverID:  hex.EncodeToString(id),
-		startedAt: time.Now(),
-		sessions:  map[*session]struct{}{},
+		opts:     opts,
+		log:      log,
+		ln:       ln,
+		serverID: hex.EncodeToString(id),
+		sessions: map[*session]struct{}{},
 	}
+	srv.startedAt = srv.now()
 	srv.terms = newTermManager(srv)
 	return srv, nil
 }
@@ -115,6 +121,9 @@ func (s *Server) Serve(ctx context.Context) error {
 	stop := context.AfterFunc(ctx, func() { s.ln.Close() })
 	defer stop()
 	s.log.Info("serving", "socket", s.opts.SocketPath, "serverId", s.serverID, "pid", os.Getpid())
+	idleDone := make(chan struct{})
+	defer close(idleDone)
+	go s.watchIdle(idleDone)
 	for {
 		c, err := s.ln.Accept()
 		if err != nil {
@@ -176,7 +185,7 @@ func (s *Server) accept(c net.Conn) {
 		if s.owner == ss {
 			s.owner = nil
 		}
-		s.lastClient = time.Now()
+		s.lastClient = s.now()
 		s.mu.Unlock()
 		// 状態（ファイル・core・ターミナル）はそのまま残す。
 		s.log.Info("client gone", "reason", fmt.Sprint(ss.conn.Err()))
@@ -191,7 +200,7 @@ func (s *Server) lastClientAt() *time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(s.sessions) > 0 {
-		t := time.Now()
+		t := s.now()
 		return &t
 	}
 	if s.lastClient.IsZero() {
@@ -251,7 +260,7 @@ type HelloResult struct {
 	Rev          int64           `json:"rev"`
 }
 
-// InfoResult は server.info の結果。idleStopAt は B4 で埋まる（今は null）。
+// InfoResult は server.info の結果。idleStopAt は GUI がつながっている間と、止まらない設定（0）のとき null。
 type InfoResult struct {
 	Shj          Shj        `json:"shj"`
 	ServerID     string     `json:"serverId"`
@@ -282,6 +291,11 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 	case "session.bye":
 		// GUI を閉じるだけ。shj とシェルは止めない。接続は GUI が閉じる。
 		return struct{}{}, nil
+	case "server.shutdown":
+		if err := ss.needHello(); err != nil {
+			return nil, err
+		}
+		return ss.srv.shutdownReq(req)
 	case "server.info":
 		if err := ss.needHello(); err != nil {
 			return nil, err
@@ -291,8 +305,9 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 			Shj:          s.opts.Shj,
 			ServerID:     s.serverID,
 			PID:          os.Getpid(),
-			Uptime:       int64(time.Since(s.startedAt) / time.Second),
+			Uptime:       int64(s.now().Sub(s.startedAt) / time.Second),
 			LastClientAt: s.lastClientAt(),
+			IdleStopAt:   s.idleStopAt(),
 			Terminals:    s.terms.count(),
 		}, nil
 	}
