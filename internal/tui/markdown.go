@@ -34,7 +34,7 @@ type mdCell struct {
 }
 
 var (
-	mdLinkRe    = regexp.MustCompile(`^\[([^\]]*)\]\(([^)\s]*)[^)]*\)`)
+	mdLinkRe = regexp.MustCompile(`^\[([^\]]*)\]\(([^)\s]*)[^)]*\)`)
 )
 
 // inlineCells parses inline markdown (code, bold, italic, strike, links)
@@ -717,4 +717,3 @@ func sum(v []int) int {
 	}
 	return n
 }
-
