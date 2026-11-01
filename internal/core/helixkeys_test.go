@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"testing"
@@ -34,7 +34,7 @@ func TestHelixKeysRemap(t *testing.T) {
 	if !a.msgErr || a.msg == "" {
 		t.Fatalf("an unknown command should be reported, got %q", a.msg)
 	}
-	b := a.curText().buf
+	b := a.CurText().Buf
 	keys(a, "h")
 	if b.Cur.Col != 1 {
 		t.Fatalf("h should move right, col = %d", b.Cur.Col)
@@ -45,11 +45,11 @@ func TestHelixKeysRemap(t *testing.T) {
 	}
 	keys(a, "q") // unknown command: the key stays unbound
 	keys(a, "i")
-	if a.mode != modeInsert {
+	if a.mode != ModeInsert {
 		t.Fatal("i should enter insert mode")
 	}
 	a.Update(altKey("j"))
-	if a.mode != modeNormal {
+	if a.mode != ModeNormal {
 		t.Fatal("A-j in insert mode should return to normal mode")
 	}
 }
@@ -61,7 +61,7 @@ func TestHelixSelectKeysInheritNormal(t *testing.T) {
 		Select: map[string]string{"j": "extend_line_below"},
 	}
 	a.loadKeymap()
-	b := a.curText().buf
+	b := a.CurText().Buf
 	keys(a, "j")
 	if b.Cur.Col != 1 || b.Cur.Row != 0 {
 		t.Fatalf("normal j = %v", b.Cur)
@@ -82,21 +82,21 @@ func TestHelixCommandsAllBound(t *testing.T) {
 
 func TestRepeatLastInsert(t *testing.T) {
 	a := newTestApp(t, "one\ntwo\nthree\n")
-	b := a.curText().buf
+	b := a.CurText().Buf
 	keys(a, ".") // nothing recorded yet
-	if a.mode != modeNormal || string(b.Lines[0]) != "one" || len(b.Lines) != 4 {
+	if a.mode != ModeNormal || string(b.Lines[0]) != "one" || len(b.Lines) != 4 {
 		t.Fatalf("a first . should do nothing: %q", b.Lines)
 	}
 	keys(a, "o", "f", "o", "o", "esc")
 	keys(a, "j", "j", ".")
-	if got := b.Lines; len(got) != 6 || string(got[1]) != "foo" || string(got[4]) != "foo" || a.mode != modeNormal {
+	if got := b.Lines; len(got) != 6 || string(got[1]) != "foo" || string(got[4]) != "foo" || a.mode != ModeNormal {
 		t.Fatalf("o foo then . : %q mode %v", got, a.mode)
 	}
 }
 
 func TestRepeatLastInsertChange(t *testing.T) {
 	a := newTestApp(t, "ab\ncd\n")
-	b := a.curText().buf
+	b := a.CurText().Buf
 	keys(a, "c", "b", "a", "r", "esc")
 	keys(a, "j", "g", "h", ".")
 	if string(b.Lines[0]) != "barb" || string(b.Lines[1]) != "bard" {
@@ -108,7 +108,7 @@ func TestRepeatLastInsertRemap(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.cfg.Keys = config.Keys{Normal: map[string]string{"q": "repeat_last_insert"}}
 	a.loadKeymap()
-	b := a.curText().buf
+	b := a.CurText().Buf
 	keys(a, "A", "!", "esc", "q")
 	if string(b.Lines[0]) != "x!!" {
 		t.Fatalf("got %q", string(b.Lines[0]))

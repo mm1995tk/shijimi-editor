@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"context"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
@@ -52,7 +51,7 @@ func ideApp(t *testing.T) (*App, string) {
 	dir := t.TempDir()
 	f := filepath.Join(dir, "a.txt")
 	os.WriteFile(f, []byte("one\ntwo\nthree\n"), 0o644)
-	return New(dir, ""), f
+	return newApp(dir, ""), f
 }
 
 func TestIDEOpenFileAndSelection(t *testing.T) {
@@ -88,7 +87,7 @@ func TestIDEDirtyAndSave(t *testing.T) {
 	if m := ideJSON(t, a, "checkDocumentDirty", map[string]any{"filePath": f}); m["isDirty"] != false {
 		t.Errorf("clean: %v", m)
 	}
-	a.curText().buf.Insert("X")
+	a.CurText().Buf.Insert("X")
 	if m := ideJSON(t, a, "checkDocumentDirty", map[string]any{"filePath": f}); m["isDirty"] != true {
 		t.Errorf("dirty: %v", m)
 	}
@@ -106,7 +105,7 @@ func TestIDEOpenDiffAccept(t *testing.T) {
 	if done || a.props.Len() != 1 {
 		t.Fatalf("done=%v props=%d", done, a.props.Len())
 	}
-	a.update(Key{Code: KeyEnter})
+	a.Update(Key{Code: KeyEnter})
 	r := <-ch
 	if len(r.Content) != 2 || r.Content[0].Text != "FILE_SAVED" || r.Content[1].Text != "one\n2\nthree\n" {
 		t.Fatalf("reply = %+v", r)
@@ -123,7 +122,7 @@ func TestIDEOpenDiffRejectAndNewFile(t *testing.T) {
 	a, f := ideApp(t)
 	args := map[string]any{"old_file_path": f, "new_file_path": f, "new_file_contents": "zzz\n", "tab_name": "edit"}
 	ch, _, _ := ideCallRaw(a, "openDiff", args)
-	a.update(Key{Code: KeyEscape})
+	a.Update(Key{Code: KeyEscape})
 	r := <-ch
 	if r.Content[0].Text != "DIFF_REJECTED" || r.Content[1].Text != "edit" {
 		t.Fatalf("reply = %+v", r)
@@ -168,7 +167,7 @@ func TestIDECloseAndCancel(t *testing.T) {
 func TestIDENotifications(t *testing.T) {
 	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 	a, f := ideApp(t)
-	srv, err := ide.Start(a.root, core.IDETools(), func(context.Context, string, json.RawMessage) ([]ide.Content, error) { return nil, nil })
+	srv, err := ide.Start(a.root, IDETools(), func(context.Context, string, json.RawMessage) ([]ide.Content, error) { return nil, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,10 +192,10 @@ func TestIDENotifications(t *testing.T) {
 		}
 		return m
 	}
-	a.notifySelection()
-	a.notifySelection() // unchanged: no second message
-	a.curText().buf.GotoLine(2)
-	a.notifySelection()
+	a.NotifySelection()
+	a.NotifySelection() // unchanged: no second message
+	a.CurText().Buf.GotoLine(2)
+	a.NotifySelection()
 	m1, m2 := read(), read()
 	if m1["method"] != "selection_changed" || m2["params"].(map[string]any)["selection"].(map[string]any)["start"].(map[string]any)["line"] != float64(1) {
 		t.Errorf("notifications = %v %v", m1, m2)

@@ -8,14 +8,13 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-var backslash = Key{Code: '\\', Text: "\\"}
-
 // firstLineNumber is the number in the gutter of the first line: 1 when
 // absolute, the cursor row when relative.
 func firstLineNumber(a *App) string {
-	rows := renderEditor(a.curText(), 40, 5, a.editorOpts(a.curText(), true))
+	rows := renderEditor(a.CurText(), 40, 5, a.EditorOpts(a.CurText(), true))
 	return strings.Fields(ansi.Strip(rows[0]))[0]
 }
+
 
 func TestLineFlipWhileHeld(t *testing.T) {
 	a := newTestApp(t, strings.Repeat("x\n", 20))

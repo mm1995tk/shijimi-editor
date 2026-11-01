@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"os"
@@ -11,7 +11,7 @@ func ctrlI(a *App) { a.Update(Key{Code: KeyTab}) }
 
 func TestJumpListBackForward(t *testing.T) {
 	a := newTestApp(t, "1\n2\n3\n4\n5\n")
-	b := a.curText().buf
+	b := a.CurText().Buf
 	keys(a, "3", "g") // row 2
 	keys(a, "g", "e") // last line
 	end := b.Cur.Row
@@ -44,8 +44,8 @@ func TestJumpListSkipsDuplicatesAndCaps(t *testing.T) {
 		t.Fatalf("same position pushed twice: %d entries", len(a.jumps))
 	}
 	for i := range maxJumps + 20 {
-		a.curText().buf.Cur.Row = i % 3
-		a.curText().buf.Cur.Col = i % 2
+		a.CurText().Buf.Cur.Row = i % 3
+		a.CurText().Buf.Cur.Col = i % 2
 		a.pushJump()
 	}
 	if len(a.jumps) > maxJumps {
@@ -55,15 +55,15 @@ func TestJumpListSkipsDuplicatesAndCaps(t *testing.T) {
 
 func TestJumpListReopensAndSkipsMissing(t *testing.T) {
 	a := newTestApp(t, "1\n2\n3\n")
-	dir := filepath.Dir(a.curText().buf.Path)
+	dir := filepath.Dir(a.CurText().Buf.Path)
 	gone := filepath.Join(dir, "gone.txt")
 	other := filepath.Join(dir, "other.txt")
 	os.WriteFile(gone, []byte("x\n"), 0o644)
 	os.WriteFile(other, []byte("a\nb\n"), 0o644)
-	first := a.curText().buf.Path
+	first := a.CurText().Buf.Path
 
 	a.openFile(gone)
-	a.curText().buf.Cur.Row = 0
+	a.CurText().Buf.Cur.Row = 0
 	a.pushJump() // gone.txt
 	a.openFile(other)
 	a.pushJump() // other.txt
@@ -73,21 +73,21 @@ func TestJumpListReopensAndSkipsMissing(t *testing.T) {
 	}
 	os.Remove(gone)
 	a.openFile(first)
-	a.setFocus(focusEditor)
+	a.SetFocus(FocusEditor)
 
 	ctrlO(a)
-	if got := a.curText().buf.Path; got != other {
+	if got := a.CurText().Buf.Path; got != other {
 		t.Fatalf("back -> %s, want reopened %s", got, other)
 	}
 	ctrlO(a)
-	if got := a.curText().buf.Path; got == gone {
+	if got := a.CurText().Buf.Path; got == gone {
 		t.Fatalf("back opened a deleted file")
 	}
 }
 
 func TestJumpListNewJumpDropsForward(t *testing.T) {
 	a := newTestApp(t, "1\n2\n3\n4\n")
-	b := a.curText().buf
+	b := a.CurText().Buf
 	keys(a, "3", "g")
 	ctrlO(a)
 	keys(a, "4", "g")
@@ -100,7 +100,7 @@ func TestJumpListNewJumpDropsForward(t *testing.T) {
 func TestJumpListAltArrowsInVSCodeMode(t *testing.T) {
 	a := newTestApp(t, "1\n2\n3\n")
 	a.helix = false
-	b := a.curText().buf
+	b := a.CurText().Buf
 	a.execCommand("3")
 	a.Update(Key{Code: KeyLeft, Mod: ModAlt})
 	if b.Cur.Row != 0 {

@@ -81,12 +81,12 @@ func TestAgentSelectionOutsidePanel(t *testing.T) {
 
 func TestAgentClickDoesNotCopy(t *testing.T) {
 	a, l := agentSelApp(t, logEntry{kind: logInfo, text: "hello"})
-	a.focus = focusEditor
+	a.focus = FocusEditor
 	a.clipboard = "keep"
 	y := agentRowY(a, l, 0)
 	a.HandleMouse(a.locate(l.agentX+2, y, Mouse{Action: MousePress, Button: MouseLeft}))
 	a.HandleMouse(a.locate(l.agentX+2, y, Mouse{Action: MouseRelease, Button: MouseLeft}))
-	if a.clipboard != "keep" || a.ag.sel.on || a.focus != focusAgent {
+	if a.clipboard != "keep" || a.ag.sel.on || a.focus != FocusAgent {
 		t.Fatalf("clipboard = %q sel = %+v focus = %v", a.clipboard, a.ag.sel, a.focus)
 	}
 }
@@ -108,6 +108,23 @@ func TestAgentSelectionStaysOnTextWhenScrolled(t *testing.T) {
 	}
 }
 
+func TestMarkRowKeepsColors(t *testing.T) {
+	row := stStatusError.Render("abcd")
+	got := MarkRow(row, 4, 1, 3)
+	if ansi.Strip(got) != "abcd" || !strings.Contains(got, "\x1b[7m") || strings.Count(got, "\x1b[27m") != 1 {
+		t.Fatalf("got %q", got)
+	}
+	if !strings.Contains(ansi.Cut(got, 1, 3), "\x1b[7m") {
+		t.Fatalf("selection lost: %q", got)
+	}
+}
+
+// renderAgent draws the panel from the state fit left, the way View does.
+func (a *App) renderAgent(w, h int, focused bool) []string {
+	return drawAgent(a.AgentScreen(w, h, focused), w, h, focused)
+}
+
+
 func TestAgentSelectionDropsQuoteBars(t *testing.T) {
 	long := "quoted text that is long enough to wrap around the panel more than once so we see the bar"
 	a, _ := agentSelApp(t, logEntry{kind: logAgent, text: "> " + long})
@@ -118,17 +135,6 @@ func TestAgentSelectionDropsQuoteBars(t *testing.T) {
 	s := agentSel{on: true, a: agentPos{0, 0}, b: agentPos{len(rows) - 1, w - 1}}
 	if got, want := s.text(rows, w), "▎ "+long; got != want {
 		t.Fatalf("copied %q, want %q", got, want)
-	}
-}
-
-func TestMarkRowKeepsColors(t *testing.T) {
-	row := stStatusError.Render("abcd")
-	got := markRow(row, 4, 1, 3)
-	if ansi.Strip(got) != "abcd" || !strings.Contains(got, "\x1b[7m") || strings.Count(got, "\x1b[27m") != 1 {
-		t.Fatalf("got %q", got)
-	}
-	if !strings.Contains(ansi.Cut(got, 1, 3), "\x1b[7m") {
-		t.Fatalf("selection lost: %q", got)
 	}
 }
 
@@ -144,9 +150,4 @@ func TestAgentSelectionKeepsSpacesOfWrappedCode(t *testing.T) {
 	if got := a.ag.sel.text(rows, w); got != strings.ReplaceAll(code, "\t", "    ") {
 		t.Fatalf("copied\n%q\nwant\n%q", got, code)
 	}
-}
-
-// renderAgent draws the panel from the state fit left, the way View does.
-func (a *App) renderAgent(w, h int, focused bool) []string {
-	return drawAgent(a.agentScreen(w, h, focused), w, h, focused)
 }

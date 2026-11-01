@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"os"
@@ -18,10 +18,10 @@ func touchLater(t *testing.T, path, content string) {
 
 func TestWatchReloadsCleanBuffer(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	tb := a.curText()
-	touchLater(t, tb.buf.Path, "agent\n")
+	tb := a.CurText()
+	touchLater(t, tb.Buf.Path, "agent\n")
 	a.Update(WatchTick{})
-	if got := tb.buf.Text(); got != "agent\n" || tb.dirty() {
+	if got := tb.Buf.Text(); got != "agent\n" || tb.dirty() {
 		t.Fatalf("not reloaded: %q dirty=%v", got, tb.dirty())
 	}
 	if a.msgErr || a.msg == "" {
@@ -31,21 +31,21 @@ func TestWatchReloadsCleanBuffer(t *testing.T) {
 
 func TestWatchKeepsUnsavedEdits(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	tb := a.curText()
+	tb := a.CurText()
 	keys(a, "i", "x")
-	touchLater(t, tb.buf.Path, "agent\n")
+	touchLater(t, tb.Buf.Path, "agent\n")
 	a.Update(WatchTick{})
-	if got := tb.buf.Text(); got != "xone\n" || !tb.conflict || !a.msgErr {
+	if got := tb.Buf.Text(); got != "xone\n" || !tb.conflict || !a.msgErr {
 		t.Fatalf("edits lost or no warning: %q conflict=%v", got, tb.conflict)
 	}
 	// auto-save must not overwrite the other process's change
-	a.Update(AutoSaveDue{tab: tb, ver: tb.buf.Version})
-	if b, _ := os.ReadFile(tb.buf.Path); string(b) != "agent\n" {
+	a.Update(AutoSaveDue{tab: tb, ver: tb.Buf.Version})
+	if b, _ := os.ReadFile(tb.Buf.Path); string(b) != "agent\n" {
 		t.Fatalf("auto-save overwrote disk: %q", b)
 	}
 	// :reload takes the disk version
 	a.execCommand("reload")
-	if got := tb.buf.Text(); got != "agent\n" || tb.buf.DiskChanged() {
+	if got := tb.Buf.Text(); got != "agent\n" || tb.Buf.DiskChanged() {
 		t.Fatalf("reload: %q", got)
 	}
 	a.Update(WatchTick{})
@@ -57,20 +57,20 @@ func TestWatchKeepsUnsavedEdits(t *testing.T) {
 func TestWatchDisabled(t *testing.T) {
 	a := newTestApp(t, "one\n")
 	a.cfg.Editor.WatchFiles = false
-	tb := a.curText()
-	touchLater(t, tb.buf.Path, "agent\n")
+	tb := a.CurText()
+	touchLater(t, tb.Buf.Path, "agent\n")
 	a.Update(WatchTick{})
-	if tb.buf.Text() != "one\n" {
+	if tb.Buf.Text() != "one\n" {
 		t.Fatal("reloaded while disabled")
 	}
 }
 
 func TestWatchIgnoresDeletedFile(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	tb := a.curText()
-	os.Remove(tb.buf.Path)
+	tb := a.CurText()
+	os.Remove(tb.Buf.Path)
 	a.Update(WatchTick{})
-	if got := tb.buf.Text(); got != "one\n" || tb.dirty() {
+	if got := tb.Buf.Text(); got != "one\n" || tb.dirty() {
 		t.Fatalf("buffer changed after delete: %q", got)
 	}
 }

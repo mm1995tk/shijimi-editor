@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"reflect"
@@ -30,9 +30,9 @@ func TestParseSnippet(t *testing.T) {
 
 func snipSetup(t *testing.T, content string) (*App, *buffer.Buffer) {
 	a := newTestApp(t, content)
-	a.focus = focusEditor
-	a.mode = modeInsert
-	b := a.curText().buf
+	a.focus = FocusEditor
+	a.mode = ModeInsert
+	b := a.CurText().Buf
 	b.SetCursor(0, 1000, false)
 	return a, b
 }
@@ -47,7 +47,7 @@ func pressKey(a *App, k rune, mod ...Mod) {
 
 func TestSnippetTabMovesBetweenStops(t *testing.T) {
 	a, b := snipSetup(t, "fmt.")
-	a.startSnippet(a.curText(), buffer.Pos{Col: 4}, "Printf(${1:format}, ${2:a...})$0")
+	a.startSnippet(a.CurText(), buffer.Pos{Col: 4}, "Printf(${1:format}, ${2:a...})$0")
 	if got := b.Text(); got != "fmt.Printf(format, a...)" {
 		t.Fatalf("text = %q", got)
 	}
@@ -71,7 +71,7 @@ func TestSnippetTabMovesBetweenStops(t *testing.T) {
 
 func TestSnippetMirrorsEditTogether(t *testing.T) {
 	a, b := snipSetup(t, "")
-	a.startSnippet(a.curText(), buffer.Pos{}, "${1:n} := $1")
+	a.startSnippet(a.CurText(), buffer.Pos{}, "${1:n} := $1")
 	keys(a, "a", "b")
 	if got := b.Text(); got != "ab := ab" {
 		t.Fatalf("text = %q", got)
@@ -80,7 +80,7 @@ func TestSnippetMirrorsEditTogether(t *testing.T) {
 
 func TestSnippetEndsWhenCursorLeavesStop(t *testing.T) {
 	a, b := snipSetup(t, "")
-	a.startSnippet(a.curText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
+	a.startSnippet(a.CurText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
 	b.SetCursor(0, 0, false)
 	pressKey(a, KeyTab)
 	if a.snip != nil {
@@ -90,7 +90,7 @@ func TestSnippetEndsWhenCursorLeavesStop(t *testing.T) {
 
 func TestSnippetEscEndsSession(t *testing.T) {
 	a, _ := snipSetup(t, "")
-	a.startSnippet(a.curText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
+	a.startSnippet(a.CurText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
 	pressKey(a, KeyEsc)
 	if a.snip != nil {
 		t.Fatal("session should have ended")
@@ -99,7 +99,7 @@ func TestSnippetEscEndsSession(t *testing.T) {
 
 func TestSnippetAdjacentStopsDoNotSwallowTyping(t *testing.T) {
 	a, b := snipSetup(t, "")
-	a.startSnippet(a.curText(), buffer.Pos{}, "${1:x}$0")
+	a.startSnippet(a.CurText(), buffer.Pos{}, "${1:x}$0")
 	keys(a, "a", "b")
 	pressKey(a, KeyTab)
 	if a.snip != nil || b.Cur != (buffer.Pos{Col: 2}) || b.Anchor != nil {
@@ -107,7 +107,7 @@ func TestSnippetAdjacentStopsDoNotSwallowTyping(t *testing.T) {
 	}
 
 	a, b = snipSetup(t, "")
-	a.startSnippet(a.curText(), buffer.Pos{}, "${1:x}${2:y}")
+	a.startSnippet(a.CurText(), buffer.Pos{}, "${1:x}${2:y}")
 	keys(a, "a", "b")
 	pressKey(a, KeyTab)
 	keys(a, "Z")
@@ -118,7 +118,7 @@ func TestSnippetAdjacentStopsDoNotSwallowTyping(t *testing.T) {
 
 func TestSnippetUndoEndsSession(t *testing.T) {
 	a, b := snipSetup(t, "")
-	a.startSnippet(a.curText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
+	a.startSnippet(a.CurText(), buffer.Pos{}, "f(${1:a}, ${2:b})")
 	keys(a, "x")
 	pressKey(a, 'z', ModCtrl)
 	if got := b.Text(); got != "f(a, b)" {
@@ -132,7 +132,7 @@ func TestSnippetUndoEndsSession(t *testing.T) {
 
 func TestSnippetReverseOrderAdjacentStops(t *testing.T) {
 	a, b := snipSetup(t, "")
-	a.startSnippet(a.curText(), buffer.Pos{}, "${2:b}${1:a}")
+	a.startSnippet(a.CurText(), buffer.Pos{}, "${2:b}${1:a}")
 	keys(a, "x")
 	pressKey(a, KeyTab)
 	keys(a, "Z")
@@ -141,7 +141,7 @@ func TestSnippetReverseOrderAdjacentStops(t *testing.T) {
 	}
 
 	a, b = snipSetup(t, "")
-	a.startSnippet(a.curText(), buffer.Pos{}, "$1$2")
+	a.startSnippet(a.CurText(), buffer.Pos{}, "$1$2")
 	keys(a, "p")
 	pressKey(a, KeyTab)
 	keys(a, "q")
@@ -156,7 +156,7 @@ func TestSnippetStopBeforeMirror(t *testing.T) {
 		{"${1:a}${2:b}${1:c}", "xZx"},
 	} {
 		a, b := snipSetup(t, "")
-		a.startSnippet(a.curText(), buffer.Pos{}, c.in)
+		a.startSnippet(a.CurText(), buffer.Pos{}, c.in)
 		keys(a, "x")
 		pressKey(a, KeyTab)
 		keys(a, "Z")

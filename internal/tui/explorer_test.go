@@ -11,19 +11,12 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-func TestNodeLessDirsFirstDotFirst(t *testing.T) {
-	ns := []*node{
-		{name: ".gitignore"}, {name: ".github", isDir: true}, {name: "README.md"},
-		{name: "src", isDir: true}, {name: "go.mod"}, {name: ".env"},
-	}
-	sort.SliceStable(ns, func(i, j int) bool { return nodeLess(ns[i], ns[j]) })
-	want := []string{".github", "src", ".env", ".gitignore", "go.mod", "README.md"}
-	for i, n := range ns {
-		if n.name != want[i] {
-			t.Fatalf("pos %d: got %s want %s", i, n.name, want[i])
-		}
-	}
+// render fits the tree to h rows and draws it, the way View does.
+func (e *explorer) render(w, h int, focused bool, activePath string) []string {
+	e.ensureVisible(h - 1)
+	return drawExplorer(e.screen(h, activePath), w, h, focused)
 }
+
 
 func TestExplorerRenderIndentGuides(t *testing.T) {
 	dir := t.TempDir()
@@ -107,8 +100,8 @@ func TestExplorerDimsIgnoredFiles(t *testing.T) {
 	}
 	// Ignored rows are dimmed and carry no status letter.
 	var r, g, b int
-	if _, err := fmt.Sscanf(curTheme.Dim, "#%02x%02x%02x", &r, &g, &b); err != nil {
-		t.Fatalf("theme Dim %q: %v", curTheme.Dim, err)
+	if _, err := fmt.Sscanf(CurTheme.Dim, "#%02x%02x%02x", &r, &g, &b); err != nil {
+		t.Fatalf("theme Dim %q: %v", CurTheme.Dim, err)
 	}
 	seq := fmt.Sprintf("38;2;%d;%d;%d", r, g, b)
 	for i, n := range e.flat {
@@ -125,10 +118,4 @@ func TestExplorerDimsIgnoredFiles(t *testing.T) {
 			t.Errorf("%s: missing status letter: %q", n.name, plain)
 		}
 	}
-}
-
-// render fits the tree to h rows and draws it, the way View does.
-func (e *explorer) render(w, h int, focused bool, activePath string) []string {
-	e.ensureVisible(h - 1)
-	return drawExplorer(e.screen(h, activePath), w, h, focused)
 }

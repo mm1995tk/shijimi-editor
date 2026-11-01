@@ -8,35 +8,10 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 )
 
-func TestLineDiffEdit(t *testing.T) {
-	cases := []struct{ old, new string }{
-		{"a\nb\nc\n", "a\nB\nc\n"},
-		{"a\nb\nc\n", "a\nc\n"},
-		{"a\nb\nc\n", "b\nc\n"},
-		{"a\nb\nc", "a\nb"},
-		{"a\nb\n", "a\nx\ny\nb\n"},
-		{"b\n", "a\nb\n"},
-		{"a\n", "a\nb\nc\n"},
-		{"a\nb\n", "a\nb\n"},
-		{"x", ""},
-		{"", "x\n"},
-	}
-	for _, c := range cases {
-		b := buffer.New()
-		b.InsertAt(buffer.Pos{}, c.old)
-		if e, ok := lineDiffEdit(b, c.new); ok {
-			b.ApplyEdits([]buffer.Edit{e})
-		}
-		if got := b.Text(); got != c.new {
-			t.Errorf("%q -> %q: got %q", c.old, c.new, got)
-		}
-	}
-}
-
 func TestFormatterCommand(t *testing.T) {
 	a := newTestApp(t, "one\ntwo\nthree\n")
-	tb := a.curText()
-	b := tb.buf
+	tb := a.CurText()
+	b := tb.Buf
 	// upper-cases stdin, and echoes the buffer name on the first line
 	tb.lang = &config.Language{Name: "x", Formatter: &config.Formatter{
 		Command: "sh", Args: []string{"-c", `echo "$1"; tr a-z A-Z`, "sh", "%{buffer_name}"},
@@ -58,14 +33,14 @@ func TestFormatterCommand(t *testing.T) {
 
 func TestFormatterFailureKeepsBuffer(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	tb := a.curText()
+	tb := a.CurText()
 	for _, f := range []*config.Formatter{
 		{Command: "sh", Args: []string{"-c", "echo boom >&2; echo garbage; exit 3"}},
 		{Command: "shijimi-no-such-formatter"},
 	} {
 		tb.lang = &config.Language{Name: "x", Formatter: f}
 		a.Update(cmdOf(a, a.format(false))())
-		if got := tb.buf.Text(); got != "one\n" {
+		if got := tb.Buf.Text(); got != "one\n" {
 			t.Fatalf("buffer changed: %q", got)
 		}
 	}

@@ -16,7 +16,7 @@ func newSingleApp(t *testing.T, name, content string) (*App, string) {
 			t.Fatal(err)
 		}
 	}
-	a, err := NewSingle(p)
+	a, err := newSingleCore(p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,20 +24,12 @@ func newSingleApp(t *testing.T, name, content string) (*App, string) {
 	return a, p
 }
 
-func isQuit(cmd tea.Cmd) bool {
-	if cmd == nil {
-		return false
-	}
-	_, ok := cmd().(tea.QuitMsg)
-	return ok
-}
-
 func TestSingleOpensOnlyThatFile(t *testing.T) {
 	a, p := newSingleApp(t, "a.txt", "hello\n")
-	if len(a.tabs) != 1 || a.tabs[0].path() != p {
+	if len(a.tabs) != 1 || a.tabs[0].Path() != p {
 		t.Fatalf("tabs = %d", len(a.tabs))
 	}
-	if a.showSide || a.showAgent || a.focus != focusEditor || a.gitTop != "" {
+	if a.showSide || a.showAgent || a.focus != FocusEditor || a.gitTop != "" {
 		t.Fatalf("side=%v agent=%v focus=%v", a.showSide, a.showAgent, a.focus)
 	}
 	if a.tabs[0].lang != nil {
@@ -58,7 +50,7 @@ func TestSingleBlocksOtherViews(t *testing.T) {
 		a.helix = helix
 		for _, k := range keys {
 			a.handleKey(k)
-			if a.pal.open || a.showSide || a.showTerm || a.gd.on || a.showAgent || len(a.tabs) != 1 || a.focus != focusEditor {
+			if a.pal.open || a.showSide || a.showTerm || a.gd.on || a.showAgent || len(a.tabs) != 1 || a.focus != FocusEditor {
 				t.Fatalf("helix=%v %s opened something", helix, k)
 			}
 		}
@@ -85,7 +77,7 @@ func TestSingleQuitAndClose(t *testing.T) {
 		t.Fatal("closing the file did not quit")
 	}
 	a, _ = newSingleApp(t, "a.txt", "hello\n")
-	a.tabs[0].buf.Insert("x")
+	a.tabs[0].Buf.Insert("x")
 	if isQuit(a.effectCmd(a.closeTab(false)...)) {
 		t.Fatal("closing a modified file quit without asking")
 	}
@@ -96,13 +88,13 @@ func TestSingleQuitAndClose(t *testing.T) {
 
 func TestSingleNewFileCreatedOnSave(t *testing.T) {
 	a, p := newSingleApp(t, "new.txt", "")
-	if len(a.tabs) != 1 || a.tabs[0].buf.Text() != "" {
+	if len(a.tabs) != 1 || a.tabs[0].Buf.Text() != "" {
 		t.Fatal("not an empty buffer")
 	}
 	if _, err := os.Stat(p); err == nil {
 		t.Fatal("file created before saving")
 	}
-	a.tabs[0].buf.Insert("hi")
+	a.tabs[0].Buf.Insert("hi")
 	if !isQuit(a.effectCmd(a.execCommand("wq")...)) {
 		t.Fatal(":wq did not quit")
 	}

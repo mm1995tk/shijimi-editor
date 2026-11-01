@@ -9,15 +9,15 @@ import (
 
 func TestMenuOverlay(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	items := a.spaceMenuItems()
-	ov := menuOverlay(" Space", items)
+	items := a.SpaceMenuItems()
+	ov := MenuOverlay(" Space", items)
 	if ov.Kind != screen.OverlayMenu || ov.Title != " Space" || ov.Pane != "" || ov.At != nil || len(ov.Items) != len(items) {
 		t.Fatalf("overlay = %+v", ov)
 	}
 	if got := ov.Items[0]; got.Detail != items[0].key || got.Label != i18n.T(items[0].label) {
 		t.Errorf("item = %+v", got)
 	}
-	if drawMenu(menuOverlay("t", nil), 80) != nil {
+	if drawMenu(MenuOverlay("t", nil), 80) != nil {
 		t.Error("empty menu should draw nothing")
 	}
 	if box := drawMenu(ov, 80); len(box) < 2 {

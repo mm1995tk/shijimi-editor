@@ -12,29 +12,9 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
-const goplsHover = "```go\nfunc Println(a ...any) (n int, err error)\n```\n\n---\n\nPrintln formats using the default formats for its operands and writes to standard output. See `fmt` for [details](https://pkg.go.dev/fmt).\n"
-
-func TestHoverSeparatesSignatureAndDoc(t *testing.T) {
-	lines := hoverLines(goplsHover, 60)
-	var code, text int
-	for _, l := range lines {
-		if l.code {
-			code++
-		} else {
-			text++
-		}
-	}
-	if code != 1 || text < 3 {
-		t.Fatalf("code=%d text=%d", code, text)
-	}
-	if strings.Contains(plain(lines), "```") || strings.Contains(plain(lines), "](") {
-		t.Fatalf("markdown syntax leaked:\n%s", plain(lines))
-	}
-}
-
 func TestHoverBoxShapeAndScroll(t *testing.T) {
-	v := newHoverView(goplsHover, 34, 6)
-	if v.maxScroll() == 0 {
+	v := NewHoverView(goplsHover, 34, 6)
+	if v.MaxScroll() == 0 {
 		t.Fatal("expected scrollable content")
 	}
 	for _, s := range []int{0, 2, 99} {
@@ -54,52 +34,8 @@ func TestHoverBoxShapeAndScroll(t *testing.T) {
 	}
 }
 
-func plain(ls []hoverLine) string {
-	var sb strings.Builder
-	for _, l := range ls {
-		for _, c := range l.cells {
-			sb.WriteRune(c.r)
-		}
-		sb.WriteByte('\n')
-	}
-	return sb.String()
-}
-
-func TestHoverWrapNarrowWideRunes(t *testing.T) {
-	done := make(chan struct{})
-	go func() {
-		hoverLines("あい", 1)
-		hoverLines("```go\nあ\n```", 1)
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("wrapCells did not terminate")
-	}
-}
-
-func TestHoverRuleDoesNotWidenBox(t *testing.T) {
-	v := newHoverView("```go\nvar x int\n```\n\n---\n\nshort", 80, 10)
-	if v.width != len("var x int") {
-		t.Fatalf("width=%d", v.width)
-	}
-}
-
-func TestHoverPlaintextFallback(t *testing.T) {
-	lines := hoverLines("func Println(a ...any)\n\nPrintln formats using the default formats.", 60)
-	for _, l := range lines {
-		if l.code || l.rule {
-			t.Fatalf("plaintext rendered as code/rule: %+v", l)
-		}
-	}
-	if !strings.Contains(plain(lines), "func Println(a ...any)") {
-		t.Fatalf("text lost:\n%s", plain(lines))
-	}
-}
-
 func TestHoverBorderShowsCopyButtonAndHint(t *testing.T) {
-	v := newHoverView(goplsHover, 60, 5)
+	v := NewHoverView(goplsHover, 60, 5)
 	box := v.render(0)
 	if top := ansi.Strip(box[0]); !strings.Contains(top, hoverCopyLabel()+"─╮") {
 		t.Fatalf("top border: %q", top)
@@ -108,7 +44,7 @@ func TestHoverBorderShowsCopyButtonAndHint(t *testing.T) {
 	if !strings.Contains(bottom, "y コピー") || !strings.Contains(bottom, "↓") {
 		t.Fatalf("bottom border: %q", bottom)
 	}
-	short := newHoverView("short text that fits", 60, 5).render(0)
+	short := NewHoverView("short text that fits", 60, 5).render(0)
 	if b := ansi.Strip(short[len(short)-1]); !strings.Contains(b, "y コピー") || strings.Contains(b, "スクロール") {
 		t.Fatalf("unscrollable bottom border: %q", b)
 	}
@@ -160,7 +96,7 @@ func TestHoverOverlay(t *testing.T) {
 	a.hoverText = long
 	a.hoverAt = &buffer.Pos{Row: 1, Col: 3}
 	ov := a.hoverOverlay(l)
-	if ov.Kind != screen.OverlayHover || ov.Pane != a.curText().path() || ov.At == nil || *ov.At != (screen.Pos{Line: 1, Col: 3}) {
+	if ov.Kind != screen.OverlayHover || ov.Pane != a.CurText().Path() || ov.At == nil || *ov.At != (screen.Pos{Line: 1, Col: 3}) {
 		t.Fatalf("overlay = %+v", ov)
 	}
 	if ov.View == nil || ov.View.Total <= len(ov.Lines) || len(ov.Lines) != ov.View.Rows || ov.Hint != hoverHint() {
@@ -170,7 +106,7 @@ func TestHoverOverlay(t *testing.T) {
 		t.Fatalf("lines = %+v", ov.Lines[:3])
 	}
 	a.hoverAt = nil
-	if at := a.hoverOverlay(l).At; at == nil || *at != toScreenPos(a.curText().buf.Cur) {
+	if at := a.hoverOverlay(l).At; at == nil || *at != ToScreenPos(a.CurText().Buf.Cur) {
 		t.Fatalf("a keyboard hover hangs from the cursor, got %v", at)
 	}
 }
@@ -180,7 +116,7 @@ func TestHoverOverlay(t *testing.T) {
 func TestHoverAnchorSurvivesShrinkingFile(t *testing.T) {
 	a := newTestApp(t, "a\nb\nc\nd\nlast line\n")
 	a.hoverText, a.hoverAt = "text", &buffer.Pos{Row: 4, Col: 6}
-	b := a.curText().buf
+	b := a.CurText().Buf
 	b.Lines, b.Cur = b.Lines[:1], buffer.Pos{}
 	_ = a.render()
 	if at := a.hoverOverlay(a.layout()).At; at == nil || at.Line != 0 {

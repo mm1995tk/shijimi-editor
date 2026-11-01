@@ -1,11 +1,10 @@
-package tui
+package core
 
 import (
 	"reflect"
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/config"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func TestParseGrepArgs(t *testing.T) {
@@ -39,8 +38,8 @@ func TestGitGlobs(t *testing.T) {
 		"/a/b":     {"a/b", "a/b/**"},
 		"internal": {"**/internal", "**/internal/**"},
 	} {
-		if got := core.GitGlobs(in); !reflect.DeepEqual(got, want) {
-			t.Errorf("core.GitGlobs(%q) = %v, want %v", in, got, want)
+		if got := GitGlobs(in); !reflect.DeepEqual(got, want) {
+			t.Errorf("GitGlobs(%q) = %v, want %v", in, got, want)
 		}
 	}
 }

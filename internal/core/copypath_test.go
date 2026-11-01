@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"path/filepath"
@@ -31,7 +31,7 @@ func TestCopyPathNoFile(t *testing.T) {
 func TestCopyPathExplorerKeys(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.explorer.reveal(filepath.Join(a.root, "a.txt"))
-	a.focus = focusExplorer
+	a.focus = FocusExplorer
 	keys(a, "y")
 	if a.clipboard != "a.txt" {
 		t.Fatalf("y -> %q", a.clipboard)

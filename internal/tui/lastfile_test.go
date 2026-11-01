@@ -7,51 +7,14 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// ga and Ctrl+Tab go back and forth between the last two files.
-func TestSwitchLastFile(t *testing.T) {
-	a := newTestApp(t, "one\n")
-	ps := writeFiles(t, a.root, "b.txt", "c.txt")
-	a.trackLast()
-	for _, p := range ps {
-		a.openFile(p)
-		a.trackLast()
-	}
-	a.switchLast()
-	a.trackLast()
-	if a.tabs[a.active].path() != ps[0] {
-		t.Fatalf("active = %q", a.tabs[a.active].path())
-	}
-	a.handleKey(Key{Code: KeyTab, Mod: ModCtrl})
-	a.trackLast()
-	if a.tabs[a.active].path() != ps[1] {
-		t.Fatalf("active = %q", a.tabs[a.active].path())
-	}
-}
-
 // The title line shows the path, and is empty when no file is open.
 func TestRenderTitle(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	if got := a.renderTitle(a.cur(), 40, true); !strings.Contains(ansi.Strip(got), a.cur().title()) {
+	if got := a.renderTitle(a.Cur(), 40, true); !strings.Contains(ansi.Strip(got), a.Cur().title()) {
 		t.Fatalf("title %q", got)
 	}
 	a.closeTab(true)
-	if got := a.renderTitle(a.cur(), 10, true); strings.TrimSpace(ansi.Strip(got)) != "" {
+	if got := a.renderTitle(a.Cur(), 10, true); strings.TrimSpace(ansi.Strip(got)) != "" {
 		t.Fatalf("title %q", got)
-	}
-}
-
-// The old tab-switching keys do nothing now.
-func TestOldTabKeysGone(t *testing.T) {
-	a := newTestApp(t, "one\n")
-	a.openFile(writeFiles(t, a.root, "b.txt")[0])
-	for _, k := range []Key{
-		{Code: KeyPgUp, Mod: ModCtrl},
-		{Code: KeyPgDown, Mod: ModCtrl},
-		{Code: '1', Mod: ModAlt},
-	} {
-		a.handleKey(k)
-		if a.active != 1 {
-			t.Fatalf("%v switched to %d", k, a.active)
-		}
 	}
 }

@@ -14,9 +14,9 @@ import (
 
 func TestHScrollKeysAndBounds(t *testing.T) {
 	a := newTestApp(t, strings.Repeat("x", 300)+"\nshort\n")
-	b := a.curText().buf
+	b := a.CurText().Buf
 	l := a.layout()
-	half := (a.editW(a.curText(), l) - gutterWidth(b)) / 2
+	half := (a.editW(a.CurText(), l) - GutterWidth(b)) / 2
 
 	keys(a, "z", "l")
 	if b.ScrollCol != half || b.Cur.Col != 0 {
@@ -33,44 +33,44 @@ func TestHScrollKeysAndBounds(t *testing.T) {
 	for range 20 {
 		keys(a, "z", "l")
 	}
-	if want := 300 - (a.editW(a.curText(), l) - gutterWidth(b)); b.ScrollCol != want {
+	if want := 300 - (a.editW(a.CurText(), l) - GutterWidth(b)); b.ScrollCol != want {
 		t.Fatalf("right edge: %d, want %d", b.ScrollCol, want)
 	}
 }
 
 func TestHScrollWheelAndAltPgDn(t *testing.T) {
 	a := newTestApp(t, strings.Repeat("x", 300)+"\n")
-	b := a.curText().buf
+	b := a.CurText().Buf
 	l := a.layout()
 	a.HandleMouse(a.locate(l.rightX+10, l.editY+1, Mouse{Action: MousePress, Button: MouseWheelRight}))
-	if b.ScrollCol != hscrollWheel {
+	if b.ScrollCol != HscrollWheel {
 		t.Fatalf("wheel right -> %d", b.ScrollCol)
 	}
 	a.HandleMouse(a.locate(l.rightX+10, l.editY+1, Mouse{Action: MousePress, Button: MouseWheelDown, Shift: true}))
-	if b.ScrollCol != 2*hscrollWheel {
+	if b.ScrollCol != 2*HscrollWheel {
 		t.Fatalf("shift+wheel down -> %d", b.ScrollCol)
 	}
 	a.HandleMouse(a.locate(l.rightX+10, l.editY+1, Mouse{Action: MousePress, Button: MouseWheelLeft}))
-	if b.ScrollCol != hscrollWheel || b.ScrollRow != 0 {
+	if b.ScrollCol != HscrollWheel || b.ScrollRow != 0 {
 		t.Fatalf("wheel left -> col %d row %d", b.ScrollCol, b.ScrollRow)
 	}
 	a.helix = false
 	a.Update(Key{Code: KeyPgDown, Mod: ModAlt})
-	if b.ScrollCol <= hscrollWheel {
+	if b.ScrollCol <= HscrollWheel {
 		t.Fatalf("alt+pgdn -> %d", b.ScrollCol)
 	}
 }
 
 func TestHScrollZPrefixKeepsView(t *testing.T) {
 	a := newTestApp(t, strings.Repeat("x", 300)+"\n")
-	b := a.curText().buf
+	b := a.CurText().Buf
 	for range 3 {
 		keys(a, "z")
 		a.render()
 		keys(a, "l")
 		a.render()
 	}
-	if b.ScrollCol <= (a.editW(a.curText(), a.layout())-gutterWidth(b))/2 {
+	if b.ScrollCol <= (a.editW(a.CurText(), a.layout())-GutterWidth(b))/2 {
 		t.Fatalf("view did not keep moving: %d", b.ScrollCol)
 	}
 }
@@ -80,14 +80,14 @@ func TestHScrollShiftWheelOutsideTextStaysVertical(t *testing.T) {
 	for i := range 60 {
 		os.WriteFile(filepath.Join(dir, fmt.Sprintf("f%02d.txt", i)), []byte(strings.Repeat("x", 300)+"\n"), 0o644)
 	}
-	a := New(dir, filepath.Join(dir, "f00.txt"))
+	a := newApp(dir, filepath.Join(dir, "f00.txt"))
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	l := a.layout()
 	a.HandleMouse(a.locate(2, l.editY+2, Mouse{Action: MousePress, Button: MouseWheelDown, Shift: true}))
 	if a.explorer.scroll == 0 {
 		t.Fatalf("Shift+wheel over the explorer did not scroll it")
 	}
-	if c := a.curText().buf.ScrollCol; c != 0 {
+	if c := a.CurText().Buf.ScrollCol; c != 0 {
 		t.Fatalf("the editor scrolled sideways: %d", c)
 	}
 }
@@ -104,21 +104,21 @@ func TestHScrollSplitDiffMovesBaseSideAndHidesCaret(t *testing.T) {
 	gitIn(t, dir, "add", ".")
 	gitIn(t, dir, "commit", "-q", "-m", "init")
 	os.WriteFile(file, []byte(long("new")), 0o644)
-	a := New(dir, file)
+	a := newApp(dir, file)
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	a.gd.on = true
 	a.gd.base = baseHead
 	a.gd.split = true
 	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead, nil).(changesLoadedMsg))
-	if a.render(); !a.splitShown() {
+	if a.render(); !a.SplitShown() {
 		t.Skip("split is not shown")
 	}
-	tab := a.curText()
+	tab := a.CurText()
 	if _, _, ok := a.caretPos(a.layout()); !ok {
 		t.Fatalf("caret hidden before scrolling")
 	}
 	for range 10 {
-		a.scrollCols(tab, 200)
+		a.ScrollCols(tab, 200)
 	}
 	view := ansi.Strip(a.render())
 	if !strings.Contains(view, "oldold") && !strings.Contains(view, "9old") {

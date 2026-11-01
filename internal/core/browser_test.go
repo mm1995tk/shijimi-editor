@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"net"
@@ -8,7 +8,7 @@ import (
 )
 
 func TestBrowserForwardListStop(t *testing.T) {
-	a := New(t.TempDir(), "")
+	a := newApp(t.TempDir(), "")
 	defer a.proxy.StopAll()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

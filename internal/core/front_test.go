@@ -137,3 +137,26 @@ func newTestCore(t testing.TB, dir, file string, w, h int) (*Core, *testFront) {
 	f.c = c
 	return c, f
 }
+
+// App is what the tests used to call a Core before it was split from the
+// terminal front end.
+type App = Core
+
+// newApp is a Core rooted at dir, as New makes it, on a screen of no size
+// until a test sets one (SetScreen).
+func newApp(dir, file string) *Core {
+	f := &testFront{side: true}
+	c := New(f, dir, file)
+	f.c = c
+	return c
+}
+
+// newSingleCore is NewSingle's Core.
+func newSingleCore(file string) (*Core, error) {
+	f := &testFront{}
+	c, err := NewSingle(f, file)
+	if c != nil {
+		f.c = c
+	}
+	return c, err
+}

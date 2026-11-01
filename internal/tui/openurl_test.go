@@ -7,23 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func TestUrlAt(t *testing.T) {
-	line := []rune("see (https://example.com/a?b=1). ok")
-	for col, want := range map[int]string{5: "https://example.com/a?b=1", 30: "", 0: ""} {
-		got, ok := urlAt(line, col)
-		if got != want || ok != (want != "") {
-			t.Errorf("col %d: got %q,%v want %q", col, got, ok, want)
-		}
-	}
-}
-
-// runCmd executes cmd and feeds its message back into the app.
-func runCmd(a *App, cmd tea.Cmd) {
-	if cmd != nil {
-		a.Update(cmd())
-	}
-}
-
 func TestOpenURLCommand(t *testing.T) {
 	a := newTestApp(t, "go https://example.com/x now\n")
 	var opened string
@@ -35,13 +18,13 @@ func TestOpenURLCommand(t *testing.T) {
 	if opened != "https://a.example" || a.msgErr {
 		t.Fatalf("opened %q err %v", opened, a.msgErr)
 	}
-	a.curText().buf.Cur.Col = 5
+	a.CurText().Buf.Cur.Col = 5
 	runCmd(a, a.effectCmd(a.execCommand("open-url")...))
 	if opened != "https://example.com/x" {
 		t.Fatalf("cursor url: opened %q", opened)
 	}
 	opened = ""
-	a.curText().buf.Cur.Col = 0
+	a.CurText().Buf.Cur.Col = 0
 	runCmd(a, a.effectCmd(a.execCommand("open-url")...))
 	if opened != "" || !a.msgErr {
 		t.Fatalf("expected error, opened %q err %v", opened, a.msgErr)
@@ -64,12 +47,5 @@ func TestOpenURLOpenerFailureShown(t *testing.T) {
 	runCmd(a, a.effectCmd(a.execCommand("open-url https://a.example")...))
 	if !a.msgErr {
 		t.Fatalf("opener failure must be shown as error, msg %q", a.msg)
-	}
-}
-
-func TestOpenExternalMissingCommand(t *testing.T) {
-	t.Setenv("PATH", t.TempDir())
-	if err := openExternal("https://example.com"); err == nil {
-		t.Fatal("expected error when opener is missing")
 	}
 }

@@ -16,15 +16,16 @@ func previewApp(t *testing.T, dir, src string) *App {
 	b := buffer.New()
 	b.Insert(src)
 	b.Path = filepath.Join(dir, "x.md")
-	a := appOf(&Core{cfg: &config.Config{}, tabs: []*tab{newTab(b)}})
+	a := appOf(&Core{cfg: &config.Config{}, tabs: []*Tab{newTab(b)}})
 	a.tabs[0].buf.Cur.Row = 0
-	a.tabs[0].preview = previewSplit
+	a.tabs[0].preview = PreviewSplit
 	return a
 }
 
+
 func TestBuildPreviewPane(t *testing.T) {
 	a := previewApp(t, t.TempDir(), "# 見出し\n\n段落に **太字** と `code`。\n\n- 項目\n\n```go\nfunc main() {}\n```\n")
-	p := a.buildPreviewPane(a.tabs[0], 30, 5)
+	p := a.BuildPreviewPane(a.tabs[0], 30, 5)
 	if p.Kind != screen.KindPreview || p.Viewport.Cols != 30 || p.Viewport.Rows != 5 || len(p.Lines) != 5 {
 		t.Fatalf("pane = %+v", p)
 	}
@@ -60,8 +61,8 @@ func TestBuildPreviewPane(t *testing.T) {
 
 	// the lines are the visible ones: the cursor at the end scrolls the pane
 	tb := a.tabs[0]
-	tb.buf.Cur.Row = len(tb.buf.Lines) - 1
-	p = a.buildPreviewPane(tb, 30, 5)
+	tb.Buf.Cur.Row = len(tb.Buf.Lines) - 1
+	p = a.BuildPreviewPane(tb, 30, 5)
 	if p.Preview.Top != p.Preview.Rows-5 || p.Lines[0].No != p.Preview.Top || len(p.Lines) != 5 {
 		t.Fatalf("scrolled pane: top %d rows %d first %d", p.Preview.Top, p.Preview.Rows, p.Lines[0].No)
 	}
@@ -70,8 +71,8 @@ func TestBuildPreviewPane(t *testing.T) {
 func TestPreviewPaneRendersAgainWhenWidthChanges(t *testing.T) {
 	a := previewApp(t, t.TempDir(), strings.Repeat("あ", 30)+"\n")
 	tb := a.tabs[0]
-	narrow := a.buildPreviewPane(tb, 20, 10)
-	wide := a.buildPreviewPane(tb, 80, 10)
+	narrow := a.BuildPreviewPane(tb, 20, 10)
+	wide := a.BuildPreviewPane(tb, 80, 10)
 	if len(narrow.Lines) <= len(wide.Lines) || tb.prevW != 80 {
 		t.Fatalf("lines %d (20 wide) %d (80 wide), cached for %d", len(narrow.Lines), len(wide.Lines), tb.prevW)
 	}
@@ -82,17 +83,17 @@ func TestPreviewPaneImages(t *testing.T) {
 	writePNG(t, filepath.Join(dir, "a.png"), 40, 400)
 	a := previewApp(t, dir, "![図](a.png)\n\n> ![引用](a.png)\n\n![無い](missing.png)\n")
 	load := func() {
-		a.syncPreview()
+		a.SyncPreview()
 		for path, job := range a.mdImages {
 			a.handleMDImageDone(mdImageDoneMsg{path, job.stamp, newImageView(path)})
 		}
 	}
-	p := a.buildPreviewPane(a.tabs[0], 30, 100)
+	p := a.BuildPreviewPane(a.tabs[0], 30, 100)
 	if len(p.Preview.Images) != 0 {
 		t.Fatalf("an image that is not loaded is text: %+v", p.Preview.Images)
 	}
 	load()
-	p = a.buildPreviewPane(a.tabs[0], 30, 100)
+	p = a.BuildPreviewPane(a.tabs[0], 30, 100)
 	ims := p.Preview.Images
 	if len(ims) != 2 {
 		t.Fatalf("images = %+v", ims)
@@ -114,12 +115,12 @@ func TestPreviewPaneImages(t *testing.T) {
 	if p.Lines[ims[1].Row].Spans[0].Style != screen.StyleMdQuote {
 		t.Fatalf("quote bar missing: %+v", p.Lines[ims[1].Row])
 	}
-	if a.previewImage(want.Blob) == nil {
+	if a.PreviewImage(want.Blob) == nil {
 		t.Fatal("the Blob does not name the image")
 	}
 
 	// only the images in view are in the pane
-	p = a.buildPreviewPane(a.tabs[0], 30, 2)
+	p = a.BuildPreviewPane(a.tabs[0], 30, 2)
 	if len(p.Preview.Images) != 1 || p.Preview.Images[0].Row != 0 {
 		t.Fatalf("images in view = %+v", p.Preview.Images)
 	}

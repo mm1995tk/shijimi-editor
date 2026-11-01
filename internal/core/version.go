@@ -40,7 +40,6 @@ func BuildVersion() (version, commit string) {
 	return v, c
 }
 
-
 func buildSetting(bi *debug.BuildInfo, key string) string {
 	for _, s := range bi.Settings {
 		if s.Key == key {

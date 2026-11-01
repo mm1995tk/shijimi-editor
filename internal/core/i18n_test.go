@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"os"
@@ -17,7 +17,7 @@ func TestNewSelectsTheConfiguredLanguage(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	dir := t.TempDir()
 
-	New(dir, "")
+	newApp(dir, "")
 	if i18n.Lang() != i18n.English {
 		t.Fatalf("language without ui-language = %q, want en", i18n.Lang())
 	}
@@ -31,7 +31,7 @@ func TestNewSelectsTheConfiguredLanguage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("ui-language = \"ja\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	New(dir, "")
+	newApp(dir, "")
 	if i18n.Lang() != i18n.Japanese {
 		t.Fatalf("language with ui-language = ja is %q", i18n.Lang())
 	}
@@ -43,7 +43,7 @@ func TestNewSelectsTheConfiguredLanguage(t *testing.T) {
 // Menu labels and symbol kinds are looked up by key at draw time, so a key
 // that is not in the table would show up as the key itself.
 func TestTableDrivenLabelsResolve(t *testing.T) {
-	for _, items := range [][]spaceItem{spaceItems, reviewItems} {
+	for _, items := range [][]SpaceItem{spaceItems, ReviewItems} {
 		for _, it := range items {
 			if i18n.T(it.label) == it.label {
 				t.Errorf("menu item %q has no string for %q", it.key, it.label)
@@ -73,7 +73,7 @@ func TestConfigReloadSwitchesLanguage(t *testing.T) {
 		}
 	}
 	write("ui-language = \"ja\"\n")
-	a := New(dir, "")
+	a := newApp(dir, "")
 	last := func() string { return a.commands[len(a.commands)-1].name }
 	if last() != "終了" || a.findInput.Placeholder != "検索" {
 		t.Fatalf("ja: %q %q", last(), a.findInput.Placeholder)
