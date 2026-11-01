@@ -61,7 +61,7 @@ func formatContext(path string, startRow, endRow int, selected string, diags []l
 }
 
 // currentContext builds the context text for the active text tab.
-func (a *App) currentContext() (string, bool) {
+func (a *Core) currentContext() (string, bool) {
 	t := a.curText()
 	if t == nil || t.buf.Path == "" {
 		return "", false
@@ -82,7 +82,7 @@ func (a *App) currentContext() (string, bool) {
 
 // sendContext tells a connected IDE-integrated agent about the current
 // selection; otherwise it opens the preview of the context to paste.
-func (a *App) sendContext() []Effect {
+func (a *Core) sendContext() []Effect {
 	if a.single {
 		return nil
 	}
@@ -99,7 +99,7 @@ func (a *App) sendContext() []Effect {
 }
 
 // handleContextKey drives the preview: Enter pastes, Esc cancels.
-func (a *App) handleContextKey(msg Key) []Effect {
+func (a *Core) handleContextKey(msg Key) []Effect {
 	switch msg.String() {
 	case "enter":
 		text := a.ctx.text
@@ -134,7 +134,7 @@ func (c *ctxPreview) render(w, maxH int) []string {
 	return out
 }
 
-func (a *App) renderContext(rows []string) []string {
+func (a *Core) renderContext(rows []string) []string {
 	w := clamp(a.screenW()*3/5, 30, 100)
 	box := a.ctx.render(w, max(4, a.screenH()-4))
 	if ansi.StringWidth(box[0]) > w {

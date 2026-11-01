@@ -20,7 +20,7 @@ const (
 )
 
 // agentWidth is the panel width: the user's choice, or a quarter of the screen.
-func (a *App) agentWidth() int {
+func (a *Core) agentWidth() int {
 	if a.agentWidthPref() > 0 {
 		return clamp(a.agentWidthPref(), minAgentW, max(minAgentW, a.screenW()/2))
 	}
@@ -28,7 +28,7 @@ func (a *App) agentWidth() int {
 }
 
 // agentShown reports whether the panel fits beside the editor.
-func (a *App) agentShown(sideW int) bool {
+func (a *Core) agentShown(sideW int) bool {
 	if !a.agentOpen() {
 		return false
 	}
@@ -40,7 +40,7 @@ func (a *App) agentShown(sideW int) bool {
 }
 
 // toggleAgentPanel moves to the panel, opening it, or leaves and closes it.
-func (a *App) toggleAgentPanel() []Effect {
+func (a *Core) toggleAgentPanel() []Effect {
 	if a.single {
 		return nil
 	}
@@ -59,7 +59,7 @@ func (a *App) toggleAgentPanel() []Effect {
 }
 
 // leaveAgentPanel returns to the editor, keeping the panel open.
-func (a *App) leaveAgentPanel() []Effect {
+func (a *Core) leaveAgentPanel() []Effect {
 	if len(a.tabs) > 0 {
 		return a.setFocus(focusEditor)
 	}
@@ -67,7 +67,7 @@ func (a *App) leaveAgentPanel() []Effect {
 	return a.setFocus(focusExplorer)
 }
 
-func (a *App) handleAgentKey(msg Key) []Effect {
+func (a *Core) handleAgentKey(msg Key) []Effect {
 	n := len(a.suggestions())
 	switch msg.String() {
 	case "j", "down":
@@ -101,7 +101,7 @@ func (a *App) handleAgentKey(msg Key) []Effect {
 }
 
 // agentCommand runs ":agent [cancel|stop]".
-func (a *App) agentCommand(arg string) []Effect {
+func (a *Core) agentCommand(arg string) []Effect {
 	switch arg {
 	case "":
 		return a.toggleAgentPanel()
@@ -125,7 +125,7 @@ func (a *App) agentCommand(arg string) []Effect {
 
 // suggestRows is where the suggestion rows of the panel start, and the
 // suggestion each row shows (-1 for a detail line).
-func (a *App) suggestRows(list []offer, limit int) []int {
+func (a *Core) suggestRows(list []offer, limit int) []int {
 	var rows []int
 	for i := range list {
 		if len(rows)+2 > limit {
@@ -151,7 +151,7 @@ type agentLay struct {
 }
 
 // agentLayout lays the panel out. It changes nothing.
-func (a *App) agentLayout(w, h int, focused bool) agentLay {
+func (a *Core) agentLayout(w, h int, focused bool) agentLay {
 	var lay agentLay
 	lay.list = a.suggestions()
 	lay.sel = clamp(a.sg.sel, 0, max(0, len(lay.list)-1))
@@ -189,7 +189,7 @@ func (a *App) agentLayout(w, h int, focused bool) agentLay {
 // agentScreen is the panel as a screen.Agent, w columns wide and h rows
 // high. The log is the part of it that fitAgent put in view. It changes
 // nothing.
-func (a *App) agentScreen(w, h int, focused bool) screen.Agent {
+func (a *Core) agentScreen(w, h int, focused bool) screen.Agent {
 	lay := a.agentLayout(w, h, focused)
 	ag := screen.Agent{
 		Title: fmt.Sprintf(i18n.T("panel.suggestions"), len(lay.list)),
@@ -308,7 +308,7 @@ func logSpanRow(w int, spans ...screen.Span) logRow {
 }
 
 // renderLog lays the log out at width w.
-func (a *App) renderLog(w int) []logRow {
+func (a *Core) renderLog(w int) []logRow {
 	var out []logRow
 	// styled rows are padded to w in the text, so that their background reaches the edge
 	addWrapped := func(text string, ww int, style, bg screen.Style) {
@@ -407,7 +407,7 @@ func wrapPlainRows(text string, w int) []wrapRow {
 
 // agentMouse handles the pointer over the panel. ok is false when (x, y)
 // is not on it.
-func (a *App) agentMouse(msg Mouse) ([]Effect, bool) {
+func (a *Core) agentMouse(msg Mouse) ([]Effect, bool) {
 	if msg.Region != RegionAgent {
 		return nil, false
 	}

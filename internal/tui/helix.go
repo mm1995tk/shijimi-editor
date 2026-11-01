@@ -32,7 +32,7 @@ func (m editMode) label() string {
 // fullPreviewKey reports whether a key may run while the Markdown preview
 // fills the editor area: scrolling, counts, the leader and command line, and
 // ctrl chords. Anything else would edit a buffer that is not visible.
-func (a *App) fullPreviewKey(key string) bool {
+func (a *Core) fullPreviewKey(key string) bool {
 	if a.pending == " " {
 		return strings.Contains("fbkodDeEmgGvwy?/ta", key) && len(key) == 1
 	}
@@ -66,7 +66,7 @@ func fullPreviewEditorKey(msg Key) bool {
 }
 
 // handleHelixKey implements Helix-style modal editing for text tabs.
-func (a *App) handleHelixKey(msg Key) []Effect {
+func (a *Core) handleHelixKey(msg Key) []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -153,7 +153,7 @@ func (a *App) handleHelixKey(msg Key) []Effect {
 	return a.helixNormalKey(b, key, ext, count, hadCount)
 }
 
-func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, hadCount bool) []Effect {
+func (a *Core) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, hadCount bool) []Effect {
 	switch key {
 	// --- movement ---
 	case "alt+pgup", "alt+pgdown": // scroll sideways; the cursor stays
@@ -203,15 +203,15 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 	return nil
 }
 
-func (a *App) pageSize() int { return max(1, a.editRows()-2) }
+func (a *Core) pageSize() int { return max(1, a.editRows()-2) }
 
-func (a *App) enterInsert() []Effect {
+func (a *Core) enterInsert() []Effect {
 	a.recIns = nil
 	a.mode = modeInsert
 	return nil
 }
 
-func (a *App) helixPending(p, key string, msg Key) []Effect {
+func (a *Core) helixPending(p, key string, msg Key) []Effect {
 	t := a.cur()
 	b := t.buf
 	ext := a.mode == modeSelect
@@ -308,7 +308,7 @@ func (a *App) helixPending(p, key string, msg Key) []Effect {
 }
 
 // spaceMode handles "Space <key>" commands (Helix's space menu).
-func (a *App) spaceMode(key string) []Effect {
+func (a *Core) spaceMode(key string) []Effect {
 	if a.single {
 		switch key {
 		case "f", "b", "d", "D", "e", "E", "g", "G", "v", "w", "i", "?", "/", "t", "a", "s":
@@ -382,7 +382,7 @@ func (a *App) spaceMode(key string) []Effect {
 	return nil
 }
 
-func (a *App) handleInsertKey(msg Key) []Effect {
+func (a *Core) handleInsertKey(msg Key) []Effect {
 	cmd := a.insertKey(msg)
 	if a.recIns != nil && !a.replaying {
 		if a.mode == modeInsert {
@@ -394,7 +394,7 @@ func (a *App) handleInsertKey(msg Key) []Effect {
 	return cmd
 }
 
-func (a *App) insertKey(msg Key) []Effect {
+func (a *Core) insertKey(msg Key) []Effect {
 	t := a.cur()
 	b := t.buf
 	if bd, ok := a.keymap.insert[msg.String()]; ok {
@@ -426,7 +426,7 @@ func (a *App) insertKey(msg Key) []Effect {
 	return a.handleEditorKey(msg)
 }
 
-func (a *App) paste(b *buffer.Buffer, text string, after bool) {
+func (a *Core) paste(b *buffer.Buffer, text string, after bool) {
 	if text == "" {
 		return
 	}
@@ -465,7 +465,7 @@ func (a *App) paste(b *buffer.Buffer, text string, after bool) {
 	a.follow = true
 }
 
-func (a *App) indentLines(b *buffer.Buffer, in bool) func() {
+func (a *Core) indentLines(b *buffer.Buffer, in bool) func() {
 	return func() {
 		if !in {
 			b.Outdent()
@@ -495,7 +495,7 @@ func (a *App) indentLines(b *buffer.Buffer, in bool) func() {
 	}
 }
 
-func (a *App) changeCase(b *buffer.Buffer, key string) {
+func (a *Core) changeCase(b *buffer.Buffer, key string) {
 	s, e := b.SelectionOrChar()
 	text := b.TextRange(s, e)
 	var out string
@@ -525,7 +525,7 @@ func (a *App) changeCase(b *buffer.Buffer, key string) {
 	}
 }
 
-func (a *App) searchNext(backward bool) {
+func (a *Core) searchNext(backward bool) {
 	t := a.cur()
 	if t == nil || t.kind != tabText || a.lastSearch == "" {
 		return
@@ -556,7 +556,7 @@ type errString string
 func (e errString) Error() string { return string(e) }
 
 // bufferPicker lists open tabs (Helix "Space b").
-func (a *App) bufferPicker() []Effect {
+func (a *Core) bufferPicker() []Effect {
 	items := make([]paletteItem, len(a.tabs))
 	for i, t := range a.tabs {
 		label := t.title()
@@ -581,7 +581,7 @@ func atoiOr(s string, def int) int {
 
 // selectMatches turns the selections into one cursor per match of the
 // regular expression pattern (Helix "s").
-func (a *App) selectMatches(pattern string) {
+func (a *Core) selectMatches(pattern string) {
 	t := a.curText()
 	if t == nil || pattern == "" {
 		return
@@ -602,7 +602,7 @@ func (a *App) selectMatches(pattern string) {
 
 // cursorCell is where a cursor is drawn: Helix draws it on the last
 // selected character when the selection extends forwards.
-func (a *App) cursorCell(b *buffer.Buffer, anchor *buffer.Pos, cur buffer.Pos) buffer.Pos {
+func (a *Core) cursorCell(b *buffer.Buffer, anchor *buffer.Pos, cur buffer.Pos) buffer.Pos {
 	if a.mode == modeInsert || anchor == nil || !anchor.Less(cur) {
 		return cur
 	}

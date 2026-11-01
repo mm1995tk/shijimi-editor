@@ -160,7 +160,7 @@ func (s agentSel) text(rows []logRow, w int) string {
 
 // logPos is the cell of the log under screen cell (x, y), clamped to the rows
 // drawn. above and below say the pointer is off them.
-func (a *App) logPos(msg Mouse) (p agentPos, above, below bool) {
+func (a *Core) logPos(msg Mouse) (p agentPos, above, below bool) {
 	v := a.ag.view
 	y := msg.Row - v.y0
 	p.col = clamp(msg.Col, 0, max(0, v.w-1))
@@ -179,7 +179,7 @@ func (a *App) logPos(msg Mouse) (p agentPos, above, below bool) {
 }
 
 // inLog reports whether screen cell (x, y) is on a drawn log row.
-func (a *App) inLog(msg Mouse) bool {
+func (a *Core) inLog(msg Mouse) bool {
 	v := a.ag.view
 	y := msg.Row - v.y0
 	return v.n > 0 && y >= 0 && y < v.n && msg.Col >= 0
@@ -187,7 +187,7 @@ func (a *App) inLog(msg Mouse) bool {
 
 // agentDrag follows a drag that began on the log, wherever the pointer goes.
 // ok is false when the event is not part of it.
-func (a *App) agentDrag(msg Mouse) ([]Effect, bool) {
+func (a *Core) agentDrag(msg Mouse) ([]Effect, bool) {
 	s := &a.ag.sel
 	switch {
 	case msg.Action == MousePress && (msg.Button == MouseWheelUp || msg.Button == MouseWheelDown):

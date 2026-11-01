@@ -183,7 +183,7 @@ func (h agentHandler) RequestPermission(ctx context.Context, r acp.PermissionReq
 
 // runAgent sends a prompt built by build for the suggestion of kind and key,
 // starting the agent first if needed.
-func (a *App) runAgent(kind suggestKind, key, title string, build func() string) []Effect {
+func (a *Core) runAgent(kind suggestKind, key, title string, build func() string) []Effect {
 	s := a.ag
 	if s.run != nil {
 		a.fail(errors.New(i18n.T("agent.busy")))
@@ -208,7 +208,7 @@ func (a *App) runAgent(kind suggestKind, key, title string, build func() string)
 }
 
 // startAgent launches the agent and opens a session in the background.
-func (a *App) startAgent() Effect {
+func (a *Core) startAgent() Effect {
 	s := a.ag
 	s.gen++
 	gen, ch, root := s.gen, s.ch, a.root
@@ -239,7 +239,7 @@ func (a *App) startAgent() Effect {
 
 // sendPrompt sends the current run's prompt. The answer goes through the
 // channel after the updates the agent sent before it.
-func (a *App) sendPrompt() Effect {
+func (a *Core) sendPrompt() Effect {
 	s := a.ag
 	c, sid, gen, ch, build := s.client, s.session, s.gen, s.ch, s.run.build
 	return RunAgent{Run: func() {
@@ -249,7 +249,7 @@ func (a *App) sendPrompt() Effect {
 }
 
 // cancelAgent asks the agent to stop the running turn.
-func (a *App) cancelAgent() {
+func (a *Core) cancelAgent() {
 	s := a.ag
 	if s.run == nil || s.client == nil {
 		a.infoText(i18n.T("agent.idle"))
@@ -263,7 +263,7 @@ func (a *App) cancelAgent() {
 }
 
 // stopAgent ends the agent process; the next suggestion starts a new one.
-func (a *App) stopAgent() {
+func (a *Core) stopAgent() {
 	s := a.ag
 	if s.client != nil {
 		s.client.Close()
@@ -281,7 +281,7 @@ func (a *App) stopAgent() {
 
 // handleAgentEvent handles every Event from the agent. It reports whether
 // ev was one.
-func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
+func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 	s := a.ag
 	switch ev.(type) {
 	case agentReadyMsg, agentUpdateMsg, agentFileMsg, agentPermMsg, agentPermCancelMsg, agentTurnMsg, agentExitMsg:
@@ -386,7 +386,7 @@ func lastLines(s string, n int) string {
 }
 
 // agentUpdate adds the agent's progress to the log.
-func (a *App) agentUpdate(u acp.Update) {
+func (a *Core) agentUpdate(u acp.Update) {
 	s := a.ag
 	switch u.Kind {
 	case "agent_message_chunk":
@@ -431,7 +431,7 @@ func (a *App) agentUpdate(u acp.Update) {
 }
 
 // agentPath turns a path from the agent into an absolute, clean one.
-func (a *App) agentPath(p string) string {
+func (a *Core) agentPath(p string) string {
 	if !filepath.IsAbs(p) {
 		p = filepath.Join(a.root, p)
 	}
@@ -440,7 +440,7 @@ func (a *App) agentPath(p string) string {
 
 // agentRead answers fs/read_text_file: an open file is read from its buffer,
 // unsaved edits included.
-func (a *App) agentRead(r acp.ReadRequest) (string, error) {
+func (a *Core) agentRead(r acp.ReadRequest) (string, error) {
 	p := a.agentPath(r.Path)
 	var text string
 	if t := a.tabFor(p); t != nil {
@@ -470,7 +470,7 @@ func (a *App) agentRead(r acp.ReadRequest) (string, error) {
 // agentWrite answers fs/write_text_file. The file is written on disk and the
 // open buffer follows as for any outside change. A buffer with unsaved edits
 // is never overwritten.
-func (a *App) agentWrite(r acp.WriteRequest) error {
+func (a *Core) agentWrite(r acp.WriteRequest) error {
 	p := a.agentPath(r.Path)
 	if run := a.ag.run; run != nil && (run.kind == sgAIReview || run.kind == sgFailure) {
 		// These only read: a pull request or a log could carry instructions.
@@ -500,7 +500,7 @@ func (a *App) agentWrite(r acp.WriteRequest) error {
 
 // answerPermission answers the oldest permission request: allow takes the
 // first "allow" option, reject the first "reject" one.
-func (a *App) answerPermission(allow bool) {
+func (a *Core) answerPermission(allow bool) {
 	s := a.ag
 	if len(s.perms) == 0 {
 		return
@@ -535,7 +535,7 @@ func permTitle(r acp.PermissionRequest) string {
 }
 
 // endTurn finishes a run and does what its suggestion promised.
-func (a *App) endTurn(m agentTurnMsg) []Effect {
+func (a *Core) endTurn(m agentTurnMsg) []Effect {
 	s := a.ag
 	run := s.run
 	s.run = nil
@@ -585,7 +585,7 @@ func stopText(stop string) string {
 }
 
 // showAgentChanges opens diff mode so the agent's edits can be checked.
-func (a *App) showAgentChanges() []Effect {
+func (a *Core) showAgentChanges() []Effect {
 	if a.gd.on {
 		return a.reloadChanges()
 	}

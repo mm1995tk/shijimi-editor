@@ -91,7 +91,7 @@ type branchPRsMsg struct {
 
 // ---- loading ----
 
-func (a *App) gitTopDir() string {
+func (a *Core) gitTopDir() string {
 	if a.gitTop != "" {
 		return a.gitTop
 	}
@@ -101,7 +101,7 @@ func (a *App) gitTopDir() string {
 // reloadChanges recomputes the CHANGES list for the current base. The list
 // on screen stays as it is until the result arrives; only showDiff marks it
 // as loading.
-func (a *App) reloadChanges() []Effect {
+func (a *Core) reloadChanges() []Effect {
 	a.gd.gen++
 	gen, root, base, pr := a.gd.gen, a.root, a.gd.base, a.gd.pr
 	return async(func() Event { return loadChanges(gen, root, base, pr) })
@@ -166,7 +166,7 @@ func loadChanges(gen int, root, base string, pr *prInfo) Event {
 	return m
 }
 
-func (a *App) applyChanges(m changesLoadedMsg) {
+func (a *Core) applyChanges(m changesLoadedMsg) {
 	if m.gen != a.gd.gen {
 		return
 	}
@@ -412,7 +412,7 @@ func (g *gitDiff) keepSelVisible(h int) {
 
 // openDiff handles Space G (base HEAD) and Space g (base PR): it opens diff
 // mode, closes it when it already compares with base, or switches the base.
-func (a *App) openDiff(base string) []Effect {
+func (a *Core) openDiff(base string) []Effect {
 	if a.single {
 		return nil
 	}
@@ -427,7 +427,7 @@ func (a *App) openDiff(base string) []Effect {
 
 // diffWithHead opens diff mode against HEAD, or refreshes it when it is
 // already showing HEAD.
-func (a *App) diffWithHead() []Effect {
+func (a *Core) diffWithHead() []Effect {
 	if a.gd.on && a.gd.base == baseHead {
 		return a.reloadChanges()
 	}
@@ -435,14 +435,14 @@ func (a *App) diffWithHead() []Effect {
 }
 
 // toggleGitDiff opens diff mode against HEAD, or closes it.
-func (a *App) toggleGitDiff() []Effect {
+func (a *Core) toggleGitDiff() []Effect {
 	if a.gd.on {
 		return a.closeDiff()
 	}
 	return a.showDiff(baseHead, nil)
 }
 
-func (a *App) showDiff(base string, pr *prInfo) []Effect {
+func (a *Core) showDiff(base string, pr *prInfo) []Effect {
 	a.gd.prSeq++
 	a.gd.on = true
 	a.card = nil
@@ -460,7 +460,7 @@ func (a *App) showDiff(base string, pr *prInfo) []Effect {
 	return cmd
 }
 
-func (a *App) closeDiff() []Effect {
+func (a *Core) closeDiff() []Effect {
 	a.gd.prSeq++
 	a.gd.on = false
 	a.card = nil
@@ -475,7 +475,7 @@ func (a *App) closeDiff() []Effect {
 // branchPR opens the current branch's pull request: the only one at once,
 // a list of them when there are several, or the list of every open pull
 // request when there is none.
-func (a *App) branchPR() []Effect {
+func (a *Core) branchPR() []Effect {
 	a.infoText(i18n.T("gd.findingpr"))
 	a.gd.prSeq++
 	root, seq, branch := a.root, a.gd.prSeq, a.branch
@@ -485,7 +485,7 @@ func (a *App) branchPR() []Effect {
 	})
 }
 
-func (a *App) handleBranchPRs(m branchPRsMsg) []Effect {
+func (a *Core) handleBranchPRs(m branchPRsMsg) []Effect {
 	if m.seq != a.gd.prSeq {
 		return nil
 	}
@@ -503,12 +503,12 @@ func (a *App) handleBranchPRs(m branchPRsMsg) []Effect {
 }
 
 // findPR looks up pull request num to compare with its base.
-func (a *App) findPR(num int) []Effect { return a.lookupPR(num, false) }
+func (a *Core) findPR(num int) []Effect { return a.lookupPR(num, false) }
 
 // refreshPR looks up the pull request shown again (r).
-func (a *App) refreshPR() []Effect { return a.lookupPR(a.gd.pr.Number, true) }
+func (a *Core) refreshPR() []Effect { return a.lookupPR(a.gd.pr.Number, true) }
 
-func (a *App) lookupPR(num int, refresh bool) []Effect {
+func (a *Core) lookupPR(num int, refresh bool) []Effect {
 	a.infoText(i18n.T("gd.findingpr"))
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
@@ -518,7 +518,7 @@ func (a *App) lookupPR(num int, refresh bool) []Effect {
 	})
 }
 
-func (a *App) handlePRFound(m prFoundMsg) []Effect {
+func (a *Core) handlePRFound(m prFoundMsg) []Effect {
 	if m.seq != a.gd.prSeq {
 		return nil // the mode was closed or switched meanwhile
 	}
@@ -555,13 +555,13 @@ func (a *App) handlePRFound(m prFoundMsg) []Effect {
 
 // openPR compares with the base of pr, whose branch is checked out, and
 // loads its review.
-func (a *App) openPR(pr *prInfo) []Effect {
+func (a *Core) openPR(pr *prInfo) []Effect {
 	return batch(a.showDiff(basePR, pr), a.loadReview())
 }
 
 // switchToPR checks out the branch of pr with `gh pr checkout`, first asking
 // to stash uncommitted changes, then opens it.
-func (a *App) switchToPR(pr *prInfo) []Effect {
+func (a *Core) switchToPR(pr *prInfo) []Effect {
 	if n := a.dirtyCount(); n > 0 {
 		a.fail(fmt.Errorf(i18n.T("gd.saveswitch"), n, pr.Number))
 		return nil
@@ -589,7 +589,7 @@ type prCheckedOutMsg struct {
 	err error
 }
 
-func (a *App) checkoutPR(pr *prInfo, stash bool) []Effect {
+func (a *Core) checkoutPR(pr *prInfo, stash bool) []Effect {
 	a.info(i18n.T("gd.checkout"), pr.Number)
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
@@ -621,7 +621,7 @@ func (a *App) checkoutPR(pr *prInfo, stash bool) []Effect {
 	})
 }
 
-func (a *App) handlePRCheckedOut(m prCheckedOutMsg) []Effect {
+func (a *Core) handlePRCheckedOut(m prCheckedOutMsg) []Effect {
 	if m.seq != a.gd.prSeq {
 		return nil
 	}
@@ -636,7 +636,7 @@ func (a *App) handlePRCheckedOut(m prCheckedOutMsg) []Effect {
 }
 
 // refreshBranch rereads the branch name and what depends on the checkout.
-func (a *App) refreshBranch() {
+func (a *Core) refreshBranch() {
 	if out, err := run(a.root, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		a.branch = strings.TrimSpace(string(out))
 	}
@@ -661,7 +661,7 @@ type prPulledMsg struct {
 
 // reloadPR handles r with a pull request shown: it pulls first when only
 // the pull request has moved on.
-func (a *App) reloadPR() []Effect {
+func (a *Core) reloadPR() []Effect {
 	s := a.gd.rv.sync
 	if !(s.known && s.behind > 0 && s.ahead == 0) {
 		return a.refreshPR() // also refreshes the title, state and comments
@@ -675,7 +675,7 @@ func (a *App) reloadPR() []Effect {
 	})
 }
 
-func (a *App) handlePRPulled(m prPulledMsg) []Effect {
+func (a *Core) handlePRPulled(m prPulledMsg) []Effect {
 	if m.seq != a.gd.prSeq {
 		return nil
 	}
@@ -688,12 +688,12 @@ func (a *App) handlePRPulled(m prPulledMsg) []Effect {
 }
 
 // prPicker lists the repository's pull requests to compare with.
-func (a *App) prPicker() []Effect {
+func (a *Core) prPicker() []Effect {
 	a.infoText(i18n.T("gd.fetchingprs"))
 	return listPRs(a.root)
 }
 
-func (a *App) showPRList(m prListMsg) []Effect {
+func (a *Core) showPRList(m prListMsg) []Effect {
 	if m.err != nil {
 		a.fail(m.err)
 		return nil
@@ -714,13 +714,13 @@ func (a *App) showPRList(m prListMsg) []Effect {
 	return a.pal.pick(i18n.T("gd.prs"), items, func(i int) []Effect { return a.findPR(m.prs[i].Number) })
 }
 
-func (a *App) toggleSplit() {
+func (a *Core) toggleSplit() {
 	a.gd.split = !a.gd.split
 	a.follow = true
 }
 
 // gitDiffCommand handles ":gitdiff [on|off|split|unified]".
-func (a *App) gitDiffCommand(arg string) []Effect {
+func (a *Core) gitDiffCommand(arg string) []Effect {
 	f := strings.Fields(arg)
 	if len(f) == 0 {
 		return a.openDiff(baseHead)
@@ -746,7 +746,7 @@ func (a *App) gitDiffCommand(arg string) []Effect {
 
 // ---- opening files from the list ----
 
-func (a *App) openChange(f *diff.File) []Effect {
+func (a *Core) openChange(f *diff.File) []Effect {
 	abs := filepath.Join(a.gitTopDir(), f.Path())
 	if f.Status == "deleted" {
 		a.info(i18n.T("gd.deleted"), f.Path())
@@ -766,7 +766,7 @@ func (a *App) openChange(f *diff.File) []Effect {
 // showFirstChange puts the cursor on the first change of t, with a few rows
 // above it on screen. A change that only deletes lines puts the cursor on
 // the line after it.
-func (a *App) showFirstChange(t *tab) {
+func (a *Core) showFirstChange(t *tab) {
 	dv := a.diffFor(t)
 	if dv == nil {
 		return
@@ -786,7 +786,7 @@ func (a *App) showFirstChange(t *tab) {
 	a.follow = true
 }
 
-func (a *App) handleChangesKey(msg Key) []Effect {
+func (a *Core) handleChangesKey(msg Key) []Effect {
 	g := &a.gd
 	key := msg.String()
 	if a.pending == "space v" {
@@ -858,7 +858,7 @@ func (a *App) handleChangesKey(msg Key) []Effect {
 
 // bodyH is the number of rows between the diff mode header and the help and
 // status lines.
-func (a *App) bodyH() int {
+func (a *Core) bodyH() int {
 	if a.gd.on {
 		return max(0, a.screenH()-3)
 	}
@@ -868,7 +868,7 @@ func (a *App) bodyH() int {
 // explorerH is the height of the file tree: the user's share of the sidebar
 // (7/10 by default) in diff mode, all of it otherwise. The tree and CHANGES
 // each keep at least minSideSectionH rows.
-func (a *App) explorerH() int {
+func (a *Core) explorerH() int {
 	if a.gd.on {
 		body := a.bodyH()
 		if a.explorerShare() <= 0 {
@@ -895,7 +895,7 @@ func statusLetter(f *diff.File) (string, screen.Style) {
 
 // baseChip is the short name of the base: DIFF for HEAD, PR for a pull
 // request's base.
-func (a *App) baseChip() string {
+func (a *Core) baseChip() string {
 	if a.gd.base == basePR {
 		return "PR"
 	}
@@ -905,7 +905,7 @@ func (a *App) baseChip() string {
 // fitChanges scrolls the list so that the selected row is in view, in a list
 // whose body is body rows high. It is the part of drawing the list that
 // changes state, so it runs before drawing (fit).
-func (a *App) fitChanges(body int) {
+func (a *Core) fitChanges(body int) {
 	g := &a.gd
 	vis := g.vis()
 	if p := visPos(vis, g.selRow()); len(g.rows) > 0 {
@@ -922,7 +922,7 @@ func (a *App) fitChanges(body int) {
 // changesScreen is the list of changed files as a screen.Changes, w columns
 // wide and h rows high with the title, scrolled as fitChanges left it. It
 // changes nothing.
-func (a *App) changesScreen(w, h int) screen.Changes {
+func (a *Core) changesScreen(w, h int) screen.Changes {
 	g := &a.gd
 	title := fmt.Sprintf(" CHANGES (%d)", len(g.files))
 	pr := a.prShown()
@@ -1029,7 +1029,7 @@ func drawChanges(ch screen.Changes, w, h int, focused bool) []string {
 
 // renderDiffHeader draws the line above everything in diff mode: what is
 // compared with what.
-func (a *App) renderDiffHeader(w int) string {
+func (a *Core) renderDiffHeader(w int) string {
 	bg := cTabBarBg
 	dim := bgfg(bg, curTheme.Dim)
 	text := bgfg(bg, cEditorFg)
@@ -1065,7 +1065,7 @@ func (a *App) renderDiffHeader(w int) string {
 }
 
 // diffHelp lists the keys usable in diff mode right now.
-func (a *App) diffHelp() string {
+func (a *Core) diffHelp() string {
 	bases := i18n.T("gd.bar.pr")
 	if a.gd.base == basePR {
 		bases = i18n.T("gd.bar.prreview")
@@ -1083,7 +1083,7 @@ func (a *App) diffHelp() string {
 	return bases + i18n.T("gd.bar.editable")
 }
 
-func (a *App) renderDiffHelp(w int) string {
+func (a *Core) renderDiffHelp(w int) string {
 	return bgfg(cSideBg, curTheme.Dim).Render(fit(a.diffHelp(), w))
 }
 
@@ -1141,7 +1141,7 @@ type diffView struct {
 
 // diffFile returns the changed file shown by tab t in diff mode, or nil
 // when t is shown as a plain editor.
-func (a *App) diffFile(t *tab) *diff.File {
+func (a *Core) diffFile(t *tab) *diff.File {
 	if !a.gd.on || t == nil || t.kind != tabText || t.buf.Path == "" {
 		return nil
 	}
@@ -1154,17 +1154,17 @@ func (a *App) diffFile(t *tab) *diff.File {
 
 // diffSingle reports whether f is shown in one pane: a file that is not in
 // the base (HEAD or a pull request's base) has nothing to put on the left.
-func (a *App) diffSingle(f *diff.File) bool {
+func (a *Core) diffSingle(f *diff.File) bool {
 	return f != nil && f.Status == "added"
 }
 
 // splitShown reports whether the current tab's diff has a base pane.
-func (a *App) splitShown() bool {
+func (a *Core) splitShown() bool {
 	return a.gd.split && !a.diffSingle(a.diffFile(a.curText()))
 }
 
 // diffFor returns the up-to-date diff view of t, or nil outside diff mode.
-func (a *App) diffFor(t *tab) *diffView {
+func (a *Core) diffFor(t *tab) *diffView {
 	f := a.diffFile(t)
 	if f == nil {
 		return nil
@@ -1309,7 +1309,7 @@ func (dv *diffView) scrollFor(r int) int {
 
 // ensureDiffVisible scrolls so the cursor is on screen, counting the rows
 // that exist only on the base side.
-func (a *App) ensureDiffVisible(t *tab, dv *diffView, w, h int) {
+func (a *Core) ensureDiffVisible(t *tab, dv *diffView, w, h int) {
 	b := t.buf
 	ensureCursorVisible(b, w, h)
 	if h <= 0 || len(dv.newIdx) == 0 {
@@ -1414,7 +1414,7 @@ func changeBar(d *screen.DiffInfo, h int) []string {
 
 // diffBarClick scrolls the diff view to the part of the file that the bar
 // cell at row y stands for.
-func (a *App) diffBarClick(t *tab, dv *diffView, g dvGeom, y int) {
+func (a *Core) diffBarClick(t *tab, dv *diffView, g dvGeom, y int) {
 	if y < g.top || y >= g.top+g.h {
 		return
 	}
@@ -1428,7 +1428,7 @@ func (a *App) diffBarClick(t *tab, dv *diffView, g dvGeom, y int) {
 // base and the buffer side by side when the diff is split (rows that have no
 // line on one side are a Blank line there), otherwise one Pane with the
 // deleted lines between the current ones. It changes nothing.
-func (a *App) buildDiffPanes(t *tab, dv *diffView, g dvGeom, o paneOpts) []screen.Pane {
+func (a *Core) buildDiffPanes(t *tab, dv *diffView, g dvGeom, o paneOpts) []screen.Pane {
 	b := t.buf
 	two := dv.split && !dv.single
 	start := dv.start(b.ScrollRow)
@@ -1716,14 +1716,14 @@ func tokenColor(tt chroma.TokenType) string {
 }
 
 // afterSave refreshes what depends on the files on disk.
-func (a *App) afterSave() []Effect {
+func (a *Core) afterSave() []Effect {
 	if a.gd.on {
 		return a.reloadChanges()
 	}
 	return nil
 }
 
-func (a *App) focusChangesList() []Effect {
+func (a *Core) focusChangesList() []Effect {
 	if !a.gd.on {
 		return a.toggleGitDiff()
 	}

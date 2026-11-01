@@ -14,90 +14,90 @@ import (
 type command struct {
 	name string
 	key  string
-	run  func(a *App) []Effect
+	run  func(a *Core) []Effect
 }
 
 func defaultCommands() []command {
 	return []command{
-		{i18n.T("cmd.save"), "Ctrl+S / :w", func(a *App) []Effect { return a.save() }},
-		{i18n.T("cmd.saveas"), "", func(a *App) []Effect { return a.saveAs() }},
-		{i18n.T("cmd.saveall"), ":wa", func(a *App) []Effect { return a.saveAll() }},
-		{i18n.T("cmd.newfile"), "Ctrl+N", func(a *App) []Effect { return a.newFile() }},
-		{i18n.T("cmd.openfile"), "Ctrl+P / Space f", func(a *App) []Effect { return a.pal.show(a.root, "") }},
-		{i18n.T("cmd.copyrel"), i18n.T("cmd.copyrel.key"), func(a *App) []Effect { a.copyPath(a.activePath(), false); return nil }},
-		{i18n.T("cmd.copyabs"), i18n.T("cmd.copyabs.key"), func(a *App) []Effect { a.copyPath(a.activePath(), true); return nil }},
-		{i18n.T("cmd.reload"), ":reload", func(a *App) []Effect { return a.execCommand("reload") }},
-		{i18n.T("cmd.closetab"), "Ctrl+W / :bc", func(a *App) []Effect { return a.closeTab(false) }},
-		{i18n.T("cmd.buffers"), "Space b", func(a *App) []Effect { return a.bufferPicker() }},
-		{i18n.T("cmd.sidebar"), "Ctrl+B", func(a *App) []Effect { a.toggleSide(); return nil }},
-		{i18n.T("cmd.focustree"), "Ctrl+E / Space e", func(a *App) []Effect { a.setSide(true); return a.setFocus(focusExplorer) }},
-		{i18n.T("cmd.preview"), "Space m / :preview", func(a *App) []Effect { return a.togglePreview() }},
-		{i18n.T("cmd.terminal"), "Ctrl+`", func(a *App) []Effect { return a.toggleTerm() }},
-		{i18n.T("cmd.resize"), "Alt+R", func(a *App) []Effect { return a.startResize() }},
-		{i18n.T("cmd.resetsizes"), i18n.T("cmd.resetsizes.key"), func(a *App) []Effect { a.resetPanes(); return nil }},
-		{i18n.T("cmd.lastfile"), "ga / Ctrl+Tab", func(a *App) []Effect { a.switchLast(); return nil }},
-		{i18n.T("cmd.split"), "Ctrl+\\ / Space w v / :vsplit", func(a *App) []Effect { return a.splitOpen() }},
-		{i18n.T("cmd.splitfocus"), "Ctrl+1 Ctrl+2 / Space w h l w", func(a *App) []Effect { return a.focusOtherPane() }},
-		{i18n.T("cmd.splitclose"), "Ctrl+\\ / Space w q o / :only", func(a *App) []Effect { a.closeSplit(true); return nil }},
-		{i18n.T("cmd.find"), "Ctrl+F / /", func(a *App) []Effect {
+		{i18n.T("cmd.save"), "Ctrl+S / :w", func(a *Core) []Effect { return a.save() }},
+		{i18n.T("cmd.saveas"), "", func(a *Core) []Effect { return a.saveAs() }},
+		{i18n.T("cmd.saveall"), ":wa", func(a *Core) []Effect { return a.saveAll() }},
+		{i18n.T("cmd.newfile"), "Ctrl+N", func(a *Core) []Effect { return a.newFile() }},
+		{i18n.T("cmd.openfile"), "Ctrl+P / Space f", func(a *Core) []Effect { return a.pal.show(a.root, "") }},
+		{i18n.T("cmd.copyrel"), i18n.T("cmd.copyrel.key"), func(a *Core) []Effect { a.copyPath(a.activePath(), false); return nil }},
+		{i18n.T("cmd.copyabs"), i18n.T("cmd.copyabs.key"), func(a *Core) []Effect { a.copyPath(a.activePath(), true); return nil }},
+		{i18n.T("cmd.reload"), ":reload", func(a *Core) []Effect { return a.execCommand("reload") }},
+		{i18n.T("cmd.closetab"), "Ctrl+W / :bc", func(a *Core) []Effect { return a.closeTab(false) }},
+		{i18n.T("cmd.buffers"), "Space b", func(a *Core) []Effect { return a.bufferPicker() }},
+		{i18n.T("cmd.sidebar"), "Ctrl+B", func(a *Core) []Effect { a.toggleSide(); return nil }},
+		{i18n.T("cmd.focustree"), "Ctrl+E / Space e", func(a *Core) []Effect { a.setSide(true); return a.setFocus(focusExplorer) }},
+		{i18n.T("cmd.preview"), "Space m / :preview", func(a *Core) []Effect { return a.togglePreview() }},
+		{i18n.T("cmd.terminal"), "Ctrl+`", func(a *Core) []Effect { return a.toggleTerm() }},
+		{i18n.T("cmd.resize"), "Alt+R", func(a *Core) []Effect { return a.startResize() }},
+		{i18n.T("cmd.resetsizes"), i18n.T("cmd.resetsizes.key"), func(a *Core) []Effect { a.resetPanes(); return nil }},
+		{i18n.T("cmd.lastfile"), "ga / Ctrl+Tab", func(a *Core) []Effect { a.switchLast(); return nil }},
+		{i18n.T("cmd.split"), "Ctrl+\\ / Space w v / :vsplit", func(a *Core) []Effect { return a.splitOpen() }},
+		{i18n.T("cmd.splitfocus"), "Ctrl+1 Ctrl+2 / Space w h l w", func(a *Core) []Effect { return a.focusOtherPane() }},
+		{i18n.T("cmd.splitclose"), "Ctrl+\\ / Space w q o / :only", func(a *Core) []Effect { a.closeSplit(true); return nil }},
+		{i18n.T("cmd.find"), "Ctrl+F / /", func(a *Core) []Effect {
 			if a.helix {
 				return a.openCmdline("/")
 			}
 			return a.openFind()
 		}},
-		{i18n.T("cmd.goto"), i18n.T("cmd.goto.key"), func(a *App) []Effect { return a.openCmdline(":") }},
-		{i18n.T("cmd.back"), "Ctrl+O / Alt+←", func(a *App) []Effect { return a.jumpMove(-1) }},
-		{i18n.T("cmd.forward"), "Ctrl+I / Alt+→", func(a *App) []Effect { return a.jumpMove(1) }},
-		{i18n.T("cmd.undo"), "u / Ctrl+Z", func(a *App) []Effect { a.withBuf(func(b *buffer.Buffer) { b.Undo() }); return nil }},
-		{i18n.T("cmd.redo"), "U / Ctrl+Y", func(a *App) []Effect { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
-		{i18n.T("cmd.togglecomment"), "Ctrl+C / Ctrl+/", func(a *App) []Effect { a.toggleComment(); return nil }},
-		{i18n.T("cmd.grep"), "Space /", func(a *App) []Effect { return a.openSearch(fQuery) }},
-		{i18n.T("cmd.sendcontext"), "Space a / Alt+A", func(a *App) []Effect { return a.sendContext() }},
-		{i18n.T("cmd.agentpanel"), "Space i / Alt+I / :agent", func(a *App) []Effect { return a.toggleAgentPanel() }},
-		{i18n.T("cmd.agentcancel"), ":agent cancel", func(a *App) []Effect { a.cancelAgent(); return nil }},
-		{i18n.T("cmd.agentstop"), ":agent stop", func(a *App) []Effect { return a.agentCommand("stop") }},
-		{i18n.T("cmd.signature"), ":signature", func(a *App) []Effect { return a.signatureHelp(true) }},
-		{i18n.T("cmd.hover"), "Space k", func(a *App) []Effect { return a.hover() }},
-		{i18n.T("cmd.definition"), "gd / F12", func(a *App) []Effect { return a.gotoDefinition() }},
-		{i18n.T("cmd.references"), "gr / Shift+F12", func(a *App) []Effect { return a.references() }},
-		{i18n.T("cmd.rename"), "Space r / F2", func(a *App) []Effect { return a.rename() }},
-		{i18n.T("cmd.codeaction"), "Space . / :action", func(a *App) []Effect { return a.codeAction() }},
-		{i18n.T("cmd.symbols"), "Space s / :symbol", func(a *App) []Effect { return a.documentSymbols() }},
-		{i18n.T("cmd.wsymbols"), "Space S / :symbol-all", func(a *App) []Effect { return a.workspaceSymbols() }},
-		{i18n.T("cmd.format"), ":fmt", func(a *App) []Effect { return a.format(false) }},
-		{i18n.T("cmd.diagnostics"), "Space d", func(a *App) []Effect { return a.diagnosticPicker() }},
-		{i18n.T("cmd.lsprestart"), ":lsp-restart", func(a *App) []Effect { return a.execCommand("lsp-restart") }},
-		{i18n.T("cmd.diffhead"), "Ctrl+G / Space G / :gitdiff", func(a *App) []Effect { return a.openDiff(baseHead) }},
-		{i18n.T("cmd.diffpr"), "Space g", func(a *App) []Effect { return a.openDiff(basePR) }},
-		{i18n.T("cmd.diffprpick"), i18n.T("cmd.diffprpick.key"), func(a *App) []Effect { return a.prPicker() }},
-		{i18n.T("cmd.diffsplit"), ":gitdiff split|unified", func(a *App) []Effect { a.toggleSplit(); return nil }},
-		{i18n.T("cmd.diffchanges"), "", func(a *App) []Effect { return a.focusChangesList() }},
-		{i18n.T("cmd.rvcomment"), "Space v c", func(a *App) []Effect { return a.reviewCommand("c") }},
-		{i18n.T("cmd.rvfilecomment"), "Space v C", func(a *App) []Effect { return a.reviewCommand("C") }},
-		{i18n.T("cmd.rvthread"), "Space v t", func(a *App) []Effect { return a.reviewCommand("t") }},
-		{i18n.T("cmd.rvviewed"), "Space v v", func(a *App) []Effect { return a.reviewCommand("v") }},
-		{i18n.T("cmd.rvapprove"), "Space v A", func(a *App) []Effect { return a.reviewCommand("A") }},
-		{i18n.T("cmd.rvrequest"), "Space v R", func(a *App) []Effect { return a.reviewCommand("R") }},
-		{i18n.T("cmd.rvcommentonly"), "Space v S", func(a *App) []Effect { return a.reviewCommand("S") }},
-		{i18n.T("cmd.rvcopyurl"), "Space v y", func(a *App) []Effect { return a.reviewCommand("y") }},
-		{i18n.T("cmd.rvopenurl"), "Space v o", func(a *App) []Effect { return a.reviewCommand("o") }},
-		{i18n.T("cmd.treerefresh"), "R", func(a *App) []Effect { a.explorer.refresh(); return nil }},
-		{i18n.T("cmd.treenewfile"), "a", func(a *App) []Effect { return a.newFileIn(a.explorer.targetDir()) }},
-		{i18n.T("cmd.treenewfolder"), "A", func(a *App) []Effect { return a.newFolder() }},
-		{i18n.T("cmd.treerename"), "r", func(a *App) []Effect { return a.renameFile() }},
-		{i18n.T("cmd.treedelete"), "d", func(a *App) []Effect { return a.deleteFile() }},
-		{i18n.T("cmd.openurl"), "Space o / :open-url", func(a *App) []Effect { return a.openURL("") }},
-		{i18n.T("cmd.browserlist"), ":browser list", func(a *App) []Effect { return a.execCommand("browser list") }},
-		{i18n.T("cmd.theme"), i18n.T("cmd.theme.key"), func(a *App) []Effect { return a.themePicker() }},
-		{i18n.T("cmd.keymap"), ":keymap", func(a *App) []Effect { return a.execCommand("keymap") }},
-		{i18n.T("cmd.reloadconfig"), ":config-reload", func(a *App) []Effect { return a.execCommand("config-reload") }},
-		{i18n.T("cmd.quit"), "Ctrl+Q / :q", func(a *App) []Effect { return a.quit() }},
+		{i18n.T("cmd.goto"), i18n.T("cmd.goto.key"), func(a *Core) []Effect { return a.openCmdline(":") }},
+		{i18n.T("cmd.back"), "Ctrl+O / Alt+←", func(a *Core) []Effect { return a.jumpMove(-1) }},
+		{i18n.T("cmd.forward"), "Ctrl+I / Alt+→", func(a *Core) []Effect { return a.jumpMove(1) }},
+		{i18n.T("cmd.undo"), "u / Ctrl+Z", func(a *Core) []Effect { a.withBuf(func(b *buffer.Buffer) { b.Undo() }); return nil }},
+		{i18n.T("cmd.redo"), "U / Ctrl+Y", func(a *Core) []Effect { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
+		{i18n.T("cmd.togglecomment"), "Ctrl+C / Ctrl+/", func(a *Core) []Effect { a.toggleComment(); return nil }},
+		{i18n.T("cmd.grep"), "Space /", func(a *Core) []Effect { return a.openSearch(fQuery) }},
+		{i18n.T("cmd.sendcontext"), "Space a / Alt+A", func(a *Core) []Effect { return a.sendContext() }},
+		{i18n.T("cmd.agentpanel"), "Space i / Alt+I / :agent", func(a *Core) []Effect { return a.toggleAgentPanel() }},
+		{i18n.T("cmd.agentcancel"), ":agent cancel", func(a *Core) []Effect { a.cancelAgent(); return nil }},
+		{i18n.T("cmd.agentstop"), ":agent stop", func(a *Core) []Effect { return a.agentCommand("stop") }},
+		{i18n.T("cmd.signature"), ":signature", func(a *Core) []Effect { return a.signatureHelp(true) }},
+		{i18n.T("cmd.hover"), "Space k", func(a *Core) []Effect { return a.hover() }},
+		{i18n.T("cmd.definition"), "gd / F12", func(a *Core) []Effect { return a.gotoDefinition() }},
+		{i18n.T("cmd.references"), "gr / Shift+F12", func(a *Core) []Effect { return a.references() }},
+		{i18n.T("cmd.rename"), "Space r / F2", func(a *Core) []Effect { return a.rename() }},
+		{i18n.T("cmd.codeaction"), "Space . / :action", func(a *Core) []Effect { return a.codeAction() }},
+		{i18n.T("cmd.symbols"), "Space s / :symbol", func(a *Core) []Effect { return a.documentSymbols() }},
+		{i18n.T("cmd.wsymbols"), "Space S / :symbol-all", func(a *Core) []Effect { return a.workspaceSymbols() }},
+		{i18n.T("cmd.format"), ":fmt", func(a *Core) []Effect { return a.format(false) }},
+		{i18n.T("cmd.diagnostics"), "Space d", func(a *Core) []Effect { return a.diagnosticPicker() }},
+		{i18n.T("cmd.lsprestart"), ":lsp-restart", func(a *Core) []Effect { return a.execCommand("lsp-restart") }},
+		{i18n.T("cmd.diffhead"), "Ctrl+G / Space G / :gitdiff", func(a *Core) []Effect { return a.openDiff(baseHead) }},
+		{i18n.T("cmd.diffpr"), "Space g", func(a *Core) []Effect { return a.openDiff(basePR) }},
+		{i18n.T("cmd.diffprpick"), i18n.T("cmd.diffprpick.key"), func(a *Core) []Effect { return a.prPicker() }},
+		{i18n.T("cmd.diffsplit"), ":gitdiff split|unified", func(a *Core) []Effect { a.toggleSplit(); return nil }},
+		{i18n.T("cmd.diffchanges"), "", func(a *Core) []Effect { return a.focusChangesList() }},
+		{i18n.T("cmd.rvcomment"), "Space v c", func(a *Core) []Effect { return a.reviewCommand("c") }},
+		{i18n.T("cmd.rvfilecomment"), "Space v C", func(a *Core) []Effect { return a.reviewCommand("C") }},
+		{i18n.T("cmd.rvthread"), "Space v t", func(a *Core) []Effect { return a.reviewCommand("t") }},
+		{i18n.T("cmd.rvviewed"), "Space v v", func(a *Core) []Effect { return a.reviewCommand("v") }},
+		{i18n.T("cmd.rvapprove"), "Space v A", func(a *Core) []Effect { return a.reviewCommand("A") }},
+		{i18n.T("cmd.rvrequest"), "Space v R", func(a *Core) []Effect { return a.reviewCommand("R") }},
+		{i18n.T("cmd.rvcommentonly"), "Space v S", func(a *Core) []Effect { return a.reviewCommand("S") }},
+		{i18n.T("cmd.rvcopyurl"), "Space v y", func(a *Core) []Effect { return a.reviewCommand("y") }},
+		{i18n.T("cmd.rvopenurl"), "Space v o", func(a *Core) []Effect { return a.reviewCommand("o") }},
+		{i18n.T("cmd.treerefresh"), "R", func(a *Core) []Effect { a.explorer.refresh(); return nil }},
+		{i18n.T("cmd.treenewfile"), "a", func(a *Core) []Effect { return a.newFileIn(a.explorer.targetDir()) }},
+		{i18n.T("cmd.treenewfolder"), "A", func(a *Core) []Effect { return a.newFolder() }},
+		{i18n.T("cmd.treerename"), "r", func(a *Core) []Effect { return a.renameFile() }},
+		{i18n.T("cmd.treedelete"), "d", func(a *Core) []Effect { return a.deleteFile() }},
+		{i18n.T("cmd.openurl"), "Space o / :open-url", func(a *Core) []Effect { return a.openURL("") }},
+		{i18n.T("cmd.browserlist"), ":browser list", func(a *Core) []Effect { return a.execCommand("browser list") }},
+		{i18n.T("cmd.theme"), i18n.T("cmd.theme.key"), func(a *Core) []Effect { return a.themePicker() }},
+		{i18n.T("cmd.keymap"), ":keymap", func(a *Core) []Effect { return a.execCommand("keymap") }},
+		{i18n.T("cmd.reloadconfig"), ":config-reload", func(a *Core) []Effect { return a.execCommand("config-reload") }},
+		{i18n.T("cmd.quit"), "Ctrl+Q / :q", func(a *Core) []Effect { return a.quit() }},
 	}
 }
 
 // ---- command line ----
 
-func (a *App) openCmdline(kind string) []Effect {
+func (a *Core) openCmdline(kind string) []Effect {
 	a.cmdOpen = true
 	a.cmdKind = kind[:1]
 	a.cmdInput.SetValue(kind[1:])
@@ -109,12 +109,12 @@ func (a *App) openCmdline(kind string) []Effect {
 	return nil
 }
 
-func (a *App) closeCmdline() {
+func (a *Core) closeCmdline() {
 	a.cmdOpen = false
 	a.cmdInput.Blur()
 }
 
-func (a *App) handleCmdlineKey(msg Key) []Effect {
+func (a *Core) handleCmdlineKey(msg Key) []Effect {
 	switch msg.String() {
 	case "esc", "ctrl+c":
 		a.closeCmdline()
@@ -151,17 +151,17 @@ func (a *App) handleCmdlineKey(msg Key) []Effect {
 }
 
 // cmdlineInput passes a key or a paste to the command line.
-func (a *App) cmdlineInput(msg Input) []Effect {
+func (a *Core) cmdlineInput(msg Input) []Effect {
 	a.lineInputUpdate(&a.cmdInput, msg)
 	return nil
 }
 
-func (a *App) renderCmdline() string {
+func (a *Core) renderCmdline() string {
 	return drawCmdline(*a.cmdlineState(), a.cmdInput.view(inputStyleOn(cEditorBg)), a.screenW())
 }
 
 // execCommand runs a Helix-style ":" command.
-func (a *App) execCommand(line string) []Effect {
+func (a *Core) execCommand(line string) []Effect {
 	if line == "" {
 		return nil
 	}

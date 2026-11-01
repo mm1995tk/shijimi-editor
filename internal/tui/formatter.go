@@ -28,7 +28,7 @@ type formatterDoneMsg struct {
 
 // runFormatter formats the current buffer with the language's formatter
 // command: the buffer goes to stdin, stdout becomes the new text.
-func (a *App) runFormatter(t *tab, f *config.Formatter, save bool) []Effect {
+func (a *Core) runFormatter(t *tab, f *config.Formatter, save bool) []Effect {
 	in := t.buf.Text()
 	root := a.root
 	name := a.rel(t.buf.Path)
@@ -72,7 +72,7 @@ func firstNonEmptyLine(s, def string) string {
 
 // handleFormatterDone replaces only the lines the formatter changed, as one
 // undo step, so the cursor and scroll stay where they were.
-func (a *App) handleFormatterDone(msg formatterDoneMsg) []Effect {
+func (a *Core) handleFormatterDone(msg formatterDoneMsg) []Effect {
 	if msg.err != nil {
 		a.fail(msg.err)
 		return nil

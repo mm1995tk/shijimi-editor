@@ -135,7 +135,7 @@ func toEdits(b *buffer.Buffer, tes []lsp.TextEdit) []buffer.Edit {
 
 // attachLSP configures a newly opened text tab for its language and opens
 // it on the language servers.
-func (a *App) attachLSP(t *tab) {
+func (a *Core) attachLSP(t *tab) {
 	if a.single || t.kind != tabText || t.buf.Path == "" {
 		return
 	}
@@ -156,7 +156,7 @@ func (a *App) attachLSP(t *tab) {
 	t.lspVersion = t.buf.Version
 }
 
-func (a *App) detachLSP(t *tab) {
+func (a *Core) detachLSP(t *tab) {
 	cs, _ := a.lsp.clientsFor(t)
 	for _, c := range cs {
 		c.DidClose(t.buf.Path)
@@ -164,7 +164,7 @@ func (a *App) detachLSP(t *tab) {
 }
 
 // syncLSP sends didChange for buffers edited since the last sync.
-func (a *App) syncLSP() {
+func (a *Core) syncLSP() {
 	for _, t := range a.tabs {
 		if t.kind != tabText || t.lang == nil || t.buf.Version == t.lspVersion {
 			continue
@@ -201,11 +201,11 @@ type formatMsg struct {
 type lspErrMsg struct{ err error }
 
 // lspReq builds the []Effect that carries out a RunLSP.
-func (a *App) lspReq(run func(ctx context.Context) Event) []Effect {
+func (a *Core) lspReq(run func(ctx context.Context) Event) []Effect {
 	return []Effect{RunLSP{Run: run}}
 }
 
-func (a *App) lspRequest(capability string, f func(ctx context.Context, c *lsp.Client, t *tab) Event) []Effect {
+func (a *Core) lspRequest(capability string, f func(ctx context.Context, c *lsp.Client, t *tab) Event) []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -223,7 +223,7 @@ func (a *App) lspRequest(capability string, f func(ctx context.Context, c *lsp.C
 	return a.lspReq(func(ctx context.Context) Event { return f(ctx, c, t) })
 }
 
-func (a *App) hover() []Effect {
+func (a *Core) hover() []Effect {
 	return a.lspRequest("hoverProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		text, err := c.Hover(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
 		if err != nil {
@@ -233,7 +233,7 @@ func (a *App) hover() []Effect {
 	})
 }
 
-func (a *App) gotoDefinition() []Effect {
+func (a *Core) gotoDefinition() []Effect {
 	return a.lspRequest("definitionProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		pos := lspPos(t.buf, t.buf.Cur)
 		locs, err := c.Definition(ctx, t.buf.Path, pos)
@@ -276,7 +276,7 @@ func onLocation(locs []lsp.Location, path string, pos lsp.Position) bool {
 	return false
 }
 
-func (a *App) references() []Effect {
+func (a *Core) references() []Effect {
 	return a.lspRequest("referencesProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		locs, err := c.References(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
 		if err != nil {
@@ -286,7 +286,7 @@ func (a *App) references() []Effect {
 	})
 }
 
-func (a *App) completion() []Effect {
+func (a *Core) completion() []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -303,7 +303,7 @@ func (a *App) completion() []Effect {
 	})
 }
 
-func (a *App) rename() []Effect {
+func (a *Core) rename() []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -329,7 +329,7 @@ func (a *App) rename() []Effect {
 	})
 }
 
-func (a *App) format(save bool) []Effect {
+func (a *Core) format(save bool) []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -358,7 +358,7 @@ type codeActionResolvedMsg struct {
 
 // codeAction lists the quick fixes and refactorings for the selection, or
 // for the cursor position when nothing is selected.
-func (a *App) codeAction() []Effect {
+func (a *Core) codeAction() []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -406,7 +406,7 @@ func codeActionRange(b *buffer.Buffer, all []lsp.Diagnostic) (lsp.Range, []lsp.D
 	return rng, diags
 }
 
-func (a *App) showCodeActions(m codeActionsMsg) []Effect {
+func (a *Core) showCodeActions(m codeActionsMsg) []Effect {
 	if len(m.actions) == 0 {
 		a.infoText(i18n.T("lspui.noactions"))
 		return nil
@@ -441,7 +441,7 @@ func (a *App) showCodeActions(m codeActionsMsg) []Effect {
 
 // runCodeAction applies the action's edit, then runs its command; the
 // command's own edits come back as workspace/applyEdit events.
-func (a *App) runCodeAction(m codeActionResolvedMsg) []Effect {
+func (a *Core) runCodeAction(m codeActionResolvedMsg) []Effect {
 	if len(m.action.Edit) > 0 {
 		a.applyWorkspaceEdit(m.action.Edit)
 	}
@@ -461,7 +461,7 @@ func (a *App) runCodeAction(m codeActionResolvedMsg) []Effect {
 	})
 }
 
-func (a *App) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
+func (a *Core) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
 	files, n := 0, 0
 	for uri, edits := range we {
 		path := lsp.Path(uri)
@@ -476,7 +476,7 @@ func (a *App) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
 	a.info(i18n.T("lspui.applied"), files, n)
 }
 
-func (a *App) showLocations(m locationsMsg) []Effect {
+func (a *Core) showLocations(m locationsMsg) []Effect {
 	if len(m.locs) == 0 {
 		a.fail(fmt.Errorf(i18n.T("lspui.notfound"), m.title))
 		return nil
@@ -494,7 +494,7 @@ func (a *App) showLocations(m locationsMsg) []Effect {
 }
 
 // lineAt returns line n of a file, from an open buffer when possible.
-func lineAt(a *App, path string, n int) string {
+func lineAt(a *Core, path string, n int) string {
 	for _, t := range a.tabs {
 		if t.kind == tabText && t.buf.Path == path && n < len(t.buf.Lines) {
 			return string(t.buf.Lines[n])
@@ -511,7 +511,7 @@ func lineAt(a *App, path string, n int) string {
 	return ""
 }
 
-func (a *App) diagnosticPicker() []Effect {
+func (a *Core) diagnosticPicker() []Effect {
 	type entry struct {
 		path string
 		d    lsp.Diagnostic
@@ -542,7 +542,7 @@ func (a *App) diagnosticPicker() []Effect {
 }
 
 // gotoDiagnostic jumps to the next (dir=1) or previous (dir=-1) diagnostic.
-func (a *App) gotoDiagnostic(dir int) {
+func (a *Core) gotoDiagnostic(dir int) {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return
@@ -633,7 +633,7 @@ func (c *completionPopup) filter() {
 	c.sel = clamp(c.sel, 0, max(0, len(c.items)-1))
 }
 
-func (a *App) acceptCompletion() {
+func (a *Core) acceptCompletion() {
 	c := a.comp
 	a.comp = nil
 	if c == nil || len(c.items) == 0 {
@@ -723,7 +723,7 @@ func drawCompletion(ov screen.Overlay) []string {
 	return out
 }
 
-func (a *App) lspStatus() string {
+func (a *Core) lspStatus() string {
 	t := a.cur()
 	if t == nil || t.kind != tabText || t.lang == nil {
 		return ""
@@ -744,7 +744,7 @@ func (a *App) lspStatus() string {
 }
 
 // jumpTo opens the file of l and puts the cursor at the start of its range.
-func (a *App) jumpTo(l lsp.Location) []Effect {
+func (a *Core) jumpTo(l lsp.Location) []Effect {
 	a.pushJump()
 	if !a.openFile(lsp.Path(l.URI)) {
 		return nil
@@ -759,7 +759,7 @@ func (a *App) jumpTo(l lsp.Location) []Effect {
 
 // handleLSPReply takes the Events a language server's reply becomes. ok is
 // false for an Event that is not one of them.
-func (a *App) handleLSPReply(ev Event) (effs []Effect, ok bool) {
+func (a *Core) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 	switch msg := ev.(type) {
 	case hoverMsg:
 		a.showHover(msg)
@@ -807,7 +807,7 @@ func (a *App) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 	return nil, true
 }
 
-func (a *App) showHover(msg hoverMsg) {
+func (a *Core) showHover(msg hoverMsg) {
 	if t := a.curText(); a.fullPreview(t) {
 		return // the popup would be anchored to the hidden buffer
 	}

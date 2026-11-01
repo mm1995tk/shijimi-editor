@@ -46,7 +46,7 @@ var spaceItems = []spaceItem{
 }
 
 // spaceMenuItems returns the items usable right now.
-func (a *App) spaceMenuItems() []spaceItem {
+func (a *Core) spaceMenuItems() []spaceItem {
 	t := a.cur()
 	text := t != nil && t.kind == tabText
 	full := t != nil && a.fullPreview(t)

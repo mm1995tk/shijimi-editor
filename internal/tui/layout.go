@@ -70,6 +70,9 @@ func (a *App) textCols(t *tab) int { return a.editW(t, a.layout()) }
 // diffBaseCols is the width of the base side of a split diff.
 func (a *App) diffBaseCols() int { return a.dvGeom(a.layout()).leftW }
 
+// editorCols is the width of the editor area, which a split divides.
+func (a *App) editorCols() int { return a.layout().fullW }
+
 // suggestionsShown reports whether the suggestion panel is open, in which case
 // the status line leaves the suggestion count to it.
 func (a *App) suggestionsShown() bool { return a.layout().agentW > 0 }

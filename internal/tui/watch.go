@@ -22,7 +22,7 @@ const watchInterval = time.Second
 func watchTimer() Effect { return StartTimer{After: watchInterval, Fire: WatchTick{}} }
 
 // handleWatch runs one WatchTick and schedules the next.
-func (a *App) handleWatch() []Effect {
+func (a *Core) handleWatch() []Effect {
 	if a.single {
 		a.checkDiskChanges()
 		return []Effect{watchTimer()}
@@ -48,7 +48,7 @@ func (a *App) handleWatch() []Effect {
 // open files. A clean buffer is reloaded; a buffer with unsaved edits is left
 // alone and the user decides: :reload takes the disk version, saving keeps
 // theirs.
-func (a *App) checkDiskChanges() (reloaded bool) {
+func (a *Core) checkDiskChanges() (reloaded bool) {
 	if !a.cfg.Editor.WatchFiles {
 		return false
 	}

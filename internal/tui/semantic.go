@@ -40,7 +40,7 @@ type semanticMsg struct {
 // semantic tokens of t's current text, or nil when they are current, a request
 // is under way, or no server provides them. Edits made meanwhile are requested
 // once that one is applied.
-func (a *App) semanticCmd(t *tab) []Effect {
+func (a *Core) semanticCmd(t *tab) []Effect {
 	h := t.hl
 	s := &h.sem
 	if t.kind != tabText || t.lang == nil || s.running || len(t.buf.Lines) > maxHighlightLines ||
@@ -68,7 +68,7 @@ func (a *App) semanticCmd(t *tab) []Effect {
 }
 
 // semanticTabs requests semantic tokens for every text tab that is behind.
-func (a *App) semanticTabs() []Effect {
+func (a *Core) semanticTabs() []Effect {
 	var cmds [][]Effect
 	for _, t := range a.tabs {
 		cmds = append(cmds, a.semanticCmd(t))

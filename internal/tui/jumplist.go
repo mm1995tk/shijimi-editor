@@ -18,7 +18,7 @@ type jumpLoc struct {
 
 // curLoc returns where the cursor is now; ok is false when the active tab has
 // no file position (no tab, an image, an unsaved scratch buffer).
-func (a *App) curLoc() (jumpLoc, bool) {
+func (a *Core) curLoc() (jumpLoc, bool) {
 	t := a.curText()
 	if t == nil || t.buf.Path == "" {
 		return jumpLoc{}, false
@@ -29,7 +29,7 @@ func (a *App) curLoc() (jumpLoc, bool) {
 // pushJump records the current position before a far jump. Going somewhere
 // new drops the "forward" part of the list; a position equal to the last one
 // is not added twice.
-func (a *App) pushJump() {
+func (a *Core) pushJump() {
 	l, ok := a.curLoc()
 	if !ok {
 		return
@@ -45,7 +45,7 @@ func (a *App) pushJump() {
 }
 
 // jumpable reports whether the file of l can still be shown.
-func (a *App) jumpable(l jumpLoc) bool {
+func (a *Core) jumpable(l jumpLoc) bool {
 	for _, t := range a.tabs {
 		if t.kind == tabText && t.buf.Path == l.path {
 			return true
@@ -57,7 +57,7 @@ func (a *App) jumpable(l jumpLoc) bool {
 
 // jumpMove goes back (dir -1) or forward (dir +1) in the jump list, reopening
 // closed files and skipping entries whose file is gone.
-func (a *App) jumpMove(dir int) []Effect {
+func (a *Core) jumpMove(dir int) []Effect {
 	i := a.jumpIdx
 	if dir < 0 && i >= len(a.jumps) {
 		// Leaving the newest position: remember it so that "forward" returns.

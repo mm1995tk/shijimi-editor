@@ -145,7 +145,7 @@ func (s *snippetSession) span0() snipSpan { return s.groups[s.cur][0] }
 
 // startSnippet replaces the text from start to the cursor with the snippet
 // and begins a session when it has tab stops to visit.
-func (a *App) startSnippet(t *tab, start buffer.Pos, text string) {
+func (a *Core) startSnippet(t *tab, start buffer.Pos, text string) {
 	a.endSnippet()
 	b := t.buf
 	body, stops := parseSnippet(text)
@@ -198,7 +198,7 @@ func (a *App) startSnippet(t *tab, start buffer.Pos, text string) {
 
 // selectStop selects every placeholder of stop i; the last stop ends the
 // session.
-func (a *App) selectStop(i int) {
+func (a *Core) selectStop(i int) {
 	s := a.snip
 	s.cur = i
 	// Text typed at a boundary belongs to the selected stop. Which side a
@@ -232,7 +232,7 @@ func (a *App) selectStop(i int) {
 	}
 }
 
-func (a *App) endSnippet() {
+func (a *Core) endSnippet() {
 	if a.snip != nil {
 		a.snip.tab.buf.ClearMarks()
 		a.snip = nil
@@ -241,7 +241,7 @@ func (a *App) endSnippet() {
 
 // snippetActive reports whether the session still owns the cursor; it ends
 // the session when the cursor left the selected stop.
-func (a *App) snippetActive() bool {
+func (a *Core) snippetActive() bool {
 	s := a.snip
 	if s == nil {
 		return false
@@ -261,7 +261,7 @@ func (a *App) snippetActive() bool {
 
 // handleSnippetKey moves between tab stops. handled is false for every key
 // the session does not take.
-func (a *App) handleSnippetKey(msg Key) ([]Effect, bool) {
+func (a *Core) handleSnippetKey(msg Key) ([]Effect, bool) {
 	if !a.snippetActive() {
 		return nil, false
 	}

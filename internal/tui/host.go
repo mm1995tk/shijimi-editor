@@ -11,11 +11,11 @@ type Host interface {
 }
 
 // SetHost sets the Host. nil is the TUI.
-func (a *App) SetHost(h Host) { a.host = h }
+func (a *Core) SetHost(h Host) { a.host = h }
 
 // openInBrowser opens url on the user's screen: through the Host when there is
 // one, otherwise with the opener of this machine.
-func (a *App) openInBrowser(url string) error {
+func (a *Core) openInBrowser(url string) error {
 	if a.host != nil {
 		a.host.OpenURL(url)
 		return nil

@@ -8,7 +8,7 @@ import (
 
 // handlePaste sends a bracketed paste to whatever has the keyboard, the same
 // way handleKey routes keys. Overlays that take no text ignore it.
-func (a *App) handlePaste(msg Paste) []Effect {
+func (a *Core) handlePaste(msg Paste) []Effect {
 	a.msg = ""
 	switch {
 	case a.search.open:
@@ -63,7 +63,7 @@ func typed(msg Key) string {
 
 // lineInputUpdate passes a key or a paste to a one-line field. Ctrl+V pastes
 // from the clipboard (the field itself does not read it).
-func (a *App) lineInputUpdate(l *inputField, in Input) {
+func (a *Core) lineInputUpdate(l *inputField, in Input) {
 	if k, ok := in.(Key); ok && k.String() == "ctrl+v" {
 		if l.Focused() {
 			l.Insert(a.pasteText())

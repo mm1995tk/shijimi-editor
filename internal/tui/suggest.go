@@ -88,7 +88,7 @@ var failLine = regexp.MustCompile(`^\s*(--- FAIL|FAIL\b|FAILED\b|test result: FA
 
 // probeRepo looks at the repository in the background. Pull requests are
 // asked for only when the branch or HEAD moved, or every prProbeTicks.
-func (a *App) probeRepo() []Effect {
+func (a *Core) probeRepo() []Effect {
 	if a.gitTop == "" || a.sg.probing {
 		return nil
 	}
@@ -158,7 +158,7 @@ func defaultBranch(root string) string {
 	return ""
 }
 
-func (a *App) handleRepoProbed(m RepoProbed) {
+func (a *Core) handleRepoProbed(m RepoProbed) {
 	a.sg.probing = false
 	a.sg.repo = m.probe
 	a.pruneDismissed()
@@ -166,7 +166,7 @@ func (a *App) handleRepoProbed(m RepoProbed) {
 
 // suggestTick runs on every watch tick: it reads the terminal panel and
 // probes the repository now and then.
-func (a *App) suggestTick() []Effect {
+func (a *Core) suggestTick() []Effect {
 	a.scanTerminals()
 	a.pruneDismissed()
 	a.sg.ticks++
@@ -179,7 +179,7 @@ func (a *App) suggestTick() []Effect {
 
 // scanTerminals records failed commands: exit codes the shell reports
 // (OSC 133;D, see shellIntegration) and FAIL lines of test runners.
-func (a *App) scanTerminals() {
+func (a *Core) scanTerminals() {
 	alive := map[int]bool{}
 	if t := a.termShell(); t != nil {
 		alive[t.id] = true
@@ -207,12 +207,12 @@ func (a *App) scanTerminals() {
 
 // addFailure records a failure for the shell t. A shell still failing keeps its
 // record (and the key a dismissal refers to); only what is shown changes.
-func (a *App) addFailure(t *termTab, code int, line string) {
+func (a *Core) addFailure(t *termTab, code int, line string) {
 	a.addFailureTab(t.id, 1, code, line, t.vt.Tail(failTail))
 }
 
 // addFailureTab is addFailure for a terminal that is not a termTab.
-func (a *App) addFailureTab(tab, n, code int, line string, output []string) {
+func (a *Core) addFailureTab(tab, n, code int, line string, output []string) {
 	f := termFailure{tab: tab, n: n, code: code, line: line, output: output}
 	for i := range a.sg.fails {
 		if a.sg.fails[i].tab == tab {
@@ -226,12 +226,12 @@ func (a *App) addFailureTab(tab, n, code int, line string, output []string) {
 	a.sg.fails = append(a.sg.fails, f)
 }
 
-func (a *App) clearFailure(tab int) {
+func (a *Core) clearFailure(tab int) {
 	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return f.tab == tab })
 }
 
 // lspErrors returns the error diagnostics of every file, sorted by path.
-func (a *App) lspErrors() (paths []string, byPath map[string][]lsp.Diagnostic) {
+func (a *Core) lspErrors() (paths []string, byPath map[string][]lsp.Diagnostic) {
 	byPath = map[string][]lsp.Diagnostic{}
 	for p := range a.lsp.diags {
 		for _, d := range a.lsp.diagnostics(p) {
@@ -250,7 +250,7 @@ func (a *App) lspErrors() (paths []string, byPath map[string][]lsp.Diagnostic) {
 // ---- the rules ----
 
 // allSuggestions applies the rules, dismissed ones included.
-func (a *App) allSuggestions() []offer {
+func (a *Core) allSuggestions() []offer {
 	var out []offer
 	r := a.sg.repo
 	if a.sg.fixOffer {
@@ -292,7 +292,7 @@ func isBranchOf(base, branch string) bool {
 }
 
 // suggestions returns the suggestions shown: the rules minus dismissed ones.
-func (a *App) suggestions() []offer {
+func (a *Core) suggestions() []offer {
 	all := a.allSuggestions()
 	out := all[:0]
 	for _, s := range all {
@@ -305,7 +305,7 @@ func (a *App) suggestions() []offer {
 
 // pruneDismissed forgets dismissals whose condition has gone, so the
 // suggestion comes back when the condition does.
-func (a *App) pruneDismissed() {
+func (a *Core) pruneDismissed() {
 	if len(a.sg.dismissed) == 0 {
 		return
 	}
@@ -320,7 +320,7 @@ func (a *App) pruneDismissed() {
 	}
 }
 
-func (a *App) dismissSuggestion() {
+func (a *Core) dismissSuggestion() {
 	list := a.suggestions()
 	if len(list) == 0 {
 		return
@@ -338,7 +338,7 @@ func (a *App) dismissSuggestion() {
 
 // ---- running a suggestion ----
 
-func (a *App) runSuggestion() []Effect {
+func (a *Core) runSuggestion() []Effect {
 	list := a.suggestions()
 	if len(list) == 0 {
 		return nil
@@ -386,7 +386,7 @@ func (a *App) runSuggestion() []Effect {
 }
 
 // errorsText lists the LSP errors for the prompt.
-func (a *App) errorsText() string {
+func (a *Core) errorsText() string {
 	const maxErrors = 50
 	paths, byPath := a.lspErrors()
 	var sb strings.Builder
@@ -476,7 +476,7 @@ func parseReview(text string) ([]reviewComment, error) {
 // request. Comments GitHub would refuse are moved or dropped: a line outside
 // the diff becomes a comment on the file, and files that are not in the
 // pull request or differ from its head commit are skipped.
-func (a *App) placeReview(run *agentRun) []Effect {
+func (a *Core) placeReview(run *agentRun) []Effect {
 	s := a.ag
 	if !a.prShown() || a.gd.pr.Number != run.pr {
 		s.add(logEntry{kind: logError, text: i18n.T("sg.prnotshown")})
