@@ -85,6 +85,19 @@ export interface SessionOptions {
 
 /** Session.request で送れる要求（ツリーと git）。 */
 export type TreeMethod = "tree.list" | "tree.watch" | "git.status";
+/** Session.request で送れる要求（ターミナル。F1）。 */
+export type TermMethod =
+  | "term.create"
+  | "term.list"
+  | "term.attach"
+  | "term.close"
+  | "term.resize"
+  | "term.input";
+/** ターミナルの通知（F1）。method で見分ける。 */
+export type TermEvent =
+  | { method: "term.output"; params: Notifications["term.output"] }
+  | { method: "term.exit"; params: Notifications["term.exit"] }
+  | { method: "term.title"; params: Notifications["term.title"] };
 
 /** 購読する領域。今はファイルの欄だけを描く（状態行とコマンド行は E3、ポップアップは E4 で足す）。 */
 export const SUBSCRIBED_REGIONS: Region[] = ["files"];
@@ -135,6 +148,7 @@ export class Session {
   private readonly gitHandlers = new Set<
     (n: Notifications["git.changed"]) => void
   >();
+  private readonly termHandlers = new Set<(e: TermEvent) => void>();
   /** テーマ（theme.get と theme.changed で知る） */
   private _theme: Theme | null = null;
   private readonly themeHandlers = new Set<(t: Theme) => void>();
@@ -238,10 +252,10 @@ export class Session {
   }
 
   /**
-   * ツリーと git の要求を今の接続で送る（D2）。つながっていないときは投げる。
+   * ツリーと git（D2）・ターミナル（F1）の要求を今の接続で送る。つながっていないときは投げる。
    * つなぎ直したら、呼ぶ側が取り直す（onState の connected で知る）。
    */
-  async request<M extends TreeMethod>(
+  async request<M extends TreeMethod | TermMethod>(
     method: M,
     params: Requests[M]["params"],
   ): Promise<Requests[M]["result"]> {
@@ -259,6 +273,16 @@ export class Session {
   onGitChanged(h: (n: Notifications["git.changed"]) => void): () => void {
     this.gitHandlers.add(h);
     return () => this.gitHandlers.delete(h);
+  }
+
+  /** term.output・term.exit・term.title（F1）。つなぎ直しても外れない。 */
+  onTerm(h: (e: TermEvent) => void): () => void {
+    this.termHandlers.add(h);
+    return () => this.termHandlers.delete(h);
+  }
+  /** term.ack を今の接続で送る（F1）。つながっていなければ何もしない（つなぎ直したら term.attach で取り直す）。 */
+  ackTerm(termId: string, seq: number): void {
+    this.conn?.client.notify("term.ack", { termId, seq });
   }
 
   /** 全部の画面を取り直したとき（つなぎ直し、版の食い違い）。 */
@@ -475,6 +499,13 @@ export class Session {
         if (gen !== this.generation || this.conn !== conn) return;
         for (const h of [...this.gitHandlers]) h(n);
       }),
+      ...(["term.output", "term.exit", "term.title"] as const).map((method) =>
+        conn.client.on(method, (params) => {
+          if (gen !== this.generation || this.conn !== conn) return;
+          const e = { method, params } as TermEvent;
+          for (const h of [...this.termHandlers]) h(e);
+        }),
+      ),
       startPing(
         conn.client,
         this.opts.pingIntervalMs,
