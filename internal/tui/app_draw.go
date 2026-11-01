@@ -78,11 +78,11 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	l := a.layout()
 
 	right := make([]string, 0, l.bodyH)
-	editorFocused := a.focus == focusEditor && !a.overlayOpen()
+	editorFocused := a.focusIn(focusEditor)
 	mine := a.renderPane(a.cur(), l, true, editorFocused)
 	if l.split {
-		theirs := a.renderPane(a.other, l.otherLayout(), false, false)
-		if a.pane == 0 {
+		theirs := a.renderPane(a.otherTab(), l.otherLayout(), false, false)
+		if a.focusedFirst() {
 			right = append(right, joinPanes(mine, theirs, l.rightW, l.otherW)...)
 		} else {
 			right = append(right, joinPanes(theirs, mine, l.otherW, l.rightW)...)
@@ -92,7 +92,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	}
 	t := a.cur()
 	if a.showTerm {
-		right = append(right, a.term.render(l.fullW, l.panelH, a.focus == focusTerminal && !a.overlayOpen())...)
+		right = append(right, a.term.render(l.fullW, l.panelH, a.focusIn(focusTerminal))...)
 	}
 
 	rows := make([]string, l.bodyH)
@@ -102,14 +102,14 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		activePath = t.path()
 	}
 	if a.showSide {
-		side = drawExplorer(a.explorer.screen(a.explorerH(), activePath), l.sideW, a.explorerH(), a.focus == focusExplorer && !a.overlayOpen())
-		if a.gd.on {
-			side = append(side, drawChanges(a.changesScreen(l.sideW, l.bodyH-a.explorerH()), l.sideW, l.bodyH-a.explorerH(), a.focus == focusChanges && !a.overlayOpen())...)
+		side = drawExplorer(a.explorerScreen(a.explorerH(), activePath), l.sideW, a.explorerH(), a.focusIn(focusExplorer))
+		if a.diffMode() {
+			side = append(side, drawChanges(a.changesScreen(l.sideW, l.bodyH-a.explorerH()), l.sideW, l.bodyH-a.explorerH(), a.focusIn(focusChanges))...)
 		}
 	}
 	var agent []string
 	if l.agentW > 0 {
-		focused := a.focus == focusAgent && !a.overlayOpen()
+		focused := a.focusIn(focusAgent)
 		agent = drawAgent(a.agentScreen(l.agentW, l.bodyH, focused), l.agentW, l.bodyH, focused)
 	}
 	for i := range rows {
@@ -134,17 +134,17 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		}
 		rows[i] = sb.String()
 	}
-	if a.gd.on {
+	if a.diffMode() {
 		rows = append([]string{a.renderDiffHeader(a.w)}, rows...)
 		rows = append(rows, a.renderDiffHelp(a.w))
 	}
 
 	// popups anchored at the cursor
-	if t := a.curText(); t != nil && !a.fullPreview(t) && (a.comp != nil || a.hoverText != "") {
+	if t := a.curText(); t != nil && !a.fullPreview(t) && (a.completing() || a.hovering()) {
 		cx, cy := a.popupAnchor(t, l)
 		var box []string
-		if a.comp != nil {
-			box = drawCompletion(a.comp.overlay(max(3, l.editH/2)))
+		if a.completing() {
+			box = drawCompletion(a.completionOverlay(max(3, l.editH/2)))
 		} else {
 			box = a.hoverBox(l)
 		}
@@ -152,53 +152,53 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		rows = overlay(rows, box, x, y)
 	}
 
-	if a.sig != nil && a.comp == nil && a.hoverText == "" && a.sigVisible() {
-		if cx, cy := a.cursorScreen(a.sig.tab, l); a.cursorShown(a.sig.tab, l, cx, cy) {
-			box := drawSignature(a.sig.overlay(), max(10, a.w-l.rightX))
+	if st := a.signatureTab(); st != nil {
+		if cx, cy := a.cursorScreen(st, l); a.cursorShown(st, l, cx, cy) {
+			box := drawSignature(a.signatureOverlay(), max(10, a.w-l.rightX))
 			x, y := signaturePos(l, a.w, cx, cy, box)
 			rows = overlay(rows, box, x, y)
 		}
 	}
 
-	if a.card != nil && a.composer == nil {
+	if a.cardOpen() {
 		if box, x, y := a.cardBox(l); box != nil {
 			rows = overlay(rows, box, x, y)
 		}
 	}
-	if a.composer != nil {
+	if a.composing() {
 		box, x, y := a.composerBox(l)
 		rows = overlay(rows, box, x, y)
 	}
 
-	if a.pending == " " && !a.pal.open && !a.cmdOpen {
+	if a.menuOpen(" ") {
 		rows = a.renderSpaceMenu(rows, l)
 	}
-	if a.pending == "space v" && !a.pal.open && !a.cmdOpen {
+	if a.menuOpen("space v") {
 		rows = a.renderMenu(rows, l, i18n.T("app.reviewhint"), reviewItems)
 	}
-	if a.pending == "space w" && !a.pal.open && !a.cmdOpen {
+	if a.menuOpen("space w") {
 		rows = a.renderMenu(rows, l, i18n.T("win.hint"), windowItems)
 	}
 
-	if a.pal.open {
+	if a.paletteOpen() {
 		pw := a.paletteWidth()
-		box := drawPalette(a.pal.overlay(), &a.pal.input, pw)
+		box := drawPalette(a.paletteOverlay(), a.paletteField(), pw)
 		rows = overlay(rows, box, (a.w-pw)/2, 1)
 	}
 
-	if a.search.open {
+	if a.searchOpen() {
 		x, y, box := a.renderSearch()
 		rows = overlay(rows, box, x, y)
 	}
 
-	if a.ctx != nil {
+	if a.contextOpen() {
 		rows = a.renderContext(rows)
 	}
-	if a.props.Len() > 0 {
+	if a.proposalsOpen() {
 		rows = a.renderProposal(rows)
 	}
 
-	if a.cmdOpen {
+	if a.commandLineOpen() {
 		rows = append(rows, a.renderCmdline())
 	} else {
 		rows = append(rows, a.renderStatus())
@@ -289,7 +289,7 @@ func (a *App) fit() {
 		t       *tab
 		focused bool
 	}
-	panes := []pane{{a.cur(), a.focus == focusEditor && !a.overlayOpen()}}
+	panes := []pane{{a.cur(), a.focusIn(focusEditor)}}
 	if l.split {
 		panes = append(panes, pane{a.other, false})
 	}
@@ -357,7 +357,7 @@ func (a *App) fitAgent(l layout) {
 		return
 	}
 	w := l.agentW
-	lay := a.agentLayout(w, l.bodyH, a.focus == focusAgent && !a.overlayOpen())
+	lay := a.agentLayout(w, l.bodyH, a.focusIn(focusAgent))
 	a.sg.sel = lay.sel
 	log := a.renderLog(w)
 	a.ag.scroll = clamp(a.ag.scroll, 0, max(0, len(log)-lay.logRows))

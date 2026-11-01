@@ -407,7 +407,7 @@ func wrapPlainRows(text string, w int) []wrapRow {
 
 // agentMouse handles the pointer over the panel. ok is false when (x, y)
 // is not on it.
-func (a *App) agentMouse(l layout, msg Mouse) ([]Effect, bool) {
+func (a *App) agentMouse(msg Mouse) ([]Effect, bool) {
 	if msg.Region != RegionAgent {
 		return nil, false
 	}
@@ -444,7 +444,7 @@ func (a *App) agentMouse(l layout, msg Mouse) ([]Effect, bool) {
 	}
 	row := msg.Row - 1 // below the title
 	list := a.suggestions()
-	if rows := a.suggestRows(list, max(2, l.bodyH/2-1)); row >= 0 && row < len(rows) {
+	if rows := a.suggestRows(list, max(2, a.bodyH()/2-1)); row >= 0 && row < len(rows) {
 		i := rows[row]
 		if i < 0 {
 			i = rows[row-1]
@@ -452,8 +452,8 @@ func (a *App) agentMouse(l layout, msg Mouse) ([]Effect, bool) {
 		a.sg.sel = i
 	}
 	a.ag.sel = agentSel{}
-	if a.inLog(l, msg) {
-		p, _, _ := a.logPos(l, msg)
+	if a.inLog(msg) {
+		p, _, _ := a.logPos(msg)
 		a.ag.sel = agentSel{dragging: true, a: p, b: p}
 	}
 	return a.setFocus(focusAgent), true
