@@ -95,12 +95,12 @@ type App struct {
 	// bottom command line (":" commands and "/" search)
 	cmdOpen  bool
 	cmdKind  string
-	cmdInput lineInput
+	cmdInput inputField
 	cmdFrom  buffer.Pos
 
 	// VS Code-style find bar
 	findOpen   bool
-	findInput  lineInput
+	findInput  inputField
 	findOrigin buffer.Pos
 
 	comp        *completionPopup
@@ -184,9 +184,9 @@ func New(dir, file string) *App {
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
 	}
-	a.findInput = newLineInput(0)
+	a.findInput = newInputField(0)
 	a.findInput.Placeholder = i18n.T("app.find")
-	a.cmdInput = newLineInput(0)
+	a.cmdInput = newInputField(0)
 	a.commands = defaultCommands()
 	if out, err := run(abs, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		a.branch = strings.TrimSpace(string(out))
@@ -229,9 +229,9 @@ func NewSingle(file string) (*App, error) {
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
 	}
-	a.findInput = newLineInput(0)
+	a.findInput = newInputField(0)
 	a.findInput.Placeholder = i18n.T("app.find")
-	a.cmdInput = newLineInput(0)
+	a.cmdInput = newInputField(0)
 	// The command palette is not reachable in this mode; with no commands, it
 	// cannot open the views single-file mode leaves out even if it were.
 	if !a.openFile(abs) {

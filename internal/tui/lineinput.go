@@ -3,15 +3,13 @@ package tui
 import (
 	"slices"
 	"unicode"
-
-	"github.com/mattn/go-runewidth"
-	"github.com/rivo/uniseg"
 )
 
-// lineInput is a one-line text field: the text, the caret in it, and the part
-// of it that is in view. It replaces bubbles' textinput.Model (the find bar,
+// lineInput is a one-line text field: the text and the caret in it. It
+// replaces bubbles' textinput.Model (the find bar,
 // the ":" line, the palette and the search panel's fields) and reads Input, so
-// it does not depend on a terminal library. How it is drawn is the TUI's
+// it does not depend on a terminal library or on cell widths. How wide it is,
+// which part of it is in view and how it is drawn are the TUI's
 // (inputview.go); the GUI draws it from the text and the caret.
 //
 // The keys are textinput's defaults, so they work as they did.
@@ -24,25 +22,19 @@ type lineInput struct {
 
 	value   []rune
 	pos     int // caret, in runes
-	width   int // cells in view; 0 or less means no scrolling
 	focused bool
-
-	// offset and offsetRight are the runes in view, value[offset:offsetRight],
-	// once the text is wider than width.
-	offset, offsetRight int
 }
 
 // newLineInput is an empty field that holds at most limit characters (0: any).
 func newLineInput(limit int) lineInput { return lineInput{limit: limit} }
 
-func (l *lineInput) Value() string  { return string(l.value) }
-func (l *lineInput) Position() int  { return l.pos }
-func (l *lineInput) Focused() bool  { return l.focused }
-func (l *lineInput) Focus()         { l.focused = true }
-func (l *lineInput) Blur()          { l.focused = false }
-func (l *lineInput) SetWidth(w int) { l.width = w }
-func (l *lineInput) CursorStart()   { l.SetCursor(0) }
-func (l *lineInput) CursorEnd()     { l.SetCursor(len(l.value)) }
+func (l *lineInput) Value() string { return string(l.value) }
+func (l *lineInput) Position() int { return l.pos }
+func (l *lineInput) Focused() bool { return l.focused }
+func (l *lineInput) Focus()        { l.focused = true }
+func (l *lineInput) Blur()         { l.focused = false }
+func (l *lineInput) CursorStart()  { l.SetCursor(0) }
+func (l *lineInput) CursorEnd()    { l.SetCursor(len(l.value)) }
 
 // SetValue replaces the text. The caret stays where it was unless that is past
 // the new end (or the field was empty with the caret at the start), where it
@@ -60,18 +52,11 @@ func (l *lineInput) setRunes(r []rune) {
 	if (l.pos == 0 && empty) || l.pos > len(l.value) {
 		l.SetCursor(len(l.value))
 	}
-	l.scroll()
 }
 
 // SetCursor moves the caret, clamped to the text.
 func (l *lineInput) SetCursor(pos int) {
 	l.pos = min(len(l.value), max(0, pos))
-	l.scroll()
-}
-
-// Caret is how many cells after the start of the view the caret is.
-func (l *lineInput) Caret() int {
-	return uniseg.StringWidth(string(l.value[l.offset:max(l.offset, l.pos)]))
 }
 
 // sanitizeLine turns tabs and line breaks into spaces and drops other control
@@ -117,7 +102,6 @@ func (l *lineInput) Update(in Input) {
 	case Paste:
 		l.Insert(in.Content)
 	}
-	l.scroll()
 }
 
 func (l *lineInput) key(k Key) {
@@ -154,7 +138,6 @@ func (l *lineInput) key(k Key) {
 		l.CursorEnd()
 	case "ctrl+u":
 		l.value = l.value[l.pos:]
-		l.offset = 0
 		l.SetCursor(0)
 	case "alt+delete", "alt+d", "ctrl+delete":
 		l.deleteWordForward()
@@ -163,41 +146,6 @@ func (l *lineInput) key(k Key) {
 		// textinput's suggestion keys, which nothing here uses.
 	default:
 		l.Insert(k.Text)
-	}
-}
-
-// scroll keeps the caret in view when the text is wider than the field.
-func (l *lineInput) scroll() {
-	if l.width <= 0 || uniseg.StringWidth(string(l.value)) <= l.width {
-		l.offset = 0
-		l.offsetRight = len(l.value)
-		return
-	}
-	l.offsetRight = min(l.offsetRight, len(l.value))
-	switch {
-	case l.pos < l.offset:
-		l.offset = l.pos
-		w, i := 0, 0
-		runes := l.value[l.offset:]
-		for i < len(runes) && w <= l.width {
-			w += runewidth.RuneWidth(runes[i])
-			if w <= l.width+1 {
-				i++
-			}
-		}
-		l.offsetRight = l.offset + i
-	case l.pos >= l.offsetRight:
-		l.offsetRight = l.pos
-		w := 0
-		runes := l.value[:l.offsetRight]
-		i := len(runes) - 1
-		for i > 0 && w < l.width {
-			w += runewidth.RuneWidth(runes[i])
-			if w <= l.width {
-				i--
-			}
-		}
-		l.offset = l.offsetRight - (len(runes) - 1 - i)
 	}
 }
 

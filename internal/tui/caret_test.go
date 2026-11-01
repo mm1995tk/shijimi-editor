@@ -100,7 +100,7 @@ func TestInputCaretScrolledRepeats(t *testing.T) {
 		{"日本語", 20, 0, 6},
 		{"", 10, 0, 0},
 	} {
-		ti := newLineInput(0)
+		ti := newInputField(0)
 		ti.SetWidth(c.width)
 		ti.Focus()
 		for _, r := range c.value {

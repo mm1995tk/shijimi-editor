@@ -10,7 +10,7 @@ import (
 // The caret cell is reversed, so the cursor colour must be the foreground of
 // the cursor style for it to show up as the cell background.
 func TestInputCursorVisible(t *testing.T) {
-	ti := newLineInput(0)
+	ti := newInputField(0)
 	ti.Focus()
 	ti.SetCursor(0)
 
