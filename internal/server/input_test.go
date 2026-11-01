@@ -45,7 +45,7 @@ func (f *fakeInputs) Command(_, line string) (bool, string) {
 	}
 	return true, "ran " + line
 }
-func (f *fakeInputs) OpenFile(_, path string, _, _ int, _ string) error {
+func (f *fakeInputs) OpenFile(_, path string, _ *screen.Pos, _ string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.opened = append(f.opened, path)

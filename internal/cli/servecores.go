@@ -235,12 +235,12 @@ func (s serveCores) Command(root, line string) (ok bool, message string) {
 }
 
 // OpenFile is file.open, in root's core (made if it has none).
-func (s serveCores) OpenFile(root, path string, line, col int, pane string) error {
+func (s serveCores) OpenFile(root, path string, at *screen.Pos, pane string) error {
 	w := s.ws.Open(root)
 	var err error
 	w.Apply(func(c *core.Core) []core.Effect {
 		return c.Apply(func() []core.Effect {
-			effs, ok := c.OpenAt(path, line, col, pane)
+			effs, ok := c.OpenAt(path, at, pane)
 			if !ok {
 				err = errors.New(c.Msg)
 			}

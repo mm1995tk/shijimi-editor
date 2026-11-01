@@ -311,7 +311,7 @@ P14（#306）で、1 つのプロセスが `core` を複数持てるようにし
   - `input.mouse`：`pane` は `Pane.id`。`row` は `lines.rows` のキーと同じ数え方（本文の上から何行目か）、`col` は行番号の右からの桁（横スクロールの前の、見えている桁）。`button` は W3C の `MouseEvent.button`（0 が左、1 が中、2 が右）。左を押すとカーソルが動き、押したまま動かすと選択になる。`wheel` は `dy` 行・`dx` 桁（Shift を押していると縦が横になる）。2 つ並べた相手のペインを押すと、先にそちらへフォーカスを移す。差分・画像・プレビューのペインでは、押してもフォーカスが移るだけ。
   - `input.focus`：`core` に効くのは `files` だけ（キーをエディタに移す）。ほかの領域は GUI が自分で持つ。知らない `region` は `invalid_params`。
   - `command.run`：制御用ソケットの `exec` と同じく、`:q` のように終わらせるものや、人が選ぶ必要があるものは `ok: false` で断る。
-  - `file.open`：`path` はワークスペースのルートからの相対パス（`tree.*` と同じ）。外へ出るもの・リンクの先が外のものは `denied`、無いものは `not_found`、フォルダは `invalid_params`。`line` と `col` は 0 始まりで、`col` は rune の位置（`Pos` と同じ）。`pane` が 2 つ並べた相手のペインなら、そちらで開く。ワークスペースに `core` が無ければ作る。
+  - `file.open`：`path` はワークスペースのルートからの相対パス（`tree.*` と同じ）。外へ出るもの・リンクの先が外のものは `denied`、無いものは `not_found`、フォルダは `invalid_params`。`line` と `col` は 0 始まりで、`col` は rune の位置（`Pos` と同じ）。どちらも省くと、開いていたファイルのカーソルは動かない。`pane` が 2 つ並べた相手のペインなら、そちらで開く。ワークスペースに `core` が無ければ作る。
   - `shj serve` の `core` は TUI と同じく、頼んだ仕事（`Effect`：言語サーバー、タイマー、検索 …）をそれぞれの goroutine で回し、戻ってきた事象を反映したら画面を作り直す（`core.Workspace.Update` / `Apply`、`Workspaces.SetOnChange`）。作ったときに言語サーバーの待ちとファイルの監視を始める。`Quit` は捨てる。
 
 ### shj から GUI への通知（その他）

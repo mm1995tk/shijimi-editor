@@ -150,10 +150,11 @@ func splicePreedit(p *screen.Pane, pos screen.Pos, text string) {
 }
 
 // guiPaneAt is the pane id of the files region as BuildScreen last laid it
-// out, with the slot it is in. ok is false for an id not on the screen.
+// out, with the slot it is in. ok is false for an id not on the screen. The
+// panes are made with no rows: only their ids, kinds and slots are wanted, so
+// no line is built for every pointer event.
 func (a *Core) guiPaneAt(id string) (p placedPane, ok bool) {
-	cols, rows := max(1, a.ScreenW()), max(1, a.ScreenH()-1)
-	for _, p := range a.placePanes(a.screenSlots(cols), rows) {
+	for _, p := range a.placePanes(a.screenSlots(max(1, a.ScreenW())), 0) {
 		if p.ID == id {
 			return p, true
 		}
@@ -257,11 +258,12 @@ func (a *Core) paneCursor(row, col int, extend bool) {
 	a.FollowCursor()
 }
 
-// OpenAt is the GUI's file.open: it shows the file at path with the cursor at
-// line and col (0-based; col counts runes), in the pane named pane when that
-// is the other pane of a split. ok is false when the file cannot be shown
+// OpenAt is the GUI's file.open: it shows the file at path, with the cursor at
+// at when it is not nil (0-based; Col counts runes), in the pane named pane
+// when that is the other pane of a split. Without at, a file already open
+// keeps its cursor. ok is false when the file cannot be shown
 // (a.Msg says why).
-func (a *Core) OpenAt(path string, line, col int, pane string) (effs []Effect, ok bool) {
+func (a *Core) OpenAt(path string, at *screen.Pos, pane string) (effs []Effect, ok bool) {
 	if pane != "" {
 		if p, found := a.guiPaneAt(pane); found && !p.slot.mine {
 			effs = a.FocusPane(a.OtherPane())
@@ -270,10 +272,10 @@ func (a *Core) OpenAt(path string, line, col int, pane string) (effs []Effect, o
 	if !a.OpenFile(path) {
 		return effs, false
 	}
-	if t := a.CurText(); t != nil && (line > 0 || col > 0) {
+	if t := a.CurText(); t != nil && at != nil {
 		b := t.Buf
-		r := Clamp(line, 0, len(b.Lines)-1)
-		c := Clamp(col, 0, len(b.Lines[r]))
+		r := Clamp(at.Line, 0, len(b.Lines)-1)
+		c := Clamp(at.Col, 0, len(b.Lines[r]))
 		b.Anchor = nil
 		b.SetCursor(r, buffer.VisualCol(b.Lines[r], c), false)
 		a.Follow = true

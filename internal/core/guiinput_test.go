@@ -1,9 +1,12 @@
 package core
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // A W3C key name becomes the Key the TUI gets for the same press.
@@ -131,23 +134,35 @@ func TestPreeditShownAtCursor(t *testing.T) {
 	}
 }
 
-// file.open shows the file with the cursor where it says (0-based).
+// file.open shows the file with the cursor where it says (0-based). Line 0 is
+// a place like any other; without a place, an open file keeps its cursor.
 func TestOpenAt(t *testing.T) {
 	c, _ := headlessCore(t, "x\n")
 	p := writeFile(t, c.Root, "b.txt", "one\ntwo\nthree\n")
-	if _, ok := c.OpenAt(p, 2, 3, ""); !ok {
+	if _, ok := c.OpenAt(p, &screen.Pos{Line: 2, Col: 3}, ""); !ok {
 		t.Fatalf("open: %s", c.Msg)
 	}
 	tb := c.CurText()
 	if tb.Path() != p || tb.Buf.Cur.Row != 2 || tb.Buf.Cur.Col != 3 || c.Focus != FocusEditor {
 		t.Errorf("at %s %+v focus %v", tb.Path(), tb.Buf.Cur, c.Focus)
 	}
+	c.OpenAt(p, nil, "")
+	if tb.Buf.Cur.Row != 2 || tb.Buf.Cur.Col != 3 {
+		t.Errorf("opening again with no place moved the cursor to %+v", tb.Buf.Cur)
+	}
+	c.OpenAt(p, &screen.Pos{}, "")
+	if tb.Buf.Cur.Row != 0 || tb.Buf.Cur.Col != 0 {
+		t.Errorf("line 0 left the cursor at %+v", tb.Buf.Cur)
+	}
 }
 
 // A core of Workspaces carries out the Effects it asks for: its watch timer
-// fires, and the change is reported.
+// fires, and the change is reported. Once the workspace is closed, nothing
+// runs, and the goroutines that waited on the core's channels are gone.
 func TestWorkspaceRunsEffects(t *testing.T) {
-	ws := NewWorkspaces(NewShared(), nil)
+	sh := NewShared()
+	defer sh.Close()
+	ws := NewWorkspaces(sh, nil)
 	defer ws.CloseAll()
 	changed := make(chan struct{}, 1)
 	ws.SetOnChange(func() {
@@ -156,6 +171,7 @@ func TestWorkspaceRunsEffects(t *testing.T) {
 		default:
 		}
 	})
+	before := runtime.NumGoroutine()
 	w := ws.Open(t.TempDir())
 	select {
 	case <-changed:
@@ -167,5 +183,12 @@ func TestWorkspaceRunsEffects(t *testing.T) {
 	w.Apply(func(*Core) []Effect { ran = true; return nil })
 	if ran {
 		t.Error("a closed workspace still runs")
+	}
+	deadline := time.Now().Add(10 * time.Second)
+	for runtime.NumGoroutine() > before {
+		if time.Now().After(deadline) {
+			t.Fatalf("%d goroutines left after Close, %d before Open", runtime.NumGoroutine(), before)
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

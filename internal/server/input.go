@@ -28,8 +28,9 @@ type Inputs interface {
 	Focus(root string, in FocusInput)
 	// Command は ":" コマンドを実行する（制御用ソケットの exec と同じ）。
 	Command(root, line string) (ok bool, message string)
-	// OpenFile は root の core で path（絶対パス）を開く。core が無ければ作る。開けなければ理由を返す。
-	OpenFile(root, path string, line, col int, pane string) error
+	// OpenFile は root の core で path（絶対パス）を開き、at が nil でなければカーソルをそこに置く。
+	// core が無ければ作る。開けなければ理由を返す。
+	OpenFile(root, path string, at *screen.Pos, pane string) error
 }
 
 // KeyInput は input.key のパラメータ。
@@ -104,6 +105,60 @@ func (s *Server) inputsOf() Inputs {
 	return s.inputs
 }
 
+// inputHandlers は input.* のメソッドごとに、パラメータを読んで確かめ、root の core に届けて seq を返す。
+var inputHandlers = map[string]func(in Inputs, root string, raw json.RawMessage) (uint64, error){
+	"input.key": func(in Inputs, root string, raw json.RawMessage) (uint64, error) {
+		var p KeyInput
+		if err := decodeInput(raw, &p, &p.Region); err != nil {
+			return 0, err
+		}
+		switch p.Phase {
+		case "":
+			p.Phase = "press"
+		case "press", "repeat", "release":
+		default:
+			return 0, rpc.Errorf(rpc.CodeInvalidParams, "unknown phase: %s", p.Phase)
+		}
+		in.Key(root, p)
+		return p.Seq, nil
+	},
+	"input.composition": func(in Inputs, root string, raw json.RawMessage) (uint64, error) {
+		var p CompositionInput
+		if err := decodeInput(raw, &p, &p.Region); err != nil {
+			return 0, err
+		}
+		in.Composition(root, p)
+		return p.Seq, nil
+	},
+	"input.mouse": func(in Inputs, root string, raw json.RawMessage) (uint64, error) {
+		var p MouseInput
+		if err := decodeInput(raw, &p, &p.Region); err != nil {
+			return 0, err
+		}
+		if !slices.Contains([]string{"down", "up", "move", "wheel"}, p.Kind) {
+			return 0, rpc.Errorf(rpc.CodeInvalidParams, "unknown kind: %s", p.Kind)
+		}
+		in.Mouse(root, p)
+		return p.Seq, nil
+	},
+	"input.paste": func(in Inputs, root string, raw json.RawMessage) (uint64, error) {
+		var p PasteInput
+		if err := decodeInput(raw, &p, &p.Region); err != nil {
+			return 0, err
+		}
+		in.Paste(root, p)
+		return p.Seq, nil
+	},
+	"input.focus": func(in Inputs, root string, raw json.RawMessage) (uint64, error) {
+		var p FocusInput
+		if err := decodeInput(raw, &p, &p.Region); err != nil {
+			return 0, err
+		}
+		in.Focus(root, p)
+		return p.Seq, nil
+	},
+}
+
 // inputRequest は input.* / command.run / file.open。扱わないメソッドは handled == false。
 func (ss *session) inputRequest(req *rpc.Message) (res any, err error, handled bool) {
 	if !isInputMethod(req.Method) {
@@ -124,76 +179,33 @@ func (ss *session) inputRequest(req *rpc.Message) (res any, err error, handled b
 	if root == "" {
 		return nil, rpc.Errorf(rpc.CodeNotFound, "no workspace has the focus"), true
 	}
-	var seq uint64
-	var out any
-	switch req.Method {
-	case "input.key":
-		var p KeyInput
-		if err := decodeInput(req, &p, &p.Region); err != nil {
-			return nil, err, true
-		}
-		switch p.Phase {
-		case "":
-			p.Phase = "press"
-		case "press", "repeat", "release":
-		default:
-			return nil, rpc.Errorf(rpc.CodeInvalidParams, "unknown phase: %s", p.Phase), true
-		}
-		seq = p.Seq
-		in.Key(root, p)
-	case "input.composition":
-		var p CompositionInput
-		if err := decodeInput(req, &p, &p.Region); err != nil {
-			return nil, err, true
-		}
-		seq = p.Seq
-		in.Composition(root, p)
-	case "input.mouse":
-		var p MouseInput
-		if err := decodeInput(req, &p, &p.Region); err != nil {
-			return nil, err, true
-		}
-		if !slices.Contains([]string{"down", "up", "move", "wheel"}, p.Kind) {
-			return nil, rpc.Errorf(rpc.CodeInvalidParams, "unknown kind: %s", p.Kind), true
-		}
-		seq = p.Seq
-		in.Mouse(root, p)
-	case "input.paste":
-		var p PasteInput
-		if err := decodeInput(req, &p, &p.Region); err != nil {
-			return nil, err, true
-		}
-		seq = p.Seq
-		in.Paste(root, p)
-	case "input.focus":
-		var p FocusInput
-		if err := decodeInput(req, &p, &p.Region); err != nil {
-			return nil, err, true
-		}
-		seq = p.Seq
-		in.Focus(root, p)
-	case "command.run":
-		var p struct {
-			Seq  uint64 `json:"seq"`
-			Line string `json:"line"`
-		}
-		if err := json.Unmarshal(req.Params, &p); err != nil {
-			return nil, invalidParams(err), true
-		}
-		seq = p.Seq
-		ok, msg := in.Command(root, p.Line)
-		out = map[string]any{"ok": ok, "message": msg}
+	if req.Method == "command.run" {
+		return ss.commandReq(in, root, req)
 	}
-	rev := ss.applied(seq)
-	if out == nil {
-		out = map[string]any{"rev": rev}
+	seq, err := inputHandlers[req.Method](in, root, req.Params)
+	if err != nil {
+		return nil, err, true
 	}
-	return out, nil, true
+	return map[string]any{"rev": ss.applied(seq)}, nil, true
+}
+
+// commandReq は command.run。
+func (ss *session) commandReq(in Inputs, root string, req *rpc.Message) (any, error, bool) {
+	var p struct {
+		Seq  uint64 `json:"seq"`
+		Line string `json:"line"`
+	}
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return nil, invalidParams(err), true
+	}
+	ok, msg := in.Command(root, p.Line)
+	ss.applied(p.Seq)
+	return map[string]any{"ok": ok, "message": msg}, nil, true
 }
 
 // decodeInput は input.* のパラメータを読み、region を確かめる。
-func decodeInput(req *rpc.Message, p any, region *screen.Region) error {
-	if err := json.Unmarshal(req.Params, p); err != nil {
+func decodeInput(raw json.RawMessage, p any, region *screen.Region) error {
+	if err := json.Unmarshal(raw, p); err != nil {
 		return invalidParams(err)
 	}
 	if !slices.Contains(knownRegions, *region) {
@@ -208,15 +220,26 @@ func (ss *session) fileOpenReq(in Inputs, req *rpc.Message) (any, error, bool) {
 		Seq         uint64 `json:"seq"`
 		WorkspaceID string `json:"workspaceId"`
 		Path        string `json:"path"`
-		Line        int    `json:"line"`
-		Col         int    `json:"col"`
+		Line        *int   `json:"line"`
+		Col         *int   `json:"col"`
 		Pane        string `json:"pane"`
 	}
 	if err := json.Unmarshal(req.Params, &p); err != nil {
 		return nil, invalidParams(err), true
 	}
-	if p.Line < 0 || p.Col < 0 {
-		return nil, rpc.Errorf(rpc.CodeInvalidParams, "negative line or col"), true
+	// 0 は先頭という正しい値なので、省いたとき（カーソルを動かさない）と分ける。
+	var at *screen.Pos
+	if p.Line != nil || p.Col != nil {
+		at = &screen.Pos{}
+		if p.Line != nil {
+			at.Line = *p.Line
+		}
+		if p.Col != nil {
+			at.Col = *p.Col
+		}
+		if at.Line < 0 || at.Col < 0 {
+			return nil, rpc.Errorf(rpc.CodeInvalidParams, "negative line or col"), true
+		}
 	}
 	rel, err := cleanRel(p.Path)
 	if err != nil {
@@ -240,7 +263,7 @@ func (ss *session) fileOpenReq(in Inputs, req *rpc.Message) (any, error, bool) {
 		w.recomputeMu.Unlock()
 		return nil, err, true
 	}
-	err = in.OpenFile(root, full, p.Line, p.Col, p.Pane)
+	err = in.OpenFile(root, full, at, p.Pane)
 	w.recomputeMu.Unlock()
 	if err != nil {
 		return nil, rpc.Errorf(rpc.CodeInternalError, "open %s: %v", rel, err), true

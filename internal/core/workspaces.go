@@ -34,8 +34,9 @@ type Workspace struct {
 	Root     string // the workspace root, an absolute path
 	mu       sync.Mutex
 	core     *Core
-	closed   bool   // Close stopped the core; late Events are dropped
-	onChange func() // called after an Event that came back changed the core
+	closed   bool          // Close stopped the core; late Events are dropped
+	done     chan struct{} // closed by Close: the goroutines that wait on the core's channels stop
+	onChange func()        // called after an Event that came back changed the core
 }
 
 // Do runs fn with the core, one caller at a time.
@@ -46,22 +47,24 @@ func (w *Workspace) Do(fn func(c *Core)) {
 }
 
 // Update hands msg (an Input or an Event) to the core and carries out the
-// Effects it asks for.
-func (w *Workspace) Update(msg any) {
-	w.Apply(func(c *Core) []Effect { return c.Update(msg) })
+// Effects it asks for. It reports whether the core took it (see Apply).
+func (w *Workspace) Update(msg any) bool {
+	return w.Apply(func(c *Core) []Effect { return c.Update(msg) })
 }
 
 // Apply runs fn with the core, one caller at a time, and carries out the
-// Effects fn returns. fn calls Core.Update or Core.Apply.
-func (w *Workspace) Apply(fn func(c *Core) []Effect) {
+// Effects fn returns. fn calls Core.Update or Core.Apply. It reports whether fn
+// ran: not once the workspace is closed.
+func (w *Workspace) Apply(fn func(c *Core) []Effect) bool {
 	w.mu.Lock()
 	if w.closed {
 		w.mu.Unlock()
-		return
+		return false
 	}
 	effs := fn(w.core)
 	w.mu.Unlock()
 	w.run(effs)
+	return true
 }
 
 // deliver hands an Event that came back from an Effect to the core.
@@ -69,9 +72,19 @@ func (w *Workspace) deliver(ev Event) {
 	if ev == nil {
 		return
 	}
-	w.Update(ev)
-	if w.onChange != nil {
+	if w.Update(ev) && w.onChange != nil {
 		w.onChange()
+	}
+}
+
+// wait delivers the next Event from, unless the workspace is closed first: the
+// core does not close its channels, and a goroutine left waiting would keep the
+// core of a closed workspace.
+func (w *Workspace) wait(from <-chan Event) {
+	select {
+	case ev := <-from:
+		w.deliver(ev)
+	case <-w.done:
 	}
 }
 
@@ -92,7 +105,13 @@ func (w *Workspace) run(effs []Effect) {
 			}()
 		case WaitLSP:
 			from := e.From
-			go func() { w.deliver(LspEventMsg(<-from)) }()
+			go func() {
+				select {
+				case ev := <-from:
+					w.deliver(LspEventMsg(ev))
+				case <-w.done:
+				}
+			}()
 		case RunSearch:
 			go func() { w.deliver(e.Run()) }()
 		case RunProbe:
@@ -100,9 +119,9 @@ func (w *Workspace) run(effs []Effect) {
 		case Run:
 			go func() { w.deliver(e.Run()) }()
 		case WaitTerm:
-			go func() { w.deliver(<-e.From) }()
+			go w.wait(e.From)
 		case WaitAgent:
-			go func() { w.deliver(<-e.From) }()
+			go w.wait(e.From)
 		case RunAgent:
 			go e.Run()
 		case ReplyCtl:
@@ -152,7 +171,7 @@ func (ws *Workspaces) Open(root string) *Workspace {
 		c = newHeadlessCore(ws.shared, root)
 	}
 	ws.mu.Lock()
-	w := &Workspace{Root: root, core: c, onChange: ws.onChange}
+	w := &Workspace{Root: root, core: c, onChange: ws.onChange, done: make(chan struct{})}
 	if got := ws.cores[root]; got != nil {
 		// someone made it meanwhile; theirs stays
 		ws.mu.Unlock()
@@ -194,7 +213,11 @@ func (ws *Workspaces) Close(root string) {
 	delete(ws.cores, root)
 	ws.mu.Unlock()
 	if w != nil {
-		w.Do(func(c *Core) { c.Close(); w.closed = true })
+		w.Do(func(c *Core) {
+			c.Close()
+			w.closed = true
+			close(w.done)
+		})
 	}
 }
 
