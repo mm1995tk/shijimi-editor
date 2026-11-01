@@ -13,6 +13,8 @@ export interface MachineStatus {
   /** ツールチップ（長い説明） */
   title: string;
   retry?: RetryKind;
+  /** 待ち時間の残り（「3 秒後」）。毎秒変わるので、読み上げる text とは分けて出す */
+  countdown?: string;
 }
 
 const secondsLeft = (at: number, now: number) =>
@@ -29,9 +31,10 @@ export function statusLine(
       const n = s.attempt > 1 ? `（${s.attempt} 回目）` : "";
       if (s.retryAt !== undefined) {
         return {
-          text: `つなげませんでした。${secondsLeft(s.retryAt, now)} 秒後にもう一度${n}`,
+          text: `つなげませんでした${n}`,
           title: s.reason ?? "",
           retry: "now",
+          countdown: `${secondsLeft(s.retryAt, now)} 秒後にもう一度`,
         };
       }
       return { text: `つないでいます…${n}`, title: s.reason ?? "" };
@@ -45,9 +48,10 @@ export function statusLine(
       const text = `再接続中（${s.attempt} 回目）`;
       if (s.retryAt !== undefined) {
         return {
-          text: `${text}・${secondsLeft(s.retryAt, now)} 秒後`,
+          text,
           title: s.reason,
           retry: "now",
+          countdown: `${secondsLeft(s.retryAt, now)} 秒後`,
         };
       }
       return { text, title: s.reason };

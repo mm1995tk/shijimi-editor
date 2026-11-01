@@ -8,6 +8,14 @@ import type { SessionState } from "../ssh/session.ts";
 import { ModalCard } from "./Card.tsx";
 import { canConnect, stateLabel } from "./status.ts";
 
+/** 行の id（入力欄の aria-activedescendant で、選んでいる行を読み上げに伝える）。 */
+const optionId = (i: number) => `host-picker-option-${i}`;
+
+/**
+ * ホストを開く窓。targets を状態の丸（stateOf）と一緒に並べ、名前で絞り、選んだ行で onConnect を呼ぶ。
+ * つないだら onClose も呼ぶ（窓を閉じるのは呼んだ側）。「閉じる」と Esc でも onClose を呼ぶ。
+ * つながっている・つないでいる最中のホストは選べるが、「つなぐ」は押せない。
+ */
 export function HostPicker(props: {
   /** 候補（LOCAL と ~/.ssh/config のホスト）。この順に並べる */
   targets: string[];
@@ -56,6 +64,15 @@ export function HostPicker(props: {
           <input
             class="card-input"
             type="text"
+            role="combobox"
+            aria-expanded="true"
+            aria-autocomplete="list"
+            aria-controls="host-picker-options"
+            aria-activedescendant={
+              selected() !== undefined
+                ? optionId(shown().indexOf(selected()!))
+                : undefined
+            }
             placeholder="~/.ssh/config のホスト"
             value={query()}
             onInput={(e) => setQuery(e.currentTarget.value)}
@@ -76,15 +93,25 @@ export function HostPicker(props: {
       <div class="card-section" id="host-picker-list">
         このマシンと ~/.ssh/config から
       </div>
-      <ul class="card-rows" role="listbox" aria-labelledby="host-picker-list">
+      <ul
+        id="host-picker-options"
+        class="card-rows"
+        role="listbox"
+        aria-labelledby="host-picker-list"
+      >
         <For
           each={shown()}
-          fallback={<li class="card-empty">合うホストはありません</li>}
+          fallback={
+            <li class="card-empty" role="presentation">
+              合うホストはありません
+            </li>
+          }
         >
-          {(t) => (
-            <li>
+          {(t, i) => (
+            <li role="presentation">
               <button
                 type="button"
+                id={optionId(i())}
                 class="card-row"
                 role="option"
                 aria-selected={selected() === t ? "true" : "false"}

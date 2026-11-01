@@ -218,40 +218,47 @@ function Machine(
       data-target={g().target}
       aria-label={g().label}
     >
-      <h2
+      {/* 見出しの行。見出し（h2）の名前がマシンの名前だけになるよう、ボタンと丸は h2 の外に置く */}
+      <div
         class="machine-heading"
         data-sticky={props.sticky ? "top" : undefined}
       >
-        <span class="machine-name" title={status()?.title || undefined}>
+        <h2 class="machine-name" title={status()?.title || undefined}>
           {g().label}
-        </span>
+        </h2>
         <Show when={status()?.retry}>
-          {(r) => (
-            <button
-              type="button"
-              class="machine-action"
-              aria-label={r() === "now" ? "今すぐつなぐ" : "つなぎ直す"}
-              title={r() === "now" ? "今すぐつなぐ" : "つなぎ直す"}
-              onClick={() => props.onRetry?.(g().target)}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
+          {(r) => {
+            const label = () =>
+              r() === "now"
+                ? `${g().label} に今すぐつなぐ`
+                : `${g().label} につなぎ直す`;
+            return (
+              <button
+                type="button"
+                class="machine-action"
+                aria-label={label()}
+                title={label()}
+                onClick={() => props.onRetry?.(g().target)}
               >
-                <path d="M20 12a8 8 0 1 1-2.34-5.66" />
-                <path d="M20 4v5h-5" />
-              </svg>
-            </button>
-          )}
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+                  <path d="M20 4v5h-5" />
+                </svg>
+              </button>
+            );
+          }}
         </Show>
         <Show when={props.onDisconnect}>
           <button
             type="button"
             class="machine-action"
             aria-label={`${g().label} を切る`}
-            title="切る"
+            title={`${g().label} を切る`}
             onClick={() => props.onDisconnect?.(g().target)}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
@@ -266,15 +273,15 @@ function Machine(
           aria-label={healthLabel[g().health]}
           title={healthLabel[g().health]}
         />
-      </h2>
+      </div>
       <Show when={status()?.text}>
         {(t) => (
-          <p
-            class="machine-status"
-            role="status"
-            title={status()?.title || undefined}
-          >
-            {t()}
+          <p class="machine-status" title={status()?.title || undefined}>
+            {/* 読み上げは状態が変わったときだけにし、毎秒動く残り秒数は live region の外に出す */}
+            <span role="status">{t()}</span>
+            <Show when={status()?.countdown}>
+              {(c) => <span aria-hidden="true">・{c()}</span>}
+            </Show>
           </p>
         )}
       </Show>

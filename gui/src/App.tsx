@@ -436,49 +436,69 @@ export function App(props: {
     ),
   );
 
+  // 知らせのオブジェクトは、元の状態（SessionState・focusError の文）が同じなら使い回す。
+  // 作り直すと Notices が描き直し、ほかのマシンの状態が変わるだけで読み上げ直し、ボタンのフォーカスも消えるため
+  const noticeOf = new WeakMap<SessionState, Notice | null>();
+  let focusNotice: { err: string; notice: Notice } | undefined;
+
   /** 右下に積む知らせ。つながらない・別の GUI に移った・ワークスペースに移れなかった。 */
   const notices = createMemo<Notice[]>(() => {
     const out: Notice[] = [];
     const err = focusError();
     if (err) {
-      out.push({
-        title: "ワークスペースに移れませんでした",
-        error: err,
-        primary: { label: "閉じる", run: () => setFocusError("") },
-      });
+      if (focusNotice?.err !== err) {
+        focusNotice = {
+          err,
+          notice: {
+            title: "ワークスペースに移れませんでした",
+            error: err,
+            primary: { label: "閉じる", run: () => setFocusError("") },
+          },
+        };
+      }
+      out.push(focusNotice.notice);
     }
     for (const [t, st] of Object.entries(states())) {
       if (dismissed().has(st)) continue;
-      const label = machineLabel(t);
-      const close = {
-        label: "閉じる",
-        run: () => setDismissed((d) => new Set(d).add(st)),
-      };
-      const cut = { label: "切る", run: () => void disconnect(t) };
-      if (st.kind === "failed") {
-        out.push({
-          title: `${label} につながりません`,
-          error: st.message,
-          secondary: [close, cut],
-          primary: { label: "つなぎ直す", run: () => connect(t) },
-        });
-      } else if (st.kind === "superseded") {
-        const who = st.by ? describeClient(st.by) : "";
-        out.push({
-          title: who
-            ? `${label} は別の GUI に移りました（${who}）`
-            : `${label} は別の GUI に移りました`,
-          text:
-            `${label} の作業は、あとからつないだ別の GUI に移りました。` +
-            "取り合いにならないよう、自動ではつなぎ直しません。" +
-            "「つなぎ直す」を押すとこちらに戻し、あちらの GUI が切れます。",
-          secondary: [close, cut],
-          primary: { label: "つなぎ直す", run: () => connect(t) },
-        });
-      }
+      if (!noticeOf.has(st)) noticeOf.set(st, makeNotice(t, st));
+      const n = noticeOf.get(st);
+      if (n) out.push(n);
     }
     return out;
   });
+
+  /** マシン 1 台の状態の知らせ。知らせることが無ければ null。 */
+  function makeNotice(t: string, st: SessionState): Notice | null {
+    const label = machineLabel(t);
+    const close = {
+      label: "閉じる",
+      run: () => setDismissed((d) => new Set(d).add(st)),
+    };
+    const cut = { label: "切る", run: () => void disconnect(t) };
+    if (st.kind === "failed") {
+      return {
+        title: `${label} につながりません`,
+        error: st.message,
+        secondary: [close, cut],
+        primary: { label: "つなぎ直す", run: () => connect(t) },
+      };
+    }
+    if (st.kind === "superseded") {
+      const who = st.by ? describeClient(st.by) : "";
+      return {
+        title: who
+          ? `${label} は別の GUI に移りました（${who}）`
+          : `${label} は別の GUI に移りました`,
+        text:
+          `${label} の作業は、あとからつないだ別の GUI に移りました。` +
+          "取り合いにならないよう、自動ではつなぎ直しません。" +
+          "「つなぎ直す」を押すとこちらに戻し、あちらの GUI が切れます。",
+        secondary: [close, cut],
+        primary: { label: "つなぎ直す", run: () => connect(t) },
+      };
+    }
+    return null;
+  }
 
   function reply(requestId: number, value: string | null) {
     setAsks((a) => a.filter((x) => x.requestId !== requestId));

@@ -99,6 +99,9 @@
 }
 
 .machine-name {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
   flex: 1;
   min-width: 0;
   overflow: hidden;

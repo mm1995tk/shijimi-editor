@@ -39,6 +39,9 @@
   max-height: calc(100vh - 160px);
   margin: 120px auto auto;
 }
+.card-modal:focus {
+  outline: none;
+}
 .card-modal:not([open]) {
   display: none;
 }

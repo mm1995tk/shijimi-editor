@@ -5,6 +5,12 @@ import { Show, type JSX } from "solid-js";
 import type { SessionState } from "../ssh/session.ts";
 import { ModalCard } from "./Card.tsx";
 
+/**
+ * shj が無いマシン（target）に、GUI と同じ版の shj を入れてよいかを聞く窓。
+ * 入れる版・取ってくる所・入れる先（state.plan）と、前に失敗した理由（state.error）を見せる。
+ * 「入れる」で onYes、「入れない」と Esc で onNo を呼ぶ。起動時の自動接続でも開くので、
+ * フォーカスはボタンではなく窓そのものに置く（打っていた Enter で入れ始めないように）。
+ */
 export function InstallCard(props: {
   /** マシンの表示名 */
   target: string;
@@ -13,7 +19,7 @@ export function InstallCard(props: {
   onNo: () => void;
 }): JSX.Element {
   return (
-    <ModalCard label="shj を入れるか" onCancel={props.onNo}>
+    <ModalCard label="shj を入れるか" onCancel={props.onNo} focusSelf>
       <div class="card-body">
         <h1 class="card-title">{props.target} に shj を入れますか？</h1>
         <p class="card-text">
@@ -37,12 +43,7 @@ export function InstallCard(props: {
         <button type="button" class="card-button" onClick={props.onNo}>
           入れない
         </button>
-        <button
-          type="button"
-          class="card-button primary"
-          onClick={props.onYes}
-          autofocus
-        >
+        <button type="button" class="card-button primary" onClick={props.onYes}>
           入れる
         </button>
       </div>

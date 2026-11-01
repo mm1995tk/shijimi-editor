@@ -26,7 +26,7 @@ describe("statusLine", () => {
     );
   });
 
-  it("待ち時間中は残りの秒数と、今すぐつなぐボタン", () => {
+  it("待ち時間中は残りの秒数（読み上げる text とは分ける）と、今すぐつなぐボタン", () => {
     assert.deepEqual(
       statusLine(
         {
@@ -38,7 +38,12 @@ describe("statusLine", () => {
         },
         8_000,
       ),
-      { text: "再接続中（3 回目）・3 秒後", title: "EOF", retry: "now" },
+      {
+        text: "再接続中（3 回目）",
+        title: "EOF",
+        retry: "now",
+        countdown: "3 秒後",
+      },
     );
     assert.equal(
       statusLine({ kind: "connecting", attempt: 2, max: 5, retryAt: 0 }, 0)

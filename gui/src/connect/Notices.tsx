@@ -17,6 +17,11 @@ export interface Notice {
   secondary?: { label: string; run: () => void }[];
 }
 
+/**
+ * notices を右下に上から積み、その下に children（新しい版の知らせ）を置く。
+ * 知らせは閉じるまで残り、後ろの画面は触れたまま。同じ Notice のオブジェクトは描き直さないので、
+ * 渡す側は、中身が変わらない知らせには同じオブジェクトを渡す（読み上げ直しとフォーカスの喪失を避ける）。
+ */
 export function Notices(props: {
   notices: Notice[];
   children?: JSX.Element;
