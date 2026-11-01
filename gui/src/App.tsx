@@ -12,6 +12,7 @@
 // OS のクリップボードに入れる（E2）。
 // 帯を押してフォーカスを移すと、右下のターミナルもそのワークスペースのシェルに切り替える（F2）。
 // Ctrl+Shift+` でファイルの欄とターミナルのカードを入れ替える（IDE モードとターミナルモード。F3。mode.ts）。
+// IDE モードでファイルを開いていない（ワークスペースが無いときも）あいだは、右の列を全部ターミナルにする（mode.ts）。
 // ターミナルモードでは、マシンのターミナルを数に応じて自動で並べる。Ctrl+Shift+T で増やし、`exit` で閉じて
 // 並び直し、Ctrl+Shift+矢印で隣へ移る（F4。terminal/group.ts・terminal/grid.ts）。
 // 新しい版があれば右下に知らせ、押されたら入れ替えて起動し直す（C8。update/UpdateBar.tsx）。
@@ -66,7 +67,13 @@ import { WorkspaceTrees } from "./tree/trees.ts";
 import { directionKey, isNewTermKey } from "./terminal/grid.ts";
 import { TermGroup } from "./terminal/group.ts";
 import { TerminalGrid } from "./terminal/TerminalGrid.tsx";
-import { isModeKey, otherMode, swapWithMotion, type Mode } from "./mode.ts";
+import {
+  hasOpenFile,
+  isModeKey,
+  otherMode,
+  swapWithMotion,
+  type Mode,
+} from "./mode.ts";
 
 export function App(props: {
   api?: ShellApi;
@@ -142,6 +149,31 @@ export function App(props: {
   // IDE モード（上がファイルの欄）かターミナルモード（上がターミナル）か（F3）
   const [mode, setMode] = createSignal<Mode>("ide");
   let mainEl: HTMLDivElement | undefined;
+  // ファイルの欄に描く画面（フォーカスしているマシンのもの。フォーカスが無ければ null）
+  const filesScreen = () => {
+    const f = focus();
+    return f ? (screens()[f.target] ?? null) : null;
+  };
+  // ファイルを開いているか。開いていなければ、IDE モードでもファイルの欄を出さず右の列を全部ターミナルにする（mode.ts）
+  const fileOpen = createMemo(() => hasOpenFile(filesScreen()?.files));
+  // ツリーから開いたとき、ファイルの欄が出たらキーを向ける（出す前の欄にはフォーカスできない）
+  let focusFilesWhenShown = false;
+  createEffect(() => {
+    if (!fileOpen() || !focusFilesWhenShown) return;
+    focusFilesWhenShown = false;
+    if (untrack(mode) === "ide") focusFiles();
+  });
+  // 逆に、最後のファイルを閉じた・ワークスペースが消えたなどで欄を隠したとき、キーが欄（か、隠れて外れた先の body）に
+  // あれば、ターミナルに向ける（どこにもキーが届かなくなるため）
+  createEffect<boolean>((was) => {
+    const open = fileOpen();
+    if (was && !open && untrack(mode) === "ide") {
+      const a = document.activeElement;
+      const inFiles = !!a?.closest(".main > .files");
+      if (!a || a === document.body || inFiles) focusTerminal();
+    }
+    return open;
+  }, false);
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
   // ホストを開く窓を出しているか
   const [picking, setPicking] = createSignal(false);
@@ -401,13 +433,17 @@ export function App(props: {
     const seq = ++openSeq; // 続けて押したら、最後に押したものの失敗だけを出す
     setFocusError(null);
     const sent = s.input("file.open", { workspaceId: id, path }, (e) => {
-      if (seq === openSeq)
-        setFocusError({
-          title: "ファイルを開けませんでした",
-          error: openErrorText(path, e),
-        });
+      if (seq !== openSeq) return;
+      focusFilesWhenShown = false;
+      setFocusError({
+        title: "ファイルを開けませんでした",
+        error: openErrorText(path, e),
+      });
     });
-    if (sent !== undefined && mode() === "ide") focusFiles();
+    if (sent === undefined || mode() !== "ide") return;
+    // 初めて開くときは、まだファイルの欄を出していない。画面が来て欄が出てからキーを向ける
+    if (fileOpen()) focusFiles();
+    else focusFilesWhenShown = true;
   }
 
   /** ファイルの欄の入力用の textarea にキーを向ける。 */
@@ -430,8 +466,10 @@ export function App(props: {
     const files = mainEl?.querySelector<HTMLElement>(":scope > .files");
     const term = mainEl?.querySelector<HTMLElement>(":scope > .terminal");
     swapWithMotion([files, term], () => setMode(next));
-    // ファイルの欄は入力用の textarea、ターミナルは今使っている欄の xterm.js の textarea がキーを受ける
-    if (next === "terminal") focusTerminal();
+    // ファイルの欄は入力用の textarea、ターミナルは今使っている欄の xterm.js の textarea がキーを受ける。
+    // ファイルを開いていなければ IDE モードでもファイルの欄を出さないので、ターミナルに向ける
+    focusFilesWhenShown = false;
+    if (next === "terminal" || !fileOpen()) focusTerminal();
     else focusFiles();
   }
 
@@ -565,9 +603,14 @@ export function App(props: {
           el.addEventListener("scroll", rememberScroll, { passive: true });
         }}
       />
-      <div class="main" data-mode={mode()} ref={mainEl}>
+      <div
+        class="main"
+        data-mode={mode()}
+        data-no-file={fileOpen() ? undefined : ""}
+        ref={mainEl}
+      >
         <FilesView
-          screen={focus() ? (screens()[focus()!.target] ?? null) : null}
+          screen={filesScreen()}
           theme={focus() ? (themes()[focus()!.target] ?? null) : null}
           onResize={resizeFiles}
           onInput={sendInput}

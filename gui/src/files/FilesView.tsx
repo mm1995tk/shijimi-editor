@@ -90,6 +90,9 @@ export function FilesView(props: {
 
   function report() {
     if (!body || !measure) return;
+    // 欄を出していない（ファイルを開いていない IDE モード。app.css）あいだは知らせない。
+    // shj には前の大きさのままにしておき、欄を出したら測り直して知らせる
+    if (body.clientWidth === 0 || body.clientHeight === 0) return;
     const size = cellsFor(body.clientWidth, body.clientHeight, cellWidth());
     if (last && last.cols === size.cols && last.rows === size.rows) return;
     last = size;
