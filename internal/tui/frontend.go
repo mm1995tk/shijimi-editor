@@ -1,5 +1,7 @@
 package tui
 
+import "github.com/mm1995tk/shijimi-editor/internal/buffer"
+
 // frontend.go is what the state that goes to core asks of the terminal front
 // end: how big the screen is, which regions are shown, what the user dragged
 // the borders to, the terminal under the editor. The fields behind them
@@ -63,3 +65,51 @@ func (a *App) termShell() *termTab          { return a.term.sh }
 
 // muxReset makes the multiplexer be looked for again (the config changed).
 func (a *App) muxReset() { a.mux.resolved = false }
+
+// frontEnd is everything the state that goes to core asks of the front end
+// (a terminal): the calls above, the multiplexer pane, the borders the user
+// drags and the few questions that need the screen's layout. Core holds the
+// front end it is drawn by; App is the one there is (set in New).
+type frontEnd interface {
+	screenW() int
+	screenH() int
+	sideShown() bool
+	termShown() bool
+	agentOpen() bool
+	setSide(on bool)
+	setTerm(on bool)
+	setAgent(on bool)
+	agentWidthPref() int
+	explorerShare() int
+	inResizeMode() bool
+	dragBorder(r resizeTarget)
+	releasesReported() bool
+	setReleasesReported(on bool)
+	sendToTerminal(b []byte)
+	termBlur()
+	termFocus() []Effect
+	termCloseAll()
+	termKey(k Key)
+	termRun(line string) []Effect
+	termPaste(s string) []Effect
+	termShell() *termTab
+	muxReset()
+	muxOn() bool
+	muxOpen() error
+	muxHide() error
+	muxToggle() []Effect
+	muxSend(text string, enter bool) []Effect
+	muxClose()
+	muxResult(err error) []Effect
+	commandEnded(code int)
+	startResize() []Effect
+	handleResizeKey(key string) []Effect
+	scrollHover(d int)
+	hoverCellWord() (buffer.Pos, wordSpan, bool)
+	editRows() int
+	textCols(t *tab) int
+	diffBaseCols() int
+	suggestionsShown() bool
+}
+
+var _ frontEnd = (*App)(nil)

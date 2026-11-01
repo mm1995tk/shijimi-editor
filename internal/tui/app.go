@@ -40,6 +40,8 @@ type span struct{ x0, x1 int }
 // App keeps what only a terminal has (the size of the screen, which regions
 // are shown, the terminal, the pane sizes the user picked).
 type Core struct {
+	frontEnd // what draws it (App)
+
 	root      string
 	gitTop    string
 	cfg       *config.Config
@@ -187,6 +189,7 @@ func New(dir, file string) *App {
 		term:     newTerminal(abs),
 		showSide: true,
 	}
+	a.frontEnd = a
 	a.explorer.icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
@@ -234,6 +237,7 @@ func NewSingle(file string) (*App, error) {
 		},
 		term: newTerminal(dir),
 	}
+	a.frontEnd = a
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
 	}
