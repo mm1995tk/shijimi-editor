@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -47,5 +48,42 @@ func TestSemanticRole(t *testing.T) {
 		if got := semanticRole(c.tok, c.text); got != c.want {
 			t.Errorf("%v %q = %q, want %q", c.tok, c.text, got, c.want)
 		}
+	}
+}
+
+// The semantic colors go over chroma's, follow the theme, and the lines edited
+// since keep chroma's colors only.
+func TestSemanticOverlay(t *testing.T) {
+	ActivateTheme(ThemeOrDefault("dark-plus"))
+	b := buffer.New()
+	b.Lines = [][]rune{[]rune("type S int"), []rune("var x int")}
+	lines := []string{"type S int", "var x int"}
+	h := NewHighlighter("a.go")
+	h.Apply(HighlightMsg{H: h, Version: b.Version, Gen: ThemeGen, Lines: lines,
+		Colors: LexColors(h.Lexer, ChromaStyle, lines)})
+	h.Sem.Apply(SemanticMsg{Ok: true, Lines: lines, Roles: SemanticRoles(lines, []lsp.SemanticToken{
+		{Line: 0, StartChar: 5, Length: 1, Type: "struct"},
+		{Line: 1, StartChar: 4, Length: 1, Type: "variable"},
+	})})
+	c := h.Colors(b)
+	if c[0][5] != "#4ec9b0" || c[1][4] != "#9cdcfe" {
+		t.Fatalf("semantic colors missing: %q %q", c[0], c[1])
+	}
+	if c[0][0] == "" || c[0][0] != LexColors(h.Lexer, ChromaStyle, lines)[0][0] {
+		t.Fatalf("chroma color lost: %q", c[0])
+	}
+	ActivateTheme(ThemeOrDefault("light-plus"))
+	if c := h.Colors(b); c[0][5] != "#267f99" {
+		t.Fatalf("theme switch not followed: %q", c[0][5])
+	}
+	ActivateTheme(ThemeOrDefault("dark-plus"))
+	b.Version++
+	b.Lines[1] = []rune("var y int")
+	c = h.Colors(b)
+	if c[0][5] != "#4ec9b0" {
+		t.Fatalf("unchanged line lost its color: %q", c[0])
+	}
+	if c[1] != nil && c[1][4] != "" {
+		t.Fatalf("edited line kept an old color: %q", c[1])
 	}
 }

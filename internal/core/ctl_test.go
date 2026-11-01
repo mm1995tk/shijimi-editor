@@ -70,3 +70,14 @@ func TestCtlExec(t *testing.T) {
 		t.Errorf("reload with unsaved changes: %+v", r)
 	}
 }
+
+func TestReviewToRoot(t *testing.T) {
+	a := &Core{Root: "/repo/sub", GitTop: "/repo"}
+	if got := a.ReviewToRoot("sub/pkg/f.go"); got != "pkg/f.go" {
+		t.Errorf("with gitTop: %q", got)
+	}
+	a.GitTop = ""
+	if got := a.ReviewToRoot("pkg/f.go"); got != "pkg/f.go" {
+		t.Errorf("without gitTop: %q", got)
+	}
+}

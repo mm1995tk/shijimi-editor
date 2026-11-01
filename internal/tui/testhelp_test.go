@@ -176,8 +176,6 @@ func newGoApp(t *testing.T, src string) (*App, *core.Tab) {
 	return a, a.CurText()
 }
 
-type fakeHost struct{ clip, url []string }
-
 const goplsHover = "```go\nfunc Println(a ...any) (n int, err error)\n```\n\n---\n\nPrintln formats using the default formats for its operands and writes to standard output. See `fmt` for [details](https://pkg.go.dev/fmt).\n"
 
 var backslash = core.Key{Code: '\\', Text: "\\"}
@@ -273,7 +271,3 @@ func splitApp(t *testing.T) (*App, []string) {
 	keys(a, "space", "w", "v")
 	return a, ps
 }
-
-func (h *fakeHost) WriteClipboard(s string) { h.clip = append(h.clip, s) }
-
-func (h *fakeHost) OpenURL(u string) { h.url = append(h.url, u) }

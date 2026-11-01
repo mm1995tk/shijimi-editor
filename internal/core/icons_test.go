@@ -39,3 +39,29 @@ func TestThemeIconKindsExist(t *testing.T) {
 		}
 	}
 }
+
+func TestIconForFollowsTheme(t *testing.T) {
+	prev := CurTheme
+	t.Cleanup(func() { ActivateTheme(prev) })
+
+	n := Node{Name: "main.go"}
+	ActivateTheme(&DarkPlus)
+	if got := IconFor(&n); got != IcoGo {
+		t.Fatalf("dark-plus: got %+v want %+v", got, IcoGo)
+	}
+
+	custom := DarkPlus
+	custom.Icons = map[string]IconOverride{"go": {Color: "#123456"}}
+	ActivateTheme(&custom)
+	got := IconFor(&n)
+	if got.Color != "#123456" || got.Glyph != IcoGo.Glyph {
+		t.Errorf("color override: got %+v", got)
+	}
+
+	custom.Icons = map[string]IconOverride{"go": {Glyph: "G"}}
+	ActivateTheme(&custom)
+	got = IconFor(&n)
+	if got.Glyph != "G" || got.Color != IcoGo.Color {
+		t.Errorf("glyph override: got %+v", got)
+	}
+}
