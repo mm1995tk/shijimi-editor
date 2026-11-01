@@ -212,6 +212,13 @@ func (a *App) render() string {
 	frame, _ := a.renderFrame()
 	return frame
 }
+
+// renderFrameText is the frame renderFrame draws from the state as it is, without
+// fit first.
+func (a *App) renderFrameText() string {
+	frame, _ := a.renderFrame()
+	return frame
+}
 func TestLineStates(t *testing.T) {
 	a := goldenApp(t)
 	keys(a, "i", "x", "esc")

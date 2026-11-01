@@ -95,7 +95,7 @@ func (a *App) inEditorText(l layout, msg core.Mouse) bool {
 // base side of a split diff or off the edge.
 func (a *App) cursorShown(t *core.Tab, l layout, x, y int) bool {
 	left, w, top, h := l.rightX, a.editW(t, l), l.editY, l.editH
-	if dv := a.DiffFor(t); dv != nil {
+	if dv := a.DiffOf(t); dv != nil {
 		g := a.dvGeom(l)
 		left, top, h = g.RightX, g.Top, g.H
 	}

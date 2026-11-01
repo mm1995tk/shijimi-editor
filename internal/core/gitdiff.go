@@ -1093,31 +1093,57 @@ func (a *Core) SplitShown() bool {
 	return a.Gd.Split && !a.DiffSingle(a.DiffFile(a.CurText()))
 }
 
-// DiffFor returns the up-to-date diff view of t, or nil outside diff mode.
+// DiffFor returns the up-to-date diff view of t, or nil outside diff mode. It
+// keeps the view on t (t.Dv), made again when it is out of date: the front
+// end calls it before drawing (fit) and on keys; drawing reads DiffOf.
 func (a *Core) DiffFor(t *Tab) *DiffView {
 	f := a.DiffFile(t)
 	if f == nil {
 		return nil
 	}
 	if t.Dv == nil || t.Dv.rev != a.Gd.rev || t.Dv.Single != a.DiffSingle(f) {
-		dv := &DiffView{rev: a.Gd.rev, Single: a.DiffSingle(f)}
-		dv.path = f.OldPath
-		if dv.path == "" {
-			dv.path = f.Path()
-		}
-		if f.Status != "added" {
-			if out, err := run(a.GitTopDir(), nil, "git", "show", a.Gd.rev+":"+dv.path); err == nil {
-				dv.old = splitText(string(out))
-			}
-		}
-		if m := lexers.Match(filepath.Base(f.Path())); m != nil {
-			dv.lexer = chroma.Coalesce(m)
-		}
-		t.Dv = dv
+		t.Dv = a.newDiffView(f)
 	}
 	dv := t.Dv
 	if !dv.valid || dv.ver != t.Buf.Version || dv.split != a.Gd.Split {
 		dv.build(t, a.Gd.Split)
+	}
+	return dv
+}
+
+// DiffOf is DiffFor that changes nothing, for drawing: the view kept on t
+// when it is up to date (DiffFor made it so before the frame), otherwise one
+// made for this call alone. nil outside diff mode.
+func (a *Core) DiffOf(t *Tab) *DiffView {
+	f := a.DiffFile(t)
+	if f == nil {
+		return nil
+	}
+	single := a.DiffSingle(f)
+	if dv := t.Dv; dv != nil && dv.rev == a.Gd.rev && dv.Single == single &&
+		dv.valid && dv.ver == t.Buf.Version && dv.split == a.Gd.Split {
+		return dv
+	}
+	dv := a.newDiffView(f)
+	dv.build(t, a.Gd.Split)
+	return dv
+}
+
+// newDiffView is the diff view of the changed file f against the compared
+// revision, not built yet.
+func (a *Core) newDiffView(f *diff.File) *DiffView {
+	dv := &DiffView{rev: a.Gd.rev, Single: a.DiffSingle(f)}
+	dv.path = f.OldPath
+	if dv.path == "" {
+		dv.path = f.Path()
+	}
+	if f.Status != "added" {
+		if out, err := run(a.GitTopDir(), nil, "git", "show", a.Gd.rev+":"+dv.path); err == nil {
+			dv.old = splitText(string(out))
+		}
+	}
+	if m := lexers.Match(filepath.Base(f.Path())); m != nil {
+		dv.lexer = chroma.Coalesce(m)
 	}
 	return dv
 }

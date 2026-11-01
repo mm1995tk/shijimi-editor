@@ -82,6 +82,14 @@ func (a *Core) fitSlots(slots []screenSlot, rows int) {
 			continue
 		}
 		a.DiffFor(s.t)
+		if a.DiffFile(s.t) == nil {
+			switch s.t.Preview { // the widths screenPanes gives the preview
+			case PreviewFull:
+				a.FitPreview(s.t, s.w)
+			case PreviewSplit:
+				a.FitPreview(s.t, s.w-previewSplitW(s.w)-1)
+			}
+		}
 		if s.t != a.Cur() && !a.FullPreview(s.t) {
 			EnsureCursorVisible(s.t.Buf, a.screenEditW(s.t, s.w), rows)
 		}
@@ -204,7 +212,7 @@ func (a *Core) screenPanes(t *Tab, w, h int, focused bool) (panes []screen.Pane,
 		return []screen.Pane{a.BuildImagePane(t, w, h)}, 0
 	}
 	o := a.EditorOpts(t, focused)
-	if dv := a.DiffFor(t); dv != nil {
+	if dv := a.DiffOf(t); dv != nil {
 		// the buffer's side is the last: [base, buffer] or [unified]
 		panes = a.BuildDiffPanes(t, dv, a.screenDiffGeom(w, h), o.PaneOpts)
 		return panes, len(panes) - 1

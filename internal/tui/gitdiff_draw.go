@@ -34,7 +34,7 @@ func (a *App) posScreen(t *core.Tab, l layout, p buffer.Pos) (x, y int) {
 	b := t.Buf
 	x = l.rightX + core.GutterWidth(b) + buffer.VisualCol(b.Lines[p.Row], p.Col) - b.ScrollCol
 	y = l.editY + p.Row - b.ScrollRow
-	if dv := a.DiffFor(t); dv != nil {
+	if dv := a.DiffOf(t); dv != nil {
 		g := a.dvGeom(l)
 		x += g.RightX - l.rightX
 		y = g.Top + dv.NewIdx[min(b.Cur.Row, len(dv.NewIdx)-1)] - dv.Start(b.ScrollRow)

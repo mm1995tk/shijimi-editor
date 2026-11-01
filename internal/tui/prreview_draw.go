@@ -33,15 +33,31 @@ func (a *App) cardBox(l layout) (rows []string, x, y int) {
 	return rows, x, y
 }
 
-// composerBox draws the editor over the bottom of the editor area.
-func (a *App) composerBox(l layout) (rows []string, x, y int) {
-	c := a.OpenComposer()
-	w := min(96, l.rightW-2)
+// composerWidth is the width of the comment editor's box in layout l, and of
+// the text area inside it.
+func composerWidth(l layout) (w, iw int) {
+	w = min(96, l.rightW-2)
 	if w < 24 {
 		w = max(10, l.rightW)
 	}
-	iw := w - 4
-	c.Ta.SetWidth(iw)
+	return w, w - 4
+}
+
+// fitComposer gives the open comment editor's text area the width it is drawn
+// in (see composerBox).
+func (a *App) fitComposer(l layout) {
+	if !a.Composing() {
+		return
+	}
+	_, iw := composerWidth(l)
+	a.OpenComposer().Ta.SetWidth(iw)
+}
+
+// composerBox draws the editor over the bottom of the editor area. The text
+// area's width was set by fitComposer.
+func (a *App) composerBox(l layout) (rows []string, x, y int) {
+	c := a.OpenComposer()
+	w, iw := composerWidth(l)
 	input := strings.Split(c.Ta.View(), "\n")
 	prevH := max(0, l.editH-(len(input)+2)-1)
 	rows = a.drawComposer(a.ComposerOverlay(iw, min(prevH, 12)), input)

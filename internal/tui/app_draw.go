@@ -46,20 +46,32 @@ func (a *App) editW(t *core.Tab, l layout) int {
 	return l.rightW
 }
 
+// previewW is the width of t's Markdown preview in layout l: all of the area
+// for a full preview, what the editor leaves beside it otherwise, and 0 when
+// none is shown (off, or the diff view in its place).
+func (a *App) previewW(t *core.Tab, l layout) int {
+	if t.Preview == core.PreviewOff || a.DiffFile(t) != nil {
+		return 0
+	}
+	if t.Preview == core.PreviewFull {
+		return l.rightW
+	}
+	return l.rightW - a.editW(t, l) - 1
+}
+
 func (a *App) renderText(t *core.Tab, l layout, focused bool) []string {
-	if dv := a.DiffFor(t); dv != nil {
+	if dv := a.DiffOf(t); dv != nil {
 		return a.renderDiffText(t, dv, l, focused)
 	}
 	if t.Preview == core.PreviewFull {
-		return a.previewLines(t, l.rightW, l.editH)
+		return a.previewLines(t, a.previewW(t, l), l.editH)
 	}
 	ew := a.editW(t, l)
 	edit := renderEditor(t, ew, l.editH, a.EditorOpts(t, focused))
 	if t.Preview == core.PreviewOff {
 		return edit
 	}
-	pw := l.rightW - ew - 1
-	prev := a.previewLines(t, pw, l.editH)
+	prev := a.previewLines(t, a.previewW(t, l), l.editH)
 	sep := stSeparator.Render("│")
 	for i := range edit {
 		edit[i] += sep + prev[i]
@@ -273,8 +285,9 @@ func (a *App) ScrollHover(d int) {
 
 // fit brings the state that depends on the window size and on what is open
 // up to date for the frame about to be drawn: the scroll that follows the
-// cursor, the palette's filtered list and the widths of the inputs. It runs
-// before renderFrame, which only reads the state.
+// cursor, the palette's filtered list, the widths of the inputs and the
+// diff views and Markdown previews of the panes. It runs before renderFrame,
+// which only reads the state.
 func (a *App) fit() {
 	// Key releases let Ctrl+D / Ctrl+U scroll only while held. Some terminals
 	// (herdr 0.9.5) then drop text committed by an IME, so they are asked
@@ -307,6 +320,9 @@ func (a *App) fit() {
 		}
 		if p.t.Kind == core.TabText {
 			a.DiffFor(p.t)
+			if pw := a.previewW(p.t, pl); pw > 0 {
+				a.FitPreview(p.t, pw)
+			}
 		}
 		if !p.focused && !a.FullPreview(p.t) {
 			core.EnsureCursorVisible(p.t.Buf, a.editW(p.t, pl), pl.editH) // the width changed under it
@@ -326,6 +342,7 @@ func (a *App) fit() {
 	}
 	a.fitAgent(l)
 	a.FitProposals()
+	a.fitComposer(l)
 }
 
 // fitAgent fits the suggestion panel's state to the area it is drawn in.
