@@ -1,8 +1,9 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func (t *terminal) render(w, h int, focused bool) []string {

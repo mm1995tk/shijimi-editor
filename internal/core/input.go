@@ -137,7 +137,7 @@ type Mouse struct {
 
 func (Mouse) input() {}
 
-// isButton reports whether b is a real button, not a wheel step or nothing.
+// IsButton reports whether b is a real button, not a wheel step or nothing.
 func (b MouseButton) IsButton() bool {
 	return b == MouseLeft || b == MouseMiddle || b == MouseRight || b == MouseOther
 }

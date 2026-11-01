@@ -1,10 +1,10 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )

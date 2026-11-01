@@ -2,6 +2,7 @@ package tui
 
 import (
 	"charm.land/lipgloss/v2"
+
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 

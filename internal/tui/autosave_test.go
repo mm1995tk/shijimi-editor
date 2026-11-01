@@ -1,12 +1,13 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func TestScheduleAutoSave(t *testing.T) {

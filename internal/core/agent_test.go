@@ -47,17 +47,6 @@ func logText(a *App) string {
 	return sb.String()
 }
 
-// fakeAgent points the app at the scripted agent in acptest.
-func fakeAgent(t *testing.T, a *App) {
-	t.Helper()
-	exe, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	a.Cfg.Agent = config.Agent{Command: exe, Env: map[string]string{acptest.Env: "1"}}
-	t.Cleanup(a.Close)
-}
-
 func TestAgentNeedsACommand(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.Cfg.Agent = config.Agent{}

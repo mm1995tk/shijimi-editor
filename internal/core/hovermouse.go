@@ -10,14 +10,14 @@ import (
 // hoverDelay is how long the pointer must rest on a word before its hover shows.
 const hoverDelay = 500 * time.Millisecond
 
-// screenPt is a screen cell.
+// ScreenPt is a screen cell.
 type ScreenPt struct{ X, Y int }
 
-// wordSpan is the word under the pointer: columns [start, end) of one row. The
+// WordSpan is the word under the pointer: columns [start, end) of one row. The
 // zero value is no word.
 type WordSpan struct{ Row, Start, End int }
 
-// mouseHover says which pointer position a hover reply belongs to.
+// MouseHover says which pointer position a hover reply belongs to.
 type MouseHover struct {
 	Tab  *Tab
 	Seq  int
@@ -28,14 +28,14 @@ type MouseHover struct {
 // MouseHover reports whether resting the pointer on a word shows its hover.
 func (a *Core) MouseHover() bool { return a.Cfg.Editor.MouseHover }
 
-// hoverBlocked reports whether something that owns the keys is open (palette,
+// HoverBlocked reports whether something that owns the keys is open (palette,
 // project search, context menu, command line, resize mode, agent proposal), so
 // a popup must not appear over it.
 func (a *Core) HoverBlocked() bool {
 	return a.Ctx != nil || a.overlayOpen() || a.CmdOpen || a.InResizeMode() || a.props.Len() > 0 || a.Composer != nil || a.Confirm != nil
 }
 
-// hoverDwell asks the language server about the word under a resting pointer.
+// HoverDwell asks the language server about the word under a resting pointer.
 func (a *Core) HoverDwell(msg HoverDwell) []Effect {
 	if msg.Seq != a.HoverSeq || a.Focus != FocusEditor || a.HoverBlocked() {
 		return nil
@@ -64,7 +64,7 @@ func (a *Core) HoverDwell(msg HoverDwell) []Effect {
 	}}}
 }
 
-// popupAnchorPos is the place in the file a popup hangs from.
+// PopupAnchorPos is the place in the file a popup hangs from.
 func (a *Core) PopupAnchorPos(t *Tab) buffer.Pos {
 	if a.Comp == nil && a.HoverAt != nil {
 		// The file may have shrunk (a reload) since the pointer opened it.

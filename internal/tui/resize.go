@@ -57,12 +57,14 @@ func (a *App) diffLeftWidth(w int) int {
 	return core.Clamp(avail*a.diffLeftPct/100, minPaneW, max(minPaneW, avail-minPaneW))
 }
 
+// ResizeSide moves the sidebar's border by delta cells.
 func (a *App) ResizeSide(delta int) {
 	a.sideWPref = a.sideWidth() + delta
 	a.sideWPref = a.sideWidth()
 	a.FollowCursor()
 }
 
+// ResizeTerm moves the terminal panel's border by delta rows.
 func (a *App) ResizeTerm(delta int) {
 	a.panelHPref = a.panelHeight() + delta
 	a.panelHPref = a.panelHeight()
@@ -74,11 +76,13 @@ func (a *App) resizePreviewBy(deltaPct int) {
 	a.FollowCursor()
 }
 
+// ResetPanes puts the borders back where they start.
 func (a *App) ResetPanes() {
 	a.sideWPref, a.panelHPref, a.previewPct, a.agentWPref, a.diffLeftPct, a.explorerPct = 0, 0, 0, 0, 0, 0
 	a.FollowCursor()
 }
 
+// StartResize starts moving the borders with the keys.
 func (a *App) StartResize() []core.Effect {
 	a.CloseCompletion()
 	a.CloseHover()
@@ -165,7 +169,7 @@ func (a *App) moveBorder(l layout, target core.ResizeTarget, d int) {
 	}
 }
 
-// handleResizeKey runs while resize mode is on; every key either resizes or
+// HandleResizeKey runs while resize mode is on; every key either resizes or
 // leaves the mode.
 func (a *App) HandleResizeKey(key string) []core.Effect {
 	l := a.layout()

@@ -35,7 +35,7 @@ type agentView struct {
 	n, W      int
 }
 
-// agentPos is a cell of the log: row indexes the whole log, so it stays on
+// AgentPos is a cell of the log: row indexes the whole log, so it stays on
 // the same text while the view scrolls.
 type AgentPos struct{ Row, Col int }
 
@@ -43,7 +43,7 @@ func (p AgentPos) less(q AgentPos) bool {
 	return p.Row < q.Row || p.Row == q.Row && p.Col < q.Col
 }
 
-// agentSel is the picked text. a is where the drag started and b where it is
+// AgentSel is the picked text. a is where the drag started and b where it is
 // now; both cells are included.
 type AgentSel struct {
 	On       bool // something is selected and drawn
@@ -95,7 +95,7 @@ func (s AgentSel) rowCols(i int, plain string, w int) (int, int) {
 	return snapCols(plain, c0, c1)
 }
 
-// markRow draws the columns [s0, s1) of the row reversed, keeping its colors.
+// MarkRow draws the columns [s0, s1) of the row reversed, keeping its colors.
 func MarkRow(row string, w, s0, s1 int) string {
 	if s0 >= s1 {
 		return row
@@ -107,7 +107,7 @@ func MarkRow(row string, w, s0, s1 int) string {
 	return ansi.Cut(row, 0, s0) + "\x1b[7m" + mid + "\x1b[27m" + ansi.Cut(row, s1, w)
 }
 
-// cutCols returns the characters of plain that cover columns [c0, c1).
+// CutCols returns the characters of plain that cover columns [c0, c1).
 func CutCols(plain string, c0, c1 int) string {
 	var sb strings.Builder
 	x := 0
@@ -121,7 +121,7 @@ func CutCols(plain string, c0, c1 int) string {
 	return sb.String()
 }
 
-// text returns the selected text. Rows cut by the width join up again.
+// Text returns the selected text. Rows cut by the width join up again.
 func (s AgentSel) Text(rows []logRow, w int) string {
 	if !s.On {
 		return ""
@@ -185,7 +185,7 @@ func (a *Core) inLog(msg Mouse) bool {
 	return v.n > 0 && y >= 0 && y < v.n && msg.Col >= 0
 }
 
-// agentDrag follows a drag that began on the log, wherever the pointer goes.
+// AgentDrag follows a drag that began on the log, wherever the pointer goes.
 // ok is false when the event is not part of it.
 func (a *Core) AgentDrag(msg Mouse) ([]Effect, bool) {
 	s := &a.Ag.Sel

@@ -5,7 +5,7 @@ import (
 	"github.com/rivo/uniseg"
 )
 
-// inputField is a lineInput as the TUI shows it: in a number of cells, with
+// InputField is a lineInput as the TUI shows it: in a number of cells, with
 // the part of the text that is in view once it is wider than that. The text and
 // the caret are the lineInput's, in runes; the cells are the TUI's.
 type InputField struct {
@@ -18,19 +18,31 @@ type InputField struct {
 	offset, offsetRight int
 }
 
-// newInputField is an empty field that holds at most limit characters (0: any).
+// NewInputField is an empty field that holds at most limit characters (0: any).
 func NewInputField(limit int) InputField { return InputField{lineInput: newLineInput(limit)} }
 
+// SetWidth sets how many cells of the field are in view.
 func (f *InputField) SetWidth(w int) { f.Width = w }
 
 // The edits keep the caret in view.
 
+// SetValue replaces the text.
 func (f *InputField) SetValue(s string) { f.lineInput.SetValue(s); f.scroll() }
+
+// SetCursor moves the caret to rune pos.
 func (f *InputField) SetCursor(pos int) { f.lineInput.SetCursor(pos); f.scroll() }
-func (f *InputField) CursorStart()      { f.SetCursor(0) }
-func (f *InputField) CursorEnd()        { f.SetCursor(len(f.value)) }
-func (f *InputField) Insert(s string)   { f.lineInput.Insert(s); f.scroll() }
-func (f *InputField) Update(in Input)   { f.lineInput.Update(in); f.scroll() }
+
+// CursorStart moves the caret to the start.
+func (f *InputField) CursorStart() { f.SetCursor(0) }
+
+// CursorEnd moves the caret to the end.
+func (f *InputField) CursorEnd() { f.SetCursor(len(f.value)) }
+
+// Insert types s at the caret.
+func (f *InputField) Insert(s string) { f.lineInput.Insert(s); f.scroll() }
+
+// Update takes a Key or a Paste.
+func (f *InputField) Update(in Input) { f.lineInput.Update(in); f.scroll() }
 
 // Caret is how many cells after the start of the view the caret is.
 func (f *InputField) Caret() int {

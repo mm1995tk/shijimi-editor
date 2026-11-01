@@ -1,11 +1,13 @@
 package tui
 
 import (
-	tea "charm.land/bubbletea/v2"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"path/filepath"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func newSingleApp(t *testing.T, name, content string) (*App, string) {

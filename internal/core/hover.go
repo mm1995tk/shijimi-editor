@@ -66,13 +66,14 @@ func wrapCells(lines [][]HoverCell, w int, code bool) []hoverLine {
 	return out
 }
 
-// hoverCopyLabel is the click target drawn on the top border's right end.
+// HoverCopyLabel is the click target drawn on the top border's right end.
 func HoverCopyLabel() string { return i18n.T("hover.copybtn") }
 
+// HoverHint is the hint under the hover popup.
 func HoverHint() string         { return i18n.T("hover.hint") }
 func hoverHintCopyOnly() string { return i18n.T("hover.hintcopy") }
 
-// copyHit reports whether the cell (col, row), relative to the box's top-left
+// CopyHit reports whether the cell (col, row), relative to the box's top-left
 // corner, is on the [Copy] button.
 func (v HoverView) CopyHit(col, row int) bool {
 	iw := v.Width + 2
@@ -84,17 +85,17 @@ func (v HoverView) CopyHit(col, row int) bool {
 	return col >= start && col < start+n
 }
 
-// hoverView is a laid-out hover popup.
+// HoverView is a laid-out hover popup.
 type HoverView struct {
 	lines  []hoverLine
 	Width  int // content width
 	Height int // visible rows
 }
 
-// maxScroll is the largest valid scroll offset.
+// MaxScroll is the largest valid scroll offset.
 func (v HoverView) MaxScroll() int { return max(0, len(v.lines)-v.Height) }
 
-// newHoverView lays text out inside a box of at most boxW x boxH cells
+// NewHoverView lays text out inside a box of at most boxW x boxH cells
 // (borders and padding included).
 func NewHoverView(text string, boxW, boxH int) HoverView {
 	cw := max(boxW-4, 1)
@@ -110,7 +111,7 @@ func NewHoverView(text string, boxW, boxH int) HoverView {
 	return HoverView{lines: lines, Width: max(w, 1), Height: max(boxH-2, 1)}
 }
 
-// overlay is the popup as a screen.Overlay: the rows in view when scrolled by
+// Overlay is the popup as a screen.Overlay: the rows in view when scrolled by
 // scroll (the rest stays in core), with View telling where they are among all
 // of them. The caller says which pane it hangs on and from where.
 func (v HoverView) Overlay(scroll int) screen.Overlay {

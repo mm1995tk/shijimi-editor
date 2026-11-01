@@ -1,8 +1,9 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func TestTerminalToggleKeys(t *testing.T) {

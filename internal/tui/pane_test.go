@@ -1,13 +1,13 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // Full-width characters take two cells and a tab goes to the next tab stop.

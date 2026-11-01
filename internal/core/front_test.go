@@ -139,8 +139,7 @@ func newTestCore(t testing.TB, dir, file string, w, h int) (*Core, *testFront) {
 	return c, f
 }
 
-// App is what the tests used to call a Core before it was split from the
-// terminal front end.
+// App is the name the tests use for Core.
 type App = Core
 
 // newApp is a Core rooted at dir, as New makes it, on a screen of no size

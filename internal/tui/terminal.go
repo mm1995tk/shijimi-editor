@@ -3,7 +3,6 @@ package tui
 import (
 	"errors"
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"math"
 	"path/filepath"
 	"strconv"
@@ -11,6 +10,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/term"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
@@ -83,7 +84,7 @@ func (t *terminal) focus() ([]core.Effect, error) {
 func (t *terminal) blur() {}
 
 // wait asks for the next PTY event to be delivered. Only one is ever
-// outstanding; handleTermEvent asks again after every event.
+// outstanding; HandleTermEvent asks again after every event.
 func (t *terminal) wait() []core.Effect {
 	if t.armed {
 		return nil

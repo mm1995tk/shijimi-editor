@@ -9,7 +9,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
-// ctxPreview is the confirmation box shown before the context is pasted.
+// CtxPreview is the confirmation box shown before the context is pasted.
 type CtxPreview struct {
 	Text   string
 	Scroll int
@@ -78,7 +78,7 @@ func (a *Core) currentContext() (string, bool) {
 	return formatContext(path, b.Cur.Row, b.Cur.Row, "", a.Lsp.diagnostics(b.Path)), true
 }
 
-// sendContext tells a connected IDE-integrated agent about the current
+// SendContext tells a connected IDE-integrated agent about the current
 // selection; otherwise it opens the preview of the context to paste.
 func (a *Core) SendContext() []Effect {
 	if a.single {
@@ -96,7 +96,7 @@ func (a *Core) SendContext() []Effect {
 	return nil
 }
 
-// handleContextKey drives the preview: Enter pastes, Esc cancels.
+// HandleContextKey drives the preview: Enter pastes, Esc cancels.
 func (a *Core) HandleContextKey(msg Key) []Effect {
 	switch msg.String() {
 	case "enter":

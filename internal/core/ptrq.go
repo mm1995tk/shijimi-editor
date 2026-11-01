@@ -5,7 +5,7 @@ package core
 // hover popup and the review card it opens. mouse.go keeps the cells (the
 // layout, the regions); these take rows and columns of a region.
 
-// wheelSide scrolls the side bar by wheel rows: the file tree, or the changed
+// WheelSide scrolls the side bar by wheel rows: the file tree, or the changed
 // files below it in the diff mode, which row (of the screen's body) is over.
 // bodyH is the height of the body.
 func (a *Core) WheelSide(row, bodyH, wheel int) {
@@ -22,7 +22,7 @@ func (a *Core) WheelSide(row, bodyH, wheel int) {
 	}
 }
 
-// wheelEditor scrolls the current text tab by wheel rows.
+// WheelEditor scrolls the current text tab by wheel rows.
 func (a *Core) WheelEditor(wheel int) {
 	if t := a.Cur(); t != nil {
 		switch t.Kind {
@@ -36,7 +36,7 @@ func (a *Core) WheelEditor(wheel int) {
 	}
 }
 
-// clickSide is a left press on row sy of the side bar (double: the second
+// ClickSide is a left press on row sy of the side bar (double: the second
 // press of a double click).
 func (a *Core) ClickSide(sy int, double bool) []Effect {
 	if a.Gd.On && sy >= a.ExplorerH() {
@@ -68,14 +68,14 @@ func (a *Core) ClickSide(sy int, double bool) []Effect {
 	return a.SetFocus(FocusExplorer)
 }
 
-// hoverByPointer reports whether the open hover popup was opened by the
+// HoverByPointer reports whether the open hover popup was opened by the
 // pointer (it hangs from the character under it, not from the cursor).
 func (a *Core) HoverByPointer() bool { return a.HoverAt != nil }
 
-// closeHover closes the hover popup.
+// CloseHover closes the hover popup.
 func (a *Core) CloseHover() { a.HoverText, a.HoverAt = "", nil }
 
-// pointerMoved ends the pointer's hover: a pending one is stale, the word it
+// PointerMoved ends the pointer's hover: a pending one is stale, the word it
 // belonged to and the cell it rested on are forgotten, and an open popup closes.
 func (a *Core) PointerMoved() {
 	a.HoverSeq++
@@ -84,25 +84,25 @@ func (a *Core) PointerMoved() {
 	a.CloseHover()
 }
 
-// scrollCard scrolls the open review card by d rows.
+// ScrollCard scrolls the open review card by d rows.
 func (a *Core) ScrollCard(d int) { a.Card.scroll = max(0, a.Card.scroll+d) }
 
-// closeCard closes the review card.
+// CloseCard closes the review card.
 func (a *Core) CloseCard() { a.Card = nil }
 
-// showCard opens the review thread th of the file path as a card anchored at
+// ShowCard opens the review thread th of the file path as a card anchored at
 // the screen cell (x, y); byPointer says the pointer's hover opened it.
 func (a *Core) ShowCard(th *PrThread, path string, x, y int, byPointer bool) {
 	a.Card = &PrCard{Thread: th, Path: a.RepoPath(path), ByPointer: byPointer, At: &ScreenPt{x, y}}
 }
 
-// cardOnThread reports whether the open card is on the thread th.
+// CardOnThread reports whether the open card is on the thread th.
 func (a *Core) CardOnThread(th *PrThread) bool { return a.Card != nil && a.Card.Thread == th }
 
-// pointerCard reports whether the open card was opened by the pointer's hover.
+// PointerCard reports whether the open card was opened by the pointer's hover.
 func (a *Core) PointerCard() bool { return a.Card != nil && a.Card.ByPointer }
 
-// restedOn reports whether the pointer rested on the cell pt last time, and
+// RestedOn reports whether the pointer rested on the cell pt last time, and
 // remembers pt as the cell it rests on.
 func (a *Core) RestedOn(pt ScreenPt) bool {
 	if pt == a.HoverCell {
@@ -112,10 +112,10 @@ func (a *Core) RestedOn(pt ScreenPt) bool {
 	return false
 }
 
-// hoverCellPos is the cell the pointer last rested on.
+// HoverCellPos is the cell the pointer last rested on.
 func (a *Core) HoverCellPos() ScreenPt { return a.HoverCell }
 
-// pointerRests is the pointer resting on a cell of the editor whose word is
+// PointerRests is the pointer resting on a cell of the editor whose word is
 // word (ok: there is one). inBox says it is on the open hover popup. It
 // starts the dwell timer for the word, or leaves a popup that the pointer is
 // reading or whose word it is still on.
@@ -142,13 +142,13 @@ func (a *Core) PointerRests(word WordSpan, ok, inBox bool) []Effect {
 	return []Effect{StartTimer{After: hoverDelay, Fire: HoverDwell{seq}}}
 }
 
-// closePalette closes the palette.
+// ClosePalette closes the palette.
 func (a *Core) ClosePalette() { a.Pal.Close() }
 
-// searchScroll moves the project search's selection by d rows.
+// SearchScroll moves the project search's selection by d rows.
 func (a *Core) SearchScroll(d int) { a.Search.move(d) }
 
-// searchClick is a left press on the screen cell (x, y) with the project
+// SearchClick is a left press on the screen cell (x, y) with the project
 // search open: outside its box it closes.
 func (a *Core) SearchClick(x, y int) {
 	s := a.Search

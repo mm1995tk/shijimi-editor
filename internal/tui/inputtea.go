@@ -1,10 +1,11 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // This file is the only place bubbletea's input types are read or built. fromTea

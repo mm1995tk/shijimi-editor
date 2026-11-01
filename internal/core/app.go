@@ -17,6 +17,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/proxy"
 )
 
+// Focus is the part of the screen that takes the keys.
 type Focus int
 
 const (
@@ -30,9 +31,9 @@ const (
 type span struct{ x0, x1 int }
 
 // Core is the state that decides what is shown: the files, the cursor, the
-// keys' state, the language servers. It is what moves to internal/core (#384);
-// App keeps what only a terminal has (the size of the screen, which regions
-// are shown, the terminal, the pane sizes the user picked).
+// keys' state, the language servers. The terminal front end (internal/tui.App)
+// keeps what only a terminal has: the size of the screen, which regions are
+// shown, the terminal panel and the pane sizes the user picked.
 type Core struct {
 	FrontEnd // what draws it (internal/tui.App)
 
@@ -99,7 +100,7 @@ type Core struct {
 	// Claude Code IDE integration (see ide.go)
 	ide       *ide.Server
 	props     Proposals     // agent changes waiting for the user's decision
-	propShown *ProposalView // the first of them as drawn (propView)
+	propShown *ProposalView // the first of them as drawn (PropView)
 	selTrack  SelectionTracker
 
 	// suggestion panel and ACP agent (see suggest.go, agent.go)
@@ -124,12 +125,12 @@ type Core struct {
 	Split     bool
 	Pane      int
 	Other     *Tab
-	otherPrev *Tab // prevTab of the other pane
+	otherPrev *Tab // PrevTab of the other pane
 	seenTab   *Tab // the file shown when the last event was handled
 	Commands  []Command
 	Mermaid   map[string]*previewJob
 	MdImages  map[string]*previewJob // images in the Markdown preview, by file path
-	// previewGen counts finished jobs, so the preview is drawn again when one
+	// PreviewGen counts finished jobs, so the preview is drawn again when one
 	// finishes
 	PreviewGen int
 }
@@ -262,6 +263,7 @@ func (a *Core) Close() {
 
 // ---- helpers ----
 
+// Cur is the tab shown in the focused pane, or nil when there is none.
 func (a *Core) Cur() *Tab {
 	if a.Active < 0 || a.Active >= len(a.Tabs) {
 		return nil
@@ -269,6 +271,7 @@ func (a *Core) Cur() *Tab {
 	return a.Tabs[a.Active]
 }
 
+// CurText is the current tab when it holds text, or nil.
 func (a *Core) CurText() *Tab {
 	if t := a.Cur(); t != nil && t.Kind == TabText {
 		return t
@@ -283,14 +286,17 @@ func (a *Core) withBuf(f func(b *buffer.Buffer)) {
 	}
 }
 
+// Info shows a message on the status line.
 func (a *Core) Info(format string, args ...any) {
 	a.Msg, a.MsgErr = fmt.Sprintf(format, args...), false
 }
 
+// Fail shows err on the status line as an error.
 func (a *Core) Fail(err error) {
 	a.Msg, a.MsgErr = err.Error(), true
 }
 
+// SetFocus moves the keys to f (always the editor in single-file mode).
 func (a *Core) SetFocus(f Focus) []Effect {
 	if a.single {
 		f = FocusEditor
@@ -303,6 +309,7 @@ func (a *Core) SetFocus(f Focus) []Effect {
 	return nil
 }
 
+// Rel is p relative to the project root.
 func (a *Core) Rel(p string) string { return RelTo(a.Root, p) }
 
 func (a *Core) addTab(t *Tab) {
@@ -319,6 +326,8 @@ func (a *Core) reveal(path string) {
 	}
 }
 
+// OpenFile shows the file at path, opening a tab for it unless one is open. It
+// reports whether the file is shown.
 func (a *Core) OpenFile(path string) bool {
 	abs, _ := filepath.Abs(path)
 	for i, t := range a.Tabs {
@@ -385,7 +394,7 @@ func (a *Core) openTransient(path string) bool {
 	return true
 }
 
-// keepTransients turns transient tabs that have been edited into normal tabs.
+// KeepTransients turns transient tabs that have been edited into normal tabs.
 func (a *Core) KeepTransients() {
 	for _, t := range a.Tabs {
 		if t.Transient && t.Kind == TabText && t.Buf.Version != t.transientVer {
@@ -583,6 +592,8 @@ func (a *Core) deleteFile() []Effect {
 	})
 }
 
+// CloseTab closes the current tab; force closes it without asking about unsaved
+// changes.
 func (a *Core) CloseTab(force bool) []Effect {
 	t := a.Cur()
 	if t == nil {
@@ -627,6 +638,7 @@ func (a *Core) dropTab(i int) {
 	a.Tabs = append(a.Tabs[:i], a.Tabs[i+1:]...)
 }
 
+// SwitchLast shows the file shown before the current one (ga / Ctrl+Tab).
 func (a *Core) SwitchLast() {
 	i := slices.Index(a.Tabs, a.PrevTab)
 	if a.PrevTab == nil || i < 0 || i == a.Active {
@@ -637,7 +649,7 @@ func (a *Core) SwitchLast() {
 	a.showInPane(i)
 }
 
-// trackLast remembers the file that was current before the active one changed.
+// TrackLast remembers the file that was current before the active one changed.
 // A file that was closed in the meantime is not remembered.
 func (a *Core) TrackLast() {
 	cur := a.Cur()
@@ -649,6 +661,7 @@ func (a *Core) TrackLast() {
 	}
 }
 
+// ToggleSide shows or hides the sidebar.
 func (a *Core) ToggleSide() {
 	if a.single {
 		return
@@ -659,6 +672,7 @@ func (a *Core) ToggleSide() {
 	}
 }
 
+// ToggleTerm shows or hides the terminal panel and moves the focus with it.
 func (a *Core) ToggleTerm() []Effect {
 	if a.single {
 		return nil
@@ -684,6 +698,7 @@ func (a *Core) dirtyCount() int {
 	return n
 }
 
+// Quit ends the program, asking first when files have unsaved changes.
 func (a *Core) Quit() []Effect {
 	if d := a.dirtyCount(); d > 0 && !a.confirmQuit {
 		a.confirmQuit = true
@@ -702,6 +717,7 @@ func (a *Core) Quit() []Effect {
 // read, so the shell would get it as typed text such as "3u".
 func (a *Core) exit() []Effect { return []Effect{Quit{}} }
 
+// OpenFind opens the find bar on the current file.
 func (a *Core) OpenFind() []Effect {
 	t := a.CurText()
 	if t == nil {
@@ -746,6 +762,8 @@ func (a *Core) toggleComment() {
 	}
 }
 
+// CopyText puts s in the clipboard register and on the system clipboard (the
+// GUI's under shj serve).
 func (a *Core) CopyText(s string) {
 	a.Clipboard = s
 	if a.host != nil {
@@ -793,7 +811,7 @@ func (a *Core) pasteText() string {
 
 // ---- update ----
 
-// scheduleAutoSave starts a timer for every named tab edited since the last
+// ScheduleAutoSave starts a timer for every named tab edited since the last
 // call. The timer is ignored if the buffer changed again before it fires.
 func (a *Core) ScheduleAutoSave() []Effect {
 	if !a.Cfg.Editor.AutoSave {
@@ -916,6 +934,7 @@ func (a *Core) handleLSPEvent(e lsp.Event) []Effect {
 	return nil
 }
 
+// HandleKey handles a key press while the editor has the focus.
 func (a *Core) HandleKey(msg Key) []Effect {
 	key := msg.String()
 	a.Msg = ""
@@ -1224,6 +1243,7 @@ func (a *Core) submitPalette() []Effect {
 	return nil
 }
 
+// HandleExplorerKey handles a key press while the file tree has the focus.
 func (a *Core) HandleExplorerKey(msg Key) []Effect {
 	e := a.Explorer
 	key := msg.String()
@@ -1559,6 +1579,8 @@ func (a *Core) refreshCompletion() []Effect {
 	return nil
 }
 
+// EditorOpts are the options a text pane of t is drawn with; focused says
+// whether its pane has the focus.
 func (a *Core) EditorOpts(t *Tab, focused bool) EditorOpts {
 	o := EditorOpts{
 		Focused:      focused && !a.FindOpen && !a.CmdOpen,
@@ -1603,9 +1625,10 @@ func (a *Core) EditorOpts(t *Tab, focused bool) EditorOpts {
 	return o
 }
 
+// FindLabel is the label of the find bar.
 func FindLabel() string { return i18n.T("app.findlabel") }
 
-// copyHover copies the hover markdown source to the clipboard.
+// CopyHover copies the hover markdown source to the clipboard.
 func (a *Core) CopyHover() {
 	a.CopyText(a.HoverText)
 	a.InfoText(i18n.T("app.hovercopied"))
@@ -1626,7 +1649,7 @@ func hoverScrollKey(key string) int {
 // has the keyboard.
 func (a *Core) overlayOpen() bool { return a.Pal.Open || a.Search.Open }
 
-// infoText shows an already-formatted message in the status line.
+// InfoText shows an already-formatted message in the status line.
 func (a *Core) InfoText(s string) {
 	a.Msg, a.MsgErr = s, false
 }

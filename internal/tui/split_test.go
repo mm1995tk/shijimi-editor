@@ -13,9 +13,9 @@ import (
 
 // This package is the terminal front end of internal/core: it draws a
 // core.Core to a terminal and turns what bubbletea delivers into the Core's
-// Inputs and Events. What may reach into core, and what core may know of a
-// terminal, is kept by the package boundary (core's fields and methods are
-// unexported, core's TestNoTerminalDeps). Two rules remain within this package:
+// Inputs and Events. The package boundary keeps core from depending on tui and
+// on the terminal libraries (core's TestNoTerminalDeps). Two rules remain
+// within this package:
 //
 //   - lipgloss is imported only by the files that draw. The files that decide
 //     what to draw (screen.Overlay, screen.Pane) never build a style.

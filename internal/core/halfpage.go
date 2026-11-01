@@ -90,7 +90,7 @@ func (a *Core) holdScrollRelease(msg Key) {
 	}
 }
 
-// wantKeyReleases reports whether Ctrl+D / Ctrl+U would scroll now: the Helix
+// WantKeyReleases reports whether Ctrl+D / Ctrl+U would scroll now: the Helix
 // normal or select mode in the editor, with nothing open on top. Text is not
 // typed there, so losing IME input to key-release reporting does no harm.
 func (a *Core) WantKeyReleases() bool {

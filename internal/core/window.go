@@ -13,11 +13,11 @@ import (
 // panes draw their own title row. The same file is never in both panes: opening
 // the file of the other pane moves the focus there instead.
 
-// minSplitW is the narrowest editor area that is split: two panes of at
+// MinSplitW is the narrowest editor area that is split: two panes of at
 // least 20 columns and the line between them.
 const MinSplitW = 41
 
-// splitWanted reports whether the editor area is split now. Diff mode and
+// SplitWanted reports whether the editor area is split now. Diff mode and
 // single-file mode use the whole area for one file, and the split comes back
 // when they end.
 func (a *Core) SplitWanted() bool { return a.Split && !a.single && !a.Gd.On }
@@ -30,7 +30,7 @@ func (a *Core) tabIndex(t *Tab) int {
 	return slices.Index(a.Tabs, t)
 }
 
-// splitOpen splits the editor area. The file stays in the left pane, and the
+// SplitOpen splits the editor area. The file stays in the left pane, and the
 // right pane, which gets the focus, shows the last file (ga) or, with none,
 // asks for a file.
 func (a *Core) SplitOpen() []Effect {
@@ -71,7 +71,7 @@ func (a *Core) SplitOpen() []Effect {
 	return a.SetFocus(FocusEditor)
 }
 
-// focusPane moves the focus to the pane on side (0 = left, 1 = right).
+// FocusPane moves the focus to the pane on side (0 = left, 1 = right).
 func (a *Core) FocusPane(side int) []Effect {
 	if !a.SplitWanted() {
 		if a.Split {
@@ -134,7 +134,7 @@ func (a *Core) showInPane(i int) {
 	a.Comp = nil
 }
 
-// normalizeSplit keeps the panes consistent after an event: a closed file
+// NormalizeSplit keeps the panes consistent after an event: a closed file
 // leaves its pane empty, an empty split is dropped, and a file chosen that the
 // other pane shows takes the focus to that pane.
 func (a *Core) NormalizeSplit() {
@@ -193,7 +193,7 @@ func (a *Core) toggleEditorSplit() []Effect {
 	return a.SplitOpen()
 }
 
-// openFileHere is openFile for commands that act on the focused pane (Ctrl+O,
+// openFileHere is OpenFile for commands that act on the focused pane (Ctrl+O,
 // Ctrl+I): a file the other pane shows is swapped into this one.
 func (a *Core) openFileHere(path string) bool {
 	abs, _ := filepath.Abs(path)
@@ -204,7 +204,7 @@ func (a *Core) openFileHere(path string) bool {
 	return a.OpenFile(path)
 }
 
-// windowItems is the Space w menu.
+// WindowItems is the Space w menu.
 var WindowItems = []SpaceItem{
 	{"v", "win.item.split", false},
 	{"h", "win.item.left", false},

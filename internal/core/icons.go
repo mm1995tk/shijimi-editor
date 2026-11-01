@@ -67,7 +67,7 @@ var iconByExt = map[string]fileIcon{
 	"zip": icoArchive, "tar": icoArchive, "gz": icoArchive,
 }
 
-// iconFor picks the icon for a tree node, with the active theme's override
+// IconFor picks the icon for a tree node, with the active theme's override
 // applied.
 func IconFor(n *Node) fileIcon {
 	return themedIcon(baseIconFor(n))

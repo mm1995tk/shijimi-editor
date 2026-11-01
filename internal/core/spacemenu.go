@@ -7,14 +7,14 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
-// spaceItem is one row of the Space menu popup. textOnly marks commands that
+// SpaceItem is one row of the Space menu popup. textOnly marks commands that
 // do nothing unless the current tab is a text tab.
 type SpaceItem struct {
 	Key, Label string
 	textOnly   bool
 }
 
-// spaceItems lists the keys spaceMode understands, in display order.
+// spaceItems lists the keys SpaceMode understands, in display order.
 var spaceItems = []SpaceItem{
 	{"f", "space.openfile", false},
 	{"b", "space.buffers", false},
@@ -43,7 +43,7 @@ var spaceItems = []SpaceItem{
 	{"?", "space.commands", false},
 }
 
-// spaceMenuItems returns the items usable right now.
+// SpaceMenuItems returns the items usable right now.
 func (a *Core) SpaceMenuItems() []SpaceItem {
 	t := a.Cur()
 	text := t != nil && t.Kind == TabText
@@ -67,7 +67,7 @@ func (a *Core) SpaceMenuItems() []SpaceItem {
 	return out
 }
 
-// menuOverlay is a menu of leader key items titled title, as a screen.Overlay.
+// MenuOverlay is a menu of leader key items titled title, as a screen.Overlay.
 // Each Item has the translated label in Label and the key in Detail. It has no
 // place in a pane (the drawer puts it in a corner). It changes nothing.
 // Drawing it as cells is drawMenu's work.

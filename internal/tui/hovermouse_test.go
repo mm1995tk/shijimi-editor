@@ -1,12 +1,12 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func move(a *App, x, y int) tea.Cmd {

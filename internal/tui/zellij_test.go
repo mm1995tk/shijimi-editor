@@ -2,9 +2,10 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // fakeZellij plays the zellij session: it records the actions and keeps the

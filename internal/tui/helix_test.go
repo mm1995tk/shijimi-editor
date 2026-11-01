@@ -1,11 +1,12 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func TestSpaceMenuPopup(t *testing.T) {

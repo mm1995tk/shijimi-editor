@@ -1,10 +1,11 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // Quit is carried out by the TUI: tea.Quit, and the program is marked as ending.

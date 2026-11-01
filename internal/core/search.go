@@ -300,7 +300,7 @@ func GitGlobs(g string) []string {
 }
 
 // globMatcher matches slash-separated relative paths against globs with the
-// same rules as gitGlobs (bare names match at any depth, directories match
+// same rules as GitGlobs (bare names match at any depth, directories match
 // their contents, ** crosses directories).
 func globMatcher(globs []string) func(rel string) bool {
 	var res []*regexp.Regexp

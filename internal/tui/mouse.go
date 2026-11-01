@@ -1,12 +1,12 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -70,6 +70,7 @@ func (a *App) termMouse(l layout, msg core.Mouse) (cmd []core.Effect, ok bool) {
 	return nil, sent || grabbed
 }
 
+// HandleMouse handles a pointer event.
 func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 	if a.SearchOpen() {
 		return a.searchMouse(msg)
@@ -393,7 +394,7 @@ func (a *App) searchMouse(msg core.Mouse) []core.Effect {
 	return nil
 }
 
-// hoverCellWord is mouseWord for the cell the pointer last rested on.
+// HoverCellWord is mouseWord for the cell the pointer last rested on.
 func (a *App) HoverCellWord() (buffer.Pos, core.WordSpan, bool) {
 	return a.mouseWord(a.layout(), a.HoverCellPos())
 }

@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +8,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // drive feeds the messages produced by cmd back into the app until it settles.

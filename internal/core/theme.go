@@ -1,20 +1,21 @@
 package core
 
 import (
-	"github.com/alecthomas/chroma/v2"
 	"maps"
 	"sort"
 	"strings"
+
+	"github.com/alecthomas/chroma/v2"
 )
 
-// syntaxColors are the token colors a theme provides.
+// SyntaxColors are the token colors a theme provides.
 type SyntaxColors struct {
 	Text, Comment, Preproc, Keyword, Namespace, Type, Name, Function string
 	Const, String, Escape, Number                                    string
 	Control                                                          string // if, return, ... (semantic tokens); "" = Keyword
 }
 
-// iconOverride replaces parts of an icon in a theme. Empty fields keep the
+// IconOverride replaces parts of an icon in a theme. Empty fields keep the
 // default.
 type IconOverride struct {
 	Glyph, Color string
@@ -155,7 +156,7 @@ var LightPlus = Theme{
 
 var Themes = []*Theme{&DarkPlus, &GithubDark, &LightPlus}
 
-// defaultTheme is used when no theme (or an unknown one) is configured.
+// DefaultTheme is used when no theme (or an unknown one) is configured.
 var DefaultTheme = &GithubDark
 
 // themeAliases maps other names (notably Helix theme names) to built-ins.
@@ -204,10 +205,11 @@ func lookupTheme(name string) (*Theme, bool) {
 
 var (
 	CurTheme *Theme
-	// themeGen increments on every applyTheme so caches can invalidate.
+	// ThemeGen increments on every applyTheme so caches can invalidate.
 	ThemeGen int
 )
 
+// ThemeOrDefault is the theme called name, or the default one.
 func ThemeOrDefault(name string) *Theme {
 	if t, ok := lookupTheme(name); ok {
 		return t
@@ -218,7 +220,7 @@ func ThemeOrDefault(name string) *Theme {
 // ActivateTheme makes t the theme core reads: the current Theme, the token
 // colors of the syntax highlighter built from it, and a new generation so the
 // caches built from the old one are dropped. The front end calls it from its
-// own applyTheme (setPalette), which also rebuilds what it draws with.
+// own applyTheme (SetPalette), which also rebuilds what it draws with.
 func ActivateTheme(t *Theme) {
 	CurTheme = t
 	ThemeGen++

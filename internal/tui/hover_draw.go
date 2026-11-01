@@ -2,10 +2,11 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 

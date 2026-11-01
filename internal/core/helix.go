@@ -10,6 +10,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
+// EditMode is the Helix mode: normal, insert or select.
 type EditMode int
 
 const (
@@ -64,7 +65,7 @@ func fullPreviewEditorKey(msg Key) bool {
 	return false
 }
 
-// handleHelixKey implements Helix-style modal editing for text tabs.
+// HandleHelixKey implements Helix-style modal editing for text tabs.
 func (a *Core) HandleHelixKey(msg Key) []Effect {
 	t := a.Cur()
 	if t == nil || t.Kind != TabText {
@@ -202,6 +203,7 @@ func (a *Core) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int,
 	return nil
 }
 
+// PageSize is how many rows a page scroll moves.
 func (a *Core) PageSize() int { return max(1, a.EditRows()-2) }
 
 func (a *Core) enterInsert() []Effect {
@@ -306,7 +308,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 	return nil
 }
 
-// spaceMode handles "Space <key>" commands (Helix's space menu).
+// SpaceMode handles "Space <key>" commands (Helix's space menu).
 func (a *Core) SpaceMode(key string) []Effect {
 	if a.single {
 		switch key {
@@ -554,7 +556,7 @@ type errString string
 
 func (e errString) Error() string { return string(e) }
 
-// bufferPicker lists open tabs (Helix "Space b").
+// BufferPicker lists open tabs (Helix "Space b").
 func (a *Core) BufferPicker() []Effect {
 	items := make([]PaletteItem, len(a.Tabs))
 	for i, t := range a.Tabs {

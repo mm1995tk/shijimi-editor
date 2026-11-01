@@ -1,11 +1,6 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/acp/acptest"
-	"github.com/mm1995tk/shijimi-editor/internal/buffer"
-	"github.com/mm1995tk/shijimi-editor/internal/config"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"image"
 	"image/png"
 	"os"
@@ -16,6 +11,12 @@ import (
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/acp/acptest"
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // TestMain hands the process to the scripted agent first: fakeAgent runs this
@@ -270,4 +271,12 @@ func splitApp(t *testing.T) (*App, []string) {
 	a.TrackLast()
 	keys(a, "space", "w", "v")
 	return a, ps
+}
+
+// appOf is an App around c, for a Core made by hand: c is drawn by the App it
+// returns.
+func appOf(c *core.Core) *App {
+	a := &App{Core: c}
+	c.FrontEnd = a
+	return a
 }

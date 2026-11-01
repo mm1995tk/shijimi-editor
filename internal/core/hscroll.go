@@ -8,10 +8,10 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
-// hscrollWheel is how many columns one horizontal wheel notch scrolls.
+// HscrollWheel is how many columns one horizontal wheel notch scrolls.
 const HscrollWheel = 6
 
-// scrollCols moves the view d columns sideways without moving the cursor.
+// ScrollCols moves the view d columns sideways without moving the cursor.
 // It stops at the left edge and where the end of the longest line shows.
 func (a *Core) ScrollCols(t *Tab, d int) {
 	b := t.Buf

@@ -30,7 +30,7 @@ func isImage(path string) bool {
 	return imageExts[strings.ToLower(filepath.Ext(path))]
 }
 
-// imageView shows an image with the Kitty graphics protocol: the pixels are
+// ImageView shows an image with the Kitty graphics protocol: the pixels are
 // sent to the terminal out of band (see queueGraphics) and the view itself
 // only holds Unicode placeholder cells that the terminal draws the image on.
 type ImageView struct {
@@ -45,10 +45,11 @@ type ImageView struct {
 
 	CacheW, CacheH int
 	CacheCell      [2]int // cell size the cache was built for
-	CacheGen       int    // themeGen the cache was built for
+	CacheGen       int    // ThemeGen the cache was built for
 	Cache          []string
 }
 
+// NewImageView loads the image at path.
 func NewImageView(path string) *ImageView {
 	v := &ImageView{Path: path, Id: nextImageID()}
 	f, err := os.Open(path)
@@ -64,7 +65,7 @@ func NewImageView(path string) *ImageView {
 	return v
 }
 
-// newImageViewFromData shows already-loaded image bytes (for example a
+// NewImageViewFromData shows already-loaded image bytes (for example a
 // rendered web page) under the given display name.
 func NewImageViewFromData(name string, data []byte) *ImageView {
 	v := &ImageView{Path: name, Size: int64(len(data)), Id: nextImageID()}
@@ -72,8 +73,11 @@ func NewImageViewFromData(name string, data []byte) *ImageView {
 	return v
 }
 
+// Name is the image's file name.
 func (v *ImageView) Name() string { return filepath.Base(v.Path) }
 
+// Info is the line about the image shown under it: its size, or why it could
+// not be loaded.
 func (v *ImageView) Info() string {
 	if v.Err != nil {
 		return i18n.T("image.cantload") + v.Err.Error()
@@ -97,7 +101,7 @@ func humanSize(n int64) string {
 // typical 1:2 cell.
 var CellW, CellH = 10, 20
 
-// updateCellSize records the cell size the terminal reports; zeros (not
+// UpdateCellSize records the cell size the terminal reports; zeros (not
 // reported) keep the previous value.
 func UpdateCellSize(w, h int) {
 	if w > 0 && h > 0 {
@@ -130,14 +134,14 @@ var graphics []string
 
 func queueGraphics(s string) { graphics = append(graphics, s) }
 
-// takeGraphics returns the queued sequences and empties the queue.
+// TakeGraphics returns the queued sequences and empties the queue.
 func TakeGraphics() string {
 	s := strings.Join(graphics, "")
 	graphics = nil
 	return s
 }
 
-// fitImage returns the size an image of sw x sh pixels is shown at in a box
+// FitImage returns the size an image of sw x sh pixels is shown at in a box
 // of w x h cells: its pixel size (never enlarged) and the cells it spans.
 func FitImage(sw, sh, w, h int) (pw, ph, cols, rows int) {
 	maxCols, maxRows := min(w, kitty.MaxCells), min(h, kitty.MaxCells)
@@ -149,14 +153,14 @@ func FitImage(sw, sh, w, h int) (pw, ph, cols, rows int) {
 	return pw, ph, cols, rows
 }
 
-// rowsFor returns the rows the image needs when it is w columns wide at most.
+// RowsFor returns the rows the image needs when it is w columns wide at most.
 func (v *ImageView) RowsFor(w int) int {
 	b := v.Img.Bounds()
 	_, _, _, rows := FitImage(b.Dx(), b.Dy(), w, kitty.MaxCells)
 	return rows
 }
 
-// send queues the image scaled to pw x ph pixels, placed on cols x rows cells,
+// Send queues the image scaled to pw x ph pixels, placed on cols x rows cells,
 // unless the terminal already holds exactly that.
 func (v *ImageView) Send(pw, ph, cols, rows int) {
 	if v.sentCols == cols && v.sentRows == rows && v.sentPW == pw && v.sentPH == ph {
@@ -177,7 +181,7 @@ func (v *ImageView) Send(pw, ph, cols, rows int) {
 	v.sentCols, v.sentRows, v.sentPW, v.sentPH = cols, rows, pw, ph
 }
 
-// close frees the image in the terminal.
+// Close frees the image in the terminal.
 func (v *ImageView) Close() {
 	if v.sentCols != 0 {
 		queueGraphics(kitty.Delete(v.Id))
@@ -185,7 +189,7 @@ func (v *ImageView) Close() {
 	}
 }
 
-// buildImagePane makes the Pane of the image tab t, w columns wide and h rows
+// BuildImagePane makes the Pane of the image tab t, w columns wide and h rows
 // high: what the image is (Caption, and Image when it could be read; the pixels
 // are what Image.Blob names). It changes nothing.
 func (a *Core) BuildImagePane(t *Tab, w, h int) screen.Pane {
@@ -204,7 +208,7 @@ func (a *Core) BuildImagePane(t *Tab, w, h int) screen.Pane {
 	return p
 }
 
-// blobImage is the image that a Blob names (blob.get): a local file, which may
+// BlobImage is the image that a Blob names (blob.get): a local file, which may
 // be open in a tab, or a mermaid diagram of the preview. nil when it is gone.
 func (a *Core) BlobImage(blob string) *ImageView {
 	if iv := a.PreviewImage(blob); iv != nil {
@@ -220,6 +224,7 @@ func (a *Core) BlobImage(blob string) *ImageView {
 	return nil
 }
 
+// RgbParams is the color #rrggbb as the "r;g;b" of an SGR sequence.
 func RgbParams(hex string) string {
 	var r, g, b int
 	fmt.Sscanf(hex, "#%02x%02x%02x", &r, &g, &b)

@@ -2,9 +2,9 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/kitty"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )

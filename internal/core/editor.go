@@ -16,7 +16,7 @@ const (
 	TabImage
 )
 
-// tab is one item in the editor area: a text buffer or an image preview.
+// Tab is one item in the editor area: a text buffer or an image preview.
 type Tab struct {
 	Kind tabKind
 
@@ -49,10 +49,12 @@ type Tab struct {
 	scanImages []string
 }
 
+// NewTab is a text tab holding b.
 func NewTab(b *buffer.Buffer) *Tab {
 	return &Tab{Kind: TabText, Buf: b, Hl: NewHighlighter(b.Path), lspVersion: -1}
 }
 
+// Title is the name the tab bar shows for t.
 func (t *Tab) Title() string {
 	switch t.Kind {
 	case TabImage:
@@ -63,6 +65,7 @@ func (t *Tab) Title() string {
 
 func (t *Tab) dirty() bool { return t.Kind == TabText && t.Buf.Dirty }
 
+// Path is the file t shows, or "" when it has none.
 func (t *Tab) Path() string {
 	switch t.Kind {
 	case TabText:
@@ -73,12 +76,13 @@ func (t *Tab) Path() string {
 	return ""
 }
 
-// gutterWidthFor is the width of the line numbers column for a file of total lines.
+// GutterWidthFor is the width of the line numbers column for a file of total lines.
 func GutterWidthFor(total int) int { return len(fmt.Sprint(total)) + 4 }
 
+// GutterWidth is the width of the line number gutter for b.
 func GutterWidth(b *buffer.Buffer) int { return GutterWidthFor(len(b.Lines)) }
 
-// ensureCursorVisible adjusts scrolling so the cursor is on screen.
+// EnsureCursorVisible adjusts scrolling so the cursor is on screen.
 func EnsureCursorVisible(b *buffer.Buffer, w, h int) {
 	if h <= 0 {
 		return
@@ -100,8 +104,8 @@ func EnsureCursorVisible(b *buffer.Buffer, w, h int) {
 	}
 }
 
-// editorOpts is what App decides about one text pane: its contents (PaneOpts,
-// for buildTextPane) and how it is drawn (the rest, for drawPane).
+// EditorOpts is what App decides about one text pane: its contents (PaneOpts,
+// for BuildTextPane) and how it is drawn (the rest, for drawPane).
 type EditorOpts struct {
 	PaneOpts
 	Focused     bool
@@ -111,7 +115,7 @@ type EditorOpts struct {
 	GutterMark  func(row int) string // color of a ● before the line number (review comments), "" = none
 }
 
-// diagColor is the color of a diagnostic of severity sev.
+// DiagColor is the color of a diagnostic of severity sev.
 func DiagColor(sev int) string {
 	return StyleColor(DiagStyle(screen.Severity(sevRank(sev))))
 }
@@ -123,6 +127,7 @@ func sevRank(s int) int {
 	return s
 }
 
+// FirstLine is s up to its first line break.
 func FirstLine(s string) string {
 	if before, _, ok := strings.Cut(s, "\n"); ok {
 		return before

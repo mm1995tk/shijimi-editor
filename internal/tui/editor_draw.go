@@ -2,12 +2,13 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"slices"
 	"strings"
 
 	"charm.land/lipgloss/v2"
+
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
@@ -344,7 +345,7 @@ func renderWelcome(w, h int, helix bool) []string {
 }
 
 // renderEditor draws the visible part of a buffer as exactly h lines of
-// width w: the Pane of the buffer (buildTextPane), drawn as cells.
+// width w: the Pane of the buffer (BuildTextPane), drawn as cells.
 func renderEditor(t *core.Tab, w, h int, o core.EditorOpts) []string {
 	return drawTextPane(core.BuildTextPane(t, w, h, o.PaneOpts), w, h, o)
 }

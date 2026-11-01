@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +10,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func TestHScrollKeysAndBounds(t *testing.T) {

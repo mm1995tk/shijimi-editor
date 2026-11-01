@@ -1,11 +1,12 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
 
 	"charm.land/lipgloss/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // The caret cell is reversed, so the cursor colour must be the foreground of

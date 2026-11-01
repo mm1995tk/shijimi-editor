@@ -2,9 +2,10 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // fakeTmux plays the tmux server: it records the commands and keeps the zoom

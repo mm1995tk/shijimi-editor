@@ -11,6 +11,8 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
+// Command is an entry of the command palette: its name, its key and what it
+// does.
 type Command struct {
 	Name string
 	Key  string
@@ -156,7 +158,7 @@ func (a *Core) cmdlineInput(msg Input) []Effect {
 	return nil
 }
 
-// execCommand runs a Helix-style ":" command.
+// ExecCommand runs a Helix-style ":" command.
 func (a *Core) ExecCommand(line string) []Effect {
 	if line == "" {
 		return nil

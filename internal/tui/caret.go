@@ -2,9 +2,9 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // SetCaret hands the app the output writer, which keeps the terminal's cursor

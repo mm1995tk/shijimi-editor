@@ -1,20 +1,19 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"image"
 	"image/png"
 	"os"
 	"path/filepath"
-
-	"github.com/mm1995tk/shijimi-editor/internal/buffer"
-	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/config"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 

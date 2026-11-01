@@ -12,7 +12,7 @@ import (
 
 // PaneOpts is what App decides about the contents of a text pane, apart from
 // the buffer itself. How it is drawn (focus, search highlight, line number
-// style, diff colors) stays with editorOpts.
+// style, diff colors) stays with EditorOpts.
 // extraCursor is a cursor of a multi-cursor edit with its selection (an empty pair
 // when it selects nothing).
 type extraCursor struct {
@@ -20,6 +20,7 @@ type extraCursor struct {
 	sel    [2]buffer.Pos
 }
 
+// PaneOpts are the options a text pane is built with.
 type PaneOpts struct {
 	cursorAt     buffer.Pos    // where the cursor is drawn
 	extras       []extraCursor // cursors of a multi-cursor edit
@@ -28,7 +29,7 @@ type PaneOpts struct {
 	diags        []lsp.Diagnostic
 }
 
-// buildTextPane makes the screen.Pane of the buffer of t as it is now: the
+// BuildTextPane makes the screen.Pane of the buffer of t as it is now: the
 // lines in view (scrolled by the buffer's ScrollRow, h of them at most) with
 // their text split into spans by syntax color, the cursors and selections, the
 // diagnostics and the indent guides. It changes nothing. w is the width of
@@ -58,7 +59,7 @@ func guideUnit(b *buffer.Buffer, o PaneOpts) int {
 	return 1
 }
 
-// textPaneHead is buildTextPane without the lines: the title, the viewport and
+// textPaneHead is BuildTextPane without the lines: the title, the viewport and
 // the cursors and selections of the buffer of t.
 func textPaneHead(t *Tab, w, h int, o PaneOpts) screen.Pane {
 	b := t.Buf
@@ -121,8 +122,10 @@ func textLine(b *buffer.Buffer, colors [][]string, row int, o PaneOpts, unit int
 	return ln
 }
 
+// ToScreenPos is p as a screen.Pos.
 func ToScreenPos(p buffer.Pos) screen.Pos { return screen.Pos{Line: p.Row, Col: p.Col} }
 
+// PosLess reports whether a comes before b.
 func PosLess(a, b screen.Pos) bool {
 	return a.Line < b.Line || a.Line == b.Line && a.Col < b.Col
 }
@@ -160,7 +163,7 @@ var syntaxOrder = []screen.Style{
 }
 
 // themeCache holds what is derived from the current theme, rebuilt when
-// themeGen changes.
+// ThemeGen changes.
 var themeCache struct {
 	gen     int
 	palette screen.Palette
@@ -199,7 +202,7 @@ func syntaxStyleOf(hex string) screen.Style {
 	return themeCache.byColor[normColor(hex)]
 }
 
-// styleColor is the color the current theme gives to st ("" when it has none).
+// StyleColor is the color the current theme gives to st ("" when it has none).
 func StyleColor(st screen.Style) string {
 	if st == "" {
 		return ""
@@ -208,7 +211,7 @@ func StyleColor(st screen.Style) string {
 	return themeCache.palette[st]
 }
 
-// diagStyle is the name of the color of a diagnostic of severity sev.
+// DiagStyle is the name of the color of a diagnostic of severity sev.
 func DiagStyle(sev screen.Severity) screen.Style {
 	switch sev {
 	case screen.SeverityWarning:
@@ -247,7 +250,7 @@ func lineDiagnostics(line []rune, row int, diags []lsp.Diagnostic) []screen.Diag
 	return out
 }
 
-// headDiagnostic is the diagnostic that shows at the end of the line and in
+// HeadDiagnostic is the diagnostic that shows at the end of the line and in
 // the gutter: the most severe of those starting on the line, the first of
 // equals.
 func HeadDiagnostic(ds []screen.Diagnostic) (screen.Diagnostic, bool) {

@@ -11,8 +11,8 @@ import (
 // the widths of the inputs, the side bar and the proposal. App.fit works out
 // the cells and hands these the numbers.
 
-// fitCursor scrolls t, the current text tab, to the cursor if something asked
-// to follow it (followCursor), and keeps the scroll inside the file. editW and
+// FitCursor scrolls t, the current text tab, to the cursor if something asked
+// to follow it (FollowCursor), and keeps the scroll inside the file. editW and
 // editH are the cells of its text; dvH is the rows of its diff.
 func (a *Core) FitCursor(t *Tab, editW, editH, dvH int) {
 	if a.Follow {
@@ -26,7 +26,7 @@ func (a *Core) FitCursor(t *Tab, editW, editH, dvH int) {
 	t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow, 0, max(0, len(t.Buf.Lines)-1))
 }
 
-// fitPalette filters the palette's list and sizes its input, and fits the
+// FitPalette filters the palette's list and sizes its input, and fits the
 // project search, while they are open.
 func (a *Core) FitPalette() {
 	if a.Pal.Open {
@@ -39,7 +39,7 @@ func (a *Core) FitPalette() {
 	}
 }
 
-// fitFields sizes the find bar's input (findCells is the cells the bar has)
+// FitFields sizes the find bar's input (findCells is the cells the bar has)
 // and the command line's (cmdCells), while they are open.
 func (a *Core) FitFields(findCells, cmdCells int) {
 	if a.FindOpen {
@@ -50,7 +50,7 @@ func (a *Core) FitFields(findCells, cmdCells int) {
 	}
 }
 
-// fitSide keeps the file tree's selection on screen, and fits the list of
+// FitSide keeps the file tree's selection on screen, and fits the list of
 // changes below it in the diff mode; bodyH is the height of the side bar.
 func (a *Core) FitSide(bodyH int) {
 	a.Explorer.EnsureVisible(a.ExplorerH() - 1)
@@ -59,20 +59,25 @@ func (a *Core) FitSide(bodyH int) {
 	}
 }
 
-// fitProposals fits the agent's proposal while there is one.
+// FitProposals fits the agent's proposal while there is one.
 func (a *Core) FitProposals() {
 	if a.props.Len() > 0 {
 		a.PropView().fit(a)
 	}
 }
 
-// fitContext keeps the scroll of the context preview inside its text, for a
-// screen sh rows high (the box has a title row, a position row and a border).
+// ContextBodyRows is how many rows of text the context preview shows on a
+// screen sh rows high: the box takes at most sh-4 rows (at least 4), of which a
+// title row, a position row and a border are not text.
+func ContextBodyRows(sh int) int { return max(1, max(4, sh-4)-3) }
+
+// FitContext keeps the scroll of the context preview inside its text, for a
+// screen sh rows high.
 func (a *Core) FitContext(sh int) {
 	if a.Ctx == nil {
 		return
 	}
-	body := max(1, max(4, sh-4)-3)
+	body := ContextBodyRows(sh)
 	lines := len(strings.Split(strings.TrimRight(a.Ctx.Text, "\n"), "\n"))
 	a.Ctx.Scroll = Clamp(a.Ctx.Scroll, 0, max(0, lines-body))
 }

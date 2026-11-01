@@ -228,14 +228,14 @@ func plainText(cs []mdCell) string {
 	return string(r)
 }
 
-// mdDoc is a Markdown document rendered at one width: the lines (what the
+// MdDoc is a Markdown document rendered at one width: the lines (what the
 // preview Pane carries) and where the images go.
 type MdDoc struct {
 	Lines  []screen.Line
 	Images []screen.PreviewImage
 }
 
-// mdMedia is what mdOpts.mermaid and mdOpts.image return. Image is nil when
+// MdMedia is what MdOpts.mermaid and MdOpts.image return. Image is nil when
 // Lines are the rows to show as they are. Otherwise Lines are the empty rows
 // the image fills, and Image names it.
 type MdMedia struct {
@@ -247,7 +247,7 @@ type MdMedia struct {
 	Tight bool
 }
 
-// mdOpts supplies the pieces the renderer cannot produce itself.
+// MdOpts supplies the pieces the renderer cannot produce itself.
 type MdOpts struct {
 	// mermaid returns the rows for a diagram (each at most w wide), or nil
 	// to show the source as a plain code block.
@@ -268,10 +268,10 @@ type MdOpts struct {
 	FrontMatter bool
 }
 
-// plainSpan is text in the editor colors.
+// PlainSpan is text in the editor colors.
 func PlainSpan(text string) screen.Span { return screen.Span{Text: text} }
 
-// mdRow is a line of the given spans.
+// MdRow is a line of the given spans.
 func MdRow(spans ...screen.Span) screen.Line {
 	if spans == nil {
 		spans = []screen.Span{}
@@ -366,7 +366,7 @@ func fitSpans(spans []screen.Span, w int) []screen.Span {
 	return spans
 }
 
-// renderMarkdown formats src into lines for a pane w columns wide. The lines
+// RenderMarkdown formats src into lines for a pane w columns wide. The lines
 // are not padded to w: the drawing side fills the rest with the editor
 // background. The structure of src is ParseMarkdown's; the widths are here.
 func RenderMarkdown(src string, w int, o MdOpts) MdDoc {

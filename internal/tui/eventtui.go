@@ -3,12 +3,12 @@ package tui
 import (
 	"context"
 	"errors"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"time"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 

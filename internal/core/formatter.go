@@ -17,7 +17,7 @@ import (
 // formatterTimeout bounds one run of an external formatter.
 const formatterTimeout = 10 * time.Second
 
-// formatterDoneMsg carries the output of an external formatter.
+// FormatterDoneMsg carries the output of an external formatter.
 type FormatterDoneMsg struct {
 	tab  *Tab
 	in   string // buffer text the formatter was given

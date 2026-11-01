@@ -7,7 +7,7 @@ import (
 )
 
 // The screen of the tree holds only the rows in view, and building it
-// changes nothing: the scroll is fitted before (ensureVisible).
+// changes nothing: the scroll is fitted before (EnsureVisible).
 func TestExplorerScreenRowsInView(t *testing.T) {
 	dir := t.TempDir()
 	for _, n := range []string{"a", "b", "c", "d", "e"} {

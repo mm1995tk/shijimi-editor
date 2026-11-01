@@ -86,7 +86,7 @@ var failLine = regexp.MustCompile(`^\s*(--- FAIL|FAIL\b|FAILED\b|test result: FA
 
 // ---- gathering ----
 
-// probeRepo looks at the repository in the background. Pull requests are
+// ProbeRepo looks at the repository in the background. Pull requests are
 // asked for only when the branch or HEAD moved, or every prProbeTicks.
 func (a *Core) ProbeRepo() []Effect {
 	if a.GitTop == "" || a.Sg.probing {
@@ -177,8 +177,8 @@ func (a *Core) suggestTick() []Effect {
 	return nil
 }
 
-// scanTerminals records failed commands: exit codes the shell reports
-// (OSC 133;D, see shellIntegration) and FAIL lines of test runners.
+// ScanTerminals records failed commands: exit codes the shell reports
+// (OSC 133;D, see ShellIntegration) and FAIL lines of test runners.
 func (a *Core) ScanTerminals() {
 	alive := map[int]bool{}
 	if t := a.TermShell(); t != nil {
@@ -209,7 +209,7 @@ func (a *Core) addFailure(t Shell, code int, line string) {
 	a.AddFailureTab(t.ID(), 1, code, line, t.Tail(FailTail))
 }
 
-// addFailureTab is addFailure for a terminal that is not a Shell.
+// AddFailureTab is addFailure for a terminal that is not a Shell.
 func (a *Core) AddFailureTab(tab, n, code int, line string, output []string) {
 	f := termFailure{tab: tab, n: n, Code: code, line: line, Output: output}
 	for i := range a.Sg.Fails {
@@ -224,6 +224,7 @@ func (a *Core) AddFailureTab(tab, n, code int, line string, output []string) {
 	a.Sg.Fails = append(a.Sg.Fails, f)
 }
 
+// ClearFailure forgets the failures seen in terminal tab.
 func (a *Core) ClearFailure(tab int) {
 	a.Sg.Fails = slices.DeleteFunc(a.Sg.Fails, func(f termFailure) bool { return f.tab == tab })
 }
@@ -289,7 +290,7 @@ func isBranchOf(base, branch string) bool {
 	return base == branch || strings.HasSuffix(base, "/"+branch)
 }
 
-// suggestions returns the suggestions shown: the rules minus dismissed ones.
+// Suggestions returns the suggestions shown: the rules minus dismissed ones.
 func (a *Core) Suggestions() []offer {
 	all := a.allSuggestions()
 	out := all[:0]
@@ -425,6 +426,7 @@ func lspPrompt(errors string) string {
 	return i18n.T("sg.prompt.lsp") + errors
 }
 
+// FailurePrompt is the prompt that asks the agent about f.
 func FailurePrompt(f termFailure) string {
 	what := fmt.Sprintf(i18n.T("sg.exitcode"), f.Code)
 	if f.Code < 0 {

@@ -19,7 +19,7 @@ const (
 	minEditorBeside = 30
 )
 
-// agentWidth is the panel width: the user's choice, or a quarter of the screen.
+// AgentWidth is the panel width: the user's choice, or a quarter of the screen.
 func (a *Core) AgentWidth() int {
 	if a.AgentWidthPref() > 0 {
 		return Clamp(a.AgentWidthPref(), minAgentW, max(minAgentW, a.ScreenW()/2))
@@ -27,7 +27,7 @@ func (a *Core) AgentWidth() int {
 	return Clamp(a.ScreenW()/4, 30, 50)
 }
 
-// agentShown reports whether the panel fits beside the editor.
+// AgentShown reports whether the panel fits beside the editor.
 func (a *Core) AgentShown(sideW int) bool {
 	if !a.AgentOpen() {
 		return false
@@ -186,7 +186,7 @@ func (a *Core) agentLayout(w, h int, focused bool) agentLay {
 	return lay
 }
 
-// agentScreen is the panel as a screen.Agent, w columns wide and h rows
+// AgentScreen is the panel as a screen.Agent, w columns wide and h rows
 // high. The log is the part of it that fitAgent put in view. It changes
 // nothing.
 func (a *Core) AgentScreen(w, h int, focused bool) screen.Agent {
@@ -229,6 +229,7 @@ func (a *Core) AgentScreen(w, h int, focused bool) screen.Agent {
 	return ag
 }
 
+// BoolInt is 1 for true and 0 for false.
 func BoolInt(b bool) int {
 	if b {
 		return 1
@@ -350,7 +351,7 @@ func wrapPlainRows(text string, w int) []wrapRow {
 
 // ---- mouse ----
 
-// agentMouse handles the pointer over the panel. ok is false when (x, y)
+// AgentMouse handles the pointer over the panel. ok is false when (x, y)
 // is not on it.
 func (a *Core) AgentMouse(msg Mouse) ([]Effect, bool) {
 	if msg.Region != RegionAgent {
@@ -404,7 +405,7 @@ func (a *Core) AgentMouse(msg Mouse) ([]Effect, bool) {
 	return a.SetFocus(FocusAgent), true
 }
 
-// fitAgentPanel fits the panel's state to the area it is drawn in, w wide and
+// FitAgentPanel fits the panel's state to the area it is drawn in, w wide and
 // h tall: the selected suggestion, the scroll and the selection of the log,
 // and where the log sits (agentView, which the mouse reads). It is the part
 // of drawing the panel that changes state, so it runs before drawing (fit).

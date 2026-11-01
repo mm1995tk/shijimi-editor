@@ -51,15 +51,17 @@ func statStamp(path string) fileStamp {
 	return fileStamp{st.Size(), st.ModTime()}
 }
 
+// MermaidStartMsg asks to render the Mermaid diagram Code, cached under Key.
 type MermaidStartMsg struct{ Key, Code string }
 
+// MermaidDoneMsg is a rendered Mermaid diagram, or Err.
 type MermaidDoneMsg struct {
 	key string
 	png string
 	Err error
 }
 
-// mermaidBlocks returns the source of every mermaid fence in a document.
+// MermaidBlocks returns the source of every mermaid fence in a document.
 // It runs the renderer itself so the blocks found are exactly those the
 // preview asks to draw.
 func MermaidBlocks(text string) []string {
@@ -98,12 +100,14 @@ func mdImagePath(mdPath, src string) string {
 	return filepath.Join(filepath.Dir(mdPath), src)
 }
 
+// MdImageDoneMsg is an image of the Markdown preview, loaded from Path.
 type MdImageDoneMsg struct {
 	Path  string
 	Stamp fileStamp
 	Img   *ImageView
 }
 
+// MermaidKey is the cache key of the diagram code.
 func (a *Core) MermaidKey(code string) string {
 	sum := sha1.Sum([]byte(a.Cfg.Editor.MermaidCommand + "\x00" + code))
 	return hex.EncodeToString(sum[:])
@@ -117,7 +121,7 @@ func mermaidCacheDir() string {
 	return filepath.Join(d, "shijimi", "mermaid")
 }
 
-// previewMode is how a Markdown tab shows its preview.
+// PreviewMode is how a Markdown tab shows its preview.
 type PreviewMode int
 
 const (
@@ -126,7 +130,7 @@ const (
 	PreviewFull              // the preview alone, using the whole editor area
 )
 
-// togglePreview cycles off → beside the buffer → full width → off.
+// TogglePreview cycles off → beside the buffer → full width → off.
 func (a *Core) TogglePreview() []Effect {
 	t := a.CurText()
 	if t == nil || !isMarkdown(t.Buf.Path) {
@@ -145,7 +149,7 @@ func (a *Core) TogglePreview() []Effect {
 	return nil
 }
 
-// syncPreview starts rendering for mermaid blocks and loading the images of
+// SyncPreview starts rendering for mermaid blocks and loading the images of
 // the visible preview. The lists are cached per buffer version, so each call
 // only does a few map lookups and a stat of each image.
 func (a *Core) SyncPreview() []Effect {
@@ -179,6 +183,7 @@ func (a *Core) SyncPreview() []Effect {
 	return Batch(cmds...)
 }
 
+// HandleMermaidStart renders a diagram, unless it left the file meanwhile.
 func (a *Core) HandleMermaidStart(m MermaidStartMsg) []Effect {
 	// drop the job if the user kept typing and the block no longer exists
 	wanted := false
@@ -218,6 +223,7 @@ func (a *Core) HandleMermaidStart(m MermaidStartMsg) []Effect {
 	})
 }
 
+// HandleMermaidDone keeps a rendered diagram for the preview.
 func (a *Core) HandleMermaidDone(m MermaidDoneMsg) {
 	job := a.Mermaid[m.key]
 	if job == nil {
@@ -283,6 +289,8 @@ func (a *Core) syncMDImages() []Effect {
 	return Batch(cmds...)
 }
 
+// HandleMDImageDone keeps a loaded image for the preview, unless the file
+// changed meanwhile.
 func (a *Core) HandleMDImageDone(m MdImageDoneMsg) {
 	job := a.MdImages[m.Path]
 	if job == nil || job.Stamp != m.Stamp {
@@ -327,7 +335,7 @@ const (
 	blobMermaid = "mermaid:"
 )
 
-// previewImage is the image that a Blob of the preview names, nil when it is
+// PreviewImage is the image that a Blob of the preview names, nil when it is
 // gone.
 func (a *Core) PreviewImage(blob string) *ImageView {
 	if path, ok := strings.CutPrefix(blob, BlobFile); ok {
@@ -369,16 +377,17 @@ func jobLines(job *previewJob, blob string, w int, loading, errPrefix string, ab
 	return &MdMedia{Lines: rows, Tight: job.Img.RowsFor(w) < 3, Image: &screen.ImageRef{Blob: blob, Width: b.Dx(), Height: b.Dy()}}
 }
 
+// ShellQuote is s quoted for sh.
 func ShellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
-// mermaidLines makes the rows of one diagram (or its placeholder) for the preview.
+// MermaidLines makes the rows of one diagram (or its placeholder) for the preview.
 func (a *Core) MermaidLines(code string, w int) *MdMedia {
 	source := func() []screen.Line { return mdCodeBlock(strings.Split(code, "\n"), "mermaid", w) }
 	key := a.MermaidKey(code)
 	return jobLines(a.Mermaid[key], blobMermaid+key, w, i18n.T("preview.rendering"), "mermaid: ", source)
 }
 
-// buildPreviewPane makes the Pane of the Markdown preview of t, w columns
+// BuildPreviewPane makes the Pane of the Markdown preview of t, w columns
 // wide and h rows high: the part of the document in view, scrolled so the part
 // around the editor cursor is visible. It changes nothing but the cache of the
 // document rendered at width w (prevCache), which is made again when the
@@ -446,7 +455,7 @@ func (t *Tab) scan() {
 	}
 }
 
-// fullPreview reports whether t is showing the Markdown preview alone. In
+// FullPreview reports whether t is showing the Markdown preview alone. In
 // diff mode the diff takes the whole area instead, so the buffer stays
 // visible and editable.
 func (a *Core) FullPreview(t *Tab) bool {

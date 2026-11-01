@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // render fits the tree to h rows and draws it, the way View does.

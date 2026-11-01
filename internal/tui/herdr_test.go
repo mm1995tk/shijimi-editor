@@ -2,10 +2,11 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 type fakeHerdr struct {
@@ -150,7 +151,7 @@ func TestHerdrOffKeepsBuiltinTerminal(t *testing.T) {
 func TestHerdrCommandEnd(t *testing.T) {
 	a, _ := herdrApp(t)
 	a.mux.id = "w1-p2"
-	a.resolveMux() // commandEnded needs the backend that a created pane would have
+	a.resolveMux() // CommandEnded needs the backend that a created pane would have
 	a.CommandEnded(1)
 	if len(a.Sg.Fails) != 1 || a.Sg.Fails[0].Code != 1 || len(a.Sg.Fails[0].Output) == 0 {
 		t.Fatalf("fails: %+v", a.Sg.Fails)

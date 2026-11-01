@@ -33,7 +33,7 @@ type prReview struct {
 	seq     int // bumped on every load; older answers are dropped
 }
 
-// yesNo is a question answered with y or n on the status line.
+// YesNo is a question answered with y or n on the status line.
 type YesNo struct {
 	Prompt  string
 	yes, no func() []Effect
@@ -105,14 +105,14 @@ func (a *Core) handlePRReview(m prReviewMsg) []Effect {
 	return a.ReloadChanges() // the head commit may have just arrived
 }
 
-// prShown reports whether diff mode compares with a pull request's base.
+// PrShown reports whether diff mode compares with a pull request's base.
 func (a *Core) PrShown() bool {
 	return a.Gd.On && a.Gd.Base == BasePR && a.Gd.Pr != nil
 }
 
 // ---- files ----
 
-// repoPath is abs relative to the repository top, as GitHub names files.
+// RepoPath is abs relative to the repository top, as GitHub names files.
 func (a *Core) RepoPath(abs string) string {
 	if r, err := filepath.Rel(a.GitTopDir(), abs); err == nil {
 		return filepath.ToSlash(r)
@@ -120,7 +120,7 @@ func (a *Core) RepoPath(abs string) string {
 	return abs
 }
 
-// isStale reports whether file p (from the repository top) differs from the
+// IsStale reports whether file p (from the repository top) differs from the
 // pull request's head commit, so its line numbers may not match GitHub's.
 func (a *Core) IsStale(p string) bool {
 	return a.Gd.staleAll || a.Gd.stale[p]
@@ -139,7 +139,7 @@ func (rv *prReview) threadsIn(p string) []*PrThread {
 	return out
 }
 
-// lineThreads returns the threads shown at line (1-based) of file p.
+// LineThreads returns the threads shown at line (1-based) of file p.
 func (rv *prReview) LineThreads(p string, line int) []*PrThread {
 	var out []*PrThread
 	for _, t := range rv.threadsIn(p) {
@@ -171,7 +171,7 @@ func (rv *prReview) viewedCount(files []*diff.File) int {
 	return n
 }
 
-// commentMark returns the marker color for line row (0-based) of t, or "".
+// CommentMark returns the marker color for line row (0-based) of t, or "".
 func (a *Core) CommentMark(t *Tab) func(row int) string {
 	if !a.PrShown() || t.Buf.Path == "" {
 		return nil
@@ -221,7 +221,7 @@ func (a *Core) openReviewMenu() []Effect {
 	return nil
 }
 
-// reviewCommand runs Space v <key> from the command palette.
+// ReviewCommand runs Space v <key> from the command palette.
 func (a *Core) ReviewCommand(key string) []Effect {
 	if !a.PrShown() {
 		return a.openReviewMenu() // says where reviewing works
@@ -229,7 +229,7 @@ func (a *Core) ReviewCommand(key string) []Effect {
 	return a.ReviewKey(key)
 }
 
-// reviewKey runs the command of Space v <key>.
+// ReviewKey runs the command of Space v <key>.
 func (a *Core) ReviewKey(key string) []Effect {
 	if !a.PrShown() {
 		return nil
@@ -517,7 +517,7 @@ func (a *Core) handleReviewSent(m reviewSentMsg) []Effect {
 
 // ---- which lines take comments ----
 
-// inHunk reports whether buffer line row lies in a hunk of the diff GitHub
+// InHunk reports whether buffer line row lies in a hunk of the diff GitHub
 // shows: a changed line, or one of the 3 lines of context around a change.
 func (dv *DiffView) InHunk(row int) bool {
 	if dv.Single {
@@ -545,7 +545,7 @@ func (dv *DiffView) InHunk(row int) bool {
 
 // ---- the comment card ----
 
-// prCard is a thread shown like a hover popup. It takes the keys while open.
+// PrCard is a thread shown like a hover popup. It takes the keys while open.
 type PrCard struct {
 	Thread    *PrThread
 	Path      string
@@ -581,7 +581,7 @@ func (a *Core) cardDoc(c *PrCard, w int) MdDoc {
 	return doc
 }
 
-// cardOverlay is the open card c as a screen.Overlay: the rows in view when
+// CardOverlay is the open card c as a screen.Overlay: the rows in view when
 // scrolled by c.scroll (the rest stays in core), at most maxH of them, w cells
 // wide, with View telling where they are among all of them. It hangs on the
 // line of the thread in the pane of its file (if that is the current one).
@@ -838,7 +838,7 @@ type composer struct {
 	onSubmit func(string) []Effect
 }
 
-// compose opens the comment editor. orig is what Ctrl+S puts in a
+// Compose opens the comment editor. orig is what Ctrl+S puts in a
 // suggestion block.
 func (a *Core) Compose(title, initial string, orig []string, onSubmit func(string) []Effect) []Effect {
 	ta := a.NewTextArea(initial)
@@ -847,6 +847,7 @@ func (a *Core) Compose(title, initial string, orig []string, onSubmit func(strin
 	return nil
 }
 
+// HandleComposerKey handles a key press in the review comment editor.
 func (a *Core) HandleComposerKey(msg Key) []Effect {
 	c := a.Composer
 	switch msg.String() {
@@ -880,7 +881,7 @@ func (a *Core) HandleComposerKey(msg Key) []Effect {
 	return nil
 }
 
-// composerOverlay is the open comment editor as a screen.Overlay, iw cells
+// ComposerOverlay is the open comment editor as a screen.Overlay, iw cells
 // wide inside its border: Title, Hint, the text and cursor in Compose, and
 // in Lines the rendered preview of the text (the first previewRows-1 rows; the
 // label takes the first row). Compose.PreviewLabel is empty when previewRows

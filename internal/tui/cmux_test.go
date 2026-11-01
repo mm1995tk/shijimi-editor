@@ -2,9 +2,10 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // fakeCmux plays the cmux app: it records the calls and keeps the surfaces.

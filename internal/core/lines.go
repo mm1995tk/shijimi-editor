@@ -14,7 +14,7 @@ import (
 // drawTitle / drawStatus / drawCmdline, which read only what they are given
 // (and the colors of the theme).
 
-// titleOf is the title row of the pane showing t: the path of the file being
+// TitleOf is the title row of the pane showing t: the path of the file being
 // edited relative to the root (just the name in single-file mode), and ● when
 // it is unsaved. It is nil when no file is open.
 func (a *Core) TitleOf(t *Tab) *screen.Title {
@@ -39,7 +39,7 @@ func modeStyleName(m EditMode) screen.Style {
 	return screen.StyleModeNormal
 }
 
-// statusOf is the status line as it is now.
+// StatusOf is the status line as it is now.
 func (a *Core) StatusOf() screen.Status {
 	var s screen.Status
 	if a.Helix && a.Focus == FocusEditor && a.CurText() != nil {
@@ -110,7 +110,7 @@ func (a *Core) StatusOf() screen.Status {
 	return s
 }
 
-// confirmOverlay is the confirmation now asked, as a screen.Overlay, or nil.
+// ConfirmOverlay is the confirmation now asked, as a screen.Overlay, or nil.
 // A y/n question (confirm) has the two answers as Items; "press again to
 // discard" (confirmQuit, confirmClose) has none, as the same key answers it.
 // It has no place in a pane. It changes nothing. Drawing it is drawStatus's work.
@@ -128,7 +128,7 @@ func (a *Core) ConfirmOverlay() *screen.Overlay {
 	return &ov
 }
 
-// cmdlineState is the ":" / "/" line when it is open.
+// CmdlineState is the ":" / "/" line when it is open.
 func (a *Core) CmdlineState() *screen.Cmdline {
 	if !a.CmdOpen {
 		return nil
@@ -136,7 +136,7 @@ func (a *Core) CmdlineState() *screen.Cmdline {
 	return &screen.Cmdline{Prefix: a.cmdKind, Text: a.cmdInput.Value(), Cursor: a.cmdInput.Position()}
 }
 
-// findState is the find bar when it is open.
+// FindState is the find bar when it is open.
 func (a *Core) FindState() *screen.Cmdline {
 	if !a.FindOpen {
 		return nil

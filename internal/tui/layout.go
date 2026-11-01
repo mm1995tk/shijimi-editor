@@ -5,7 +5,7 @@ import "github.com/mm1995tk/shijimi-editor/internal/core"
 // layout.go is where the screen is laid out in terminal cells: how wide each
 // pane is and where it starts. It belongs to the TUI. The state that decides
 // what is shown (core) never takes a layout; it asks the few questions below
-// (editRows, textCols, ...), which answer in rows and columns of a region.
+// (EditRows, TextCols, ...), which answer in rows and columns of a region.
 // Mouse positions arrive as a region plus a row and column in it (see Mouse),
 // and only the TUI turns those into screen cells.
 
@@ -62,20 +62,20 @@ func (a *App) layout() layout {
 	return l
 }
 
-// editRows is the number of text rows the editor shows.
+// EditRows is the number of text rows the editor shows.
 func (a *App) EditRows() int { return a.layout().editH }
 
-// textCols is the width of the pane of t, its line numbers included,
-// from which a sideways scroll subtracts gutterWidth.
+// TextCols is the width of the pane of t, its line numbers included,
+// from which a sideways scroll subtracts GutterWidth.
 func (a *App) TextCols(t *core.Tab) int { return a.editW(t, a.layout()) }
 
-// diffBaseCols is the width of the base side of a split diff.
+// DiffBaseCols is the width of the base side of a split diff.
 func (a *App) DiffBaseCols() int { return a.dvGeom(a.layout()).LeftW }
 
-// editorCols is the width of the editor area, which a split divides.
+// EditorCols is the width of the editor area, which a split divides.
 func (a *App) EditorCols() int { return a.layout().fullW }
 
-// suggestionsShown reports whether the suggestion panel is open, in which case
+// SuggestionsShown reports whether the suggestion panel is open, in which case
 // the status line leaves the suggestion count to it.
 func (a *App) SuggestionsShown() bool { return a.layout().agentW > 0 }
 

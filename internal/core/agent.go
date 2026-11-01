@@ -56,6 +56,8 @@ const (
 	logError logKind = 'e'
 )
 
+// LogEntry is one entry of the agent's log: what was asked, the reply, a tool
+// call, the plan or an error.
 type LogEntry struct {
 	Kind   logKind
 	Text   string
@@ -181,7 +183,7 @@ func (h agentHandler) RequestPermission(ctx context.Context, r acp.PermissionReq
 
 // ---- running a turn ----
 
-// runAgent sends a prompt built by build for the suggestion of kind and key,
+// RunAgent sends a prompt built by build for the suggestion of kind and key,
 // starting the agent first if needed.
 func (a *Core) RunAgent(kind suggestKind, key, title string, build func() string) []Effect {
 	s := a.Ag
@@ -498,7 +500,7 @@ func (a *Core) agentWrite(r acp.WriteRequest) error {
 	return nil
 }
 
-// answerPermission answers the oldest permission request: allow takes the
+// AnswerPermission answers the oldest permission request: allow takes the
 // first "allow" option, reject the first "reject" one.
 func (a *Core) AnswerPermission(allow bool) {
 	s := a.Ag

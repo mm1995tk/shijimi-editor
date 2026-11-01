@@ -6,9 +6,9 @@ import (
 )
 
 // Named keys. Their values and names are bubbletea's (ultraviolet's), so a Key
-// from the TUI needs no translation; internal/tui/inputtea_test.go checks they
-// match. The table is copied rather than imported so core does not depend on
-// bubbletea.
+// from the TUI needs no translation. The table is copied rather than imported
+// so core does not depend on bubbletea; internal/tui/inputtea_test.go checks
+// only a few of them (Enter, Tab, F5 and the text keys) against bubbletea.
 
 // KeyExtended is a key whose Text is more than one rune.
 const KeyExtended = unicode.MaxRune + 1

@@ -18,7 +18,7 @@ const treeRefreshTicks = 3
 // watchInterval is how often open files are compared with the disk.
 const watchInterval = time.Second
 
-// watchTimer schedules the next WatchTick.
+// WatchTimer schedules the next WatchTick.
 func WatchTimer() Effect { return StartTimer{After: watchInterval, Fire: WatchTick{}} }
 
 // handleWatch runs one WatchTick and schedules the next.

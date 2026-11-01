@@ -1,10 +1,12 @@
 package tui
 
 import (
-	tea "charm.land/bubbletea/v2"
 	"errors"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func TestOpenURLCommand(t *testing.T) {

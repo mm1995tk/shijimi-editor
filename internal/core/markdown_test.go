@@ -4,7 +4,6 @@ import (
 	"image"
 	"image/png"
 	"os"
-
 	"strings"
 	"testing"
 )

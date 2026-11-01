@@ -12,21 +12,21 @@ import (
 
 const maxHighlightLines = 20000
 
-// chromaStyle holds the current theme's token colors; set by applyTheme. It
+// ChromaStyle holds the current theme's token colors; set by applyTheme. It
 // is replaced, never modified, so a lexing command may keep the one it read.
 var ChromaStyle *chroma.Style
 
 // highlighter colors one buffer. Lexing the whole buffer takes milliseconds,
 // and bubbletea renders after every message, so lexing runs as a command
-// (lexCmd) outside the render. Colors only returns what the last lexing
+// (LexCmd) outside the render. Colors only returns what the last lexing
 // produced, mapped onto the buffer's current lines.
 type highlighter struct {
 	Lexer   chroma.Lexer
-	Running bool // a lexCmd is under way
+	Running bool // a LexCmd is under way
 
 	// The last lexing.
 	Version int        // buffer version lexed; -1 before the first
-	gen     int        // themeGen it was colored with
+	gen     int        // ThemeGen it was colored with
 	lines   []string   // the lines lexed
 	colors  [][]string // per-rune colors of lines ("" = default)
 
@@ -37,7 +37,7 @@ type highlighter struct {
 	Sem semanticState
 }
 
-// highlightMsg carries the result of a lexCmd.
+// HighlightMsg carries the result of a LexCmd.
 type HighlightMsg struct {
 	H       *highlighter
 	Version int
@@ -46,6 +46,8 @@ type HighlightMsg struct {
 	Colors  [][]string
 }
 
+// NewHighlighter is the syntax highlighter for the file at path, picked by its
+// name.
 func NewHighlighter(path string) *highlighter {
 	h := &highlighter{Version: -1, viewVersion: -1}
 	if path != "" {
@@ -65,7 +67,7 @@ func (h *highlighter) Language() string {
 	return h.Lexer.Config().Name
 }
 
-// lexCmd returns a command that lexes b's current text, or nil when the
+// LexCmd returns a command that lexes b's current text, or nil when the
 // colors are current or a lexing is under way. Edits made meanwhile are
 // lexed once that one is applied, so a burst of edits costs two lexings.
 func (h *highlighter) LexCmd(b *buffer.Buffer) []Effect {
@@ -86,7 +88,7 @@ func (h *highlighter) LexCmd(b *buffer.Buffer) []Effect {
 	})
 }
 
-// apply stores the result of a lexCmd.
+// apply stores the result of a LexCmd.
 func (h *highlighter) Apply(m HighlightMsg) {
 	h.Running = false
 	if m.Colors == nil {
@@ -149,7 +151,7 @@ func highlightNow(path string, b *buffer.Buffer) [][]string {
 	return LexColors(h.Lexer, ChromaStyle, lines)
 }
 
-// lexColors returns per-rune colors of lines, or nil if lexing fails.
+// LexColors returns per-rune colors of lines, or nil if lexing fails.
 func LexColors(lexer chroma.Lexer, style *chroma.Style, lines []string) [][]string {
 	it, err := lexer.Tokenise(nil, strings.Join(lines, "\n"))
 	if err != nil {
@@ -215,7 +217,7 @@ func commentPrefix(path string) string {
 	return ""
 }
 
-// lexTabs starts lexing every text tab whose colors are behind its text.
+// LexTabs starts lexing every text tab whose colors are behind its text.
 func (a *Core) LexTabs() []Effect {
 	var cmds [][]Effect
 	for _, t := range a.Tabs {

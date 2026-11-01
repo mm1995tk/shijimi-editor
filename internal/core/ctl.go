@@ -40,7 +40,7 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 	return append([]Effect{ReplyCtl{To: m.Reply, Resp: resp}}, cmd...)
 }
 
-// reviewToRoot turns a repository-relative review path into one relative to
+// ReviewToRoot turns a repository-relative review path into one relative to
 // the editor root, which is the terminal's working directory.
 func (a *Core) ReviewToRoot(p string) string {
 	base := a.GitTop
@@ -76,7 +76,7 @@ func agentNeedsHuman(name, arg string) bool {
 }
 
 // ctlExec runs a ":" command for the control socket and reports how it went.
-// The command is the same one a person types; failures that execCommand only
+// The command is the same one a person types; failures that ExecCommand only
 // shows in the status line are turned into the reply.
 func (a *Core) ctlExec(line string) (ctl.Response, []Effect) {
 	line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), ":"))

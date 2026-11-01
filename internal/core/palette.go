@@ -17,6 +17,7 @@ const (
 	maxIndexedFiles = 50000
 )
 
+// PaletteItem is a row of the palette.
 type PaletteItem struct {
 	Label   string
 	Detail  string
@@ -24,7 +25,7 @@ type PaletteItem struct {
 	index   int
 }
 
-// palette is the overlay used for Quick Open (Ctrl+P), the command palette
+// Palette is the overlay used for Quick Open (Ctrl+P), the command palette
 // (">" prefix), go-to-line (":" prefix) and free-text prompts.
 type Palette struct {
 	Open  bool
@@ -76,7 +77,7 @@ func indexFiles(root string) []string {
 	return files
 }
 
-// show opens the palette in quick-open/command mode with initial text.
+// Show opens the palette in quick-open/command mode with initial text.
 func (p *Palette) Show(root, initial string) []Effect {
 	p.Open = true
 	p.picking = false
@@ -92,7 +93,7 @@ func (p *Palette) Show(root, initial string) []Effect {
 	return nil
 }
 
-// ask opens the palette as a single-line prompt.
+// Ask opens the palette as a single-line prompt.
 func (p *Palette) Ask(prompt, initial string, onSubmit func(string) []Effect) []Effect {
 	p.Open = true
 	p.picking = false
@@ -108,6 +109,7 @@ func (p *Palette) Ask(prompt, initial string, onSubmit func(string) []Effect) []
 	return nil
 }
 
+// Close closes the palette.
 func (p *Palette) Close() {
 	p.Open = false
 	p.Input.Blur()
@@ -191,7 +193,7 @@ func (p *Palette) head() (title, prefix string) {
 	return "", ">"
 }
 
-// paletteLabel is what precedes the input on the palette's first row.
+// PaletteLabel is what precedes the input on the palette's first row.
 func PaletteLabel(title, prefix string) string {
 	switch {
 	case prefix == ":":
@@ -205,8 +207,8 @@ func PaletteLabel(title, prefix string) string {
 // label is what precedes the input on the palette's first row.
 func (p *Palette) label() string { return PaletteLabel(p.head()) }
 
-// overlay is the palette as a screen.Overlay: the input field and the rows in
-// view (maxPaletteItems at most, scrolled so that the selected one shows) with
+// Overlay is the palette as a screen.Overlay: the input field and the rows in
+// view (MaxPaletteItems at most, scrolled so that the selected one shows) with
 // Active the selected one among them. It has no place in a pane, so it has no
 // At (the TUI centres it). It changes nothing. Drawing it as cells is
 // drawPalette's work.
@@ -238,7 +240,7 @@ func (p *Palette) Overlay() screen.Overlay {
 	return ov
 }
 
-// pick opens the palette as a fuzzy list; onPick receives the index into items.
+// Pick opens the palette as a fuzzy list; onPick receives the index into items.
 func (p *Palette) Pick(title string, items []PaletteItem, onPick func(int) []Effect) []Effect {
 	p.Open = true
 	p.picking = true
@@ -295,5 +297,5 @@ func runeIndexes(s string, byteOffsets []int) []int {
 	return out
 }
 
-// paletteWidth is the width of the palette window.
+// PaletteWidth is the width of the palette window.
 func (a *Core) PaletteWidth() int { return Clamp(a.ScreenW()*3/5, 30, 100) }

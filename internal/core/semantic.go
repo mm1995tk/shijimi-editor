@@ -10,7 +10,7 @@ import (
 )
 
 // semanticState holds the last semantic tokens of a buffer, drawn over the
-// chroma colors. They are kept as roles (names of syntaxColors fields), not
+// chroma colors. They are kept as roles (names of SyntaxColors fields), not
 // colors, so that a theme switch recolors them without asking the server again.
 type semanticState struct {
 	running bool
@@ -27,7 +27,7 @@ type semanticState struct {
 	merged                 [][]string
 }
 
-// semanticMsg carries the result of a semantic tokens request.
+// SemanticMsg carries the result of a semantic tokens request.
 type SemanticMsg struct {
 	h       *highlighter
 	version int
@@ -67,7 +67,7 @@ func (a *Core) semanticCmd(t *Tab) []Effect {
 	})
 }
 
-// semanticTabs requests semantic tokens for every text tab that is behind.
+// SemanticTabs requests semantic tokens for every text tab that is behind.
 func (a *Core) SemanticTabs() []Effect {
 	var cmds [][]Effect
 	for _, t := range a.Tabs {
@@ -198,7 +198,7 @@ func semanticRole(t lsp.SemanticToken, text string) string {
 	return ""
 }
 
-// semanticRoles turns tokens into per-rune roles of lines. The tokens'
+// SemanticRoles turns tokens into per-rune roles of lines. The tokens'
 // positions are in UTF-16 code units; they are converted to rune columns here.
 // Tokens without a type, outside the text, or spanning lines are skipped.
 func SemanticRoles(lines []string, toks []lsp.SemanticToken) [][]string {

@@ -2,16 +2,17 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/rivo/uniseg"
+
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
-	"github.com/rivo/uniseg"
 )
 
 func (a *App) dvGeom(l layout) core.DiffGeom {
@@ -42,7 +43,7 @@ func (a *App) posScreen(t *core.Tab, l layout, p buffer.Pos) (x, y int) {
 }
 
 // renderDiffText draws the diff view of t in the area l gives the file: the
-// header, then the Panes (buildDiffPanes) with the change bar.
+// header, then the Panes (BuildDiffPanes) with the change bar.
 func (a *App) renderDiffText(t *core.Tab, dv *core.DiffView, l layout, focused bool) []string {
 	g := a.dvGeom(l)
 	opts := a.EditorOpts(t, focused)
@@ -269,7 +270,7 @@ func drawCompareBar(branch string, pr *core.PrInfo, w int) string {
 	return fitStyled(sb.String(), w, text)
 }
 
-// drawDiffHelp draws the keys of diff mode (diffHelp) on the line below it.
+// drawDiffHelp draws the keys of diff mode (DiffHelp) on the line below it.
 func drawDiffHelp(help string, w int) string {
 	return bgfg(cSideBg, core.CurTheme.Dim).Render(core.Fit(help, w))
 }
@@ -367,7 +368,7 @@ func drawSpans(spans []screen.Span, bg string, words []screen.Cols, wordBg strin
 	return sb.String()
 }
 
-// highlightText draws text with syntax colors on bg, w cells wide (lexSpans
+// highlightText draws text with syntax colors on bg, w cells wide (LexSpans
 // drawn by drawSpans). The runes inside spans get markBg instead.
 func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, markBg string, w, skip int) string {
 	return drawSpans(core.LexSpans(text, lex), bg, core.ColsOf(spans), markBg, w, skip)

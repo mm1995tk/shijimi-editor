@@ -10,7 +10,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
-// hoverCell is one rune with the name of its color (a heading's is bold).
+// HoverCell is one rune with the name of its color (a heading's is bold).
 type HoverCell struct {
 	R  rune
 	St screen.Style

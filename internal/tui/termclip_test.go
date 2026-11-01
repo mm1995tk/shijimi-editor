@@ -1,11 +1,12 @@
 package tui
 
 import (
-	"github.com/charmbracelet/x/ansi"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 

@@ -15,7 +15,7 @@ import (
 
 // External commands (git, gh) and the GitHub pull request data they return.
 
-// prInfo is a pull request as `gh pr view --json prFields` reports it.
+// PrInfo is a pull request as `gh pr view --json prFields` reports it.
 type PrInfo struct {
 	ID          string `json:"id"`
 	Number      int    `json:"number"`
@@ -108,7 +108,7 @@ func branchPRs(root, branch string) ([]prSummary, error) {
 	return prs, err
 }
 
-// prSync is how the local HEAD stands against the pull request's head commit.
+// PrSync is how the local HEAD stands against the pull request's head commit.
 type PrSync struct {
 	Known  bool // the head commit is available locally
 	Ahead  int  // local commits not in the pull request
@@ -137,7 +137,7 @@ func fetchPR(root string, pr *PrInfo) {
 	run(root, nil, "git", "fetch", "--quiet", "origin", fmt.Sprintf("refs/pull/%d/head", pr.Number), pr.BaseRefName)
 }
 
-// syncWith compares HEAD with the pull request's head commit oid.
+// SyncWith compares HEAD with the pull request's head commit oid.
 func SyncWith(root, oid string) PrSync {
 	if _, err := run(root, nil, "git", "cat-file", "-e", oid+"^{commit}"); err != nil {
 		return PrSync{}
@@ -182,14 +182,14 @@ func gql(root, query string, vars map[string]any, out any) error {
 	return json.Unmarshal(resp.Data, out)
 }
 
-// prComment is one comment of a review thread.
+// PrComment is one comment of a review thread.
 type PrComment struct {
 	Author  string
 	Body    string
 	Created time.Time
 }
 
-// prThread is a review thread: comments on a line, a range of lines, or a
+// PrThread is a review thread: comments on a line, a range of lines, or a
 // whole file. Line numbers are 1-based and count in the pull request's head
 // commit (Side RIGHT) or its base (LEFT).
 type PrThread struct {

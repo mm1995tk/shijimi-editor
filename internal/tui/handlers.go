@@ -23,7 +23,7 @@ func ControlHandler(p *tea.Program) ctl.Handler {
 
 // IDEHandler adapts the MCP server to a running program: each call is delivered
 // to Update as a core.IDECall and the reply is awaited. Most calls are answered at
-// once; openDiff is answered when the user decides.
+// once; OpenDiff is answered when the user decides.
 func IDEHandler(p *tea.Program) ide.Handler {
 	return func(ctx context.Context, tool string, args json.RawMessage) ([]ide.Content, error) {
 		reply := make(chan core.IDEReply, 1)

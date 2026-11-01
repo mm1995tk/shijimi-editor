@@ -24,10 +24,12 @@ const (
 	NumFields
 )
 
+// SearchLabels are the labels of the search window's fields.
 func SearchLabels() [NumFields]string {
 	return [NumFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.include"), i18n.T("search.exclude")}
 }
 
+// SearchPlaceholders are the placeholders of the search window's fields.
 func SearchPlaceholders() [NumFields]string {
 	return [NumFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.includeph"), i18n.T("search.excludeph")}
 }
@@ -39,7 +41,7 @@ type searchView struct {
 	Colors [][]string
 }
 
-// searchPanel is the floating project search / replace window: conditions on
+// SearchPanel is the floating project search / replace window: conditions on
 // top, matched lines at the lower left, a preview of the selected one at the
 // lower right.
 type SearchPanel struct {
@@ -86,6 +88,7 @@ func (s *SearchPanel) opts() SearchOpts {
 	}
 }
 
+// FocusField moves the focus to field f (wrapping around).
 func (s *SearchPanel) FocusField(f int) []Effect {
 	s.Field = (f + NumFields) % NumFields
 	for i := range s.In {
@@ -105,6 +108,7 @@ func (s *SearchPanel) close() {
 	}
 }
 
+// Cur is the selected hit, or nil.
 func (s *SearchPanel) Cur() *SearchHit {
 	if s.Cursor < 0 || s.Cursor >= len(s.Res.Hits) {
 		return nil
@@ -129,7 +133,7 @@ func (s *SearchPanel) toggleSkip() {
 	}
 }
 
-// counts returns the number of lines that will be replaced and the number
+// Counts returns the number of lines that will be replaced and the number
 // left out.
 func (s *SearchPanel) Counts() (target, skipped int) {
 	for _, h := range s.Res.Hits {
@@ -144,7 +148,7 @@ func (s *SearchPanel) Counts() (target, skipped int) {
 
 // ---- opening ----
 
-// openSearch shows the window with the conditions of the last use.
+// OpenSearch shows the window with the conditions of the last use.
 func (a *Core) OpenSearch(field int) []Effect {
 	if a.single {
 		return nil
@@ -158,7 +162,7 @@ func (a *Core) OpenSearch(field int) []Effect {
 	return Batch(cmds...)
 }
 
-// openSearchArgs opens the window for `:grep [-x globs] [-i globs] query` or
+// OpenSearchArgs opens the window for `:grep [-x globs] [-i globs] query` or
 // (replace) `:replace [-x globs] [-i globs] query => replacement`.
 func (a *Core) OpenSearchArgs(arg string, replace bool) []Effect {
 	field := FQuery
@@ -264,6 +268,7 @@ func (a *Core) searchDone(m SearchDone) {
 
 // ---- keys ----
 
+// HandleSearchKey handles a key press in the search window.
 func (a *Core) HandleSearchKey(msg Key) []Effect {
 	s := a.Search
 	switch key := msg.String(); key {
@@ -445,7 +450,7 @@ func (a *Core) replaceHits(hits []*SearchHit) bool {
 
 // ---- rendering ----
 
-// firstColumn picks the first visible column so that the first match is in
+// FirstColumn picks the first visible column so that the first match is in
 // view within w cells.
 func FirstColumn(spans [][2]int, from, w int) int {
 	if len(spans) == 0 || spans[0][1]-from < w {
@@ -454,9 +459,10 @@ func FirstColumn(spans [][2]int, from, w int) int {
 	return max(from, spans[0][0]-w/3)
 }
 
+// Digits is how many digits n has.
 func Digits(n int) int { return len(fmt.Sprint(n)) }
 
-// searchCaret is the screen cell where text typed into the focused field
+// SearchCaret is the screen cell where text typed into the focused field
 // goes. It follows the layout of renderSearch and fieldBox.
 func (a *Core) SearchCaret() (x, y int, ok bool) {
 	s := a.Search
@@ -477,7 +483,7 @@ func (a *Core) SearchCaret() (x, y int, ok bool) {
 	return x, y, true
 }
 
-// searchGeom is where the parts of the search window sit.
+// SearchGeom is where the parts of the search window sit.
 type SearchGeom struct {
 	X, Y, Pw, ph int // the window on screen
 	Inner        int // cells between its borders
@@ -486,6 +492,7 @@ type SearchGeom struct {
 	bodyH        int // rows of the matched lines and the preview
 }
 
+// SearchGeom is where the parts of the search window are on screen.
 func (a *Core) SearchGeom() SearchGeom {
 	var g SearchGeom
 	g.Pw = min(a.ScreenW(), max(30, a.ScreenW()-2))

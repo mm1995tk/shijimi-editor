@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/textarea"
 	"github.com/charmbracelet/x/ansi"
+
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
@@ -93,7 +94,7 @@ func (a *App) composerCaret(l layout) (x, y int, ok bool) {
 // cells wide: the content rows, the hint on the bottom border and, when the
 // card scrolls, where the rows are among all of them.
 func (a *App) drawCard(ov screen.Overlay) []string {
-	vw := *ov.View // cardOverlay always sets it
+	vw := *ov.View // CardOverlay always sets it
 	w := vw.Cols + 4
 	end := vw.Top + len(ov.Lines)
 	bd := bgfg(cEditorBg, cHoverBorder)

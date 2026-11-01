@@ -70,11 +70,11 @@ func (HoverDwell) isEvent()     {}
 
 // The language servers' side. A reply carries what the request was made for
 // (the tab, a sequence number, the buffer version) so that a stale one can be
-// dropped when it arrives: signatureMsg.seq against App.sigSeq, completionMsg
+// dropped when it arrives: signatureMsg.seq against App.sigSeq, CompletionMsg
 // against the tab, workspaceSymbolsMsg.seq and symbolQueryMsg.seq against the
-// picker, mouseHover.seq against App.hoverSeq.
+// picker, MouseHover.seq against App.HoverSeq.
 
-// lspEventMsg is something a server sent on its own: a diagnostic, a message,
+// LspEventMsg is something a server sent on its own: a diagnostic, a message,
 // an edit it wants applied, a document it wants shown.
 type LspEventMsg lsp.Event
 
@@ -105,7 +105,7 @@ type StartTimer struct {
 }
 
 // RunLSP asks for Run to be called off the main loop with a context that ends
-// after lspTimeout, and its Event (nil for none) to be delivered.
+// after LspTimeout, and its Event (nil for none) to be delivered.
 type RunLSP struct {
 	Run func(ctx context.Context) Event
 }
@@ -123,7 +123,7 @@ type ReplyCtl struct {
 
 // IDECall is a tool call from Claude Code over the IDE connection. The caller
 // waits for the answer, which the core hands back as a ReplyIDE Effect. Most
-// calls are answered at once; openDiff is answered when the user decides.
+// calls are answered at once; OpenDiff is answered when the user decides.
 type IDECall struct {
 	Tool  string
 	Args  json.RawMessage
@@ -199,7 +199,7 @@ func (RunAgent) isEffect()  {}
 // WaitTerm asks for the next thing the terminal panel's shell did (printed,
 // ended) to be delivered as an Event. It is asked again after each one
 // (terminal.armed keeps it to one at a time). The PTY itself is
-// internal/term's; the Events are termOutputMsg and termDoneMsg.
+// internal/term's; the Events are TermOutputMsg and TermDoneMsg.
 type WaitTerm struct{ From <-chan Event }
 
 func (WaitTerm) isEffect() {}
@@ -225,7 +225,7 @@ func (RepoProbed) isEvent() {}
 func async(fn func() Event) []Effect { return []Effect{Run{fn}} }
 func (RunProbe) isEffect()           {}
 
-// batch joins Effect lists into one. It is the counterpart of tea.Batch for
+// Batch joins Effect lists into one. It is the counterpart of tea.Batch for
 // code that returns Effects.
 func Batch(lists ...[]Effect) []Effect { return slices.Concat(lists...) }
 
@@ -254,6 +254,7 @@ func (openURLMsg) isEvent()       {}
 // (FrontEnd.HandleTermEvent).
 type TermOutputMsg struct{ ID int }
 
+// TermDoneMsg says the shell of terminal ID ended, with Err when it failed.
 type TermDoneMsg struct {
 	ID  int
 	Err error

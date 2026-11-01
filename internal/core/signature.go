@@ -9,7 +9,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
-// signaturePopup shows the parameters of the call the cursor is in, just above
+// SignaturePopup shows the parameters of the call the cursor is in, just above
 // the cursor. It lives while the cursor stays on the row it was opened on.
 type SignaturePopup struct {
 	tab  *Tab
@@ -87,7 +87,7 @@ func (a *Core) signatureTyped(t *Tab, r rune) []Effect {
 	return nil
 }
 
-// overlay is the popup as a screen.Overlay: one line, the signature with the
+// Overlay is the popup as a screen.Overlay: one line, the signature with the
 // active parameter in its own span, anchored at the cursor. It changes
 // nothing. Drawing it as cells is drawSignature's work.
 func (s *SignaturePopup) Overlay() screen.Overlay {

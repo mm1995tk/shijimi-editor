@@ -1,12 +1,13 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
@@ -264,6 +265,7 @@ func (a *App) hoverOverlay(l layout) screen.Overlay {
 // hoverBox is the hover popup as a box of cells.
 func (a *App) hoverBox(l layout) []string { return drawHover(a.hoverOverlay(l)) }
 
+// ScrollHover scrolls the hover popup by d rows.
 func (a *App) ScrollHover(d int) {
 	v := a.hoverView(a.layout())
 	a.SetHoverTop(core.Clamp(a.HoverTop()+d, 0, v.MaxScroll()))

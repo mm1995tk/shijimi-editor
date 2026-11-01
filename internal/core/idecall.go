@@ -44,7 +44,7 @@ func (a *Core) currentSelection() (Selection, bool) {
 	return SelectionOf(t.Buf)
 }
 
-// notifySelection pushes selection_changed when the cursor or selection of
+// NotifySelection pushes selection_changed when the cursor or selection of
 // the active file moved since the last push.
 func (a *Core) NotifySelection() {
 	if a.ide == nil || !a.ide.Connected() {
@@ -92,7 +92,7 @@ func (a *Core) tabFor(path string) *Tab {
 var lspSeverity = map[int]string{1: "Error", 2: "Warning", 3: "Information", 4: "Hint"}
 
 // handleIDE runs an IDE tool call. An answer that is ready goes out as a
-// ReplyIDE Effect; openDiff keeps the channel in its proposal and answers when
+// ReplyIDE Effect; OpenDiff keeps the channel in its proposal and answers when
 // the user decides.
 func (a *Core) handleIDE(m IDECall) []Effect {
 	res, cmd, pending := a.ideCall(m)

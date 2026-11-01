@@ -161,7 +161,7 @@ func (a *Core) detachLSP(t *Tab) {
 	}
 }
 
-// syncLSP sends didChange for buffers edited since the last sync.
+// SyncLSP sends didChange for buffers edited since the last sync.
 func (a *Core) SyncLSP() {
 	for _, t := range a.Tabs {
 		if t.Kind != TabText || t.Lang == nil || t.Buf.Version == t.lspVersion {
@@ -176,6 +176,7 @@ func (a *Core) SyncLSP() {
 	}
 }
 
+// HoverMsg is the language server's hover text.
 type HoverMsg struct {
 	Text  string
 	Mouse *MouseHover // set when the pointer, not the cursor, asked for it
@@ -184,6 +185,8 @@ type locationsMsg struct {
 	title string
 	locs  []lsp.Location
 }
+
+// CompletionMsg is the language server's completion list for Tab.
 type CompletionMsg struct {
 	Tab     *Tab
 	version int
@@ -327,6 +330,8 @@ func (a *Core) rename() []Effect {
 	})
 }
 
+// Format formats the current file with its formatter or language server; save
+// saves it afterwards.
 func (a *Core) Format(save bool) []Effect {
 	t := a.Cur()
 	if t == nil || t.Kind != TabText {
@@ -584,6 +589,7 @@ func (a *Core) gotoDiagnostic(dir int) {
 
 // ---- completion popup ----
 
+// CompletionPopup is the open completion list.
 type CompletionPopup struct {
 	Tab   *Tab
 	start buffer.Pos
@@ -679,7 +685,7 @@ var completionKinds = map[int]string{
 	9: "module", 10: "prop", 12: "value", 13: "enum", 14: "keyword", 15: "snippet", 21: "const", 22: "struct", 25: "type",
 }
 
-// overlay is the completion popup as a screen.Overlay: the candidates in view
+// Overlay is the completion popup as a screen.Overlay: the candidates in view
 // (maxH of them at most, ten at most, scrolled so that the selected one shows)
 // with Active the selected one among them, anchored at the cursor. It changes
 // nothing. Drawing it as cells is drawCompletion's work.

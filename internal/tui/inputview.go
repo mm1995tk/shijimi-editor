@@ -1,12 +1,13 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/rivo/uniseg"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 // inputStyle is how a lineInput is drawn: the text, the hint of an empty field

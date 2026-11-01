@@ -9,6 +9,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
+// Node is a file or directory in the file tree.
 type Node struct {
 	Name     string
 	Path     string
@@ -20,7 +21,7 @@ type Node struct {
 	children []*Node
 }
 
-// explorer is the file tree shown in the sidebar.
+// Explorer is the file tree shown in the sidebar.
 type Explorer struct {
 	root   *Node
 	Flat   []*Node
@@ -33,6 +34,7 @@ type Explorer struct {
 	Icons   bool // Nerd Font icons; off falls back to ▸/▾
 }
 
+// NewExplorer is the file tree of root, with root expanded.
 func NewExplorer(root string) *Explorer {
 	e := &Explorer{root: &Node{Name: filepath.Base(root), Path: root, isDir: true, expanded: true, depth: -1}}
 	e.load(e.root)
@@ -102,7 +104,7 @@ func (e *Explorer) flatten() {
 	e.Sel = Clamp(e.Sel, 0, max(0, len(e.Flat)-1))
 }
 
-// refresh reloads every expanded directory from disk.
+// Refresh reloads every expanded directory from disk.
 func (e *Explorer) Refresh() {
 	var selPath string
 	if n := e.selected(); n != nil {
@@ -135,6 +137,7 @@ func (e *Explorer) selected() *Node {
 	return e.Flat[e.Sel]
 }
 
+// Toggle expands or collapses the directory n.
 func (e *Explorer) Toggle(n *Node) {
 	if !n.isDir {
 		return
@@ -166,7 +169,7 @@ func (e *Explorer) collapseOrParent() {
 	}
 }
 
-// reveal expands parents of path and selects it.
+// Reveal expands parents of path and selects it.
 func (e *Explorer) Reveal(path string) {
 	rel, err := filepath.Rel(e.root.Path, path)
 	if err != nil || strings.HasPrefix(rel, "..") {
@@ -216,6 +219,7 @@ func (e *Explorer) targetDir() string {
 	return filepath.Dir(n.Path)
 }
 
+// EnsureVisible scrolls the tree so the selected row is within h rows.
 func (e *Explorer) EnsureVisible(h int) {
 	if e.Sel < e.Scroll {
 		e.Scroll = e.Sel
@@ -226,7 +230,7 @@ func (e *Explorer) EnsureVisible(h int) {
 	e.Scroll = Clamp(e.Scroll, 0, max(0, len(e.Flat)-h))
 }
 
-// screen is the tree as a screen.Explorer: the rows in view, h rows high with
+// Screen is the tree as a screen.Explorer: the rows in view, h rows high with
 // the title, scrolled as fit left it. activePath is the file open in the editor.
 // It changes nothing.
 func (e *Explorer) Screen(h int, activePath string) screen.Explorer {
@@ -256,7 +260,7 @@ func (e *Explorer) Screen(h int, activePath string) screen.Explorer {
 	return ex
 }
 
-// isIgnored reports whether n or one of its ancestors is matched by .gitignore.
+// IsIgnored reports whether n or one of its ancestors is matched by .gitignore.
 func (e *Explorer) IsIgnored(n *Node) bool {
 	for ; n != nil; n = n.parent {
 		if e.ignored[n.Path] {

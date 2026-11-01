@@ -1,13 +1,13 @@
 package tui
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
 func TestSendContextPreview(t *testing.T) {

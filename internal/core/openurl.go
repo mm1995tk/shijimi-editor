@@ -21,7 +21,7 @@ var openers = map[string][]string{
 	"darwin": {"open"},
 }
 
-// openExternal runs the opener and waits for it, so a non-zero exit is
+// OpenExternal runs the opener and waits for it, so a non-zero exit is
 // reported. It is replaced in tests.
 var OpenExternal = func(url string) error {
 	for _, name := range openers[runtime.GOOS] {
@@ -94,7 +94,7 @@ func (a *Core) openURL(arg string) []Effect {
 	return async(func() Event { return openURLMsg{url: url, err: a.openInBrowser(url)} })
 }
 
-// isRemoteSession reports whether the editor runs over SSH, where a browser
+// IsRemoteSession reports whether the editor runs over SSH, where a browser
 // opened here would not appear on the user's screen. It is replaced in tests.
 var IsRemoteSession = func() bool {
 	return os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_TTY") != ""

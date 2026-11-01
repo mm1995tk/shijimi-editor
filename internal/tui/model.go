@@ -1,11 +1,14 @@
 package tui
 
-import "github.com/mm1995tk/shijimi-editor/internal/core"
+import (
+	tea "charm.land/bubbletea/v2"
 
-import tea "charm.land/bubbletea/v2"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
+)
 
 // model.go is the part of App that talks to bubbletea: what it draws and asks
-// of the terminal each frame, and the two calls bubbletea makes (Init, Update). It stays in tui.
+// of the terminal each frame, and the two calls bubbletea makes (Init,
+// Update).
 
 // View is bubbletea's view of the app: the frame (after fit brought the state up
 // to date) and the modes it needs of the terminal (alt screen, mouse motion,

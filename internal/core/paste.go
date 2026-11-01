@@ -6,8 +6,8 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
-// handlePaste sends a bracketed paste to whatever has the keyboard, the same
-// way handleKey routes keys. Overlays that take no text ignore it.
+// HandlePaste sends a bracketed paste to whatever has the keyboard, the same
+// way HandleKey routes keys. Overlays that take no text ignore it.
 func (a *Core) HandlePaste(msg Paste) []Effect {
 	a.Msg = ""
 	switch {
@@ -52,7 +52,7 @@ func (a *Core) HandlePaste(msg Paste) []Effect {
 	return nil
 }
 
-// typed returns the text a key press types, or "" for keys that type nothing
+// Typed returns the text a key press types, or "" for keys that type nothing
 // (named keys and Ctrl/Alt combinations).
 func Typed(msg Key) string {
 	if msg.Mod.Has(ModCtrl) || msg.Mod.Has(ModAlt) {

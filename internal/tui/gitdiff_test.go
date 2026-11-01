@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,11 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/internal/diff"
-	"github.com/mm1995tk/shijimi-editor/internal/screen"
-
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 func TestRenderDiffTextShowsWholeFile(t *testing.T) {

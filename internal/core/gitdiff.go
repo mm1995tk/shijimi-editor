@@ -35,9 +35,9 @@ const (
 // gitDiff is the state of diff mode.
 type gitDiff struct {
 	On      bool
-	Base    string  // baseHead or basePR
+	Base    string  // BaseHead or BasePR
 	rev     string  // revision the working tree is compared with
-	Pr      *PrInfo // the pull request whose base is compared with (basePR)
+	Pr      *PrInfo // the pull request whose base is compared with (BasePR)
 	Split   bool
 	Files   []*diff.File // in the order of the CHANGES tree
 	Rows    []changeRow
@@ -59,6 +59,7 @@ type gitDiff struct {
 	Rv       prReview
 }
 
+// ChangesLoadedMsg carries the changed files LoadChanges found.
 type ChangesLoadedMsg struct {
 	gen      int
 	base     string
@@ -70,7 +71,7 @@ type ChangesLoadedMsg struct {
 	err      error
 }
 
-// prFoundMsg reports the pull request looked up to compare with. num is the
+// PrFoundMsg reports the pull request looked up to compare with. num is the
 // number asked for, 0 for the current branch's. refresh is set for r, which
 // reloads the pull request shown without switching branches.
 type PrFoundMsg struct {
@@ -90,6 +91,7 @@ type branchPRsMsg struct {
 
 // ---- loading ----
 
+// GitTopDir is the top of the git repository, or the project root outside one.
 func (a *Core) GitTopDir() string {
 	if a.GitTop != "" {
 		return a.GitTop
@@ -97,8 +99,8 @@ func (a *Core) GitTopDir() string {
 	return a.Root
 }
 
-// reloadChanges recomputes the CHANGES list for the current base. The list
-// on screen stays as it is until the result arrives; only showDiff marks it
+// ReloadChanges recomputes the CHANGES list for the current base. The list
+// on screen stays as it is until the result arrives; only ShowDiff marks it
 // as loading.
 func (a *Core) ReloadChanges() []Effect {
 	a.Gd.Gen++
@@ -106,6 +108,8 @@ func (a *Core) ReloadChanges() []Effect {
 	return async(func() Event { return LoadChanges(gen, root, base, pr) })
 }
 
+// LoadChanges lists the files changed against base (or the pull request pr),
+// for the diff mode of generation gen.
 func LoadChanges(gen int, root, base string, pr *PrInfo) Event {
 	m := ChangesLoadedMsg{gen: gen, base: base}
 	m.rev = emptyTree
@@ -165,6 +169,8 @@ func LoadChanges(gen int, root, base string, pr *PrInfo) Event {
 	return m
 }
 
+// ApplyChanges shows the changed files of m, unless the diff mode moved on
+// since it was asked for.
 func (a *Core) ApplyChanges(m ChangesLoadedMsg) {
 	if m.gen != a.Gd.Gen {
 		return
@@ -409,7 +415,7 @@ func (g *gitDiff) keepSelVisible(h int) {
 
 // ---- mode switch ----
 
-// openDiff handles Space G (base HEAD) and Space g (base PR): it opens diff
+// OpenDiff handles Space G (base HEAD) and Space g (base PR): it opens diff
 // mode, closes it when it already compares with base, or switches the base.
 func (a *Core) OpenDiff(base string) []Effect {
 	if a.single {
@@ -433,7 +439,7 @@ func (a *Core) diffWithHead() []Effect {
 	return a.ShowDiff(BaseHead, nil)
 }
 
-// toggleGitDiff opens diff mode against HEAD, or closes it.
+// ToggleGitDiff opens diff mode against HEAD, or closes it.
 func (a *Core) ToggleGitDiff() []Effect {
 	if a.Gd.On {
 		return a.closeDiff()
@@ -441,6 +447,7 @@ func (a *Core) ToggleGitDiff() []Effect {
 	return a.ShowDiff(BaseHead, nil)
 }
 
+// ShowDiff opens the diff mode against base (or the pull request pr).
 func (a *Core) ShowDiff(base string, pr *PrInfo) []Effect {
 	a.Gd.PrSeq++
 	a.Gd.On = true
@@ -517,6 +524,7 @@ func (a *Core) lookupPR(num int, refresh bool) []Effect {
 	})
 }
 
+// HandlePRFound takes the pull request found for the branch.
 func (a *Core) HandlePRFound(m PrFoundMsg) []Effect {
 	if m.Seq != a.Gd.PrSeq {
 		return nil // the mode was closed or switched meanwhile
@@ -581,13 +589,15 @@ func (a *Core) switchToPR(pr *PrInfo) []Effect {
 	return nil
 }
 
-// prCheckedOutMsg reports the end of switching to a pull request's branch.
+// PrCheckedOutMsg reports the end of switching to a pull request's branch.
 type PrCheckedOutMsg struct {
 	seq int
 	pr  *PrInfo
 	Err error
 }
 
+// CheckoutPR checks out the branch of pr, stashing the changes first when stash
+// is set.
 func (a *Core) CheckoutPR(pr *PrInfo, stash bool) []Effect {
 	a.Info(i18n.T("gd.checkout"), pr.Number)
 	a.Gd.PrSeq++
@@ -620,6 +630,7 @@ func (a *Core) CheckoutPR(pr *PrInfo, stash bool) []Effect {
 	})
 }
 
+// HandlePRCheckedOut takes the result of CheckoutPR.
 func (a *Core) HandlePRCheckedOut(m PrCheckedOutMsg) []Effect {
 	if m.seq != a.Gd.PrSeq {
 		return nil
@@ -658,7 +669,7 @@ type prPulledMsg struct {
 	err error
 }
 
-// reloadPR handles r with a pull request shown: it pulls first when only
+// ReloadPR handles r with a pull request shown: it pulls first when only
 // the pull request has moved on.
 func (a *Core) ReloadPR() []Effect {
 	s := a.Gd.Rv.Sync
@@ -713,6 +724,7 @@ func (a *Core) showPRList(m prListMsg) []Effect {
 	return a.Pal.Pick(i18n.T("gd.prs"), items, func(i int) []Effect { return a.findPR(m.prs[i].Number) })
 }
 
+// ToggleSplit switches the diff view between side by side and unified.
 func (a *Core) ToggleSplit() {
 	a.Gd.Split = !a.Gd.Split
 	a.Follow = true
@@ -745,6 +757,7 @@ func (a *Core) gitDiffCommand(arg string) []Effect {
 
 // ---- opening files from the list ----
 
+// OpenChange opens the changed file f in the diff view.
 func (a *Core) OpenChange(f *diff.File) []Effect {
 	abs := filepath.Join(a.GitTopDir(), f.Path())
 	if f.Status == "deleted" {
@@ -855,7 +868,7 @@ func (a *Core) handleChangesKey(msg Key) []Effect {
 
 // ---- sidebar ----
 
-// bodyH is the number of rows between the diff mode header and the help and
+// BodyH is the number of rows between the diff mode header and the help and
 // status lines.
 func (a *Core) BodyH() int {
 	if a.Gd.On {
@@ -864,7 +877,7 @@ func (a *Core) BodyH() int {
 	return max(0, a.ScreenH()-1)
 }
 
-// explorerH is the height of the file tree: the user's share of the sidebar
+// ExplorerH is the height of the file tree: the user's share of the sidebar
 // (7/10 by default) in diff mode, all of it otherwise. The tree and CHANGES
 // each keep at least MinSideSectionH rows.
 func (a *Core) ExplorerH() int {
@@ -901,7 +914,7 @@ func (a *Core) baseChip() string {
 	return "DIFF"
 }
 
-// fitChanges scrolls the list so that the selected row is in view, in a list
+// FitChanges scrolls the list so that the selected row is in view, in a list
 // whose body is body rows high. It is the part of drawing the list that
 // changes state, so it runs before drawing (fit).
 func (a *Core) FitChanges(body int) {
@@ -918,8 +931,8 @@ func (a *Core) FitChanges(body int) {
 	g.scroll = Clamp(g.scroll, 0, max(0, len(vis)-body))
 }
 
-// changesScreen is the list of changed files as a screen.Changes, w columns
-// wide and h rows high with the title, scrolled as fitChanges left it. It
+// ChangesScreen is the list of changed files as a screen.Changes, w columns
+// wide and h rows high with the title, scrolled as FitChanges left it. It
 // changes nothing.
 func (a *Core) ChangesScreen(w, h int) screen.Changes {
 	g := &a.Gd
@@ -976,7 +989,7 @@ func (a *Core) ChangesScreen(w, h int) screen.Changes {
 
 // ---- header and help lines ----
 
-// compareBase is the branch checked out and the pull request that diff mode
+// CompareBase is the branch checked out and the pull request that diff mode
 // compares with (nil when it compares with HEAD).
 func (a *Core) CompareBase() (branch string, pr *PrInfo) {
 	if a.Gd.Base == BasePR {
@@ -985,7 +998,7 @@ func (a *Core) CompareBase() (branch string, pr *PrInfo) {
 	return a.Branch, pr
 }
 
-// diffHelp lists the keys usable in diff mode right now.
+// DiffHelp lists the keys usable in diff mode right now.
 func (a *Core) DiffHelp() string {
 	bases := i18n.T("gd.bar.pr")
 	if a.Gd.Base == BasePR {
@@ -1034,7 +1047,7 @@ type inlinePair struct {
 	ok       bool
 }
 
-// diffView caches the comparison of one tab's buffer with its base.
+// DiffView caches the comparison of one tab's buffer with its base.
 type DiffView struct {
 	rev   string
 	path  string // base path
@@ -1056,7 +1069,7 @@ type DiffView struct {
 	Hunks []screen.Hunk // runs of rows of one kind of change, for the change bar
 }
 
-// diffFile returns the changed file shown by tab t in diff mode, or nil
+// DiffFile returns the changed file shown by tab t in diff mode, or nil
 // when t is shown as a plain editor.
 func (a *Core) DiffFile(t *Tab) *diff.File {
 	if !a.Gd.On || t == nil || t.Kind != TabText || t.Buf.Path == "" {
@@ -1069,18 +1082,18 @@ func (a *Core) DiffFile(t *Tab) *diff.File {
 	return f
 }
 
-// diffSingle reports whether f is shown in one pane: a file that is not in
+// DiffSingle reports whether f is shown in one pane: a file that is not in
 // the base (HEAD or a pull request's base) has nothing to put on the left.
 func (a *Core) DiffSingle(f *diff.File) bool {
 	return f != nil && f.Status == "added"
 }
 
-// splitShown reports whether the current tab's diff has a base pane.
+// SplitShown reports whether the current tab's diff has a base pane.
 func (a *Core) SplitShown() bool {
 	return a.Gd.Split && !a.DiffSingle(a.DiffFile(a.CurText()))
 }
 
-// diffFor returns the up-to-date diff view of t, or nil outside diff mode.
+// DiffFor returns the up-to-date diff view of t, or nil outside diff mode.
 func (a *Core) DiffFor(t *Tab) *DiffView {
 	f := a.DiffFile(t)
 	if f == nil {
@@ -1205,7 +1218,7 @@ func (dv *DiffView) build(t *Tab, split bool) {
 	ctx(len(lines) - ni)
 }
 
-// start is the display row at the top of the view for the buffer's scroll.
+// Start is the display row at the top of the view for the buffer's scroll.
 func (dv *DiffView) Start(scrollRow int) int {
 	if scrollRow <= 0 || len(dv.NewIdx) == 0 {
 		return 0
@@ -1241,7 +1254,7 @@ func (a *Core) ensureDiffVisible(t *Tab, dv *DiffView, w, h int) {
 
 // ---- the change bar ----
 
-// barRange returns the display rows [lo, hi) that cell i of a bar h cells
+// BarRange returns the display rows [lo, hi) that cell i of a bar h cells
 // high stands for: the n rows of the whole file spread over the bar, one row
 // per cell when they fit.
 func BarRange(i, h, n int) (lo, hi int) {
@@ -1258,7 +1271,7 @@ func BarRange(i, h, n int) (lo, hi int) {
 	return min(lo, n), min(hi, n)
 }
 
-// barKinds returns the kind of change in every cell of a bar h cells high
+// BarKinds returns the kind of change in every cell of a bar h cells high
 // over total display rows ("" = none). A cell holding several kinds counts
 // as a rewrite.
 func BarKinds(total, h int, hunks []screen.Hunk) []screen.MarkKind {
@@ -1304,7 +1317,7 @@ func hunkMark(k hunkKind) screen.MarkKind {
 	return screen.MarkModified
 }
 
-// diffBarClick scrolls the diff view to the part of the file that the bar
+// DiffBarClick scrolls the diff view to the part of the file that the bar
 // cell at row y stands for.
 func (a *Core) DiffBarClick(t *Tab, dv *DiffView, g DiffGeom, y int) {
 	if y < g.Top || y >= g.Top+g.H {
@@ -1316,7 +1329,7 @@ func (a *Core) DiffBarClick(t *Tab, dv *DiffView, g DiffGeom, y int) {
 
 // ---- the diff Panes ----
 
-// buildDiffPanes makes the Panes of the diff view of t that g lays out: the
+// BuildDiffPanes makes the Panes of the diff view of t that g lays out: the
 // base and the buffer side by side when the diff is split (rows that have no
 // line on one side are a Blank line there), otherwise one Pane with the
 // deleted lines between the current ones. It changes nothing.
@@ -1397,6 +1410,7 @@ func (dv *DiffView) oldLine(r dispRow) screen.Line {
 	return ln
 }
 
+// ColsOf is spans as the column ranges of a screen.Line.
 func ColsOf(spans []diff.Span) []screen.Cols {
 	var out []screen.Cols
 	for _, s := range spans {
@@ -1405,7 +1419,7 @@ func ColsOf(spans []diff.Span) []screen.Cols {
 	return out
 }
 
-// lexSpans splits text into runs of one syntax color. With no lexer (or when
+// LexSpans splits text into runs of one syntax color. With no lexer (or when
 // lexing fails) it is one run of the plain text color.
 func LexSpans(text string, lex chroma.Lexer) []screen.Span {
 	var spans []screen.Span

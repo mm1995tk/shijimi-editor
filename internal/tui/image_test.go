@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"image"
 	"image/png"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
