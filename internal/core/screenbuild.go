@@ -19,32 +19,63 @@ import (
 // inputs), and makes what is on screen. Rev and AckSeq are left for the caller.
 func (a *Core) BuildScreen(v screen.View) screen.Screen {
 	cols, rows := max(1, v.Files.Cols), max(1, v.Files.Rows)
+	a.fitScreenSize(cols, rows)
+	slots := a.screenSlots(cols)
+	a.fitSlots(slots, rows)
+	a.FitPalette()
+	a.FitFields(max(1, v.Cmdline.Cols-2), max(1, v.Cmdline.Cols))
+
+	sc := screen.Screen{
+		Focus:   a.screenFocus(),
+		Files:   a.screenFiles(slots, rows),
+		Status:  a.StatusOf(),
+		Cmdline: a.CmdlineState(),
+		Overlay: a.screenOverlays(v),
+	}
+	if sc.Cmdline == nil {
+		sc.Cmdline = a.FindState()
+	}
+	return sc
+}
+
+// fitScreenSize makes the front end's screen the files region (cols x rows)
+// and the status line: the core's paging and scrolling read it (EditRows,
+// TextCols). A new size makes the scroll follow the cursor again.
+func (a *Core) fitScreenSize(cols, rows int) {
 	if a.ScreenW() != cols || a.ScreenH() != rows+1 {
-		// The front end's screen is the files region and the status line: the
-		// core's paging and scrolling read it (EditRows, TextCols).
 		a.SetScreen(cols, rows+1)
 		a.Follow = true
 	}
+}
 
-	type slot struct {
-		t       *Tab
-		w       int
-		focused bool
-	}
-	slots := []slot{{t: a.Cur(), w: cols, focused: a.FocusIn(FocusEditor)}}
-	if a.Split {
-		first := (cols - 1) / 2
-		mine, theirs := slot{t: a.Cur(), focused: slots[0].focused}, slot{t: a.Other}
-		if a.FocusedFirst() {
-			mine.w, theirs.w = first, cols-1-first
-			slots = []slot{mine, theirs}
-		} else {
-			theirs.w, mine.w = first, cols-1-first
-			slots = []slot{theirs, mine}
-		}
-	}
+// screenSlot is one half of the files region (or all of it): the tab it
+// shows and its width.
+type screenSlot struct {
+	t       *Tab
+	w       int
+	focused bool
+}
 
-	// fit, as the TUI's App.fit does
+// screenSlots splits cols columns between the panes of the editor: all of them
+// to the current file, or two halves with a column between them when split.
+func (a *Core) screenSlots(cols int) []screenSlot {
+	mine := screenSlot{t: a.Cur(), w: cols, focused: a.FocusIn(FocusEditor)}
+	if !a.Split {
+		return []screenSlot{mine}
+	}
+	first := (cols - 1) / 2
+	theirs := screenSlot{t: a.Other}
+	if a.FocusedFirst() {
+		mine.w, theirs.w = first, cols-1-first
+		return []screenSlot{mine, theirs}
+	}
+	theirs.w, mine.w = first, cols-1-first
+	return []screenSlot{theirs, mine}
+}
+
+// fitSlots scrolls the texts of the slots to their cursors in rows rows, as
+// the TUI's App.fit does.
+func (a *Core) fitSlots(slots []screenSlot, rows int) {
 	for _, s := range slots {
 		if s.t == nil || s.t.Kind != TabText {
 			continue
@@ -61,20 +92,20 @@ func (a *Core) BuildScreen(v screen.View) screen.Screen {
 			}
 		}
 	}
-	a.FitPalette()
-	a.FitFields(max(1, v.Cmdline.Cols-2), max(1, v.Cmdline.Cols))
+}
 
-	sc := screen.Screen{Focus: a.screenFocus()}
+// screenFiles is the files region: the Panes of the slots, rows high. Active
+// is the pane of the current file that takes the keys. The two halves of a
+// split may show the same file; the second gets "#2" on its ID.
+func (a *Core) screenFiles(slots []screenSlot, rows int) *screen.Files {
 	files := &screen.Files{Panes: []screen.Pane{}}
 	seen := map[string]int{}
 	for _, s := range slots {
-		panes := a.screenPanes(s.t, s.w, rows, s.focused)
+		panes, editable := a.screenPanes(s.t, s.w, rows, s.focused)
 		if s.t == a.Cur() {
-			// the focused pane is the editable one: the last of a diff
-			files.Active = len(files.Panes) + len(panes) - 1
+			files.Active = len(files.Panes) + editable
 		}
 		for _, p := range panes {
-			// the two halves of a split may show the same file
 			if n := seen[p.ID]; n > 0 {
 				seen[p.ID]++
 				p.ID = fmt.Sprintf("%s#%d", p.ID, n+1)
@@ -84,15 +115,7 @@ func (a *Core) BuildScreen(v screen.View) screen.Screen {
 			files.Panes = append(files.Panes, p)
 		}
 	}
-	sc.Files = files
-	sc.Status = a.StatusOf()
-	if c := a.CmdlineState(); c != nil {
-		sc.Cmdline = c
-	} else if f := a.FindState(); f != nil {
-		sc.Cmdline = f
-	}
-	sc.Overlay = a.screenOverlays(v)
-	return sc
+	return files
 }
 
 // screenFocus is the region that has the keys.
@@ -124,7 +147,7 @@ func (a *Core) screenEditW(t *Tab, w int) int {
 	}
 	switch t.Preview {
 	case PreviewSplit:
-		return (w - 1) / 2
+		return previewSplitW(w)
 	case PreviewFull:
 		return 0
 	}
@@ -144,27 +167,34 @@ func (a *Core) screenDiffGeom(w, h int) DiffGeom {
 	return g
 }
 
+// previewSplitW is the width of the text beside its Markdown preview in a pane
+// w columns wide; the preview has the rest but the column between them.
+func previewSplitW(w int) int { return (w - 1) / 2 }
+
 // screenPanes is the Panes that show t in a pane w columns wide and h rows
-// high: one, or two for a split diff or a text beside its preview.
-func (a *Core) screenPanes(t *Tab, w, h int, focused bool) []screen.Pane {
+// high: one, or two for a split diff or a text beside its preview. editable
+// is the index of the one that has the cursor and takes the keys.
+func (a *Core) screenPanes(t *Tab, w, h int, focused bool) (panes []screen.Pane, editable int) {
 	switch {
 	case t == nil:
-		return []screen.Pane{{ID: "welcome", Kind: screen.KindWelcome, Viewport: screen.Viewport{Rows: h, Cols: w}}}
+		return []screen.Pane{{ID: "welcome", Kind: screen.KindWelcome, Viewport: screen.Viewport{Rows: h, Cols: w}}}, 0
 	case t.Kind == TabImage:
-		return []screen.Pane{a.BuildImagePane(t, w, h)}
+		return []screen.Pane{a.BuildImagePane(t, w, h)}, 0
 	}
 	o := a.EditorOpts(t, focused)
 	if dv := a.DiffFor(t); dv != nil {
-		return a.BuildDiffPanes(t, dv, a.screenDiffGeom(w, h), o.PaneOpts)
+		// the buffer's side is the last: [base, buffer] or [unified]
+		panes = a.BuildDiffPanes(t, dv, a.screenDiffGeom(w, h), o.PaneOpts)
+		return panes, len(panes) - 1
 	}
 	switch t.Preview {
 	case PreviewFull:
-		return []screen.Pane{a.BuildPreviewPane(t, w, h)}
+		return []screen.Pane{a.BuildPreviewPane(t, w, h)}, 0
 	case PreviewSplit:
-		ew := (w - 1) / 2
-		return []screen.Pane{BuildTextPane(t, ew, h, o.PaneOpts), a.BuildPreviewPane(t, w-ew-1, h)}
+		ew := previewSplitW(w)
+		return []screen.Pane{BuildTextPane(t, ew, h, o.PaneOpts), a.BuildPreviewPane(t, w-ew-1, h)}, 0
 	}
-	return []screen.Pane{BuildTextPane(t, w, h, o.PaneOpts)}
+	return []screen.Pane{BuildTextPane(t, w, h, o.PaneOpts)}, 0
 }
 
 // screenOverlays is what is over the panes, in the order the TUI draws it

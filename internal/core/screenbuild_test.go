@@ -94,3 +94,23 @@ func TestBuildScreenWelcome(t *testing.T) {
 		t.Fatalf("panes: %+v", sc.Files.Panes)
 	}
 }
+
+// Beside its preview, the text is the active pane: it has the cursor and takes
+// the keys.
+func TestBuildScreenPreviewSplitActive(t *testing.T) {
+	a := newTestApp(t, "# title\n\nbody\n")
+	a.Update(Key{Code: KeyEscape})
+	a.Focus = FocusEditor
+	a.CurText().Preview = PreviewSplit
+	sc := a.BuildScreen(view(81, 10))
+	ps := sc.Files.Panes
+	if len(ps) != 2 || ps[0].Kind != screen.KindText || ps[1].Kind != screen.KindPreview {
+		t.Fatalf("panes: %+v", ps)
+	}
+	if sc.Files.Active != 0 {
+		t.Errorf("active %d, want the text (0)", sc.Files.Active)
+	}
+	if got := ps[0].Viewport.Cols + GutterWidth(a.CurText().Buf); got != previewSplitW(81) {
+		t.Errorf("text is %d columns, want %d", got, previewSplitW(81))
+	}
+}
