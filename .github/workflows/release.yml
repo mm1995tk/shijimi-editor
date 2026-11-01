@@ -78,6 +78,11 @@ jobs:
             patch) patch=$((patch + 1)) ;;
           esac
           next="$major.$minor.$patch"
+          # 1.0.0 は誤って出して取り消した版で、npm では二度と使えない。1.0.1 は Go の retract のためだけのタグ。
+          # そのため、0.x から major を上げるときは 1.1.0 にする
+          if [ "$next" = 1.0.0 ]; then
+            next=1.1.0
+          fi
           if git ls-remote --exit-code --tags origin "refs/tags/v$next" >/dev/null; then
             echo "::error::タグ v$next はすでにあります"
             exit 1
