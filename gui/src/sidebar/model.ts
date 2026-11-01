@@ -2,7 +2,8 @@
 // 画面の仕組み（Solid）には依存しない。描くのは Sidebar.tsx。
 //
 // 見た目は親 #271 のモック（「案：フラットな一覧」）に従う：マシンは見出し、ワークスペースは帯で、
-// どちらも同じ左端にそろえる。ツリー（D2）は tree/、上下の固定（D3）・マシンごとの色（D4）は別の Issue。
+// どちらも同じ左端にそろえる。ツリー（D2）は tree/、上下の固定（D3）は splitAtFocus と Sidebar.tsx、
+// マシンごとの色（D4）は別の Issue。
 
 import type { Workspace, WorkspaceId } from "../rpc/protocol.ts";
 import { LOCAL } from "../ssh/api.ts";
@@ -143,4 +144,47 @@ export function keepFocus(
     if (exists(f)) return f;
   }
   return null;
+}
+
+/**
+ * 上下の固定（D3）のために、一覧をフォーカスしている帯の前後で分けたもの。
+ * フォーカスしている帯までは上から順に流し（そのマシンの見出しと帯は上に固定する）、
+ * それより後ろの帯とマシンは、まとめて下に固定する。
+ */
+export interface SplitSidebar {
+  /** フォーカスしている帯のマシンより前のマシン */
+  before: MachineGroup[];
+  /** フォーカスしている帯のマシン。帯はフォーカスしている帯まで。フォーカスが無ければ null */
+  focused: MachineGroup | null;
+  /** 下に固定するもの。rest はフォーカスしているマシンの残りの帯、groups はそれより後ろのマシン */
+  after: {
+    target: string;
+    label: string;
+    rest: Band[];
+    groups: MachineGroup[];
+  };
+}
+
+/** 一覧をフォーカスしている帯の前後で分ける。フォーカスが無ければ全部 before。 */
+export function splitAtFocus(groups: MachineGroup[]): SplitSidebar {
+  const gi = groups.findIndex((g) => g.bands.some((b) => b.focused));
+  if (gi < 0) {
+    return {
+      before: groups,
+      focused: null,
+      after: { target: "", label: "", rest: [], groups: [] },
+    };
+  }
+  const g = groups[gi];
+  const bi = g.bands.findIndex((b) => b.focused);
+  return {
+    before: groups.slice(0, gi),
+    focused: { ...g, bands: g.bands.slice(0, bi + 1) },
+    after: {
+      target: g.target,
+      label: g.label,
+      rest: g.bands.slice(bi + 1),
+      groups: groups.slice(gi + 1),
+    },
+  };
 }

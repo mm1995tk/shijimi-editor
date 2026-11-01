@@ -1,9 +1,10 @@
 // ツリー（D2）を描く。行は model.ts の rows、見た目は tree.css（モック「案：フラットな一覧」に合わせる）。
 // フォルダの行は押すと開閉する。ファイルを開くのは E 以降（file.open）。
+// 開いたフォルダの行は、中身をスクロールしている間だけ上に固定する（D3）。そのために行を親子の要素に組む。
 import { Index, Match, Show, Switch, type JSX } from "solid-js";
 
 import type { TreeIcon } from "./icons.ts";
-import type { RowMark, TreeRow } from "./model.ts";
+import { nest, type RowMark, type TreeNode, type TreeRow } from "./model.ts";
 import "./tree.css";
 
 /** 印の文字と、読み上げの言葉。 */
@@ -23,7 +24,11 @@ function markLabel(m: RowMark): string {
   return markText[m.letter];
 }
 
-/** ツリー。rows が空でも枠は出す（取っている最中）。 */
+/**
+ * ツリー。rows が空でも枠は出す（取っている最中）。
+ * 開いたフォルダの行は data-sticky を付け、中身をスクロールしている間は上に固定する
+ * （固定する位置は --tree-sticky-top から深さ × 行の高さ下）。
+ */
 export function TreeView(props: {
   rows: TreeRow[];
   label: string;
@@ -31,11 +36,28 @@ export function TreeView(props: {
 }): JSX.Element {
   return (
     <div class="tree" role="tree" aria-label={props.label}>
-      {/* 位置で使い回す（開閉で行が増減しても、押した行の要素とフォーカスが残る） */}
-      <Index each={props.rows}>
-        {(r) => <Row row={r()} onToggle={props.onToggle} />}
-      </Index>
+      <Nodes nodes={nest(props.rows)} onToggle={props.onToggle} />
     </div>
+  );
+}
+
+/** 行とその中身を 1 つの要素に入れて並べる（sticky の行が、中身の要素の中だけで止まるように）。 */
+function Nodes(props: {
+  nodes: TreeNode[];
+  onToggle: (path: string) => void;
+}): JSX.Element {
+  return (
+    // 位置で使い回す（開閉で行が増減しても、押した行の要素とフォーカスが残る）
+    <Index each={props.nodes}>
+      {(n) => (
+        <div class="tree-group">
+          <Row row={n().row} onToggle={props.onToggle} />
+          <Show when={n().children.length > 0}>
+            <Nodes nodes={n().children} onToggle={props.onToggle} />
+          </Show>
+        </div>
+      )}
+    </Index>
   );
 }
 
@@ -67,6 +89,8 @@ function Row(props: {
         aria-expanded={r().dir ? r().expanded : undefined}
         aria-busy={r().loading ? "true" : undefined}
         data-mark={markKey(mark())}
+        data-sticky={r().dir && r().expanded ? "top" : undefined}
+        style={{ "--tree-depth": String(r().depth) }}
         title={r().path}
         tabIndex={r().dir ? 0 : -1}
         onClick={() => r().dir && props.onToggle(r().path)}
