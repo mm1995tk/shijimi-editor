@@ -120,11 +120,3 @@ export function runeWidth(ch: string, vis: number): number {
   if (ch === "\t") return TAB_WIDTH - (vis % TAB_WIDTH);
   return isWide(ch.codePointAt(0) ?? 0) ? 2 : 1;
 }
-
-/** 行の文字（code point の並び）の、rune の位置 col より前の幅の合計（buffer.VisualCol）。 */
-export function visualCol(runes: readonly string[], col: number): number {
-  let vis = 0;
-  for (let i = 0; i < col && i < runes.length; i++)
-    vis += runeWidth(runes[i]!, vis);
-  return vis;
-}

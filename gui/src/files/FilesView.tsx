@@ -7,12 +7,13 @@
 //   差分とプレビューのペインは、行の文字だけを出す。
 import {
   createMemo,
-  createSignal,
   For,
+  Index,
   onCleanup,
   onMount,
   Show,
   type JSX,
+  untrack,
 } from "solid-js";
 
 import type { Line, Pane, Screen, Theme } from "../rpc/protocol.ts";
@@ -21,6 +22,7 @@ import {
   gutterText,
   layoutLine,
   lineBg,
+  lineKey,
   paneCells,
   type FilesSize,
   type LineOptions,
@@ -30,6 +32,11 @@ import "./files.css";
 
 export type { FilesSize };
 
+/**
+ * ファイルの欄。screen（フォーカスしているマシンの画面）の files を、theme の色で描く。
+ * screen が null のときと files が無いときは、空の欄だけを出す。
+ * 欄の大きさが変わったら、入るマス目の桁数と行数を onResize で知らせる。
+ */
 export function FilesView(props: {
   screen: Screen | null;
   theme: Theme | null;
@@ -79,20 +86,21 @@ export function FilesView(props: {
         </span>
         <Show when={files()}>
           {(f) => (
-            <For each={f().panes}>
+            // 位置で使い回す（ペインが新しいオブジェクトになっても PaneView と変わらない行の DOM を残す）
+            <Index each={f().panes}>
               {(p, i) => (
                 <>
-                  <Show when={i() > 0}>
+                  <Show when={i > 0}>
                     <div class="files-split" aria-hidden="true" />
                   </Show>
                   <PaneView
-                    pane={p}
-                    active={i() === f().active}
+                    pane={p()}
+                    active={i === f().active}
                     theme={props.theme}
                   />
                 </>
               )}
-            </For>
+            </Index>
           )}
         </Show>
       </div>
@@ -141,19 +149,28 @@ function LineView(props: {
   gutter: boolean;
   theme: Theme | null;
 }): JSX.Element {
-  const runs = createMemo(() => layoutLine(props.line, props.pane, props.opts));
-  const bg = () => colorOf(props.theme, lineBg(props.line, props.pane));
+  // ペインが変わっても、この行を描くのに使う項目が同じなら描き直さない（key は文字列なので、同じなら先へ伝わらない）
+  const key = createMemo(() => lineKey(props.line, props.pane, props.opts));
+  const runs = createMemo(() => {
+    key();
+    return untrack(() => layoutLine(props.line, props.pane, props.opts));
+  });
+  const bg = createMemo(() => {
+    key();
+    return untrack(() => lineBg(props.line, props.pane));
+  });
+  const total = createMemo(() => props.pane.viewport.total);
   const current = () =>
     props.line.no >= 0 && props.line.no === props.pane.curLine;
   return (
-    <div class="files-line" style={{ background: bg() }}>
+    <div class="files-line" style={{ background: colorOf(props.theme, bg()) }}>
       <Show when={props.gutter}>
         <span
           class="files-gutter"
           data-current={current() ? "" : undefined}
           aria-hidden="true"
         >
-          {gutterText(props.line.no, props.pane.viewport.total)}
+          {gutterText(props.line.no, total())}
         </span>
       </Show>
       <For each={runs()}>

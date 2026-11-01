@@ -8,6 +8,7 @@ import {
   gutterWidth,
   layoutLine,
   lineBg,
+  lineKey,
   paneCells,
   type Run,
 } from "./layout.ts";
@@ -203,5 +204,42 @@ describe("cellsFor", () => {
       rows: 30,
     });
     assert.deepEqual(cellsFor(0, 0, 8), { cols: 1, rows: 1 });
+  });
+});
+
+describe("lineKey", () => {
+  it("別の行のカーソルや選択が動いても変わらず、この行に掛かるものが動けば変わる", () => {
+    const l = plain(5, "abc");
+    const o = { cursor: true };
+    const base = pane({ curLine: 2, cursors: [at(2, 0)] });
+    const k = lineKey(l, base, o);
+    assert.equal(lineKey(l, pane({ curLine: 3, cursors: [at(3, 1)] }), o), k);
+    assert.notEqual(
+      lineKey(l, pane({ curLine: 5, cursors: [at(5, 1)] }), o),
+      k,
+    );
+    assert.notEqual(
+      lineKey(
+        l,
+        pane({
+          curLine: 2,
+          cursors: [at(2, 0)],
+          selections: [range(at(4, 0), at(6, 0))],
+        }),
+        o,
+      ),
+      k,
+    );
+    assert.notEqual(
+      lineKey(
+        l,
+        pane({
+          curLine: 2,
+          viewport: { top: 0, rows: 10, cols: 20, left: 3, total: 120 },
+        }),
+        o,
+      ),
+      k,
+    );
   });
 });

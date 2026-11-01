@@ -209,3 +209,26 @@ export function cellsFor(
     rows: Math.max(1, Math.floor((height - 2 * PAD_Y) / LINE_HEIGHT)),
   };
 }
+
+/**
+ * line を描くのに使うペインの項目だけを並べた文字列。これが同じなら layoutLine と lineBg の結果も同じなので、
+ * 描く側はペインが新しいオブジェクトになっても（カーソルが別の行で動いたなど）、この行を描き直さずに済む。
+ * line そのものは含めない（行が変われば、描く側は別の行として作り直す）。
+ */
+export function lineKey(line: Line, p: Pane, o: LineOptions): string {
+  const row = line.no;
+  const text = p.kind === "text";
+  const touches = (s: Range) => s.start.line <= row && row <= s.end.line;
+  return JSON.stringify([
+    p.kind,
+    p.viewport.cols,
+    p.viewport.left,
+    p.viewport.total,
+    row >= 0 && row === p.curLine,
+    hasSelection(p.selections),
+    text && o.cursor
+      ? (p.cursors ?? []).filter((c) => c.line === row).map((c) => c.col)
+      : [],
+    text ? (p.selections ?? []).filter(touches) : [],
+  ]);
+}
