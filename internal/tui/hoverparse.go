@@ -88,3 +88,50 @@ func codeCells(lang string, lines []string) [][]hoverCell {
 	}
 	return out
 }
+
+// parseHover converts hover markdown into logical lines: one per text line and
+// one per line of a fenced block, not yet wrapped. Wrapping needs the width of
+// the popup, which is the TUI's (wrapHover).
+func parseHover(text string) []hoverLine {
+	var out []hoverLine
+	var fence []string
+	fenceLang := ""
+	inFence := false
+	flush := func() {
+		cells := codeCells(fenceLang, fence)
+		for _, cs := range cells {
+			out = append(out, hoverLine{cells: cs, code: true})
+		}
+		if len(cells) == 0 {
+			out = append(out, hoverLine{code: true})
+		}
+	}
+	for l := range strings.SplitSeq(strings.TrimSpace(strings.ReplaceAll(text, "\r", "")), "\n") {
+		l = strings.ReplaceAll(l, "\t", "    ")
+		trim := strings.TrimSpace(l)
+		if after, ok := strings.CutPrefix(trim, "```"); ok {
+			if inFence {
+				flush()
+				fence = nil
+			} else {
+				fenceLang = strings.TrimSpace(after)
+			}
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			fence = append(fence, l)
+			continue
+		}
+		switch {
+		case trim == "---" || trim == "***" || trim == "___":
+			out = append(out, hoverLine{rule: true})
+		default:
+			out = append(out, hoverLine{cells: textCells(l)[0]})
+		}
+	}
+	if inFence { // unterminated fence
+		flush()
+	}
+	return out
+}

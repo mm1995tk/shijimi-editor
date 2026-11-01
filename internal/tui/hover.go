@@ -14,38 +14,19 @@ import (
 var cHoverBg, cHoverFg, cHoverBorder, cHoverRule string
 
 // hoverLines converts hover markdown into wrapped lines at most w cells wide.
-func hoverLines(text string, w int) []hoverLine {
+func hoverLines(text string, w int) []hoverLine { return wrapHover(parseHover(text), w) }
+
+// wrapHover wraps each logical line to w cells. A rule is left as it is: it is
+// drawn at the popup width.
+func wrapHover(lines []hoverLine, w int) []hoverLine {
 	w = max(w, 1)
 	var out []hoverLine
-	var fence []string
-	fenceLang := ""
-	inFence := false
-	for l := range strings.SplitSeq(strings.TrimSpace(strings.ReplaceAll(text, "\r", "")), "\n") {
-		l = strings.ReplaceAll(l, "\t", "    ")
-		trim := strings.TrimSpace(l)
-		if after, ok := strings.CutPrefix(trim, "```"); ok {
-			if inFence {
-				out = append(out, wrapCells(codeCells(fenceLang, fence), w, true)...)
-				fence = nil
-			} else {
-				fenceLang = strings.TrimSpace(after)
-			}
-			inFence = !inFence
+	for _, l := range lines {
+		if l.rule {
+			out = append(out, l)
 			continue
 		}
-		if inFence {
-			fence = append(fence, l)
-			continue
-		}
-		switch {
-		case trim == "---" || trim == "***" || trim == "___":
-			out = append(out, hoverLine{rule: true})
-		default:
-			out = append(out, wrapCells(textCells(l), w, false)...)
-		}
-	}
-	if inFence { // unterminated fence
-		out = append(out, wrapCells(codeCells(fenceLang, fence), w, true)...)
+		out = append(out, wrapCells([][]hoverCell{l.cells}, w, l.code)...)
 	}
 	return out
 }
