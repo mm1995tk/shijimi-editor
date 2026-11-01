@@ -71,6 +71,19 @@ function fakeSink() {
 }
 
 // 返事を待つ await がいくつか続くので、何回か回す
+function alive(termId: string, isAlive = true): TermInfo {
+  return {
+    termId,
+    pid: 1,
+    cwd: "/w",
+    workspaceId: null,
+    title: "",
+    cols: 80,
+    rows: 24,
+    alive: isAlive,
+  };
+}
+
 const tick = async () => {
   for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
 };
@@ -204,14 +217,17 @@ describe("TermLink", () => {
     link.bind(s.sink);
     await tick();
     link.handle(output("t1", 2, "ab"));
+    f.handlers["term.list"] = () => ({ terms: [alive("t1")] });
     f.calls.length = 0;
     link.reconnected();
     await tick();
     assert.deepEqual(f.calls, [
       { method: "term.attach", params: { termId: "t1", fromSeq: 2 } },
+      { method: "term.list", params: {} },
     ]);
 
     // shj が作り直された
+    f.handlers["term.list"] = () => ({ terms: [] });
     f.calls.length = 0;
     f.handlers["term.attach"] = (p) =>
       p.termId === "t1"
@@ -279,12 +295,101 @@ describe("TermLink", () => {
     assert.deepEqual(f.acks, []);
 
     const s2 = fakeSink();
+    f.handlers["term.list"] = () => ({ terms: [alive("t1")] });
     f.calls.length = 0;
     link.bind(s2.sink);
     await tick();
     assert.deepEqual(f.calls, [
       { method: "term.attach", params: { termId: "t1", fromSeq: 0 } },
+      { method: "term.list", params: {} },
     ]);
+  });
+
+  it("取り直した分を画面が書き終える前に欠けが続いても、取り直しは書き終えてから 1 回だけ", async () => {
+    const f = fakePort();
+    const s = fakeSink();
+    const link = new TermLink(f.port);
+    link.bind(s.sink);
+    await tick();
+    s.flush();
+    let attaches = 0;
+    f.handlers["term.attach"] = () => {
+      attaches++;
+      return { seq: attaches * 100, replay: b64("R"), cols: 80, rows: 24 };
+    };
+    link.handle(output("t1", 10, "x")); // 0..9 が欠けた
+    await tick();
+    assert.equal(attaches, 1);
+    // 書き終える前に、また欠ける
+    link.handle(output("t1", 150, "y"));
+    link.handle(output("t1", 180, "z"));
+    await tick();
+    assert.equal(attaches, 1);
+    s.flush(); // 取り直した分を書き終えた
+    await tick();
+    assert.equal(attaches, 2);
+    assert.deepEqual(f.calls.at(-1)!.params, { termId: "t1", fromSeq: 100 });
+    s.flush();
+    await tick();
+    assert.equal(attaches, 2); // 欠けが無ければもう取り直さない
+  });
+
+  it("取り直しの返事を待つ間のキー入力も送る", async () => {
+    const f = fakePort();
+    const link = new TermLink(f.port);
+    link.bind(fakeSink().sink);
+    await tick();
+    let answer!: () => void;
+    f.handlers["term.attach"] = () =>
+      new Promise((r) => {
+        answer = () => r({ seq: 20, replay: "", cols: 80, rows: 24 });
+      });
+    link.handle(output("t1", 20, "x")); // 欠けたので取り直す
+    link.input(enc.encode("\x03"));
+    await tick();
+    assert.deepEqual(f.calls.at(-1), {
+      method: "term.input",
+      params: { termId: "t1", data: b64("\x03") },
+    });
+    answer();
+  });
+
+  it("外している間に終わったシェルは、付け直したときに知らせて Enter で作り直せる", async () => {
+    const f = fakePort();
+    const link = new TermLink(f.port);
+    link.bind(fakeSink().sink);
+    await tick();
+    link.unbind();
+    link.handle({ method: "term.exit", params: { termId: "t1", code: 0 } }); // 外しているので届かない
+    f.handlers["term.list"] = () => ({ terms: [alive("t1", false)] });
+    const s = fakeSink();
+    link.bind(s.sink);
+    await tick();
+    assert.ok(s.text().endsWith(EXITED_NOTICE));
+    f.calls.length = 0;
+    f.handlers["term.create"] = () => ({ termId: "t2", pid: 2, cwd: "/w" });
+    link.input(enc.encode("\r"));
+    await tick();
+    assert.deepEqual(
+      f.calls.map((c) => c.method),
+      ["term.close", "term.create", "term.attach"],
+    );
+  });
+
+  it("term.input が not_found なら、シェルが終わったものとして知らせる", async () => {
+    const f = fakePort();
+    const s = fakeSink();
+    const link = new TermLink(f.port);
+    link.bind(s.sink);
+    await tick();
+    f.handlers["term.input"] = () =>
+      new RpcError({
+        code: ErrorCode.NotFound,
+        message: "terminal has exited",
+      });
+    link.input(enc.encode("a"));
+    await tick();
+    assert.ok(s.text().endsWith(EXITED_NOTICE));
   });
 });
 

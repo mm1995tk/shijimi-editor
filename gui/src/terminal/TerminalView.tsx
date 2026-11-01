@@ -1,5 +1,3 @@
-// IDE モードの右下のターミナル（F1）。xterm.js で描き、shj とのやりとりは TermLink に任せる。
-// 大きさは欄に合わせ（FitAddon）、変わったら term.resize を送る。
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
@@ -10,6 +8,10 @@ import "./terminal.css";
 
 const encoder = new TextEncoder();
 
+/**
+ * IDE モードの右下のターミナル（F1）。xterm.js で描き、shj とのやりとりは TermLink に任せる。
+ * 大きさは欄に合わせ（FitAddon）、変わったら term.resize を送る。
+ */
 export function TerminalView(props: {
   /** 描くターミナル。無ければ空の欄を出す（つないだマシンが無いとき） */
   link: TermLink | undefined;

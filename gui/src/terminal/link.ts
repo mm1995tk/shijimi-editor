@@ -36,11 +36,18 @@ export interface TermSink {
 /** 大きさが分からないうちに作るときの大きさ。 */
 export const DEFAULT_SIZE = { cols: 80, rows: 24 };
 
+/** シェルが終わったときに画面に出す知らせ。 */
 export const EXITED_NOTICE =
   "\r\n[シェルが終わりました。Enter で新しいシェルを開きます]\r\n";
+/** 覚えていたシェルが shj に無く（shj が作り直された）、新しく作ったときの知らせ。 */
 export const RECREATED_NOTICE =
   "\r\n[前のシェルが見つからないので、新しいシェルを開きました]\r\n";
 
+/**
+ * 1 つのマシンのターミナル 1 つと、それを描く画面をつなぐ。マシンごとに 1 つ作り、右下に出すときに
+ * bind、外すときに unbind する。shj からの通知は handle に、つなぎ直したことは reconnected に渡す。
+ * 流量制御・欠けの取り直し・つなぎ直しの決まりは、このファイルの先頭のとおり。
+ */
 export class TermLink {
   private readonly port: TermPort;
   private readonly onError: (message: string) => void;
@@ -50,6 +57,10 @@ export class TermLink {
   private received = 0;
   /** attach の返事待ち。この間の term.output は捨てる */
   private attaching = false;
+  /** 取り直した出力（最大 1 MiB）を画面が書き終えるまで。この間は次の取り直しを送らない */
+  private replaying = false;
+  /** replaying の間に欠けを見つけた。書き終えたら 1 回だけ取り直す */
+  private gapPending = false;
   private exited = false;
   private cols = DEFAULT_SIZE.cols;
   private rows = DEFAULT_SIZE.rows;
@@ -80,8 +91,7 @@ export class TermLink {
   /** 画面を外す（畳んだ・別のマシンを出した）。シェルは止めない。 */
   unbind(): void {
     this.sink = undefined;
-    this.op++;
-    this.attaching = false;
+    this.nextOp();
   }
 
   /** つなぎ直した。続きから取り直す（shj が作り直されていれば新しく作る）。 */
@@ -99,7 +109,7 @@ export class TermLink {
     if (id === undefined || this.exited) return;
     this.port
       .request("term.resize", { termId: id, cols, rows })
-      .catch((e) => this.onError(`term.resize: ${message(e)}`));
+      .catch((e) => this.failed("term.resize", id, e));
   }
 
   /** キー入力（xterm.js が作ったバイト列）。シェルが終わったあとの Enter で新しいシェルを開く。 */
@@ -109,10 +119,11 @@ export class TermLink {
       if (data.includes(13)) void this.restart();
       return;
     }
-    if (id === undefined || this.attaching) return;
+    // 取り直しの最中でも送る（PTY に書くだけで取り直しとは関係ない。`yes` を止める Ctrl+C を落とさない）
+    if (id === undefined) return;
     this.port
       .request("term.input", { termId: id, data: encodeBase64(data) })
-      .catch((e) => this.onError(`term.input: ${message(e)}`));
+      .catch((e) => this.failed("term.input", id, e));
   }
 
   /** shj からの通知。 */
@@ -138,8 +149,10 @@ export class TermLink {
     if (this.attaching || seq <= this.received) return;
     const start = seq - data.length;
     if (start > this.received) {
-      // 溢れて捨てられた分がある。残っている分を取り直す
-      void this.attach(this.op, this.received);
+      // 溢れて捨てられた分がある。残っている分を取り直す。前に取り直した分を画面が書き終える前なら、
+      // 書き終えてから 1 回だけ取り直す（画面に積まれる量を「取り直し 1 回分 + ack の窓」までにする）
+      if (this.replaying) this.gapPending = true;
+      else void this.attach(this.op, this.received);
       return;
     }
     this.write(data.subarray(this.received - start), seq);
@@ -159,9 +172,12 @@ export class TermLink {
 
   /** 前のターミナルがあればそれにつなぎ、無ければ動いているものか新しいものにつなぐ。 */
   private async open(fromSeq: number): Promise<void> {
-    const op = ++this.op;
+    const op = this.nextOp();
     if (this.termId !== undefined) {
       const r = await this.attach(op, fromSeq);
+      if (op !== this.op) return;
+      // 外している間・切れている間に終わったシェルは term.exit が届かないので、生きているかを確かめる
+      if (r === "ok" && !this.exited) await this.checkAlive(op);
       if (op !== this.op) return;
       // 描き直した画面にだけ、終わったことをもう一度出す
       if (r === "ok" && this.exited && fromSeq === 0)
@@ -211,7 +227,7 @@ export class TermLink {
   /** シェルが終わったあと。古いものを閉じて新しく作る。 */
   private async restart(): Promise<void> {
     const old = this.termId;
-    const op = ++this.op;
+    const op = this.nextOp();
     this.termId = undefined;
     this.exited = false;
     this.received = 0;
@@ -241,7 +257,17 @@ export class TermLink {
       this.attaching = false;
       const data = decodeBase64(r.replay);
       this.received = r.seq;
-      if (data.length > 0) this.sink?.write(data, () => {});
+      if (data.length > 0 && this.sink) {
+        this.replaying = true;
+        this.sink.write(data, () => {
+          if (op !== this.op || id !== this.termId) return;
+          this.replaying = false;
+          if (this.gapPending) {
+            this.gapPending = false;
+            void this.attach(op, this.received);
+          }
+        });
+      }
       return "ok";
     } catch (e) {
       if (op !== this.op || id !== this.termId) return "failed";
@@ -251,6 +277,42 @@ export class TermLink {
       this.onError(`term.attach: ${message(e)}`);
       return "failed";
     }
+  }
+
+  /** 古い返事と書き終わりを捨てるため、番号を進めて取り直しの状態を戻す。 */
+  private nextOp(): number {
+    this.attaching = false;
+    this.replaying = false;
+    this.gapPending = false;
+    return ++this.op;
+  }
+
+  /** シェルが終わったことにして知らせる（もう知っていれば何もしない）。 */
+  private markExited(): void {
+    if (this.exited) return;
+    this.exited = true;
+    this.sink?.notice(EXITED_NOTICE);
+  }
+
+  /** つないだターミナルが term.list で生きているかを確かめ、終わっていれば知らせる。 */
+  private async checkAlive(op: number): Promise<void> {
+    const id = this.termId;
+    try {
+      const { terms } = await this.port.request("term.list", {});
+      if (op !== this.op || id !== this.termId) return;
+      if (!terms.some((t) => t.termId === id && t.alive)) this.markExited();
+    } catch (e) {
+      if (op === this.op) this.onError(`term.list: ${message(e)}`);
+    }
+  }
+
+  /** term.input・term.resize が失敗した。not_found はシェルが終わったもの（term.exit を受け損ねた）。 */
+  private failed(method: string, id: TermId, e: unknown): void {
+    if (e instanceof RpcError && e.code === ErrorCode.NotFound) {
+      if (id === this.termId) this.markExited();
+      return;
+    }
+    this.onError(`${method}: ${message(e)}`);
   }
 
   /** つないだターミナルの大きさが画面と違えば合わせる。 */
@@ -267,6 +329,7 @@ function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/** バイト列を base64 にする（term.input の data）。 */
 export function encodeBase64(data: Uint8Array): string {
   let s = "";
   for (let i = 0; i < data.length; i += 0x8000)
@@ -274,6 +337,7 @@ export function encodeBase64(data: Uint8Array): string {
   return btoa(s);
 }
 
+/** base64 をバイト列に戻す（term.output の data、term.attach の replay）。 */
 export function decodeBase64(b64: string): Uint8Array {
   const s = atob(b64);
   const out = new Uint8Array(s.length);
