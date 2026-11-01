@@ -11,7 +11,8 @@ import (
 	"testing"
 )
 
-// P13-07 (#383) sorts the files of this package by what they may know, ahead
+// This package is split into files that draw and files that decide what is
+// shown (#383); the two lists below say which file may know what, ahead
 // of the split into core and tui (P13-08, docs/design/gui-protocol.md):
 //
 //   - lipgloss is imported only by the files that draw. The state that decides
@@ -29,14 +30,16 @@ var lipglossFiles = []string{
 // layoutFiles are the files that may use layout: they draw, or turn a screen
 // cell into a region and back. They stay in tui.
 var layoutFiles = []string{
-	"layout.go", "caret.go", "inputtea.go", "signature.go", "spacemenu.go",
-	"window.go", "prreview.go", "gitdiff.go",
+	"layout.go", "caret.go", "inputtea.go",
+	"window.go",
 }
 
-// layoutTodo are files that go to core but still take a layout, mostly for
-// mouse hit tests (#383 keeps going). Shrink this list; never add to it.
+// layoutTodo are files that go to core but still take a layout: mouse hit
+// tests, and drawing functions mixed in (gitdiff, prreview, signature, spacemenu;
+// to move to *_draw.go like editor_draw.go). Shrink this list; never add to it.
 var layoutTodo = []string{
 	"agentpanel.go", "agentsel.go", "app.go", "hovermouse.go", "resize.go", "searchui.go",
+	"gitdiff.go", "prreview.go", "signature.go", "spacemenu.go",
 }
 
 func TestFileKnowledge(t *testing.T) {

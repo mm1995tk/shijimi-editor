@@ -63,8 +63,8 @@ func (a *App) layout() layout {
 // editRows is the number of text rows the editor shows.
 func (a *App) editRows() int { return a.layout().editH }
 
-// textCols is the number of columns the text of t (without its line numbers)
-// has, which is what a sideways scroll is measured against.
+// textCols is the width of the pane of t, its line numbers included,
+// from which a sideways scroll subtracts gutterWidth.
 func (a *App) textCols(t *tab) int { return a.editW(t, a.layout()) }
 
 // diffBaseCols is the width of the base side of a split diff.
