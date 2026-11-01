@@ -1,4 +1,4 @@
-package tui
+package core
 
 import "github.com/mm1995tk/shijimi-editor/internal/buffer"
 
