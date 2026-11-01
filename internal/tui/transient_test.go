@@ -100,8 +100,8 @@ func TestExplorerClickTransientDoubleKeeps(t *testing.T) {
 	y := l.top + 1 + a.explorer.sel - a.explorer.scroll
 	click := func() {
 		// the adapter counts the presses (App.clicks), not the core
-		a.handleMouse(a.locate(Mouse{X: 2, Y: y, Action: MousePress, Button: MouseLeft, Clicks: a.clicks(2, y)}))
-		a.handleMouse(a.locate(Mouse{X: 2, Y: y, Action: MouseRelease, Button: MouseLeft}))
+		a.handleMouse(a.locate(2, y, Mouse{Action: MousePress, Button: MouseLeft, Clicks: a.clicks(2, y)}))
+		a.handleMouse(a.locate(2, y, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	}
 	click()
 	if len(a.tabs) != 2 || !a.tabs[1].transient || a.focus != focusExplorer {

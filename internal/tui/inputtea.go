@@ -126,10 +126,10 @@ var buttonFromTea = map[tea.MouseButton]MouseButton{
 func (a *App) mouseFromTea(msg tea.MouseMsg) Mouse {
 	m := msg.Mouse()
 	e := Mouse{
-		X: m.X, Y: m.Y, Button: MouseOther,
-		Shift: m.Mod.Contains(tea.ModShift),
-		Alt:   m.Mod.Contains(tea.ModAlt),
-		Ctrl:  m.Mod.Contains(tea.ModCtrl),
+		Button: MouseOther,
+		Shift:  m.Mod.Contains(tea.ModShift),
+		Alt:    m.Mod.Contains(tea.ModAlt),
+		Ctrl:   m.Mod.Contains(tea.ModCtrl),
 	}
 	if b, ok := buttonFromTea[m.Button]; ok {
 		e.Button = b
@@ -141,34 +141,34 @@ func (a *App) mouseFromTea(msg tea.MouseMsg) Mouse {
 		e.Action = MouseMotion
 	}
 	if e.Action == MousePress && e.Button == MouseLeft {
-		e.Clicks = a.clicks(e.X, e.Y)
+		e.Clicks = a.clicks(m.X, m.Y)
 	}
-	return a.locate(e)
+	return a.locate(m.X, m.Y, e)
 }
 
-// locate fills in Region, Row and Col from the screen cell X, Y. It keeps
+// locate fills in Region, Row and Col from the screen cell x, y. It keeps
 // state: a press starts the capture and a release ends it.
 //
 // While a button is held, the pointer is captured by the region the press was
 // in (as a browser does with setPointerCapture): the drag and the release keep
 // that Region, and Row and Col go on counting from its corner, so they may be
 // negative or past its edge. A GUI sends its events the same way.
-func (a *App) locate(m Mouse) Mouse {
+func (a *App) locate(x, y int, m Mouse) Mouse {
 	l := a.layout()
 	button := m.Button.isButton()
 	switch {
 	case m.Action == MousePress && button:
 		// capture starts
-		m.Region, m.Row, m.Col = a.hitTest(l, m.X, m.Y)
+		m.Region, m.Row, m.Col = a.hitTest(l, x, y)
 		a.capture = m.Region
 	case m.Action != MousePress && a.capture != RegionNone && (m.Action == MouseRelease || m.Button != MouseNone || a.pointerHeld()):
 		x0, y0 := a.regionOrigin(l, a.capture)
-		m.Region, m.Row, m.Col = a.capture, m.Y-y0, m.X-x0
+		m.Region, m.Row, m.Col = a.capture, y-y0, x-x0
 		if m.Action == MouseRelease { // capture ends
 			a.capture = RegionNone
 		}
 	default:
-		m.Region, m.Row, m.Col = a.hitTest(l, m.X, m.Y)
+		m.Region, m.Row, m.Col = a.hitTest(l, x, y)
 	}
 	return m
 }
@@ -200,7 +200,7 @@ func (a *App) regionOrigin(l layout, r Region) (x, y int) {
 func (a *App) hitTest(l layout, x, y int) (Region, int, int) {
 	switch {
 	case y < l.top || y >= l.top+l.bodyH:
-		return RegionNone, 0, 0
+		return RegionNone, y, x
 	case a.showSide && x < l.sideW:
 		return RegionExplorer, y - l.top, x
 	case l.agentW > 0 && x >= l.agentX-1: // the border column belongs to the panel (it is dragged to resize)
@@ -212,7 +212,7 @@ func (a *App) hitTest(l layout, x, y int) (Region, int, int) {
 	case x >= l.rightX && x < l.rightX+l.rightW:
 		return RegionEditor, y - l.top, x - l.rightX // the title row is row 0
 	}
-	return RegionNone, 0, 0
+	return RegionNone, y, x
 }
 
 // fromTea is the one place Update's tea.Msg becomes an Input or an Event. What
@@ -257,4 +257,11 @@ func (a *App) clicks(x, y int) int {
 		return 2
 	}
 	return 1
+}
+
+// screenCell is the cell on the whole screen that a Mouse is over: the inverse
+// of locate. Popups and borders hang from screen cells, which only the TUI has.
+func (a *App) screenCell(l layout, m Mouse) (x, y int) {
+	x0, y0 := a.regionOrigin(l, m.Region)
+	return x0 + m.Col, y0 + m.Row
 }

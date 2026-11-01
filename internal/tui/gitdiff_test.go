@@ -174,7 +174,7 @@ func TestOnePaneHidesSplitHintAndIgnoresHeaderClick(t *testing.T) {
 	}
 	split := a.gd.split
 	l := a.layout()
-	a.handleMouse(a.locate(Mouse{X: l.rightX + 2, Y: l.editY, Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.rightX+2, l.editY, Mouse{Action: MousePress, Button: MouseLeft}))
 	if a.gd.split != split || !dv.single {
 		t.Error("clicking the header of a one-pane file switched split")
 	}
@@ -268,7 +268,7 @@ func TestPRBaseFallsBackToHead(t *testing.T) {
 func TestChangesListClickAndTab(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	click := func(y int) {
-		a.handleMouse(a.locate(Mouse{X: 2, Y: y, Action: MousePress, Button: MouseLeft}))
+		a.handleMouse(a.locate(2, y, Mouse{Action: MousePress, Button: MouseLeft}))
 	}
 	h := 1 + a.explorerH() // below the header and the file tree
 	click(h + 2)           // second file
@@ -565,7 +565,7 @@ func TestChangeBarClickScrolls(t *testing.T) {
 	if !strings.Contains(view, "▐") {
 		t.Errorf("no mark on the bar")
 	}
-	a.handleMouse(a.locate(Mouse{X: g.barX, Y: g.top + g.h - 1, Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(g.barX, g.top+g.h-1, Mouse{Action: MousePress, Button: MouseLeft}))
 	if s := dv.start(tb.buf.ScrollRow); s < len(dv.rows)-g.h-1 {
 		t.Errorf("click at the bottom of the bar scrolled to row %d of %d", s, len(dv.rows))
 	}
@@ -805,7 +805,7 @@ func TestSidebarSplitDrag(t *testing.T) {
 		t.Fatalf("hit = %v", got)
 	}
 	a.focus = focusEditor
-	a.handleMouse(a.locate(Mouse{X: 1, Y: l.top + a.explorerH(), Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(1, l.top+a.explorerH(), Mouse{Action: MousePress, Button: MouseLeft}))
 	if a.focus != focusChanges || a.resizing != resizeExplorer {
 		t.Fatalf("press: focus %v resizing %v", a.focus, a.resizing)
 	}

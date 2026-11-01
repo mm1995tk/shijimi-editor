@@ -103,7 +103,7 @@ func TestResizeMouseDrag(t *testing.T) {
 	a.showTerm = true
 	l := a.layout()
 	mouse := func(act MouseAction, x, y int) {
-		a.handleMouse(a.locate(Mouse{X: x, Y: y, Action: act, Button: MouseLeft}))
+		a.handleMouse(a.locate(x, y, Mouse{Action: act, Button: MouseLeft}))
 	}
 
 	mouse(MousePress, l.sideW, 5)
@@ -136,7 +136,7 @@ func TestResizeWithCompletionOpen(t *testing.T) {
 func TestResizeLostRelease(t *testing.T) {
 	a := resizeApp(t)
 	a.resizing = resizeSide
-	a.handleMouse(a.locate(Mouse{X: 60, Y: 5, Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(60, 5, Mouse{Action: MousePress, Button: MouseLeft}))
 	if a.resizing != resizeNone {
 		t.Fatal("stale drag state kept")
 	}

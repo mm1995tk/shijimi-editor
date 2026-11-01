@@ -311,11 +311,11 @@ func TestMarkerClickOpensCard(t *testing.T) {
 	tb := a.curText()
 	dv := a.diffFor(tb)
 	y := g.top + dv.newIdx[9] - dv.start(tb.buf.ScrollRow)
-	a.handleMouse(a.locate(Mouse{X: g.rightX, Y: y, Button: MouseLeft, Action: MousePress}))
+	a.handleMouse(a.locate(g.rightX, y, Mouse{Button: MouseLeft, Action: MousePress}))
 	if a.card == nil || a.card.thread != th {
 		t.Fatal("click on the marker did not open the card")
 	}
-	a.handleMouse(a.locate(Mouse{X: g.rightX + 30, Y: g.top, Button: MouseLeft, Action: MousePress}))
+	a.handleMouse(a.locate(g.rightX+30, g.top, Mouse{Button: MouseLeft, Action: MousePress}))
 	if a.card != nil {
 		t.Error("click elsewhere did not close the card")
 	}
@@ -463,9 +463,9 @@ func TestComposerNewlineAndPreview(t *testing.T) {
 func TestResizeDragWithoutButton(t *testing.T) {
 	a := resizeApp(t)
 	l := a.layout()
-	a.handleMouse(a.locate(Mouse{X: l.sideW, Y: 5, Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(Mouse{X: 40, Y: 5, Action: MouseMotion, Button: MouseNone}))
-	a.handleMouse(a.locate(Mouse{X: 40, Y: 5, Action: MouseRelease, Button: MouseNone}))
+	a.handleMouse(a.locate(l.sideW, 5, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(40, 5, Mouse{Action: MouseMotion, Button: MouseNone}))
+	a.handleMouse(a.locate(40, 5, Mouse{Action: MouseRelease, Button: MouseNone}))
 	if a.layout().sideW != 40 || a.resizing != resizeNone {
 		t.Fatalf("side drag: %d", a.layout().sideW)
 	}
@@ -474,9 +474,9 @@ func TestResizeDragWithoutButton(t *testing.T) {
 func TestResizeDragInDiffMode(t *testing.T) {
 	a, _ := prApp(t)
 	l := a.layout()
-	a.handleMouse(a.locate(Mouse{X: l.sideW, Y: 5, Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(Mouse{X: 40, Y: 5, Action: MouseMotion, Button: MouseLeft}))
-	a.handleMouse(a.locate(Mouse{X: 40, Y: 5, Action: MouseRelease, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.sideW, 5, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(40, 5, Mouse{Action: MouseMotion, Button: MouseLeft}))
+	a.handleMouse(a.locate(40, 5, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	if a.layout().sideW != 40 {
 		t.Fatalf("side drag in diff mode: %d", a.layout().sideW)
 	}
@@ -497,7 +497,7 @@ func TestPointerCardTakesNoKeys(t *testing.T) {
 	th := &prThread{ID: "T", Path: "a.txt", Line: 10, Side: "RIGHT", Comments: []prComment{{Author: "r", Body: "x"}}}
 	a.gd.rv.threads = []*prThread{th}
 	x, y := markerCell(a, 9)
-	a.handleMouse(a.locate(Mouse{X: x, Y: y, Action: MouseMotion, Button: MouseNone}))
+	a.handleMouse(a.locate(x, y, Mouse{Action: MouseMotion, Button: MouseNone}))
 	if a.card == nil || !a.card.byPointer {
 		t.Fatal("resting on the marker did not show the card")
 	}
@@ -510,14 +510,14 @@ func TestPointerCardTakesNoKeys(t *testing.T) {
 		t.Error("x did not reach the editor")
 	}
 	// leaving the marker closes it
-	a.handleMouse(a.locate(Mouse{X: x, Y: y, Action: MouseMotion, Button: MouseNone}))
-	a.handleMouse(a.locate(Mouse{X: x + 60, Y: y - 5, Action: MouseMotion, Button: MouseNone}))
+	a.handleMouse(a.locate(x, y, Mouse{Action: MouseMotion, Button: MouseNone}))
+	a.handleMouse(a.locate(x+60, y-5, Mouse{Action: MouseMotion, Button: MouseNone}))
 	if a.card != nil {
 		t.Error("card stayed after the pointer left")
 	}
 	// without mouse hover, resting opens nothing
 	a.cfg.Editor.MouseHover = false
-	a.handleMouse(a.locate(Mouse{X: x, Y: y, Action: MouseMotion, Button: MouseNone}))
+	a.handleMouse(a.locate(x, y, Mouse{Action: MouseMotion, Button: MouseNone}))
 	if a.card != nil {
 		t.Error("card opened with mouse hover off")
 	}
