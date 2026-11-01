@@ -14,16 +14,16 @@ func (a *Core) setTheme(name string) bool {
 
 // themePicker opens a list of the built-in themes.
 func (a *Core) themePicker() []Effect {
-	items := make([]paletteItem, 0, len(themes))
+	items := make([]PaletteItem, 0, len(Themes))
 	for _, n := range themeNames() {
 		d := ""
 		if n == CurTheme.Name {
 			d = i18n.T("theme.current")
 		}
-		items = append(items, paletteItem{label: n, detail: d})
+		items = append(items, PaletteItem{Label: n, Detail: d})
 	}
-	return a.pal.pick(i18n.T("theme.title"), items, func(i int) []Effect {
-		a.setTheme(items[i].label)
+	return a.Pal.Pick(i18n.T("theme.title"), items, func(i int) []Effect {
+		a.setTheme(items[i].Label)
 		a.Info(i18n.T("cmd.themeis"), CurTheme.Name)
 		return nil
 	})

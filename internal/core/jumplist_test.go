@@ -62,17 +62,17 @@ func TestJumpListReopensAndSkipsMissing(t *testing.T) {
 	os.WriteFile(other, []byte("a\nb\n"), 0o644)
 	first := a.CurText().Buf.Path
 
-	a.openFile(gone)
+	a.OpenFile(gone)
 	a.CurText().Buf.Cur.Row = 0
 	a.pushJump() // gone.txt
-	a.openFile(other)
+	a.OpenFile(other)
 	a.pushJump() // other.txt
-	a.openFile(first)
-	for len(a.tabs) > 0 {
-		a.closeTab(true)
+	a.OpenFile(first)
+	for len(a.Tabs) > 0 {
+		a.CloseTab(true)
 	}
 	os.Remove(gone)
-	a.openFile(first)
+	a.OpenFile(first)
 	a.SetFocus(FocusEditor)
 
 	ctrlO(a)
@@ -99,9 +99,9 @@ func TestJumpListNewJumpDropsForward(t *testing.T) {
 
 func TestJumpListAltArrowsInVSCodeMode(t *testing.T) {
 	a := newTestApp(t, "1\n2\n3\n")
-	a.helix = false
+	a.Helix = false
 	b := a.CurText().Buf
-	a.execCommand("3")
+	a.ExecCommand("3")
 	a.Update(Key{Code: KeyLeft, Mod: ModAlt})
 	if b.Cur.Row != 0 {
 		t.Fatalf("Alt+Left -> row %d, want 0", b.Cur.Row)

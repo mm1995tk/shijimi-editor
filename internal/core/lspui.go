@@ -27,7 +27,7 @@ type lspManager struct {
 	clients map[string]*lsp.Client // key: server name + "\x00" + root
 	failed  map[string]bool
 	events  chan lsp.Event
-	diags   map[string]map[string][]lsp.Diagnostic // path -> server -> diags
+	Diags   map[string]map[string][]lsp.Diagnostic // path -> server -> diags
 }
 
 func newLSPManager(cfg *config.Config, root string) *lspManager {
@@ -36,20 +36,20 @@ func newLSPManager(cfg *config.Config, root string) *lspManager {
 		clients: map[string]*lsp.Client{},
 		failed:  map[string]bool{},
 		events:  make(chan lsp.Event, 256),
-		diags:   map[string]map[string][]lsp.Diagnostic{},
+		Diags:   map[string]map[string][]lsp.Diagnostic{},
 	}
 }
 
 // clientsFor returns running clients for a tab, starting them if needed.
 // Errors (e.g. server binary missing) are returned once per server.
 func (m *lspManager) clientsFor(t *Tab) ([]*lsp.Client, []error) {
-	if t.Kind != TabText || t.lang == nil || t.Buf.Path == "" {
+	if t.Kind != TabText || t.Lang == nil || t.Buf.Path == "" {
 		return nil, nil
 	}
 	var out []*lsp.Client
 	var errs []error
-	root := t.lang.FindRoot(t.Buf.Path, m.root)
-	for _, name := range t.lang.Servers {
+	root := t.Lang.FindRoot(t.Buf.Path, m.root)
+	for _, name := range t.Lang.Servers {
 		key := name + "\x00" + root
 		if c, ok := m.clients[key]; ok {
 			out = append(out, c)
@@ -89,7 +89,7 @@ func (m *lspManager) client(t *Tab, capability string) *lsp.Client {
 
 func (m *lspManager) diagnostics(path string) []lsp.Diagnostic {
 	var out []lsp.Diagnostic
-	for _, ds := range m.diags[path] {
+	for _, ds := range m.Diags[path] {
 		out = append(out, ds...)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -109,7 +109,7 @@ func (m *lspManager) restart() {
 	m.stopAll()
 	m.clients = map[string]*lsp.Client{}
 	m.failed = map[string]bool{}
-	m.diags = map[string]map[string][]lsp.Diagnostic{}
+	m.Diags = map[string]map[string][]lsp.Diagnostic{}
 }
 
 // ---- app integration ----
@@ -137,25 +137,25 @@ func (a *Core) attachLSP(t *Tab) {
 	if a.single || t.Kind != TabText || t.Buf.Path == "" {
 		return
 	}
-	t.lang = a.cfg.LanguageFor(t.Buf.Path)
-	if t.lang == nil {
+	t.Lang = a.Cfg.LanguageFor(t.Buf.Path)
+	if t.Lang == nil {
 		return
 	}
-	if t.lang.IndentUnit != "" {
-		t.Buf.SetIndentUnit(t.lang.IndentUnit)
+	if t.Lang.IndentUnit != "" {
+		t.Buf.SetIndentUnit(t.Lang.IndentUnit)
 	}
-	cs, errs := a.lsp.clientsFor(t)
+	cs, errs := a.Lsp.clientsFor(t)
 	for _, err := range errs {
 		a.Fail(err)
 	}
 	for _, c := range cs {
-		c.DidOpen(t.Buf.Path, t.lang.ID(), t.Buf.Text(), t.Buf.Version+1)
+		c.DidOpen(t.Buf.Path, t.Lang.ID(), t.Buf.Text(), t.Buf.Version+1)
 	}
 	t.lspVersion = t.Buf.Version
 }
 
 func (a *Core) detachLSP(t *Tab) {
-	cs, _ := a.lsp.clientsFor(t)
+	cs, _ := a.Lsp.clientsFor(t)
 	for _, c := range cs {
 		c.DidClose(t.Buf.Path)
 	}
@@ -163,11 +163,11 @@ func (a *Core) detachLSP(t *Tab) {
 
 // syncLSP sends didChange for buffers edited since the last sync.
 func (a *Core) SyncLSP() {
-	for _, t := range a.tabs {
-		if t.Kind != TabText || t.lang == nil || t.Buf.Version == t.lspVersion {
+	for _, t := range a.Tabs {
+		if t.Kind != TabText || t.Lang == nil || t.Buf.Version == t.lspVersion {
 			continue
 		}
-		cs, _ := a.lsp.clientsFor(t)
+		cs, _ := a.Lsp.clientsFor(t)
 		text := t.Buf.Text()
 		for _, c := range cs {
 			c.DidChange(t.Buf.Path, text, t.Buf.Version+1)
@@ -176,19 +176,19 @@ func (a *Core) SyncLSP() {
 	}
 }
 
-type hoverMsg struct {
-	text  string
-	mouse *mouseHover // set when the pointer, not the cursor, asked for it
+type HoverMsg struct {
+	Text  string
+	Mouse *MouseHover // set when the pointer, not the cursor, asked for it
 }
 type locationsMsg struct {
 	title string
 	locs  []lsp.Location
 }
-type completionMsg struct {
-	tab     *Tab
+type CompletionMsg struct {
+	Tab     *Tab
 	version int
-	start   buffer.Pos
-	items   []lsp.CompletionItem
+	Start   buffer.Pos
+	Items   []lsp.CompletionItem
 }
 type workspaceEditMsg struct{ edit lsp.WorkspaceEdit }
 type formatMsg struct {
@@ -208,11 +208,11 @@ func (a *Core) lspRequest(capability string, f func(ctx context.Context, c *lsp.
 	if t == nil || t.Kind != TabText {
 		return nil
 	}
-	if t.lang == nil {
+	if t.Lang == nil {
 		a.Fail(errors.New(i18n.T("lspui.noserver")))
 		return nil
 	}
-	c := a.lsp.client(t, capability)
+	c := a.Lsp.client(t, capability)
 	if c == nil {
 		a.Fail(fmt.Errorf(i18n.T("lspui.unsupported"), capability))
 		return nil
@@ -227,7 +227,7 @@ func (a *Core) hover() []Effect {
 		if err != nil {
 			return lspErrMsg{err}
 		}
-		return hoverMsg{text: text}
+		return HoverMsg{Text: text}
 	})
 }
 
@@ -297,7 +297,7 @@ func (a *Core) completion() []Effect {
 		if err != nil {
 			return lspErrMsg{err}
 		}
-		return completionMsg{tab: t, version: version, start: start, items: items}
+		return CompletionMsg{Tab: t, version: version, Start: start, Items: items}
 	})
 }
 
@@ -312,7 +312,7 @@ func (a *Core) rename() []Effect {
 	for line := t.Buf.Lines[s.Row]; e.Col < len(line) && isIdent(line[e.Col]); e.Col++ {
 	}
 	old := t.Buf.TextRange(s, e)
-	return a.pal.ask(i18n.T("app.newname"), old, func(v string) []Effect {
+	return a.Pal.Ask(i18n.T("app.newname"), old, func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
@@ -327,13 +327,13 @@ func (a *Core) rename() []Effect {
 	})
 }
 
-func (a *Core) format(save bool) []Effect {
+func (a *Core) Format(save bool) []Effect {
 	t := a.Cur()
 	if t == nil || t.Kind != TabText {
 		return nil
 	}
-	if t.lang != nil && t.lang.Formatter != nil {
-		return a.runFormatter(t, t.lang.Formatter, save)
+	if t.Lang != nil && t.Lang.Formatter != nil {
+		return a.runFormatter(t, t.Lang.Formatter, save)
 	}
 	unit := t.Buf.IndentUnit()
 	return a.lspRequest("documentFormattingProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
@@ -361,7 +361,7 @@ func (a *Core) codeAction() []Effect {
 	if t == nil || t.Kind != TabText {
 		return nil
 	}
-	rng, diags := codeActionRange(t.Buf, a.lsp.diagnostics(t.Buf.Path))
+	rng, diags := codeActionRange(t.Buf, a.Lsp.diagnostics(t.Buf.Path))
 	return a.lspRequest("codeActionProvider", func(ctx context.Context, c *lsp.Client, t *Tab) Event {
 		actions, err := c.CodeActions(ctx, t.Buf.Path, rng, diags)
 		if err != nil {
@@ -421,11 +421,11 @@ func (a *Core) showCodeActions(m codeActionsMsg) []Effect {
 		return 2
 	}
 	sort.SliceStable(actions, func(i, j int) bool { return rank(actions[i]) < rank(actions[j]) })
-	items := make([]paletteItem, len(actions))
+	items := make([]PaletteItem, len(actions))
 	for i, act := range actions {
-		items[i] = paletteItem{label: act.Title, detail: act.Kind}
+		items[i] = PaletteItem{Label: act.Title, Detail: act.Kind}
 	}
-	return a.pal.pick(i18n.T("lspui.codeactions"), items, func(i int) []Effect {
+	return a.Pal.Pick(i18n.T("lspui.codeactions"), items, func(i int) []Effect {
 		act := actions[i]
 		return a.lspReq(func(ctx context.Context) Event {
 			r, err := m.client.ResolveCodeAction(ctx, act)
@@ -463,7 +463,7 @@ func (a *Core) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
 	files, n := 0, 0
 	for uri, edits := range we {
 		path := lsp.Path(uri)
-		if !a.openFile(path) {
+		if !a.OpenFile(path) {
 			continue
 		}
 		t := a.Cur()
@@ -483,17 +483,17 @@ func (a *Core) showLocations(m locationsMsg) []Effect {
 	if len(m.locs) == 1 {
 		return jump(m.locs[0])
 	}
-	items := make([]paletteItem, len(m.locs))
+	items := make([]PaletteItem, len(m.locs))
 	for i, l := range m.locs {
 		p := lsp.Path(l.URI)
-		items[i] = paletteItem{label: fmt.Sprintf("%s:%d", a.Rel(p), l.Range.Start.Line+1), detail: strings.TrimSpace(lineAt(a, p, l.Range.Start.Line))}
+		items[i] = PaletteItem{Label: fmt.Sprintf("%s:%d", a.Rel(p), l.Range.Start.Line+1), Detail: strings.TrimSpace(lineAt(a, p, l.Range.Start.Line))}
 	}
-	return a.pal.pick(m.title, items, func(i int) []Effect { return jump(m.locs[i]) })
+	return a.Pal.Pick(m.title, items, func(i int) []Effect { return jump(m.locs[i]) })
 }
 
 // lineAt returns line n of a file, from an open buffer when possible.
 func lineAt(a *Core, path string, n int) string {
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.Kind == TabText && t.Buf.Path == path && n < len(t.Buf.Lines) {
 			return string(t.Buf.Lines[n])
 		}
@@ -515,13 +515,13 @@ func (a *Core) diagnosticPicker() []Effect {
 		d    lsp.Diagnostic
 	}
 	var all []entry
-	paths := make([]string, 0, len(a.lsp.diags))
-	for p := range a.lsp.diags {
+	paths := make([]string, 0, len(a.Lsp.Diags))
+	for p := range a.Lsp.Diags {
 		paths = append(paths, p)
 	}
 	sort.Strings(paths)
 	for _, p := range paths {
-		for _, d := range a.lsp.diagnostics(p) {
+		for _, d := range a.Lsp.diagnostics(p) {
 			all = append(all, entry{p, d})
 		}
 	}
@@ -529,12 +529,12 @@ func (a *Core) diagnosticPicker() []Effect {
 		a.InfoText(i18n.T("lspui.nodiag"))
 		return nil
 	}
-	items := make([]paletteItem, len(all))
+	items := make([]PaletteItem, len(all))
 	sevName := map[int]string{1: i18n.T("diag.error"), 2: i18n.T("diag.warning"), 3: i18n.T("diag.info"), 4: i18n.T("diag.hint")}
 	for i, e := range all {
-		items[i] = paletteItem{label: fmt.Sprintf("%s:%d %s", a.Rel(e.path), e.d.Range.Start.Line+1, FirstLine(e.d.Message)), detail: sevName[sevRank(e.d.Severity)]}
+		items[i] = PaletteItem{Label: fmt.Sprintf("%s:%d %s", a.Rel(e.path), e.d.Range.Start.Line+1, FirstLine(e.d.Message)), Detail: sevName[sevRank(e.d.Severity)]}
 	}
-	return a.pal.pick(i18n.T("ctx.diagnostics"), items, func(i int) []Effect {
+	return a.Pal.Pick(i18n.T("ctx.diagnostics"), items, func(i int) []Effect {
 		return a.showLocations(locationsMsg{i18n.T("ctx.diagnostics"), []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}})
 	})
 }
@@ -545,7 +545,7 @@ func (a *Core) gotoDiagnostic(dir int) {
 	if t == nil || t.Kind != TabText {
 		return
 	}
-	ds := a.lsp.diagnostics(t.Buf.Path)
+	ds := a.Lsp.diagnostics(t.Buf.Path)
 	if len(ds) == 0 {
 		a.InfoText(i18n.T("lspui.nodiagfile"))
 		return
@@ -578,34 +578,34 @@ func (a *Core) gotoDiagnostic(dir int) {
 	p := bufPos(t.Buf, target.Range.Start)
 	t.Buf.Anchor = nil
 	t.Buf.SetCursor(p.Row, buffer.VisualCol(t.Buf.Lines[p.Row], p.Col), false)
-	a.follow = true
+	a.Follow = true
 	a.Info("%s", FirstLine(target.Message))
 }
 
 // ---- completion popup ----
 
-type completionPopup struct {
-	tab   *Tab
+type CompletionPopup struct {
+	Tab   *Tab
 	start buffer.Pos
-	all   []lsp.CompletionItem
-	items []lsp.CompletionItem
-	sel   int
+	All   []lsp.CompletionItem
+	Items []lsp.CompletionItem
+	Sel   int
 }
 
-func (c *completionPopup) filter() {
-	b := c.tab.Buf
+func (c *CompletionPopup) filter() {
+	b := c.Tab.Buf
 	prefix := ""
 	if c.start.Row == b.Cur.Row && c.start.Col <= b.Cur.Col {
 		prefix = strings.ToLower(string(b.Lines[b.Cur.Row][c.start.Col:b.Cur.Col]))
 	}
-	c.items = c.items[:0]
-	for _, it := range c.all {
+	c.Items = c.Items[:0]
+	for _, it := range c.All {
 		key := it.FilterText
 		if key == "" {
 			key = it.Label
 		}
 		if strings.HasPrefix(strings.ToLower(key), prefix) || (prefix != "" && strings.Contains(strings.ToLower(key), prefix)) {
-			c.items = append(c.items, it)
+			c.Items = append(c.Items, it)
 		}
 	}
 	isPrefix := func(it lsp.CompletionItem) bool {
@@ -615,30 +615,30 @@ func (c *completionPopup) filter() {
 		}
 		return strings.HasPrefix(strings.ToLower(key), prefix)
 	}
-	sort.SliceStable(c.items, func(i, j int) bool {
-		if pi, pj := isPrefix(c.items[i]), isPrefix(c.items[j]); pi != pj {
+	sort.SliceStable(c.Items, func(i, j int) bool {
+		if pi, pj := isPrefix(c.Items[i]), isPrefix(c.Items[j]); pi != pj {
 			return pi
 		}
-		ki, kj := c.items[i].SortText, c.items[j].SortText
+		ki, kj := c.Items[i].SortText, c.Items[j].SortText
 		if ki == "" {
-			ki = c.items[i].Label
+			ki = c.Items[i].Label
 		}
 		if kj == "" {
-			kj = c.items[j].Label
+			kj = c.Items[j].Label
 		}
 		return ki < kj
 	})
-	c.sel = Clamp(c.sel, 0, max(0, len(c.items)-1))
+	c.Sel = Clamp(c.Sel, 0, max(0, len(c.Items)-1))
 }
 
 func (a *Core) acceptCompletion() {
-	c := a.comp
-	a.comp = nil
-	if c == nil || len(c.items) == 0 {
+	c := a.Comp
+	a.Comp = nil
+	if c == nil || len(c.Items) == 0 {
 		return
 	}
-	it := c.items[c.sel]
-	b := c.tab.Buf
+	it := c.Items[c.Sel]
+	b := c.Tab.Buf
 	start := c.start
 	text := it.InsertText
 	if text == "" {
@@ -651,9 +651,9 @@ func (a *Core) acceptCompletion() {
 	if b.Cur.Less(start) {
 		start = b.Cur
 	}
-	a.follow = true
+	a.Follow = true
 	if it.InsertTextFormat == 2 {
-		a.startSnippet(c.tab, start, text)
+		a.startSnippet(c.Tab, start, text)
 		return
 	}
 	if r := a.recIns; r != nil && !a.replaying && start.Row == b.Cur.Row {
@@ -683,20 +683,20 @@ var completionKinds = map[int]string{
 // (maxH of them at most, ten at most, scrolled so that the selected one shows)
 // with Active the selected one among them, anchored at the cursor. It changes
 // nothing. Drawing it as cells is drawCompletion's work.
-func (c *completionPopup) overlay(maxH int) screen.Overlay {
-	n := min(len(c.items), maxH, 10)
+func (c *CompletionPopup) Overlay(maxH int) screen.Overlay {
+	n := min(len(c.Items), maxH, 10)
 	start := 0
-	if c.sel >= n {
-		start = c.sel - n + 1
+	if c.Sel >= n {
+		start = c.Sel - n + 1
 	}
-	at := ToScreenPos(c.tab.Buf.Cur)
+	at := ToScreenPos(c.Tab.Buf.Cur)
 	ov := screen.Overlay{
 		Kind:   screen.OverlayCompletion,
-		Pane:   c.tab.Path(),
+		Pane:   c.Tab.Path(),
 		At:     &at,
-		Active: c.sel - start,
+		Active: c.Sel - start,
 	}
-	for _, it := range c.items[start : start+n] {
+	for _, it := range c.Items[start : start+n] {
 		ov.Items = append(ov.Items, screen.Item{Label: it.Label, Detail: it.Detail, Kind: completionKinds[it.Kind]})
 	}
 	return ov
@@ -704,13 +704,13 @@ func (c *completionPopup) overlay(maxH int) screen.Overlay {
 
 func (a *Core) lspStatus() string {
 	t := a.Cur()
-	if t == nil || t.Kind != TabText || t.lang == nil {
+	if t == nil || t.Kind != TabText || t.Lang == nil {
 		return ""
 	}
 	var names []string
-	for _, n := range t.lang.Servers {
-		root := t.lang.FindRoot(t.Buf.Path, a.root)
-		if c, ok := a.lsp.clients[n+"\x00"+root]; ok {
+	for _, n := range t.Lang.Servers {
+		root := t.Lang.FindRoot(t.Buf.Path, a.Root)
+		if c, ok := a.Lsp.clients[n+"\x00"+root]; ok {
 			select {
 			case <-c.Ready():
 				names = append(names, n)
@@ -725,14 +725,14 @@ func (a *Core) lspStatus() string {
 // jumpTo opens the file of l and puts the cursor at the start of its range.
 func (a *Core) jumpTo(l lsp.Location) []Effect {
 	a.pushJump()
-	if !a.openFile(lsp.Path(l.URI)) {
+	if !a.OpenFile(lsp.Path(l.URI)) {
 		return nil
 	}
 	t := a.Cur()
 	t.Buf.Anchor = nil
 	p := bufPos(t.Buf, l.Range.Start)
 	t.Buf.SetCursor(p.Row, buffer.VisualCol(t.Buf.Lines[p.Row], p.Col), false)
-	a.follow = true
+	a.Follow = true
 	return a.SetFocus(FocusEditor)
 }
 
@@ -740,19 +740,19 @@ func (a *Core) jumpTo(l lsp.Location) []Effect {
 // false for an Event that is not one of them.
 func (a *Core) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 	switch msg := ev.(type) {
-	case hoverMsg:
+	case HoverMsg:
 		a.showHover(msg)
 	case locationsMsg:
 		return a.showLocations(msg), true
-	case completionMsg:
+	case CompletionMsg:
 		t := a.CurText()
-		if t == nil || t != msg.tab || a.mode != ModeInsert && a.helix || len(msg.items) == 0 {
+		if t == nil || t != msg.Tab || a.Mode != ModeInsert && a.Helix || len(msg.Items) == 0 {
 			return nil, true
 		}
-		a.comp = &completionPopup{tab: t, start: msg.start, all: msg.items}
-		a.comp.filter()
-		if len(a.comp.items) == 0 {
-			a.comp = nil
+		a.Comp = &CompletionPopup{Tab: t, start: msg.Start, All: msg.Items}
+		a.Comp.filter()
+		if len(a.Comp.Items) == 0 {
+			a.Comp = nil
 		}
 	case signatureMsg:
 		a.showSignature(msg)
@@ -778,31 +778,31 @@ func (a *Core) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 		a.InfoText(i18n.T("app.formatted"))
 	case lspErrMsg:
 		a.Fail(msg.err)
-	case semanticMsg:
-		msg.h.sem.apply(msg)
+	case SemanticMsg:
+		msg.h.Sem.Apply(msg)
 	default:
 		return nil, false
 	}
 	return nil, true
 }
 
-func (a *Core) showHover(msg hoverMsg) {
+func (a *Core) showHover(msg HoverMsg) {
 	if t := a.CurText(); a.FullPreview(t) {
 		return // the popup would be anchored to the hidden buffer
 	}
-	if m := msg.mouse; m != nil {
-		if m.seq != a.hoverSeq || m.tab != a.Cur() || strings.TrimSpace(msg.text) == "" {
+	if m := msg.Mouse; m != nil {
+		if m.Seq != a.HoverSeq || m.Tab != a.Cur() || strings.TrimSpace(msg.Text) == "" {
 			return
 		}
-		a.hoverText, a.hoverScroll = msg.text, 0
-		a.hoverAt, a.hoverWord = &m.pos, m.word
+		a.HoverText, a.HoverScroll = msg.Text, 0
+		a.HoverAt, a.HoverWord = &m.pos, m.word
 		return
 	}
-	if strings.TrimSpace(msg.text) == "" {
+	if strings.TrimSpace(msg.Text) == "" {
 		a.InfoText(i18n.T("app.nohover"))
 	} else {
-		a.hoverText = msg.text
-		a.hoverScroll = 0
-		a.hoverAt = nil
+		a.HoverText = msg.Text
+		a.HoverScroll = 0
+		a.HoverAt = nil
 	}
 }

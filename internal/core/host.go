@@ -20,5 +20,5 @@ func (a *Core) openInBrowser(url string) error {
 		a.host.OpenURL(url)
 		return nil
 	}
-	return openExternal(url)
+	return OpenExternal(url)
 }

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
 )
@@ -53,7 +54,7 @@ func cmuxApp(t *testing.T) (*App, *fakeCmux) {
 	t.Helper()
 	t.Setenv("SHELL", "/bin/zsh")
 	a := newTestApp(t, "hello")
-	a.cfg.Experimental.Multiplexer = true
+	a.Cfg.Experimental.Multiplexer = true
 	f := &fakeCmux{}
 	a.mux.newBackend = func(kind string) muxBackend {
 		if kind == "cmux" {
@@ -61,7 +62,7 @@ func cmuxApp(t *testing.T) (*App, *fakeCmux) {
 		}
 		return nil
 	}
-	a.cfg.Terminal.Multiplexer = "cmux"
+	a.Cfg.Terminal.Multiplexer = "cmux"
 	return a, f
 }
 
@@ -78,13 +79,13 @@ func cmuxEnv(t *testing.T) {
 func TestCmuxToggle(t *testing.T) {
 	cmuxEnv(t)
 	a, f := cmuxApp(t)
-	ctrlBacktick := Key{Code: '`', Mod: ModCtrl}
-	a.focus = focusEditor
+	ctrlBacktick := core.Key{Code: '`', Mod: core.ModCtrl}
+	a.Focus = core.FocusEditor
 	a.Update(ctrlBacktick)
 	if a.showTerm || a.term.cur() != nil {
 		t.Fatal("the built-in terminal must stay closed")
 	}
-	if !f.has("--json --id-format uuids new-split down --focus true --surface S1 --command cd '"+a.root+"' && exec env ") ||
+	if !f.has("--json --id-format uuids new-split down --focus true --surface S1 --command cd '"+a.Root+"' && exec env ") ||
 		a.mux.id != "S2" || !a.mux.visible {
 		t.Fatalf("not created: %v id=%q", f.calls, a.mux.id)
 	}
@@ -105,7 +106,7 @@ func TestCmuxToggle(t *testing.T) {
 	if n := f.count(" new-split "); n != 2 {
 		t.Fatalf("closed pane: created %d times, want 2", n)
 	}
-	a.quit()
+	a.Quit()
 	if !f.has("close-surface --surface S2 --force --workspace W1") {
 		t.Fatalf("pane not closed: %v", f.calls)
 	}
@@ -114,21 +115,21 @@ func TestCmuxToggle(t *testing.T) {
 func TestCmuxCommands(t *testing.T) {
 	cmuxEnv(t)
 	a, f := cmuxApp(t)
-	a.execCommand("sh make test")
+	a.ExecCommand("sh make test")
 	if !f.has("paste --surface S2 -- make test") || !f.has("send-key --surface S2 enter") {
 		t.Fatalf("calls: %v", f.calls)
 	}
 	f.calls = nil
-	a.ctx = &ctxPreview{text: "ctx"}
-	a.handleContextKey(Key{Code: KeyEnter})
+	a.Ctx = &core.CtxPreview{Text: "ctx"}
+	a.HandleContextKey(core.Key{Code: KeyEnter})
 	if !f.has("paste --surface S2 --force -- ctx") || f.has("send-key") {
 		t.Fatalf("context must be pasted without Enter: %v", f.calls)
 	}
 	f.fail = "focus-panel"
-	a.msg = ""
-	a.execCommand("sh hide")
-	if !a.msgErr || !strings.Contains(a.msg, "boom") {
-		t.Fatalf("error not shown: %q", a.msg)
+	a.Msg = ""
+	a.ExecCommand("sh hide")
+	if !a.MsgErr || !strings.Contains(a.Msg, "boom") {
+		t.Fatalf("error not shown: %q", a.Msg)
 	}
 }
 
@@ -182,7 +183,7 @@ func TestCmuxOnlyOnMacInCmux(t *testing.T) {
 	if !a.MuxOn() {
 		t.Fatal("cmux must be used on macOS inside cmux")
 	}
-	a.cfg.Experimental.Multiplexer = false
+	a.Cfg.Experimental.Multiplexer = false
 	if a.MuxOn() {
 		t.Fatal("cmux must be off when the setting is off")
 	}
@@ -197,22 +198,22 @@ func TestCmuxCommandEnd(t *testing.T) {
 	a.mux.id = "S2"
 	a.resolveMux()
 	a.CommandEnded(1)
-	if len(a.sg.fails) != 1 || a.sg.fails[0].code != 1 {
-		t.Fatalf("fails: %+v", a.sg.fails)
+	if len(a.Sg.Fails) != 1 || a.Sg.Fails[0].Code != 1 {
+		t.Fatalf("fails: %+v", a.Sg.Fails)
 	}
-	if out := a.sg.fails[0].output; len(out) == 0 || out[len(out)-1] != "make: *** error" {
+	if out := a.Sg.Fails[0].Output; len(out) == 0 || out[len(out)-1] != "make: *** error" {
 		t.Fatalf("output: %q", out)
 	}
 	a.CommandEnded(0)
-	if len(a.sg.fails) != 0 {
-		t.Fatalf("success must clear: %+v", a.sg.fails)
+	if len(a.Sg.Fails) != 0 {
+		t.Fatalf("success must clear: %+v", a.Sg.Fails)
 	}
 }
 
 func TestCmuxAutoFollowsParents(t *testing.T) {
 	cmuxEnv(t)
 	a, _ := cmuxApp(t)
-	a.cfg.Terminal.Multiplexer = "auto"
+	a.Cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "cmux", "launchd")
 	if !a.MuxOn() || a.mux.b.name() != "cmux" {
 		t.Fatalf("cmux parent not used: %v", a.mux.b)

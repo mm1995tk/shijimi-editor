@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"regexp"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 var hexColor = regexp.MustCompile(`^#[0-9a-f]{6}$`)
 
 func TestPaletteResolvesNames(t *testing.T) {
-	for _, th := range themes {
+	for _, th := range core.Themes {
 		p := th.Palette()
 		for _, s := range p.Styles() {
 			if !hexColor.MatchString(p[s]) {
@@ -18,7 +19,7 @@ func TestPaletteResolvesNames(t *testing.T) {
 			}
 		}
 	}
-	d := darkPlus.Palette()
+	d := core.DarkPlus.Palette()
 	for s, want := range map[screen.Style]string{
 		screen.StyleSyntaxKeyword: "#569cd6",
 		screen.StyleDiagError:     "#f14c4c",
@@ -30,8 +31,8 @@ func TestPaletteResolvesNames(t *testing.T) {
 		}
 	}
 	// fallbacks match applyTheme: Control -> Keyword, IndentGuide -> LineNo
-	g := githubDark.Palette()
-	if g[screen.StyleSyntaxControl] != githubDark.Syntax.Keyword {
+	g := core.GithubDark.Palette()
+	if g[screen.StyleSyntaxControl] != core.GithubDark.Syntax.Keyword {
 		t.Errorf("control fallback = %q", g[screen.StyleSyntaxControl])
 	}
 	if g[screen.StyleIndent] != "#30363d" {
@@ -40,7 +41,7 @@ func TestPaletteResolvesNames(t *testing.T) {
 }
 
 func TestPaletteFallbacks(t *testing.T) {
-	p := (&Theme{LineNo: "#abcdef", Syntax: syntaxColors{Keyword: "#123456"}, DiagInfo: "#654321"}).Palette()
+	p := (&core.Theme{LineNo: "#abcdef", Syntax: core.SyntaxColors{Keyword: "#123456"}, DiagInfo: "#654321"}).Palette()
 	if p[screen.StyleIndent] != "#abcdef" {
 		t.Errorf("indent fallback = %q, want LineNo", p[screen.StyleIndent])
 	}

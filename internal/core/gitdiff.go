@@ -28,38 +28,38 @@ import (
 const emptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 const (
-	baseHead = "HEAD"
-	basePR   = "PR"
+	BaseHead = "HEAD"
+	BasePR   = "PR"
 )
 
 // gitDiff is the state of diff mode.
 type gitDiff struct {
-	on      bool
-	base    string  // baseHead or basePR
+	On      bool
+	Base    string  // baseHead or basePR
 	rev     string  // revision the working tree is compared with
-	pr      *PrInfo // the pull request whose base is compared with (basePR)
-	split   bool
-	files   []*diff.File // in the order of the CHANGES tree
-	rows    []changeRow
-	byAbs   map[string]*diff.File
-	sel     int             // index into files
+	Pr      *PrInfo // the pull request whose base is compared with (basePR)
+	Split   bool
+	Files   []*diff.File // in the order of the CHANGES tree
+	Rows    []changeRow
+	ByAbs   map[string]*diff.File
+	Sel     int             // index into files
 	selDir  string          // path of the selected folder row; "" when a file is selected
 	closed  map[string]bool // folder paths (see changeRow.path) that are collapsed
 	scroll  int             // first row of rows shown
-	loading bool
+	Loading bool
 	err     string
-	gen     int
+	Gen     int
 	ticks   int
-	prSeq   int // bumped when the mode changes; older PR lookups are dropped
+	PrSeq   int // bumped when the mode changes; older PR lookups are dropped
 
 	// files (paths from the repository top) whose working tree differs from
 	// the pull request's head commit; staleAll when that commit is missing
 	stale    map[string]bool
 	staleAll bool
-	rv       prReview
+	Rv       prReview
 }
 
-type changesLoadedMsg struct {
+type ChangesLoadedMsg struct {
 	gen      int
 	base     string
 	rev      string
@@ -73,11 +73,11 @@ type changesLoadedMsg struct {
 // prFoundMsg reports the pull request looked up to compare with. num is the
 // number asked for, 0 for the current branch's. refresh is set for r, which
 // reloads the pull request shown without switching branches.
-type prFoundMsg struct {
-	seq     int
-	num     int
-	refresh bool
-	pr      *PrInfo
+type PrFoundMsg struct {
+	Seq     int
+	Num     int
+	Refresh bool
+	Pr      *PrInfo
 	err     error
 }
 
@@ -90,29 +90,29 @@ type branchPRsMsg struct {
 
 // ---- loading ----
 
-func (a *Core) gitTopDir() string {
-	if a.gitTop != "" {
-		return a.gitTop
+func (a *Core) GitTopDir() string {
+	if a.GitTop != "" {
+		return a.GitTop
 	}
-	return a.root
+	return a.Root
 }
 
 // reloadChanges recomputes the CHANGES list for the current base. The list
 // on screen stays as it is until the result arrives; only showDiff marks it
 // as loading.
-func (a *Core) reloadChanges() []Effect {
-	a.gd.gen++
-	gen, root, base, pr := a.gd.gen, a.root, a.gd.base, a.gd.pr
-	return async(func() Event { return loadChanges(gen, root, base, pr) })
+func (a *Core) ReloadChanges() []Effect {
+	a.Gd.Gen++
+	gen, root, base, pr := a.Gd.Gen, a.Root, a.Gd.Base, a.Gd.Pr
+	return async(func() Event { return LoadChanges(gen, root, base, pr) })
 }
 
-func loadChanges(gen int, root, base string, pr *PrInfo) Event {
-	m := changesLoadedMsg{gen: gen, base: base}
+func LoadChanges(gen int, root, base string, pr *PrInfo) Event {
+	m := ChangesLoadedMsg{gen: gen, base: base}
 	m.rev = emptyTree
 	if out, err := run(root, nil, "git", "rev-parse", "--verify", "-q", "HEAD"); err == nil {
 		m.rev = strings.TrimSpace(string(out))
 	}
-	if base == basePR {
+	if base == BasePR {
 		if pr == nil {
 			m.err = errString(i18n.T("gd.nopr"))
 			return m
@@ -136,7 +136,7 @@ func loadChanges(gen int, root, base string, pr *PrInfo) Event {
 	files := diff.Parse(string(out))
 	top, _ := run(root, nil, "git", "rev-parse", "--show-toplevel")
 	topDir := strings.TrimSpace(string(top))
-	if base == basePR {
+	if base == BasePR {
 		m.stale = map[string]bool{}
 		if names, err := run(root, nil, "git", "diff", "--name-only", "--no-renames", "-z", pr.HeadRefOid); err == nil {
 			for p := range strings.SplitSeq(string(names), "\x00") {
@@ -165,56 +165,56 @@ func loadChanges(gen int, root, base string, pr *PrInfo) Event {
 	return m
 }
 
-func (a *Core) applyChanges(m changesLoadedMsg) {
-	if m.gen != a.gd.gen {
+func (a *Core) ApplyChanges(m ChangesLoadedMsg) {
+	if m.gen != a.Gd.Gen {
 		return
 	}
-	a.gd.loading = false
+	a.Gd.Loading = false
 	if m.err != nil {
-		a.gd.err = m.err.Error()
-		if m.base == basePR {
+		a.Gd.err = m.err.Error()
+		if m.base == BasePR {
 			// fall back to HEAD so the mode stays usable
-			a.gd.base, a.gd.pr = baseHead, nil
+			a.Gd.Base, a.Gd.Pr = BaseHead, nil
 			a.Fail(m.err)
-			a.gd.err = ""
+			a.Gd.err = ""
 		}
 		return
 	}
-	a.gd.err = ""
-	a.gd.rev = m.rev
+	a.Gd.err = ""
+	a.Gd.rev = m.rev
 	if m.pr != nil {
-		a.gd.pr = m.pr
+		a.Gd.Pr = m.pr
 	}
-	a.gd.stale, a.gd.staleAll = m.stale, m.staleAll
-	sel, selDir := "", a.gd.selDir
-	if f := a.gd.file(); f != nil {
+	a.Gd.stale, a.Gd.staleAll = m.stale, m.staleAll
+	sel, selDir := "", a.Gd.selDir
+	if f := a.Gd.File(); f != nil {
 		sel = f.Path()
 	}
-	a.gd.files, a.gd.rows = changeTree(m.files)
-	if !a.gd.hasFolder(selDir) {
+	a.Gd.Files, a.Gd.Rows = changeTree(m.files)
+	if !a.Gd.hasFolder(selDir) {
 		selDir = ""
 	}
-	a.gd.selDir = selDir
-	a.gd.byAbs = map[string]*diff.File{}
-	top := a.gitTopDir()
-	for i, f := range a.gd.files {
-		a.gd.byAbs[filepath.Join(top, f.Path())] = f
+	a.Gd.selDir = selDir
+	a.Gd.ByAbs = map[string]*diff.File{}
+	top := a.GitTopDir()
+	for i, f := range a.Gd.Files {
+		a.Gd.ByAbs[filepath.Join(top, f.Path())] = f
 		if f.Path() == sel && selDir == "" {
-			a.gd.sel = i
+			a.Gd.Sel = i
 		}
 	}
-	a.gd.sel = Clamp(a.gd.sel, 0, max(0, len(a.gd.files)-1))
+	a.Gd.Sel = Clamp(a.Gd.Sel, 0, max(0, len(a.Gd.Files)-1))
 	// a selection that fell into a collapsed folder moves to the folder
-	if vis := a.gd.vis(); len(vis) > 0 {
-		a.gd.selectRow(vis[visPos(vis, a.gd.selRow())])
+	if vis := a.Gd.vis(); len(vis) > 0 {
+		a.Gd.selectRow(vis[visPos(vis, a.Gd.selRow())])
 	}
 }
 
-func (g *gitDiff) file() *diff.File {
-	if g.selDir != "" || g.sel < 0 || g.sel >= len(g.files) {
+func (g *gitDiff) File() *diff.File {
+	if g.selDir != "" || g.Sel < 0 || g.Sel >= len(g.Files) {
 		return nil
 	}
-	return g.files[g.sel]
+	return g.Files[g.Sel]
 }
 
 // ---- the CHANGES tree ----
@@ -280,7 +280,7 @@ func changeTree(files []*diff.File) ([]*diff.File, []changeRow) {
 
 // rowOf returns the row that shows file i.
 func (g *gitDiff) rowOf(i int) int {
-	for r, row := range g.rows {
+	for r, row := range g.Rows {
 		if row.file == i {
 			return r
 		}
@@ -294,7 +294,7 @@ func (g *gitDiff) hasFolder(path string) bool {
 }
 
 func (g *gitDiff) folderRow(path string) int {
-	for r, row := range g.rows {
+	for r, row := range g.Rows {
 		if row.file < 0 && row.path == path {
 			return r
 		}
@@ -305,9 +305,9 @@ func (g *gitDiff) folderRow(path string) int {
 // vis returns the rows shown: all rows except those inside a collapsed
 // folder.
 func (g *gitDiff) vis() []int {
-	out := make([]int, 0, len(g.rows))
+	out := make([]int, 0, len(g.Rows))
 	hide := -1 // depth of the collapsed folder being skipped
-	for r, row := range g.rows {
+	for r, row := range g.Rows {
 		if hide >= 0 {
 			if row.depth > hide {
 				continue
@@ -329,13 +329,13 @@ func (g *gitDiff) selRow() int {
 			return r
 		}
 	}
-	return g.rowOf(g.sel)
+	return g.rowOf(g.Sel)
 }
 
 // selectRow moves the selection onto row r.
 func (g *gitDiff) selectRow(r int) {
-	if row := g.rows[r]; row.file >= 0 {
-		g.sel, g.selDir = row.file, ""
+	if row := g.Rows[r]; row.file >= 0 {
+		g.Sel, g.selDir = row.file, ""
 	} else {
 		g.selDir = row.path
 	}
@@ -368,11 +368,11 @@ func (g *gitDiff) setFolder(r int, open bool) {
 		g.closed = map[string]bool{}
 	}
 	if open {
-		delete(g.closed, g.rows[r].path)
+		delete(g.closed, g.Rows[r].path)
 		return
 	}
-	g.closed[g.rows[r].path] = true
-	for i := r + 1; i < len(g.rows) && g.rows[i].depth > g.rows[r].depth; i++ {
+	g.closed[g.Rows[r].path] = true
+	for i := r + 1; i < len(g.Rows) && g.Rows[i].depth > g.Rows[r].depth; i++ {
 		if i == g.selRow() {
 			g.selectRow(r)
 			return
@@ -383,7 +383,7 @@ func (g *gitDiff) setFolder(r int, open bool) {
 // parentRow is the folder row that holds row r, or -1.
 func (g *gitDiff) parentRow(r int) int {
 	for i := r - 1; i >= 0; i-- {
-		if g.rows[i].file < 0 && g.rows[i].depth < g.rows[r].depth {
+		if g.Rows[i].file < 0 && g.Rows[i].depth < g.Rows[r].depth {
 			return i
 		}
 	}
@@ -411,62 +411,62 @@ func (g *gitDiff) keepSelVisible(h int) {
 
 // openDiff handles Space G (base HEAD) and Space g (base PR): it opens diff
 // mode, closes it when it already compares with base, or switches the base.
-func (a *Core) openDiff(base string) []Effect {
+func (a *Core) OpenDiff(base string) []Effect {
 	if a.single {
 		return nil
 	}
-	if a.gd.on && a.gd.base == base {
+	if a.Gd.On && a.Gd.Base == base {
 		return a.closeDiff()
 	}
-	if base == basePR {
+	if base == BasePR {
 		return a.branchPR()
 	}
-	return a.showDiff(baseHead, nil)
+	return a.ShowDiff(BaseHead, nil)
 }
 
 // diffWithHead opens diff mode against HEAD, or refreshes it when it is
 // already showing HEAD.
 func (a *Core) diffWithHead() []Effect {
-	if a.gd.on && a.gd.base == baseHead {
-		return a.reloadChanges()
+	if a.Gd.On && a.Gd.Base == BaseHead {
+		return a.ReloadChanges()
 	}
-	return a.showDiff(baseHead, nil)
+	return a.ShowDiff(BaseHead, nil)
 }
 
 // toggleGitDiff opens diff mode against HEAD, or closes it.
-func (a *Core) toggleGitDiff() []Effect {
-	if a.gd.on {
+func (a *Core) ToggleGitDiff() []Effect {
+	if a.Gd.On {
 		return a.closeDiff()
 	}
-	return a.showDiff(baseHead, nil)
+	return a.ShowDiff(BaseHead, nil)
 }
 
-func (a *Core) showDiff(base string, pr *PrInfo) []Effect {
-	a.gd.prSeq++
-	a.gd.on = true
-	a.card = nil
-	if pr != nil && a.gd.rv.num != pr.Number {
+func (a *Core) ShowDiff(base string, pr *PrInfo) []Effect {
+	a.Gd.PrSeq++
+	a.Gd.On = true
+	a.Card = nil
+	if pr != nil && a.Gd.Rv.num != pr.Number {
 		// another pull request: what was read or written for the last one goes.
 		// Comparing with HEAD keeps it for coming back.
-		a.gd.rv = prReview{num: pr.Number}
+		a.Gd.Rv = prReview{num: pr.Number}
 	}
-	a.gd.base, a.gd.pr = base, pr
-	a.gd.stale, a.gd.staleAll = nil, false
+	a.Gd.Base, a.Gd.Pr = base, pr
+	a.Gd.stale, a.Gd.staleAll = nil, false
 	a.SetSide(true)
-	a.follow = true
-	cmd := a.reloadChanges()
-	a.gd.loading = true // just opened or switched: nothing trustworthy to show yet
+	a.Follow = true
+	cmd := a.ReloadChanges()
+	a.Gd.Loading = true // just opened or switched: nothing trustworthy to show yet
 	return cmd
 }
 
 func (a *Core) closeDiff() []Effect {
-	a.gd.prSeq++
-	a.gd.on = false
-	a.card = nil
-	if a.focus == FocusChanges {
-		a.focus = FocusExplorer
+	a.Gd.PrSeq++
+	a.Gd.On = false
+	a.Card = nil
+	if a.Focus == FocusChanges {
+		a.Focus = FocusExplorer
 	}
-	a.follow = true
+	a.Follow = true
 	a.InfoText(i18n.T("gd.closed"))
 	return nil
 }
@@ -476,8 +476,8 @@ func (a *Core) closeDiff() []Effect {
 // request when there is none.
 func (a *Core) branchPR() []Effect {
 	a.InfoText(i18n.T("gd.findingpr"))
-	a.gd.prSeq++
-	root, seq, branch := a.root, a.gd.prSeq, a.branch
+	a.Gd.PrSeq++
+	root, seq, branch := a.Root, a.Gd.PrSeq, a.Branch
 	return async(func() Event {
 		prs, err := branchPRs(root, branch)
 		return branchPRsMsg{seq: seq, prs: prs, err: err}
@@ -485,7 +485,7 @@ func (a *Core) branchPR() []Effect {
 }
 
 func (a *Core) handleBranchPRs(m branchPRsMsg) []Effect {
-	if m.seq != a.gd.prSeq {
+	if m.seq != a.Gd.PrSeq {
 		return nil
 	}
 	switch {
@@ -498,52 +498,52 @@ func (a *Core) handleBranchPRs(m branchPRsMsg) []Effect {
 		return a.showPRList(prListMsg{prs: m.prs})
 	}
 	a.InfoText(i18n.T("gd.nobranchpr"))
-	return listPRs(a.root)
+	return listPRs(a.Root)
 }
 
 // findPR looks up pull request num to compare with its base.
 func (a *Core) findPR(num int) []Effect { return a.lookupPR(num, false) }
 
 // refreshPR looks up the pull request shown again (r).
-func (a *Core) refreshPR() []Effect { return a.lookupPR(a.gd.pr.Number, true) }
+func (a *Core) refreshPR() []Effect { return a.lookupPR(a.Gd.Pr.Number, true) }
 
 func (a *Core) lookupPR(num int, refresh bool) []Effect {
 	a.InfoText(i18n.T("gd.findingpr"))
-	a.gd.prSeq++
-	root, seq := a.root, a.gd.prSeq
+	a.Gd.PrSeq++
+	root, seq := a.Root, a.Gd.PrSeq
 	return async(func() Event {
 		pr, err := viewPR(root, num)
-		return prFoundMsg{seq: seq, num: num, refresh: refresh, pr: pr, err: err}
+		return PrFoundMsg{Seq: seq, Num: num, Refresh: refresh, Pr: pr, err: err}
 	})
 }
 
-func (a *Core) handlePRFound(m prFoundMsg) []Effect {
-	if m.seq != a.gd.prSeq {
+func (a *Core) HandlePRFound(m PrFoundMsg) []Effect {
+	if m.Seq != a.Gd.PrSeq {
 		return nil // the mode was closed or switched meanwhile
 	}
 	if m.err != nil {
 		a.Fail(m.err)
-		if g := a.gd; m.refresh && g.on && g.base == basePR && g.pr != nil && g.pr.Number == m.num {
-			return a.reloadChanges() // r: the list still updates without gh
+		if g := a.Gd; m.Refresh && g.On && g.Base == BasePR && g.Pr != nil && g.Pr.Number == m.Num {
+			return a.ReloadChanges() // r: the list still updates without gh
 		}
 		return nil
 	}
-	a.msg = ""
-	pr := m.pr
+	a.Msg = ""
+	pr := m.Pr
 	proceed := func() []Effect {
-		if !m.refresh && pr.HeadRefName != a.branch {
+		if !m.Refresh && pr.HeadRefName != a.Branch {
 			return a.switchToPR(pr)
 		}
-		if g := a.gd; m.refresh && g.on && g.base == basePR && g.pr != nil && g.pr.Number == pr.Number {
+		if g := a.Gd; m.Refresh && g.On && g.Base == BasePR && g.Pr != nil && g.Pr.Number == pr.Number {
 			// r on the pull request already shown: keep the list on screen
-			g.pr = pr
-			return Batch(a.reloadChanges(), a.loadReview())
+			g.Pr = pr
+			return Batch(a.ReloadChanges(), a.loadReview())
 		}
 		return a.openPR(pr)
 	}
-	if rv := a.gd.rv; len(rv.pending) > 0 && rv.num != pr.Number {
-		a.confirm = &yesNo{
-			prompt: fmt.Sprintf(i18n.T("gd.discardcomments"), rv.num, len(rv.pending), pr.Number),
+	if rv := a.Gd.Rv; len(rv.Pending) > 0 && rv.num != pr.Number {
+		a.Confirm = &YesNo{
+			Prompt: fmt.Sprintf(i18n.T("gd.discardcomments"), rv.num, len(rv.Pending), pr.Number),
 			yes:    proceed,
 			no:     func() []Effect { a.Info(i18n.T("gd.cancelopen"), pr.Number); return nil },
 		}
@@ -555,7 +555,7 @@ func (a *Core) handlePRFound(m prFoundMsg) []Effect {
 // openPR compares with the base of pr, whose branch is checked out, and
 // loads its review.
 func (a *Core) openPR(pr *PrInfo) []Effect {
-	return Batch(a.showDiff(basePR, pr), a.loadReview())
+	return Batch(a.ShowDiff(BasePR, pr), a.loadReview())
 }
 
 // switchToPR checks out the branch of pr with `gh pr checkout`, first asking
@@ -565,33 +565,33 @@ func (a *Core) switchToPR(pr *PrInfo) []Effect {
 		a.Fail(fmt.Errorf(i18n.T("gd.saveswitch"), n, pr.Number))
 		return nil
 	}
-	out, err := run(a.root, nil, "git", "status", "--porcelain")
+	out, err := run(a.Root, nil, "git", "status", "--porcelain")
 	if err != nil {
 		a.Fail(err)
 		return nil
 	}
 	if strings.TrimSpace(string(out)) == "" {
-		return a.checkoutPR(pr, false)
+		return a.CheckoutPR(pr, false)
 	}
-	a.confirm = &yesNo{
-		prompt: i18n.T("gd.askstash"),
-		yes:    func() []Effect { return a.checkoutPR(pr, true) },
+	a.Confirm = &YesNo{
+		Prompt: i18n.T("gd.askstash"),
+		yes:    func() []Effect { return a.CheckoutPR(pr, true) },
 		no:     func() []Effect { a.Info(i18n.T("gd.cancelswitch"), pr.Number); return nil },
 	}
 	return nil
 }
 
 // prCheckedOutMsg reports the end of switching to a pull request's branch.
-type prCheckedOutMsg struct {
+type PrCheckedOutMsg struct {
 	seq int
 	pr  *PrInfo
-	err error
+	Err error
 }
 
-func (a *Core) checkoutPR(pr *PrInfo, stash bool) []Effect {
+func (a *Core) CheckoutPR(pr *PrInfo, stash bool) []Effect {
 	a.Info(i18n.T("gd.checkout"), pr.Number)
-	a.gd.prSeq++
-	root, seq := a.root, a.gd.prSeq
+	a.Gd.PrSeq++
+	root, seq := a.Root, a.Gd.PrSeq
 	return async(func() Event {
 		head := func() string {
 			out, _ := run(root, nil, "git", "rev-parse", "HEAD")
@@ -601,7 +601,7 @@ func (a *Core) checkoutPR(pr *PrInfo, stash bool) []Effect {
 		if stash {
 			msg := fmt.Sprintf(i18n.T("gd.stashmsg"), pr.Number)
 			if _, err := run(root, nil, "git", "stash", "push", "-u", "-m", msg); err != nil {
-				return prCheckedOutMsg{seq: seq, pr: pr, err: err}
+				return PrCheckedOutMsg{seq: seq, pr: pr, Err: err}
 			}
 		}
 		_, err := run(root, nil, "gh", "pr", "checkout", fmt.Sprint(pr.Number))
@@ -616,40 +616,40 @@ func (a *Core) checkoutPR(pr *PrInfo, stash bool) []Effect {
 				err = fmt.Errorf(i18n.T("gd.stashed"), err, pr.Number)
 			}
 		}
-		return prCheckedOutMsg{seq: seq, pr: pr, err: err}
+		return PrCheckedOutMsg{seq: seq, pr: pr, Err: err}
 	})
 }
 
-func (a *Core) handlePRCheckedOut(m prCheckedOutMsg) []Effect {
-	if m.seq != a.gd.prSeq {
+func (a *Core) HandlePRCheckedOut(m PrCheckedOutMsg) []Effect {
+	if m.seq != a.Gd.PrSeq {
 		return nil
 	}
 	a.refreshBranch()
-	if m.err != nil {
-		a.Fail(m.err)
+	if m.Err != nil {
+		a.Fail(m.Err)
 		return nil
 	}
 	cmd := a.openPR(m.pr)
-	a.Info(i18n.T("gd.switched"), m.pr.Number, a.branch)
+	a.Info(i18n.T("gd.switched"), m.pr.Number, a.Branch)
 	return cmd
 }
 
 // refreshBranch rereads the branch name and what depends on the checkout.
 func (a *Core) refreshBranch() {
-	if out, err := run(a.root, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
-		a.branch = strings.TrimSpace(string(out))
+	if out, err := run(a.Root, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
+		a.Branch = strings.TrimSpace(string(out))
 	}
 	// the checkout rewrote files: reload the tabs without unsaved edits, even
 	// when watching files is off
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.Kind == TabText && !t.dirty() && t.Buf.DiskChanged() {
 			if err := t.reload(); err != nil {
 				a.Fail(err)
 			}
 		}
 	}
-	a.explorer.refresh()
-	a.explorer.loadGitStatus()
+	a.Explorer.Refresh()
+	a.Explorer.loadGitStatus()
 }
 
 // prPulledMsg reports the end of `git pull` for r.
@@ -660,14 +660,14 @@ type prPulledMsg struct {
 
 // reloadPR handles r with a pull request shown: it pulls first when only
 // the pull request has moved on.
-func (a *Core) reloadPR() []Effect {
-	s := a.gd.rv.sync
-	if !(s.known && s.behind > 0 && s.ahead == 0) {
+func (a *Core) ReloadPR() []Effect {
+	s := a.Gd.Rv.Sync
+	if !(s.Known && s.Behind > 0 && s.Ahead == 0) {
 		return a.refreshPR() // also refreshes the title, state and comments
 	}
 	a.InfoText(i18n.T("gd.pulling"))
-	a.gd.prSeq++
-	root, seq := a.root, a.gd.prSeq
+	a.Gd.PrSeq++
+	root, seq := a.Root, a.Gd.PrSeq
 	return async(func() Event {
 		_, err := run(root, nil, "git", "pull", "--ff-only")
 		return prPulledMsg{seq: seq, err: err}
@@ -675,7 +675,7 @@ func (a *Core) reloadPR() []Effect {
 }
 
 func (a *Core) handlePRPulled(m prPulledMsg) []Effect {
-	if m.seq != a.gd.prSeq {
+	if m.seq != a.Gd.PrSeq {
 		return nil
 	}
 	if m.err != nil {
@@ -689,7 +689,7 @@ func (a *Core) handlePRPulled(m prPulledMsg) []Effect {
 // prPicker lists the repository's pull requests to compare with.
 func (a *Core) prPicker() []Effect {
 	a.InfoText(i18n.T("gd.fetchingprs"))
-	return listPRs(a.root)
+	return listPRs(a.Root)
 }
 
 func (a *Core) showPRList(m prListMsg) []Effect {
@@ -701,42 +701,42 @@ func (a *Core) showPRList(m prListMsg) []Effect {
 		a.InfoText(i18n.T("gd.noopenprs"))
 		return nil
 	}
-	a.msg = ""
-	items := make([]paletteItem, len(m.prs))
+	a.Msg = ""
+	items := make([]PaletteItem, len(m.prs))
 	for i, p := range m.prs {
 		draft := ""
 		if p.IsDraft {
 			draft = " [draft]"
 		}
-		items[i] = paletteItem{label: fmt.Sprintf("#%d %s%s", p.Number, p.Title, draft), detail: "@" + p.Author.Login + "  " + p.HeadRefName}
+		items[i] = PaletteItem{Label: fmt.Sprintf("#%d %s%s", p.Number, p.Title, draft), Detail: "@" + p.Author.Login + "  " + p.HeadRefName}
 	}
-	return a.pal.pick(i18n.T("gd.prs"), items, func(i int) []Effect { return a.findPR(m.prs[i].Number) })
+	return a.Pal.Pick(i18n.T("gd.prs"), items, func(i int) []Effect { return a.findPR(m.prs[i].Number) })
 }
 
 func (a *Core) ToggleSplit() {
-	a.gd.split = !a.gd.split
-	a.follow = true
+	a.Gd.Split = !a.Gd.Split
+	a.Follow = true
 }
 
 // gitDiffCommand handles ":gitdiff [on|off|split|unified]".
 func (a *Core) gitDiffCommand(arg string) []Effect {
 	f := strings.Fields(arg)
 	if len(f) == 0 {
-		return a.openDiff(baseHead)
+		return a.OpenDiff(BaseHead)
 	}
 	switch f[0] {
 	case "on":
 		return a.diffWithHead()
 	case "off":
-		if a.gd.on {
+		if a.Gd.On {
 			return a.closeDiff()
 		}
 	case "split":
-		a.gd.split = true
-		a.follow = true
+		a.Gd.Split = true
+		a.Follow = true
 	case "unified":
-		a.gd.split = false
-		a.follow = true
+		a.Gd.Split = false
+		a.Follow = true
 	default:
 		a.Fail(errString(i18n.T("gd.usage")))
 	}
@@ -745,17 +745,17 @@ func (a *Core) gitDiffCommand(arg string) []Effect {
 
 // ---- opening files from the list ----
 
-func (a *Core) openChange(f *diff.File) []Effect {
-	abs := filepath.Join(a.gitTopDir(), f.Path())
+func (a *Core) OpenChange(f *diff.File) []Effect {
+	abs := filepath.Join(a.GitTopDir(), f.Path())
 	if f.Status == "deleted" {
 		a.Info(i18n.T("gd.deleted"), f.Path())
 		return nil
 	}
-	n := len(a.tabs)
-	if !a.openFile(abs) {
+	n := len(a.Tabs)
+	if !a.OpenFile(abs) {
 		return nil
 	}
-	if len(a.tabs) > n {
+	if len(a.Tabs) > n {
 		// a file already open keeps where the cursor was
 		a.showFirstChange(a.CurText())
 	}
@@ -782,23 +782,23 @@ func (a *Core) showFirstChange(t *Tab) {
 	b.Anchor = nil
 	b.Cur = b.ClampPos(buffer.Pos{Row: row})
 	b.ScrollRow = dv.scrollFor(first - 3)
-	a.follow = true
+	a.Follow = true
 }
 
 func (a *Core) handleChangesKey(msg Key) []Effect {
-	g := &a.gd
+	g := &a.Gd
 	key := msg.String()
-	if a.pending == "space v" {
-		a.pending = ""
-		return a.reviewKey(key)
+	if a.Pending == "space v" {
+		a.Pending = ""
+		return a.ReviewKey(key)
 	}
-	if a.pending == "space w" {
-		a.pending = ""
+	if a.Pending == "space w" {
+		a.Pending = ""
 		return a.windowKey(key)
 	}
-	if a.pending == " " {
-		a.pending = ""
-		return a.spaceMode(key)
+	if a.Pending == " " {
+		a.Pending = ""
+		return a.SpaceMode(key)
 	}
 	switch key {
 	case "up", "k":
@@ -806,11 +806,11 @@ func (a *Core) handleChangesKey(msg Key) []Effect {
 	case "down", "j":
 		g.move(1)
 	case "home", "g":
-		g.move(-len(g.rows))
+		g.move(-len(g.Rows))
 	case "end", "G":
-		g.move(len(g.rows))
+		g.move(len(g.Rows))
 	case "h", "left":
-		if len(g.rows) == 0 {
+		if len(g.Rows) == 0 {
 			break
 		}
 		r := g.selRow()
@@ -822,30 +822,30 @@ func (a *Core) handleChangesKey(msg Key) []Effect {
 	case "l", "right":
 		if g.selDir != "" {
 			g.setFolder(g.selRow(), true)
-		} else if f := g.file(); f != nil {
-			return a.openChange(f)
+		} else if f := g.File(); f != nil {
+			return a.OpenChange(f)
 		}
 	case "enter", "o":
 		if g.selDir != "" {
 			g.setFolder(g.selRow(), g.closed[g.selDir])
-		} else if f := g.file(); f != nil {
-			return a.openChange(f)
+		} else if f := g.File(); f != nil {
+			return a.OpenChange(f)
 		}
 	case "s":
 		a.ToggleSplit()
 	case "r", "R":
-		if g.base == basePR && g.pr != nil {
-			return a.reloadPR()
+		if g.Base == BasePR && g.Pr != nil {
+			return a.ReloadPR()
 		}
-		return a.reloadChanges()
+		return a.ReloadChanges()
 	case "space":
-		a.pending = " "
+		a.Pending = " "
 	case ":":
 		return a.openCmdline(":")
 	case "tab":
 		return a.SetFocus(FocusExplorer)
 	case "esc", "q":
-		if len(a.tabs) > 0 {
+		if len(a.Tabs) > 0 {
 			return a.SetFocus(FocusEditor)
 		}
 		return a.SetFocus(FocusExplorer)
@@ -858,7 +858,7 @@ func (a *Core) handleChangesKey(msg Key) []Effect {
 // bodyH is the number of rows between the diff mode header and the help and
 // status lines.
 func (a *Core) BodyH() int {
-	if a.gd.on {
+	if a.Gd.On {
 		return max(0, a.ScreenH()-3)
 	}
 	return max(0, a.ScreenH()-1)
@@ -868,7 +868,7 @@ func (a *Core) BodyH() int {
 // (7/10 by default) in diff mode, all of it otherwise. The tree and CHANGES
 // each keep at least MinSideSectionH rows.
 func (a *Core) ExplorerH() int {
-	if a.gd.on {
+	if a.Gd.On {
 		body := a.BodyH()
 		if a.ExplorerShare() <= 0 {
 			return body * 7 / 10
@@ -895,7 +895,7 @@ func statusLetter(f *diff.File) (string, screen.Style) {
 // baseChip is the short name of the base: DIFF for HEAD, PR for a pull
 // request's base.
 func (a *Core) baseChip() string {
-	if a.gd.base == basePR {
+	if a.Gd.Base == BasePR {
 		return "PR"
 	}
 	return "DIFF"
@@ -904,10 +904,10 @@ func (a *Core) baseChip() string {
 // fitChanges scrolls the list so that the selected row is in view, in a list
 // whose body is body rows high. It is the part of drawing the list that
 // changes state, so it runs before drawing (fit).
-func (a *Core) fitChanges(body int) {
-	g := &a.gd
+func (a *Core) FitChanges(body int) {
+	g := &a.Gd
 	vis := g.vis()
-	if p := visPos(vis, g.selRow()); len(g.rows) > 0 {
+	if p := visPos(vis, g.selRow()); len(g.Rows) > 0 {
 		if p < g.scroll {
 			g.scroll = p
 		}
@@ -922,22 +922,22 @@ func (a *Core) fitChanges(body int) {
 // wide and h rows high with the title, scrolled as fitChanges left it. It
 // changes nothing.
 func (a *Core) ChangesScreen(w, h int) screen.Changes {
-	g := &a.gd
-	title := fmt.Sprintf(" CHANGES (%d)", len(g.files))
+	g := &a.Gd
+	title := fmt.Sprintf(" CHANGES (%d)", len(g.Files))
 	pr := a.PrShown()
 	if pr {
-		n := g.rv.viewedCount(g.files)
-		if long := title + fmt.Sprintf("  viewed %d/%d", n, len(g.files)); ansi.StringWidth(long+a.baseChip()+" ") <= w {
+		n := g.Rv.viewedCount(g.Files)
+		if long := title + fmt.Sprintf("  viewed %d/%d", n, len(g.Files)); ansi.StringWidth(long+a.baseChip()+" ") <= w {
 			title = long
 		} else {
-			title += fmt.Sprintf(" ✓%d/%d", n, len(g.files))
+			title += fmt.Sprintf(" ✓%d/%d", n, len(g.Files))
 		}
 	}
 	vis := g.vis()
 	ch := screen.Changes{Title: title, Chip: a.baseChip() + " ", Top: g.scroll, Total: len(vis)}
-	if len(g.rows) == 0 {
+	if len(g.Rows) == 0 {
 		switch {
-		case g.loading:
+		case g.Loading:
 			ch.Empty = i18n.T("gd.loading")
 		case g.err != "":
 			ch.Empty = i18n.T("gd.error") + g.err
@@ -950,7 +950,7 @@ func (a *Core) ChangesScreen(w, h int) screen.Changes {
 		if idx >= len(vis) {
 			break
 		}
-		row := g.rows[vis[idx]]
+		row := g.Rows[vis[idx]]
 		r := screen.ChangesRow{Depth: row.depth, Name: row.name}
 		if row.file < 0 {
 			r.Dir, r.Closed = true, g.closed[row.path]
@@ -958,16 +958,16 @@ func (a *Core) ChangesScreen(w, h int) screen.Changes {
 			ch.Rows = append(ch.Rows, r)
 			continue
 		}
-		f := g.files[row.file]
-		r.Selected = row.file == g.sel && g.selDir == ""
+		f := g.Files[row.file]
+		r.Selected = row.file == g.Sel && g.selDir == ""
 		r.Letter, r.LetterStyle = statusLetter(f)
 		r.Added, r.Deleted = f.Added, f.Deleted
 		if pr {
-			r.Viewed = g.rv.viewed[f.Path()]
+			r.Viewed = g.Rv.Viewed[f.Path()]
 			if a.IsStale(f.Path()) {
 				r.Name += " ✎"
 			}
-			r.Threads = len(g.rv.threadsIn(f.Path()))
+			r.Threads = len(g.Rv.threadsIn(f.Path()))
 		}
 		ch.Rows = append(ch.Rows, r)
 	}
@@ -979,26 +979,26 @@ func (a *Core) ChangesScreen(w, h int) screen.Changes {
 // compareBase is the branch checked out and the pull request that diff mode
 // compares with (nil when it compares with HEAD).
 func (a *Core) CompareBase() (branch string, pr *PrInfo) {
-	if a.gd.base == basePR {
-		pr = a.gd.pr
+	if a.Gd.Base == BasePR {
+		pr = a.Gd.Pr
 	}
-	return a.branch, pr
+	return a.Branch, pr
 }
 
 // diffHelp lists the keys usable in diff mode right now.
 func (a *Core) DiffHelp() string {
 	bases := i18n.T("gd.bar.pr")
-	if a.gd.base == basePR {
+	if a.Gd.Base == BasePR {
 		bases = i18n.T("gd.bar.prreview")
 	}
-	if !a.helix && a.focus != FocusChanges {
+	if !a.Helix && a.Focus != FocusChanges {
 		// the VS Code keymap has no Space menu in the editor
 		bases = i18n.T("gd.bar.head")
-		if a.gd.base == basePR {
+		if a.Gd.Base == BasePR {
 			bases = i18n.T("gd.bar.headvsc")
 		}
 	}
-	if a.focus == FocusChanges {
+	if a.Focus == FocusChanges {
 		return bases + i18n.T("gd.bar.list")
 	}
 	return bases + i18n.T("gd.bar.editable")
@@ -1047,22 +1047,22 @@ type DiffView struct {
 	valid   bool
 	Rows    []dispRow
 	NewIdx  []int  // display row of every buffer line
-	changed []bool // buffer lines that are part of a change
+	Changed []bool // buffer lines that are part of a change
 
 	// changed parts of the lines paired up in a hunk, by line index
 	oldSpans, newSpans map[int][]diff.Span
 	inline             map[[2]string]inlinePair // reused across builds
 
-	hunks []screen.Hunk // runs of rows of one kind of change, for the change bar
+	Hunks []screen.Hunk // runs of rows of one kind of change, for the change bar
 }
 
 // diffFile returns the changed file shown by tab t in diff mode, or nil
 // when t is shown as a plain editor.
 func (a *Core) DiffFile(t *Tab) *diff.File {
-	if !a.gd.on || t == nil || t.Kind != TabText || t.Buf.Path == "" {
+	if !a.Gd.On || t == nil || t.Kind != TabText || t.Buf.Path == "" {
 		return nil
 	}
-	f := a.gd.byAbs[t.Buf.Path]
+	f := a.Gd.ByAbs[t.Buf.Path]
 	if f == nil || f.Status == "binary" || f.Status == "deleted" {
 		return nil
 	}
@@ -1077,7 +1077,7 @@ func (a *Core) DiffSingle(f *diff.File) bool {
 
 // splitShown reports whether the current tab's diff has a base pane.
 func (a *Core) SplitShown() bool {
-	return a.gd.split && !a.DiffSingle(a.DiffFile(a.CurText()))
+	return a.Gd.Split && !a.DiffSingle(a.DiffFile(a.CurText()))
 }
 
 // diffFor returns the up-to-date diff view of t, or nil outside diff mode.
@@ -1086,25 +1086,25 @@ func (a *Core) DiffFor(t *Tab) *DiffView {
 	if f == nil {
 		return nil
 	}
-	if t.dv == nil || t.dv.rev != a.gd.rev || t.dv.Single != a.DiffSingle(f) {
-		dv := &DiffView{rev: a.gd.rev, Single: a.DiffSingle(f)}
+	if t.Dv == nil || t.Dv.rev != a.Gd.rev || t.Dv.Single != a.DiffSingle(f) {
+		dv := &DiffView{rev: a.Gd.rev, Single: a.DiffSingle(f)}
 		dv.path = f.OldPath
 		if dv.path == "" {
 			dv.path = f.Path()
 		}
 		if f.Status != "added" {
-			if out, err := run(a.gitTopDir(), nil, "git", "show", a.gd.rev+":"+dv.path); err == nil {
+			if out, err := run(a.GitTopDir(), nil, "git", "show", a.Gd.rev+":"+dv.path); err == nil {
 				dv.old = splitText(string(out))
 			}
 		}
 		if m := lexers.Match(filepath.Base(f.Path())); m != nil {
 			dv.lexer = chroma.Coalesce(m)
 		}
-		t.dv = dv
+		t.Dv = dv
 	}
-	dv := t.dv
-	if !dv.valid || dv.ver != t.Buf.Version || dv.split != a.gd.split {
-		dv.build(t, a.gd.split)
+	dv := t.Dv
+	if !dv.valid || dv.ver != t.Buf.Version || dv.split != a.Gd.Split {
+		dv.build(t, a.Gd.Split)
 	}
 	return dv
 }
@@ -1119,10 +1119,10 @@ func (dv *DiffView) build(t *Tab, split bool) {
 		lines[i] = string(l)
 	}
 	dv.ver, dv.split, dv.valid = t.Buf.Version, split, true
-	defer func() { dv.hunks = hunksOf(dv.Rows) }()
+	defer func() { dv.Hunks = hunksOf(dv.Rows) }()
 	dv.Rows = dv.Rows[:0]
 	dv.NewIdx = make([]int, len(lines))
-	dv.changed = make([]bool, len(lines))
+	dv.Changed = make([]bool, len(lines))
 	dv.oldSpans, dv.newSpans = map[int][]diff.Span{}, map[int][]diff.Span{}
 	prevInline := dv.inline
 	dv.inline = map[[2]string]inlinePair{}
@@ -1157,7 +1157,7 @@ func (dv *DiffView) build(t *Tab, split bool) {
 		add := func(o, n int) {
 			if n >= 0 {
 				dv.NewIdx[n] = len(dv.Rows)
-				dv.changed[n] = true
+				dv.Changed[n] = true
 			}
 			dv.Rows = append(dv.Rows, dispRow{old: o, New: n, changed: true, hunk: kind})
 		}
@@ -1325,7 +1325,7 @@ func (a *Core) BuildDiffPanes(t *Tab, dv *DiffView, g DiffGeom, o PaneOpts) []sc
 	two := dv.split && !dv.Single
 	start := dv.Start(b.ScrollRow)
 	info := func(side screen.DiffSide) *screen.DiffInfo {
-		return &screen.DiffInfo{Side: side, Top: start, Rows: len(dv.Rows), Hunks: dv.hunks}
+		return &screen.DiffInfo{Side: side, Top: start, Rows: len(dv.Rows), Hunks: dv.Hunks}
 	}
 
 	right := textPaneHead(t, g.RightW, g.H, o)
@@ -1348,7 +1348,7 @@ func (a *Core) BuildDiffPanes(t *Tab, dv *DiffView, g DiffGeom, o PaneOpts) []sc
 		}
 	}
 
-	colors := t.hl.Colors(b)
+	colors := t.Hl.Colors(b)
 	unit := guideUnit(b, o)
 	topOld := true
 	for i := 0; i < g.H && start+i < len(dv.Rows); i++ {
@@ -1438,7 +1438,7 @@ func tokenColor(tt chroma.TokenType) string {
 		return c
 	}
 	c := ""
-	if e := chromaStyle.Get(tt); e.Colour.IsSet() {
+	if e := ChromaStyle.Get(tt); e.Colour.IsSet() {
 		c = e.Colour.String()
 	}
 	tokenColors[tt] = c
@@ -1447,15 +1447,15 @@ func tokenColor(tt chroma.TokenType) string {
 
 // afterSave refreshes what depends on the files on disk.
 func (a *Core) afterSave() []Effect {
-	if a.gd.on {
-		return a.reloadChanges()
+	if a.Gd.On {
+		return a.ReloadChanges()
 	}
 	return nil
 }
 
 func (a *Core) focusChangesList() []Effect {
-	if !a.gd.on {
-		return a.toggleGitDiff()
+	if !a.Gd.On {
+		return a.ToggleGitDiff()
 	}
 	a.SetSide(true)
 	return a.SetFocus(FocusChanges)

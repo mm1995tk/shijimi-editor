@@ -9,7 +9,7 @@ import (
 // Token positions are UTF-16; the roles are per rune.
 func TestSemanticRolesSurrogatePair(t *testing.T) {
 	// UTF-16: a=0, 😀=1-2, b=3, c=4
-	got := semanticRoles([]string{"a😀bc"}, []lsp.SemanticToken{
+	got := SemanticRoles([]string{"a😀bc"}, []lsp.SemanticToken{
 		{Line: 0, StartChar: 3, Length: 2, Type: "function"},
 	})
 	want := []string{"", "", "Function", "Function"}
@@ -21,7 +21,7 @@ func TestSemanticRolesSurrogatePair(t *testing.T) {
 }
 
 func TestSemanticRolesJapanese(t *testing.T) {
-	got := semanticRoles([]string{"あいう := 1"}, []lsp.SemanticToken{
+	got := SemanticRoles([]string{"あいう := 1"}, []lsp.SemanticToken{
 		{Line: 0, StartChar: 0, Length: 3, Type: "variable"},
 	})
 	if got[0][0] != "Name" || got[0][2] != "Name" || got[0][3] != "" {

@@ -11,10 +11,10 @@ import (
 
 // signaturePopup shows the parameters of the call the cursor is in, just above
 // the cursor. It lives while the cursor stays on the row it was opened on.
-type signaturePopup struct {
+type SignaturePopup struct {
 	tab  *Tab
 	row  int
-	help *lsp.SignatureHelp
+	Help *lsp.SignatureHelp
 }
 
 type signatureMsg struct {
@@ -48,7 +48,7 @@ func (a *Core) signatureHelp(manual bool) []Effect {
 	if manual {
 		return a.lspRequest("signatureHelpProvider", req)
 	}
-	c := a.lsp.client(t, "signatureHelpProvider")
+	c := a.Lsp.client(t, "signatureHelpProvider")
 	if c == nil {
 		return nil
 	}
@@ -58,7 +58,7 @@ func (a *Core) signatureHelp(manual bool) []Effect {
 
 func (a *Core) showSignature(m signatureMsg) {
 	t := a.CurText()
-	if t == nil || t != m.tab || m.seq != a.sigSeq || t.Buf.Cur.Row != m.pos.Row || a.mode != ModeInsert && a.helix && !m.manual {
+	if t == nil || t != m.tab || m.seq != a.sigSeq || t.Buf.Cur.Row != m.pos.Row || a.Mode != ModeInsert && a.Helix && !m.manual {
 		return
 	}
 	if m.help == nil {
@@ -68,7 +68,7 @@ func (a *Core) showSignature(m signatureMsg) {
 		}
 		return
 	}
-	a.sig = &signaturePopup{tab: t, row: m.pos.Row, help: m.help}
+	a.sig = &SignaturePopup{tab: t, row: m.pos.Row, Help: m.help}
 }
 
 // signatureTyped keeps the popup in step with a typed rune: ")" closes it, a
@@ -78,7 +78,7 @@ func (a *Core) signatureTyped(t *Tab, r rune) []Effect {
 		a.closeSignature()
 		return nil
 	}
-	cs, _ := a.lsp.clientsFor(t)
+	cs, _ := a.Lsp.clientsFor(t)
 	for _, c := range cs {
 		if c.IsSignatureTrigger(r) {
 			return a.signatureHelp(false)
@@ -90,10 +90,10 @@ func (a *Core) signatureTyped(t *Tab, r rune) []Effect {
 // overlay is the popup as a screen.Overlay: one line, the signature with the
 // active parameter in its own span, anchored at the cursor. It changes
 // nothing. Drawing it as cells is drawSignature's work.
-func (s *signaturePopup) overlay() screen.Overlay {
-	rs := []rune(s.help.Label)
+func (s *SignaturePopup) Overlay() screen.Overlay {
+	rs := []rune(s.Help.Label)
 	pre, hi, post := rs, []rune(nil), []rune(nil)
-	if h := s.help; h.ParamStart >= 0 && h.ParamEnd <= len(rs) && h.ParamStart < h.ParamEnd {
+	if h := s.Help; h.ParamStart >= 0 && h.ParamEnd <= len(rs) && h.ParamStart < h.ParamEnd {
 		pre, hi, post = rs[:h.ParamStart], rs[h.ParamStart:h.ParamEnd], rs[h.ParamEnd:]
 	}
 	var ln screen.Line

@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"go/parser"
@@ -7,9 +7,9 @@ import (
 	"testing"
 )
 
-// widthFree are the files that are meant to move to internal/core, which does
-// not use the width of terminal cells (docs/design/gui-protocol.md). Add a file
-// here once its widths have moved to the TUI.
+// widthFree are the files in internal/core that already work without the width
+// of terminal cells (docs/design/gui-protocol.md). Add a file here once its
+// widths have moved to the TUI.
 var widthFree = []string{"hoverparse.go", "lineinput.go"}
 
 func TestWidthFreeFiles(t *testing.T) {

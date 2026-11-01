@@ -19,7 +19,7 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 		cmd = a.diffWithHead()
 		resp = ctl.Response{OK: true}
 		if m.Req.Path != "" {
-			if !a.openFile(m.Req.Path) {
+			if !a.OpenFile(m.Req.Path) {
 				resp = ctl.Response{Error: i18n.T("ctl.cantopen") + m.Req.Path}
 				break
 			}
@@ -42,10 +42,10 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 
 // reviewToRoot turns a repository-relative review path into one relative to
 // the editor root, which is the terminal's working directory.
-func (a *Core) reviewToRoot(p string) string {
-	base := a.gitTop
+func (a *Core) ReviewToRoot(p string) string {
+	base := a.GitTop
 	if base == "" {
-		base = a.root
+		base = a.Root
 	}
 	return a.Rel(filepath.Join(base, p))
 }
@@ -97,17 +97,17 @@ func (a *Core) ctlExec(line string) (ctl.Response, []Effect) {
 	if agentNeedsHuman(name, arg) {
 		return ctl.Response{Error: ":" + name + i18n.T("ctl.needarg")}, nil
 	}
-	a.msg, a.msgErr = "", false
-	cmd := a.execCommand(line)
+	a.Msg, a.MsgErr = "", false
+	cmd := a.ExecCommand(line)
 	// Only a key press clears this, so it must not carry over to a person.
 	a.confirmClose = false
-	if a.pal.open || a.cmdOpen {
-		a.pal.close()
+	if a.Pal.Open || a.CmdOpen {
+		a.Pal.Close()
 		a.closeCmdline()
 		return ctl.Response{Error: ":" + name + i18n.T("ctl.needhuman")}, cmd
 	}
-	if a.msgErr {
-		return ctl.Response{Error: a.msg}, cmd
+	if a.MsgErr {
+		return ctl.Response{Error: a.Msg}, cmd
 	}
-	return ctl.Response{OK: true, Message: a.msg}, cmd
+	return ctl.Response{OK: true, Message: a.Msg}, cmd
 }

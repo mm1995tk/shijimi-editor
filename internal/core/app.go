@@ -17,10 +17,10 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/proxy"
 )
 
-type focus int
+type Focus int
 
 const (
-	FocusEditor focus = iota
+	FocusEditor Focus = iota
 	FocusExplorer
 	FocusTerminal
 	FocusChanges // the CHANGES list in diff mode
@@ -36,65 +36,65 @@ type span struct{ x0, x1 int }
 type Core struct {
 	FrontEnd // what draws it (internal/tui.App)
 
-	root      string
-	gitTop    string
-	cfg       *config.Config
+	Root      string
+	GitTop    string
+	Cfg       *config.Config
 	keymap    helixKeymap
 	lastIns   *insertRecord // what "." repeats
 	recIns    *insertRecord // the insert being recorded, until Esc
 	replaying bool          // "." is running; do not record
 	host      Host          // the GUI of `shj serve`; nil in the TUI
-	lsp       *lspManager
-	focus     focus
-	explorer  *explorer
+	Lsp       *lspManager
+	Focus     Focus
+	Explorer  *Explorer
 	treeTicks int // watch ticks since the tree was last reloaded
 	proxy     *proxy.Manager
-	pal       *palette
+	Pal       *Palette
 	wsSyms    []lsp.Symbol // rows of the project symbol picker
 	wsClient  *lsp.Client  // server the project symbol picker asks
-	search    *SearchPanel
-	tabs      []*Tab
+	Search    *SearchPanel
+	Tabs      []*Tab
 	jumps     []jumpLoc // positions to return to (Ctrl+O / Ctrl+I)
 	jumpIdx   int       // where in jumps the user is; len(jumps) = at the newest
-	active    int
-	branch    string
-	gd        gitDiff
-	confirm   *yesNo    // a y/n question on the status line
-	card      *prCard   // a review thread shown like a hover
-	composer  *composer // the editor for a review comment
+	Active    int
+	Branch    string
+	Gd        gitDiff
+	Confirm   *YesNo    // a y/n question on the status line
+	Card      *PrCard   // a review thread shown like a hover
+	Composer  *composer // the editor for a review comment
 
 	// pane sizes picked by the user (0 = automatic), see resize.go
 
 	// Helix modal state
-	helix          bool
-	mode           EditMode
-	pending        string
+	Helix          bool
+	Mode           EditMode
+	Pending        string
 	count          int
 	lastSearch     string
 	searchBackward bool
 
 	// bottom command line (":" commands and "/" search)
-	cmdOpen  bool
+	CmdOpen  bool
 	cmdKind  string
 	cmdInput InputField
 	cmdFrom  buffer.Pos
 
 	// VS Code-style find bar
-	findOpen   bool
-	findInput  InputField
+	FindOpen   bool
+	FindInput  InputField
 	findOrigin buffer.Pos
 
-	comp        *completionPopup
-	sig         *signaturePopup
+	Comp        *CompletionPopup
+	sig         *SignaturePopup
 	sigSeq      int // bumped on every request and close; stale replies are dropped
 	snip        *snippetSession
-	hoverText   string
-	hoverScroll int
-	hoverAt     *buffer.Pos // the character a mouse-triggered popup hangs from (a place in the file, not on the screen); nil = at the cursor
-	hoverWord   WordSpan    // word the pointer's pending or open hover belongs to
-	hoverCell   ScreenPt    // last cell the pointer rested on without a button
-	hoverSeq    int         // bumped on every input; stale dwell timers and replies are dropped
-	ctx         *CtxPreview
+	HoverText   string
+	HoverScroll int
+	HoverAt     *buffer.Pos // the character a mouse-triggered popup hangs from (a place in the file, not on the screen); nil = at the cursor
+	HoverWord   WordSpan    // word the pointer's pending or open hover belongs to
+	HoverCell   ScreenPt    // last cell the pointer rested on without a button
+	HoverSeq    int         // bumped on every input; stale dwell timers and replies are dropped
+	Ctx         *CtxPreview
 
 	// Claude Code IDE integration (see ide.go)
 	ide       *ide.Server
@@ -103,35 +103,35 @@ type Core struct {
 	selTrack  SelectionTracker
 
 	// suggestion panel and ACP agent (see suggest.go, agent.go)
-	ag *agentState
-	sg suggestState
+	Ag *agentState
+	Sg suggestState
 
-	clipboard    string
-	msg          string
-	msgErr       bool
+	Clipboard    string
+	Msg          string
+	MsgErr       bool
 	confirmQuit  bool
 	confirmClose bool
-	follow       bool // scroll to the cursor on next render
+	Follow       bool // scroll to the cursor on next render
 	dragging     bool
-	hold         holdScroll
-	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
-	lineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
+	Hold         holdScroll
+	HoldSeq      int  // tells the current hold-scroll tick chain from stale ones
+	LineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
 
 	single  bool // 単体編集モード: 1 つのファイルだけを開き、閉じたら終了する
-	prevTab *Tab // the file shown before the current one (ga / Ctrl+Tab)
+	PrevTab *Tab // the file shown before the current one (ga / Ctrl+Tab)
 	// side by side editor panes (see window.go): the focused pane shows cur(), the
 	// other one shows other, and pane is the side (0 = left) the focused one is on
-	split     bool
-	pane      int
-	other     *Tab
+	Split     bool
+	Pane      int
+	Other     *Tab
 	otherPrev *Tab // prevTab of the other pane
 	seenTab   *Tab // the file shown when the last event was handled
-	commands  []command
-	mermaid   map[string]*previewJob
-	mdImages  map[string]*previewJob // images in the Markdown preview, by file path
+	Commands  []Command
+	Mermaid   map[string]*previewJob
+	MdImages  map[string]*previewJob // images in the Markdown preview, by file path
 	// previewGen counts finished jobs, so the preview is drawn again when one
 	// finishes
-	previewGen int
+	PreviewGen int
 }
 
 // New creates the core rooted at dir, optionally opening file. fe is the front
@@ -142,34 +142,34 @@ func New(fe FrontEnd, dir, file string) *Core {
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &Core{
 		FrontEnd: fe,
-		root:     abs,
-		cfg:      cfg,
-		lsp:      newLSPManager(cfg, abs),
-		explorer: newExplorer(abs),
+		Root:     abs,
+		Cfg:      cfg,
+		Lsp:      newLSPManager(cfg, abs),
+		Explorer: NewExplorer(abs),
 		proxy:    proxy.NewManager(),
-		pal:      newPalette(),
-		search:   newSearchPanel(cfg.Search),
-		focus:    FocusExplorer,
-		helix:    cfg.Editor.Keymap != "vscode",
-		gd:       gitDiff{split: true},
-		ag:       newAgentState(),
+		Pal:      newPalette(),
+		Search:   newSearchPanel(cfg.Search),
+		Focus:    FocusExplorer,
+		Helix:    cfg.Editor.Keymap != "vscode",
+		Gd:       gitDiff{Split: true},
+		Ag:       newAgentState(),
 	}
-	a.explorer.icons = cfg.Editor.FileIcons
+	a.Explorer.Icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
-		a.SetPalette(themeOrDefault(cfg.Editor.Theme))
+		a.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
 	}
-	a.findInput = newInputField(0)
-	a.findInput.Placeholder = i18n.T("app.find")
-	a.cmdInput = newInputField(0)
-	a.commands = defaultCommands()
+	a.FindInput = NewInputField(0)
+	a.FindInput.Placeholder = i18n.T("app.find")
+	a.cmdInput = NewInputField(0)
+	a.Commands = defaultCommands()
 	if out, err := run(abs, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
-		a.branch = strings.TrimSpace(string(out))
+		a.Branch = strings.TrimSpace(string(out))
 	}
 	if out, err := run(abs, nil, "git", "rev-parse", "--show-toplevel"); err == nil {
-		a.gitTop = strings.TrimSpace(string(out))
+		a.GitTop = strings.TrimSpace(string(out))
 	}
-	if file != "" && a.openFile(file) {
-		a.focus = FocusEditor
+	if file != "" && a.OpenFile(file) {
+		a.Focus = FocusEditor
 	}
 	a.loadKeymap()
 	return a
@@ -186,31 +186,31 @@ func NewSingle(fe FrontEnd, file string) (*Core, error) {
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &Core{
 		FrontEnd: fe,
-		root:     dir,
-		cfg:      cfg,
-		lsp:      newLSPManager(cfg, dir),
-		explorer: &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
+		Root:     dir,
+		Cfg:      cfg,
+		Lsp:      newLSPManager(cfg, dir),
+		Explorer: &Explorer{root: &Node{Name: filepath.Base(dir), Path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
 		proxy:    proxy.NewManager(),
-		pal:      newPalette(),
-		search:   newSearchPanel(cfg.Search),
-		focus:    FocusEditor,
-		helix:    cfg.Editor.Keymap != "vscode",
-		gd:       gitDiff{split: true},
-		ag:       newAgentState(),
+		Pal:      newPalette(),
+		Search:   newSearchPanel(cfg.Search),
+		Focus:    FocusEditor,
+		Helix:    cfg.Editor.Keymap != "vscode",
+		Gd:       gitDiff{Split: true},
+		Ag:       newAgentState(),
 		single:   true,
 	}
 	if cfg.Editor.Theme != "" {
-		a.SetPalette(themeOrDefault(cfg.Editor.Theme))
+		a.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
 	}
-	a.findInput = newInputField(0)
-	a.findInput.Placeholder = i18n.T("app.find")
-	a.cmdInput = newInputField(0)
+	a.FindInput = NewInputField(0)
+	a.FindInput.Placeholder = i18n.T("app.find")
+	a.cmdInput = NewInputField(0)
 	// The command palette is not reachable in this mode; with no commands, it
 	// cannot open the views single-file mode leaves out even if it were.
-	if !a.openFile(abs) {
+	if !a.OpenFile(abs) {
 		msg := i18n.T("app.cantopen")
-		if a.msg != "" {
-			msg = a.msg
+		if a.Msg != "" {
+			msg = a.Msg
 		}
 		return nil, errors.New(msg)
 	}
@@ -221,7 +221,7 @@ func NewSingle(fe FrontEnd, file string) (*Core, error) {
 // typing reports whether the editor accepts typed text right now: VS Code
 // mode, or Helix insert mode.
 func (a *Core) typing() bool {
-	return a.focus == FocusEditor && a.CurText() != nil && (!a.helix || a.mode == ModeInsert)
+	return a.Focus == FocusEditor && a.CurText() != nil && (!a.Helix || a.Mode == ModeInsert)
 }
 
 // singleBlocked reports whether key opens something single-file mode does not
@@ -252,8 +252,8 @@ func singleBlockedCommand(name string) bool {
 
 // Close stops language servers; call after the program exits.
 func (a *Core) Close() {
-	a.lsp.stopAll()
-	if a.ag.client != nil {
+	a.Lsp.stopAll()
+	if a.Ag.Client != nil {
 		a.stopAgent()
 	}
 	a.MuxClose()
@@ -263,10 +263,10 @@ func (a *Core) Close() {
 // ---- helpers ----
 
 func (a *Core) Cur() *Tab {
-	if a.active < 0 || a.active >= len(a.tabs) {
+	if a.Active < 0 || a.Active >= len(a.Tabs) {
 		return nil
 	}
-	return a.tabs[a.active]
+	return a.Tabs[a.Active]
 }
 
 func (a *Core) CurText() *Tab {
@@ -279,23 +279,23 @@ func (a *Core) CurText() *Tab {
 func (a *Core) withBuf(f func(b *buffer.Buffer)) {
 	if t := a.CurText(); t != nil {
 		f(t.Buf)
-		a.follow = true
+		a.Follow = true
 	}
 }
 
 func (a *Core) Info(format string, args ...any) {
-	a.msg, a.msgErr = fmt.Sprintf(format, args...), false
+	a.Msg, a.MsgErr = fmt.Sprintf(format, args...), false
 }
 
 func (a *Core) Fail(err error) {
-	a.msg, a.msgErr = err.Error(), true
+	a.Msg, a.MsgErr = err.Error(), true
 }
 
-func (a *Core) SetFocus(f focus) []Effect {
+func (a *Core) SetFocus(f Focus) []Effect {
 	if a.single {
 		f = FocusEditor
 	}
-	a.focus = f
+	a.Focus = f
 	a.TermBlur()
 	if f == FocusTerminal {
 		return a.TermFocus()
@@ -303,28 +303,28 @@ func (a *Core) SetFocus(f focus) []Effect {
 	return nil
 }
 
-func (a *Core) Rel(p string) string { return RelTo(a.root, p) }
+func (a *Core) Rel(p string) string { return RelTo(a.Root, p) }
 
 func (a *Core) addTab(t *Tab) {
-	a.tabs = append(a.tabs, t)
-	a.active = len(a.tabs) - 1
-	a.follow = true
-	a.mode = ModeNormal
+	a.Tabs = append(a.Tabs, t)
+	a.Active = len(a.Tabs) - 1
+	a.Follow = true
+	a.Mode = ModeNormal
 }
 
 // reveal selects path in the file tree, which single-file mode does not have.
 func (a *Core) reveal(path string) {
 	if !a.single {
-		a.explorer.reveal(path)
+		a.Explorer.Reveal(path)
 	}
 }
 
-func (a *Core) openFile(path string) bool {
+func (a *Core) OpenFile(path string) bool {
 	abs, _ := filepath.Abs(path)
-	for i, t := range a.tabs {
+	for i, t := range a.Tabs {
 		if t.Path() == abs {
-			a.active = i
-			t.transient = false
+			a.Active = i
+			t.Transient = false
 			a.reveal(abs)
 			return true
 		}
@@ -335,7 +335,7 @@ func (a *Core) openFile(path string) bool {
 			return false
 		}
 		if isImage(abs) {
-			a.addTab(&Tab{Kind: TabImage, img: newImageView(abs)})
+			a.addTab(&Tab{Kind: TabImage, Img: NewImageView(abs)})
 			a.reveal(abs)
 			return true
 		}
@@ -349,7 +349,7 @@ func (a *Core) openFile(path string) bool {
 		a.Fail(err)
 		return false
 	}
-	t := newTab(b)
+	t := NewTab(b)
 	a.addTab(t)
 	a.attachLSP(t)
 	a.reveal(abs)
@@ -360,36 +360,36 @@ func (a *Core) openFile(path string) bool {
 // previous transient tab. A file already open is just shown as it is.
 func (a *Core) openTransient(path string) bool {
 	abs, _ := filepath.Abs(path)
-	for i, t := range a.tabs {
+	for i, t := range a.Tabs {
 		if t.Path() == abs {
-			a.active = i
+			a.Active = i
 			a.reveal(abs)
 			return true
 		}
 	}
-	old := slices.IndexFunc(a.tabs, func(t *Tab) bool { return t.transient })
-	n := len(a.tabs)
-	if !a.openFile(abs) || len(a.tabs) == n {
+	old := slices.IndexFunc(a.Tabs, func(t *Tab) bool { return t.Transient })
+	n := len(a.Tabs)
+	if !a.OpenFile(abs) || len(a.Tabs) == n {
 		return false
 	}
-	t := a.tabs[a.active]
-	t.transient = true
+	t := a.Tabs[a.Active]
+	t.Transient = true
 	if t.Kind == TabText {
 		t.transientVer = t.Buf.Version
 	}
 	if old >= 0 {
 		a.dropTab(old)
-		a.tabs = slices.Insert(a.tabs[:len(a.tabs)-1], old, t)
-		a.active = old
+		a.Tabs = slices.Insert(a.Tabs[:len(a.Tabs)-1], old, t)
+		a.Active = old
 	}
 	return true
 }
 
 // keepTransients turns transient tabs that have been edited into normal tabs.
 func (a *Core) KeepTransients() {
-	for _, t := range a.tabs {
-		if t.transient && t.Kind == TabText && t.Buf.Version != t.transientVer {
-			t.transient = false
+	for _, t := range a.Tabs {
+		if t.Transient && t.Kind == TabText && t.Buf.Version != t.transientVer {
+			t.Transient = false
 		}
 	}
 }
@@ -410,22 +410,22 @@ func (a *Core) saveTab(t *Tab) []Effect {
 		a.Fail(err)
 		return nil
 	}
-	cs, _ := a.lsp.clientsFor(t)
+	cs, _ := a.Lsp.clientsFor(t)
 	a.SyncLSP()
 	for _, c := range cs {
 		c.DidSave(t.Buf.Path)
 	}
-	a.explorer.loadGitStatus()
+	a.Explorer.loadGitStatus()
 	a.Info(i18n.T("app.saved"), a.Rel(t.Buf.Path))
 	return a.afterSave()
 }
 
 func (a *Core) saveAll() []Effect {
 	n := 0
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.dirty() && t.Buf.Path != "" {
 			a.saveTab(t)
-			if a.msgErr {
+			if a.MsgErr {
 				return nil
 			}
 			n++
@@ -440,11 +440,11 @@ func (a *Core) saveAs() []Effect {
 	if t == nil {
 		return nil
 	}
-	initial := a.explorer.targetDir() + string(filepath.Separator)
+	initial := a.Explorer.targetDir() + string(filepath.Separator)
 	if t.Buf.Path != "" {
 		initial = t.Buf.Path
 	}
-	return a.pal.ask(i18n.T("app.saveas"), initial, func(v string) []Effect {
+	return a.Pal.Ask(i18n.T("app.saveas"), initial, func(v string) []Effect {
 		return a.saveTo(t, v)
 	})
 }
@@ -455,17 +455,17 @@ func (a *Core) saveTo(t *Tab, v string) []Effect {
 		return nil
 	}
 	if !filepath.IsAbs(v) {
-		v = filepath.Join(a.root, v)
+		v = filepath.Join(a.Root, v)
 	}
 	isNew := t.Buf.Path != v
 	t.Buf.Path = v
-	t.hl = newHighlighter(v)
+	t.Hl = NewHighlighter(v)
 	cmd := a.saveTab(t)
 	if isNew {
 		a.attachLSP(t)
 	}
-	a.explorer.refresh()
-	a.explorer.reveal(v)
+	a.Explorer.Refresh()
+	a.Explorer.Reveal(v)
 	return cmd
 }
 
@@ -473,18 +473,18 @@ func (a *Core) newFile() []Effect {
 	if a.single {
 		return nil
 	}
-	a.addTab(newTab(buffer.New()))
+	a.addTab(NewTab(buffer.New()))
 	return a.SetFocus(FocusEditor)
 }
 
 func (a *Core) newFileIn(dir string) []Effect {
-	return a.pal.ask(i18n.T("app.newfile"), dir+string(filepath.Separator), func(v string) []Effect {
+	return a.Pal.Ask(i18n.T("app.newfile"), dir+string(filepath.Separator), func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || strings.HasSuffix(v, string(filepath.Separator)) {
 			return nil
 		}
 		if !filepath.IsAbs(v) {
-			v = filepath.Join(a.root, v)
+			v = filepath.Join(a.Root, v)
 		}
 		if _, err := os.Stat(v); err != nil {
 			if err := os.MkdirAll(filepath.Dir(v), 0o755); err != nil {
@@ -496,8 +496,8 @@ func (a *Core) newFileIn(dir string) []Effect {
 				return nil
 			}
 		}
-		a.explorer.refresh()
-		if a.openFile(v) {
+		a.Explorer.Refresh()
+		if a.OpenFile(v) {
 			return a.SetFocus(FocusEditor)
 		}
 		return nil
@@ -505,31 +505,31 @@ func (a *Core) newFileIn(dir string) []Effect {
 }
 
 func (a *Core) newFolder() []Effect {
-	return a.pal.ask(i18n.T("app.newfolder"), a.explorer.targetDir()+string(filepath.Separator), func(v string) []Effect {
+	return a.Pal.Ask(i18n.T("app.newfolder"), a.Explorer.targetDir()+string(filepath.Separator), func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" {
 			return nil
 		}
 		if !filepath.IsAbs(v) {
-			v = filepath.Join(a.root, v)
+			v = filepath.Join(a.Root, v)
 		}
 		if err := os.MkdirAll(v, 0o755); err != nil {
 			a.Fail(err)
 			return nil
 		}
-		a.explorer.refresh()
-		a.explorer.reveal(v)
+		a.Explorer.Refresh()
+		a.Explorer.Reveal(v)
 		return nil
 	})
 }
 
 func (a *Core) renameFile() []Effect {
-	n := a.explorer.selected()
+	n := a.Explorer.selected()
 	if n == nil {
 		return nil
 	}
-	old := n.path
-	return a.pal.ask(i18n.T("app.newname"), old, func(v string) []Effect {
+	old := n.Path
+	return a.Pal.Ask(i18n.T("app.newname"), old, func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
@@ -545,31 +545,31 @@ func (a *Core) renameFile() []Effect {
 			a.Fail(err)
 			return nil
 		}
-		for _, t := range a.tabs {
+		for _, t := range a.Tabs {
 			switch {
 			case t.Kind == TabText && t.Buf.Path == old:
 				t.Buf.Path = v
-				t.hl = newHighlighter(v)
+				t.Hl = NewHighlighter(v)
 			case t.Kind == TabText && strings.HasPrefix(t.Buf.Path, old+string(filepath.Separator)):
 				t.Buf.Path = v + t.Buf.Path[len(old):]
-			case t.Kind == TabImage && t.img.path == old:
-				t.img.path = v
+			case t.Kind == TabImage && t.Img.Path == old:
+				t.Img.Path = v
 			}
 		}
-		a.explorer.refresh()
-		a.explorer.reveal(v)
+		a.Explorer.Refresh()
+		a.Explorer.Reveal(v)
 		a.Info(i18n.T("app.renamed"), a.Rel(v))
 		return nil
 	})
 }
 
 func (a *Core) deleteFile() []Effect {
-	n := a.explorer.selected()
+	n := a.Explorer.selected()
 	if n == nil {
 		return nil
 	}
-	target := n.path
-	return a.pal.ask(fmt.Sprintf(i18n.T("app.confirmdelete"), a.Rel(target)), "", func(v string) []Effect {
+	target := n.Path
+	return a.Pal.Ask(fmt.Sprintf(i18n.T("app.confirmdelete"), a.Rel(target)), "", func(v string) []Effect {
 		if strings.TrimSpace(strings.ToLower(v)) != "y" {
 			return nil
 		}
@@ -577,59 +577,59 @@ func (a *Core) deleteFile() []Effect {
 			a.Fail(err)
 			return nil
 		}
-		a.explorer.refresh()
+		a.Explorer.Refresh()
 		a.Info(i18n.T("app.deleted"), a.Rel(target))
 		return nil
 	})
 }
 
-func (a *Core) closeTab(force bool) []Effect {
+func (a *Core) CloseTab(force bool) []Effect {
 	t := a.Cur()
 	if t == nil {
 		return nil
 	}
 	if !force && t.dirty() && !a.confirmClose {
 		a.confirmClose = true
-		a.msg, a.msgErr = i18n.T("app.closeunsaved"), true
+		a.Msg, a.MsgErr = i18n.T("app.closeunsaved"), true
 		return nil
 	}
 	a.confirmClose = false
-	keep := a.other
-	a.dropTab(a.active)
+	keep := a.Other
+	a.dropTab(a.Active)
 	switch {
-	case a.split && keep != nil:
+	case a.Split && keep != nil:
 		// the pane of the closed file goes, and the other file fills the area
-		a.split, a.pane, a.other, a.otherPrev = false, 0, nil, nil
-		a.active = a.tabIndex(keep)
-	case a.active >= len(a.tabs):
-		a.active = len(a.tabs) - 1
+		a.Split, a.Pane, a.Other, a.otherPrev = false, 0, nil, nil
+		a.Active = a.tabIndex(keep)
+	case a.Active >= len(a.Tabs):
+		a.Active = len(a.Tabs) - 1
 	}
-	a.comp = nil
-	a.mode = ModeNormal
+	a.Comp = nil
+	a.Mode = ModeNormal
 	if a.single {
-		return a.quit()
+		return a.Quit()
 	}
-	if len(a.tabs) == 0 && a.focus == FocusEditor {
-		a.focus = FocusExplorer
+	if len(a.Tabs) == 0 && a.Focus == FocusEditor {
+		a.Focus = FocusExplorer
 	}
 	return nil
 }
 
 // dropTab removes tab i and releases what it holds; the caller fixes active.
 func (a *Core) dropTab(i int) {
-	t := a.tabs[i]
-	if t.Kind == TabText && t.lang != nil {
+	t := a.Tabs[i]
+	if t.Kind == TabText && t.Lang != nil {
 		a.detachLSP(t)
 	}
-	if t.img != nil {
-		t.img.close()
+	if t.Img != nil {
+		t.Img.Close()
 	}
-	a.tabs = append(a.tabs[:i], a.tabs[i+1:]...)
+	a.Tabs = append(a.Tabs[:i], a.Tabs[i+1:]...)
 }
 
-func (a *Core) switchLast() {
-	i := slices.Index(a.tabs, a.prevTab)
-	if a.prevTab == nil || i < 0 || i == a.active {
+func (a *Core) SwitchLast() {
+	i := slices.Index(a.Tabs, a.PrevTab)
+	if a.PrevTab == nil || i < 0 || i == a.Active {
 		a.InfoText(i18n.T("app.nolast"))
 		return
 	}
@@ -642,31 +642,31 @@ func (a *Core) switchLast() {
 func (a *Core) TrackLast() {
 	cur := a.Cur()
 	if cur != a.seenTab {
-		if a.seenTab != nil && slices.Contains(a.tabs, a.seenTab) {
-			a.prevTab = a.seenTab
+		if a.seenTab != nil && slices.Contains(a.Tabs, a.seenTab) {
+			a.PrevTab = a.seenTab
 		}
 		a.seenTab = cur
 	}
 }
 
-func (a *Core) toggleSide() {
+func (a *Core) ToggleSide() {
 	if a.single {
 		return
 	}
 	a.SetSide(!a.SideShown())
-	if !a.SideShown() && (a.focus == FocusExplorer || a.focus == FocusChanges) {
-		a.focus = FocusEditor
+	if !a.SideShown() && (a.Focus == FocusExplorer || a.Focus == FocusChanges) {
+		a.Focus = FocusEditor
 	}
 }
 
-func (a *Core) toggleTerm() []Effect {
+func (a *Core) ToggleTerm() []Effect {
 	if a.single {
 		return nil
 	}
 	if a.MuxOn() {
 		return a.MuxToggle()
 	}
-	if a.TermShown() && a.focus == FocusTerminal {
+	if a.TermShown() && a.Focus == FocusTerminal {
 		a.SetTerm(false)
 		return a.SetFocus(FocusEditor)
 	}
@@ -676,7 +676,7 @@ func (a *Core) toggleTerm() []Effect {
 
 func (a *Core) dirtyCount() int {
 	n := 0
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.dirty() {
 			n++
 		}
@@ -684,10 +684,10 @@ func (a *Core) dirtyCount() int {
 	return n
 }
 
-func (a *Core) quit() []Effect {
+func (a *Core) Quit() []Effect {
 	if d := a.dirtyCount(); d > 0 && !a.confirmQuit {
 		a.confirmQuit = true
-		a.msg, a.msgErr = fmt.Sprintf(i18n.T("app.quitunsaved"), d), true
+		a.Msg, a.MsgErr = fmt.Sprintf(i18n.T("app.quitunsaved"), d), true
 		return nil
 	}
 	a.TermCloseAll()
@@ -702,52 +702,52 @@ func (a *Core) quit() []Effect {
 // read, so the shell would get it as typed text such as "3u".
 func (a *Core) exit() []Effect { return []Effect{Quit{}} }
 
-func (a *Core) openFind() []Effect {
+func (a *Core) OpenFind() []Effect {
 	t := a.CurText()
 	if t == nil {
 		return nil
 	}
-	a.findOpen = true
-	a.focus = FocusEditor
+	a.FindOpen = true
+	a.Focus = FocusEditor
 	a.findOrigin = t.Buf.Cur
 	if sel := t.Buf.SelectedText(); sel != "" && !strings.Contains(sel, "\n") {
-		a.findInput.SetValue(sel)
+		a.FindInput.SetValue(sel)
 	}
-	a.findInput.CursorEnd()
-	a.findInput.Focus()
+	a.FindInput.CursorEnd()
+	a.FindInput.Focus()
 	return nil
 }
 
 func (a *Core) closeFind() {
-	a.findOpen = false
-	a.findInput.Blur()
+	a.FindOpen = false
+	a.FindInput.Blur()
 }
 
 func (a *Core) findNext(from buffer.Pos, backward bool) {
 	t := a.CurText()
-	q := a.findInput.Value()
+	q := a.FindInput.Value()
 	if t == nil || q == "" {
 		return
 	}
 	p, ok := t.Buf.Find(q, from, backward)
 	if !ok {
-		a.msg, a.msgErr = i18n.T("app.notfound")+q, true
+		a.Msg, a.MsgErr = i18n.T("app.notfound")+q, true
 		return
 	}
-	a.msg = ""
+	a.Msg = ""
 	t.Buf.SelectRange(p, buffer.Pos{Row: p.Row, Col: p.Col + len([]rune(q))})
-	a.follow = true
+	a.Follow = true
 }
 
 func (a *Core) toggleComment() {
 	if t := a.CurText(); t != nil {
 		t.Buf.ToggleComment(commentPrefix(t.Buf.Path))
-		a.follow = true
+		a.Follow = true
 	}
 }
 
 func (a *Core) CopyText(s string) {
-	a.clipboard = s
+	a.Clipboard = s
 	if a.host != nil {
 		a.host.WriteClipboard(s)
 		return
@@ -788,7 +788,7 @@ func (a *Core) pasteText() string {
 	if s, ok := ReadSystemClipboard(); ok {
 		return s
 	}
-	return a.clipboard
+	return a.Clipboard
 }
 
 // ---- update ----
@@ -796,23 +796,23 @@ func (a *Core) pasteText() string {
 // scheduleAutoSave starts a timer for every named tab edited since the last
 // call. The timer is ignored if the buffer changed again before it fires.
 func (a *Core) ScheduleAutoSave() []Effect {
-	if !a.cfg.Editor.AutoSave {
+	if !a.Cfg.Editor.AutoSave {
 		return nil
 	}
 	var effs []Effect
-	for _, t := range a.tabs {
-		if !t.dirty() || t.Buf.Path == "" || t.autoVer == t.Buf.Version {
+	for _, t := range a.Tabs {
+		if !t.dirty() || t.Buf.Path == "" || t.AutoVer == t.Buf.Version {
 			continue
 		}
-		t.autoVer = t.Buf.Version
-		effs = append(effs, StartTimer{After: a.cfg.Editor.AutoSaveDelay, Fire: AutoSaveDue{tab: t, ver: t.Buf.Version}})
+		t.AutoVer = t.Buf.Version
+		effs = append(effs, StartTimer{After: a.Cfg.Editor.AutoSaveDelay, Fire: AutoSaveDue{tab: t, ver: t.Buf.Version}})
 	}
 	return effs
 }
 
 func (a *Core) handleAutoSave(m AutoSaveDue) []Effect {
 	t := m.tab
-	if !t.dirty() || t.Buf.Version != m.ver || t.Buf.Path == "" || !slices.Contains(a.tabs, t) {
+	if !t.dirty() || t.Buf.Version != m.ver || t.Buf.Path == "" || !slices.Contains(a.Tabs, t) {
 		return nil
 	}
 	if t.Buf.DiskChanged() {
@@ -841,7 +841,7 @@ func (a *Core) handle(msg any) []Effect {
 		return a.HandleEvent(msg)
 	case Resized:
 		a.SetScreen(msg.W, msg.H)
-		a.follow = true
+		a.Follow = true
 	case ReleasesReported:
 		a.SetReleasesReported(msg.On)
 	case KeyReleased:
@@ -859,27 +859,27 @@ func (a *Core) handleInput(in Input) []Effect {
 	case Mouse:
 		return a.HandleMouse(msg)
 	case Key:
-		a.ag.sel = agentSel{}
-		if a.hold.buf != nil && !a.hold.continues(msg) {
+		a.Ag.Sel = AgentSel{}
+		if a.Hold.Buf != nil && !a.Hold.continues(msg) {
 			a.stopHoldScroll() // another key ends the scroll
 		}
 		a.lineFlipOtherKey(msg)
-		a.hoverSeq++ // a pending mouse hover is stale once the user types
-		a.hoverWord = WordSpan{}
+		a.HoverSeq++ // a pending mouse hover is stale once the user types
+		a.HoverWord = WordSpan{}
 		// Fast typing can deliver several runes in one message; Helix-style
 		// commands need them one at a time.
 		if utf8.RuneCountInString(msg.Text) > 1 {
 			var cmds [][]Effect
 			for _, r := range msg.Text {
-				cmds = append(cmds, a.handleKey(Key{Code: r, Text: string(r), Mod: msg.Mod}))
+				cmds = append(cmds, a.HandleKey(Key{Code: r, Text: string(r), Mod: msg.Mod}))
 			}
 			return Batch(cmds...)
 		}
-		return a.handleKey(msg)
+		return a.HandleKey(msg)
 	case Paste:
-		a.hoverSeq++
-		a.hoverWord = WordSpan{}
-		return a.handlePaste(msg)
+		a.HoverSeq++
+		a.HoverWord = WordSpan{}
+		return a.HandlePaste(msg)
 	case Composition:
 		// Nothing uses a composition yet: a terminal never composes, and a GUI sends
 		// the committed text as input.key (its text), so taking it here too would
@@ -900,7 +900,7 @@ func (a *Core) handleLSPEvent(e lsp.Event) []Effect {
 		}
 	case e.Document != "":
 		if strings.HasPrefix(e.Document, "file:") {
-			if a.openFile(lsp.Path(e.Document)) {
+			if a.OpenFile(lsp.Path(e.Document)) {
 				return a.SetFocus(FocusEditor)
 			}
 			return nil
@@ -908,27 +908,27 @@ func (a *Core) handleLSPEvent(e lsp.Event) []Effect {
 		return a.openURL(e.Document)
 	case e.URI != "":
 		p := lsp.Path(e.URI)
-		if a.lsp.diags[p] == nil {
-			a.lsp.diags[p] = map[string][]lsp.Diagnostic{}
+		if a.Lsp.Diags[p] == nil {
+			a.Lsp.Diags[p] = map[string][]lsp.Diagnostic{}
 		}
-		a.lsp.diags[p][e.Server] = e.Diagnostics
+		a.Lsp.Diags[p][e.Server] = e.Diagnostics
 	}
 	return nil
 }
 
-func (a *Core) handleKey(msg Key) []Effect {
+func (a *Core) HandleKey(msg Key) []Effect {
 	key := msg.String()
-	a.msg = ""
+	a.Msg = ""
 	if a.sig != nil && (key == "esc" || !a.sigVisible()) {
 		a.closeSignature()
 	}
-	if a.hoverAt != nil {
+	if a.HoverAt != nil {
 		// A popup the pointer opened never takes keys: it closes whatever has the
 		// focus, and the key goes on to it.
-		a.hoverText, a.hoverAt = "", nil
+		a.HoverText, a.HoverAt = "", nil
 	}
-	if a.card != nil && a.card.byPointer {
-		a.card = nil // the same for a comment card the pointer opened
+	if a.Card != nil && a.Card.ByPointer {
+		a.Card = nil // the same for a comment card the pointer opened
 	}
 	if key != "ctrl+q" {
 		a.confirmQuit = false
@@ -937,36 +937,36 @@ func (a *Core) handleKey(msg Key) []Effect {
 		a.confirmClose = false
 	}
 
-	if a.search.open {
-		return a.handleSearchKey(msg)
+	if a.Search.Open {
+		return a.HandleSearchKey(msg)
 	}
-	if a.pal.open {
+	if a.Pal.Open {
 		return a.handlePaletteKey(msg)
 	}
-	if a.composer != nil {
-		return a.handleComposerKey(msg)
+	if a.Composer != nil {
+		return a.HandleComposerKey(msg)
 	}
-	if a.confirm != nil {
+	if a.Confirm != nil {
 		return a.handleConfirmKey(key)
 	}
 	if a.props.Len() > 0 {
 		return a.handleProposalKey(msg)
 	}
-	if a.ctx != nil {
-		return a.handleContextKey(msg)
+	if a.Ctx != nil {
+		return a.HandleContextKey(msg)
 	}
-	if a.cmdOpen {
+	if a.CmdOpen {
 		return a.handleCmdlineKey(msg)
 	}
 	if a.InResizeMode() {
 		return a.HandleResizeKey(key)
 	}
-	if a.card != nil {
+	if a.Card != nil {
 		if cmd, handled := a.handleCardKey(msg); handled {
 			return cmd
 		}
 	}
-	if a.hoverText != "" {
+	if a.HoverText != "" {
 		if d := hoverScrollKey(key); d != 0 {
 			a.ScrollHover(d)
 			return nil
@@ -975,12 +975,12 @@ func (a *Core) handleKey(msg Key) []Effect {
 			a.CopyHover()
 			return nil
 		}
-		a.hoverText = ""
+		a.HoverText = ""
 		if key == "esc" {
 			return nil
 		}
 	}
-	if a.comp != nil {
+	if a.Comp != nil {
 		if cmd, handled := a.handleCompletionKey(msg); handled {
 			return cmd
 		}
@@ -991,48 +991,48 @@ func (a *Core) handleKey(msg Key) []Effect {
 		}
 	}
 
-	if a.focus == FocusTerminal {
+	if a.Focus == FocusTerminal {
 		// The shell owns the keyboard; only these stay global. Ctrl+J is not
 		// one of them: many terminals send Shift+Enter as LF, which arrives as
 		// ctrl+j, and the program in the shell takes it as a newline.
 		switch key {
 		case "ctrl+q":
-			return a.quit()
+			return a.Quit()
 		case "ctrl+`":
-			return a.toggleTerm()
+			return a.ToggleTerm()
 		case "alt+i":
 			return a.toggleAgentPanel()
 		case "alt+r":
 			return a.StartResize()
 		case "f1":
-			return a.pal.show(a.root, ">")
+			return a.Pal.Show(a.Root, ">")
 		}
 		a.TermKey(msg)
 		return nil
 	}
 
-	insert := a.helix && a.mode == ModeInsert && a.focus == FocusEditor
+	insert := a.Helix && a.Mode == ModeInsert && a.Focus == FocusEditor
 	if a.single && singleBlocked(key, a.typing()) {
 		return nil
 	}
 	switch key {
 	case "ctrl+q":
-		return a.quit()
+		return a.Quit()
 	case "ctrl+s":
 		return a.save()
 	case "ctrl+p":
-		return a.pal.show(a.root, "")
+		return a.Pal.Show(a.Root, "")
 	case "f1":
-		return a.pal.show(a.root, ">")
+		return a.Pal.Show(a.Root, ">")
 	case "ctrl+k":
 		if !insert {
-			return a.pal.show(a.root, ">")
+			return a.Pal.Show(a.Root, ">")
 		}
 	case "ctrl+b":
-		a.toggleSide()
+		a.ToggleSide()
 		return nil
 	case "ctrl+`":
-		return a.toggleTerm()
+		return a.ToggleTerm()
 	case "ctrl+j", "ctrl+space":
 		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
 		// mode, or Helix insert mode.
@@ -1041,12 +1041,12 @@ func (a *Core) handleKey(msg Key) []Effect {
 		}
 		typing := a.typing()
 		if key == "ctrl+j" || !typing {
-			return a.toggleTerm()
+			return a.ToggleTerm()
 		}
 	case "ctrl+g":
-		return a.openDiff(baseHead)
+		return a.OpenDiff(BaseHead)
 	case "ctrl+e":
-		if a.focus == FocusExplorer && len(a.tabs) > 0 {
+		if a.Focus == FocusExplorer && len(a.Tabs) > 0 {
 			return a.SetFocus(FocusEditor)
 		}
 		a.SetSide(true)
@@ -1057,10 +1057,10 @@ func (a *Core) handleKey(msg Key) []Effect {
 		}
 	case "ctrl+w":
 		if !insert {
-			return a.closeTab(false)
+			return a.CloseTab(false)
 		}
 	case "ctrl+tab":
-		a.switchLast()
+		a.SwitchLast()
 		return nil
 	case "ctrl+\\":
 		return a.toggleEditorSplit()
@@ -1069,16 +1069,16 @@ func (a *Core) handleKey(msg Key) []Effect {
 	case "ctrl+2":
 		return a.FocusPane(1)
 	case "alt+a":
-		return a.sendContext()
+		return a.SendContext()
 	case "alt+i":
 		return a.toggleAgentPanel()
 	case "alt+r":
 		return a.StartResize()
 	}
 
-	switch a.focus {
+	switch a.Focus {
 	case FocusExplorer:
-		return a.handleExplorerKey(msg)
+		return a.HandleExplorerKey(msg)
 	case FocusChanges:
 		return a.handleChangesKey(msg)
 	case FocusAgent:
@@ -1097,36 +1097,36 @@ func (a *Core) handleKey(msg Key) []Effect {
 	}
 	switch t.Kind {
 	case TabImage:
-		if a.pending == " " {
-			a.pending = ""
+		if a.Pending == " " {
+			a.Pending = ""
 			if key == "esc" {
 				return nil
 			}
-			return a.spaceMode(key)
+			return a.SpaceMode(key)
 		}
-		if a.pending == "space v" {
-			a.pending = ""
-			return a.reviewKey(key)
+		if a.Pending == "space v" {
+			a.Pending = ""
+			return a.ReviewKey(key)
 		}
-		if a.pending == "space w" {
-			a.pending = ""
+		if a.Pending == "space w" {
+			a.Pending = ""
 			return a.windowKey(key)
 		}
 		switch key {
 		case "q", "esc":
-			return a.closeTab(true)
+			return a.CloseTab(true)
 		case ":":
 			return a.openCmdline(":")
 		case "space":
-			a.pending = " "
+			a.Pending = " "
 		}
 		return nil
 	}
-	if a.findOpen {
+	if a.FindOpen {
 		return a.handleFindKey(msg)
 	}
-	if a.helix {
-		return a.handleHelixKey(msg)
+	if a.Helix {
+		return a.HandleHelixKey(msg)
 	}
 	if t := a.CurText(); a.FullPreview(t) && !fullPreviewEditorKey(msg) {
 		a.InfoText(i18n.T("app.fullpreview"))
@@ -1136,38 +1136,38 @@ func (a *Core) handleKey(msg Key) []Effect {
 }
 
 func (a *Core) handleCompletionKey(msg Key) ([]Effect, bool) {
-	c := a.comp
+	c := a.Comp
 	switch msg.String() {
 	case "up", "ctrl+p", "shift+tab":
-		c.sel = (c.sel - 1 + len(c.items)) % len(c.items)
+		c.Sel = (c.Sel - 1 + len(c.Items)) % len(c.Items)
 		return nil, true
 	case "down", "ctrl+n":
-		c.sel = (c.sel + 1) % len(c.items)
+		c.Sel = (c.Sel + 1) % len(c.Items)
 		return nil, true
 	case "tab", "enter":
 		a.acceptCompletion()
 		return nil, true
 	case "esc":
-		a.comp = nil
-		return nil, !a.helix
+		a.Comp = nil
+		return nil, !a.Helix
 	}
 	return nil, false
 }
 
 func (a *Core) handlePaletteKey(msg Key) []Effect {
-	p := a.pal
+	p := a.Pal
 	switch msg.String() {
 	case "esc", "ctrl+c":
-		p.close()
+		p.Close()
 		return nil
 	case "up", "ctrl+p", "shift+tab":
-		if p.sel > 0 {
-			p.sel--
+		if p.Sel > 0 {
+			p.Sel--
 		}
 		return nil
 	case "down", "ctrl+n", "tab":
-		if p.sel < len(p.items)-1 {
-			p.sel++
+		if p.Sel < len(p.items)-1 {
+			p.Sel++
 		}
 		return nil
 	case "enter":
@@ -1178,24 +1178,24 @@ func (a *Core) handlePaletteKey(msg Key) []Effect {
 
 // paletteInput passes a key or a paste to the palette's query.
 func (a *Core) paletteInput(msg Input) []Effect {
-	p := a.pal
-	old := p.input.Value()
-	a.lineInputUpdate(&p.input, msg)
-	p.sel = 0
-	p.filter(a.commands)
-	if p.picking && p.live && p.input.Value() != old {
+	p := a.Pal
+	old := p.Input.Value()
+	a.lineInputUpdate(&p.Input, msg)
+	p.Sel = 0
+	p.filter(a.Commands)
+	if p.picking && p.live && p.Input.Value() != old {
 		return p.queryLater()
 	}
 	return nil
 }
 
 func (a *Core) submitPalette() []Effect {
-	p := a.pal
-	v := p.input.Value()
-	p.close()
+	p := a.Pal
+	v := p.Input.Value()
+	p.Close()
 	if p.picking {
-		if p.sel < len(p.items) && p.onPick != nil {
-			return p.onPick(p.items[p.sel].index)
+		if p.Sel < len(p.items) && p.OnPick != nil {
+			return p.OnPick(p.items[p.Sel].index)
 		}
 		return nil
 	}
@@ -1207,16 +1207,16 @@ func (a *Core) submitPalette() []Effect {
 	}
 	switch {
 	case strings.HasPrefix(v, ":"):
-		return a.execCommand(strings.TrimSpace(v[1:]))
+		return a.ExecCommand(strings.TrimSpace(v[1:]))
 	case strings.HasPrefix(v, ">"):
-		if p.sel < len(p.items) {
-			return a.commands[p.items[p.sel].index].run(a)
+		if p.Sel < len(p.items) {
+			return a.Commands[p.items[p.Sel].index].run(a)
 		}
 	default:
-		if p.sel < len(p.items) {
-			f := p.files[p.items[p.sel].index]
+		if p.Sel < len(p.items) {
+			f := p.files[p.items[p.Sel].index]
 			a.pushJump()
-			if a.openFile(filepath.Join(a.root, f)) {
+			if a.OpenFile(filepath.Join(a.Root, f)) {
 				return a.SetFocus(FocusEditor)
 			}
 		}
@@ -1224,34 +1224,34 @@ func (a *Core) submitPalette() []Effect {
 	return nil
 }
 
-func (a *Core) handleExplorerKey(msg Key) []Effect {
-	e := a.explorer
+func (a *Core) HandleExplorerKey(msg Key) []Effect {
+	e := a.Explorer
 	key := msg.String()
-	if a.pending == "space v" {
-		a.pending = ""
-		return a.reviewKey(key)
+	if a.Pending == "space v" {
+		a.Pending = ""
+		return a.ReviewKey(key)
 	}
-	if a.pending == "space w" {
-		a.pending = ""
+	if a.Pending == "space w" {
+		a.Pending = ""
 		return a.windowKey(key)
 	}
-	if a.pending == " " {
-		a.pending = ""
-		return a.spaceMode(key)
+	if a.Pending == " " {
+		a.Pending = ""
+		return a.SpaceMode(key)
 	}
 	switch key {
 	case "up", "k":
-		e.sel = max(0, e.sel-1)
+		e.Sel = max(0, e.Sel-1)
 	case "down", "j":
-		e.sel = min(len(e.flat)-1, e.sel+1)
+		e.Sel = min(len(e.Flat)-1, e.Sel+1)
 	case "pgup", "ctrl+u":
-		e.sel = max(0, e.sel-(a.ScreenH()-3)/2)
+		e.Sel = max(0, e.Sel-(a.ScreenH()-3)/2)
 	case "pgdown", "ctrl+d":
-		e.sel = min(len(e.flat)-1, e.sel+(a.ScreenH()-3)/2)
+		e.Sel = min(len(e.Flat)-1, e.Sel+(a.ScreenH()-3)/2)
 	case "home", "g":
-		e.sel = 0
+		e.Sel = 0
 	case "end", "G":
-		e.sel = len(e.flat) - 1
+		e.Sel = len(e.Flat) - 1
 	case "enter", "l", "right", "o":
 		n := e.selected()
 		if n == nil {
@@ -1259,13 +1259,13 @@ func (a *Core) handleExplorerKey(msg Key) []Effect {
 		}
 		if n.isDir {
 			if key == "enter" || key == "o" || !n.expanded {
-				e.toggle(n)
+				e.Toggle(n)
 			}
 			return nil
 		}
 		if key != "enter" && key != "o" {
-			a.openTransient(n.path)
-		} else if a.openFile(n.path) {
+			a.openTransient(n.Path)
+		} else if a.OpenFile(n.Path) {
 			return a.SetFocus(FocusEditor)
 		}
 	case "left", "h":
@@ -1280,24 +1280,24 @@ func (a *Core) handleExplorerKey(msg Key) []Effect {
 		return a.deleteFile()
 	case "y", "Y":
 		if n := e.selected(); n != nil {
-			a.copyPath(n.path, key == "Y")
+			a.copyPath(n.Path, key == "Y")
 		}
 	case "R":
-		e.refresh()
+		e.Refresh()
 		a.InfoText(i18n.T("app.treerefreshed"))
 	case "space":
-		a.pending = " "
+		a.Pending = " "
 	case ":":
 		return a.openCmdline(":")
 	case "tab":
-		if a.gd.on {
+		if a.Gd.On {
 			return a.SetFocus(FocusChanges)
 		}
-		if len(a.tabs) > 0 {
+		if len(a.Tabs) > 0 {
 			return a.SetFocus(FocusEditor)
 		}
 	case "esc", "q":
-		if len(a.tabs) > 0 {
+		if len(a.Tabs) > 0 {
 			return a.SetFocus(FocusEditor)
 		}
 	}
@@ -1332,9 +1332,9 @@ func (a *Core) handleFindKey(msg Key) []Effect {
 
 // findInputUpdate passes a key or a paste to the find bar.
 func (a *Core) findInputUpdate(msg Input) []Effect {
-	before := a.findInput.Value()
-	a.lineInputUpdate(&a.findInput, msg)
-	if a.findInput.Value() != before {
+	before := a.FindInput.Value()
+	a.lineInputUpdate(&a.FindInput, msg)
+	if a.FindInput.Value() != before {
 		a.findNext(a.findOrigin, false)
 	}
 	return nil
@@ -1345,9 +1345,9 @@ func (a *Core) findInputUpdate(msg Input) []Effect {
 func (a *Core) handleEditorKey(msg Key) []Effect {
 	t := a.CurText()
 	if t != nil && t.Buf.HasExtra() && multiEditable(msg) {
-		a.comp = nil
+		a.Comp = nil
 		t.Buf.ForEachCursor(func() { a.editorKey(t, msg) })
-		a.follow = true
+		a.Follow = true
 		return nil
 	}
 	return a.editorKey(t, msg)
@@ -1373,14 +1373,14 @@ func (a *Core) editorKey(t *Tab, msg Key) []Effect {
 		return nil
 	}
 	b := t.Buf
-	a.follow = true
-	page := a.pageSize()
+	a.Follow = true
+	page := a.PageSize()
 
 	switch msg.String() {
 	case "esc":
 		b.ClearSelection()
 		b.ClearExtra()
-		a.comp = nil
+		a.Comp = nil
 	case "alt+left":
 		return a.jumpMove(-1)
 	case "alt+right":
@@ -1477,7 +1477,7 @@ func (a *Core) editorKey(t *Tab, msg Key) []Effect {
 			b.InsertBlock(s)
 		}
 	case "ctrl+f":
-		return a.openFind()
+		return a.OpenFind()
 	case "ctrl+_", "ctrl+/":
 		a.toggleComment()
 	case "ctrl+space":
@@ -1490,7 +1490,7 @@ func (a *Core) editorKey(t *Tab, msg Key) []Effect {
 		return a.rename()
 	case "space":
 		b.Insert(" ")
-		a.comp = nil
+		a.Comp = nil
 	default:
 		if s := Typed(msg); s != "" {
 			if rs := []rune(s); len(rs) == 1 {
@@ -1513,22 +1513,22 @@ func (a *Core) afterTyping(t *Tab, typed []rune) []Effect {
 }
 
 func (a *Core) completionTyped(t *Tab, r rune) []Effect {
-	if a.comp != nil {
+	if a.Comp != nil {
 		if isIdent(r) {
-			a.comp.filter()
-			if len(a.comp.items) == 0 {
-				a.comp = nil
+			a.Comp.filter()
+			if len(a.Comp.Items) == 0 {
+				a.Comp = nil
 			}
 			return nil
 		}
-		a.comp = nil
+		a.Comp = nil
 	}
 	// Typing must not report a missing or starting server; only an explicit
 	// request does.
-	if a.lsp.client(t, "completionProvider") == nil {
+	if a.Lsp.client(t, "completionProvider") == nil {
 		return nil
 	}
-	cs, _ := a.lsp.clientsFor(t)
+	cs, _ := a.Lsp.clientsFor(t)
 	for _, c := range cs {
 		if c.IsCompletionTrigger(r) {
 			return a.completion()
@@ -1544,39 +1544,39 @@ func (a *Core) completionTyped(t *Tab, r rune) []Effect {
 }
 
 func (a *Core) refreshCompletion() []Effect {
-	if a.comp == nil {
+	if a.Comp == nil {
 		return nil
 	}
-	b := a.comp.tab.Buf
-	if b.Cur.Less(a.comp.start) || b.Cur.Row != a.comp.start.Row {
-		a.comp = nil
+	b := a.Comp.Tab.Buf
+	if b.Cur.Less(a.Comp.start) || b.Cur.Row != a.Comp.start.Row {
+		a.Comp = nil
 		return nil
 	}
-	a.comp.filter()
-	if len(a.comp.items) == 0 {
-		a.comp = nil
+	a.Comp.filter()
+	if len(a.Comp.Items) == 0 {
+		a.Comp = nil
 	}
 	return nil
 }
 
 func (a *Core) EditorOpts(t *Tab, focused bool) EditorOpts {
 	o := EditorOpts{
-		Focused:      focused && !a.findOpen && !a.cmdOpen,
+		Focused:      focused && !a.FindOpen && !a.CmdOpen,
 		CursorColor:  CurTheme.Cursor,
 		cursorAt:     t.Buf.Cur,
 		Relative:     a.relativeLineNumbers(),
-		indentGuides: a.cfg.Editor.IndentGuides,
+		IndentGuides: a.Cfg.Editor.IndentGuides,
 		title:        a.TitleOf(t),
-		diags:        a.lsp.diagnostics(t.Buf.Path),
+		diags:        a.Lsp.diagnostics(t.Buf.Path),
 	}
-	if a.findOpen {
-		o.Query = a.findInput.Value()
+	if a.FindOpen {
+		o.Query = a.FindInput.Value()
 	}
-	if a.cmdOpen && (a.cmdKind == "/" || a.cmdKind == "?") {
+	if a.CmdOpen && (a.cmdKind == "/" || a.cmdKind == "?") {
 		o.Query = a.cmdInput.Value()
 	}
-	if a.helix {
-		switch a.mode {
+	if a.Helix {
+		switch a.Mode {
 		case ModeInsert:
 			o.CursorColor = CurTheme.ModeInsert
 		case ModeSelect:
@@ -1591,7 +1591,7 @@ func (a *Core) EditorOpts(t *Tab, focused bool) EditorOpts {
 			anchor = &r.Anchor
 		}
 		c := r.Cur
-		if a.helix {
+		if a.Helix {
 			c = a.cursorCell(t.Buf, anchor, r.Cur)
 		}
 		sel := [2]buffer.Pos{c, c}
@@ -1607,7 +1607,7 @@ func FindLabel() string { return i18n.T("app.findlabel") }
 
 // copyHover copies the hover markdown source to the clipboard.
 func (a *Core) CopyHover() {
-	a.CopyText(a.hoverText)
+	a.CopyText(a.HoverText)
 	a.InfoText(i18n.T("app.hovercopied"))
 }
 
@@ -1624,9 +1624,9 @@ func hoverScrollKey(key string) int {
 
 // overlayOpen reports whether a floating window (palette or project search)
 // has the keyboard.
-func (a *Core) overlayOpen() bool { return a.pal.open || a.search.open }
+func (a *Core) overlayOpen() bool { return a.Pal.Open || a.Search.Open }
 
 // infoText shows an already-formatted message in the status line.
 func (a *Core) InfoText(s string) {
-	a.msg, a.msgErr = s, false
+	a.Msg, a.MsgErr = s, false
 }

@@ -23,7 +23,7 @@ var openers = map[string][]string{
 
 // openExternal runs the opener and waits for it, so a non-zero exit is
 // reported. It is replaced in tests.
-var openExternal = func(url string) error {
+var OpenExternal = func(url string) error {
 	for _, name := range openers[runtime.GOOS] {
 		path, err := exec.LookPath(name)
 		if err != nil {
@@ -96,22 +96,22 @@ func (a *Core) openURL(arg string) []Effect {
 
 // isRemoteSession reports whether the editor runs over SSH, where a browser
 // opened here would not appear on the user's screen. It is replaced in tests.
-var isRemoteSession = func() bool {
+var IsRemoteSession = func() bool {
 	return os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_TTY") != ""
 }
 
 // copyPRURL copies the URL of the pull request being reviewed.
 func (a *Core) copyPRURL() []Effect {
-	a.CopyText(a.gd.pr.URL)
-	a.Info(i18n.T("rv.urlcopied"), a.gd.pr.URL)
+	a.CopyText(a.Gd.Pr.URL)
+	a.Info(i18n.T("rv.urlcopied"), a.Gd.Pr.URL)
 	return nil
 }
 
 // openPRURL opens the pull request in the browser. Over SSH, or when the
 // opener fails, it copies the URL instead and says so.
 func (a *Core) openPRURL() []Effect {
-	url := a.gd.pr.URL
-	if a.host == nil && isRemoteSession() {
+	url := a.Gd.Pr.URL
+	if a.host == nil && IsRemoteSession() {
 		a.CopyText(url)
 		a.Info(i18n.T("rv.sshcopied"), url)
 		return nil

@@ -15,13 +15,13 @@ import (
 // to follow it (followCursor), and keeps the scroll inside the file. editW and
 // editH are the cells of its text; dvH is the rows of its diff.
 func (a *Core) FitCursor(t *Tab, editW, editH, dvH int) {
-	if a.follow {
+	if a.Follow {
 		if dv := a.DiffFor(t); dv != nil {
 			a.ensureDiffVisible(t, dv, editW, dvH)
 		} else if !a.FullPreview(t) { // the hidden editor is 0 wide: following it would scroll to the cursor column
 			EnsureCursorVisible(t.Buf, editW, editH)
 		}
-		a.follow = false
+		a.Follow = false
 	}
 	t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow, 0, max(0, len(t.Buf.Lines)-1))
 }
@@ -29,23 +29,23 @@ func (a *Core) FitCursor(t *Tab, editW, editH, dvH int) {
 // fitPalette filters the palette's list and sizes its input, and fits the
 // project search, while they are open.
 func (a *Core) FitPalette() {
-	if a.pal.open {
-		a.pal.filter(a.commands)
+	if a.Pal.Open {
+		a.Pal.filter(a.Commands)
 		pw := a.PaletteWidth()
-		a.pal.input.SetWidth(max(1, pw-ansi.StringWidth(a.pal.label())-2))
+		a.Pal.Input.SetWidth(max(1, pw-ansi.StringWidth(a.Pal.label())-2))
 	}
-	if a.search.open {
-		a.search.fit(a)
+	if a.Search.Open {
+		a.Search.fit(a)
 	}
 }
 
 // fitFields sizes the find bar's input (findCells is the cells the bar has)
 // and the command line's (cmdCells), while they are open.
 func (a *Core) FitFields(findCells, cmdCells int) {
-	if a.findOpen {
-		a.findInput.SetWidth(max(1, findCells-1))
+	if a.FindOpen {
+		a.FindInput.SetWidth(max(1, findCells-1))
 	}
-	if a.cmdOpen {
+	if a.CmdOpen {
 		a.cmdInput.SetWidth(max(1, cmdCells-3))
 	}
 }
@@ -53,9 +53,9 @@ func (a *Core) FitFields(findCells, cmdCells int) {
 // fitSide keeps the file tree's selection on screen, and fits the list of
 // changes below it in the diff mode; bodyH is the height of the side bar.
 func (a *Core) FitSide(bodyH int) {
-	a.explorer.ensureVisible(a.ExplorerH() - 1)
-	if a.gd.on {
-		a.fitChanges(bodyH - a.ExplorerH() - 1)
+	a.Explorer.EnsureVisible(a.ExplorerH() - 1)
+	if a.Gd.On {
+		a.FitChanges(bodyH - a.ExplorerH() - 1)
 	}
 }
 
@@ -69,10 +69,10 @@ func (a *Core) FitProposals() {
 // fitContext keeps the scroll of the context preview inside its text, for a
 // screen sh rows high (the box has a title row, a position row and a border).
 func (a *Core) FitContext(sh int) {
-	if a.ctx == nil {
+	if a.Ctx == nil {
 		return
 	}
 	body := max(1, max(4, sh-4)-3)
-	lines := len(strings.Split(strings.TrimRight(a.ctx.Text, "\n"), "\n"))
-	a.ctx.Scroll = Clamp(a.ctx.Scroll, 0, max(0, lines-body))
+	lines := len(strings.Split(strings.TrimRight(a.Ctx.Text, "\n"), "\n"))
+	a.Ctx.Scroll = Clamp(a.Ctx.Scroll, 0, max(0, lines-body))
 }

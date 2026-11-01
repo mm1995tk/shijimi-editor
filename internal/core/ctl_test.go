@@ -26,8 +26,8 @@ func TestCtlDiffTurnsOnGitDiffMode(t *testing.T) {
 	if r := ctlCall(a, ctl.Request{Cmd: "diff", Path: f}); !r.OK {
 		t.Fatalf("diff: %+v", r)
 	}
-	if !a.gd.on || a.CurText() == nil || a.CurText().Buf.Path != f {
-		t.Errorf("on=%v cur=%v", a.gd.on, a.CurText())
+	if !a.Gd.On || a.CurText() == nil || a.CurText().Buf.Path != f {
+		t.Errorf("on=%v cur=%v", a.Gd.On, a.CurText())
 	}
 }
 
@@ -37,8 +37,8 @@ func TestCtlExec(t *testing.T) {
 	os.WriteFile(f, []byte("# a\n"), 0o644)
 	a := newApp(dir, f)
 
-	if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: ":keymap vscode"}); !r.OK || r.Message == "" || a.helix {
-		t.Errorf("keymap: %+v helix=%v", r, a.helix)
+	if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: ":keymap vscode"}); !r.OK || r.Message == "" || a.Helix {
+		t.Errorf("keymap: %+v helix=%v", r, a.Helix)
 	}
 	r := ctlCall(a, ctl.Request{Cmd: "exec", Line: "nosuch"})
 	if r.OK || r.Error != "不明なコマンド: nosuch" {
@@ -50,8 +50,8 @@ func TestCtlExec(t *testing.T) {
 		}
 	}
 	for _, line := range []string{":o", ":pr", ":pr foo", ":theme", ":symbol", ":action", ":grep", ":replace"} {
-		if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: line}); r.OK || a.pal.open {
-			t.Errorf("%s should need a human: %+v open=%v", line, r, a.pal.open)
+		if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: line}); r.OK || a.Pal.Open {
+			t.Errorf("%s should need a human: %+v open=%v", line, r, a.Pal.Open)
 		}
 	}
 	if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: "  "}); r.OK {
@@ -63,8 +63,8 @@ func TestCtlExec(t *testing.T) {
 			t.Errorf("bc with unsaved changes: %+v", r)
 		}
 	}
-	if len(a.tabs) != 1 || a.confirmClose {
-		t.Errorf("tab lost or confirmClose left on: tabs=%d confirm=%v", len(a.tabs), a.confirmClose)
+	if len(a.Tabs) != 1 || a.confirmClose {
+		t.Errorf("tab lost or confirmClose left on: tabs=%d confirm=%v", len(a.Tabs), a.confirmClose)
 	}
 	if r := ctlCall(a, ctl.Request{Cmd: "exec", Line: ":reload"}); r.OK {
 		t.Errorf("reload with unsaved changes: %+v", r)

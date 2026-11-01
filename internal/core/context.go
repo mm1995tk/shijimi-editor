@@ -73,14 +73,14 @@ func (a *Core) currentContext() (string, bool) {
 			endRow-- // a selection ending at a line start does not include that line
 			selected = strings.TrimSuffix(selected, "\n")
 		}
-		return formatContext(path, s.Row, endRow, selected, a.lsp.diagnostics(b.Path)), true
+		return formatContext(path, s.Row, endRow, selected, a.Lsp.diagnostics(b.Path)), true
 	}
-	return formatContext(path, b.Cur.Row, b.Cur.Row, "", a.lsp.diagnostics(b.Path)), true
+	return formatContext(path, b.Cur.Row, b.Cur.Row, "", a.Lsp.diagnostics(b.Path)), true
 }
 
 // sendContext tells a connected IDE-integrated agent about the current
 // selection; otherwise it opens the preview of the context to paste.
-func (a *Core) sendContext() []Effect {
+func (a *Core) SendContext() []Effect {
 	if a.single {
 		return nil
 	}
@@ -92,16 +92,16 @@ func (a *Core) sendContext() []Effect {
 		a.Fail(errors.New(i18n.T("ctx.savefirst")))
 		return nil
 	}
-	a.ctx = &CtxPreview{Text: text}
+	a.Ctx = &CtxPreview{Text: text}
 	return nil
 }
 
 // handleContextKey drives the preview: Enter pastes, Esc cancels.
-func (a *Core) handleContextKey(msg Key) []Effect {
+func (a *Core) HandleContextKey(msg Key) []Effect {
 	switch msg.String() {
 	case "enter":
-		text := a.ctx.Text
-		a.ctx = nil
+		text := a.Ctx.Text
+		a.Ctx = nil
 		if a.MuxOn() {
 			return a.MuxSend(text, false)
 		}
@@ -109,11 +109,11 @@ func (a *Core) handleContextKey(msg Key) []Effect {
 		cmd := a.SetFocus(FocusTerminal)
 		return Batch(cmd, a.TermPaste(text))
 	case "esc", "ctrl+c", "q":
-		a.ctx = nil
+		a.Ctx = nil
 	case "ctrl+d", "pgdown", "down", "j":
-		a.ctx.Scroll++
+		a.Ctx.Scroll++
 	case "ctrl+u", "pgup", "up", "k":
-		a.ctx.Scroll = max(0, a.ctx.Scroll-1)
+		a.Ctx.Scroll = max(0, a.Ctx.Scroll-1)
 	}
 	return nil
 }

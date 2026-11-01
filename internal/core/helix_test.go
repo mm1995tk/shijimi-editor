@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 	"unicode/utf8"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 func keys(a *App, ks ...string) {
@@ -47,8 +45,8 @@ func newTestApp(t *testing.T, content string) *App {
 	p := filepath.Join(dir, "a.txt")
 	os.WriteFile(p, []byte(content), 0o644)
 	a := newApp(dir, p)
-	a.helix = true
-	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	a.Helix = true
+	a.Update(Resized{W: 100, H: 30})
 	return a
 }
 
@@ -175,7 +173,7 @@ func TestAutoCloseBracketHelixInsert(t *testing.T) {
 
 func TestAutoCloseBracketVSCode(t *testing.T) {
 	a := newTestApp(t, "")
-	a.helix = false
+	a.Helix = false
 	b := a.CurText().Buf
 	keys(a, "(", ")")
 	if got := b.Text(); got != "()" || b.Cur.Col != 2 {
@@ -218,8 +216,8 @@ func TestHelixMatchTextObjects(t *testing.T) {
 	}
 	// not found keeps the selection and reports it
 	keys(a, "m", "i", "[")
-	if got := b.SelectedText(); got != "bar" || a.msg == "" {
-		t.Fatalf("mi[ = %q msg %q", got, a.msg)
+	if got := b.SelectedText(); got != "bar" || a.Msg == "" {
+		t.Fatalf("mi[ = %q msg %q", got, a.Msg)
 	}
 }
 

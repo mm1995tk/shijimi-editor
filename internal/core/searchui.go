@@ -21,15 +21,15 @@ const (
 	FRepl
 	FInclude
 	FExclude
-	numFields
+	NumFields
 )
 
-func SearchLabels() [numFields]string {
-	return [numFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.include"), i18n.T("search.exclude")}
+func SearchLabels() [NumFields]string {
+	return [NumFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.include"), i18n.T("search.exclude")}
 }
 
-func SearchPlaceholders() [numFields]string {
-	return [numFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.includeph"), i18n.T("search.excludeph")}
+func SearchPlaceholders() [NumFields]string {
+	return [NumFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.includeph"), i18n.T("search.excludeph")}
 }
 
 // searchView caches the file shown in the View area.
@@ -43,8 +43,8 @@ type searchView struct {
 // top, matched lines at the lower left, a preview of the selected one at the
 // lower right.
 type SearchPanel struct {
-	open  bool
-	In    [numFields]InputField
+	Open  bool
+	In    [NumFields]InputField
 	Field int
 
 	CaseSens, Word, Regex, KeepCase bool
@@ -52,7 +52,7 @@ type SearchPanel struct {
 	seq     atomic.Int64 // id of the latest requested search
 	Busy    bool
 	Res     SearchResult
-	skipped map[string]bool // lines left out of the replacement, by path and row
+	Skipped map[string]bool // lines left out of the replacement, by path and row
 
 	Cursor, Scroll int
 	restore        bool // after the next search, put the cursor at restoreAt
@@ -64,9 +64,9 @@ type SearchPanel struct {
 }
 
 func newSearchPanel(def config.Search) *SearchPanel {
-	s := &SearchPanel{skipped: map[string]bool{}}
+	s := &SearchPanel{Skipped: map[string]bool{}}
 	for i := range s.In {
-		s.In[i] = newInputField(4096)
+		s.In[i] = NewInputField(4096)
 	}
 	s.In[FInclude].SetValue(strings.Join(def.Include, ","))
 	s.In[FExclude].SetValue(strings.Join(def.Exclude, ","))
@@ -86,8 +86,8 @@ func (s *SearchPanel) opts() SearchOpts {
 	}
 }
 
-func (s *SearchPanel) focusField(f int) []Effect {
-	s.Field = (f + numFields) % numFields
+func (s *SearchPanel) FocusField(f int) []Effect {
+	s.Field = (f + NumFields) % NumFields
 	for i := range s.In {
 		if i == s.Field {
 			s.In[i].Focus()
@@ -99,7 +99,7 @@ func (s *SearchPanel) focusField(f int) []Effect {
 }
 
 func (s *SearchPanel) close() {
-	s.open = false
+	s.Open = false
 	for i := range s.In {
 		s.In[i].Blur()
 	}
@@ -122,9 +122,9 @@ func (s *SearchPanel) toggleSkip() {
 	if h := s.Cur(); h != nil {
 		h.Skip = !h.Skip
 		if h.Skip {
-			s.skipped[skipKey(h)] = true
+			s.Skipped[skipKey(h)] = true
 		} else {
-			delete(s.skipped, skipKey(h))
+			delete(s.Skipped, skipKey(h))
 		}
 	}
 }
@@ -145,13 +145,13 @@ func (s *SearchPanel) Counts() (target, skipped int) {
 // ---- opening ----
 
 // openSearch shows the window with the conditions of the last use.
-func (a *Core) openSearch(field int) []Effect {
+func (a *Core) OpenSearch(field int) []Effect {
 	if a.single {
 		return nil
 	}
-	s := a.search
-	s.open = true
-	cmds := [][]Effect{s.focusField(field)}
+	s := a.Search
+	s.Open = true
+	cmds := [][]Effect{s.FocusField(field)}
 	if s.In[FQuery].Value() != "" {
 		cmds = append(cmds, a.searchNow())
 	}
@@ -160,27 +160,27 @@ func (a *Core) openSearch(field int) []Effect {
 
 // openSearchArgs opens the window for `:grep [-x globs] [-i globs] query` or
 // (replace) `:replace [-x globs] [-i globs] query => replacement`.
-func (a *Core) openSearchArgs(arg string, replace bool) []Effect {
+func (a *Core) OpenSearchArgs(arg string, replace bool) []Effect {
 	field := FQuery
 	if replace {
 		field = FRepl
 	}
 	if strings.TrimSpace(arg) == "" {
-		return a.openSearch(field)
+		return a.OpenSearch(field)
 	}
-	s := a.search
+	s := a.Search
 	body, repl := arg, ""
 	if replace {
 		body, repl, _ = SplitReplaceArgs(arg)
 	}
-	q, include, exclude := parseGrepArgs(body, a.cfg.Search)
+	q, include, exclude := parseGrepArgs(body, a.Cfg.Search)
 	s.In[FQuery].SetValue(q)
 	s.In[FRepl].SetValue(repl)
 	s.In[FInclude].SetValue(strings.Join(include, ","))
 	s.In[FExclude].SetValue(strings.Join(exclude, ","))
 	s.Regex = false // the command line always searches for the text itself
-	s.skipped = map[string]bool{}
-	return a.openSearch(field)
+	s.Skipped = map[string]bool{}
+	return a.OpenSearch(field)
 }
 
 // ---- searching ----
@@ -189,7 +189,7 @@ func (a *Core) openSearchArgs(arg string, replace bool) []Effect {
 // from the files on disk.
 func (a *Core) openBufferLines() map[string][]string {
 	open := map[string][]string{}
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.Kind == TabText && t.Buf.Path != "" {
 			lines := make([]string, len(t.Buf.Lines))
 			for i, l := range t.Buf.Lines {
@@ -203,12 +203,12 @@ func (a *Core) openBufferLines() map[string][]string {
 
 // searchNow starts a search immediately.
 func (a *Core) searchNow() []Effect {
-	return a.searchEffects(a.search.seq.Add(1))
+	return a.searchEffects(a.Search.seq.Add(1))
 }
 
 // scheduleSearch starts a search once the inputs have been idle.
 func (a *Core) scheduleSearch() []Effect {
-	s := a.search
+	s := a.Search
 	seq := s.seq.Add(1)
 	s.Busy = true
 	return []Effect{StartTimer{After: searchDebounce, Fire: SearchTick{seq}}}
@@ -217,16 +217,16 @@ func (a *Core) scheduleSearch() []Effect {
 // searchTick starts the search a debounce timer was waiting for, unless more
 // was typed since or the window was closed.
 func (a *Core) searchTick(m SearchTick) []Effect {
-	if !a.search.open || m.seq != a.search.seq.Load() {
+	if !a.Search.Open || m.seq != a.Search.seq.Load() {
 		return nil
 	}
 	return a.searchEffects(m.seq)
 }
 
 func (a *Core) searchEffects(seq int64) []Effect {
-	s := a.search
+	s := a.Search
 	s.Busy = true
-	o, root, open := s.opts(), a.root, a.openBufferLines()
+	o, root, open := s.opts(), a.Root, a.openBufferLines()
 	cancelled := func() bool { return s.seq.Load() != seq }
 	return []Effect{RunSearch{Run: func() Event {
 		return SearchDone{seq: seq, res: SearchProject(root, o, open, cancelled)}
@@ -234,7 +234,7 @@ func (a *Core) searchEffects(seq int64) []Effect {
 }
 
 func (a *Core) searchDone(m SearchDone) {
-	s := a.search
+	s := a.Search
 	if m.seq != s.seq.Load() {
 		return
 	}
@@ -246,7 +246,7 @@ func (a *Core) searchDone(m SearchDone) {
 	s.Res = m.res
 	s.Cursor = 0
 	for i, h := range s.Res.Hits {
-		h.Skip = s.skipped[skipKey(h)]
+		h.Skip = s.Skipped[skipKey(h)]
 		if keep != "" && skipKey(h) == keep {
 			s.Cursor = i
 		}
@@ -264,16 +264,16 @@ func (a *Core) searchDone(m SearchDone) {
 
 // ---- keys ----
 
-func (a *Core) handleSearchKey(msg Key) []Effect {
-	s := a.search
+func (a *Core) HandleSearchKey(msg Key) []Effect {
+	s := a.Search
 	switch key := msg.String(); key {
 	case "esc", "ctrl+c":
 		s.close()
 		return nil
 	case "tab":
-		return s.focusField(s.Field + 1)
+		return s.FocusField(s.Field + 1)
 	case "shift+tab":
-		return s.focusField(s.Field - 1)
+		return s.FocusField(s.Field - 1)
 	case "up", "ctrl+p":
 		s.move(-1)
 		return nil
@@ -313,7 +313,7 @@ func (a *Core) handleSearchKey(msg Key) []Effect {
 
 // searchInput passes a key or a paste to the focused search field.
 func (a *Core) searchInput(msg Input) []Effect {
-	s := a.search
+	s := a.Search
 	before := s.In[s.Field].Value()
 	a.lineInputUpdate(&s.In[s.Field], msg)
 	if s.In[s.Field].Value() != before {
@@ -324,7 +324,7 @@ func (a *Core) searchInput(msg Input) []Effect {
 
 // searchOpenHit opens the selected line in the editor.
 func (a *Core) searchOpenHit() []Effect {
-	s := a.search
+	s := a.Search
 	h := s.Cur()
 	if h == nil {
 		return nil
@@ -332,7 +332,7 @@ func (a *Core) searchOpenHit() []Effect {
 	q, regex := s.In[FQuery].Value(), s.Regex
 	s.close()
 	a.pushJump()
-	if !a.openFile(h.Path) {
+	if !a.OpenFile(h.Path) {
 		return nil
 	}
 	if t := a.CurText(); t != nil {
@@ -342,7 +342,7 @@ func (a *Core) searchOpenHit() []Effect {
 			a.lastSearch = q
 		}
 	}
-	a.follow = true
+	a.Follow = true
 	return a.SetFocus(FocusEditor)
 }
 
@@ -350,7 +350,7 @@ func (a *Core) searchOpenHit() []Effect {
 // as a buffer and edited in memory as one undo step; nothing is written to
 // disk until the user saves, so Ctrl+Z / u reverts the whole replacement.
 func (a *Core) searchReplaceAll() []Effect {
-	s := a.search
+	s := a.Search
 	if s.Busy {
 		a.Fail(errors.New(i18n.T("search.busy")))
 		return nil
@@ -377,7 +377,7 @@ func (a *Core) searchReplaceAll() []Effect {
 // searchReplaceOne replaces only the selected line and keeps the panel open,
 // re-running the search so the cursor lands on the next hit.
 func (a *Core) searchReplaceOne() []Effect {
-	s := a.search
+	s := a.Search
 	if s.Busy {
 		a.Fail(errors.New(i18n.T("search.busy")))
 		return nil
@@ -390,7 +390,7 @@ func (a *Core) searchReplaceOne() []Effect {
 	if h.Skip {
 		// picking a line to replace is explicit, so it overrides the exclusion
 		h.Skip = false
-		delete(s.skipped, skipKey(h))
+		delete(s.Skipped, skipKey(h))
 	}
 	idx, key := s.Cursor, skipKey(h)
 	if !a.replaceHits([]*SearchHit{h}) {
@@ -414,7 +414,7 @@ func (a *Core) replaceHits(hits []*SearchHit) bool {
 	var failed []string
 	done, stale, changed := 0, 0, 0
 	for _, p := range paths {
-		if !a.openFile(p) {
+		if !a.OpenFile(p) {
 			failed = append(failed, a.Rel(p))
 			continue
 		}
@@ -436,7 +436,7 @@ func (a *Core) replaceHits(hits []*SearchHit) bool {
 	}
 	msg := fmt.Sprintf(i18n.T("search.replaced"), done, changed)
 	if stale > 0 {
-		a.msg, a.msgErr = fmt.Sprintf(i18n.T("search.skipped"), msg, stale), true
+		a.Msg, a.MsgErr = fmt.Sprintf(i18n.T("search.skipped"), msg, stale), true
 		return true
 	}
 	a.Info("%s", msg)
@@ -459,7 +459,7 @@ func Digits(n int) int { return len(fmt.Sprint(n)) }
 // searchCaret is the screen cell where text typed into the focused field
 // goes. It follows the layout of renderSearch and fieldBox.
 func (a *Core) SearchCaret() (x, y int, ok bool) {
-	s := a.search
+	s := a.Search
 	if s.rect[2] == 0 {
 		return 0, 0, false
 	}
@@ -528,14 +528,14 @@ func (s *SearchPanel) fit(a *Core) {
 // loadView reads the file for the View area (from the open buffer if there is
 // one) and its syntax colors.
 func (a *Core) loadView(path string) {
-	v := &a.search.View
+	v := &a.Search.View
 	if v.path == path {
 		return
 	}
 	*v = searchView{path: path}
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.Kind == TabText && t.Buf.Path == path {
-			v.Lines, v.Colors = t.Buf.Lines, t.hl.Colors(t.Buf)
+			v.Lines, v.Colors = t.Buf.Lines, t.Hl.Colors(t.Buf)
 			return
 		}
 	}

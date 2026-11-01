@@ -114,6 +114,7 @@ func (f *testFront) EditorCols() int   { return f.rightW() }
 type testArea struct{ text string }
 
 func (a *testArea) Value() string                   { return a.text }
+func (a *testArea) SetValue(s string)               { a.text = s }
 func (a *testArea) InsertString(s string)           { a.text += s }
 func (a *testArea) Line() int                       { return strings.Count(a.text, "\n") }
 func (a *testArea) Column() int                     { return len([]rune(a.text[strings.LastIndex(a.text, "\n")+1:])) }

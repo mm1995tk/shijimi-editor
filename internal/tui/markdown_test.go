@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"image"
 	"image/png"
 	"os"
@@ -29,25 +30,25 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 	b := buffer.New()
 	b.Insert("# t\n\n```mermaid\ngraph TD; A-->B\n```\n")
 	b.Path = "x.md"
-	cfg := &config.Config{Editor: config.Editor{MermaidCommand: "cp " + shellQuote(src) + " {out}"}}
-	a := appOf(&Core{cfg: cfg, tabs: []*Tab{newTab(b)}})
-	a.tabs[0].preview = PreviewSplit
+	cfg := &config.Config{Editor: config.Editor{MermaidCommand: "cp " + core.ShellQuote(src) + " {out}"}}
+	a := appOf(&core.Core{Cfg: cfg, Tabs: []*core.Tab{core.NewTab(b)}})
+	a.Tabs[0].Preview = core.PreviewSplit
 
-	if cmd := a.syncPreview(); cmd == nil {
+	if cmd := a.SyncPreview(); cmd == nil {
 		t.Fatal("expected a scheduled render")
 	}
-	code := mermaidBlocks(b.Text())[0]
-	key := a.mermaidKey(code)
-	if got := a.testMedia(a.mermaidLines(code, 30), 30); !strings.Contains(ansi.Strip(strings.Join(got, "\n")), "描画中") {
+	code := core.MermaidBlocks(b.Text())[0]
+	key := a.MermaidKey(code)
+	if got := a.testMedia(a.MermaidLines(code, 30), 30); !strings.Contains(ansi.Strip(strings.Join(got, "\n")), "描画中") {
 		t.Fatalf("pending placeholder expected: %q", got)
 	}
-	msg := cmdOf(a, a.handleMermaidStart(mermaidStartMsg{key, code}))()
-	done, ok := msg.(mermaidDoneMsg)
-	if !ok || done.err != nil {
+	msg := cmdOf(a, a.HandleMermaidStart(core.MermaidStartMsg{key, code}))()
+	done, ok := msg.(core.MermaidDoneMsg)
+	if !ok || done.Err != nil {
 		t.Fatalf("msg = %#v", msg)
 	}
-	a.handleMermaidDone(done)
-	lines := a.testMedia(a.mermaidLines(code, 30), 30)
+	a.HandleMermaidDone(done)
+	lines := a.testMedia(a.MermaidLines(code, 30), 30)
 	if len(lines) < 3 || strings.Contains(ansi.Strip(strings.Join(lines, "")), "mermaid") {
 		t.Fatalf("diagram expected, got %d lines", len(lines))
 	}
@@ -66,26 +67,26 @@ func TestMermaidJobRestoredAfterTabSwitch(t *testing.T) {
 	b1 := buffer.New()
 	b1.Insert("other")
 	b1.Path = "b.md"
-	a := appOf(&Core{cfg: &config.Config{Editor: config.Editor{MermaidCommand: "true {in} {out}"}}, tabs: []*Tab{newTab(a1), newTab(b1)}})
-	a.tabs[0].preview = PreviewSplit
+	a := appOf(&core.Core{Cfg: &config.Config{Editor: config.Editor{MermaidCommand: "true {in} {out}"}}, Tabs: []*core.Tab{core.NewTab(a1), core.NewTab(b1)}})
+	a.Tabs[0].Preview = core.PreviewSplit
 
-	if a.syncPreview() == nil {
+	if a.SyncPreview() == nil {
 		t.Fatal("expected a scheduled render")
 	}
-	code := mermaidBlocks(a1.Text())[0]
-	key := a.mermaidKey(code)
-	a.active = 1 // switch away before the timer fires
-	if cmd := a.handleMermaidStart(mermaidStartMsg{key, code}); cmd != nil {
+	code := core.MermaidBlocks(a1.Text())[0]
+	key := a.MermaidKey(code)
+	a.Active = 1 // switch away before the timer fires
+	if cmd := a.HandleMermaidStart(core.MermaidStartMsg{key, code}); cmd != nil {
 		t.Fatal("job for a hidden tab must not start")
 	}
-	if _, ok := a.mermaid[key]; ok {
+	if _, ok := a.Mermaid[key]; ok {
 		t.Fatal("job should have been dropped")
 	}
-	a.active = 0 // back, without editing
-	if a.syncPreview() == nil {
+	a.Active = 0 // back, without editing
+	if a.SyncPreview() == nil {
 		t.Fatal("job must be re-registered after returning to the tab")
 	}
-	if _, ok := a.mermaid[key]; !ok {
+	if _, ok := a.Mermaid[key]; !ok {
 		t.Fatal("job missing after return")
 	}
 }
@@ -94,22 +95,22 @@ func TestTogglePreviewCyclesToFullWidth(t *testing.T) {
 	b := buffer.New()
 	b.Insert("# 見出し\n")
 	b.Path = "x.md"
-	a := appOf(&Core{cfg: &config.Config{}, tabs: []*Tab{newTab(b)}})
+	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}})
 	l := layout{rightW: 81, editH: 5}
-	tb := a.tabs[0]
+	tb := a.Tabs[0]
 
 	want := []struct {
-		mode  previewMode
+		mode  core.PreviewMode
 		editW int
-	}{{PreviewSplit, 40}, {PreviewFull, 0}, {PreviewOff, 81}}
+	}{{core.PreviewSplit, 40}, {core.PreviewFull, 0}, {core.PreviewOff, 81}}
 	for _, w := range want {
-		a.togglePreview()
-		if tb.preview != w.mode || a.editW(tb, l) != w.editW {
-			t.Fatalf("mode %v editW %d, want %v %d", tb.preview, a.editW(tb, l), w.mode, w.editW)
+		a.TogglePreview()
+		if tb.Preview != w.mode || a.editW(tb, l) != w.editW {
+			t.Fatalf("mode %v editW %d, want %v %d", tb.Preview, a.editW(tb, l), w.mode, w.editW)
 		}
 	}
 
-	tb.preview = PreviewFull
+	tb.Preview = core.PreviewFull
 	lines := a.renderText(tb, l, true)
 	if len(lines) != l.editH || !strings.Contains(ansi.Strip(lines[0]), "見出し") {
 		t.Fatalf("full preview: %q", lines)
@@ -125,29 +126,29 @@ func TestFullPreviewBlocksEditing(t *testing.T) {
 	b := buffer.New()
 	b.Insert("# 見出し\n")
 	b.Path = "x.md"
-	a := appOf(&Core{cfg: &config.Config{}, tabs: []*Tab{newTab(b)}, helix: true, mode: ModeInsert})
-	tb := a.tabs[0]
-	tb.preview = PreviewFull
+	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}, Helix: true, Mode: core.ModeInsert})
+	tb := a.Tabs[0]
+	tb.Preview = core.PreviewFull
 	ver := b.Version
 
 	press := func(s string) {
-		a.handleHelixKey(textKey(s))
+		a.HandleHelixKey(textKey(s))
 	}
 	for _, k := range []string{"i", "a", "o", "d", "x", "x", "K"} {
 		press(k)
-		if a.mode != ModeNormal || b.Version != ver {
-			t.Fatalf("key %q: mode %v, version %d (want %d)", k, a.mode, b.Version, ver)
+		if a.Mode != core.ModeNormal || b.Version != ver {
+			t.Fatalf("key %q: mode %v, version %d (want %d)", k, a.Mode, b.Version, ver)
 		}
 	}
 
 	press("j") // scrolling still works
-	if a.pending != "" {
-		t.Fatalf("pending %q", a.pending)
+	if a.Pending != "" {
+		t.Fatalf("pending %q", a.Pending)
 	}
 
-	a.Update(hoverMsg{text: "doc"})
-	if a.hoverText != "" {
-		t.Fatalf("hover shown in full preview: %q", a.hoverText)
+	a.Update(core.HoverMsg{Text: "doc"})
+	if a.HoverText != "" {
+		t.Fatalf("hover shown in full preview: %q", a.HoverText)
 	}
 }
 
@@ -155,19 +156,19 @@ func TestFullPreviewBlocksLeaderPasteAndVscodeKeymap(t *testing.T) {
 	b := buffer.New()
 	b.Insert("abc\n")
 	b.Path = "x.md"
-	a := appOf(&Core{cfg: &config.Config{}, tabs: []*Tab{newTab(b)}, helix: true, pal: &palette{}, search: &SearchPanel{}})
-	a.tabs[0].preview = PreviewFull
+	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}, Helix: true, Pal: &core.Palette{}, Search: &core.SearchPanel{}})
+	a.Tabs[0].Preview = core.PreviewFull
 	ver := b.Version
 
-	a.handleHelixKey(textKey(" "))
-	a.handleHelixKey(textKey("p"))
-	if b.Version != ver || a.pending != "" {
-		t.Fatalf("Space p: version %d (want %d), pending %q", b.Version, ver, a.pending)
+	a.HandleHelixKey(textKey(" "))
+	a.HandleHelixKey(textKey("p"))
+	if b.Version != ver || a.Pending != "" {
+		t.Fatalf("Space p: version %d (want %d), pending %q", b.Version, ver, a.Pending)
 	}
 
-	a.helix = false
-	a.handleKey(textKey("j"))
-	a.handlePaste(Paste{Content: "pasted"})
+	a.Helix = false
+	a.HandleKey(textKey("j"))
+	a.HandlePaste(core.Paste{Content: "pasted"})
 	if b.Version != ver {
 		t.Fatalf("vscode keymap edited the hidden buffer: version %d, want %d", b.Version, ver)
 	}
@@ -178,14 +179,14 @@ func TestLeavingPreviewKeepsNoSidewaysScroll(t *testing.T) {
 	tb := a.CurText()
 	tb.Buf.Path = "x.md"
 	tb.Buf.Cur.Col = 50
-	a.follow = true
+	a.Follow = true
 	a.render()
 	if tb.Buf.ScrollCol != 0 {
 		t.Fatalf("scrolled %d before the preview", tb.Buf.ScrollCol)
 	}
-	for _, mode := range []previewMode{PreviewSplit, PreviewFull, PreviewOff} {
-		a.togglePreview()
-		a.follow = true // as after a cursor move
+	for _, mode := range []core.PreviewMode{core.PreviewSplit, core.PreviewFull, core.PreviewOff} {
+		a.TogglePreview()
+		a.Follow = true // as after a cursor move
 		a.render()
 		if tb.Preview != mode {
 			t.Fatalf("mode %v, want %v", tb.Preview, mode)
@@ -205,25 +206,25 @@ func TestMarkdownImageInPreview(t *testing.T) {
 	b := buffer.New()
 	b.Insert("# t\n\n![図](a.png)\n\n![無い](missing.png)\n\n![外](https://example.com/x.png)\n")
 	b.Path = filepath.Join(dir, "x.md")
-	a := appOf(&Core{cfg: &config.Config{}, tabs: []*Tab{newTab(b)}})
-	a.tabs[0].preview = PreviewSplit
+	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}})
+	a.Tabs[0].Preview = core.PreviewSplit
 	const w = 30
 
-	plain := func() string { return ansi.Strip(strings.Join(a.previewLines(a.tabs[0], w, 40), "\n")) }
+	plain := func() string { return ansi.Strip(strings.Join(a.previewLines(a.Tabs[0], w, 40), "\n")) }
 	if got := plain(); !strings.Contains(got, "読み込み中") || !strings.Contains(got, "🖼 図") {
 		t.Fatalf("pending placeholder expected:\n%s", got)
 	}
-	cmd := a.syncPreview()
+	cmd := a.SyncPreview()
 	if cmd == nil {
 		t.Fatal("expected images to load")
 	}
-	if len(a.mdImages) != 2 {
-		t.Fatalf("only local images should load: %v", a.mdImages)
+	if len(a.MdImages) != 2 {
+		t.Fatalf("only local images should load: %v", a.MdImages)
 	}
-	for path := range a.mdImages {
-		a.handleMDImageDone(mdImageDoneMsg{path, a.mdImages[path].stamp, newImageView(path)})
+	for path := range a.MdImages {
+		a.HandleMDImageDone(core.MdImageDoneMsg{path, a.MdImages[path].Stamp, core.NewImageView(path)})
 	}
-	lines := a.previewLines(a.tabs[0], w, 40)
+	lines := a.previewLines(a.Tabs[0], w, 40)
 	for _, l := range lines {
 		if ansi.StringWidth(l) != w {
 			t.Fatalf("width %d: %q", ansi.StringWidth(l), ansi.Strip(l))
@@ -239,7 +240,7 @@ func TestMarkdownImageInPreview(t *testing.T) {
 	if !strings.Contains(got, "🖼 外") {
 		t.Fatalf("remote image should stay text:\n%s", got)
 	}
-	if a.syncPreview() != nil {
+	if a.SyncPreview() != nil {
 		t.Fatal("loaded images must not load again")
 	}
 }
@@ -250,80 +251,79 @@ func TestMarkdownImageReloadedWhenFileChanges(t *testing.T) {
 	b := buffer.New()
 	b.Insert("![図](out.png)\n")
 	b.Path = filepath.Join(dir, "x.md")
-	a := appOf(&Core{cfg: &config.Config{}, tabs: []*Tab{newTab(b)}})
-	a.tabs[0].preview = PreviewSplit
+	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}})
+	a.Tabs[0].Preview = core.PreviewSplit
 	load := func() {
 		t.Helper()
-		if a.syncPreview() == nil {
+		if a.SyncPreview() == nil {
 			t.Fatal("expected the image to load")
 		}
-		a.handleMDImageDone(mdImageDoneMsg{path, a.mdImages[path].stamp, newImageView(path)})
+		a.HandleMDImageDone(core.MdImageDoneMsg{path, a.MdImages[path].Stamp, core.NewImageView(path)})
 	}
 
 	// written in the document before the file exists
 	load()
-	if a.mdImages[path].err == "" {
+	if a.MdImages[path].Err == "" {
 		t.Fatal("missing file should be an error")
 	}
 	writePNG(t, path, 40, 20)
 	load()
-	job := a.mdImages[path]
-	if job.err != "" || job.img == nil {
-		t.Fatalf("image expected after the file was made: %q", job.err)
+	job := a.MdImages[path]
+	if job.Err != "" || job.Img == nil {
+		t.Fatalf("image expected after the file was made: %q", job.Err)
 	}
-	first := job.img.rowsFor(30)
+	first := job.Img.RowsFor(30)
 
 	writePNG(t, path, 40, 400)
 	os.Chtimes(path, time.Now().Add(time.Second), time.Now().Add(time.Second))
-	old := job.stamp
-	a.syncPreview()
-	if job.stamp == old || job.img == nil {
+	old := job.Stamp
+	a.SyncPreview()
+	if job.Stamp == old || job.Img == nil {
 		t.Fatal("the old image should stay shown while the new one loads")
 	}
 	// a result read before the last change is dropped
-	a.handleMDImageDone(mdImageDoneMsg{path, old, newImageView(path)})
-	if job.img.rowsFor(30) != first {
+	a.HandleMDImageDone(core.MdImageDoneMsg{path, old, core.NewImageView(path)})
+	if job.Img.RowsFor(30) != first {
 		t.Fatal("stale result must be ignored")
 	}
-	a.handleMDImageDone(mdImageDoneMsg{path, job.stamp, newImageView(path)})
-	if job.img.rowsFor(30) == first {
+	a.HandleMDImageDone(core.MdImageDoneMsg{path, job.Stamp, core.NewImageView(path)})
+	if job.Img.RowsFor(30) == first {
 		t.Fatal("image should have been read again")
 	}
 
 	// removing the image from the document frees it
 	b.Undo()
 	b.Insert("text\n")
-	gen := a.previewGen
-	a.syncPreview()
-	if len(a.mdImages) != 0 {
-		t.Fatalf("unused image should be dropped: %v", a.mdImages)
+	gen := a.PreviewGen
+	a.SyncPreview()
+	if len(a.MdImages) != 0 {
+		t.Fatalf("unused image should be dropped: %v", a.MdImages)
 	}
-	if a.previewGen == gen {
+	if a.PreviewGen == gen {
 		t.Fatal("previews drawn with the freed image must be drawn again")
 	}
 }
 
 // testMd renders src as lines of w cells, with no images drawn.
-func testMd(src string, w int, o MdOpts) []string {
-	return (&App{}).drawMdDoc(RenderMarkdown(src, w, o), w)
+func testMd(src string, w int, o core.MdOpts) []string {
+	return (&App{}).drawMdDoc(core.RenderMarkdown(src, w, o), w)
 }
 
 // testMedia draws the rows of m as lines of w cells.
-func (a *App) testMedia(m *mdMedia, w int) []string {
-	doc := MdDoc{Lines: m.Lines}
+func (a *App) testMedia(m *core.MdMedia, w int) []string {
+	doc := core.MdDoc{Lines: m.Lines}
 	if m.Image != nil {
 		doc.Images = []screen.PreviewImage{{Rows: len(m.Lines), Image: *m.Image}}
 	}
 	return a.drawMdDoc(doc, w)
 }
 
-
 func TestRenderMarkdownWidth(t *testing.T) {
 	for _, w := range []int{20, 40, 80} {
 		called := false
-		lines := testMd(mdSample, w, MdOpts{mermaid: func(code string, w int) *mdMedia {
+		lines := testMd(mdSample, w, core.MdOpts{Mermaid: func(code string, w int) *core.MdMedia {
 			called = strings.Contains(code, "A-->B")
-			return &mdMedia{Lines: []screen.Line{mdRow(plainSpan(strings.Repeat("x", w)))}}
+			return &core.MdMedia{Lines: []screen.Line{core.MdRow(core.PlainSpan(strings.Repeat("x", w)))}}
 		}})
 		if !called {
 			t.Fatal("mermaid callback not called")
@@ -348,7 +348,7 @@ func TestRenderMarkdownWidth(t *testing.T) {
 func TestMarkdownTableWrapsLongCells(t *testing.T) {
 	src := "| 名前 | 説明 |\n|---|---|\n| foo | とても長い説明文がここに入ります。この文は幅を超えるので折り返されるべきです。 |\n| bar | short words that should wrap at spaces nicely |\n"
 	const w = 40
-	lines := testMd(src, w, MdOpts{})
+	lines := testMd(src, w, core.MdOpts{})
 	var text strings.Builder
 	for i, l := range lines {
 		if got := ansi.StringWidth(l); got != w {
@@ -373,10 +373,10 @@ func TestMarkdownTableWrapsLongCells(t *testing.T) {
 
 func TestLongFenceNotClosedByShorter(t *testing.T) {
 	src := "````md\n```mermaid\ngraph TD\n```\n````\n\nafter text\n"
-	if got := mermaidBlocks(src); len(got) != 0 {
+	if got := core.MermaidBlocks(src); len(got) != 0 {
 		t.Fatalf("example inside a longer fence must not be drawn: %q", got)
 	}
-	plain := ansi.Strip(strings.Join(testMd(src, 40, MdOpts{}), "\n"))
+	plain := ansi.Strip(strings.Join(testMd(src, 40, core.MdOpts{}), "\n"))
 	if !strings.Contains(plain, "after text") || strings.Contains(plain, "````") {
 		t.Fatalf("unexpected render:\n%s", plain)
 	}
@@ -384,7 +384,7 @@ func TestLongFenceNotClosedByShorter(t *testing.T) {
 
 func TestPreviewFrontMatterAsYAML(t *testing.T) {
 	src := "---\nname: skill\ndescription: 説明\n---\n\n# 見出し\n"
-	lines := testMd(src, 40, MdOpts{frontMatter: true})
+	lines := testMd(src, 40, core.MdOpts{FrontMatter: true})
 	plain := ansi.Strip(strings.Join(lines, "\n"))
 	if !strings.Contains(plain, " yaml") || !strings.Contains(plain, "name: skill") || !strings.Contains(plain, "description: 説明") {
 		t.Fatalf("front matter not shown as YAML:\n%s", plain)
@@ -394,7 +394,7 @@ func TestPreviewFrontMatterAsYAML(t *testing.T) {
 	}
 
 	// without the option (review comments), "---" stays a rule
-	plain = ansi.Strip(strings.Join(testMd(src, 40, MdOpts{}), "\n"))
+	plain = ansi.Strip(strings.Join(testMd(src, 40, core.MdOpts{}), "\n"))
 	if strings.Contains(plain, "yaml") {
 		t.Fatalf("front matter outside the preview:\n%s", plain)
 	}
@@ -415,9 +415,9 @@ func TestCodeBlockWrapsLongLines(t *testing.T) {
 	} {
 		exact := map[int][2]int{}
 		conts := map[int]bool{}
-		lines := testMd("```\n"+tc.line+"\n```\n", tc.w, MdOpts{
-			wrapped: func(row int, space bool, indent int) { conts[row] = true },
-			exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
+		lines := testMd("```\n"+tc.line+"\n```\n", tc.w, core.MdOpts{
+			Wrapped: func(row int, space bool, indent int) { conts[row] = true },
+			Exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
 		})
 		var got strings.Builder
 		for i, l := range lines {
@@ -431,7 +431,7 @@ func TestCodeBlockWrapsLongLines(t *testing.T) {
 			if !ok || conts[i] != (i > 1) {
 				t.Fatalf("%q w=%d: row %d exact %v cont %v", tc.line, tc.w, i, ok, conts[i])
 			}
-			got.WriteString(cutCols(ansi.Strip(l), x[0], x[1]))
+			got.WriteString(core.CutCols(ansi.Strip(l), x[0], x[1]))
 		}
 		if want := strings.ReplaceAll(tc.line, "\t", "    "); got.String() != want {
 			t.Fatalf("w=%d: rows join to\n%q\nwant\n%q", tc.w, got.String(), want)
@@ -440,7 +440,7 @@ func TestCodeBlockWrapsLongLines(t *testing.T) {
 
 	// a line that fits is not reported
 	called := false
-	testMd("```\nshort\n```\n", 20, MdOpts{exact: func(int, int, int) { called = true }})
+	testMd("```\nshort\n```\n", 20, core.MdOpts{Exact: func(int, int, int) { called = true }})
 	if called {
 		t.Fatal("a line that fits reported as cut")
 	}

@@ -30,8 +30,8 @@ func TestParseSnippet(t *testing.T) {
 
 func snipSetup(t *testing.T, content string) (*App, *buffer.Buffer) {
 	a := newTestApp(t, content)
-	a.focus = FocusEditor
-	a.mode = ModeInsert
+	a.Focus = FocusEditor
+	a.Mode = ModeInsert
 	b := a.CurText().Buf
 	b.SetCursor(0, 1000, false)
 	return a, b

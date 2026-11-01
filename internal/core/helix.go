@@ -32,17 +32,17 @@ func (m EditMode) label() string {
 // fills the editor area: scrolling, counts, the leader and command line, and
 // ctrl chords. Anything else would edit a buffer that is not visible.
 func (a *Core) fullPreviewKey(key string) bool {
-	if a.pending == " " {
+	if a.Pending == " " {
 		return strings.Contains("fbkodDeEmgGvwy?/ta", key) && len(key) == 1
 	}
-	if a.pending == "space v" {
+	if a.Pending == "space v" {
 		return true // review commands do not edit the hidden buffer
 	}
-	if a.pending == "space w" {
+	if a.Pending == "space w" {
 		return true
 	}
-	if a.pending != "" {
-		return a.pending == "g"
+	if a.Pending != "" {
+		return a.Pending == "g"
 	}
 	switch key {
 	case "j", "k", "up", "down", "G", "g", "pgup", "pgdown", "esc", ":", "space":
@@ -65,31 +65,31 @@ func fullPreviewEditorKey(msg Key) bool {
 }
 
 // handleHelixKey implements Helix-style modal editing for text tabs.
-func (a *Core) handleHelixKey(msg Key) []Effect {
+func (a *Core) HandleHelixKey(msg Key) []Effect {
 	t := a.Cur()
 	if t == nil || t.Kind != TabText {
 		return nil
 	}
 	if a.FullPreview(t) {
-		a.mode = ModeNormal // e.g. after switching back to this tab from insert mode
+		a.Mode = ModeNormal // e.g. after switching back to this tab from insert mode
 		if !a.fullPreviewKey(msg.String()) {
-			a.pending, a.count = "", 0
+			a.Pending, a.count = "", 0
 			a.InfoText(i18n.T("app.fullpreview"))
 			return nil
 		}
 	}
-	if a.mode == ModeInsert {
+	if a.Mode == ModeInsert {
 		return a.handleInsertKey(msg)
 	}
 	b := t.Buf
 	key := msg.String()
-	a.follow = a.pending != "" || key != "z" // the z prefix alone must not pull the view back to the cursor
-	ext := a.mode == ModeSelect
+	a.Follow = a.Pending != "" || key != "z" // the z prefix alone must not pull the view back to the cursor
+	ext := a.Mode == ModeSelect
 
 	// pending multi-key sequences
-	if a.pending != "" {
-		p := a.pending
-		a.pending = ""
+	if a.Pending != "" {
+		p := a.Pending
+		a.Pending = ""
 		if b.HasExtra() && (strings.Contains("ftFTr", p) || p == "g" && strings.Contains("hls", key) || p == "m i" || p == "m a") {
 			var cmd []Effect
 			b.ForEachCursor(func() { cmd = a.helixPending(p, key, msg) })
@@ -162,9 +162,9 @@ func (a *Core) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int,
 		}
 		a.scrollHalfScreen(a.Cur(), dir)
 	case "ctrl+u":
-		b.MoveLines(-a.pageSize()/2, ext)
+		b.MoveLines(-a.PageSize()/2, ext)
 	case "ctrl+d":
-		b.MoveLines(a.pageSize()/2, ext)
+		b.MoveLines(a.PageSize()/2, ext)
 
 	// --- search ---
 	case "/", "?":
@@ -184,14 +184,14 @@ func (a *Core) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int,
 
 	// --- prefixes ---
 	case "g", "m", "]", "[", "f", "t", "F", "T", "r", "z", "space":
-		a.pending = key
+		a.Pending = key
 		if key == "space" {
-			a.pending = " "
+			a.Pending = " "
 		}
 		if hadCount && key == "g" {
 			a.pushJump()
 			b.GotoLine(count)
-			a.pending = ""
+			a.Pending = ""
 		}
 		return nil
 	case ":":
@@ -202,18 +202,18 @@ func (a *Core) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int,
 	return nil
 }
 
-func (a *Core) pageSize() int { return max(1, a.EditRows()-2) }
+func (a *Core) PageSize() int { return max(1, a.EditRows()-2) }
 
 func (a *Core) enterInsert() []Effect {
 	a.recIns = nil
-	a.mode = ModeInsert
+	a.Mode = ModeInsert
 	return nil
 }
 
 func (a *Core) helixPending(p, key string, msg Key) []Effect {
 	t := a.Cur()
 	b := t.Buf
-	ext := a.mode == ModeSelect
+	ext := a.Mode == ModeSelect
 	ch := []rune(key)
 	single := utf8.RuneCountInString(Typed(msg)) == 1
 	var r rune
@@ -252,7 +252,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 		case "r":
 			return a.references()
 		case "a":
-			a.switchLast()
+			a.SwitchLast()
 		case "t":
 			b.SetCursor(b.ScrollRow, 0, ext)
 		case "b":
@@ -265,7 +265,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 		case "m":
 			b.MatchBracket(ext)
 		case "i", "a":
-			a.pending = "m " + key // wait for the text object
+			a.Pending = "m " + key // wait for the text object
 		}
 	case "m i", "m a":
 		if single && !b.SelectTextObject(r, p == "m a") {
@@ -297,9 +297,9 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 			b.ReplaceChars('\n')
 		}
 	case " ":
-		return a.spaceMode(key)
+		return a.SpaceMode(key)
 	case "space v":
-		return a.reviewKey(key)
+		return a.ReviewKey(key)
 	case "space w":
 		return a.windowKey(key)
 	}
@@ -307,7 +307,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 }
 
 // spaceMode handles "Space <key>" commands (Helix's space menu).
-func (a *Core) spaceMode(key string) []Effect {
+func (a *Core) SpaceMode(key string) []Effect {
 	if a.single {
 		switch key {
 		case "f", "b", "d", "D", "e", "E", "g", "G", "v", "w", "i", "?", "/", "t", "a", "s":
@@ -316,9 +316,9 @@ func (a *Core) spaceMode(key string) []Effect {
 	}
 	switch key {
 	case "f":
-		return a.pal.show(a.root, "")
+		return a.Pal.Show(a.Root, "")
 	case "b":
-		return a.bufferPicker()
+		return a.BufferPicker()
 	case "k":
 		return a.hover()
 	case "o":
@@ -337,21 +337,21 @@ func (a *Core) spaceMode(key string) []Effect {
 		a.SetSide(true)
 		return a.SetFocus(FocusExplorer)
 	case "E":
-		if a.gd.on {
+		if a.Gd.On {
 			return a.focusChangesList()
 		}
 		a.SetSide(true)
 		return a.SetFocus(FocusExplorer)
 	case "m":
-		return a.togglePreview()
+		return a.TogglePreview()
 	case "g":
-		return a.openDiff(basePR)
+		return a.OpenDiff(BasePR)
 	case "G":
-		return a.openDiff(baseHead)
+		return a.OpenDiff(BaseHead)
 	case "v":
 		return a.openReviewMenu()
 	case "w":
-		a.pending = "space w"
+		a.Pending = "space w"
 		return nil
 	case "i":
 		return a.toggleAgentPanel()
@@ -368,15 +368,15 @@ func (a *Core) spaceMode(key string) []Effect {
 			}
 		}
 	case "?":
-		return a.pal.show(a.root, ">")
+		return a.Pal.Show(a.Root, ">")
 	case "/":
-		return a.openSearch(FQuery)
+		return a.OpenSearch(FQuery)
 	case "c":
 		a.toggleComment()
 	case "t":
-		return a.toggleTerm()
+		return a.ToggleTerm()
 	case "a":
-		return a.sendContext()
+		return a.SendContext()
 	}
 	return nil
 }
@@ -384,7 +384,7 @@ func (a *Core) spaceMode(key string) []Effect {
 func (a *Core) handleInsertKey(msg Key) []Effect {
 	cmd := a.insertKey(msg)
 	if a.recIns != nil && !a.replaying {
-		if a.mode == ModeInsert {
+		if a.Mode == ModeInsert {
 			a.recIns.steps = append(a.recIns.steps, insertStep{key: msg})
 		} else {
 			a.lastIns, a.recIns = a.recIns, nil // left insert mode: the record is complete
@@ -401,8 +401,8 @@ func (a *Core) insertKey(msg Key) []Effect {
 	}
 	switch msg.String() {
 	case "esc":
-		a.mode = ModeNormal
-		a.comp = nil
+		a.Mode = ModeNormal
+		a.Comp = nil
 		b.ForEachCursor(b.ClearSelection)
 		return nil
 	case "ctrl+x", "ctrl+space":
@@ -461,7 +461,7 @@ func (a *Core) paste(b *buffer.Buffer, text string, after bool) {
 	b.InsertAt(at, text)
 	end := b.Cur
 	b.SelectRange(at, end)
-	a.follow = true
+	a.Follow = true
 }
 
 func (a *Core) indentLines(b *buffer.Buffer, in bool) func() {
@@ -542,12 +542,12 @@ func (a *Core) searchNext(backward bool) {
 		a.Fail(errString(i18n.T("app.notfound") + a.lastSearch))
 		return
 	}
-	if a.mode == ModeSelect && b.Anchor != nil {
+	if a.Mode == ModeSelect && b.Anchor != nil {
 		b.Cur = buffer.Pos{Row: p.Row, Col: p.Col + len([]rune(a.lastSearch))}
 	} else {
 		b.SelectRange(p, buffer.Pos{Row: p.Row, Col: p.Col + len([]rune(a.lastSearch))})
 	}
-	a.follow = true
+	a.Follow = true
 }
 
 type errString string
@@ -555,16 +555,16 @@ type errString string
 func (e errString) Error() string { return string(e) }
 
 // bufferPicker lists open tabs (Helix "Space b").
-func (a *Core) bufferPicker() []Effect {
-	items := make([]paletteItem, len(a.tabs))
-	for i, t := range a.tabs {
-		label := t.title()
+func (a *Core) BufferPicker() []Effect {
+	items := make([]PaletteItem, len(a.Tabs))
+	for i, t := range a.Tabs {
+		label := t.Title()
 		if t.dirty() {
 			label += " ●"
 		}
-		items[i] = paletteItem{label: label, detail: a.Rel(t.Path())}
+		items[i] = PaletteItem{Label: label, Detail: a.Rel(t.Path())}
 	}
-	return a.pal.pick(i18n.T("helix.buffers"), items, func(i int) []Effect {
+	return a.Pal.Pick(i18n.T("helix.buffers"), items, func(i int) []Effect {
 		a.pushJump()
 		a.showInPane(i)
 		return a.SetFocus(FocusEditor)
@@ -594,15 +594,15 @@ func (a *Core) selectMatches(pattern string) {
 		a.Fail(err)
 		return
 	}
-	a.mode = ModeNormal
-	a.follow = true
+	a.Mode = ModeNormal
+	a.Follow = true
 	a.Info(i18n.T("helix.cursors"), len(t.Buf.Extra())+1)
 }
 
 // cursorCell is where a cursor is drawn: Helix draws it on the last
 // selected character when the selection extends forwards.
 func (a *Core) cursorCell(b *buffer.Buffer, anchor *buffer.Pos, cur buffer.Pos) buffer.Pos {
-	if a.mode == ModeInsert || anchor == nil || !anchor.Less(cur) {
+	if a.Mode == ModeInsert || anchor == nil || !anchor.Less(cur) {
 		return cur
 	}
 	if cur.Col > 0 {

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -13,9 +14,9 @@ func TestCompletionOverlay(t *testing.T) {
 	for i := range items {
 		items[i] = lsp.CompletionItem{Label: string(rune('a' + i)), Kind: 3}
 	}
-	tb := &Tab{Buf: buffer.New()}
-	c := &completionPopup{tab: tb, all: items, items: items, sel: 12}
-	ov := c.overlay(20)
+	tb := &core.Tab{Buf: buffer.New()}
+	c := &core.CompletionPopup{Tab: tb, All: items, Items: items, Sel: 12}
+	ov := c.Overlay(20)
 	if ov.Kind != screen.OverlayCompletion || ov.At == nil || len(ov.Items) != 10 || ov.Active != 9 || ov.Items[ov.Active].Label != "m" || ov.Items[0].Kind != "func" {
 		t.Errorf("overlay = %+v", ov)
 	}

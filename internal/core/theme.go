@@ -8,7 +8,7 @@ import (
 )
 
 // syntaxColors are the token colors a theme provides.
-type syntaxColors struct {
+type SyntaxColors struct {
 	Text, Comment, Preproc, Keyword, Namespace, Type, Name, Function string
 	Const, String, Escape, Number                                    string
 	Control                                                          string // if, return, ... (semantic tokens); "" = Keyword
@@ -16,7 +16,7 @@ type syntaxColors struct {
 
 // iconOverride replaces parts of an icon in a theme. Empty fields keep the
 // default.
-type iconOverride struct {
+type IconOverride struct {
 	Glyph, Color string
 }
 
@@ -53,14 +53,14 @@ type Theme struct {
 	// part of the bar that is on screen
 	AddWordBg, DelWordBg, ModSign, BarView string
 
-	Syntax syntaxColors
+	Syntax SyntaxColors
 
 	// Icons overrides file tree icons by icon kind (see icons.go). Kinds not
 	// listed keep the default icon.
-	Icons map[string]iconOverride
+	Icons map[string]IconOverride
 }
 
-var darkPlus = Theme{
+var DarkPlus = Theme{
 	Name:     "dark-plus",
 	EditorBg: "#1e1e1e", EditorFg: "#d4d4d4", SideBg: "#252526", SideFg: "#cccccc",
 	TabBarBg: "#252526", TabInact: "#2d2d2d", TabInactFg: "#969696",
@@ -78,14 +78,14 @@ var darkPlus = Theme{
 	AddBg: "#203a27", DelBg: "#3d2125", AddSign: "#3fb950", DelSign: "#f85149",
 	HunkFg: "#79c0ff", HunkBg: "#1d2733", NoteBg: "#2b2b31",
 	AddWordBg: "#2f6b3c", DelWordBg: "#7a2e35", ModSign: "#3794ff", BarView: "#45494e",
-	Syntax: syntaxColors{
+	Syntax: SyntaxColors{
 		Text: "#d4d4d4", Comment: "#6a9955", Preproc: "#c586c0", Keyword: "#569cd6",
 		Namespace: "#c586c0", Type: "#4ec9b0", Name: "#9cdcfe", Function: "#dcdcaa",
 		Const: "#4fc1ff", String: "#ce9178", Escape: "#d7ba7d", Number: "#b5cea8", Control: "#c586c0",
 	},
 }
 
-var githubDark = Theme{
+var GithubDark = Theme{
 	Name:     "github-dark",
 	EditorBg: "#0d1117", EditorFg: "#c9d1d9", SideBg: "#010409", SideFg: "#c9d1d9",
 	TabBarBg: "#010409", TabInact: "#161b22", TabInactFg: "#8b949e",
@@ -103,14 +103,14 @@ var githubDark = Theme{
 	AddBg: "#1a3b2a", DelBg: "#2d1214", AddSign: "#3fb950", DelSign: "#f85149",
 	HunkFg: "#79c0ff", HunkBg: "#121d2f", NoteBg: "#161b22",
 	AddWordBg: "#287140", DelWordBg: "#6e2027", ModSign: "#58a6ff", BarView: "#30363d",
-	Syntax: syntaxColors{
+	Syntax: SyntaxColors{
 		Text: "#c9d1d9", Comment: "#8b949e", Preproc: "#ff7b72", Keyword: "#ff7b72",
 		Namespace: "#ff7b72", Type: "#ffa657", Name: "#c9d1d9", Function: "#d2a8ff",
 		Const: "#79c0ff", String: "#a5d6ff", Escape: "#79c0ff", Number: "#79c0ff",
 	},
 }
 
-var lightPlus = Theme{
+var LightPlus = Theme{
 	Name:     "light-plus",
 	EditorBg: "#ffffff", EditorFg: "#000000", SideBg: "#f3f3f3", SideFg: "#616161",
 	TabBarBg: "#f3f3f3", TabInact: "#ececec", TabInactFg: "#8e8e90",
@@ -128,14 +128,14 @@ var lightPlus = Theme{
 	AddBg: "#dafbe1", DelBg: "#ffebe9", AddSign: "#1a7f37", DelSign: "#cf222e",
 	HunkFg: "#0550ae", HunkBg: "#ddf4ff", NoteBg: "#fff8c5",
 	AddWordBg: "#aceebb", DelWordBg: "#ffcecb", ModSign: "#0969da", BarView: "#d0d7de",
-	Syntax: syntaxColors{
+	Syntax: SyntaxColors{
 		Text: "#000000", Comment: "#008000", Preproc: "#af00db", Keyword: "#0000ff",
 		Namespace: "#af00db", Type: "#267f99", Name: "#001080", Function: "#795e26",
 		Const: "#0070c1", String: "#a31515", Escape: "#ee0000", Number: "#098658", Control: "#af00db",
 	},
 	// The default icon colors are tuned for dark backgrounds; darken the ones
 	// that wash out on white.
-	Icons: map[string]iconOverride{
+	Icons: map[string]IconOverride{
 		"folder":      {Color: "#3b7bb5"},
 		"folder-open": {Color: "#3b7bb5"},
 		"default":     {Color: "#6e6e6e"},
@@ -153,10 +153,10 @@ var lightPlus = Theme{
 	},
 }
 
-var themes = []*Theme{&darkPlus, &githubDark, &lightPlus}
+var Themes = []*Theme{&DarkPlus, &GithubDark, &LightPlus}
 
 // defaultTheme is used when no theme (or an unknown one) is configured.
-var DefaultTheme = &githubDark
+var DefaultTheme = &GithubDark
 
 // themeAliases maps other names (notably Helix theme names) to built-ins.
 var themeAliases = map[string]string{
@@ -170,8 +170,8 @@ var themeAliases = map[string]string{
 
 // themeNames lists the built-in theme names, sorted.
 func themeNames() []string {
-	names := make([]string, 0, len(themes))
-	for _, t := range themes {
+	names := make([]string, 0, len(Themes))
+	for _, t := range Themes {
 		names = append(names, t.Name)
 	}
 	sort.Strings(names)
@@ -184,7 +184,7 @@ func themeNames() []string {
 func lookupTheme(name string) (*Theme, bool) {
 	n := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(name)), "_", "-")
 	keys := map[string]string{}
-	for _, t := range themes {
+	for _, t := range Themes {
 		keys[t.Name] = t.Name
 	}
 	maps.Copy(keys, themeAliases)
@@ -194,7 +194,7 @@ func lookupTheme(name string) (*Theme, bool) {
 			best = k
 		}
 	}
-	for _, t := range themes {
+	for _, t := range Themes {
 		if best != "" && t.Name == keys[best] {
 			return t, true
 		}
@@ -208,7 +208,7 @@ var (
 	ThemeGen int
 )
 
-func themeOrDefault(name string) *Theme {
+func ThemeOrDefault(name string) *Theme {
 	if t, ok := lookupTheme(name); ok {
 		return t
 	}
@@ -223,7 +223,7 @@ func ActivateTheme(t *Theme) {
 	CurTheme = t
 	ThemeGen++
 	s := t.Syntax
-	chromaStyle = chroma.MustNewStyle(t.Name, chroma.StyleEntries{
+	ChromaStyle = chroma.MustNewStyle(t.Name, chroma.StyleEntries{
 		chroma.Text:                s.Text,
 		chroma.Comment:             s.Comment,
 		chroma.CommentPreproc:      s.Preproc,

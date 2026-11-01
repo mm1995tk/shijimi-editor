@@ -19,7 +19,7 @@ func (a *Core) SetIDE(s *ide.Server) { a.ide = s }
 
 func (a *Core) ideAbs(p string) string {
 	if !filepath.IsAbs(p) {
-		p = filepath.Join(a.root, p)
+		p = filepath.Join(a.Root, p)
 	}
 	return filepath.Clean(p)
 }
@@ -81,7 +81,7 @@ func (a *Core) mentionContext() bool {
 }
 
 func (a *Core) tabFor(path string) *Tab {
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.Kind == TabText && t.Buf.Path == path {
 			return t
 		}
@@ -139,30 +139,30 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 		return ok(map[string]any{"success": false, "message": "No active editor found"})
 	case "getOpenEditors":
 		tabs := []map[string]any{}
-		for i, t := range a.tabs {
+		for i, t := range a.Tabs {
 			if t.Kind != TabText || t.Buf.Path == "" {
 				continue
 			}
 			lang := ""
-			if t.lang != nil {
-				lang = t.lang.ID()
+			if t.Lang != nil {
+				lang = t.Lang.ID()
 			}
 			tabs = append(tabs, map[string]any{
-				"uri": FileURL(t.Buf.Path), "isActive": i == a.active, "label": filepath.Base(t.Buf.Path),
+				"uri": FileURL(t.Buf.Path), "isActive": i == a.Active, "label": filepath.Base(t.Buf.Path),
 				"languageId": lang, "isDirty": t.dirty(),
 			})
 		}
 		return ok(map[string]any{"tabs": tabs})
 	case "getWorkspaceFolders":
-		return ok(map[string]any{"success": true, "rootPath": a.root, "folders": []map[string]any{
-			{"name": filepath.Base(a.root), "uri": FileURL(a.root), "path": a.root},
+		return ok(map[string]any{"success": true, "rootPath": a.Root, "folders": []map[string]any{
+			{"name": filepath.Base(a.Root), "uri": FileURL(a.Root), "path": a.Root},
 		}})
 	case "getDiagnostics":
 		var paths []string
 		if args.URI != "" {
 			paths = []string{a.ideFile(args.URI)}
 		} else {
-			for p := range a.lsp.diags {
+			for p := range a.Lsp.Diags {
 				paths = append(paths, p)
 			}
 			slices.Sort(paths)
@@ -170,7 +170,7 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 		out := []map[string]any{}
 		for _, p := range paths {
 			ds := []map[string]any{}
-			for _, d := range a.lsp.diagnostics(p) {
+			for _, d := range a.Lsp.diagnostics(p) {
 				ds = append(ds, map[string]any{
 					"message": d.Message, "severity": lspSeverity[sevRank(d.Severity)], "source": d.Source,
 					"range": map[string]any{
@@ -192,10 +192,10 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 		if _, err := os.Stat(p); err != nil {
 			return fail(i18n.T("ide.nofile"), p)
 		}
-		if !a.openFile(p) {
+		if !a.OpenFile(p) {
 			return fail(i18n.T("ide.cantopen"), p)
 		}
-		a.follow = true
+		a.Follow = true
 		if t := a.CurText(); t != nil && args.StartText != "" {
 			SelectText(t.Buf, args.StartText, args.EndText)
 		}
@@ -215,8 +215,8 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 		}
 		if t.dirty() {
 			cmd = a.saveTab(t)
-			if a.msgErr {
-				return fail(i18n.T("ide.cantsave"), a.msg)
+			if a.MsgErr {
+				return fail(i18n.T("ide.cantsave"), a.Msg)
 			}
 		}
 		return IDEReply{Content: []ide.Content{ide.JSON(map[string]any{"success": true, "filePath": p, "saved": true})}}, cmd, false

@@ -28,12 +28,12 @@ type semanticState struct {
 }
 
 // semanticMsg carries the result of a semantic tokens request.
-type semanticMsg struct {
+type SemanticMsg struct {
 	h       *highlighter
 	version int
-	lines   []string
-	roles   [][]string
-	ok      bool // the server answered; false on errors and unsupported servers
+	Lines   []string
+	Roles   [][]string
+	Ok      bool // the server answered; false on errors and unsupported servers
 }
 
 // semanticCmd returns a command that asks the language server for the
@@ -41,13 +41,13 @@ type semanticMsg struct {
 // is under way, or no server provides them. Edits made meanwhile are requested
 // once that one is applied.
 func (a *Core) semanticCmd(t *Tab) []Effect {
-	h := t.hl
-	s := &h.sem
-	if t.Kind != TabText || t.lang == nil || s.running || len(t.Buf.Lines) > maxHighlightLines ||
+	h := t.Hl
+	s := &h.Sem
+	if t.Kind != TabText || t.Lang == nil || s.running || len(t.Buf.Lines) > maxHighlightLines ||
 		s.asked && s.version == t.Buf.Version || t.lspVersion != t.Buf.Version {
 		return nil
 	}
-	c := a.lsp.client(t, "semanticTokensProvider")
+	c := a.Lsp.client(t, "semanticTokensProvider")
 	if c == nil {
 		return nil
 	}
@@ -59,9 +59,9 @@ func (a *Core) semanticCmd(t *Tab) []Effect {
 	path, version := t.Buf.Path, t.Buf.Version
 	return a.lspReq(func(ctx context.Context) Event {
 		toks, err := c.SemanticTokens(ctx, path)
-		m := semanticMsg{h: h, version: version, lines: lines}
+		m := SemanticMsg{h: h, version: version, Lines: lines}
 		if err == nil && toks != nil {
-			m.roles, m.ok = semanticRoles(lines, toks), true
+			m.Roles, m.Ok = SemanticRoles(lines, toks), true
 		}
 		return m
 	})
@@ -70,7 +70,7 @@ func (a *Core) semanticCmd(t *Tab) []Effect {
 // semanticTabs requests semantic tokens for every text tab that is behind.
 func (a *Core) SemanticTabs() []Effect {
 	var cmds [][]Effect
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		cmds = append(cmds, a.semanticCmd(t))
 	}
 	return Batch(cmds...)
@@ -78,12 +78,12 @@ func (a *Core) SemanticTabs() []Effect {
 
 // apply stores the result of a semanticCmd. A server that stops answering
 // leaves the last tokens in place.
-func (s *semanticState) apply(m semanticMsg) {
+func (s *semanticState) Apply(m SemanticMsg) {
 	s.running = false
-	if !m.ok {
+	if !m.Ok {
 		return
 	}
-	s.lines, s.roles = m.lines, m.roles
+	s.lines, s.roles = m.Lines, m.Roles
 	s.stamp++
 }
 
@@ -201,7 +201,7 @@ func semanticRole(t lsp.SemanticToken, text string) string {
 // semanticRoles turns tokens into per-rune roles of lines. The tokens'
 // positions are in UTF-16 code units; they are converted to rune columns here.
 // Tokens without a type, outside the text, or spanning lines are skipped.
-func semanticRoles(lines []string, toks []lsp.SemanticToken) [][]string {
+func SemanticRoles(lines []string, toks []lsp.SemanticToken) [][]string {
 	out := make([][]string, len(lines))
 	runes := make([][]rune, len(lines))
 	for _, t := range toks {

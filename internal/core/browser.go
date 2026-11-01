@@ -29,7 +29,7 @@ func (a *Core) browser(arg string) []Effect {
 		if len(ports) == 2 {
 			listen = ports[1]
 		}
-		f, err := a.proxy.Start(a.cfg.Browser.ListenHost, ports[0], listen)
+		f, err := a.proxy.Start(a.Cfg.Browser.ListenHost, ports[0], listen)
 		if err != nil {
 			a.Fail(err)
 			return nil

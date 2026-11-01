@@ -20,27 +20,27 @@ const MinSplitW = 41
 // splitWanted reports whether the editor area is split now. Diff mode and
 // single-file mode use the whole area for one file, and the split comes back
 // when they end.
-func (a *Core) SplitWanted() bool { return a.split && !a.single && !a.gd.on }
+func (a *Core) SplitWanted() bool { return a.Split && !a.single && !a.Gd.On }
 
 // tabIndex is the index of t in a.tabs, or -1.
 func (a *Core) tabIndex(t *Tab) int {
 	if t == nil {
 		return -1
 	}
-	return slices.Index(a.tabs, t)
+	return slices.Index(a.Tabs, t)
 }
 
 // splitOpen splits the editor area. The file stays in the left pane, and the
 // right pane, which gets the focus, shows the last file (ga) or, with none,
 // asks for a file.
-func (a *Core) splitOpen() []Effect {
+func (a *Core) SplitOpen() []Effect {
 	switch {
 	case a.single:
 		return nil
-	case a.split:
+	case a.Split:
 		a.InfoText(i18n.T("win.already"))
 		return nil
-	case a.gd.on:
+	case a.Gd.On:
 		a.InfoText(i18n.T("win.nodiff"))
 		return nil
 	case a.EditorCols() < MinSplitW:
@@ -52,21 +52,21 @@ func (a *Core) splitOpen() []Effect {
 		a.InfoText(i18n.T("win.nofile"))
 		return nil
 	}
-	cur.transient = false
-	prev := a.prevTab
+	cur.Transient = false
+	prev := a.PrevTab
 	if a.tabIndex(prev) < 0 || prev == cur {
 		prev = nil
 	}
-	a.split, a.pane = true, 1
-	a.other, a.otherPrev = cur, nil
-	a.prevTab = nil
-	a.active = a.tabIndex(prev)
+	a.Split, a.Pane = true, 1
+	a.Other, a.otherPrev = cur, nil
+	a.PrevTab = nil
+	a.Active = a.tabIndex(prev)
 	a.seenTab = a.Cur()
-	a.follow = true
-	a.mode = ModeNormal
-	a.comp = nil
+	a.Follow = true
+	a.Mode = ModeNormal
+	a.Comp = nil
 	if prev == nil {
-		return a.pal.show(a.root, "")
+		return a.Pal.Show(a.Root, "")
 	}
 	return a.SetFocus(FocusEditor)
 }
@@ -74,91 +74,91 @@ func (a *Core) splitOpen() []Effect {
 // focusPane moves the focus to the pane on side (0 = left, 1 = right).
 func (a *Core) FocusPane(side int) []Effect {
 	if !a.SplitWanted() {
-		if a.split {
+		if a.Split {
 			a.InfoText(i18n.T("win.nodiff"))
 		} else {
 			a.InfoText(i18n.T("win.nosplit"))
 		}
 		return nil
 	}
-	if side != a.pane {
+	if side != a.Pane {
 		a.swapPanes()
-		a.pane = side
+		a.Pane = side
 	}
 	return a.SetFocus(FocusEditor)
 }
 
 // focusOtherPane moves the focus to the other pane.
-func (a *Core) focusOtherPane() []Effect { return a.FocusPane(1 - a.pane) }
+func (a *Core) focusOtherPane() []Effect { return a.FocusPane(1 - a.Pane) }
 
 // swapPanes makes the other pane's file the focused one's, and the reverse.
 // The pane keeps its own "last file".
 func (a *Core) swapPanes() {
 	cur := a.Cur()
-	a.active = a.tabIndex(a.other)
-	a.other = cur
-	a.prevTab, a.otherPrev = a.otherPrev, a.prevTab
+	a.Active = a.tabIndex(a.Other)
+	a.Other = cur
+	a.PrevTab, a.otherPrev = a.otherPrev, a.PrevTab
 	a.seenTab = a.Cur()
-	a.follow = true
-	a.mode = ModeNormal
-	a.comp = nil
+	a.Follow = true
+	a.Mode = ModeNormal
+	a.Comp = nil
 }
 
 // closeSplit goes back to one pane. keepFocused picks which file stays in it;
 // the other file stays open, only not shown.
 func (a *Core) closeSplit(keepFocused bool) {
-	if !a.split {
+	if !a.Split {
 		a.InfoText(i18n.T("win.nosplit"))
 		return
 	}
-	if !keepFocused && a.other != nil {
+	if !keepFocused && a.Other != nil {
 		a.swapPanes()
 	}
-	a.split, a.pane, a.other, a.otherPrev = false, 0, nil, nil
-	a.follow = true
+	a.Split, a.Pane, a.Other, a.otherPrev = false, 0, nil, nil
+	a.Follow = true
 }
 
 // showInPane shows tab i in the focused pane. A tab that the other pane shows
 // is swapped over instead, so that the focus stays where it is.
 func (a *Core) showInPane(i int) {
-	if i < 0 || i >= len(a.tabs) {
+	if i < 0 || i >= len(a.Tabs) {
 		return
 	}
-	if a.split && a.tabs[i] == a.other {
-		a.other = a.Cur()
-		a.otherPrev, a.prevTab = a.prevTab, a.otherPrev
+	if a.Split && a.Tabs[i] == a.Other {
+		a.Other = a.Cur()
+		a.otherPrev, a.PrevTab = a.PrevTab, a.otherPrev
 	}
-	a.active = i
-	a.follow = true
-	a.mode = ModeNormal
-	a.comp = nil
+	a.Active = i
+	a.Follow = true
+	a.Mode = ModeNormal
+	a.Comp = nil
 }
 
 // normalizeSplit keeps the panes consistent after an event: a closed file
 // leaves its pane empty, an empty split is dropped, and a file chosen that the
 // other pane shows takes the focus to that pane.
 func (a *Core) NormalizeSplit() {
-	if !a.split {
-		a.other, a.otherPrev = nil, nil
+	if !a.Split {
+		a.Other, a.otherPrev = nil, nil
 		return
 	}
-	if a.tabIndex(a.other) < 0 {
-		a.other = nil
+	if a.tabIndex(a.Other) < 0 {
+		a.Other = nil
 	}
-	if cur := a.Cur(); cur != nil && cur == a.other {
-		a.other = a.seenTab
-		if a.tabIndex(a.other) < 0 || a.other == cur {
-			a.other = nil
+	if cur := a.Cur(); cur != nil && cur == a.Other {
+		a.Other = a.seenTab
+		if a.tabIndex(a.Other) < 0 || a.Other == cur {
+			a.Other = nil
 		}
-		a.pane = 1 - a.pane
-		a.prevTab, a.otherPrev = a.otherPrev, a.prevTab
+		a.Pane = 1 - a.Pane
+		a.PrevTab, a.otherPrev = a.otherPrev, a.PrevTab
 		a.seenTab = cur
 	}
-	if a.Cur() == nil && a.other == nil {
-		a.split, a.pane = false, 0
+	if a.Cur() == nil && a.Other == nil {
+		a.Split, a.Pane = false, 0
 	}
-	if a.other != nil {
-		a.other.transient = false
+	if a.Other != nil {
+		a.Other.Transient = false
 	}
 }
 
@@ -169,7 +169,7 @@ func (a *Core) windowKey(key string) []Effect {
 	}
 	switch key {
 	case "v", "s":
-		return a.splitOpen()
+		return a.SplitOpen()
 	case "h", "left":
 		return a.FocusPane(0)
 	case "l", "right":
@@ -186,22 +186,22 @@ func (a *Core) windowKey(key string) []Effect {
 
 // toggleEditorSplit is Ctrl+\: split, or go back to one pane.
 func (a *Core) toggleEditorSplit() []Effect {
-	if a.split {
+	if a.Split {
 		a.closeSplit(true)
 		return nil
 	}
-	return a.splitOpen()
+	return a.SplitOpen()
 }
 
 // openFileHere is openFile for commands that act on the focused pane (Ctrl+O,
 // Ctrl+I): a file the other pane shows is swapped into this one.
 func (a *Core) openFileHere(path string) bool {
 	abs, _ := filepath.Abs(path)
-	if a.split && a.other != nil && a.other.Path() == abs {
-		a.showInPane(a.tabIndex(a.other))
+	if a.Split && a.Other != nil && a.Other.Path() == abs {
+		a.showInPane(a.tabIndex(a.Other))
 		return true
 	}
-	return a.openFile(path)
+	return a.OpenFile(path)
 }
 
 // windowItems is the Space w menu.

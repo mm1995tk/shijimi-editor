@@ -9,8 +9,8 @@ import (
 // can override it (see Theme.Icons).
 type fileIcon struct {
 	kind  string
-	glyph string
-	color string
+	Glyph string
+	Color string
 }
 
 var (
@@ -20,7 +20,7 @@ var (
 )
 
 var (
-	icoGo       = fileIcon{"go", "", "#00add8"}
+	IcoGo       = fileIcon{"go", "", "#00add8"}
 	icoNix      = fileIcon{"nix", "", "#7ebae4"}
 	icoMarkdown = fileIcon{"markdown", "", "#519aba"}
 	icoImage    = fileIcon{"image", "", "#a074c4"}
@@ -43,8 +43,8 @@ var (
 
 // iconByName matches whole file names (lower-case) and wins over extensions.
 var iconByName = map[string]fileIcon{
-	"go.mod":         icoGo,
-	"go.sum":         icoGo,
+	"go.mod":         IcoGo,
+	"go.sum":         IcoGo,
 	"flake.lock":     icoNix,
 	"license":        icoLicense,
 	"makefile":       icoConfig,
@@ -56,7 +56,7 @@ var iconByName = map[string]fileIcon{
 
 // iconByExt is keyed by lower-case extension without the dot.
 var iconByExt = map[string]fileIcon{
-	"go": icoGo, "nix": icoNix, "md": icoMarkdown, "markdown": icoMarkdown,
+	"go": IcoGo, "nix": icoNix, "md": icoMarkdown, "markdown": icoMarkdown,
 	"png": icoImage, "jpg": icoImage, "jpeg": icoImage, "gif": icoImage,
 	"webp": icoImage, "bmp": icoImage, "svg": icoImage, "ico": icoImage,
 	"json": icoJSON, "toml": icoConfig, "yaml": icoConfig, "yml": icoConfig,
@@ -69,7 +69,7 @@ var iconByExt = map[string]fileIcon{
 
 // iconFor picks the icon for a tree node, with the active theme's override
 // applied.
-func iconFor(n *node) fileIcon {
+func IconFor(n *Node) fileIcon {
 	return themedIcon(baseIconFor(n))
 }
 
@@ -80,23 +80,23 @@ func themedIcon(ic fileIcon) fileIcon {
 		return ic
 	}
 	if o.Glyph != "" {
-		ic.glyph = o.Glyph
+		ic.Glyph = o.Glyph
 	}
 	if o.Color != "" {
-		ic.color = o.Color
+		ic.Color = o.Color
 	}
 	return ic
 }
 
 // baseIconFor picks the theme-independent icon for a tree node.
-func baseIconFor(n *node) fileIcon {
+func baseIconFor(n *Node) fileIcon {
 	if n.isDir {
 		if n.expanded {
 			return iconFolderOpen
 		}
 		return iconFolder
 	}
-	name := strings.ToLower(n.name)
+	name := strings.ToLower(n.Name)
 	if ic, ok := iconByName[name]; ok {
 		return ic
 	}

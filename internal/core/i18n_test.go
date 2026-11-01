@@ -45,8 +45,8 @@ func TestNewSelectsTheConfiguredLanguage(t *testing.T) {
 func TestTableDrivenLabelsResolve(t *testing.T) {
 	for _, items := range [][]SpaceItem{spaceItems, ReviewItems} {
 		for _, it := range items {
-			if i18n.T(it.label) == it.label {
-				t.Errorf("menu item %q has no string for %q", it.key, it.label)
+			if i18n.T(it.Label) == it.Label {
+				t.Errorf("menu item %q has no string for %q", it.Key, it.Label)
 			}
 		}
 	}
@@ -74,13 +74,13 @@ func TestConfigReloadSwitchesLanguage(t *testing.T) {
 	}
 	write("ui-language = \"ja\"\n")
 	a := newApp(dir, "")
-	last := func() string { return a.commands[len(a.commands)-1].name }
-	if last() != "終了" || a.findInput.Placeholder != "検索" {
-		t.Fatalf("ja: %q %q", last(), a.findInput.Placeholder)
+	last := func() string { return a.Commands[len(a.Commands)-1].Name }
+	if last() != "終了" || a.FindInput.Placeholder != "検索" {
+		t.Fatalf("ja: %q %q", last(), a.FindInput.Placeholder)
 	}
 	write("ui-language = \"en\"\n")
-	a.execCommand("config-reload")
-	if last() != "Quit" || a.findInput.Placeholder != "Search" {
-		t.Fatalf("en after reload: %q %q", last(), a.findInput.Placeholder)
+	a.ExecCommand("config-reload")
+	if last() != "Quit" || a.FindInput.Placeholder != "Search" {
+		t.Fatalf("en after reload: %q %q", last(), a.FindInput.Placeholder)
 	}
 }

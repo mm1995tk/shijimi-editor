@@ -2,8 +2,6 @@ package core
 
 import (
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 func TestUrlAt(t *testing.T) {
@@ -16,16 +14,9 @@ func TestUrlAt(t *testing.T) {
 	}
 }
 
-// runCmd executes cmd and feeds its message back into the app.
-func runCmd(a *App, cmd tea.Cmd) {
-	if cmd != nil {
-		a.Update(cmd())
-	}
-}
-
 func TestOpenExternalMissingCommand(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
-	if err := openExternal("https://example.com"); err == nil {
+	if err := OpenExternal("https://example.com"); err == nil {
 		t.Fatal("expected error when opener is missing")
 	}
 }

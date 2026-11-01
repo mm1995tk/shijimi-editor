@@ -18,23 +18,23 @@ func TestBrowserForwardListStop(t *testing.T) {
 	target := strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)
 
 	a.browser("forward " + target)
-	if a.msgErr || len(a.proxy.List()) != 1 {
-		t.Fatalf("forward failed: %q", a.msg)
+	if a.MsgErr || len(a.proxy.List()) != 1 {
+		t.Fatalf("forward failed: %q", a.Msg)
 	}
 	f := a.proxy.List()[0]
 	if !strings.HasPrefix(f.Listen, "127.0.0.1:") {
 		t.Fatalf("default listen = %s", f.Listen)
 	}
 	a.browser("list")
-	if !strings.Contains(a.msg, target) {
-		t.Fatalf("list msg = %q", a.msg)
+	if !strings.Contains(a.Msg, target) {
+		t.Fatalf("list msg = %q", a.Msg)
 	}
 	a.browser("stop " + strconv.Itoa(f.Port))
-	if a.msgErr || len(a.proxy.List()) != 0 {
-		t.Fatalf("stop failed: %q", a.msg)
+	if a.MsgErr || len(a.proxy.List()) != 0 {
+		t.Fatalf("stop failed: %q", a.Msg)
 	}
 	a.browser("forward abc")
-	if !a.msgErr {
+	if !a.MsgErr {
 		t.Fatal("bad port should fail")
 	}
 }

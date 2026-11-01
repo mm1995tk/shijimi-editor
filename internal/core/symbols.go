@@ -28,7 +28,7 @@ type workspaceSymbolsMsg struct {
 }
 
 // queryLater schedules a symbolQueryMsg for the current input.
-func (p *palette) queryLater() []Effect {
+func (p *Palette) queryLater() []Effect {
 	p.liveSeq++
 	seq := p.liveSeq
 	return []Effect{StartTimer{After: symbolQueryDelay, Fire: symbolQueryMsg{seq}}}
@@ -50,11 +50,11 @@ func (a *Core) showSymbols(m symbolsMsg) []Effect {
 		a.InfoText(i18n.T("symui.none"))
 		return nil
 	}
-	items := make([]paletteItem, len(m.syms))
+	items := make([]PaletteItem, len(m.syms))
 	for i, s := range m.syms {
-		items[i] = paletteItem{label: s.Name, detail: symbolDetail(s, "")}
+		items[i] = PaletteItem{Label: s.Name, Detail: symbolDetail(s, "")}
 	}
-	return a.pal.pick(i18n.T("symui.title"), items, func(i int) []Effect {
+	return a.Pal.Pick(i18n.T("symui.title"), items, func(i int) []Effect {
 		return a.jumpTo(lsp.Location{URI: m.syms[i].URI, Range: m.syms[i].Range})
 	})
 }
@@ -80,11 +80,11 @@ func (a *Core) workspaceSymbols() []Effect {
 	if t == nil || t.Kind != TabText {
 		return nil
 	}
-	if t.lang == nil {
+	if t.Lang == nil {
 		a.Fail(errors.New(i18n.T("lspui.noserver")))
 		return nil
 	}
-	c := a.lsp.client(t, "workspaceSymbolProvider")
+	c := a.Lsp.client(t, "workspaceSymbolProvider")
 	if c == nil {
 		a.Fail(errors.New(i18n.T("symui.wsunsupported")))
 		return nil
@@ -92,7 +92,7 @@ func (a *Core) workspaceSymbols() []Effect {
 	a.SyncLSP()
 	a.wsSyms = nil
 	a.wsClient = c
-	return a.pal.pickLive(i18n.T("space.wsymbols"), func(i int) []Effect {
+	return a.Pal.pickLive(i18n.T("space.wsymbols"), func(i int) []Effect {
 		if i >= len(a.wsSyms) {
 			return nil
 		}
@@ -103,12 +103,12 @@ func (a *Core) workspaceSymbols() []Effect {
 // runSymbolQuery asks the language server for the picker's current input,
 // unless the input changed again since the timer was set.
 func (a *Core) runSymbolQuery(m symbolQueryMsg) []Effect {
-	p := a.pal
+	p := a.Pal
 	c := a.wsClient
-	if !p.open || !p.live || m.seq != p.liveSeq || c == nil {
+	if !p.Open || !p.live || m.seq != p.liveSeq || c == nil {
 		return nil
 	}
-	q := p.input.Value()
+	q := p.Input.Value()
 	return a.lspReq(func(ctx context.Context) Event {
 		syms, err := c.WorkspaceSymbols(ctx, q)
 		if err != nil {
@@ -119,14 +119,14 @@ func (a *Core) runSymbolQuery(m symbolQueryMsg) []Effect {
 }
 
 func (a *Core) showWorkspaceSymbols(m workspaceSymbolsMsg) {
-	p := a.pal
-	if !p.open || !p.live || m.seq != p.liveSeq {
+	p := a.Pal
+	if !p.Open || !p.live || m.seq != p.liveSeq {
 		return
 	}
 	a.wsSyms = m.syms
-	items := make([]paletteItem, len(m.syms))
+	items := make([]PaletteItem, len(m.syms))
 	for i, s := range m.syms {
-		items[i] = paletteItem{label: s.Name, detail: symbolDetail(s, a.Rel(lsp.Path(s.URI)))}
+		items[i] = PaletteItem{Label: s.Name, Detail: symbolDetail(s, a.Rel(lsp.Path(s.URI)))}
 	}
 	p.setPickItems(items)
 }

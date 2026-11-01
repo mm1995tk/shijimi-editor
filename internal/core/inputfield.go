@@ -19,7 +19,7 @@ type InputField struct {
 }
 
 // newInputField is an empty field that holds at most limit characters (0: any).
-func newInputField(limit int) InputField { return InputField{lineInput: newLineInput(limit)} }
+func NewInputField(limit int) InputField { return InputField{lineInput: newLineInput(limit)} }
 
 func (f *InputField) SetWidth(w int) { f.Width = w }
 

@@ -15,13 +15,13 @@ func TestExplorerScreenRowsInView(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	e := newExplorer(dir)
-	e.sel = 4
-	e.ensureVisible(2) // a window of 2 rows
-	before := e.scroll
-	ex := e.screen(3, filepath.Join(dir, "a"))
-	if e.scroll != before {
-		t.Fatalf("screen moved the scroll: %d -> %d", before, e.scroll)
+	e := NewExplorer(dir)
+	e.Sel = 4
+	e.EnsureVisible(2) // a window of 2 rows
+	before := e.Scroll
+	ex := e.Screen(3, filepath.Join(dir, "a"))
+	if e.Scroll != before {
+		t.Fatalf("screen moved the scroll: %d -> %d", before, e.Scroll)
 	}
 	if ex.Top != 3 || ex.Total != 5 || len(ex.Rows) != 2 {
 		t.Fatalf("Top=%d Total=%d rows=%d", ex.Top, ex.Total, len(ex.Rows))

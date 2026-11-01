@@ -14,18 +14,18 @@ const maxHighlightLines = 20000
 
 // chromaStyle holds the current theme's token colors; set by applyTheme. It
 // is replaced, never modified, so a lexing command may keep the one it read.
-var chromaStyle *chroma.Style
+var ChromaStyle *chroma.Style
 
 // highlighter colors one buffer. Lexing the whole buffer takes milliseconds,
 // and bubbletea renders after every message, so lexing runs as a command
 // (lexCmd) outside the render. Colors only returns what the last lexing
 // produced, mapped onto the buffer's current lines.
 type highlighter struct {
-	lexer   chroma.Lexer
-	running bool // a lexCmd is under way
+	Lexer   chroma.Lexer
+	Running bool // a lexCmd is under way
 
 	// The last lexing.
-	version int        // buffer version lexed; -1 before the first
+	Version int        // buffer version lexed; -1 before the first
 	gen     int        // themeGen it was colored with
 	lines   []string   // the lines lexed
 	colors  [][]string // per-rune colors of lines ("" = default)
@@ -34,68 +34,68 @@ type highlighter struct {
 	viewVersion int
 	view        [][]string
 
-	sem semanticState
+	Sem semanticState
 }
 
 // highlightMsg carries the result of a lexCmd.
-type highlightMsg struct {
-	h       *highlighter
-	version int
-	gen     int
-	lines   []string
-	colors  [][]string
+type HighlightMsg struct {
+	H       *highlighter
+	Version int
+	Gen     int
+	Lines   []string
+	Colors  [][]string
 }
 
-func newHighlighter(path string) *highlighter {
-	h := &highlighter{version: -1, viewVersion: -1}
+func NewHighlighter(path string) *highlighter {
+	h := &highlighter{Version: -1, viewVersion: -1}
 	if path != "" {
-		h.lexer = lexers.Match(filepath.Base(path))
+		h.Lexer = lexers.Match(filepath.Base(path))
 	}
-	if h.lexer != nil {
-		h.lexer = chroma.Coalesce(h.lexer)
+	if h.Lexer != nil {
+		h.Lexer = chroma.Coalesce(h.Lexer)
 	}
 	return h
 }
 
 // Language is a human-readable name of the detected language.
 func (h *highlighter) Language() string {
-	if h.lexer == nil {
+	if h.Lexer == nil {
 		return "Plain Text"
 	}
-	return h.lexer.Config().Name
+	return h.Lexer.Config().Name
 }
 
 // lexCmd returns a command that lexes b's current text, or nil when the
 // colors are current or a lexing is under way. Edits made meanwhile are
 // lexed once that one is applied, so a burst of edits costs two lexings.
-func (h *highlighter) lexCmd(b *buffer.Buffer) []Effect {
-	if h.lexer == nil || h.running || len(b.Lines) > maxHighlightLines ||
-		h.version == b.Version && h.gen == ThemeGen {
+func (h *highlighter) LexCmd(b *buffer.Buffer) []Effect {
+	if h.Lexer == nil || h.Running || len(b.Lines) > maxHighlightLines ||
+		h.Version == b.Version && h.gen == ThemeGen {
 		return nil
 	}
-	h.running = true
+	h.Running = true
 	lines := make([]string, len(b.Lines))
 	for i, l := range b.Lines {
 		lines[i] = string(l)
 	}
-	msg := highlightMsg{h: h, version: b.Version, gen: ThemeGen, lines: lines}
-	lexer, style := h.lexer, chromaStyle
+	msg := HighlightMsg{H: h, Version: b.Version, Gen: ThemeGen, Lines: lines}
+	lexer, style := h.Lexer, ChromaStyle
 	return async(func() Event {
-		msg.colors = lexColors(lexer, style, lines)
+		msg.Colors = LexColors(lexer, style, lines)
 		return msg
 	})
 }
 
 // apply stores the result of a lexCmd.
-func (h *highlighter) apply(m highlightMsg) {
-	h.running = false
-	if m.colors == nil {
-		h.version, h.gen = m.version, m.gen // lexing failed; do not retry
+func (h *highlighter) Apply(m HighlightMsg) {
+	h.Running = false
+	if m.Colors == nil {
+		h.Version, h.gen = m.Version, m.Gen // lexing failed; do not retry
 		return
 	}
-	h.version, h.gen, h.lines, h.colors = m.version, m.gen, m.lines, m.colors
+	h.Version, h.gen, h.lines, h.colors = m.Version, m.Gen, m.Lines, m.Colors
 	h.viewVersion = -1
-	h.sem.stamp++
+	h.Sem.stamp++
 }
 
 // Colors returns per-rune colors ("" = default) for b, or nil before the first
@@ -103,15 +103,15 @@ func (h *highlighter) apply(m highlightMsg) {
 // colors and edited lines have none.
 func (h *highlighter) Colors(b *buffer.Buffer) [][]string {
 	base := h.chromaColors(b)
-	if h.sem.roles == nil {
+	if h.Sem.roles == nil {
 		return base
 	}
-	return h.sem.overlay(b, base)
+	return h.Sem.overlay(b, base)
 }
 
 // chromaColors is Colors without the semantic tokens.
 func (h *highlighter) chromaColors(b *buffer.Buffer) [][]string {
-	if h.colors == nil || h.version == b.Version {
+	if h.colors == nil || h.Version == b.Version {
 		return h.colors
 	}
 	if h.viewVersion != b.Version {
@@ -138,19 +138,19 @@ func alignColors(lexed []string, colors [][]string, lines [][]rune) [][]string {
 
 // highlightNow lexes b right away, for a file shown once without a tab.
 func highlightNow(path string, b *buffer.Buffer) [][]string {
-	h := newHighlighter(path)
-	if h.lexer == nil || len(b.Lines) > maxHighlightLines {
+	h := NewHighlighter(path)
+	if h.Lexer == nil || len(b.Lines) > maxHighlightLines {
 		return nil
 	}
 	lines := make([]string, len(b.Lines))
 	for i, l := range b.Lines {
 		lines[i] = string(l)
 	}
-	return lexColors(h.lexer, chromaStyle, lines)
+	return LexColors(h.Lexer, ChromaStyle, lines)
 }
 
 // lexColors returns per-rune colors of lines, or nil if lexing fails.
-func lexColors(lexer chroma.Lexer, style *chroma.Style, lines []string) [][]string {
+func LexColors(lexer chroma.Lexer, style *chroma.Style, lines []string) [][]string {
 	it, err := lexer.Tokenise(nil, strings.Join(lines, "\n"))
 	if err != nil {
 		return nil
@@ -218,9 +218,9 @@ func commentPrefix(path string) string {
 // lexTabs starts lexing every text tab whose colors are behind its text.
 func (a *Core) LexTabs() []Effect {
 	var cmds [][]Effect
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.Kind == TabText {
-			cmds = append(cmds, t.hl.lexCmd(t.Buf))
+			cmds = append(cmds, t.Hl.LexCmd(t.Buf))
 		}
 	}
 	return Batch(cmds...)

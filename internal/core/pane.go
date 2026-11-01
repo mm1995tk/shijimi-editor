@@ -23,7 +23,7 @@ type extraCursor struct {
 type PaneOpts struct {
 	cursorAt     buffer.Pos    // where the cursor is drawn
 	extras       []extraCursor // cursors of a multi-cursor edit
-	indentGuides bool          // fill Line.Guides
+	IndentGuides bool          // fill Line.Guides
 	title        *screen.Title // the title row of the pane, nil = just the file name
 	diags        []lsp.Diagnostic
 }
@@ -38,7 +38,7 @@ type PaneOpts struct {
 func BuildTextPane(t *Tab, w, h int, o PaneOpts) screen.Pane {
 	b := t.Buf
 	p := textPaneHead(t, w, h, o)
-	colors := t.hl.Colors(b)
+	colors := t.Hl.Colors(b)
 	unit := guideUnit(b, o)
 	for i := range h {
 		row := b.ScrollRow + i
@@ -52,7 +52,7 @@ func BuildTextPane(t *Tab, w, h int, o PaneOpts) screen.Pane {
 
 // guideUnit is the step of the indent guides of b (1 when there are none).
 func guideUnit(b *buffer.Buffer, o PaneOpts) int {
-	if o.indentGuides {
+	if o.IndentGuides {
 		return indentUnitWidth(b)
 	}
 	return 1
@@ -66,7 +66,7 @@ func textPaneHead(t *Tab, w, h int, o PaneOpts) screen.Pane {
 		ID:   t.Path(),
 		Kind: screen.KindText,
 		Title: screen.Title{
-			Text:  t.title(),
+			Text:  t.Title(),
 			Dirty: t.dirty(),
 		},
 		Viewport: screen.Viewport{
@@ -112,7 +112,7 @@ func textLine(b *buffer.Buffer, colors [][]string, row int, o PaneOpts, unit int
 	if d, ok := HeadDiagnostic(ln.Diag); ok {
 		ln.Marks = append(ln.Marks, screen.Mark{Kind: screen.MarkDiag, Style: DiagStyle(d.Severity)})
 	}
-	if o.indentGuides {
+	if o.IndentGuides {
 		ln.Indent = indentGuideWidth(b, row)
 		for v := 0; v < ln.Indent; v += unit {
 			ln.Guides = append(ln.Guides, v)

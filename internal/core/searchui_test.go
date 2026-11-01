@@ -6,19 +6,19 @@ import (
 
 func TestSearchPanelDebounce(t *testing.T) {
 	a := newTestApp(t, "needle\n")
-	a.openSearch(FQuery)
+	a.OpenSearch(FQuery)
 	keys := func(s string) {
 		for _, r := range s {
-			a.handleSearchKey(textKey(string(r)))
+			a.HandleSearchKey(textKey(string(r)))
 		}
 	}
 	keys("nee")
-	stale := SearchTick{seq: a.search.seq.Load()}
+	stale := SearchTick{seq: a.Search.seq.Load()}
 	keys("dle")
 	if a.HandleEvent(stale) != nil {
 		t.Fatal("a superseded tick must be dropped")
 	}
-	effs := a.HandleEvent(SearchTick{seq: a.search.seq.Load()})
+	effs := a.HandleEvent(SearchTick{seq: a.Search.seq.Load()})
 	if len(effs) != 1 {
 		t.Fatalf("the latest tick must start a search, got %#v", effs)
 	}
@@ -30,7 +30,7 @@ func TestSearchPanelDebounce(t *testing.T) {
 	if !ok || len(done.res.Hits) != 1 {
 		t.Fatalf("got %#v", done)
 	}
-	if a.HandleEvent(done) != nil || a.search.Busy || len(a.search.Res.Hits) != 1 {
+	if a.HandleEvent(done) != nil || a.Search.Busy || len(a.Search.Res.Hits) != 1 {
 		t.Fatal("the result was not taken")
 	}
 }

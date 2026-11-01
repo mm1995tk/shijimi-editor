@@ -26,13 +26,13 @@ func TestNormalizeHelixKey(t *testing.T) {
 
 func TestHelixKeysRemap(t *testing.T) {
 	a := newTestApp(t, "one two\nthree\n")
-	a.cfg.Keys = config.Keys{
+	a.Cfg.Keys = config.Keys{
 		Normal: map[string]string{"h": "move_char_right", "C-x": "no_op", "q": "bogus", "Z": ":write"},
 		Insert: map[string]string{"A-j": "normal_mode"},
 	}
 	a.loadKeymap()
-	if !a.msgErr || a.msg == "" {
-		t.Fatalf("an unknown command should be reported, got %q", a.msg)
+	if !a.MsgErr || a.Msg == "" {
+		t.Fatalf("an unknown command should be reported, got %q", a.Msg)
 	}
 	b := a.CurText().Buf
 	keys(a, "h")
@@ -45,18 +45,18 @@ func TestHelixKeysRemap(t *testing.T) {
 	}
 	keys(a, "q") // unknown command: the key stays unbound
 	keys(a, "i")
-	if a.mode != ModeInsert {
+	if a.Mode != ModeInsert {
 		t.Fatal("i should enter insert mode")
 	}
 	a.Update(altKey("j"))
-	if a.mode != ModeNormal {
+	if a.Mode != ModeNormal {
 		t.Fatal("A-j in insert mode should return to normal mode")
 	}
 }
 
 func TestHelixSelectKeysInheritNormal(t *testing.T) {
 	a := newTestApp(t, "one\ntwo\nthree\n")
-	a.cfg.Keys = config.Keys{
+	a.Cfg.Keys = config.Keys{
 		Normal: map[string]string{"j": "move_char_right"},
 		Select: map[string]string{"j": "extend_line_below"},
 	}
@@ -84,13 +84,13 @@ func TestRepeatLastInsert(t *testing.T) {
 	a := newTestApp(t, "one\ntwo\nthree\n")
 	b := a.CurText().Buf
 	keys(a, ".") // nothing recorded yet
-	if a.mode != ModeNormal || string(b.Lines[0]) != "one" || len(b.Lines) != 4 {
+	if a.Mode != ModeNormal || string(b.Lines[0]) != "one" || len(b.Lines) != 4 {
 		t.Fatalf("a first . should do nothing: %q", b.Lines)
 	}
 	keys(a, "o", "f", "o", "o", "esc")
 	keys(a, "j", "j", ".")
-	if got := b.Lines; len(got) != 6 || string(got[1]) != "foo" || string(got[4]) != "foo" || a.mode != ModeNormal {
-		t.Fatalf("o foo then . : %q mode %v", got, a.mode)
+	if got := b.Lines; len(got) != 6 || string(got[1]) != "foo" || string(got[4]) != "foo" || a.Mode != ModeNormal {
+		t.Fatalf("o foo then . : %q mode %v", got, a.Mode)
 	}
 }
 
@@ -106,7 +106,7 @@ func TestRepeatLastInsertChange(t *testing.T) {
 
 func TestRepeatLastInsertRemap(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	a.cfg.Keys = config.Keys{Normal: map[string]string{"q": "repeat_last_insert"}}
+	a.Cfg.Keys = config.Keys{Normal: map[string]string{"q": "repeat_last_insert"}}
 	a.loadKeymap()
 	b := a.CurText().Buf
 	keys(a, "A", "!", "esc", "q")

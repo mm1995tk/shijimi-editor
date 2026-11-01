@@ -22,35 +22,35 @@ import (
 type suggestKind int
 
 const (
-	sgApplyFix   suggestKind = iota // apply the fix the failure analysis proposed
+	SgApplyFix   suggestKind = iota // apply the fix the failure analysis proposed
 	sgConflict                      // conflict markers are left in files
 	sgCreatePR                      // the branch has commits and no pull request
 	sgReviewMode                    // the branch has a pull request
-	sgFailure                       // a command in the terminal panel failed
-	sgLSPErrors                     // LSP reports errors
-	sgAIReview                      // a pull request is shown in diff mode
+	SgFailure                       // a command in the terminal panel failed
+	SgLSPErrors                     // LSP reports errors
+	SgAIReview                      // a pull request is shown in diff mode
 )
 
 // offer is one row of the panel. key names the condition: dismissing
 // hides the suggestion until the condition goes away.
 type offer struct {
-	kind   suggestKind
+	Kind   suggestKind
 	key    string
 	title  string
-	detail string
+	Detail string
 }
 
 // suggestState is what the rules look at, gathered in the background.
 type suggestState struct {
-	sel       int
+	Sel       int
 	dismissed map[string]bool
 	repo      repoProbe
 	probing   bool
 	ticks     int // watch ticks since the last probe
 	prTicks   int // watch ticks since pull requests were last asked for
-	fails     []termFailure
+	Fails     []termFailure
 	failSeq   int
-	fixOffer  bool // the last failure analysis ended with a fix to apply
+	FixOffer  bool // the last failure analysis ended with a fix to apply
 	fixSeq    int
 }
 
@@ -70,9 +70,9 @@ type termFailure struct {
 	seq    int
 	tab    int // termTab.id
 	n      int // number shown for the terminal
-	code   int // exit code, or -1 when a test reported FAIL
+	Code   int // exit code, or -1 when a test reported FAIL
 	line   string
-	output []string // the end of the terminal at the time
+	Output []string // the end of the terminal at the time
 }
 
 const (
@@ -89,15 +89,15 @@ var failLine = regexp.MustCompile(`^\s*(--- FAIL|FAIL\b|FAILED\b|test result: FA
 // probeRepo looks at the repository in the background. Pull requests are
 // asked for only when the branch or HEAD moved, or every prProbeTicks.
 func (a *Core) ProbeRepo() []Effect {
-	if a.gitTop == "" || a.sg.probing {
+	if a.GitTop == "" || a.Sg.probing {
 		return nil
 	}
-	a.sg.probing = true
-	a.sg.ticks = 0
-	root, prev := a.root, a.sg.repo
-	askPR := a.sg.prTicks >= prProbeTicks || prev.head == ""
+	a.Sg.probing = true
+	a.Sg.ticks = 0
+	root, prev := a.Root, a.Sg.repo
+	askPR := a.Sg.prTicks >= prProbeTicks || prev.head == ""
 	if askPR {
-		a.sg.prTicks = 0
+		a.Sg.prTicks = 0
 	}
 	return []Effect{RunProbe{Run: func() Event { return RepoProbed{probeRepoState(root, prev, askPR)} }}}
 }
@@ -159,19 +159,19 @@ func defaultBranch(root string) string {
 }
 
 func (a *Core) handleRepoProbed(m RepoProbed) {
-	a.sg.probing = false
-	a.sg.repo = m.probe
+	a.Sg.probing = false
+	a.Sg.repo = m.probe
 	a.pruneDismissed()
 }
 
 // suggestTick runs on every watch tick: it reads the terminal panel and
 // probes the repository now and then.
 func (a *Core) suggestTick() []Effect {
-	a.scanTerminals()
+	a.ScanTerminals()
 	a.pruneDismissed()
-	a.sg.ticks++
-	a.sg.prTicks++
-	if a.sg.ticks >= probeTicks {
+	a.Sg.ticks++
+	a.Sg.prTicks++
+	if a.Sg.ticks >= probeTicks {
 		return a.ProbeRepo()
 	}
 	return nil
@@ -179,7 +179,7 @@ func (a *Core) suggestTick() []Effect {
 
 // scanTerminals records failed commands: exit codes the shell reports
 // (OSC 133;D, see shellIntegration) and FAIL lines of test runners.
-func (a *Core) scanTerminals() {
+func (a *Core) ScanTerminals() {
 	alive := map[int]bool{}
 	if t := a.TermShell(); t != nil {
 		alive[t.ID()] = true
@@ -200,7 +200,7 @@ func (a *Core) scanTerminals() {
 			}
 		}
 	}
-	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return f.tab != MuxFailTab && !alive[f.tab] })
+	a.Sg.Fails = slices.DeleteFunc(a.Sg.Fails, func(f termFailure) bool { return f.tab != MuxFailTab && !alive[f.tab] })
 }
 
 // addFailure records a failure for the shell t. A shell still failing keeps its
@@ -211,28 +211,28 @@ func (a *Core) addFailure(t Shell, code int, line string) {
 
 // addFailureTab is addFailure for a terminal that is not a Shell.
 func (a *Core) AddFailureTab(tab, n, code int, line string, output []string) {
-	f := termFailure{tab: tab, n: n, code: code, line: line, output: output}
-	for i := range a.sg.fails {
-		if a.sg.fails[i].tab == tab {
-			f.seq = a.sg.fails[i].seq
-			a.sg.fails[i] = f
+	f := termFailure{tab: tab, n: n, Code: code, line: line, Output: output}
+	for i := range a.Sg.Fails {
+		if a.Sg.Fails[i].tab == tab {
+			f.seq = a.Sg.Fails[i].seq
+			a.Sg.Fails[i] = f
 			return
 		}
 	}
-	a.sg.failSeq++
-	f.seq = a.sg.failSeq
-	a.sg.fails = append(a.sg.fails, f)
+	a.Sg.failSeq++
+	f.seq = a.Sg.failSeq
+	a.Sg.Fails = append(a.Sg.Fails, f)
 }
 
 func (a *Core) ClearFailure(tab int) {
-	a.sg.fails = slices.DeleteFunc(a.sg.fails, func(f termFailure) bool { return f.tab == tab })
+	a.Sg.Fails = slices.DeleteFunc(a.Sg.Fails, func(f termFailure) bool { return f.tab == tab })
 }
 
 // lspErrors returns the error diagnostics of every file, sorted by path.
 func (a *Core) lspErrors() (paths []string, byPath map[string][]lsp.Diagnostic) {
 	byPath = map[string][]lsp.Diagnostic{}
-	for p := range a.lsp.diags {
-		for _, d := range a.lsp.diagnostics(p) {
+	for p := range a.Lsp.Diags {
+		for _, d := range a.Lsp.diagnostics(p) {
 			if sevRank(d.Severity) == 1 {
 				byPath[p] = append(byPath[p], d)
 			}
@@ -250,9 +250,9 @@ func (a *Core) lspErrors() (paths []string, byPath map[string][]lsp.Diagnostic) 
 // allSuggestions applies the rules, dismissed ones included.
 func (a *Core) allSuggestions() []offer {
 	var out []offer
-	r := a.sg.repo
-	if a.sg.fixOffer {
-		out = append(out, offer{sgApplyFix, fmt.Sprintf("apply-fix:%d", a.sg.fixSeq), i18n.T("sg.applyfix"), i18n.T("sg.fixdetail")})
+	r := a.Sg.repo
+	if a.Sg.FixOffer {
+		out = append(out, offer{SgApplyFix, fmt.Sprintf("apply-fix:%d", a.Sg.fixSeq), i18n.T("sg.applyfix"), i18n.T("sg.fixdetail")})
 	}
 	if n := len(r.conflicts); n > 0 {
 		out = append(out, offer{sgConflict, "conflict", i18n.T("sg.conflicts"), fmt.Sprintf(i18n.T("sg.files"), n, strings.Join(r.conflicts, ", "))})
@@ -264,22 +264,22 @@ func (a *Core) allSuggestions() []offer {
 		p := r.prs[0]
 		out = append(out, offer{sgReviewMode, fmt.Sprintf("review-mode:%s:%d", r.branch, p.Number), i18n.T("sg.reviewmode"), fmt.Sprintf("#%d %s", p.Number, p.Title)})
 	}
-	for _, f := range a.sg.fails {
-		d := fmt.Sprintf(i18n.T("sg.termexit"), f.n, f.code)
-		if f.code < 0 {
+	for _, f := range a.Sg.Fails {
+		d := fmt.Sprintf(i18n.T("sg.termexit"), f.n, f.Code)
+		if f.Code < 0 {
 			d = fmt.Sprintf(i18n.T("sg.term"), f.n, f.line)
 		}
-		out = append(out, offer{sgFailure, fmt.Sprintf("fail:%d", f.seq), i18n.T("sg.investigate"), d})
+		out = append(out, offer{SgFailure, fmt.Sprintf("fail:%d", f.seq), i18n.T("sg.investigate"), d})
 	}
 	if paths, byPath := a.lspErrors(); len(paths) > 0 {
 		n := 0
 		for _, p := range paths {
 			n += len(byPath[p])
 		}
-		out = append(out, offer{sgLSPErrors, "lsp-errors", fmt.Sprintf(i18n.T("sg.fixerrors"), n), fmt.Sprintf(i18n.T("sg.files"), len(paths), a.Rel(paths[0]))})
+		out = append(out, offer{SgLSPErrors, "lsp-errors", fmt.Sprintf(i18n.T("sg.fixerrors"), n), fmt.Sprintf(i18n.T("sg.files"), len(paths), a.Rel(paths[0]))})
 	}
 	if a.PrShown() {
-		out = append(out, offer{sgAIReview, fmt.Sprintf("ai-review:%d", a.gd.pr.Number), i18n.T("sg.aireview"), fmt.Sprintf("#%d %s", a.gd.pr.Number, a.gd.pr.Title)})
+		out = append(out, offer{SgAIReview, fmt.Sprintf("ai-review:%d", a.Gd.Pr.Number), i18n.T("sg.aireview"), fmt.Sprintf("#%d %s", a.Gd.Pr.Number, a.Gd.Pr.Title)})
 	}
 	return out
 }
@@ -290,11 +290,11 @@ func isBranchOf(base, branch string) bool {
 }
 
 // suggestions returns the suggestions shown: the rules minus dismissed ones.
-func (a *Core) suggestions() []offer {
+func (a *Core) Suggestions() []offer {
 	all := a.allSuggestions()
 	out := all[:0]
 	for _, s := range all {
-		if !a.sg.dismissed[s.key] {
+		if !a.Sg.dismissed[s.key] {
 			out = append(out, s)
 		}
 	}
@@ -304,75 +304,75 @@ func (a *Core) suggestions() []offer {
 // pruneDismissed forgets dismissals whose condition has gone, so the
 // suggestion comes back when the condition does.
 func (a *Core) pruneDismissed() {
-	if len(a.sg.dismissed) == 0 {
+	if len(a.Sg.dismissed) == 0 {
 		return
 	}
 	live := map[string]bool{}
 	for _, s := range a.allSuggestions() {
 		live[s.key] = true
 	}
-	for k := range a.sg.dismissed {
+	for k := range a.Sg.dismissed {
 		if !live[k] {
-			delete(a.sg.dismissed, k)
+			delete(a.Sg.dismissed, k)
 		}
 	}
 }
 
 func (a *Core) dismissSuggestion() {
-	list := a.suggestions()
+	list := a.Suggestions()
 	if len(list) == 0 {
 		return
 	}
-	s := list[Clamp(a.sg.sel, 0, len(list)-1)]
-	if a.sg.dismissed == nil {
-		a.sg.dismissed = map[string]bool{}
+	s := list[Clamp(a.Sg.Sel, 0, len(list)-1)]
+	if a.Sg.dismissed == nil {
+		a.Sg.dismissed = map[string]bool{}
 	}
-	a.sg.dismissed[s.key] = true
-	if s.kind == sgApplyFix {
-		a.sg.fixOffer = false
+	a.Sg.dismissed[s.key] = true
+	if s.Kind == SgApplyFix {
+		a.Sg.FixOffer = false
 	}
-	a.sg.sel = Clamp(a.sg.sel, 0, max(0, len(list)-2))
+	a.Sg.Sel = Clamp(a.Sg.Sel, 0, max(0, len(list)-2))
 }
 
 // ---- running a suggestion ----
 
 func (a *Core) runSuggestion() []Effect {
-	list := a.suggestions()
+	list := a.Suggestions()
 	if len(list) == 0 {
 		return nil
 	}
-	s := list[Clamp(a.sg.sel, 0, len(list)-1)]
-	switch s.kind {
+	s := list[Clamp(a.Sg.Sel, 0, len(list)-1)]
+	switch s.Kind {
 	case sgReviewMode:
-		return a.openDiff(basePR)
+		return a.OpenDiff(BasePR)
 	case sgConflict:
-		files := a.sg.repo.conflicts
-		return a.runAgent(s.kind, s.key, s.title, func() string { return conflictPrompt(files) })
+		files := a.Sg.repo.conflicts
+		return a.RunAgent(s.Kind, s.key, s.title, func() string { return conflictPrompt(files) })
 	case sgCreatePR:
-		branch, base := a.sg.repo.branch, a.sg.repo.base
-		return a.runAgent(s.kind, s.key, s.title, func() string { return createPRPrompt(branch, base) })
-	case sgLSPErrors:
+		branch, base := a.Sg.repo.branch, a.Sg.repo.base
+		return a.RunAgent(s.Kind, s.key, s.title, func() string { return createPRPrompt(branch, base) })
+	case SgLSPErrors:
 		text := a.errorsText()
-		return a.runAgent(s.kind, s.key, s.title, func() string { return lspPrompt(text) })
-	case sgFailure:
-		for _, f := range a.sg.fails {
+		return a.RunAgent(s.Kind, s.key, s.title, func() string { return lspPrompt(text) })
+	case SgFailure:
+		for _, f := range a.Sg.Fails {
 			if fmt.Sprintf("fail:%d", f.seq) == s.key {
-				cmd := a.runAgent(s.kind, s.key, s.title, func() string { return failurePrompt(f) })
-				if a.ag.run != nil {
+				cmd := a.RunAgent(s.Kind, s.key, s.title, func() string { return FailurePrompt(f) })
+				if a.Ag.Run != nil {
 					a.ClearFailure(f.tab)
 				}
 				return cmd
 			}
 		}
-	case sgApplyFix:
-		cmd := a.runAgent(s.kind, s.key, s.title, func() string { return applyFixPrompt() })
-		if a.ag.run != nil {
-			a.sg.fixOffer = false
+	case SgApplyFix:
+		cmd := a.RunAgent(s.Kind, s.key, s.title, func() string { return applyFixPrompt() })
+		if a.Ag.Run != nil {
+			a.Sg.FixOffer = false
 		}
 		return cmd
-	case sgAIReview:
-		pr, root, rev := a.gd.pr, a.root, a.gd.rev
-		return a.runAgent(s.kind, s.key, s.title, func() string {
+	case SgAIReview:
+		pr, root, rev := a.Gd.Pr, a.Root, a.Gd.rev
+		return a.RunAgent(s.Kind, s.key, s.title, func() string {
 			out, err := run(root, nil, "git", "diff", rev, "--no-color", "--no-ext-diff", "-M")
 			if err != nil {
 				out = []byte(fmt.Sprintf(i18n.T("sg.diffunavailable"), err.Error()))
@@ -425,12 +425,12 @@ func lspPrompt(errors string) string {
 	return i18n.T("sg.prompt.lsp") + errors
 }
 
-func failurePrompt(f termFailure) string {
-	what := fmt.Sprintf(i18n.T("sg.exitcode"), f.code)
-	if f.code < 0 {
+func FailurePrompt(f termFailure) string {
+	what := fmt.Sprintf(i18n.T("sg.exitcode"), f.Code)
+	if f.Code < 0 {
 		what = i18n.T("sg.testfail") + f.line
 	}
-	return fmt.Sprintf(i18n.T("sg.prompt.fail"), what, strings.Join(f.output, "\n"))
+	return fmt.Sprintf(i18n.T("sg.prompt.fail"), what, strings.Join(f.Output, "\n"))
 }
 
 func applyFixPrompt() string { return i18n.T("sg.prompt.applyfix") }
@@ -475,19 +475,19 @@ func parseReview(text string) ([]reviewComment, error) {
 // the diff becomes a comment on the file, and files that are not in the
 // pull request or differ from its head commit are skipped.
 func (a *Core) placeReview(run *agentRun) []Effect {
-	s := a.ag
-	if !a.PrShown() || a.gd.pr.Number != run.pr {
-		s.add(logEntry{kind: logError, text: i18n.T("sg.prnotshown")})
+	s := a.Ag
+	if !a.PrShown() || a.Gd.Pr.Number != run.pr {
+		s.add(LogEntry{Kind: logError, Text: i18n.T("sg.prnotshown")})
 		return nil
 	}
 	cs, err := parseReview(run.text.String())
 	if err != nil {
-		s.add(logEntry{kind: logError, text: err.Error()})
+		s.add(LogEntry{Kind: logError, Text: err.Error()})
 		a.Fail(err)
 		return nil
 	}
 	byPath := map[string]*diff.File{}
-	for _, f := range a.gd.files {
+	for _, f := range a.Gd.Files {
 		byPath[f.Path()] = f
 	}
 	placed, skipped := 0, 0
@@ -515,15 +515,15 @@ func (a *Core) placeReview(run *agentRun) []Effect {
 				th.StartLine = c.StartLine
 			}
 		}
-		th.Comments = []prComment{{Author: "AI", Body: body, Created: time.Now()}}
-		a.gd.rv.pending = append(a.gd.rv.pending, th)
+		th.Comments = []PrComment{{Author: "AI", Body: body, Created: time.Now()}}
+		a.Gd.Rv.Pending = append(a.Gd.Rv.Pending, th)
 		placed++
 	}
 	msg := fmt.Sprintf(i18n.T("sg.placed"), placed)
 	if skipped > 0 {
 		msg += fmt.Sprintf(i18n.T("sg.skippedfiles"), skipped)
 	}
-	s.add(logEntry{kind: logInfo, text: msg})
+	s.add(LogEntry{Kind: LogInfo, Text: msg})
 	a.Info("%s", msg)
 	return nil
 }

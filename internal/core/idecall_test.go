@@ -83,7 +83,7 @@ func TestIDEOpenFileAndSelection(t *testing.T) {
 
 func TestIDEDirtyAndSave(t *testing.T) {
 	a, f := ideApp(t)
-	a.openFile(f)
+	a.OpenFile(f)
 	if m := ideJSON(t, a, "checkDocumentDirty", map[string]any{"filePath": f}); m["isDirty"] != false {
 		t.Errorf("clean: %v", m)
 	}
@@ -99,7 +99,7 @@ func TestIDEDirtyAndSave(t *testing.T) {
 
 func TestIDEOpenDiffAccept(t *testing.T) {
 	a, f := ideApp(t)
-	a.openFile(f)
+	a.OpenFile(f)
 	args := map[string]any{"old_file_path": f, "new_file_path": f, "new_file_contents": "one\n2\nthree\n", "tab_name": "edit"}
 	ch, _, done := ideCallRaw(a, "openDiff", args)
 	if done || a.props.Len() != 1 {
@@ -149,8 +149,8 @@ func TestIDECloseAndCancel(t *testing.T) {
 	if r := <-c1; r.Content[0].Text != "DIFF_REJECTED" {
 		t.Errorf("closed tab reply = %+v", r)
 	}
-	if strings.Contains(a.msg, "却下しました") || !strings.Contains(a.msg, "差分を閉じました") {
-		t.Errorf("close_tab status = %q", a.msg)
+	if strings.Contains(a.Msg, "却下しました") || !strings.Contains(a.Msg, "差分を閉じました") {
+		t.Errorf("close_tab status = %q", a.Msg)
 	}
 	a.cancelProposal(c3)
 	if a.props.Len() != 1 || a.props.First().Name != "two" {
@@ -167,13 +167,13 @@ func TestIDECloseAndCancel(t *testing.T) {
 func TestIDENotifications(t *testing.T) {
 	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 	a, f := ideApp(t)
-	srv, err := ide.Start(a.root, IDETools(), func(context.Context, string, json.RawMessage) ([]ide.Content, error) { return nil, nil })
+	srv, err := ide.Start(a.Root, IDETools(), func(context.Context, string, json.RawMessage) ([]ide.Content, error) { return nil, nil })
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer srv.Close()
 	a.SetIDE(srv)
-	a.openFile(f)
+	a.OpenFile(f)
 	if a.mentionContext() {
 		t.Error("mentioned without a client")
 	}

@@ -8,36 +8,36 @@ import (
 
 // handlePaste sends a bracketed paste to whatever has the keyboard, the same
 // way handleKey routes keys. Overlays that take no text ignore it.
-func (a *Core) handlePaste(msg Paste) []Effect {
-	a.msg = ""
+func (a *Core) HandlePaste(msg Paste) []Effect {
+	a.Msg = ""
 	switch {
-	case a.search.open:
+	case a.Search.Open:
 		return a.searchInput(msg)
-	case a.pal.open:
+	case a.Pal.Open:
 		return a.paletteInput(msg)
-	case a.composer != nil:
-		a.composer.Ta.InsertString(strings.ReplaceAll(msg.Content, "\r\n", "\n"))
+	case a.Composer != nil:
+		a.Composer.Ta.InsertString(strings.ReplaceAll(msg.Content, "\r\n", "\n"))
 		return nil
-	case a.confirm != nil:
+	case a.Confirm != nil:
 		return nil
-	case a.props.Len() > 0, a.ctx != nil, a.InResizeMode():
+	case a.props.Len() > 0, a.Ctx != nil, a.InResizeMode():
 		return nil
-	case a.cmdOpen:
+	case a.CmdOpen:
 		return a.cmdlineInput(msg)
-	case a.focus == FocusTerminal:
+	case a.Focus == FocusTerminal:
 		s := strings.ReplaceAll(strings.ReplaceAll(msg.Content, "\r\n", "\r"), "\n", "\r")
 		return a.TermPaste(s)
-	case a.focus != FocusEditor:
+	case a.Focus != FocusEditor:
 		return nil
 	}
 	t := a.CurText()
 	if t == nil {
 		return nil
 	}
-	if a.findOpen {
+	if a.FindOpen {
 		return a.findInputUpdate(msg)
 	}
-	if a.helix && a.mode != ModeInsert {
+	if a.Helix && a.Mode != ModeInsert {
 		return nil
 	}
 	if a.FullPreview(t) {
@@ -46,8 +46,8 @@ func (a *Core) handlePaste(msg Paste) []Effect {
 	}
 	s := strings.ReplaceAll(msg.Content, "\r\n", "\n")
 	s = strings.ReplaceAll(s, "\r", "\n")
-	a.comp = nil
-	a.follow = true
+	a.Comp = nil
+	a.Follow = true
 	t.Buf.ForEachCursor(func() { t.Buf.InsertBlock(s) })
 	return nil
 }

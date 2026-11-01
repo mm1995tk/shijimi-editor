@@ -24,8 +24,8 @@ func TestWatchReloadsCleanBuffer(t *testing.T) {
 	if got := tb.Buf.Text(); got != "agent\n" || tb.dirty() {
 		t.Fatalf("not reloaded: %q dirty=%v", got, tb.dirty())
 	}
-	if a.msgErr || a.msg == "" {
-		t.Fatalf("no info message: %q", a.msg)
+	if a.MsgErr || a.Msg == "" {
+		t.Fatalf("no info message: %q", a.Msg)
 	}
 }
 
@@ -35,7 +35,7 @@ func TestWatchKeepsUnsavedEdits(t *testing.T) {
 	keys(a, "i", "x")
 	touchLater(t, tb.Buf.Path, "agent\n")
 	a.Update(WatchTick{})
-	if got := tb.Buf.Text(); got != "xone\n" || !tb.conflict || !a.msgErr {
+	if got := tb.Buf.Text(); got != "xone\n" || !tb.conflict || !a.MsgErr {
 		t.Fatalf("edits lost or no warning: %q conflict=%v", got, tb.conflict)
 	}
 	// auto-save must not overwrite the other process's change
@@ -44,7 +44,7 @@ func TestWatchKeepsUnsavedEdits(t *testing.T) {
 		t.Fatalf("auto-save overwrote disk: %q", b)
 	}
 	// :reload takes the disk version
-	a.execCommand("reload")
+	a.ExecCommand("reload")
 	if got := tb.Buf.Text(); got != "agent\n" || tb.Buf.DiskChanged() {
 		t.Fatalf("reload: %q", got)
 	}
@@ -56,7 +56,7 @@ func TestWatchKeepsUnsavedEdits(t *testing.T) {
 
 func TestWatchDisabled(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	a.cfg.Editor.WatchFiles = false
+	a.Cfg.Editor.WatchFiles = false
 	tb := a.CurText()
 	touchLater(t, tb.Buf.Path, "agent\n")
 	a.Update(WatchTick{})
@@ -79,7 +79,7 @@ func TestWatchRefreshesTreeAfterExternalChange(t *testing.T) {
 	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
 	t.Setenv("GIT_CONFIG_SYSTEM", "/dev/null")
 	a := newTestApp(t, "one\n")
-	dir := a.explorer.root.path
+	dir := a.Explorer.root.Path
 	// b.txt is not open in a tab, so only the periodic refresh can notice it.
 	path := filepath.Join(dir, "b.txt")
 	os.WriteFile(path, []byte("b\n"), 0o644)
@@ -93,9 +93,9 @@ func TestWatchRefreshesTreeAfterExternalChange(t *testing.T) {
 	if out, err := run(dir, nil, "git", append(git, "commit", "-qm", "init")...); err != nil {
 		t.Skipf("git commit failed: %v %s", err, out)
 	}
-	a.explorer.refresh()
-	if a.explorer.git[path] != "" {
-		t.Fatalf("clean file marked: %q", a.explorer.git[path])
+	a.Explorer.Refresh()
+	if a.Explorer.Git[path] != "" {
+		t.Fatalf("clean file marked: %q", a.Explorer.Git[path])
 	}
 	tick := func(n int) {
 		for range n {
@@ -103,8 +103,8 @@ func TestWatchRefreshesTreeAfterExternalChange(t *testing.T) {
 		}
 	}
 	hasNode := func(name string) bool {
-		for _, n := range a.explorer.flat {
-			if n.name == name {
+		for _, n := range a.Explorer.Flat {
+			if n.Name == name {
 				return true
 			}
 		}
@@ -114,12 +114,12 @@ func TestWatchRefreshesTreeAfterExternalChange(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "new.txt"), []byte("x"), 0o644)
 	os.WriteFile(path, []byte("changed\n"), 0o644)
 	tick(treeRefreshTicks - 1)
-	if a.explorer.git[path] != "" || hasNode("new.txt") {
+	if a.Explorer.Git[path] != "" || hasNode("new.txt") {
 		t.Fatal("tree refreshed before treeRefreshTicks")
 	}
 	tick(1)
-	if a.explorer.git[path] != "M" {
-		t.Fatalf("modified mark missing: %q", a.explorer.git[path])
+	if a.Explorer.Git[path] != "M" {
+		t.Fatalf("modified mark missing: %q", a.Explorer.Git[path])
 	}
 	if !hasNode("new.txt") {
 		t.Fatal("externally created file not in tree")
@@ -127,11 +127,11 @@ func TestWatchRefreshesTreeAfterExternalChange(t *testing.T) {
 
 	run(dir, nil, "git", "checkout", ".")
 	tick(treeRefreshTicks - 1)
-	if a.explorer.git[path] != "M" {
-		t.Fatalf("mark cleared before treeRefreshTicks: %q", a.explorer.git[path])
+	if a.Explorer.Git[path] != "M" {
+		t.Fatalf("mark cleared before treeRefreshTicks: %q", a.Explorer.Git[path])
 	}
 	tick(1)
-	if a.explorer.git[path] != "" {
-		t.Fatalf("stale mark: %q", a.explorer.git[path])
+	if a.Explorer.Git[path] != "" {
+		t.Fatalf("stale mark: %q", a.Explorer.Git[path])
 	}
 }

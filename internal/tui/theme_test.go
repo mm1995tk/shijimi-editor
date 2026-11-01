@@ -2,30 +2,31 @@ package tui
 
 import (
 	"fmt"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
 func TestApplyThemeChangesColors(t *testing.T) {
-	defer applyTheme(DefaultTheme)
-	applyTheme(&darkPlus)
+	defer applyTheme(core.DefaultTheme)
+	applyTheme(&core.DarkPlus)
 	dark := cEditorBg
-	applyTheme(&lightPlus)
-	if cEditorBg == dark || cEditorBg != lightPlus.EditorBg {
+	applyTheme(&core.LightPlus)
+	if cEditorBg == dark || cEditorBg != core.LightPlus.EditorBg {
 		t.Fatalf("cEditorBg = %s", cEditorBg)
 	}
-	if diagColor(1) != lightPlus.DiagError {
+	if core.DiagColor(1) != core.LightPlus.DiagError {
 		t.Fatal("diagnostic colors not themed")
 	}
-	if chromaStyle.Name != "light-plus" {
+	if core.ChromaStyle.Name != "light-plus" {
 		t.Fatal("syntax style not themed")
 	}
 }
 
 func TestTerminalDefaultColorsFollowTheme(t *testing.T) {
-	defer applyTheme(DefaultTheme)
-	for _, th := range []*Theme{&darkPlus, &lightPlus} {
+	defer applyTheme(core.DefaultTheme)
+	for _, th := range []*core.Theme{&core.DarkPlus, &core.LightPlus} {
 		applyTheme(th)
 		bg := hexRGB(th.EditorBg)
 		want := fmt.Sprintf("48;2;%d;%d;%d", bg[0], bg[1], bg[2])

@@ -32,13 +32,13 @@ func (a *Core) handleWatch() []Effect {
 	a.treeTicks++
 	if reload || a.treeTicks >= treeRefreshTicks {
 		a.treeTicks = 0
-		a.explorer.refresh()
+		a.Explorer.Refresh()
 	}
 	effs := append([]Effect{WatchTimer()}, sg...)
-	if a.gd.on {
-		a.gd.ticks++
-		if reload || a.gd.ticks%gitDiffRefreshTicks == 0 {
-			effs = append(effs, a.reloadChanges()...)
+	if a.Gd.On {
+		a.Gd.ticks++
+		if reload || a.Gd.ticks%gitDiffRefreshTicks == 0 {
+			effs = append(effs, a.ReloadChanges()...)
 		}
 	}
 	return effs
@@ -49,11 +49,11 @@ func (a *Core) handleWatch() []Effect {
 // alone and the user decides: :reload takes the disk version, saving keeps
 // theirs.
 func (a *Core) checkDiskChanges() (reloaded bool) {
-	if !a.cfg.Editor.WatchFiles {
+	if !a.Cfg.Editor.WatchFiles {
 		return false
 	}
 	var reloadedTabs, conflicts []*Tab
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.Kind != TabText {
 			continue
 		}
@@ -76,7 +76,7 @@ func (a *Core) checkDiskChanges() (reloaded bool) {
 	}
 	switch {
 	case len(conflicts) > 0:
-		a.msg, a.msgErr = i18n.T("watch.changed1")+a.Rel(conflicts[0].Buf.Path)+i18n.T("watch.changed2"), true
+		a.Msg, a.MsgErr = i18n.T("watch.changed1")+a.Rel(conflicts[0].Buf.Path)+i18n.T("watch.changed2"), true
 	case len(reloadedTabs) > 0:
 		a.Info(i18n.T("watch.reflected"), a.Rel(reloadedTabs[0].Buf.Path))
 	}

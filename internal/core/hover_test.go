@@ -53,8 +53,8 @@ func TestHoverWrapNarrowWideRunes(t *testing.T) {
 
 func TestHoverRuleDoesNotWidenBox(t *testing.T) {
 	v := NewHoverView("```go\nvar x int\n```\n\n---\n\nshort", 80, 10)
-	if v.width != len("var x int") {
-		t.Fatalf("width=%d", v.width)
+	if v.Width != len("var x int") {
+		t.Fatalf("width=%d", v.Width)
 	}
 }
 

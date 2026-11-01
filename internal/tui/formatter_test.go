@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
 
@@ -13,11 +14,11 @@ func TestFormatterCommand(t *testing.T) {
 	tb := a.CurText()
 	b := tb.Buf
 	// upper-cases stdin, and echoes the buffer name on the first line
-	tb.lang = &config.Language{Name: "x", Formatter: &config.Formatter{
+	tb.Lang = &config.Language{Name: "x", Formatter: &config.Formatter{
 		Command: "sh", Args: []string{"-c", `echo "$1"; tr a-z A-Z`, "sh", "%{buffer_name}"},
 	}}
 	b.Cur = buffer.Pos{Row: 2, Col: 2}
-	msg := cmdOf(a, a.format(false))()
+	msg := cmdOf(a, a.Format(false))()
 	a.Update(msg)
 	if got, want := b.Text(), "a.txt\nONE\nTWO\nTHREE\n"; got != want {
 		t.Fatalf("got %q want %q", got, want)
@@ -38,15 +39,15 @@ func TestFormatterFailureKeepsBuffer(t *testing.T) {
 		{Command: "sh", Args: []string{"-c", "echo boom >&2; echo garbage; exit 3"}},
 		{Command: "shijimi-no-such-formatter"},
 	} {
-		tb.lang = &config.Language{Name: "x", Formatter: f}
-		a.Update(cmdOf(a, a.format(false))())
+		tb.Lang = &config.Language{Name: "x", Formatter: f}
+		a.Update(cmdOf(a, a.Format(false))())
 		if got := tb.Buf.Text(); got != "one\n" {
 			t.Fatalf("buffer changed: %q", got)
 		}
 	}
-	tb.lang.Formatter = &config.Formatter{Command: "sh", Args: []string{"-c", "echo boom >&2; exit 1"}}
-	msg := cmdOf(a, a.format(false))().(formatterDoneMsg)
-	if msg.err == nil || !strings.Contains(msg.err.Error(), "boom") {
-		t.Fatalf("err = %v", msg.err)
+	tb.Lang.Formatter = &config.Formatter{Command: "sh", Args: []string{"-c", "echo boom >&2; exit 1"}}
+	msg := cmdOf(a, a.Format(false))().(core.FormatterDoneMsg)
+	if msg.Err == nil || !strings.Contains(msg.Err.Error(), "boom") {
+		t.Fatalf("err = %v", msg.Err)
 	}
 }

@@ -1,14 +1,13 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
-	"github.com/mm1995tk/shijimi-editor/internal/lsp"
-	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // Full-width characters take two cells and a tab goes to the next tab stop.
@@ -23,8 +22,8 @@ func TestPaneWideAndCombining(t *testing.T) {
 		}
 	}
 	tb := paneTab(string(line))
-	rows := renderEditor(tb, 30, 1, EditorOpts{})
-	if got := strings.TrimRight(string([]rune(ansi.Strip(rows[0]))[GutterWidth(tb.Buf):]), " "); got != "世é    x" {
+	rows := renderEditor(tb, 30, 1, core.EditorOpts{})
+	if got := strings.TrimRight(string([]rune(ansi.Strip(rows[0]))[core.GutterWidth(tb.Buf):]), " "); got != "世é    x" {
 		t.Errorf("drawn = %q", got)
 	}
 }
@@ -32,7 +31,7 @@ func TestPaneWideAndCombining(t *testing.T) {
 func TestMouseClickOnWideLine(t *testing.T) {
 	a := newTestApp(t, "a世éb\n")
 	l := a.layout()
-	gw := GutterWidth(a.CurText().Buf)
+	gw := core.GutterWidth(a.CurText().Buf)
 	// 世 occupies the text cells 1 and 2; a click on the cell after it puts the cursor after it
 	a.mouseToCursor(l, l.editY-l.top, gw+3, false)
 	if got := a.CurText().Buf.Cur; got != (buffer.Pos{Row: 0, Col: 2}) {

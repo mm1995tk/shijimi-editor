@@ -11,28 +11,28 @@ const lineFlipKey = '\\'
 
 func (a *Core) flipLineNumbers() {
 	if !a.ReleasesReported() {
-		a.lineFlip = !a.lineFlip
+		a.LineFlip = !a.LineFlip
 		return
 	}
-	a.lineFlip = true // a repeat while held changes nothing
+	a.LineFlip = true // a repeat while held changes nothing
 }
 
 // lineFlipOtherKey ends the flip when a key other than \ is pressed while
 // the terminal reports key releases.
 func (a *Core) lineFlipOtherKey(msg Key) {
 	if a.ReleasesReported() && msg.Code != lineFlipKey {
-		a.lineFlip = false
+		a.LineFlip = false
 	}
 }
 
 // lineFlipRelease ends the flip when \ is let go.
 func (a *Core) lineFlipRelease(msg Key) {
 	if msg.Code == lineFlipKey {
-		a.lineFlip = false
+		a.LineFlip = false
 	}
 }
 
 // relativeLineNumbers reports whether line numbers count from the cursor line.
 func (a *Core) relativeLineNumbers() bool {
-	return (a.cfg.Editor.LineNumber == "relative") != a.lineFlip
+	return (a.Cfg.Editor.LineNumber == "relative") != a.LineFlip
 }

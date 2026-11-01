@@ -21,18 +21,18 @@ import (
 
 // agentState is the connection to the agent and what the panel shows of it.
 type agentState struct {
-	client  *acp.Client
+	Client  *acp.Client
 	session string
 	name    string // the agent's name for display
 	gen     int    // bumped when a client is dropped; its late messages are ignored
 	ch      chan Event
 	armed   bool // a WaitAgent effect is outstanding
-	run     *agentRun
-	log     []logEntry
-	perms   []*permAsk // permission requests waiting for y / n
-	scroll  int        // log lines scrolled back from the bottom; 0 follows
-	view    agentView
-	sel     agentSel
+	Run     *agentRun
+	Log     []LogEntry
+	Perms   []*permAsk // permission requests waiting for y / n
+	Scroll  int        // log lines scrolled back from the bottom; 0 follows
+	View    agentView
+	Sel     AgentSel
 }
 
 // agentRun is the turn in progress.
@@ -49,16 +49,16 @@ type logKind byte
 
 const (
 	logUser  logKind = 'u' // what was asked
-	logAgent logKind = 'a' // the agent's reply (Markdown)
+	LogAgent logKind = 'a' // the agent's reply (Markdown)
 	logTool  logKind = 't' // a tool call
 	logPlan  logKind = 'p'
-	logInfo  logKind = 'i'
+	LogInfo  logKind = 'i'
 	logError logKind = 'e'
 )
 
-type logEntry struct {
-	kind   logKind
-	text   string
+type LogEntry struct {
+	Kind   logKind
+	Text   string
 	id     string // tool call id
 	status string // tool call status
 }
@@ -85,14 +85,14 @@ func (s *agentState) wait() []Effect {
 	return []Effect{WaitAgent{From: s.ch}}
 }
 
-func (s *agentState) add(e logEntry) {
-	if e.kind == logAgent && len(s.log) > 0 && s.log[len(s.log)-1].kind == logAgent {
-		s.log[len(s.log)-1].text += e.text
+func (s *agentState) add(e LogEntry) {
+	if e.Kind == LogAgent && len(s.Log) > 0 && s.Log[len(s.Log)-1].Kind == LogAgent {
+		s.Log[len(s.Log)-1].Text += e.Text
 		return
 	}
-	s.log = append(s.log, e)
-	if len(s.log) > maxLog {
-		s.log = s.log[len(s.log)-maxLog:]
+	s.Log = append(s.Log, e)
+	if len(s.Log) > maxLog {
+		s.Log = s.Log[len(s.Log)-maxLog:]
 	}
 }
 
@@ -183,25 +183,25 @@ func (h agentHandler) RequestPermission(ctx context.Context, r acp.PermissionReq
 
 // runAgent sends a prompt built by build for the suggestion of kind and key,
 // starting the agent first if needed.
-func (a *Core) runAgent(kind suggestKind, key, title string, build func() string) []Effect {
-	s := a.ag
-	if s.run != nil {
+func (a *Core) RunAgent(kind suggestKind, key, title string, build func() string) []Effect {
+	s := a.Ag
+	if s.Run != nil {
 		a.Fail(errors.New(i18n.T("agent.busy")))
 		return nil
 	}
-	if a.cfg.Agent.Command == "" {
+	if a.Cfg.Agent.Command == "" {
 		dir, _ := config.UserDir()
 		a.Fail(fmt.Errorf(i18n.T("agent.notconfigured"), filepath.Join(dir, "config.toml")))
 		return nil
 	}
-	s.run = &agentRun{kind: kind, key: key, build: build}
+	s.Run = &agentRun{kind: kind, key: key, build: build}
 	if a.PrShown() {
-		s.run.pr = a.gd.pr.Number
+		s.Run.pr = a.Gd.Pr.Number
 	}
-	s.scroll = 0
-	s.add(logEntry{kind: logUser, text: title})
-	if s.client == nil {
-		s.add(logEntry{kind: logInfo, text: i18n.T("agent.starting") + a.cfg.Agent.Command})
+	s.Scroll = 0
+	s.add(LogEntry{Kind: logUser, Text: title})
+	if s.Client == nil {
+		s.add(LogEntry{Kind: LogInfo, Text: i18n.T("agent.starting") + a.Cfg.Agent.Command})
 		return append([]Effect{a.startAgent()}, s.wait()...)
 	}
 	return append([]Effect{a.sendPrompt()}, s.wait()...)
@@ -209,10 +209,10 @@ func (a *Core) runAgent(kind suggestKind, key, title string, build func() string
 
 // startAgent launches the agent and opens a session in the background.
 func (a *Core) startAgent() Effect {
-	s := a.ag
+	s := a.Ag
 	s.gen++
-	gen, ch, root := s.gen, s.ch, a.root
-	o := acp.Options{Command: a.cfg.Agent.Command, Args: a.cfg.Agent.Args, Env: a.cfg.Agent.Env, Dir: root, Version: VersionLabel()}
+	gen, ch, root := s.gen, s.ch, a.Root
+	o := acp.Options{Command: a.Cfg.Agent.Command, Args: a.Cfg.Agent.Args, Env: a.Cfg.Agent.Env, Dir: root, Version: VersionLabel()}
 	return RunAgent{Run: func() {
 		c, err := acp.Start(o, agentHandler{ch: ch, gen: gen})
 		if err != nil {
@@ -240,8 +240,8 @@ func (a *Core) startAgent() Effect {
 // sendPrompt sends the current run's prompt. The answer goes through the
 // channel after the updates the agent sent before it.
 func (a *Core) sendPrompt() Effect {
-	s := a.ag
-	c, sid, gen, ch, build := s.client, s.session, s.gen, s.ch, s.run.build
+	s := a.Ag
+	c, sid, gen, ch, build := s.Client, s.session, s.gen, s.ch, s.Run.build
 	return RunAgent{Run: func() {
 		stop, err := c.Prompt(context.Background(), sid, acp.Text(build()))
 		ch <- agentTurnMsg{gen: gen, stop: stop, err: err}
@@ -250,12 +250,12 @@ func (a *Core) sendPrompt() Effect {
 
 // cancelAgent asks the agent to stop the running turn.
 func (a *Core) cancelAgent() {
-	s := a.ag
-	if s.run == nil || s.client == nil {
+	s := a.Ag
+	if s.Run == nil || s.Client == nil {
 		a.InfoText(i18n.T("agent.idle"))
 		return
 	}
-	if err := s.client.Cancel(s.session); err != nil {
+	if err := s.Client.Cancel(s.session); err != nil {
 		a.Fail(err)
 		return
 	}
@@ -264,25 +264,25 @@ func (a *Core) cancelAgent() {
 
 // stopAgent ends the agent process; the next suggestion starts a new one.
 func (a *Core) stopAgent() {
-	s := a.ag
-	if s.client != nil {
-		s.client.Close()
+	s := a.Ag
+	if s.Client != nil {
+		s.Client.Close()
 	}
-	s.client, s.session, s.name = nil, "", ""
+	s.Client, s.session, s.name = nil, "", ""
 	s.gen++
-	s.run = nil
+	s.Run = nil
 	// the fix it proposed lives in the session that is gone
-	a.sg.fixOffer = false
-	for _, p := range s.perms {
+	a.Sg.FixOffer = false
+	for _, p := range s.Perms {
 		p.reply <- ""
 	}
-	s.perms = nil
+	s.Perms = nil
 }
 
 // handleAgentEvent handles every Event from the agent. It reports whether
 // ev was one.
 func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
-	s := a.ag
+	s := a.Ag
 	switch ev.(type) {
 	case agentReadyMsg, agentUpdateMsg, agentFileMsg, agentPermMsg, agentPermCancelMsg, agentTurnMsg, agentExitMsg:
 		// The WaitAgent that delivered ev is done; each case asks for the next.
@@ -299,13 +299,13 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 			return s.wait(), true
 		}
 		if m.err != nil {
-			s.add(logEntry{kind: logError, text: i18n.T("agent.startfail") + m.err.Error()})
+			s.add(LogEntry{Kind: logError, Text: i18n.T("agent.startfail") + m.err.Error()})
 			a.Fail(fmt.Errorf(i18n.T("agent.startfailw"), m.err))
-			s.run = nil
+			s.Run = nil
 			return s.wait(), true
 		}
-		s.client, s.session, s.name = m.client, m.session, m.client.Info().Name()
-		if s.run == nil {
+		s.Client, s.session, s.name = m.client, m.session, m.client.Info().Name()
+		if s.Run == nil {
 			return s.wait(), true
 		}
 		return append([]Effect{a.sendPrompt()}, s.wait()...), true
@@ -330,8 +330,8 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 			return s.wait(), true
 		}
 		effs := s.wait()
-		if a.gd.on {
-			effs = append(effs, a.reloadChanges()...)
+		if a.Gd.On {
+			effs = append(effs, a.ReloadChanges()...)
 		}
 		return effs, true
 	case agentPermMsg:
@@ -339,16 +339,16 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 			m.ask.reply <- ""
 			return s.wait(), true
 		}
-		s.perms = append(s.perms, m.ask)
-		if !a.AgentOpen() || a.focus != FocusAgent {
+		s.Perms = append(s.Perms, m.ask)
+		if !a.AgentOpen() || a.Focus != FocusAgent {
 			a.SetAgent(true)
 			a.InfoText(i18n.T("agent.permask"))
 		}
 		return s.wait(), true
 	case agentPermCancelMsg:
-		for i, p := range s.perms {
+		for i, p := range s.Perms {
 			if p.reply == m.reply {
-				s.perms = append(s.perms[:i], s.perms[i+1:]...)
+				s.Perms = append(s.Perms[:i], s.Perms[i+1:]...)
 				break
 			}
 		}
@@ -366,11 +366,11 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 		if m.err != nil {
 			text += ": " + m.err.Error()
 		}
-		if st := strings.TrimSpace(s.client.Stderr()); st != "" {
+		if st := strings.TrimSpace(s.Client.Stderr()); st != "" {
 			text += "\n" + lastLines(st, 5)
 		}
-		s.add(logEntry{kind: logError, text: text})
-		s.client = nil
+		s.add(LogEntry{Kind: logError, Text: text})
+		s.Client = nil
 		a.stopAgent()
 		return s.wait(), true
 	}
@@ -387,21 +387,21 @@ func lastLines(s string, n int) string {
 
 // agentUpdate adds the agent's progress to the log.
 func (a *Core) agentUpdate(u acp.Update) {
-	s := a.ag
+	s := a.Ag
 	switch u.Kind {
 	case "agent_message_chunk":
 		text := u.Text()
-		if s.run != nil {
-			s.run.text.WriteString(text)
+		if s.Run != nil {
+			s.Run.text.WriteString(text)
 		}
-		s.add(logEntry{kind: logAgent, text: text})
+		s.add(LogEntry{Kind: LogAgent, Text: text})
 	case "tool_call":
-		s.add(logEntry{kind: logTool, id: u.ToolCallID, text: u.Title, status: u.Status})
+		s.add(LogEntry{Kind: logTool, id: u.ToolCallID, Text: u.Title, status: u.Status})
 	case "tool_call_update":
-		for i := len(s.log) - 1; i >= 0; i-- {
-			if e := &s.log[i]; e.kind == logTool && e.id == u.ToolCallID {
+		for i := len(s.Log) - 1; i >= 0; i-- {
+			if e := &s.Log[i]; e.Kind == logTool && e.id == u.ToolCallID {
 				if u.Title != "" {
-					e.text = u.Title
+					e.Text = u.Title
 				}
 				if u.Status != "" {
 					e.status = u.Status
@@ -422,18 +422,18 @@ func (a *Core) agentUpdate(u acp.Update) {
 			fmt.Fprintf(&sb, "%s %s\n", mark, e.Content)
 		}
 		// A plan is sent whole each time; the newest replaces the last one.
-		if n := len(s.log); n > 0 && s.log[n-1].kind == logPlan {
-			s.log[n-1].text = sb.String()
+		if n := len(s.Log); n > 0 && s.Log[n-1].Kind == logPlan {
+			s.Log[n-1].Text = sb.String()
 			return
 		}
-		s.add(logEntry{kind: logPlan, text: sb.String()})
+		s.add(LogEntry{Kind: logPlan, Text: sb.String()})
 	}
 }
 
 // agentPath turns a path from the agent into an absolute, clean one.
 func (a *Core) agentPath(p string) string {
 	if !filepath.IsAbs(p) {
-		p = filepath.Join(a.root, p)
+		p = filepath.Join(a.Root, p)
 	}
 	return filepath.Clean(p)
 }
@@ -472,7 +472,7 @@ func (a *Core) agentRead(r acp.ReadRequest) (string, error) {
 // is never overwritten.
 func (a *Core) agentWrite(r acp.WriteRequest) error {
 	p := a.agentPath(r.Path)
-	if run := a.ag.run; run != nil && (run.kind == sgAIReview || run.kind == sgFailure) {
+	if run := a.Ag.Run; run != nil && (run.kind == SgAIReview || run.kind == SgFailure) {
 		// These only read: a pull request or a log could carry instructions.
 		return errors.New(i18n.T("agent.nowrite"))
 	}
@@ -489,24 +489,24 @@ func (a *Core) agentWrite(r acp.WriteRequest) error {
 	if err := os.WriteFile(p, []byte(r.Content), mode); err != nil {
 		return err
 	}
-	a.ag.add(logEntry{kind: logInfo, text: "✎ " + a.Rel(p)})
-	if run := a.ag.run; run != nil {
+	a.Ag.add(LogEntry{Kind: LogInfo, Text: "✎ " + a.Rel(p)})
+	if run := a.Ag.Run; run != nil {
 		run.written = append(run.written, p)
 	}
 	a.checkDiskChanges()
-	a.explorer.refresh()
+	a.Explorer.Refresh()
 	return nil
 }
 
 // answerPermission answers the oldest permission request: allow takes the
 // first "allow" option, reject the first "reject" one.
-func (a *Core) answerPermission(allow bool) {
-	s := a.ag
-	if len(s.perms) == 0 {
+func (a *Core) AnswerPermission(allow bool) {
+	s := a.Ag
+	if len(s.Perms) == 0 {
 		return
 	}
-	p := s.perms[0]
-	s.perms = s.perms[1:]
+	p := s.Perms[0]
+	s.Perms = s.Perms[1:]
 	want := []string{"reject_once", "reject_always"}
 	if allow {
 		want = []string{"allow_once", "allow_always"}
@@ -524,7 +524,7 @@ func (a *Core) answerPermission(allow bool) {
 	if allow {
 		verb = i18n.T("agent.allowed")
 	}
-	s.add(logEntry{kind: logInfo, text: verb + ": " + permTitle(p.req)})
+	s.add(LogEntry{Kind: LogInfo, Text: verb + ": " + permTitle(p.req)})
 }
 
 func permTitle(r acp.PermissionRequest) string {
@@ -536,20 +536,20 @@ func permTitle(r acp.PermissionRequest) string {
 
 // endTurn finishes a run and does what its suggestion promised.
 func (a *Core) endTurn(m agentTurnMsg) []Effect {
-	s := a.ag
-	run := s.run
-	s.run = nil
-	for _, p := range s.perms {
+	s := a.Ag
+	run := s.Run
+	s.Run = nil
+	for _, p := range s.Perms {
 		p.reply <- ""
 	}
-	s.perms = nil
+	s.Perms = nil
 	if m.err != nil {
-		s.add(logEntry{kind: logError, text: m.err.Error()})
+		s.add(LogEntry{Kind: logError, Text: m.err.Error()})
 		a.Fail(m.err)
 		return nil
 	}
 	if m.stop != "end_turn" {
-		s.add(logEntry{kind: logInfo, text: stopText(m.stop)})
+		s.add(LogEntry{Kind: LogInfo, Text: stopText(m.stop)})
 		a.Info(i18n.T("agent.prefix"), stopText(m.stop))
 		return nil
 	}
@@ -557,15 +557,15 @@ func (a *Core) endTurn(m agentTurnMsg) []Effect {
 		return nil
 	}
 	switch run.kind {
-	case sgFailure:
-		a.sg.fixOffer = true
-		a.sg.fixSeq++
+	case SgFailure:
+		a.Sg.FixOffer = true
+		a.Sg.fixSeq++
 		a.InfoText(i18n.T("agent.diagnosed"))
 		return nil
-	case sgAIReview:
+	case SgAIReview:
 		return a.placeReview(run)
 	}
-	s.add(logEntry{kind: logInfo, text: i18n.T("agent.donereview")})
+	s.add(LogEntry{Kind: LogInfo, Text: i18n.T("agent.donereview")})
 	a.InfoText(i18n.T("agent.workdone"))
 	return a.showAgentChanges()
 }
@@ -586,8 +586,8 @@ func stopText(stop string) string {
 
 // showAgentChanges opens diff mode so the agent's edits can be checked.
 func (a *Core) showAgentChanges() []Effect {
-	if a.gd.on {
-		return a.reloadChanges()
+	if a.Gd.On {
+		return a.ReloadChanges()
 	}
-	return a.showDiff(baseHead, nil)
+	return a.ShowDiff(BaseHead, nil)
 }

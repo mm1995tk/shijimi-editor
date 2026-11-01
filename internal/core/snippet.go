@@ -226,7 +226,7 @@ func (a *Core) selectStop(i int) {
 		pairs = append(pairs, [2]buffer.Pos{sp.start.Pos, sp.end.Pos})
 	}
 	s.tab.Buf.SelectRanges(pairs)
-	a.follow = true
+	a.Follow = true
 	if i == len(s.groups)-1 {
 		a.endSnippet()
 	}
@@ -247,7 +247,7 @@ func (a *Core) snippetActive() bool {
 		return false
 	}
 	t := a.CurText()
-	if t != s.tab || !t.Buf.HasMarks() || a.focus != FocusEditor || a.helix && a.mode != ModeInsert {
+	if t != s.tab || !t.Buf.HasMarks() || a.Focus != FocusEditor || a.Helix && a.Mode != ModeInsert {
 		a.endSnippet()
 		return false
 	}

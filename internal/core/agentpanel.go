@@ -44,23 +44,23 @@ func (a *Core) toggleAgentPanel() []Effect {
 	if a.single {
 		return nil
 	}
-	if a.focus == FocusAgent {
+	if a.Focus == FocusAgent {
 		a.SetAgent(false)
-		a.follow = true
-		if len(a.tabs) > 0 {
+		a.Follow = true
+		if len(a.Tabs) > 0 {
 			return a.SetFocus(FocusEditor)
 		}
 		a.SetSide(true)
 		return a.SetFocus(FocusExplorer)
 	}
 	a.SetAgent(true)
-	a.follow = true
+	a.Follow = true
 	return a.SetFocus(FocusAgent)
 }
 
 // leaveAgentPanel returns to the editor, keeping the panel open.
 func (a *Core) leaveAgentPanel() []Effect {
-	if len(a.tabs) > 0 {
+	if len(a.Tabs) > 0 {
 		return a.SetFocus(FocusEditor)
 	}
 	a.SetSide(true)
@@ -68,28 +68,28 @@ func (a *Core) leaveAgentPanel() []Effect {
 }
 
 func (a *Core) handleAgentKey(msg Key) []Effect {
-	n := len(a.suggestions())
+	n := len(a.Suggestions())
 	switch msg.String() {
 	case "j", "down":
-		a.sg.sel = Clamp(a.sg.sel+1, 0, max(0, n-1))
+		a.Sg.Sel = Clamp(a.Sg.Sel+1, 0, max(0, n-1))
 	case "k", "up":
-		a.sg.sel = Clamp(a.sg.sel-1, 0, max(0, n-1))
+		a.Sg.Sel = Clamp(a.Sg.Sel-1, 0, max(0, n-1))
 	case "enter":
 		return a.runSuggestion()
 	case "x":
 		a.dismissSuggestion()
 	case "y":
-		a.answerPermission(true)
+		a.AnswerPermission(true)
 	case "n":
-		a.answerPermission(false)
+		a.AnswerPermission(false)
 	case "c":
 		a.cancelAgent()
 	case "ctrl+u", "pgup":
-		a.ag.scroll += 10
+		a.Ag.Scroll += 10
 	case "ctrl+d", "pgdown":
-		a.ag.scroll = max(0, a.ag.scroll-10)
+		a.Ag.Scroll = max(0, a.Ag.Scroll-10)
 	case "G", "end":
-		a.ag.scroll = 0
+		a.Ag.Scroll = 0
 	case ":":
 		return a.openCmdline(":")
 	case "esc", "tab":
@@ -108,12 +108,12 @@ func (a *Core) agentCommand(arg string) []Effect {
 	case "cancel":
 		a.cancelAgent()
 	case "stop":
-		if a.ag.client == nil {
+		if a.Ag.Client == nil {
 			a.InfoText(i18n.T("agent.notrunning"))
 			return nil
 		}
 		a.stopAgent()
-		a.ag.add(logEntry{kind: logInfo, text: i18n.T("agent.stoppedok")})
+		a.Ag.add(LogEntry{Kind: LogInfo, Text: i18n.T("agent.stoppedok")})
 		a.InfoText(i18n.T("agent.stoppedok"))
 	default:
 		a.Fail(fmt.Errorf(i18n.T("agent.badarg"), arg))
@@ -153,30 +153,30 @@ type agentLay struct {
 // agentLayout lays the panel out. It changes nothing.
 func (a *Core) agentLayout(w, h int, focused bool) agentLay {
 	var lay agentLay
-	lay.list = a.suggestions()
-	lay.sel = Clamp(a.sg.sel, 0, max(0, len(lay.list)-1))
+	lay.list = a.Suggestions()
+	lay.sel = Clamp(a.Sg.Sel, 0, max(0, len(lay.list)-1))
 	lay.rows = a.suggestRows(lay.list, max(2, h/2-1))
 	lay.head = 1 + len(lay.rows)
 	if len(lay.list) == 0 {
 		lay.head++
 	}
-	if s := a.ag; s.run != nil || s.client != nil {
+	if s := a.Ag; s.Run != nil || s.Client != nil {
 		lay.head += 2
-	} else if len(s.log) > 0 {
+	} else if len(s.Log) > 0 {
 		lay.head++
 	}
 	if focused {
 		lay.hint = i18n.T("panel.hint.suggest")
 		switch {
-		case len(a.ag.perms) > 0:
+		case len(a.Ag.Perms) > 0:
 			lay.hint = i18n.T("panel.hint.perm")
-		case a.ag.run != nil:
+		case a.Ag.Run != nil:
 			lay.hint = i18n.T("panel.hint.work")
 		}
 	}
 	lay.body = h - lay.head - BoolInt(lay.hint != "")
 	cards := 0
-	for _, p := range a.ag.perms {
+	for _, p := range a.Ag.Perms {
 		lines := wrapPlain(permTitle(p.req), w-2)
 		lay.perms = append(lay.perms, screen.AgentPerm{Title: i18n.T("panel.permtitle"), Lines: lines, Keys: i18n.T("panel.permkeys")})
 		cards += 2 + len(lines)
@@ -203,13 +203,13 @@ func (a *Core) AgentScreen(w, h int, focused bool) screen.Agent {
 		if r < 0 {
 			continue
 		}
-		ag.Items = append(ag.Items, screen.AgentItem{Title: lay.list[r].title, Detail: lay.list[r].detail, Selected: r == lay.sel})
+		ag.Items = append(ag.Items, screen.AgentItem{Title: lay.list[r].title, Detail: lay.list[r].Detail, Selected: r == lay.sel})
 	}
 	// The agent starts only when a suggestion runs, so its status line stays
 	// hidden until then; a log left by an agent that stopped keeps the rule.
-	if s := a.ag; s.run != nil || s.client != nil {
+	if s := a.Ag; s.Run != nil || s.Client != nil {
 		status := i18n.T("panel.idle")
-		if s.run != nil {
+		if s.Run != nil {
 			status = i18n.T("panel.working")
 		}
 		name := s.name
@@ -217,13 +217,13 @@ func (a *Core) AgentScreen(w, h int, focused bool) screen.Agent {
 			name = i18n.T("panel.agent")
 		}
 		ag.Rule, ag.Status = true, " "+name+": "+status
-	} else if len(s.log) > 0 {
+	} else if len(s.Log) > 0 {
 		ag.Rule = true
 	}
-	v := a.ag.view
-	for i := v.start; i < v.start+v.n && i < len(v.rows); i++ {
-		r := screen.AgentRow{Line: v.rows[i].line}
-		r.SelFrom, r.SelTo = a.ag.sel.rowCols(i, v.rows[i].plain, w)
+	v := a.Ag.View
+	for i := v.Start; i < v.Start+v.n && i < len(v.Rows); i++ {
+		r := screen.AgentRow{Line: v.Rows[i].line}
+		r.SelFrom, r.SelTo = a.Ag.Sel.rowCols(i, v.Rows[i].Plain, w)
 		ag.Log = append(ag.Log, r)
 	}
 	return ag
@@ -249,7 +249,7 @@ func logSpanRow(w int, spans ...screen.Span) logRow {
 	if spans == nil {
 		spans = []screen.Span{}
 	}
-	return logRow{line: screen.Line{Spans: spans}, plain: plain}
+	return logRow{line: screen.Line{Spans: spans}, Plain: plain}
 }
 
 // renderLog lays the log out at width w.
@@ -263,13 +263,13 @@ func (a *Core) renderLog(w int) []logRow {
 			out = append(out, row)
 		}
 	}
-	for _, e := range a.ag.log {
-		switch e.kind {
+	for _, e := range a.Ag.Log {
+		switch e.Kind {
 		case logUser:
 			out = append(out, logSpanRow(w))
-			addWrapped("› "+e.text, w-1, screen.StylePanelCmd, "")
-		case logAgent:
-			if strings.TrimSpace(e.text) == "" {
+			addWrapped("› "+e.Text, w-1, screen.StylePanelCmd, "")
+		case LogAgent:
+			if strings.TrimSpace(e.Text) == "" {
 				continue
 			}
 			type cut struct {
@@ -278,16 +278,16 @@ func (a *Core) renderLog(w int) []logRow {
 			}
 			cuts := map[int]cut{} // row of the markdown -> the cut above it
 			exact := map[int][2]int{}
-			doc := RenderMarkdown(e.text, max(1, w-1), MdOpts{
-				wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} },
-				exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
+			doc := RenderMarkdown(e.Text, max(1, w-1), MdOpts{
+				Wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} },
+				Exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
 			})
 			for i, l := range doc.Lines {
 				c, cont := cuts[i]
 				if cont && len(out) > 0 {
 					out[len(out)-1].space = c.space
 				}
-				r := logSpanRow(w, append([]screen.Span{plainSpan(" ")}, l.Spans...)...)
+				r := logSpanRow(w, append([]screen.Span{PlainSpan(" ")}, l.Spans...)...)
 				r.cont, r.indent = cont, 1+c.indent
 				if x, ok := exact[i]; ok {
 					r.from, r.to = 1+x[0], 1+x[1]
@@ -299,11 +299,11 @@ func (a *Core) renderLog(w int) []logRow {
 			if mark == "" {
 				mark = "○"
 			}
-			addWrapped(mark+" "+e.text, w-1, screen.StyleLineNo, "")
-		case logPlan, logInfo:
-			addWrapped(strings.TrimRight(e.text, "\n"), w-1, screen.StyleLineNo, "")
+			addWrapped(mark+" "+e.Text, w-1, screen.StyleLineNo, "")
+		case logPlan, LogInfo:
+			addWrapped(strings.TrimRight(e.Text, "\n"), w-1, screen.StyleLineNo, "")
 		case logError:
-			addWrapped(e.text, w-1, screen.StyleStatusFg, screen.StyleStatusErrBg)
+			addWrapped(e.Text, w-1, screen.StyleStatusFg, screen.StyleStatusErrBg)
 		}
 	}
 	return out
@@ -358,15 +358,15 @@ func (a *Core) AgentMouse(msg Mouse) ([]Effect, bool) {
 	}
 	if msg.Action == MouseMotion && msg.Button == MouseNone {
 		// the pointer left the editor: popups it opened close
-		if c := a.card; c != nil && c.byPointer {
-			a.card = nil
+		if c := a.Card; c != nil && c.ByPointer {
+			a.Card = nil
 		}
-		if a.hoverAt != nil {
-			a.hoverText, a.hoverAt = "", nil
+		if a.HoverAt != nil {
+			a.HoverText, a.HoverAt = "", nil
 		}
-		a.hoverSeq++
-		a.hoverWord = WordSpan{}
-		a.hoverCell = ScreenPt{-1, -1}
+		a.HoverSeq++
+		a.HoverWord = WordSpan{}
+		a.HoverCell = ScreenPt{-1, -1}
 		return nil, true
 	}
 	if msg.Action != MousePress {
@@ -374,10 +374,10 @@ func (a *Core) AgentMouse(msg Mouse) ([]Effect, bool) {
 	}
 	switch msg.Button {
 	case MouseWheelUp:
-		a.ag.scroll += 3
+		a.Ag.Scroll += 3
 		return nil, true
 	case MouseWheelDown:
-		a.ag.scroll = max(0, a.ag.scroll-3)
+		a.Ag.Scroll = max(0, a.Ag.Scroll-3)
 		return nil, true
 	case MouseLeft:
 	default:
@@ -388,18 +388,18 @@ func (a *Core) AgentMouse(msg Mouse) ([]Effect, bool) {
 		return nil, true
 	}
 	row := msg.Row - 1 // below the title
-	list := a.suggestions()
+	list := a.Suggestions()
 	if rows := a.suggestRows(list, max(2, a.BodyH()/2-1)); row >= 0 && row < len(rows) {
 		i := rows[row]
 		if i < 0 {
 			i = rows[row-1]
 		}
-		a.sg.sel = i
+		a.Sg.Sel = i
 	}
-	a.ag.sel = agentSel{}
+	a.Ag.Sel = AgentSel{}
 	if a.inLog(msg) {
 		p, _, _ := a.logPos(msg)
-		a.ag.sel = agentSel{dragging: true, a: p, b: p}
+		a.Ag.Sel = AgentSel{Dragging: true, A: p, B: p}
 	}
 	return a.SetFocus(FocusAgent), true
 }
@@ -410,16 +410,16 @@ func (a *Core) AgentMouse(msg Mouse) ([]Effect, bool) {
 // of drawing the panel that changes state, so it runs before drawing (fit).
 func (a *Core) FitAgentPanel(w, h int) {
 	lay := a.agentLayout(w, h, a.FocusIn(FocusAgent))
-	a.sg.sel = lay.sel
+	a.Sg.Sel = lay.sel
 	log := a.renderLog(w)
-	a.ag.scroll = Clamp(a.ag.scroll, 0, max(0, len(log)-lay.logRows))
-	end := len(log) - a.ag.scroll
+	a.Ag.Scroll = Clamp(a.Ag.Scroll, 0, max(0, len(log)-lay.logRows))
+	end := len(log) - a.Ag.Scroll
 	start := max(0, end-lay.logRows)
-	if a.ag.view.w != w {
-		a.ag.sel = agentSel{}
+	if a.Ag.View.W != w {
+		a.Ag.Sel = AgentSel{}
 	}
-	a.ag.view = agentView{rows: log, y0: lay.head + lay.cardRows, start: start, n: end - start, w: w}
-	if a.ag.sel.a.row >= len(log) || a.ag.sel.b.row >= len(log) {
-		a.ag.sel = agentSel{}
+	a.Ag.View = agentView{Rows: log, Y0: lay.head + lay.cardRows, Start: start, n: end - start, W: w}
+	if a.Ag.Sel.A.Row >= len(log) || a.Ag.Sel.B.Row >= len(log) {
+		a.Ag.Sel = AgentSel{}
 	}
 }

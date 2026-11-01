@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/creack/pty"
 
 	"github.com/mm1995tk/shijimi-editor/internal/acp/acptest"
@@ -39,25 +38,10 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// pump runs commands the way Bubble Tea does and feeds their messages back
-// into the app.
-type pump struct {
-	a  *App
-	ch chan tea.Msg
-}
-
-func newPump(a *App) *pump { return &pump{a: a, ch: make(chan tea.Msg, 64)} }
-
-func (p *pump) run(cmd tea.Cmd) {
-	if cmd != nil {
-		go func() { p.ch <- cmd() }()
-	}
-}
-
 func logText(a *App) string {
 	var sb strings.Builder
-	for _, e := range a.ag.log {
-		sb.WriteString(e.text)
+	for _, e := range a.Ag.Log {
+		sb.WriteString(e.Text)
 		sb.WriteByte('\n')
 	}
 	return sb.String()
@@ -70,17 +54,17 @@ func fakeAgent(t *testing.T, a *App) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.cfg.Agent = config.Agent{Command: exe, Env: map[string]string{acptest.Env: "1"}}
+	a.Cfg.Agent = config.Agent{Command: exe, Env: map[string]string{acptest.Env: "1"}}
 	t.Cleanup(a.Close)
 }
 
 func TestAgentNeedsACommand(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	a.cfg.Agent = config.Agent{}
-	if effs := a.runAgent(sgConflict, "k", "t", func() string { return "" }); effs != nil || !a.msgErr || !strings.Contains(a.msg, "[agent]") {
-		t.Errorf("msg = %q", a.msg)
+	a.Cfg.Agent = config.Agent{}
+	if effs := a.RunAgent(sgConflict, "k", "t", func() string { return "" }); effs != nil || !a.MsgErr || !strings.Contains(a.Msg, "[agent]") {
+		t.Errorf("msg = %q", a.Msg)
 	}
-	if a.ag.run != nil {
+	if a.Ag.Run != nil {
 		t.Error("a run started")
 	}
 }
@@ -88,8 +72,8 @@ func TestAgentNeedsACommand(t *testing.T) {
 func TestLSPErrorSuggestionCanBeDismissed(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	p := a.CurText().Buf.Path
-	a.lsp.diags[p] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}, {Severity: 1, Message: "worse"}, {Severity: 2, Message: "meh"}}}
-	list := a.suggestions()
+	a.Lsp.Diags[p] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}, {Severity: 1, Message: "worse"}, {Severity: 2, Message: "meh"}}}
+	list := a.Suggestions()
 	if len(list) != 1 || list[0].title != "エラー 2 件を直しますか" {
 		t.Fatalf("suggestions = %+v", list)
 	}
@@ -97,21 +81,21 @@ func TestLSPErrorSuggestionCanBeDismissed(t *testing.T) {
 		t.Errorf("errors = %q", got)
 	}
 	a.SetFocus(FocusAgent)
-	a.handleKey(textKey("x"))
-	if len(a.suggestions()) != 0 {
+	a.HandleKey(textKey("x"))
+	if len(a.Suggestions()) != 0 {
 		t.Fatal("x did not dismiss")
 	}
 	// one more error is the same condition: it stays hidden
-	a.lsp.diags[p]["s"] = append(a.lsp.diags[p]["s"], lsp.Diagnostic{Severity: 1, Message: "third"})
+	a.Lsp.Diags[p]["s"] = append(a.Lsp.Diags[p]["s"], lsp.Diagnostic{Severity: 1, Message: "third"})
 	a.pruneDismissed()
-	if len(a.suggestions()) != 0 {
+	if len(a.Suggestions()) != 0 {
 		t.Fatal("the dismissed suggestion came back while errors remained")
 	}
 	// once the errors are gone, new ones are suggested again
-	a.lsp.diags[p]["s"] = nil
+	a.Lsp.Diags[p]["s"] = nil
 	a.pruneDismissed()
-	a.lsp.diags[p]["s"] = []lsp.Diagnostic{{Severity: 1, Message: "new"}}
-	if len(a.suggestions()) != 1 {
+	a.Lsp.Diags[p]["s"] = []lsp.Diagnostic{{Severity: 1, Message: "new"}}
+	if len(a.Suggestions()) != 1 {
 		t.Fatal("new errors were not suggested")
 	}
 }
@@ -158,17 +142,17 @@ func TestRepoProbeFindsConflictsAndMissingPR(t *testing.T) {
 		t.Errorf("conflicts = %q", p.conflicts)
 	}
 	a := newApp(dir, "")
-	a.sg.repo = p
-	a.sg.repo.prKnown = true
+	a.Sg.repo = p
+	a.Sg.repo.prKnown = true
 	var titles []string
-	for _, s := range a.suggestions() {
+	for _, s := range a.Suggestions() {
 		titles = append(titles, s.title)
 	}
 	if strings.Join(titles, "|") != "衝突を解消しますか|PR を作りますか" {
 		t.Errorf("titles = %q", titles)
 	}
-	a.sg.repo.prs = []prSummary{{Number: 3, Title: "x"}}
-	if s := a.suggestions(); len(s) != 2 || s[1].kind != sgReviewMode || s[1].detail != "#3 x" {
+	a.Sg.repo.prs = []prSummary{{Number: 3, Title: "x"}}
+	if s := a.Suggestions(); len(s) != 2 || s[1].Kind != sgReviewMode || s[1].Detail != "#3 x" {
 		t.Errorf("suggestions = %+v", s)
 	}
 }
@@ -261,9 +245,9 @@ func TestBashReportsExitCodes(t *testing.T) {
 
 func TestStoppingTheAgentDropsTheFixOffer(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	a.sg.fixOffer = true
+	a.Sg.FixOffer = true
 	a.stopAgent()
-	if a.sg.fixOffer {
+	if a.Sg.FixOffer {
 		t.Error("the fix of a gone session is still offered")
 	}
 }

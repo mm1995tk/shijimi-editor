@@ -172,6 +172,7 @@ func styleComposer(ta *textarea.Model) {
 }
 
 func (t *textArea) Value() string         { return t.ta.Value() }
+func (t *textArea) SetValue(s string)     { t.ta.SetValue(s) }
 func (t *textArea) InsertString(s string) { t.ta.InsertString(s) }
 func (t *textArea) Line() int             { return t.ta.Line() }
 func (t *textArea) Column() int           { return t.ta.Column() }

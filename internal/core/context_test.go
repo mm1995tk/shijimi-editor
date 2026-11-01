@@ -36,17 +36,17 @@ func TestSendContextLineSelection(t *testing.T) {
 	a := newApp(dir, f)
 	b := a.CurText().Buf
 	b.SelectRange(buffer.Pos{Row: 0, Col: 0}, buffer.Pos{Row: 2, Col: 0})
-	a.sendContext()
-	if want := "a.txt:1-2\n```\none\ntwo\n```\n"; a.ctx == nil || a.ctx.Text != want {
-		t.Errorf("got %+v want %q", a.ctx, want)
+	a.SendContext()
+	if want := "a.txt:1-2\n```\none\ntwo\n```\n"; a.Ctx == nil || a.Ctx.Text != want {
+		t.Errorf("got %+v want %q", a.Ctx, want)
 	}
 }
 
 func TestSendReviewCommentsRelativeToRoot(t *testing.T) {
 	a := newApp(t.TempDir(), "")
-	a.gitTop = a.root
-	a.root = filepath.Join(a.gitTop, "sub")
-	if got := a.reviewToRoot("sub/pkg/x.go"); got != "pkg/x.go" {
+	a.GitTop = a.Root
+	a.Root = filepath.Join(a.GitTop, "sub")
+	if got := a.ReviewToRoot("sub/pkg/x.go"); got != "pkg/x.go" {
 		t.Errorf("got %q", got)
 	}
 }

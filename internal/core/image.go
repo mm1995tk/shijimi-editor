@@ -34,10 +34,10 @@ func isImage(path string) bool {
 // sent to the terminal out of band (see queueGraphics) and the view itself
 // only holds Unicode placeholder cells that the terminal draws the image on.
 type ImageView struct {
-	path   string
+	Path   string
 	Img    image.Image
-	format string
-	size   int64
+	Format string
+	Size   int64
 	Err    error
 	Id     uint32 // Kitty image id
 
@@ -49,8 +49,8 @@ type ImageView struct {
 	Cache          []string
 }
 
-func newImageView(path string) *ImageView {
-	v := &ImageView{path: path, Id: nextImageID()}
+func NewImageView(path string) *ImageView {
+	v := &ImageView{Path: path, Id: nextImageID()}
 	f, err := os.Open(path)
 	if err != nil {
 		v.Err = err
@@ -58,28 +58,28 @@ func newImageView(path string) *ImageView {
 	}
 	defer f.Close()
 	if st, err := f.Stat(); err == nil {
-		v.size = st.Size()
+		v.Size = st.Size()
 	}
-	v.Img, v.format, v.Err = image.Decode(f)
+	v.Img, v.Format, v.Err = image.Decode(f)
 	return v
 }
 
 // newImageViewFromData shows already-loaded image bytes (for example a
 // rendered web page) under the given display name.
-func newImageViewFromData(name string, data []byte) *ImageView {
-	v := &ImageView{path: name, size: int64(len(data)), Id: nextImageID()}
-	v.Img, v.format, v.Err = image.Decode(bytes.NewReader(data))
+func NewImageViewFromData(name string, data []byte) *ImageView {
+	v := &ImageView{Path: name, Size: int64(len(data)), Id: nextImageID()}
+	v.Img, v.Format, v.Err = image.Decode(bytes.NewReader(data))
 	return v
 }
 
-func (v *ImageView) name() string { return filepath.Base(v.path) }
+func (v *ImageView) Name() string { return filepath.Base(v.Path) }
 
-func (v *ImageView) info() string {
+func (v *ImageView) Info() string {
 	if v.Err != nil {
 		return i18n.T("image.cantload") + v.Err.Error()
 	}
 	b := v.Img.Bounds()
-	return fmt.Sprintf("%s  %d×%d  %s", strings.ToUpper(v.format), b.Dx(), b.Dy(), humanSize(v.size))
+	return fmt.Sprintf("%s  %d×%d  %s", strings.ToUpper(v.Format), b.Dx(), b.Dy(), humanSize(v.Size))
 }
 
 func humanSize(n int64) string {
@@ -150,7 +150,7 @@ func FitImage(sw, sh, w, h int) (pw, ph, cols, rows int) {
 }
 
 // rowsFor returns the rows the image needs when it is w columns wide at most.
-func (v *ImageView) rowsFor(w int) int {
+func (v *ImageView) RowsFor(w int) int {
 	b := v.Img.Bounds()
 	_, _, _, rows := FitImage(b.Dx(), b.Dy(), w, kitty.MaxCells)
 	return rows
@@ -178,7 +178,7 @@ func (v *ImageView) Send(pw, ph, cols, rows int) {
 }
 
 // close frees the image in the terminal.
-func (v *ImageView) close() {
+func (v *ImageView) Close() {
 	if v.sentCols != 0 {
 		queueGraphics(kitty.Delete(v.Id))
 		v.sentCols = 0
@@ -189,17 +189,17 @@ func (v *ImageView) close() {
 // high: what the image is (Caption, and Image when it could be read; the pixels
 // are what Image.Blob names). It changes nothing.
 func (a *Core) BuildImagePane(t *Tab, w, h int) screen.Pane {
-	v := t.img
+	v := t.Img
 	p := screen.Pane{
-		ID:       v.path,
+		ID:       v.Path,
 		Kind:     screen.KindImage,
-		Title:    screen.Title{Text: v.name()},
+		Title:    screen.Title{Text: v.Name()},
 		Viewport: screen.Viewport{Rows: h, Cols: w},
-		Caption:  v.info(),
+		Caption:  v.Info(),
 	}
 	if v.Err == nil {
 		b := v.Img.Bounds()
-		p.Image = &screen.ImageRef{Blob: blobFile + v.path, Width: b.Dx(), Height: b.Dy(), Format: v.format, Size: v.size}
+		p.Image = &screen.ImageRef{Blob: BlobFile + v.Path, Width: b.Dx(), Height: b.Dy(), Format: v.Format, Size: v.Size}
 	}
 	return p
 }
@@ -210,10 +210,10 @@ func (a *Core) BlobImage(blob string) *ImageView {
 	if iv := a.PreviewImage(blob); iv != nil {
 		return iv
 	}
-	if path, ok := strings.CutPrefix(blob, blobFile); ok {
-		for _, t := range a.tabs {
-			if t.Kind == TabImage && t.img.path == path {
-				return t.img
+	if path, ok := strings.CutPrefix(blob, BlobFile); ok {
+		for _, t := range a.Tabs {
+			if t.Kind == TabImage && t.Img.Path == path {
+				return t.Img
 			}
 		}
 	}

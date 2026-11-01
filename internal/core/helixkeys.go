@@ -101,8 +101,8 @@ func init() {
 	def("extend_to_line_start", true, func(a *Core, c *helixCtx) []Effect { c.b.MoveCursor(buffer.Home, true); return nil })
 	def("extend_to_line_end", true, func(a *Core, c *helixCtx) []Effect { c.b.MoveCursor(buffer.End, true); return nil })
 
-	def("page_up", false, func(a *Core, c *helixCtx) []Effect { c.b.MoveLines(-a.pageSize(), c.ext); return nil }, "pgup", "ctrl+b")
-	def("page_down", false, func(a *Core, c *helixCtx) []Effect { c.b.MoveLines(a.pageSize(), c.ext); return nil }, "pgdown", "ctrl+f")
+	def("page_up", false, func(a *Core, c *helixCtx) []Effect { c.b.MoveLines(-a.PageSize(), c.ext); return nil }, "pgup", "ctrl+b")
+	def("page_down", false, func(a *Core, c *helixCtx) []Effect { c.b.MoveLines(a.PageSize(), c.ext); return nil }, "pgdown", "ctrl+f")
 	def("jump_backward", false, func(a *Core, c *helixCtx) []Effect { return a.jumpMove(-1) }, "ctrl+o")
 	// Ctrl+I arrives as Tab unless the terminal tells them apart.
 	def("jump_forward", false, func(a *Core, c *helixCtx) []Effect { return a.jumpMove(1) }, "tab", "ctrl+i")
@@ -130,16 +130,16 @@ func init() {
 		return nil
 	}, "alt+;")
 	def("select_mode", false, func(a *Core, c *helixCtx) []Effect {
-		if a.mode == ModeSelect {
-			a.mode = ModeNormal
+		if a.Mode == ModeSelect {
+			a.Mode = ModeNormal
 		} else {
-			a.mode = ModeSelect
+			a.Mode = ModeSelect
 		}
 		return nil
 	}, "v")
 	def("normal_mode", true, func(a *Core, c *helixCtx) []Effect {
-		a.mode = ModeNormal
-		a.comp = nil
+		a.Mode = ModeNormal
+		a.Comp = nil
 		c.b.ClearSelection()
 		return nil
 	}, "esc")
@@ -156,9 +156,9 @@ func init() {
 				text = strings.TrimPrefix(text, "\n") + "\n"
 			}
 			if yank {
-				a.clipboard = text
+				a.Clipboard = text
 			}
-			a.mode = ModeNormal
+			a.Mode = ModeNormal
 			return nil
 		}
 	}
@@ -171,10 +171,10 @@ func init() {
 			if _, _, ok := b.Selection(); ok {
 				text := b.DeleteRange(s, e)
 				if yank {
-					a.clipboard = text
+					a.Clipboard = text
 				}
 			} else {
-				a.clipboard = b.DeleteRange(s, e)
+				a.Clipboard = b.DeleteRange(s, e)
 			}
 			return a.enterInsert()
 		}
@@ -183,16 +183,16 @@ func init() {
 	def("change_selection_noyank", true, changeSel(false), "alt+c")
 	def("yank", true, func(a *Core, c *helixCtx) []Effect {
 		s, e := c.b.SelectionOrChar()
-		a.clipboard = c.b.TextRange(s, e)
-		a.Info(i18n.T("helix.yanked"), len([]rune(a.clipboard)))
+		a.Clipboard = c.b.TextRange(s, e)
+		a.Info(i18n.T("helix.yanked"), len([]rune(a.Clipboard)))
 		return nil
 	}, "y")
-	def("paste_after", true, func(a *Core, c *helixCtx) []Effect { a.paste(c.b, a.clipboard, true); return nil }, "p")
-	def("paste_before", true, func(a *Core, c *helixCtx) []Effect { a.paste(c.b, a.clipboard, false); return nil }, "P")
+	def("paste_after", true, func(a *Core, c *helixCtx) []Effect { a.paste(c.b, a.Clipboard, true); return nil }, "p")
+	def("paste_before", true, func(a *Core, c *helixCtx) []Effect { a.paste(c.b, a.Clipboard, false); return nil }, "P")
 	def("replace_with_yanked", true, func(a *Core, c *helixCtx) []Effect {
 		if s, e, ok := c.b.Selection(); ok {
 			c.b.DeleteRange(s, e)
-			c.b.InsertBlock(a.clipboard)
+			c.b.InsertBlock(a.Clipboard)
 		}
 		return nil
 	}, "R")
@@ -302,7 +302,7 @@ func buildHelixKeymap(k config.Keys) (km helixKeymap, warnings []string) {
 // in the status line.
 func (a *Core) loadKeymap() {
 	var w []string
-	a.keymap, w = buildHelixKeymap(a.cfg.Keys)
+	a.keymap, w = buildHelixKeymap(a.Cfg.Keys)
 	if len(w) == 0 {
 		return
 	}
@@ -316,7 +316,7 @@ func (a *Core) loadKeymap() {
 // runBinding runs the command or ":" command a key is bound to.
 func (a *Core) runBinding(bd binding, b *buffer.Buffer, ext bool, count int, hadCount bool) []Effect {
 	if bd.ex != "" {
-		return a.execCommand(bd.ex)
+		return a.ExecCommand(bd.ex)
 	}
 	cmd := helixCommands[bd.name]
 	c := &helixCtx{b: b, ext: ext, count: count, hadCount: hadCount}
@@ -326,7 +326,7 @@ func (a *Core) runBinding(bd binding, b *buffer.Buffer, ext bool, count int, had
 	} else {
 		out = cmd.run(a, c)
 	}
-	if insertCommands[bd.name] && a.mode == ModeInsert && !a.replaying {
+	if insertCommands[bd.name] && a.Mode == ModeInsert && !a.replaying {
 		a.recIns = &insertRecord{bd: bd, count: count, hadCount: hadCount}
 	}
 	return out
@@ -367,7 +367,7 @@ func (a *Core) repeatLastInsert(b *buffer.Buffer, ext bool) []Effect {
 	defer func() { a.replaying = false }()
 	cmds := [][]Effect{a.runBinding(r.bd, b, ext, r.count, r.hadCount)}
 	for _, s := range r.steps {
-		if a.mode != ModeInsert {
+		if a.Mode != ModeInsert {
 			break
 		}
 		if !s.completion {
@@ -380,9 +380,9 @@ func (a *Core) repeatLastInsert(b *buffer.Buffer, ext bool) []Effect {
 			b.SelectRange(from, b.Cur)
 			b.InsertBlock(s.text)
 		})
-		a.follow = true
+		a.Follow = true
 	}
-	if a.mode == ModeInsert {
+	if a.Mode == ModeInsert {
 		cmds = append(cmds, a.handleInsertKey(Key{Code: KeyEscape}))
 	}
 	return Batch(cmds...)

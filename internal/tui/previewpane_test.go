@@ -2,6 +2,7 @@ package tui
 
 import (
 	"encoding/json"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -16,16 +17,15 @@ func previewApp(t *testing.T, dir, src string) *App {
 	b := buffer.New()
 	b.Insert(src)
 	b.Path = filepath.Join(dir, "x.md")
-	a := appOf(&Core{cfg: &config.Config{}, tabs: []*Tab{newTab(b)}})
-	a.tabs[0].buf.Cur.Row = 0
-	a.tabs[0].preview = PreviewSplit
+	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}})
+	a.Tabs[0].Buf.Cur.Row = 0
+	a.Tabs[0].Preview = core.PreviewSplit
 	return a
 }
 
-
 func TestBuildPreviewPane(t *testing.T) {
 	a := previewApp(t, t.TempDir(), "# 見出し\n\n段落に **太字** と `code`。\n\n- 項目\n\n```go\nfunc main() {}\n```\n")
-	p := a.BuildPreviewPane(a.tabs[0], 30, 5)
+	p := a.BuildPreviewPane(a.Tabs[0], 30, 5)
 	if p.Kind != screen.KindPreview || p.Viewport.Cols != 30 || p.Viewport.Rows != 5 || len(p.Lines) != 5 {
 		t.Fatalf("pane = %+v", p)
 	}
@@ -60,7 +60,7 @@ func TestBuildPreviewPane(t *testing.T) {
 	}
 
 	// the lines are the visible ones: the cursor at the end scrolls the pane
-	tb := a.tabs[0]
+	tb := a.Tabs[0]
 	tb.Buf.Cur.Row = len(tb.Buf.Lines) - 1
 	p = a.BuildPreviewPane(tb, 30, 5)
 	if p.Preview.Top != p.Preview.Rows-5 || p.Lines[0].No != p.Preview.Top || len(p.Lines) != 5 {
@@ -70,11 +70,11 @@ func TestBuildPreviewPane(t *testing.T) {
 
 func TestPreviewPaneRendersAgainWhenWidthChanges(t *testing.T) {
 	a := previewApp(t, t.TempDir(), strings.Repeat("あ", 30)+"\n")
-	tb := a.tabs[0]
+	tb := a.Tabs[0]
 	narrow := a.BuildPreviewPane(tb, 20, 10)
 	wide := a.BuildPreviewPane(tb, 80, 10)
-	if len(narrow.Lines) <= len(wide.Lines) || tb.prevW != 80 {
-		t.Fatalf("lines %d (20 wide) %d (80 wide), cached for %d", len(narrow.Lines), len(wide.Lines), tb.prevW)
+	if len(narrow.Lines) <= len(wide.Lines) || tb.PrevW != 80 {
+		t.Fatalf("lines %d (20 wide) %d (80 wide), cached for %d", len(narrow.Lines), len(wide.Lines), tb.PrevW)
 	}
 }
 
@@ -84,21 +84,21 @@ func TestPreviewPaneImages(t *testing.T) {
 	a := previewApp(t, dir, "![図](a.png)\n\n> ![引用](a.png)\n\n![無い](missing.png)\n")
 	load := func() {
 		a.SyncPreview()
-		for path, job := range a.mdImages {
-			a.handleMDImageDone(mdImageDoneMsg{path, job.stamp, newImageView(path)})
+		for path, job := range a.MdImages {
+			a.HandleMDImageDone(core.MdImageDoneMsg{path, job.Stamp, core.NewImageView(path)})
 		}
 	}
-	p := a.BuildPreviewPane(a.tabs[0], 30, 100)
+	p := a.BuildPreviewPane(a.Tabs[0], 30, 100)
 	if len(p.Preview.Images) != 0 {
 		t.Fatalf("an image that is not loaded is text: %+v", p.Preview.Images)
 	}
 	load()
-	p = a.BuildPreviewPane(a.tabs[0], 30, 100)
+	p = a.BuildPreviewPane(a.Tabs[0], 30, 100)
 	ims := p.Preview.Images
 	if len(ims) != 2 {
 		t.Fatalf("images = %+v", ims)
 	}
-	want := screen.ImageRef{Blob: blobFile + filepath.Join(dir, "a.png"), Width: 40, Height: 400}
+	want := screen.ImageRef{Blob: core.BlobFile + filepath.Join(dir, "a.png"), Width: 40, Height: 400}
 	for i, im := range ims {
 		if im.Image != want || im.Rows < 3 {
 			t.Fatalf("image %d = %+v, want %+v", i, im, want)
@@ -120,7 +120,7 @@ func TestPreviewPaneImages(t *testing.T) {
 	}
 
 	// only the images in view are in the pane
-	p = a.BuildPreviewPane(a.tabs[0], 30, 2)
+	p = a.BuildPreviewPane(a.Tabs[0], 30, 2)
 	if len(p.Preview.Images) != 1 || p.Preview.Images[0].Row != 0 {
 		t.Fatalf("images in view = %+v", p.Preview.Images)
 	}
@@ -128,7 +128,7 @@ func TestPreviewPaneImages(t *testing.T) {
 
 func TestPreviewMermaidFallback(t *testing.T) {
 	a := previewApp(t, t.TempDir(), "```mermaid\nA-->B\n```\n")
-	m := a.mermaidLines("A-->B", 30)
+	m := a.MermaidLines("A-->B", 30)
 	if m.Image != nil || len(m.Lines) == 0 {
 		t.Fatalf("a diagram not drawn yet shows its source: %+v", m)
 	}

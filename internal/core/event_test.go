@@ -26,7 +26,7 @@ func TestWatchTickEffects(t *testing.T) {
 
 func TestStaleHoldScrollTickIsDropped(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	if effs := a.HandleEvent(HoldScrollTick{seq: a.holdSeq + 1}); len(effs) != 0 {
+	if effs := a.HandleEvent(HoldScrollTick{Seq: a.HoldSeq + 1}); len(effs) != 0 {
 		t.Fatalf("stale tick produced %#v", effs)
 	}
 }
@@ -38,7 +38,7 @@ func TestLSPServerEventAsksForTheNext(t *testing.T) {
 	effs := a.HandleEvent(LspEventMsg(lsp.Event{Server: "gopls", Message: "ready"}))
 	var waits int
 	for _, e := range effs {
-		if w, ok := e.(WaitLSP); ok && w.From == a.lsp.events {
+		if w, ok := e.(WaitLSP); ok && w.From == a.Lsp.events {
 			waits++
 		}
 	}
@@ -65,16 +65,16 @@ func TestStaleSignatureReplyIsDropped(t *testing.T) {
 // one from a client that was dropped (older gen) changes nothing.
 func TestAgentEventAsksForTheNext(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	a.ag.gen = 2
-	a.ag.armed = true
+	a.Ag.gen = 2
+	a.Ag.armed = true
 	effs := a.HandleEvent(agentUpdateMsg{gen: 1})
-	if len(a.ag.log) != 0 {
-		t.Fatalf("stale update was logged: %+v", a.ag.log)
+	if len(a.Ag.Log) != 0 {
+		t.Fatalf("stale update was logged: %+v", a.Ag.Log)
 	}
 	if len(effs) != 1 {
 		t.Fatalf("want one WaitAgent, got %#v", effs)
 	}
-	if w, ok := effs[0].(WaitAgent); !ok || w.From != a.ag.ch {
+	if w, ok := effs[0].(WaitAgent); !ok || w.From != a.Ag.ch {
 		t.Fatalf("want WaitAgent on the agent channel, got %#v", effs[0])
 	}
 }

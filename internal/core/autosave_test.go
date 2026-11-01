@@ -3,8 +3,6 @@ package core
 import (
 	"os"
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 func TestAutoSave(t *testing.T) {
@@ -33,23 +31,4 @@ func TestAutoSaveSkipsUnnamed(t *testing.T) {
 	if !tb.Buf.Dirty || tb.Buf.Path != "" {
 		t.Fatal("unnamed buffer must not be auto-saved")
 	}
-}
-
-// collect runs cmd (flattening batches) and returns the messages produced.
-func collect(cmd tea.Cmd) []tea.Msg {
-	if cmd == nil {
-		return nil
-	}
-	msg := cmd()
-	if b, ok := msg.(tea.BatchMsg); ok {
-		var out []tea.Msg
-		for _, c := range b {
-			out = append(out, collect(c)...)
-		}
-		return out
-	}
-	if msg == nil {
-		return nil
-	}
-	return []tea.Msg{msg}
 }

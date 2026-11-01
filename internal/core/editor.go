@@ -21,23 +21,23 @@ type Tab struct {
 	Kind tabKind
 
 	Buf        *buffer.Buffer
-	hl         *highlighter
-	lang       *config.Language
+	Hl         *highlighter
+	Lang       *config.Language
 	lspVersion int
-	autoVer    int  // buffer version an auto-save timer was last scheduled for
+	AutoVer    int  // buffer version an auto-save timer was last scheduled for
 	conflict   bool // changed on disk while holding unsaved edits (already reported)
 
 	// a transient tab (VS Code: preview) gives way to the next one until kept
-	transient    bool
+	Transient    bool
 	transientVer int // buffer version when opened; an edit keeps the tab
 
-	img *ImageView
-	dv  *DiffView // set while the tab is shown as a diff (diff mode)
+	Img *ImageView
+	Dv  *DiffView // set while the tab is shown as a diff (diff mode)
 
 	// Markdown preview beside the buffer
-	Preview   previewMode
+	Preview   PreviewMode
 	prevCache *MdDoc
-	prevW     int
+	PrevW     int
 	prevVer   int
 	prevGen   int
 
@@ -49,14 +49,14 @@ type Tab struct {
 	scanImages []string
 }
 
-func newTab(b *buffer.Buffer) *Tab {
-	return &Tab{Kind: TabText, Buf: b, hl: newHighlighter(b.Path), lspVersion: -1}
+func NewTab(b *buffer.Buffer) *Tab {
+	return &Tab{Kind: TabText, Buf: b, Hl: NewHighlighter(b.Path), lspVersion: -1}
 }
 
-func (t *Tab) title() string {
+func (t *Tab) Title() string {
 	switch t.Kind {
 	case TabImage:
-		return t.img.name()
+		return t.Img.Name()
 	}
 	return t.Buf.Name()
 }
@@ -68,7 +68,7 @@ func (t *Tab) Path() string {
 	case TabText:
 		return t.Buf.Path
 	case TabImage:
-		return t.img.path
+		return t.Img.Path
 	}
 	return ""
 }
@@ -112,7 +112,7 @@ type EditorOpts struct {
 }
 
 // diagColor is the color of a diagnostic of severity sev.
-func diagColor(sev int) string {
+func DiagColor(sev int) string {
 	return StyleColor(DiagStyle(screen.Severity(sevRank(sev))))
 }
 

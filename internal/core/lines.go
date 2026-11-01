@@ -21,7 +21,7 @@ func (a *Core) TitleOf(t *Tab) *screen.Title {
 	if t == nil {
 		return nil
 	}
-	name := t.title()
+	name := t.Title()
 	if !a.single && t.Path() != "" {
 		name = a.Rel(t.Path())
 	}
@@ -42,17 +42,17 @@ func modeStyleName(m EditMode) screen.Style {
 // statusOf is the status line as it is now.
 func (a *Core) StatusOf() screen.Status {
 	var s screen.Status
-	if a.helix && a.focus == FocusEditor && a.CurText() != nil {
-		s.Mode, s.Style = a.mode.label(), modeStyleName(a.mode)
-		if p := a.pending; p != "" {
+	if a.Helix && a.Focus == FocusEditor && a.CurText() != nil {
+		s.Mode, s.Style = a.Mode.label(), modeStyleName(a.Mode)
+		if p := a.Pending; p != "" {
 			if p == " " {
 				p = "space"
 			}
 			s.Pending = p
 		}
 	}
-	s.Branch = a.branch
-	switch a.focus {
+	s.Branch = a.Branch
+	switch a.Focus {
 	case FocusExplorer:
 		s.Pane = i18n.T("app.pane.tree")
 	case FocusChanges:
@@ -63,7 +63,7 @@ func (a *Core) StatusOf() screen.Status {
 		s.Pane = i18n.T("app.pane.suggest")
 	}
 	if t := a.CurText(); t != nil {
-		for _, d := range a.lsp.diagnostics(t.Buf.Path) {
+		for _, d := range a.Lsp.diagnostics(t.Buf.Path) {
 			if sevRank(d.Severity) == 1 {
 				s.Errors++
 			} else if d.Severity == 2 {
@@ -72,7 +72,7 @@ func (a *Core) StatusOf() screen.Status {
 		}
 	}
 	if !a.SuggestionsShown() {
-		if n := len(a.suggestions()); n > 0 {
+		if n := len(a.Suggestions()); n > 0 {
 			s.Suggestions = fmt.Sprintf(i18n.T("app.suggestions"), n)
 		}
 	}
@@ -90,22 +90,22 @@ func (a *Core) StatusOf() screen.Status {
 		if sel := b.SelectedText(); sel != "" {
 			s.Position += fmt.Sprintf(i18n.T("app.selected"), len([]rune(sel)))
 		}
-		s.Language = t.hl.Language()
+		s.Language = t.Hl.Language()
 		if st := a.lspStatus(); st != "" {
 			s.Language += " [" + st + "]"
 		}
 	}
-	if n := len(a.gd.rv.pending); n > 0 && a.PrShown() {
+	if n := len(a.Gd.Rv.Pending); n > 0 && a.PrShown() {
 		s.Unsent = fmt.Sprintf(i18n.T("app.pendingcomments"), n)
 	}
 	s.Version = VersionLabel()
 	switch {
 	case a.ConfirmOverlay() != nil:
 		// the confirmation is an Overlay, drawn over the status line
-	case a.msg != "":
-		s.Msg, s.MsgErr = a.msg, a.msgErr
-	case a.PrShown() && a.gd.rv.sync.text() != "":
-		s.Msg = a.gd.rv.sync.text()
+	case a.Msg != "":
+		s.Msg, s.MsgErr = a.Msg, a.MsgErr
+	case a.PrShown() && a.Gd.Rv.Sync.text() != "":
+		s.Msg = a.Gd.Rv.Sync.text()
 	}
 	return s
 }
@@ -117,11 +117,11 @@ func (a *Core) StatusOf() screen.Status {
 func (a *Core) ConfirmOverlay() *screen.Overlay {
 	ov := screen.Overlay{Kind: screen.OverlayConfirm}
 	switch {
-	case a.confirm != nil:
-		ov.Lines = []screen.Line{{Spans: []screen.Span{{Text: a.confirm.prompt}}}}
+	case a.Confirm != nil:
+		ov.Lines = []screen.Line{{Spans: []screen.Span{{Text: a.Confirm.Prompt}}}}
 		ov.Items = []screen.Item{{Label: "y"}, {Label: "n"}}
-	case (a.confirmQuit || a.confirmClose) && a.msg != "":
-		ov.Lines = []screen.Line{{Spans: []screen.Span{{Text: a.msg}}}}
+	case (a.confirmQuit || a.confirmClose) && a.Msg != "":
+		ov.Lines = []screen.Line{{Spans: []screen.Span{{Text: a.Msg}}}}
 	default:
 		return nil
 	}
@@ -130,7 +130,7 @@ func (a *Core) ConfirmOverlay() *screen.Overlay {
 
 // cmdlineState is the ":" / "/" line when it is open.
 func (a *Core) CmdlineState() *screen.Cmdline {
-	if !a.cmdOpen {
+	if !a.CmdOpen {
 		return nil
 	}
 	return &screen.Cmdline{Prefix: a.cmdKind, Text: a.cmdInput.Value(), Cursor: a.cmdInput.Position()}
@@ -138,11 +138,11 @@ func (a *Core) CmdlineState() *screen.Cmdline {
 
 // findState is the find bar when it is open.
 func (a *Core) FindState() *screen.Cmdline {
-	if !a.findOpen {
+	if !a.FindOpen {
 		return nil
 	}
 	return &screen.Cmdline{
-		Prefix: FindLabel(), Text: a.findInput.Value(), Cursor: a.findInput.Position(),
+		Prefix: FindLabel(), Text: a.FindInput.Value(), Cursor: a.FindInput.Position(),
 		Hint: i18n.T("app.findhint"),
 	}
 }

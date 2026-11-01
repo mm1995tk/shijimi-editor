@@ -9,32 +9,32 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
-type node struct {
-	name     string
-	path     string
+type Node struct {
+	Name     string
+	Path     string
 	isDir    bool
 	expanded bool
 	loaded   bool
 	depth    int
-	parent   *node
-	children []*node
+	parent   *Node
+	children []*Node
 }
 
 // explorer is the file tree shown in the sidebar.
-type explorer struct {
-	root   *node
-	flat   []*node
-	sel    int
-	scroll int
-	git    map[string]string
+type Explorer struct {
+	root   *Node
+	Flat   []*Node
+	Sel    int
+	Scroll int
+	Git    map[string]string
 	// ignored holds paths matched by .gitignore; the tree shows them dimmed.
 	// A directory entry stands for everything under it.
 	ignored map[string]bool
-	icons   bool // Nerd Font icons; off falls back to ▸/▾
+	Icons   bool // Nerd Font icons; off falls back to ▸/▾
 }
 
-func newExplorer(root string) *explorer {
-	e := &explorer{root: &node{name: filepath.Base(root), path: root, isDir: true, expanded: true, depth: -1}}
+func NewExplorer(root string) *Explorer {
+	e := &Explorer{root: &Node{Name: filepath.Base(root), Path: root, isDir: true, expanded: true, depth: -1}}
 	e.load(e.root)
 	e.flatten()
 	e.loadGitStatus()
@@ -43,15 +43,15 @@ func newExplorer(root string) *explorer {
 
 var hiddenNames = map[string]bool{".git": true}
 
-func (e *explorer) load(n *node) {
-	entries, err := os.ReadDir(n.path)
+func (e *Explorer) load(n *Node) {
+	entries, err := os.ReadDir(n.Path)
 	n.loaded = true
 	if err != nil {
 		return
 	}
-	old := map[string]*node{}
+	old := map[string]*Node{}
 	for _, c := range n.children {
-		old[c.name] = c
+		old[c.Name] = c
 	}
 	n.children = n.children[:0]
 	for _, ent := range entries {
@@ -60,13 +60,13 @@ func (e *explorer) load(n *node) {
 		}
 		isDir := ent.IsDir()
 		if ent.Type()&os.ModeSymlink != 0 {
-			if st, err := os.Stat(filepath.Join(n.path, ent.Name())); err == nil {
+			if st, err := os.Stat(filepath.Join(n.Path, ent.Name())); err == nil {
 				isDir = st.IsDir()
 			}
 		}
 		c := old[ent.Name()]
 		if c == nil || c.isDir != isDir {
-			c = &node{name: ent.Name(), path: filepath.Join(n.path, ent.Name()), isDir: isDir}
+			c = &Node{Name: ent.Name(), Path: filepath.Join(n.Path, ent.Name()), isDir: isDir}
 		}
 		c.depth = n.depth + 1
 		c.parent = n
@@ -76,40 +76,40 @@ func (e *explorer) load(n *node) {
 }
 
 // nodeLess orders: dot dirs, dirs, dot files, files.
-func nodeLess(a, b *node) bool {
+func nodeLess(a, b *Node) bool {
 	if a.isDir != b.isDir {
 		return a.isDir
 	}
-	ad, bd := strings.HasPrefix(a.name, "."), strings.HasPrefix(b.name, ".")
+	ad, bd := strings.HasPrefix(a.Name, "."), strings.HasPrefix(b.Name, ".")
 	if ad != bd {
 		return ad
 	}
-	return strings.ToLower(a.name) < strings.ToLower(b.name)
+	return strings.ToLower(a.Name) < strings.ToLower(b.Name)
 }
 
-func (e *explorer) flatten() {
-	e.flat = e.flat[:0]
-	var walk func(n *node)
-	walk = func(n *node) {
+func (e *Explorer) flatten() {
+	e.Flat = e.Flat[:0]
+	var walk func(n *Node)
+	walk = func(n *Node) {
 		for _, c := range n.children {
-			e.flat = append(e.flat, c)
+			e.Flat = append(e.Flat, c)
 			if c.isDir && c.expanded {
 				walk(c)
 			}
 		}
 	}
 	walk(e.root)
-	e.sel = Clamp(e.sel, 0, max(0, len(e.flat)-1))
+	e.Sel = Clamp(e.Sel, 0, max(0, len(e.Flat)-1))
 }
 
 // refresh reloads every expanded directory from disk.
-func (e *explorer) refresh() {
+func (e *Explorer) Refresh() {
 	var selPath string
 	if n := e.selected(); n != nil {
-		selPath = n.path
+		selPath = n.Path
 	}
-	var walk func(n *node)
-	walk = func(n *node) {
+	var walk func(n *Node)
+	walk = func(n *Node) {
 		if n.isDir && n.expanded {
 			e.load(n)
 			for _, c := range n.children {
@@ -119,23 +119,23 @@ func (e *explorer) refresh() {
 	}
 	walk(e.root)
 	e.flatten()
-	for i, n := range e.flat { // keep the cursor on the same entry when rows shift
-		if n.path == selPath {
-			e.sel = i
+	for i, n := range e.Flat { // keep the cursor on the same entry when rows shift
+		if n.Path == selPath {
+			e.Sel = i
 		}
 	}
-	e.sel = Clamp(e.sel, 0, max(0, len(e.flat)-1))
+	e.Sel = Clamp(e.Sel, 0, max(0, len(e.Flat)-1))
 	e.loadGitStatus()
 }
 
-func (e *explorer) selected() *node {
-	if e.sel < 0 || e.sel >= len(e.flat) {
+func (e *Explorer) selected() *Node {
+	if e.Sel < 0 || e.Sel >= len(e.Flat) {
 		return nil
 	}
-	return e.flat[e.sel]
+	return e.Flat[e.Sel]
 }
 
-func (e *explorer) toggle(n *node) {
+func (e *Explorer) Toggle(n *Node) {
 	if !n.isDir {
 		return
 	}
@@ -147,19 +147,19 @@ func (e *explorer) toggle(n *node) {
 }
 
 // collapseOrParent collapses the selected dir, or moves to its parent.
-func (e *explorer) collapseOrParent() {
+func (e *Explorer) collapseOrParent() {
 	n := e.selected()
 	if n == nil {
 		return
 	}
 	if n.isDir && n.expanded {
-		e.toggle(n)
+		e.Toggle(n)
 		return
 	}
 	if n.parent != nil && n.parent != e.root {
-		for i, f := range e.flat {
+		for i, f := range e.Flat {
 			if f == n.parent {
-				e.sel = i
+				e.Sel = i
 				return
 			}
 		}
@@ -167,8 +167,8 @@ func (e *explorer) collapseOrParent() {
 }
 
 // reveal expands parents of path and selects it.
-func (e *explorer) reveal(path string) {
-	rel, err := filepath.Rel(e.root.path, path)
+func (e *Explorer) Reveal(path string) {
+	rel, err := filepath.Rel(e.root.Path, path)
 	if err != nil || strings.HasPrefix(rel, "..") {
 		return
 	}
@@ -177,9 +177,9 @@ func (e *explorer) reveal(path string) {
 		if !cur.loaded {
 			e.load(cur)
 		}
-		var next *node
+		var next *Node
 		for _, c := range cur.children {
-			if c.name == part {
+			if c.Name == part {
 				next = c
 				break
 			}
@@ -196,60 +196,60 @@ func (e *explorer) reveal(path string) {
 		cur = next
 	}
 	e.flatten()
-	for i, f := range e.flat {
-		if f.path == path {
-			e.sel = i
+	for i, f := range e.Flat {
+		if f.Path == path {
+			e.Sel = i
 		}
 	}
 }
 
 // targetDir is where new files are created: the selected dir, or the
 // selected file's parent.
-func (e *explorer) targetDir() string {
+func (e *Explorer) targetDir() string {
 	n := e.selected()
 	if n == nil {
-		return e.root.path
+		return e.root.Path
 	}
 	if n.isDir {
-		return n.path
+		return n.Path
 	}
-	return filepath.Dir(n.path)
+	return filepath.Dir(n.Path)
 }
 
-func (e *explorer) ensureVisible(h int) {
-	if e.sel < e.scroll {
-		e.scroll = e.sel
+func (e *Explorer) EnsureVisible(h int) {
+	if e.Sel < e.Scroll {
+		e.Scroll = e.Sel
 	}
-	if e.sel >= e.scroll+h {
-		e.scroll = e.sel - h + 1
+	if e.Sel >= e.Scroll+h {
+		e.Scroll = e.Sel - h + 1
 	}
-	e.scroll = Clamp(e.scroll, 0, max(0, len(e.flat)-h))
+	e.Scroll = Clamp(e.Scroll, 0, max(0, len(e.Flat)-h))
 }
 
 // screen is the tree as a screen.Explorer: the rows in view, h rows high with
 // the title, scrolled as fit left it. activePath is the file open in the editor.
 // It changes nothing.
-func (e *explorer) screen(h int, activePath string) screen.Explorer {
+func (e *Explorer) Screen(h int, activePath string) screen.Explorer {
 	ex := screen.Explorer{
-		Title: " EXPLORER: " + strings.ToUpper(e.root.name),
-		Icons: e.icons,
-		Top:   e.scroll,
-		Total: len(e.flat),
+		Title: " EXPLORER: " + strings.ToUpper(e.root.Name),
+		Icons: e.Icons,
+		Top:   e.Scroll,
+		Total: len(e.Flat),
 	}
 	for i := range max(0, h-1) {
-		idx := e.scroll + i
-		if idx >= len(e.flat) {
+		idx := e.Scroll + i
+		if idx >= len(e.Flat) {
 			break
 		}
-		n := e.flat[idx]
+		n := e.Flat[idx]
 		r := screen.ExplorerRow{
-			Depth: n.depth, Name: n.name, Dir: n.isDir, Expanded: n.expanded,
-			Open: n.path == activePath, Selected: idx == e.sel,
-			Git: e.git[n.path], Ignored: e.isIgnored(n),
+			Depth: n.depth, Name: n.Name, Dir: n.isDir, Expanded: n.expanded,
+			Open: n.Path == activePath, Selected: idx == e.Sel,
+			Git: e.Git[n.Path], Ignored: e.IsIgnored(n),
 		}
-		if e.icons {
-			ic := iconFor(n)
-			r.Icon, r.IconColor = ic.glyph+" ", ic.color
+		if e.Icons {
+			ic := IconFor(n)
+			r.Icon, r.IconColor = ic.Glyph+" ", ic.Color
 		}
 		ex.Rows = append(ex.Rows, r)
 	}
@@ -257,9 +257,9 @@ func (e *explorer) screen(h int, activePath string) screen.Explorer {
 }
 
 // isIgnored reports whether n or one of its ancestors is matched by .gitignore.
-func (e *explorer) isIgnored(n *node) bool {
+func (e *Explorer) IsIgnored(n *Node) bool {
 	for ; n != nil; n = n.parent {
-		if e.ignored[n.path] {
+		if e.ignored[n.Path] {
 			return true
 		}
 	}
@@ -269,19 +269,19 @@ func (e *explorer) isIgnored(n *node) bool {
 // loadGitStatus records git status letters for files under the root,
 // shown as VS Code-style decorations in the tree, and the paths that
 // .gitignore matches.
-func (e *explorer) loadGitStatus() {
-	e.git = map[string]string{}
+func (e *Explorer) loadGitStatus() {
+	e.Git = map[string]string{}
 	e.ignored = map[string]bool{}
-	top, err := run(e.root.path, nil, "git", "rev-parse", "--show-toplevel")
+	top, err := run(e.root.Path, nil, "git", "rev-parse", "--show-toplevel")
 	if err != nil {
 		return
 	}
 	topDir := strings.TrimSpace(string(top))
 	// --ignored=matching lists an ignored directory as one entry instead of
 	// every file under it. Git before 2.18 lacks it; fall back to no ignores.
-	out, err := run(e.root.path, nil, "git", "status", "--porcelain", "--untracked-files=all", "--ignored=matching", "-z")
+	out, err := run(e.root.Path, nil, "git", "status", "--porcelain", "--untracked-files=all", "--ignored=matching", "-z")
 	if err != nil {
-		out, err = run(e.root.path, nil, "git", "status", "--porcelain", "--untracked-files=all", "-z")
+		out, err = run(e.root.Path, nil, "git", "status", "--porcelain", "--untracked-files=all", "-z")
 		if err != nil {
 			return
 		}
@@ -312,10 +312,10 @@ func (e *explorer) loadGitStatus() {
 			letter = "R"
 		}
 		abs := filepath.Join(topDir, path)
-		e.git[abs] = letter
+		e.Git[abs] = letter
 		for d := filepath.Dir(abs); len(d) >= len(topDir) && d != filepath.Dir(d); d = filepath.Dir(d) {
-			if _, ok := e.git[d]; !ok {
-				e.git[d] = "•"
+			if _, ok := e.Git[d]; !ok {
+				e.Git[d] = "•"
 			}
 		}
 	}

@@ -46,7 +46,7 @@ func (a *Core) pushJump() {
 
 // jumpable reports whether the file of l can still be shown.
 func (a *Core) jumpable(l jumpLoc) bool {
-	for _, t := range a.tabs {
+	for _, t := range a.Tabs {
 		if t.Kind == TabText && t.Buf.Path == l.path {
 			return true
 		}
@@ -95,7 +95,7 @@ func (a *Core) jumpMove(dir int) []Effect {
 		row := min(max(l.row, 0), len(b.Lines)-1)
 		b.SetCursor(row, buffer.VisualCol(b.Lines[row], l.col), false)
 		a.jumpIdx = i
-		a.follow = true
+		a.Follow = true
 		return a.SetFocus(FocusEditor)
 	}
 }

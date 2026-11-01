@@ -71,7 +71,7 @@ func codeCells(lang string, lines []string) [][]HoverCell {
 	row, col := 0, 0
 	for tok := it(); tok != chroma.EOF; tok = it() {
 		var c screen.Style
-		if e := chromaStyle.Get(tok.Type); e.Colour.IsSet() {
+		if e := ChromaStyle.Get(tok.Type); e.Colour.IsSet() {
 			c = syntaxStyleOf(e.Colour.String())
 		}
 		for _, r := range tok.Value {

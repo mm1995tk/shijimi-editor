@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"testing"
 	"time"
@@ -10,24 +11,24 @@ import (
 
 func TestScheduleAutoSave(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	a.cfg.Editor.AutoSaveDelay = time.Millisecond
+	a.Cfg.Editor.AutoSaveDelay = time.Millisecond
 	tb := a.CurText()
 
 	// no edit: nothing is scheduled
-	if _, cmd := a.Update(Key{Code: KeyEscape}); cmd != nil && tb.autoVer != 0 {
+	if _, cmd := a.Update(core.Key{Code: KeyEscape}); cmd != nil && tb.AutoVer != 0 {
 		t.Fatal("scheduled without an edit")
 	}
 
 	// an edit schedules a timer; running it yields the save message
 	keys(a, "i")
 	_, cmd := a.Update(textKey("x"))
-	if cmd == nil || tb.autoVer != tb.Buf.Version {
-		t.Fatalf("edit did not schedule auto-save (autoVer=%d, version=%d)", tb.autoVer, tb.Buf.Version)
+	if cmd == nil || tb.AutoVer != tb.Buf.Version {
+		t.Fatalf("edit did not schedule auto-save (autoVer=%d, version=%d)", tb.AutoVer, tb.Buf.Version)
 	}
-	var msg AutoSaveDue
+	var msg core.AutoSaveDue
 	found := false
 	for _, m := range collect(cmd) {
-		if am, ok := m.(AutoSaveDue); ok {
+		if am, ok := m.(core.AutoSaveDue); ok {
 			msg, found = am, true
 		}
 	}
@@ -48,12 +49,31 @@ func TestScheduleAutoSave(t *testing.T) {
 
 func TestAutoSaveDisabled(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	a.cfg.Editor.AutoSave = false
+	a.Cfg.Editor.AutoSave = false
 	keys(a, "i")
 	_, cmd := a.Update(textKey("x"))
 	for _, m := range collect(cmd) {
-		if _, ok := m.(AutoSaveDue); ok {
+		if _, ok := m.(core.AutoSaveDue); ok {
 			t.Fatal("scheduled while disabled")
 		}
 	}
+}
+
+// collect runs cmd (flattening batches) and returns the messages produced.
+func collect(cmd tea.Cmd) []tea.Msg {
+	if cmd == nil {
+		return nil
+	}
+	msg := cmd()
+	if b, ok := msg.(tea.BatchMsg); ok {
+		var out []tea.Msg
+		for _, c := range b {
+			out = append(out, collect(c)...)
+		}
+		return out
+	}
+	if msg == nil {
+		return nil
+	}
+	return []tea.Msg{msg}
 }

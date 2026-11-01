@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"strings"
 	"testing"
@@ -12,19 +13,19 @@ import (
 
 func TestTermKeyBytes(t *testing.T) {
 	cases := []struct {
-		msg  Key
+		msg  core.Key
 		app  bool
 		want string
 	}{
 		{textKey("a"), false, "a"},
 		{altKey("a"), false, "\x1ba"},
-		{Key{Code: KeyEnter}, false, "\r"},
-		{Key{Code: 'c', Mod: ModCtrl}, false, "\x03"},
-		{Key{Code: KeyBackspace}, false, "\x7f"},
-		{Key{Code: KeyUp}, false, "\x1b[A"},
-		{Key{Code: KeyUp}, true, "\x1bOA"},
-		{Key{Code: KeyRight, Mod: ModCtrl}, false, "\x1b[1;5C"},
-		{Key{Code: KeyDelete}, false, "\x1b[3~"},
+		{core.Key{Code: KeyEnter}, false, "\r"},
+		{core.Key{Code: 'c', Mod: core.ModCtrl}, false, "\x03"},
+		{core.Key{Code: KeyBackspace}, false, "\x7f"},
+		{core.Key{Code: KeyUp}, false, "\x1b[A"},
+		{core.Key{Code: KeyUp}, true, "\x1bOA"},
+		{core.Key{Code: KeyRight, Mod: core.ModCtrl}, false, "\x1b[1;5C"},
+		{core.Key{Code: KeyDelete}, false, "\x1b[3~"},
 	}
 	for _, c := range cases {
 		if got := string(termKeyBytes(c.msg, c.app)); got != c.want {
@@ -104,7 +105,7 @@ func TestTerminalScrollback(t *testing.T) {
 	if tab.vt.Scrollback() < 50 {
 		t.Fatalf("scrollback = %d", tab.vt.Scrollback())
 	}
-	tm.wheel(Mouse{Button: MouseWheelUp, Action: MousePress}, 0, 0, -3)
+	tm.wheel(core.Mouse{Button: core.MouseWheelUp, Action: core.MousePress}, 0, 0, -3)
 	tm.draw(40, 12, true)
 	if tab.snap.Offset != 3 {
 		t.Fatalf("offset = %d", tab.snap.Offset)
@@ -138,14 +139,14 @@ func TestTerminalHasOneShell(t *testing.T) {
 	tm := newTerminal(t.TempDir())
 	// F2 and Ctrl+PgUp/PgDn no longer manage tabs; with no PTY they are only written.
 	tm.sh = &termTab{id: 1, vt: vt.New(vt.Options{Cols: 20, Rows: 5})}
-	for _, k := range []Key{{Code: KeyF2}, {Code: KeyPgDown, Mod: ModCtrl}} {
+	for _, k := range []core.Key{{Code: KeyF2}, {Code: KeyPgDown, Mod: core.ModCtrl}} {
 		tm.key(k)
 	}
 	if tm.sh == nil || tm.sh.id != 1 || tm.nextID != 0 {
 		t.Fatal("a key started another shell")
 	}
 	// when the shell exits the panel has none, until it is focused again
-	tm.update(termDoneMsg{id: 1})
+	tm.update(core.TermDoneMsg{ID: 1})
 	if tm.sh != nil {
 		t.Fatal("exited shell kept")
 	}

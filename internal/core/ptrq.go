@@ -9,16 +9,16 @@ package core
 // files below it in the diff mode, which row (of the screen's body) is over.
 // bodyH is the height of the body.
 func (a *Core) WheelSide(row, bodyH, wheel int) {
-	e := a.explorer
-	if a.gd.on && row >= a.ExplorerH() {
-		g := &a.gd
+	e := a.Explorer
+	if a.Gd.On && row >= a.ExplorerH() {
+		g := &a.Gd
 		body := bodyH - a.ExplorerH() - 1
 		g.scroll = Clamp(g.scroll+wheel, 0, max(0, len(g.vis())-body))
 		g.keepSelVisible(body)
 	} else {
 		eh := a.ExplorerH()
-		e.scroll = Clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(eh-1)))
-		e.sel = Clamp(e.sel, e.scroll, e.scroll+eh-2)
+		e.Scroll = Clamp(e.Scroll+wheel, 0, max(0, len(e.Flat)-(eh-1)))
+		e.Sel = Clamp(e.Sel, e.Scroll, e.Scroll+eh-2)
 	}
 }
 
@@ -39,29 +39,29 @@ func (a *Core) WheelEditor(wheel int) {
 // clickSide is a left press on row sy of the side bar (double: the second
 // press of a double click).
 func (a *Core) ClickSide(sy int, double bool) []Effect {
-	if a.gd.on && sy >= a.ExplorerH() {
-		g := &a.gd
+	if a.Gd.On && sy >= a.ExplorerH() {
+		g := &a.Gd
 		if vis, i := g.vis(), sy-1-a.ExplorerH()+g.scroll; sy > a.ExplorerH() && i < len(vis) {
 			r := vis[i]
 			g.selectRow(r)
-			if g.rows[r].file < 0 {
-				g.setFolder(r, g.closed[g.rows[r].path])
+			if g.Rows[r].file < 0 {
+				g.setFolder(r, g.closed[g.Rows[r].path])
 				return a.SetFocus(FocusChanges)
 			}
-			return a.openChange(g.files[g.sel])
+			return a.OpenChange(g.Files[g.Sel])
 		}
 		return a.SetFocus(FocusChanges)
 	}
-	row := sy - 1 + a.explorer.scroll
-	if sy >= 1 && row < len(a.explorer.flat) {
-		a.explorer.sel = row
-		n := a.explorer.flat[row]
+	row := sy - 1 + a.Explorer.Scroll
+	if sy >= 1 && row < len(a.Explorer.Flat) {
+		a.Explorer.Sel = row
+		n := a.Explorer.Flat[row]
 		switch {
 		case n.isDir:
-			a.explorer.toggle(n)
+			a.Explorer.Toggle(n)
 		case !double:
-			a.openTransient(n.path)
-		case a.openFile(n.path):
+			a.openTransient(n.Path)
+		case a.OpenFile(n.Path):
 			return a.SetFocus(FocusEditor)
 		}
 	}
@@ -70,88 +70,88 @@ func (a *Core) ClickSide(sy int, double bool) []Effect {
 
 // hoverByPointer reports whether the open hover popup was opened by the
 // pointer (it hangs from the character under it, not from the cursor).
-func (a *Core) HoverByPointer() bool { return a.hoverAt != nil }
+func (a *Core) HoverByPointer() bool { return a.HoverAt != nil }
 
 // closeHover closes the hover popup.
-func (a *Core) CloseHover() { a.hoverText, a.hoverAt = "", nil }
+func (a *Core) CloseHover() { a.HoverText, a.HoverAt = "", nil }
 
 // pointerMoved ends the pointer's hover: a pending one is stale, the word it
 // belonged to and the cell it rested on are forgotten, and an open popup closes.
 func (a *Core) PointerMoved() {
-	a.hoverSeq++
-	a.hoverWord = WordSpan{}
-	a.hoverCell = ScreenPt{-1, -1}
+	a.HoverSeq++
+	a.HoverWord = WordSpan{}
+	a.HoverCell = ScreenPt{-1, -1}
 	a.CloseHover()
 }
 
 // scrollCard scrolls the open review card by d rows.
-func (a *Core) ScrollCard(d int) { a.card.scroll = max(0, a.card.scroll+d) }
+func (a *Core) ScrollCard(d int) { a.Card.scroll = max(0, a.Card.scroll+d) }
 
 // closeCard closes the review card.
-func (a *Core) CloseCard() { a.card = nil }
+func (a *Core) CloseCard() { a.Card = nil }
 
 // showCard opens the review thread th of the file path as a card anchored at
 // the screen cell (x, y); byPointer says the pointer's hover opened it.
 func (a *Core) ShowCard(th *PrThread, path string, x, y int, byPointer bool) {
-	a.card = &prCard{Thread: th, Path: a.RepoPath(path), byPointer: byPointer, At: &ScreenPt{x, y}}
+	a.Card = &PrCard{Thread: th, Path: a.RepoPath(path), ByPointer: byPointer, At: &ScreenPt{x, y}}
 }
 
 // cardOnThread reports whether the open card is on the thread th.
-func (a *Core) CardOnThread(th *PrThread) bool { return a.card != nil && a.card.Thread == th }
+func (a *Core) CardOnThread(th *PrThread) bool { return a.Card != nil && a.Card.Thread == th }
 
 // pointerCard reports whether the open card was opened by the pointer's hover.
-func (a *Core) PointerCard() bool { return a.card != nil && a.card.byPointer }
+func (a *Core) PointerCard() bool { return a.Card != nil && a.Card.ByPointer }
 
 // restedOn reports whether the pointer rested on the cell pt last time, and
 // remembers pt as the cell it rests on.
 func (a *Core) RestedOn(pt ScreenPt) bool {
-	if pt == a.hoverCell {
+	if pt == a.HoverCell {
 		return true
 	}
-	a.hoverCell = pt
+	a.HoverCell = pt
 	return false
 }
 
 // hoverCellPos is the cell the pointer last rested on.
-func (a *Core) HoverCellPos() ScreenPt { return a.hoverCell }
+func (a *Core) HoverCellPos() ScreenPt { return a.HoverCell }
 
 // pointerRests is the pointer resting on a cell of the editor whose word is
 // word (ok: there is one). inBox says it is on the open hover popup. It
 // starts the dwell timer for the word, or leaves a popup that the pointer is
 // reading or whose word it is still on.
 func (a *Core) PointerRests(word WordSpan, ok, inBox bool) []Effect {
-	if a.hoverText != "" && inBox {
+	if a.HoverText != "" && inBox {
 		return nil // reading it (the wheel scrolls it); whatever hides below is not asked about
 	}
-	if a.hoverText != "" && a.hoverAt != nil {
+	if a.HoverText != "" && a.HoverAt != nil {
 		// A pointer popup also stays while the pointer is on the word it describes.
-		if ok && word == a.hoverWord {
+		if ok && word == a.HoverWord {
 			return nil
 		}
 		a.CloseHover()
-	} else if ok && word == a.hoverWord {
+	} else if ok && word == a.HoverWord {
 		return nil // the timer for this word is already running
 	}
-	a.hoverSeq++
-	a.hoverWord = WordSpan{}
+	a.HoverSeq++
+	a.HoverWord = WordSpan{}
 	if !ok {
 		return nil
 	}
-	a.hoverWord = word
-	seq := a.hoverSeq
+	a.HoverWord = word
+	seq := a.HoverSeq
 	return []Effect{StartTimer{After: hoverDelay, Fire: HoverDwell{seq}}}
 }
 
 // closePalette closes the palette.
-func (a *Core) ClosePalette() { a.pal.close() }
+func (a *Core) ClosePalette() { a.Pal.Close() }
 
 // searchScroll moves the project search's selection by d rows.
-func (a *Core) SearchScroll(d int) { a.search.move(d) }
+func (a *Core) SearchScroll(d int) { a.Search.move(d) }
 
 // searchClick is a left press on the screen cell (x, y) with the project
 // search open: outside its box it closes.
 func (a *Core) SearchClick(x, y int) {
-	s := a.search
+	s := a.Search
 	r := s.rect
 	if x < r[0] || x >= r[0]+r[2] || y < r[1] || y >= r[1]+r[3] {
 		s.close()

@@ -67,16 +67,16 @@ func wrapCells(lines [][]HoverCell, w int, code bool) []hoverLine {
 }
 
 // hoverCopyLabel is the click target drawn on the top border's right end.
-func hoverCopyLabel() string { return i18n.T("hover.copybtn") }
+func HoverCopyLabel() string { return i18n.T("hover.copybtn") }
 
-func hoverHint() string         { return i18n.T("hover.hint") }
+func HoverHint() string         { return i18n.T("hover.hint") }
 func hoverHintCopyOnly() string { return i18n.T("hover.hintcopy") }
 
 // copyHit reports whether the cell (col, row), relative to the box's top-left
 // corner, is on the [Copy] button.
 func (v HoverView) CopyHit(col, row int) bool {
-	iw := v.width + 2
-	n := ansi.StringWidth(hoverCopyLabel())
+	iw := v.Width + 2
+	n := ansi.StringWidth(HoverCopyLabel())
 	if row != 0 || n+2 > iw {
 		return false
 	}
@@ -87,12 +87,12 @@ func (v HoverView) CopyHit(col, row int) bool {
 // hoverView is a laid-out hover popup.
 type HoverView struct {
 	lines  []hoverLine
-	width  int // content width
-	height int // visible rows
+	Width  int // content width
+	Height int // visible rows
 }
 
 // maxScroll is the largest valid scroll offset.
-func (v HoverView) MaxScroll() int { return max(0, len(v.lines)-v.height) }
+func (v HoverView) MaxScroll() int { return max(0, len(v.lines)-v.Height) }
 
 // newHoverView lays text out inside a box of at most boxW x boxH cells
 // (borders and padding included).
@@ -107,7 +107,7 @@ func NewHoverView(text string, boxW, boxH int) HoverView {
 		}
 		w = max(w, cells)
 	}
-	return HoverView{lines: lines, width: max(w, 1), height: max(boxH-2, 1)}
+	return HoverView{lines: lines, Width: max(w, 1), Height: max(boxH-2, 1)}
 }
 
 // overlay is the popup as a screen.Overlay: the rows in view when scrolled by
@@ -115,15 +115,15 @@ func NewHoverView(text string, boxW, boxH int) HoverView {
 // of them. The caller says which pane it hangs on and from where.
 func (v HoverView) Overlay(scroll int) screen.Overlay {
 	scroll = Clamp(scroll, 0, v.MaxScroll())
-	end := min(scroll+v.height, len(v.lines))
+	end := min(scroll+v.Height, len(v.lines))
 	ov := screen.Overlay{
 		Kind:      screen.OverlayHover,
-		View:      &screen.Viewport{Top: scroll, Rows: v.height, Cols: v.width, Total: len(v.lines)},
+		View:      &screen.Viewport{Top: scroll, Rows: v.Height, Cols: v.Width, Total: len(v.lines)},
 		Hint:      hoverHintCopyOnly(),
-		CopyLabel: hoverCopyLabel(),
+		CopyLabel: HoverCopyLabel(),
 	}
 	if v.MaxScroll() > 0 {
-		ov.Hint = hoverHint()
+		ov.Hint = HoverHint()
 	}
 	for i, l := range v.lines[scroll:end] {
 		sl := screen.Line{No: scroll + i, Rule: l.rule}

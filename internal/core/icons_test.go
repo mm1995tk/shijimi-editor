@@ -4,21 +4,21 @@ import "testing"
 
 func TestIconFor(t *testing.T) {
 	cases := []struct {
-		n    node
+		n    Node
 		want fileIcon
 	}{
-		{node{name: "main.go"}, icoGo},
-		{node{name: "flake.nix"}, icoNix},
-		{node{name: "README.md"}, icoMarkdown},
-		{node{name: "a.PNG"}, icoImage},
-		{node{name: "go.sum"}, icoGo},
-		{node{name: "unknown.xyz"}, iconDefault},
-		{node{name: "src", isDir: true}, iconFolder},
-		{node{name: "src", isDir: true, expanded: true}, iconFolderOpen},
+		{Node{Name: "main.go"}, IcoGo},
+		{Node{Name: "flake.nix"}, icoNix},
+		{Node{Name: "README.md"}, icoMarkdown},
+		{Node{Name: "a.PNG"}, icoImage},
+		{Node{Name: "go.sum"}, IcoGo},
+		{Node{Name: "unknown.xyz"}, iconDefault},
+		{Node{Name: "src", isDir: true}, iconFolder},
+		{Node{Name: "src", isDir: true, expanded: true}, iconFolderOpen},
 	}
 	for _, c := range cases {
-		if got := iconFor(&c.n); got != c.want {
-			t.Errorf("%s: got %+v want %+v", c.n.name, got, c.want)
+		if got := IconFor(&c.n); got != c.want {
+			t.Errorf("%s: got %+v want %+v", c.n.Name, got, c.want)
 		}
 	}
 }
@@ -31,7 +31,7 @@ func TestThemeIconKindsExist(t *testing.T) {
 	for _, ic := range iconByExt {
 		kinds[ic.kind] = true
 	}
-	for _, th := range themes {
+	for _, th := range Themes {
 		for k := range th.Icons {
 			if !kinds[k] {
 				t.Errorf("%s: unknown icon kind %q", th.Name, k)

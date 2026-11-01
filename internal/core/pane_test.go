@@ -15,7 +15,7 @@ func paneTab(src string) *Tab {
 	for l := range strings.SplitSeq(src, "\n") {
 		b.Lines = append(b.Lines, []rune(l))
 	}
-	return newTab(b)
+	return NewTab(b)
 }
 
 // The Pane has the lines in view with their text whole, colors as names of
@@ -32,7 +32,7 @@ func TestBuildTextPane(t *testing.T) {
 		Severity: 2, Message: "careful",
 	}
 	p := BuildTextPane(tb, 40, 3, PaneOpts{
-		cursorAt: b.Cur, indentGuides: true, diags: []lsp.Diagnostic{diag},
+		cursorAt: b.Cur, IndentGuides: true, diags: []lsp.Diagnostic{diag},
 		extras: []extraCursor{{cursor: buffer.Pos{Row: 3, Col: 4}, sel: [2]buffer.Pos{{Row: 3, Col: 4}, {Row: 3, Col: 4}}}},
 	})
 
@@ -80,9 +80,9 @@ func TestBuildTextPane(t *testing.T) {
 func TestPaneSyntaxStyles(t *testing.T) {
 	tb := paneTab("if x")
 	kw, str := CurTheme.Syntax.Keyword, CurTheme.Syntax.String
-	tb.hl.colors = [][]string{{kw, kw, "", str}}
-	tb.hl.lines = []string{"if x"}
-	tb.hl.version = tb.Buf.Version
+	tb.Hl.colors = [][]string{{kw, kw, "", str}}
+	tb.Hl.lines = []string{"if x"}
+	tb.Hl.Version = tb.Buf.Version
 	p := BuildTextPane(tb, 20, 1, PaneOpts{})
 	got := p.Lines[0].Spans
 	want := []screen.Span{

@@ -10,7 +10,7 @@ import (
 // spaceItem is one row of the Space menu popup. textOnly marks commands that
 // do nothing unless the current tab is a text tab.
 type SpaceItem struct {
-	key, label string
+	Key, Label string
 	textOnly   bool
 }
 
@@ -53,13 +53,13 @@ func (a *Core) SpaceMenuItems() []SpaceItem {
 		if it.textOnly && !text {
 			continue
 		}
-		if it.key == "v" && !a.PrShown() {
+		if it.Key == "v" && !a.PrShown() {
 			continue
 		}
-		if it.key == "E" && !a.gd.on {
+		if it.Key == "E" && !a.Gd.On {
 			continue
 		}
-		if full && !strings.Contains("fbkodDeEmgGvwy?/tai", it.key) {
+		if full && !strings.Contains("fbkodDeEmgGvwy?/tai", it.Key) {
 			continue
 		}
 		out = append(out, it)
@@ -74,7 +74,7 @@ func (a *Core) SpaceMenuItems() []SpaceItem {
 func MenuOverlay(title string, items []SpaceItem) screen.Overlay {
 	ov := screen.Overlay{Kind: screen.OverlayMenu, Title: title}
 	for _, it := range items {
-		ov.Items = append(ov.Items, screen.Item{Label: i18n.T(it.label), Detail: it.key})
+		ov.Items = append(ov.Items, screen.Item{Label: i18n.T(it.Label), Detail: it.Key})
 	}
 	return ov
 }

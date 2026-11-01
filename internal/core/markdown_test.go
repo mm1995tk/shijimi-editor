@@ -12,7 +12,7 @@ import (
 const mdSample = "# 見出し\n\n段落に **太字** と `code` と [リンク](http://x)。\n\n- 項目1\n- 項目2\n  - 入れ子\n\n1. 一\n2. 二\n\n```go\nfunc main() {}\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n```mermaid\ngraph TD; A-->B\n```\n"
 
 func TestMermaidBlocks(t *testing.T) {
-	got := mermaidBlocks(mdSample)
+	got := MermaidBlocks(mdSample)
 	if len(got) != 1 || got[0] != "graph TD; A-->B" {
 		t.Fatalf("got %q", got)
 	}
@@ -26,7 +26,7 @@ func TestMermaidBlocksMatchRenderer(t *testing.T) {
 		"> ```mermaid\n> A-->B\n> ```\n": {"A-->B"},
 	}
 	for src, want := range cases {
-		got := mermaidBlocks(src)
+		got := MermaidBlocks(src)
 		if strings.Join(got, "|") != strings.Join(want, "|") || len(got) != len(want) {
 			t.Errorf("%q: got %q want %q", src, got, want)
 		}

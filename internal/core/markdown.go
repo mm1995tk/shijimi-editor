@@ -238,7 +238,7 @@ type MdDoc struct {
 // mdMedia is what mdOpts.mermaid and mdOpts.image return. Image is nil when
 // Lines are the rows to show as they are. Otherwise Lines are the empty rows
 // the image fills, and Image names it.
-type mdMedia struct {
+type MdMedia struct {
 	Lines []screen.Line
 	Image *screen.ImageRef
 
@@ -251,28 +251,28 @@ type mdMedia struct {
 type MdOpts struct {
 	// mermaid returns the rows for a diagram (each at most w wide), or nil
 	// to show the source as a plain code block.
-	mermaid func(code string, w int) *mdMedia
+	Mermaid func(code string, w int) *MdMedia
 	// image returns the rows for a paragraph that is a single image, or nil
 	// to show it as text.
-	image func(alt, src string, w int) *mdMedia
+	image func(alt, src string, w int) *MdMedia
 	// wrapped, when set, is called for each output row that continues a
 	// paragraph or list item cut by the width. space says whether the cut
 	// fell on a space. indent is the width of the
 	// decoration before its text.
-	wrapped func(row int, space bool, indent int)
+	Wrapped func(row int, space bool, indent int)
 	// exact, when set, is called for each row of a code line cut by the
 	// width: its text is columns [from, to) as they are, spaces included.
-	exact func(row, from, to int)
+	Exact func(row, from, to int)
 	// frontMatter shows a leading block fenced by "---" lines as YAML
 	// metadata instead of rules around a paragraph.
-	frontMatter bool
+	FrontMatter bool
 }
 
 // plainSpan is text in the editor colors.
-func plainSpan(text string) screen.Span { return screen.Span{Text: text} }
+func PlainSpan(text string) screen.Span { return screen.Span{Text: text} }
 
 // mdRow is a line of the given spans.
-func mdRow(spans ...screen.Span) screen.Line {
+func MdRow(spans ...screen.Span) screen.Line {
 	if spans == nil {
 		spans = []screen.Span{}
 	}
@@ -353,7 +353,7 @@ func fitSpans(spans []screen.Span, w int) []screen.Span {
 	sw := spansWidth(spans)
 	if sw > w {
 		spans = cutSpans(spans, 0, w-1)
-		tail := plainSpan("…")
+		tail := PlainSpan("…")
 		if n := len(spans); n > 0 {
 			tail = withText(spans[n-1], "…")
 		}
@@ -361,7 +361,7 @@ func fitSpans(spans []screen.Span, w int) []screen.Span {
 		sw = spansWidth(spans)
 	}
 	if sw < w {
-		spans = append(spans, plainSpan(strings.Repeat(" ", w-sw)))
+		spans = append(spans, PlainSpan(strings.Repeat(" ", w-sw)))
 	}
 	return spans
 }
@@ -370,7 +370,7 @@ func fitSpans(spans []screen.Span, w int) []screen.Span {
 // are not padded to w: the drawing side fills the rest with the editor
 // background. The structure of src is ParseMarkdown's; the widths are here.
 func RenderMarkdown(src string, w int, o MdOpts) MdDoc {
-	return formatMarkdown(ParseMarkdown(src, o.frontMatter), w, o)
+	return formatMarkdown(ParseMarkdown(src, o.FrontMatter), w, o)
 }
 
 // formatMarkdown lays the blocks of a document out for a pane w columns wide.
@@ -390,24 +390,24 @@ func formatMarkdown(blocks []MdBlock, w int, o MdOpts) MdDoc {
 			p := prefix
 			if i > 0 {
 				p = contPrefix
-				if o.wrapped != nil && i-1 < len(seps) {
-					o.wrapped(len(out), seps[i-1], pw)
+				if o.Wrapped != nil && i-1 < len(seps) {
+					o.Wrapped(len(out), seps[i-1], pw)
 				}
 			}
 			var spans []screen.Span
 			if p.Text != "" {
 				spans = append(spans, p)
 			}
-			out = append(out, mdRow(append(spans, mdSpans(l)...)...))
+			out = append(out, MdRow(append(spans, mdSpans(l)...)...))
 		}
 	}
 	gap := func() {
 		if len(out) > 0 && gapAt != len(out)-1 {
-			out = append(out, mdRow())
+			out = append(out, MdRow())
 			gapAt = len(out) - 1
 		}
 	}
-	media := func(m *mdMedia) {
+	media := func(m *MdMedia) {
 		if m.Image != nil {
 			images = append(images, screen.PreviewImage{Row: len(out), Rows: len(m.Lines), Image: *m.Image})
 		}
@@ -417,17 +417,17 @@ func formatMarkdown(blocks []MdBlock, w int, o MdOpts) MdDoc {
 		}
 	}
 	rule := func() {
-		out = append(out, mdRow(screen.Span{Text: strings.Repeat("─", w), Style: screen.StyleBorder}))
+		out = append(out, MdRow(screen.Span{Text: strings.Repeat("─", w), Style: screen.StyleBorder}))
 	}
 
 	codeBlock := func(code []string, lang string) {
 		rows, pieces := mdCodeRows(code, lang, w)
 		for row, p := range pieces {
-			if p.cont && o.wrapped != nil {
-				o.wrapped(len(out)+row, false, 1)
+			if p.cont && o.Wrapped != nil {
+				o.Wrapped(len(out)+row, false, 1)
 			}
-			if o.exact != nil {
-				o.exact(len(out)+row, 1, 1+p.width)
+			if o.Exact != nil {
+				o.Exact(len(out)+row, 1, 1+p.width)
 			}
 		}
 		out = append(out, rows...)
@@ -450,8 +450,8 @@ func formatMarkdown(blocks []MdBlock, w int, o MdOpts) MdDoc {
 			gap()
 
 		case MdFence:
-			if strings.EqualFold(b.Lang, "mermaid") && o.mermaid != nil {
-				if rendered := o.mermaid(strings.Join(b.Code, "\n"), w); rendered != nil {
+			if strings.EqualFold(b.Lang, "mermaid") && o.Mermaid != nil {
+				if rendered := o.Mermaid(strings.Join(b.Code, "\n"), w); rendered != nil {
 					media(rendered)
 					gap()
 					continue
@@ -480,12 +480,12 @@ func formatMarkdown(blocks []MdBlock, w int, o MdOpts) MdDoc {
 		case MdQuote:
 			bar := screen.Span{Text: "▎ ", Style: screen.StyleMdQuote}
 			qo, base := o, len(out)
-			qo.frontMatter = false
-			if o.wrapped != nil {
-				qo.wrapped = func(row int, space bool, indent int) { o.wrapped(base+row, space, indent+2) }
+			qo.FrontMatter = false
+			if o.Wrapped != nil {
+				qo.Wrapped = func(row int, space bool, indent int) { o.Wrapped(base+row, space, indent+2) }
 			}
-			if o.exact != nil {
-				qo.exact = func(row, from, to int) { o.exact(base+row, from+2, to+2) }
+			if o.Exact != nil {
+				qo.Exact = func(row, from, to int) { o.Exact(base+row, from+2, to+2) }
 			}
 			inner := formatMarkdown(b.Inner, max(1, w-2), qo)
 			for _, l := range inner.Lines {
@@ -506,7 +506,7 @@ func formatMarkdown(blocks []MdBlock, w int, o MdOpts) MdDoc {
 		case MdList:
 			pw := ansi.StringWidth(b.Prefix)
 			cells := wrap(inlineCells(b.Text, mdStyle{}), max(1, w-pw))
-			emit(screen.Span{Text: b.Prefix, Style: screen.StyleMdListMark}, cells, plainSpan(strings.Repeat(" ", pw)))
+			emit(screen.Span{Text: b.Prefix, Style: screen.StyleMdListMark}, cells, PlainSpan(strings.Repeat(" ", pw)))
 			if b.GapAfter {
 				gap()
 			}
@@ -557,10 +557,10 @@ func mdCodeRows(code []string, lang string, w int) (rows []screen.Line, pieces m
 	// of a short line is on the editor background
 	const bg = screen.StyleSideBg
 	edge := screen.Span{Text: " ", Style: bg, Bg: bg}
-	blank := mdRow(screen.Span{Text: strings.Repeat(" ", max(0, w)), Style: bg, Bg: bg})
+	blank := MdRow(screen.Span{Text: strings.Repeat(" ", max(0, w)), Style: bg, Bg: bg})
 	var out []screen.Line
 	if lang != "" {
-		out = append(out, mdRow(screen.Span{Text: Fit(" "+lang, w), Style: screen.StyleLineNo, Bg: bg}))
+		out = append(out, MdRow(screen.Span{Text: Fit(" "+lang, w), Style: screen.StyleLineNo, Bg: bg}))
 	} else {
 		out = append(out, blank)
 	}
@@ -602,12 +602,12 @@ func mdCodeRows(code []string, lang string, w int) (rows []screen.Line, pieces m
 // whose spans are given: between the edge cells, tw cells wide.
 func codeRow(spans []screen.Span, edge screen.Span, col, pw, tw int) screen.Line {
 	if tw <= 0 {
-		return mdRow(edge, edge)
+		return MdRow(edge, edge)
 	}
 	text := cutSpans(spans, col, pw)
 	if pw > tw { // a rune wider than the block
 		text = cutSpans(text, 0, tw-1)
-		text = append(text, plainSpan("…"))
+		text = append(text, PlainSpan("…"))
 		pw = tw
 	}
 	for i := range text {
@@ -618,9 +618,9 @@ func codeRow(spans []screen.Span, edge screen.Span, col, pw, tw int) screen.Line
 		row = append(row, screen.Span{Text: strings.Repeat(" ", n), Bg: edge.Bg})
 	}
 	if n := tw - pw; n > 0 {
-		row = append(row, plainSpan(strings.Repeat(" ", n)))
+		row = append(row, PlainSpan(strings.Repeat(" ", n)))
 	}
-	return mdRow(append(row, edge)...)
+	return MdRow(append(row, edge)...)
 }
 
 func mdTable(rows [][]string, aligns []string, w int) []screen.Line {
@@ -662,7 +662,7 @@ func mdTable(rows [][]string, aligns []string, w int) []screen.Line {
 		for i, cw := range widths {
 			parts[i] = strings.Repeat("─", cw+2)
 		}
-		return mdRow(fitSpans([]screen.Span{border(l + strings.Join(parts, m) + r)}, w)...)
+		return MdRow(fitSpans([]screen.Span{border(l + strings.Join(parts, m) + r)}, w)...)
 	}
 	var out []screen.Line
 	out = append(out, rule("┌", "┬", "┐"))
@@ -696,11 +696,11 @@ func mdTable(rows [][]string, aligns []string, w int) []screen.Line {
 						left = padN
 					}
 				}
-				spans = append(spans, plainSpan(" "+strings.Repeat(" ", left)))
+				spans = append(spans, PlainSpan(" "+strings.Repeat(" ", left)))
 				spans = append(spans, mdSpans(cs)...)
-				spans = append(spans, plainSpan(strings.Repeat(" ", padN-left)+" "), border("│"))
+				spans = append(spans, PlainSpan(strings.Repeat(" ", padN-left)+" "), border("│"))
 			}
-			out = append(out, mdRow(fitSpans(spans, w)...))
+			out = append(out, MdRow(fitSpans(spans, w)...))
 		}
 		if ri == 0 {
 			out = append(out, rule("├", "┼", "┤"))

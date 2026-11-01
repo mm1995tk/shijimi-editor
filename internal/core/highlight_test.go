@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 func newGoApp(t *testing.T, src string) (*App, *Tab) {
@@ -14,8 +12,8 @@ func newGoApp(t *testing.T, src string) (*App, *Tab) {
 	p := filepath.Join(dir, "a.go")
 	os.WriteFile(p, []byte(src), 0o644)
 	a := newApp(dir, p)
-	a.helix = true
-	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	a.Helix = true
+	a.Update(Resized{W: 100, H: 30})
 	return a, a.CurText()
 }
 

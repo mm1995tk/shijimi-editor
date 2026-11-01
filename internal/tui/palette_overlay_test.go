@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
@@ -8,11 +9,11 @@ import (
 
 func TestPaletteOverlay(t *testing.T) {
 	a := goldenApp(t)
-	a.commands = []command{{name: "Save", key: "Ctrl+S"}, {name: "Quit", key: "Ctrl+Q"}}
-	a.pal.show(a.root, ">")
+	a.Commands = []core.Command{{Name: "Save", Key: "Ctrl+S"}, {Name: "Quit", Key: "Ctrl+Q"}}
+	a.Pal.Show(a.Root, ">")
 	keys(a, "q", "t")
 	a.fit()
-	ov := a.pal.overlay()
+	ov := a.Pal.Overlay()
 	if ov.Kind != screen.OverlayPalette || ov.At != nil || ov.Field == nil {
 		t.Fatalf("overlay = %+v", ov)
 	}
@@ -26,8 +27,8 @@ func TestPaletteOverlay(t *testing.T) {
 		t.Errorf("matched = %v, want [0 3]", got)
 	}
 
-	a.pal.ask("名前", "x", func(string) []Effect { return nil })
-	ov = a.pal.overlay()
+	a.Pal.Ask("名前", "x", func(string) []core.Effect { return nil })
+	ov = a.Pal.Overlay()
 	if ov.Title != "名前" || ov.Field.Prefix != ":" || ov.Hint != "" || len(ov.Items) != 0 {
 		t.Errorf("prompt overlay = %+v", ov)
 	}
@@ -35,15 +36,15 @@ func TestPaletteOverlay(t *testing.T) {
 
 func TestPaletteOverlayScrolls(t *testing.T) {
 	a := goldenApp(t)
-	items := make([]paletteItem, 30)
+	items := make([]core.PaletteItem, 30)
 	for i := range items {
-		items[i] = paletteItem{label: string(rune('a' + i%26))}
+		items[i] = core.PaletteItem{Label: string(rune('a' + i%26))}
 	}
-	a.pal.pick("t", items, func(int) []Effect { return nil })
+	a.Pal.Pick("t", items, func(int) []core.Effect { return nil })
 	a.fit()
-	a.pal.sel = 20
-	ov := a.pal.overlay()
-	if len(ov.Items) != maxPaletteItems || ov.Active != maxPaletteItems-1 {
+	a.Pal.Sel = 20
+	ov := a.Pal.Overlay()
+	if len(ov.Items) != core.MaxPaletteItems || ov.Active != core.MaxPaletteItems-1 {
 		t.Errorf("items=%d active=%d", len(ov.Items), ov.Active)
 	}
 }

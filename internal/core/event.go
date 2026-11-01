@@ -34,11 +34,11 @@ type AutoSaveDue struct {
 
 // HoldScrollTick is one frame of a held Ctrl+D / Ctrl+U scroll. seq tells the
 // current chain of ticks from a stale one.
-type HoldScrollTick struct{ seq int }
+type HoldScrollTick struct{ Seq int }
 
 // HoverDwell fires hoverDelay after the pointer entered a cell. seq tells it
 // from a stale one.
-type HoverDwell struct{ seq int }
+type HoverDwell struct{ Seq int }
 
 // CtlRequest is a request that came in on the control socket. The caller waits
 // for the answer, which the core hands back as a ReplyCtl Effect.
@@ -79,9 +79,9 @@ func (HoverDwell) isEvent()     {}
 type LspEventMsg lsp.Event
 
 func (LspEventMsg) isEvent()           {}
-func (hoverMsg) isEvent()              {}
+func (HoverMsg) isEvent()              {}
 func (locationsMsg) isEvent()          {}
-func (completionMsg) isEvent()         {}
+func (CompletionMsg) isEvent()         {}
 func (signatureMsg) isEvent()          {}
 func (workspaceEditMsg) isEvent()      {}
 func (symbolsMsg) isEvent()            {}
@@ -91,7 +91,7 @@ func (codeActionsMsg) isEvent()        {}
 func (codeActionResolvedMsg) isEvent() {}
 func (formatMsg) isEvent()             {}
 func (lspErrMsg) isEvent()             {}
-func (semanticMsg) isEvent()           {}
+func (SemanticMsg) isEvent()           {}
 
 // Effect is what the core asks its front end to do.
 type Effect interface{ isEffect() }
@@ -231,20 +231,20 @@ func Batch(lists ...[]Effect) []Effect { return slices.Concat(lists...) }
 
 // The work that used to travel as a tea.Msg: what the diff and review screens,
 // the formatters, the highlighter and the preview send back from their Run.
-func (changesLoadedMsg) isEvent() {}
-func (prFoundMsg) isEvent()       {}
+func (ChangesLoadedMsg) isEvent() {}
+func (PrFoundMsg) isEvent()       {}
 func (branchPRsMsg) isEvent()     {}
-func (prCheckedOutMsg) isEvent()  {}
+func (PrCheckedOutMsg) isEvent()  {}
 func (prPulledMsg) isEvent()      {}
 func (prListMsg) isEvent()        {}
 func (prReviewMsg) isEvent()      {}
 func (viewedMsg) isEvent()        {}
 func (reviewSentMsg) isEvent()    {}
-func (formatterDoneMsg) isEvent() {}
-func (highlightMsg) isEvent()     {}
-func (mermaidStartMsg) isEvent()  {}
-func (mermaidDoneMsg) isEvent()   {}
-func (mdImageDoneMsg) isEvent()   {}
+func (FormatterDoneMsg) isEvent() {}
+func (HighlightMsg) isEvent()     {}
+func (MermaidStartMsg) isEvent()  {}
+func (MermaidDoneMsg) isEvent()   {}
+func (MdImageDoneMsg) isEvent()   {}
 func (openURLMsg) isEvent()       {}
 
 // TermOutputMsg says the terminal panel's shell printed something and
@@ -284,9 +284,9 @@ func (a *Core) HandleEvent(ev Event) []Effect {
 	case WatchTick:
 		return a.handleWatch()
 	case HoldScrollTick:
-		return a.holdScrollTick(ev.seq)
+		return a.holdScrollTick(ev.Seq)
 	case HoverDwell:
-		return a.hoverDwell(ev)
+		return a.HoverDwell(ev)
 	case SearchTick:
 		return a.searchTick(ev)
 	case RepoProbed:
@@ -304,21 +304,21 @@ func (a *Core) HandleEvent(ev Event) []Effect {
 	case IDECancel:
 		a.cancelProposal(ev.Reply)
 		return nil
-	case changesLoadedMsg:
-		a.applyChanges(ev)
+	case ChangesLoadedMsg:
+		a.ApplyChanges(ev)
 		return nil
-	case highlightMsg:
-		ev.h.apply(ev)
+	case HighlightMsg:
+		ev.H.Apply(ev)
 		return nil
-	case mermaidStartMsg:
-		return a.handleMermaidStart(ev)
-	case mermaidDoneMsg:
-		a.handleMermaidDone(ev)
+	case MermaidStartMsg:
+		return a.HandleMermaidStart(ev)
+	case MermaidDoneMsg:
+		a.HandleMermaidDone(ev)
 		return nil
-	case mdImageDoneMsg:
-		a.handleMDImageDone(ev)
+	case MdImageDoneMsg:
+		a.HandleMDImageDone(ev)
 		return nil
-	case formatterDoneMsg:
+	case FormatterDoneMsg:
 		return a.handleFormatterDone(ev)
 	case openURLMsg:
 		switch {
@@ -331,12 +331,12 @@ func (a *Core) HandleEvent(ev Event) []Effect {
 			a.Info(i18n.T("app.opened"), ev.url)
 		}
 		return nil
-	case prFoundMsg:
-		return a.handlePRFound(ev)
+	case PrFoundMsg:
+		return a.HandlePRFound(ev)
 	case branchPRsMsg:
 		return a.handleBranchPRs(ev)
-	case prCheckedOutMsg:
-		return a.handlePRCheckedOut(ev)
+	case PrCheckedOutMsg:
+		return a.HandlePRCheckedOut(ev)
 	case prPulledMsg:
 		return a.handlePRPulled(ev)
 	case prReviewMsg:

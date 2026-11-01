@@ -29,7 +29,7 @@ func (a *Core) ScrollCols(t *Tab, d int) {
 		}
 	}
 	b.ScrollCol = Clamp(b.ScrollCol+d, 0, max(0, widest-textW))
-	a.follow = false // the view stays where it is, off the cursor if need be
+	a.Follow = false // the view stays where it is, off the cursor if need be
 }
 
 // scrollHalfScreen scrolls dir (-1 left, 1 right) by half the text width,

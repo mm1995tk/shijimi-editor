@@ -90,6 +90,7 @@ type DiffGeom struct {
 // and shown, which core does not.
 type TextArea interface {
 	Value() string
+	SetValue(s string)
 	InsertString(s string)
 	// Line and Column are the cursor's row and column in the text.
 	Line() int

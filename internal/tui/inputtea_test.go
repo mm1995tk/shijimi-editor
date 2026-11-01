@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -30,14 +31,14 @@ func TestMouseFromTea(t *testing.T) {
 	a := newTestApp(t, "hello\n")
 	l := a.layout()
 	m := a.mouseFromTea(tea.MouseClickMsg{X: l.rightX + 4, Y: l.editY + 2, Button: tea.MouseLeft, Mod: tea.ModShift})
-	if m.Region != RegionEditor || m.Col != 4 || m.Row != l.editY+2-l.top || m.Button != MouseLeft || m.Action != MousePress || !m.Shift {
+	if m.Region != core.RegionEditor || m.Col != 4 || m.Row != l.editY+2-l.top || m.Button != core.MouseLeft || m.Action != core.MousePress || !m.Shift {
 		t.Errorf("click in the editor: %+v", m)
 	}
 	m = a.mouseFromTea(tea.MouseWheelMsg{X: 1, Y: l.top + 1, Button: tea.MouseWheelDown})
-	if m.Region != RegionExplorer || m.Button != MouseWheelDown {
+	if m.Region != core.RegionExplorer || m.Button != core.MouseWheelDown {
 		t.Errorf("wheel over the tree: %+v", m)
 	}
-	if m = a.mouseFromTea(tea.MouseReleaseMsg{X: 1, Y: l.top + 1}); m.Action != MouseRelease {
+	if m = a.mouseFromTea(tea.MouseReleaseMsg{X: 1, Y: l.top + 1}); m.Action != core.MouseRelease {
 		t.Errorf("release: %+v", m)
 	}
 }
@@ -50,20 +51,20 @@ func TestHitTestRegions(t *testing.T) {
 	for _, c := range []struct {
 		name     string
 		x, y     int
-		region   Region
+		region   core.Region
 		row, col int
 	}{
-		{"tree", 2, l.top + 3, RegionExplorer, 3, 2},
-		{"editor title", l.rightX + 1, l.top, RegionEditor, 0, 1},
-		{"editor text", l.rightX + 5, l.editY + 1, RegionEditor, l.editY - l.top + 1, 5},
-		{"terminal body", l.fullX + 3, l.panelY + 2, RegionTerminal, 0, 3},
-		{"agent body", l.agentX + 4, l.top + 2, RegionAgent, 2, 4},
-		{"agent border", l.agentX - 1, l.top + 2, RegionAgent, 2, -1},
-		{"separator", l.sideW, l.top + 1, RegionNone, 0, 0},
-		{"status line", 3, l.statusY, RegionNone, 0, 0},
+		{"tree", 2, l.top + 3, core.RegionExplorer, 3, 2},
+		{"editor title", l.rightX + 1, l.top, core.RegionEditor, 0, 1},
+		{"editor text", l.rightX + 5, l.editY + 1, core.RegionEditor, l.editY - l.top + 1, 5},
+		{"terminal body", l.fullX + 3, l.panelY + 2, core.RegionTerminal, 0, 3},
+		{"agent body", l.agentX + 4, l.top + 2, core.RegionAgent, 2, 4},
+		{"agent border", l.agentX - 1, l.top + 2, core.RegionAgent, 2, -1},
+		{"separator", l.sideW, l.top + 1, core.RegionNone, 0, 0},
+		{"status line", 3, l.statusY, core.RegionNone, 0, 0},
 	} {
 		r, row, col := a.hitTest(l, c.x, c.y)
-		if r != c.region || (r != RegionNone && (row != c.row || col != c.col)) {
+		if r != c.region || (r != core.RegionNone && (row != c.row || col != c.col)) {
 			t.Errorf("%s: got %v (%d, %d), want %v (%d, %d)", c.name, r, row, col, c.region, c.row, c.col)
 		}
 	}
@@ -74,19 +75,19 @@ func TestHitTestRegions(t *testing.T) {
 func TestMouseCaptureKeepsRegion(t *testing.T) {
 	a := newTestApp(t, "hello\n")
 	l := a.layout()
-	press := a.locate(l.rightX+2, l.editY, Mouse{Action: MousePress, Button: MouseLeft})
-	if press.Region != RegionEditor {
+	press := a.locate(l.rightX+2, l.editY, core.Mouse{Action: core.MousePress, Button: core.MouseLeft})
+	if press.Region != core.RegionEditor {
 		t.Fatalf("press: %+v", press)
 	}
-	drag := a.locate(1, l.top+5, Mouse{Action: MouseMotion, Button: MouseLeft})
-	if drag.Region != RegionEditor || drag.Col != 1-l.rightX {
+	drag := a.locate(1, l.top+5, core.Mouse{Action: core.MouseMotion, Button: core.MouseLeft})
+	if drag.Region != core.RegionEditor || drag.Col != 1-l.rightX {
 		t.Errorf("drag over the tree: %+v", drag)
 	}
-	rel := a.locate(1, l.top+5, Mouse{Action: MouseRelease, Button: MouseLeft})
-	if rel.Region != RegionEditor || a.capture != RegionNone {
+	rel := a.locate(1, l.top+5, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft})
+	if rel.Region != core.RegionEditor || a.capture != core.RegionNone {
 		t.Errorf("release: %+v, capture %v", rel, a.capture)
 	}
-	if m := a.locate(1, l.top+5, Mouse{Action: MouseMotion, Button: MouseNone}); m.Region != RegionExplorer {
+	if m := a.locate(1, l.top+5, core.Mouse{Action: core.MouseMotion, Button: core.MouseNone}); m.Region != core.RegionExplorer {
 		t.Errorf("motion with no button after the release: %+v", m)
 	}
 }
@@ -95,13 +96,13 @@ func TestHitTestOtherPane(t *testing.T) {
 	a, _ := splitApp(t)
 	l := a.layout()
 	r, row, col := a.hitTest(l, l.otherX+3, l.editY+1)
-	if r != RegionOther || col != 3 || row != l.editY-l.top+1 {
+	if r != core.RegionOther || col != 3 || row != l.editY-l.top+1 {
 		t.Errorf("other pane: %v (%d, %d)", r, row, col)
 	}
 	// A press there focuses the pane; the position inside it is kept.
-	a.Update(a.locate(l.otherX+3, l.editY+1, Mouse{Action: MousePress, Button: MouseLeft}))
-	if a.pane == 1 || a.capture != RegionEditor {
-		t.Errorf("pane %d, capture %v", a.pane, a.capture)
+	a.Update(a.locate(l.otherX+3, l.editY+1, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+	if a.Pane == 1 || a.capture != core.RegionEditor {
+		t.Errorf("pane %d, capture %v", a.Pane, a.capture)
 	}
 }
 
@@ -129,7 +130,7 @@ func TestScreenCellInvertsLocate(t *testing.T) {
 	l := a.layout()
 	for y := range a.h {
 		for x := range a.w {
-			m := a.locate(x, y, Mouse{Action: MouseMotion})
+			m := a.locate(x, y, core.Mouse{Action: core.MouseMotion})
 			if gx, gy := a.screenCell(l, m); gx != x || gy != y {
 				t.Fatalf("(%d,%d) -> %+v -> (%d,%d)", x, y, m, gx, gy)
 			}

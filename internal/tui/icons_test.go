@@ -1,29 +1,32 @@
 package tui
 
-import "testing"
+import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"testing"
+)
 
 func TestIconForFollowsTheme(t *testing.T) {
-	prev := CurTheme
+	prev := core.CurTheme
 	t.Cleanup(func() { applyTheme(prev) })
 
-	n := node{name: "main.go"}
-	applyTheme(&darkPlus)
-	if got := iconFor(&n); got != icoGo {
-		t.Fatalf("dark-plus: got %+v want %+v", got, icoGo)
+	n := core.Node{Name: "main.go"}
+	applyTheme(&core.DarkPlus)
+	if got := core.IconFor(&n); got != core.IcoGo {
+		t.Fatalf("dark-plus: got %+v want %+v", got, core.IcoGo)
 	}
 
-	custom := darkPlus
-	custom.Icons = map[string]iconOverride{"go": {Color: "#123456"}}
+	custom := core.DarkPlus
+	custom.Icons = map[string]core.IconOverride{"go": {Color: "#123456"}}
 	applyTheme(&custom)
-	got := iconFor(&n)
-	if got.color != "#123456" || got.glyph != icoGo.glyph {
+	got := core.IconFor(&n)
+	if got.Color != "#123456" || got.Glyph != core.IcoGo.Glyph {
 		t.Errorf("color override: got %+v", got)
 	}
 
-	custom.Icons = map[string]iconOverride{"go": {Glyph: "G"}}
+	custom.Icons = map[string]core.IconOverride{"go": {Glyph: "G"}}
 	applyTheme(&custom)
-	got = iconFor(&n)
-	if got.glyph != "G" || got.color != icoGo.color {
+	got = core.IconFor(&n)
+	if got.Glyph != "G" || got.Color != core.IcoGo.Color {
 		t.Errorf("glyph override: got %+v", got)
 	}
 }

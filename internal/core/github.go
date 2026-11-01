@@ -109,23 +109,23 @@ func branchPRs(root, branch string) ([]prSummary, error) {
 }
 
 // prSync is how the local HEAD stands against the pull request's head commit.
-type prSync struct {
-	known  bool // the head commit is available locally
-	ahead  int  // local commits not in the pull request
-	behind int  // pull request commits not in HEAD
+type PrSync struct {
+	Known  bool // the head commit is available locally
+	Ahead  int  // local commits not in the pull request
+	Behind int  // pull request commits not in HEAD
 }
 
 // text is the status line note for the state, or "" when they agree.
-func (s prSync) text() string {
+func (s PrSync) text() string {
 	switch {
-	case !s.known:
+	case !s.Known:
 		return ""
-	case s.ahead > 0 && s.behind > 0:
+	case s.Ahead > 0 && s.Behind > 0:
 		return i18n.T("gh.diverged")
-	case s.behind > 0:
+	case s.Behind > 0:
 		return i18n.T("gh.prupdated")
-	case s.ahead > 0:
-		return fmt.Sprintf(i18n.T("gh.unpushed"), s.ahead)
+	case s.Ahead > 0:
+		return fmt.Sprintf(i18n.T("gh.unpushed"), s.Ahead)
 	}
 	return ""
 }
@@ -138,19 +138,19 @@ func fetchPR(root string, pr *PrInfo) {
 }
 
 // syncWith compares HEAD with the pull request's head commit oid.
-func syncWith(root, oid string) prSync {
+func SyncWith(root, oid string) PrSync {
 	if _, err := run(root, nil, "git", "cat-file", "-e", oid+"^{commit}"); err != nil {
-		return prSync{}
+		return PrSync{}
 	}
 	out, err := run(root, nil, "git", "rev-list", "--left-right", "--count", "HEAD..."+oid)
 	if err != nil {
-		return prSync{}
+		return PrSync{}
 	}
-	var s prSync
-	if _, err := fmt.Sscan(string(out), &s.ahead, &s.behind); err != nil {
-		return prSync{}
+	var s PrSync
+	if _, err := fmt.Sscan(string(out), &s.Ahead, &s.Behind); err != nil {
+		return PrSync{}
 	}
-	s.known = true
+	s.Known = true
 	return s
 }
 
@@ -183,7 +183,7 @@ func gql(root, query string, vars map[string]any, out any) error {
 }
 
 // prComment is one comment of a review thread.
-type prComment struct {
+type PrComment struct {
 	Author  string
 	Body    string
 	Created time.Time
@@ -202,7 +202,7 @@ type PrThread struct {
 	Resolved  bool
 	Outdated  bool
 	Pending   bool // written here and not sent yet
-	Comments  []prComment
+	Comments  []PrComment
 }
 
 // first returns the first line of the thread's range.
@@ -314,7 +314,7 @@ func loadReview(root string, pr *PrInfo) (prReviewData, error) {
 				if c.Author != nil {
 					who = c.Author.Login
 				}
-				t.Comments = append(t.Comments, prComment{Author: who, Body: c.Body, Created: c.CreatedAt})
+				t.Comments = append(t.Comments, PrComment{Author: who, Body: c.Body, Created: c.CreatedAt})
 			}
 			if len(t.Comments) > 0 {
 				d.threads = append(d.threads, t)

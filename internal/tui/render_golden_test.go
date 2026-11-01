@@ -2,6 +2,7 @@ package tui
 
 import (
 	"flag"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,7 +37,7 @@ func goldenFrame(a *App) string {
 		rows[i] = strings.TrimRight(r, " ")
 	}
 	s := strings.Join(rows, "\n") + "\n"
-	return strings.ReplaceAll(s, a.root, "<root>")
+	return strings.ReplaceAll(s, a.Root, "<root>")
 }
 
 func checkGolden(t *testing.T, name string, a *App) {
@@ -75,7 +76,7 @@ func goldenApp(t *testing.T) *App {
 		t.Fatal(err)
 	}
 	a := New(dir, p)
-	a.helix = true
+	a.Helix = true
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	return a
 }
@@ -87,10 +88,10 @@ func TestRenderGolden(t *testing.T) {
 
 	t.Run("split", func(t *testing.T) {
 		a := goldenApp(t)
-		a.splitOpen()
+		a.SplitOpen()
 		keys(a, "esc") // close the file picker the split opens
 		a.Update(tea.WindowSizeMsg{Width: 120, Height: 30})
-		if !a.split {
+		if !a.Split {
 			t.Fatal("the window is not split")
 		}
 		checkGolden(t, "split", a)
@@ -99,15 +100,15 @@ func TestRenderGolden(t *testing.T) {
 	t.Run("completion", func(t *testing.T) {
 		a := goldenApp(t)
 		keys(a, "G", "o", "f", "m")
-		cur := a.curText()
+		cur := a.CurText()
 		// completing from the start of the word "fm" just typed
-		start := buffer.Pos{Row: cur.buf.Cur.Row, Col: cur.buf.Cur.Col - len("fm")}
-		a.Update(completionMsg{tab: cur, start: start, items: []lsp.CompletionItem{
+		start := buffer.Pos{Row: cur.Buf.Cur.Row, Col: cur.Buf.Cur.Col - len("fm")}
+		a.Update(core.CompletionMsg{Tab: cur, Start: start, Items: []lsp.CompletionItem{
 			{Label: "fmt", Detail: "package", Kind: 9},
 			{Label: "fmt.Println", Detail: "func(a ...any)", Kind: 3},
 			{Label: "fmt.Sprintf", Detail: "func(format string, a ...any) string", Kind: 3},
 		}})
-		if a.comp == nil {
+		if a.Comp == nil {
 			t.Fatal("no completion popup")
 		}
 		checkGolden(t, "completion", a)
@@ -116,54 +117,54 @@ func TestRenderGolden(t *testing.T) {
 	t.Run("hover", func(t *testing.T) {
 		a := goldenApp(t)
 		keys(a, "j", "j", "j", "j", "j", "w", "l")
-		a.hoverText = goplsHover
+		a.HoverText = goplsHover
 		checkGolden(t, "hover", a)
 	})
 
 	t.Run("confirm", func(t *testing.T) {
 		a := goldenApp(t)
-		a.confirm = &yesNo{prompt: "a.txt を閉じますか？ (y/n)"}
+		a.Confirm = &core.YesNo{Prompt: "a.txt を閉じますか？ (y/n)"}
 		checkGolden(t, "confirm", a)
 	})
 
 	t.Run("palette-commands", func(t *testing.T) {
 		a := goldenApp(t)
-		a.commands = []command{{name: "Save", key: "Ctrl+S"}, {name: "Save As", key: "Ctrl+Shift+S"}, {name: "Quit", key: "Ctrl+Q"}}
-		a.pal.show(a.root, ">")
+		a.Commands = []core.Command{{Name: "Save", Key: "Ctrl+S"}, {Name: "Save As", Key: "Ctrl+Shift+S"}, {Name: "Quit", Key: "Ctrl+Q"}}
+		a.Pal.Show(a.Root, ">")
 		keys(a, "s", "a")
 		checkGolden(t, "palette-commands", a)
 	})
 
 	t.Run("palette-files", func(t *testing.T) {
 		a := goldenApp(t)
-		a.pal.show(a.root, "")
+		a.Pal.Show(a.Root, "")
 		checkGolden(t, "palette-files", a)
 	})
 
 	t.Run("palette-prompt", func(t *testing.T) {
 		a := goldenApp(t)
-		a.pal.ask("名前", "abc", func(string) []Effect { return nil })
+		a.Pal.Ask("名前", "abc", func(string) []core.Effect { return nil })
 		checkGolden(t, "palette-prompt", a)
 	})
 
 	t.Run("palette-pick", func(t *testing.T) {
 		a := goldenApp(t)
-		a.pal.pick("テーマ", []paletteItem{{label: "dark", detail: "ダーク"}, {label: "light"}, {label: "solar"}}, func(int) []Effect { return nil })
+		a.Pal.Pick("テーマ", []core.PaletteItem{{Label: "dark", Detail: "ダーク"}, {Label: "light"}, {Label: "solar"}}, func(int) []core.Effect { return nil })
 		keys(a, "l")
 		checkGolden(t, "palette-pick", a)
 	})
 
 	t.Run("palette-nomatch", func(t *testing.T) {
 		a := goldenApp(t)
-		a.pal.show(a.root, "zzzzqqq")
+		a.Pal.Show(a.Root, "zzzzqqq")
 		checkGolden(t, "palette-nomatch", a)
 	})
 
 	t.Run("search", func(t *testing.T) {
 		a := goldenApp(t)
-		drive(a, cmdOf(a, a.openSearchArgs("fmt", false)))
-		if !a.search.open || len(a.search.res.Hits) == 0 {
-			t.Fatalf("search not showing hits: open=%v", a.search.open)
+		drive(a, cmdOf(a, a.OpenSearchArgs("fmt", false)))
+		if !a.Search.Open || len(a.Search.Res.Hits) == 0 {
+			t.Fatalf("search not showing hits: open=%v", a.Search.Open)
 		}
 		checkGolden(t, "search", a)
 	})
@@ -171,7 +172,7 @@ func TestRenderGolden(t *testing.T) {
 	t.Run("cmdline", func(t *testing.T) {
 		a := goldenApp(t)
 		keys(a, ":", "w", "r", "i")
-		if !a.cmdOpen {
+		if !a.CmdOpen {
 			t.Fatal("the command line is not open")
 		}
 		checkGolden(t, "cmdline", a)
@@ -179,9 +180,9 @@ func TestRenderGolden(t *testing.T) {
 
 	t.Run("find", func(t *testing.T) {
 		a := goldenApp(t)
-		drive(a, a.effectCmd(a.openFind()...))
+		drive(a, a.effectCmd(a.OpenFind()...))
 		keys(a, "f", "m", "t")
-		if !a.findOpen {
+		if !a.FindOpen {
 			t.Fatal("the find bar is not open")
 		}
 		checkGolden(t, "find", a)
@@ -190,7 +191,7 @@ func TestRenderGolden(t *testing.T) {
 	t.Run("status", func(t *testing.T) {
 		a := goldenApp(t)
 		keys(a, "i", "x", "esc", "v", "l")
-		a.msg = "保存しました"
+		a.Msg = "保存しました"
 		checkGolden(t, "status", a)
 	})
 
@@ -200,7 +201,7 @@ func TestRenderGolden(t *testing.T) {
 		t.Setenv("GIT_CONFIG_KEY_0", "init.defaultBranch")
 		t.Setenv("GIT_CONFIG_VALUE_0", "main")
 		a, _ := gitDiffApp(t)
-		a.gd.split = true
+		a.Gd.Split = true
 		checkGolden(t, "diff", a)
 	})
 }
@@ -214,23 +215,23 @@ func (a *App) render() string {
 func TestLineStates(t *testing.T) {
 	a := goldenApp(t)
 	keys(a, "i", "x", "esc")
-	a.msg, a.msgErr = "失敗", true
+	a.Msg, a.MsgErr = "失敗", true
 
-	if ti := a.titleOf(a.cur()); ti == nil || ti.Text != "a.txt" || !ti.Dirty {
+	if ti := a.TitleOf(a.Cur()); ti == nil || ti.Text != "a.txt" || !ti.Dirty {
 		t.Errorf("title = %+v", ti)
 	}
-	if p := buildTextPane(a.cur(), 40, 3, a.editorOpts(a.cur(), true).paneOpts); p.Title.Text != "a.txt" || !p.Title.Dirty {
+	if p := core.BuildTextPane(a.Cur(), 40, 3, a.EditorOpts(a.Cur(), true).PaneOpts); p.Title.Text != "a.txt" || !p.Title.Dirty {
 		t.Errorf("pane title = %+v", p.Title)
 	}
-	s := a.statusOf()
+	s := a.StatusOf()
 	if s.Mode != "NOR" || s.Msg != "失敗" || !s.MsgErr || s.Position != "1:2" {
 		t.Errorf("status = %+v", s)
 	}
-	if a.cmdlineState() != nil || a.findState() != nil {
+	if a.CmdlineState() != nil || a.FindState() != nil {
 		t.Error("lines are not open")
 	}
 	keys(a, ":", "w", "q")
-	if c := a.cmdlineState(); c == nil || c.Prefix != ":" || c.Text != "wq" || c.Cursor != 2 {
+	if c := a.CmdlineState(); c == nil || c.Prefix != ":" || c.Text != "wq" || c.Cursor != 2 {
 		t.Errorf("cmdline = %+v", c)
 	}
 }

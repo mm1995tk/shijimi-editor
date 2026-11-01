@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"strings"
 	"testing"
 
@@ -12,7 +13,7 @@ func TestCaretFollowsTyping(t *testing.T) {
 	l := a.layout()
 
 	keys(a, "l", "l")
-	want, wantY := a.cursorScreen(a.curText(), l)
+	want, wantY := a.cursorScreen(a.CurText(), l)
 	if x, y, ok := a.caretPos(l); !ok || x != want || y != wantY {
 		t.Errorf("editor caret = (%d,%d,%v), want (%d,%d)", x, y, ok, want, wantY)
 	}
@@ -23,7 +24,7 @@ func TestCaretFollowsTyping(t *testing.T) {
 	}
 	keys(a, "esc")
 
-	a.focus = focusExplorer
+	a.Focus = core.FocusExplorer
 	if _, _, ok := a.caretPos(l); ok {
 		t.Error("explorer focused: want no caret")
 	}
@@ -33,11 +34,11 @@ func TestCaretFollowsTyping(t *testing.T) {
 // wide characters as two cells.
 func TestCaretInSearchFields(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	a.openSearch(fQuery)
-	for f, text := range [numFields]string{"日本語", "置換後", "含める", "除外す"} {
-		a.search.focusField(f)
-		a.search.in[f].SetValue(text)
-		a.search.in[f].CursorEnd()
+	a.OpenSearch(core.FQuery)
+	for f, text := range [core.NumFields]string{"日本語", "置換後", "含める", "除外す"} {
+		a.Search.FocusField(f)
+		a.Search.In[f].SetValue(text)
+		a.Search.In[f].CursorEnd()
 		rows := strings.Split(a.render(), "\n")
 		x, y, ok := a.caretPos(a.layout())
 		if !ok || y >= len(rows) {
@@ -74,15 +75,15 @@ func TestCaretInPaletteAndFind(t *testing.T) {
 		}
 	}
 
-	a.pal.show(a.root, "")
-	a.pal.input.SetValue("日本語")
-	a.pal.input.CursorEnd()
+	a.Pal.Show(a.Root, "")
+	a.Pal.Input.SetValue("日本語")
+	a.Pal.Input.CursorEnd()
 	check("palette", "日本語")
-	a.pal.open = false
+	a.Pal.Open = false
 
-	a.openFind()
-	a.findInput.SetValue("日本語")
-	a.findInput.CursorEnd()
+	a.OpenFind()
+	a.FindInput.SetValue("日本語")
+	a.FindInput.CursorEnd()
 	check("find", "日本語")
 }
 
@@ -100,14 +101,14 @@ func TestInputCaretScrolledRepeats(t *testing.T) {
 		{"日本語", 20, 0, 6},
 		{"", 10, 0, 0},
 	} {
-		ti := newInputField(0)
+		ti := core.NewInputField(0)
 		ti.SetWidth(c.width)
 		ti.Focus()
 		for _, r := range c.value {
 			ti.Update(textKey(string(r)))
 		}
 		for range c.left {
-			ti.Update(Key{Code: KeyLeft})
+			ti.Update(core.Key{Code: KeyLeft})
 		}
 		if got := ti.Caret(); got != c.want {
 			t.Errorf("%q width %d left %d: caret = %d, want %d", c.value, c.width, c.left, got, c.want)

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,7 +21,7 @@ import (
 func TestRenderDiffTextShowsWholeFile(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	for _, split := range []bool{true, false} {
-		a.gd.split = split
+		a.Gd.Split = split
 		view := ansi.Strip(a.render())
 		for _, s := range []string{"a.txt", "比較元 HEAD", "DIFF", "CHANGES", "new.txt"} {
 			if !strings.Contains(view, s) {
@@ -39,7 +40,7 @@ func TestSidebarSplit7to3(t *testing.T) {
 	if got, want := a.ExplorerH(), (a.h-3)*7/10; got != want {
 		t.Errorf("explorerH = %d, want %d", got, want)
 	}
-	a.gd.on = false
+	a.Gd.On = false
 	if got := a.ExplorerH(); got != a.h-1 {
 		t.Errorf("explorerH off = %d", got)
 	}
@@ -48,15 +49,15 @@ func TestSidebarSplit7to3(t *testing.T) {
 func TestOpenNewFileAgainstHeadIsOnePane(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	dv := openNewFile(t, a)
-	for i := range dv.changed {
-		if dv.changed[i] {
+	for i := range dv.Changed {
+		if dv.Changed[i] {
 			t.Errorf("line %d of the new file is marked", i)
 		}
 	}
 	if g := a.dvGeom(a.layout()); g.LeftW != 0 || g.RightX != a.layout().rightX {
 		t.Errorf("new file is split: %+v", g)
 	}
-	for _, k := range BarKinds(len(dv.Rows), len(dv.Rows), dv.hunks) {
+	for _, k := range core.BarKinds(len(dv.Rows), len(dv.Rows), dv.Hunks) {
 		if k != screen.MarkAdded {
 			t.Errorf("bar cell %v, want added", k)
 		}
@@ -72,13 +73,13 @@ func TestOnePaneHidesSplitHintAndIgnoresHeaderClick(t *testing.T) {
 	if strings.Contains(head(), "分割 ⇄ 統合") {
 		t.Errorf("one pane shows the split hint: %q", head())
 	}
-	split := a.gd.split
+	split := a.Gd.Split
 	l := a.layout()
-	a.HandleMouse(a.locate(l.rightX+2, l.editY, Mouse{Action: MousePress, Button: MouseLeft}))
-	if a.gd.split != split || !dv.Single {
+	a.HandleMouse(a.locate(l.rightX+2, l.editY, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+	if a.Gd.Split != split || !dv.Single {
 		t.Error("clicking the header of a one-pane file switched split")
 	}
-	a.gd.base = basePR
+	a.Gd.Base = core.BasePR
 	if strings.Contains(head(), "分割 ⇄ 統合") {
 		t.Errorf("one pane against a PR shows the split hint: %q", head())
 	}
@@ -86,7 +87,7 @@ func TestOnePaneHidesSplitHintAndIgnoresHeaderClick(t *testing.T) {
 
 func TestOpenNewFileAgainstPRIsOnePane(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	a.gd.base = basePR
+	a.Gd.Base = core.BasePR
 	dv := openNewFile(t, a)
 	if !dv.Single {
 		t.Error("new file against a PR is not one pane")
@@ -99,7 +100,7 @@ func TestOpenNewFileAgainstPRIsOnePane(t *testing.T) {
 func TestChangesListClickAndTab(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	click := func(y int) {
-		a.HandleMouse(a.locate(2, y, Mouse{Action: MousePress, Button: MouseLeft}))
+		a.HandleMouse(a.locate(2, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
 	}
 	h := 1 + a.ExplorerH() // below the header and the file tree
 	click(h + 2)           // second file
@@ -110,56 +111,56 @@ func TestChangesListClickAndTab(t *testing.T) {
 	if filepath.Base(a.CurText().Buf.Path) != "a.txt" {
 		t.Errorf("first row opened %v", a.CurText().Buf.Path)
 	}
-	a.SetFocus(FocusExplorer)
-	a.handleExplorerKey(Key{Code: KeyTab})
-	if a.focus != FocusChanges {
-		t.Errorf("Tab from the tree: focus=%v", a.focus)
+	a.SetFocus(core.FocusExplorer)
+	a.HandleExplorerKey(core.Key{Code: KeyTab})
+	if a.Focus != core.FocusChanges {
+		t.Errorf("Tab from the tree: focus=%v", a.Focus)
 	}
-	a.toggleSide()
-	if a.focus == FocusChanges {
+	a.ToggleSide()
+	if a.Focus == core.FocusChanges {
 		t.Errorf("focus stays on the hidden list")
 	}
 }
 
 func TestSpaceEFocusesChanges(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	a.SetFocus(FocusEditor)
+	a.SetFocus(core.FocusEditor)
 	a.showSide = false
-	a.spaceMode("E")
-	if a.focus != FocusChanges || !a.showSide {
-		t.Errorf("Space E in diff mode: focus=%v showSide=%v", a.focus, a.showSide)
+	a.SpaceMode("E")
+	if a.Focus != core.FocusChanges || !a.showSide {
+		t.Errorf("Space E in diff mode: focus=%v showSide=%v", a.Focus, a.showSide)
 	}
-	a.spaceMode("e")
-	if a.focus != FocusExplorer {
-		t.Errorf("Space e in diff mode: focus=%v", a.focus)
+	a.SpaceMode("e")
+	if a.Focus != core.FocusExplorer {
+		t.Errorf("Space e in diff mode: focus=%v", a.Focus)
 	}
-	a.toggleGitDiff()
-	a.spaceMode("E")
-	if a.focus != FocusExplorer {
-		t.Errorf("Space E outside diff mode: focus=%v", a.focus)
+	a.ToggleGitDiff()
+	a.SpaceMode("E")
+	if a.Focus != core.FocusExplorer {
+		t.Errorf("Space E outside diff mode: focus=%v", a.Focus)
 	}
 }
 
 func TestOpenDiffSwitchesAndCloses(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	// Space G with HEAD shown closes the mode
-	a.openDiff(baseHead)
-	if a.gd.on {
+	a.OpenDiff(core.BaseHead)
+	if a.Gd.On {
 		t.Fatal("Space G did not close")
 	}
-	a.openDiff(baseHead)
-	if !a.gd.on || a.gd.base != baseHead {
+	a.OpenDiff(core.BaseHead)
+	if !a.Gd.On || a.Gd.Base != core.BaseHead {
 		t.Fatal("Space G did not open")
 	}
 	// Space g looks up the pull request first; the mode is unchanged until then
-	if cmd := a.openDiff(basePR); cmd == nil || a.gd.base != baseHead {
-		t.Fatalf("Space g: cmd=%v base=%s", cmd, a.gd.base)
+	if cmd := a.OpenDiff(core.BasePR); cmd == nil || a.Gd.Base != core.BaseHead {
+		t.Fatalf("Space g: cmd=%v base=%s", cmd, a.Gd.Base)
 	}
-	pr := &PrInfo{Number: 12, Title: "差分モードを 1 つにする", State: "OPEN", BaseRefName: "main", HeadRefName: a.branch}
+	pr := &core.PrInfo{Number: 12, Title: "差分モードを 1 つにする", State: "OPEN", BaseRefName: "main", HeadRefName: a.Branch}
 	pr.Author.Login = "someone"
-	a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, pr: pr})
-	if a.gd.base != basePR || a.gd.pr != pr {
-		t.Fatalf("base=%s pr=%v", a.gd.base, a.gd.pr)
+	a.HandlePRFound(core.PrFoundMsg{Seq: a.Gd.PrSeq, Pr: pr})
+	if a.Gd.Base != core.BasePR || a.Gd.Pr != pr {
+		t.Fatalf("base=%s pr=%v", a.Gd.Base, a.Gd.Pr)
 	}
 	view := ansi.Strip(a.render())
 	for _, s := range []string{"PR #12", "差分モードを 1 つにする", "OPEN", "@someone", "比較元 main（PR の base）↔ 作業ツリー", "Space G:HEAD と比べる  Space g:閉じる"} {
@@ -168,13 +169,13 @@ func TestOpenDiffSwitchesAndCloses(t *testing.T) {
 		}
 	}
 	// Space G switches back to HEAD, Space g with the PR shown closes
-	a.openDiff(baseHead)
-	if !a.gd.on || a.gd.base != baseHead || a.gd.pr != nil {
-		t.Errorf("Space G did not switch to HEAD: on=%v base=%s", a.gd.on, a.gd.base)
+	a.OpenDiff(core.BaseHead)
+	if !a.Gd.On || a.Gd.Base != core.BaseHead || a.Gd.Pr != nil {
+		t.Errorf("Space G did not switch to HEAD: on=%v base=%s", a.Gd.On, a.Gd.Base)
 	}
-	a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, pr: pr})
-	a.openDiff(basePR)
-	if a.gd.on {
+	a.HandlePRFound(core.PrFoundMsg{Seq: a.Gd.PrSeq, Pr: pr})
+	a.OpenDiff(core.BasePR)
+	if a.Gd.On {
 		t.Error("Space g did not close")
 	}
 }
@@ -192,7 +193,7 @@ func TestDiffModeLayout(t *testing.T) {
 	if l.top != 1 || l.bodyH != a.h-3 || l.editY != 2 {
 		t.Errorf("layout %+v", l)
 	}
-	a.gd.on = false
+	a.Gd.On = false
 	if l := a.layout(); l.top != 0 || l.editY != 1 || l.bodyH != a.h-1 {
 		t.Errorf("layout off %+v", l)
 	}
@@ -205,7 +206,7 @@ func TestChangeBarClickScrolls(t *testing.T) {
 		fmt.Fprintf(&sb, "line %d\n", i)
 	}
 	os.WriteFile(file, []byte(sb.String()), 0o644)
-	gitIn(t, a.root, "commit", "-qam", "long")
+	gitIn(t, a.Root, "commit", "-qam", "long")
 	tb := a.CurText()
 	tb.Buf.Lines = nil
 	for i := range 200 {
@@ -213,9 +214,9 @@ func TestChangeBarClickScrolls(t *testing.T) {
 	}
 	tb.Buf.Lines[150] = []rune("changed")
 	tb.Buf.Version++
-	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead, nil).(changesLoadedMsg))
-	a.gd.byAbs[file] = &diff.File{NewPath: "a.txt", Status: "modified"}
-	tb.dv = nil
+	a.ApplyChanges(core.LoadChanges(a.Gd.Gen, a.Root, core.BaseHead, nil).(core.ChangesLoadedMsg))
+	a.Gd.ByAbs[file] = &diff.File{NewPath: "a.txt", Status: "modified"}
+	tb.Dv = nil
 	l := a.layout()
 	g := a.dvGeom(l)
 	dv := a.DiffFor(tb)
@@ -223,7 +224,7 @@ func TestChangeBarClickScrolls(t *testing.T) {
 	if !strings.Contains(view, "▐") {
 		t.Errorf("no mark on the bar")
 	}
-	a.HandleMouse(a.locate(g.BarX, g.Top+g.H-1, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.HandleMouse(a.locate(g.BarX, g.Top+g.H-1, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
 	if s := dv.Start(tb.Buf.ScrollRow); s < len(dv.Rows)-g.H-1 {
 		t.Errorf("click at the bottom of the bar scrolled to row %d of %d", s, len(dv.Rows))
 	}
@@ -267,13 +268,13 @@ func TestSidebarSplitDrag(t *testing.T) {
 	l := a.layout()
 	body := a.BodyH()
 
-	if got := a.resizeHit(l, 1, l.top+a.ExplorerH()); got != ResizeExplorer {
+	if got := a.resizeHit(l, 1, l.top+a.ExplorerH()); got != core.ResizeExplorer {
 		t.Fatalf("hit = %v", got)
 	}
-	a.focus = FocusEditor
-	a.HandleMouse(a.locate(1, l.top+a.ExplorerH(), Mouse{Action: MousePress, Button: MouseLeft}))
-	if a.focus != FocusChanges || a.resizing != ResizeExplorer {
-		t.Fatalf("press: focus %v resizing %v", a.focus, a.resizing)
+	a.Focus = core.FocusEditor
+	a.HandleMouse(a.locate(1, l.top+a.ExplorerH(), core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+	if a.Focus != core.FocusChanges || a.resizing != core.ResizeExplorer {
+		t.Fatalf("press: focus %v resizing %v", a.Focus, a.resizing)
 	}
 	a.dragResize(l, 1, l.top+body/2)
 	if got := a.ExplorerH(); got != body/2 {
@@ -281,11 +282,11 @@ func TestSidebarSplitDrag(t *testing.T) {
 	}
 
 	a.dragResize(l, 1, l.top)
-	if got := a.ExplorerH(); got != MinSideSectionH {
+	if got := a.ExplorerH(); got != core.MinSideSectionH {
 		t.Fatalf("tree min: %d", got)
 	}
 	a.dragResize(l, 1, l.top+body)
-	if got := body - a.ExplorerH(); got != MinSideSectionH {
+	if got := body - a.ExplorerH(); got != core.MinSideSectionH {
 		t.Fatalf("changes min: %d", got)
 	}
 
@@ -296,7 +297,7 @@ func TestSidebarSplitDrag(t *testing.T) {
 		t.Fatalf("ratio %v -> %v", before, got)
 	}
 
-	a.resizing = ResizeNone
+	a.resizing = core.ResizeNone
 	a.StartResize()
 	press(a, "=")
 	if got, want := a.ExplorerH(), a.BodyH()*7/10; got != want {
@@ -325,18 +326,18 @@ func TestOpenChangePutsCursorOnFirstChange(t *testing.T) {
 	mod[30], mod[35] = "x", "y"
 	write("mod.txt", mod)
 	write("del.txt", slices.Delete(slices.Clone(lines), 20, 22))
-	a := newApp(dir, "")
+	a := New(dir, "")
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
-	a.gd.on = true
-	a.gd.base = baseHead
-	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead, nil).(changesLoadedMsg))
-	open := func(name string) *Tab {
+	a.Gd.On = true
+	a.Gd.Base = core.BaseHead
+	a.ApplyChanges(core.LoadChanges(a.Gd.Gen, a.Root, core.BaseHead, nil).(core.ChangesLoadedMsg))
+	open := func(name string) *core.Tab {
 		t.Helper()
-		f := a.gd.byAbs[filepath.Join(dir, name)]
+		f := a.Gd.ByAbs[filepath.Join(dir, name)]
 		if f == nil {
 			t.Fatalf("%s is not in the changes", name)
 		}
-		a.openChange(f)
+		a.OpenChange(f)
 		return a.CurText()
 	}
 
@@ -386,10 +387,10 @@ func TestAddedLineKeepsGreenUnderCursor(t *testing.T) {
 func TestDiffPanes(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	tb := a.CurText()
-	a.gd.split = true
+	a.Gd.Split = true
 	dv := a.DiffFor(tb)
 	g := a.dvGeom(a.layout())
-	panes := a.BuildDiffPanes(tb, dv, g, a.EditorOpts(tb, true).paneOpts)
+	panes := a.BuildDiffPanes(tb, dv, g, a.EditorOpts(tb, true).PaneOpts)
 	if len(panes) != 2 {
 		t.Fatalf("split diff has %d panes", len(panes))
 	}
@@ -418,9 +419,9 @@ func TestDiffPanes(t *testing.T) {
 		t.Errorf("title = %+v", right.Title)
 	}
 
-	a.gd.split = false
+	a.Gd.Split = false
 	dv = a.DiffFor(tb)
-	panes = a.BuildDiffPanes(tb, dv, a.dvGeom(a.layout()), a.EditorOpts(tb, true).paneOpts)
+	panes = a.BuildDiffPanes(tb, dv, a.dvGeom(a.layout()), a.EditorOpts(tb, true).PaneOpts)
 	if len(panes) != 1 || panes[0].Diff.Side != screen.SideUnified {
 		t.Fatalf("unified diff: %+v", panes)
 	}
@@ -431,18 +432,17 @@ func TestDiffPanes(t *testing.T) {
 
 // renderChanges fits the list to h rows and draws it, the way View does.
 func (a *App) renderChanges(w, h int, focused bool) []string {
-	a.fitChanges(h - 1)
+	a.FitChanges(h - 1)
 	return drawChanges(a.ChangesScreen(w, h), w, h, focused)
 }
 
-
 func TestChangesTitleShowsBase(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	a.SetFocus(FocusChanges)
+	a.SetFocus(core.FocusChanges)
 	if got := ansi.Strip(strings.Join(a.renderChanges(30, 5, true), "\n")); !strings.Contains(got, "CHANGES (2)") || !strings.Contains(got, "DIFF") {
 		t.Errorf("HEAD title: %q", got)
 	}
-	a.gd.base = basePR
+	a.Gd.Base = core.BasePR
 	if got := ansi.Strip(a.renderChanges(30, 5, true)[0]); !strings.HasSuffix(strings.TrimSpace(got), "PR") {
 		t.Errorf("PR title: %q", got)
 	}
@@ -450,18 +450,18 @@ func TestChangesTitleShowsBase(t *testing.T) {
 
 func TestReloadChangesKeepsEmptyListFromFlickering(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	a.gd.files, a.gd.rows = nil, nil
-	a.gd.loading = false
+	a.Gd.Files, a.Gd.Rows = nil, nil
+	a.Gd.Loading = false
 	view := func() string { return strings.Join(a.renderChanges(40, 6, true), "\n") }
 	before := view()
 	if !strings.Contains(before, "変更はありません") {
 		t.Fatalf("before = %q", before)
 	}
-	a.reloadChanges()
+	a.ReloadChanges()
 	if got := view(); got != before || strings.Contains(got, "読み込み中") {
 		t.Errorf("reload changed the view: %q", got)
 	}
-	a.showDiff(baseHead, nil)
+	a.ShowDiff(core.BaseHead, nil)
 	if !strings.Contains(view(), "読み込み中") {
 		t.Errorf("showDiff should show loading: %q", view())
 	}
@@ -469,12 +469,12 @@ func TestReloadChangesKeepsEmptyListFromFlickering(t *testing.T) {
 
 func TestRefreshPRKeepsEmptyListFromFlickering(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	pr := &PrInfo{Number: 3, BaseRefName: "main"}
-	a.gd.base, a.gd.pr = basePR, pr
-	a.gd.files, a.gd.rows = nil, nil
-	a.gd.loading = false
-	a.gd.prSeq++
-	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 3, refresh: true, pr: pr}); cmd == nil {
+	pr := &core.PrInfo{Number: 3, BaseRefName: "main"}
+	a.Gd.Base, a.Gd.Pr = core.BasePR, pr
+	a.Gd.Files, a.Gd.Rows = nil, nil
+	a.Gd.Loading = false
+	a.Gd.PrSeq++
+	if cmd := a.HandlePRFound(core.PrFoundMsg{Seq: a.Gd.PrSeq, Num: 3, Refresh: true, Pr: pr}); cmd == nil {
 		t.Fatal("no command")
 	}
 	got := strings.Join(a.renderChanges(40, 6, true), "\n")

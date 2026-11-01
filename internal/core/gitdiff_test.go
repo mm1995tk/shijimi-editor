@@ -10,8 +10,6 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
-
-	tea "charm.land/bubbletea/v2"
 )
 
 func gitIn(t *testing.T, dir string, args ...string) {
@@ -40,17 +38,17 @@ func gitDiffApp(t *testing.T) (*App, string) {
 	os.WriteFile(file, []byte("a\nc\nd\nx\ne\n"), 0o644)
 	os.WriteFile(filepath.Join(dir, "new.txt"), []byte("n1\nn2\n"), 0o644)
 	a := newApp(dir, file)
-	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
-	a.gd.on = true
-	a.gd.base = baseHead
-	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead, nil).(changesLoadedMsg))
+	a.Update(Resized{W: 100, H: 30})
+	a.Gd.On = true
+	a.Gd.Base = BaseHead
+	a.ApplyChanges(LoadChanges(a.Gd.Gen, a.Root, BaseHead, nil).(ChangesLoadedMsg))
 	return a, file
 }
 
 func TestLoadChangesListsModifiedAndUntracked(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	var got []string
-	for _, f := range a.gd.files {
+	for _, f := range a.Gd.Files {
 		got = append(got, f.Path()+":"+f.Status)
 	}
 	if strings.Join(got, ",") != "a.txt:modified,new.txt:added" {
@@ -75,38 +73,38 @@ func TestDiffViewRows(t *testing.T) {
 			t.Errorf("split row %d = %v, want %v", i, dv.Rows[i], want[i])
 		}
 	}
-	a.gd.split = false
+	a.Gd.Split = false
 	dv = a.DiffFor(tb)
 	if len(dv.Rows) != 7 || dv.Rows[1] != (dispRow{1, -1, true, hunkDel}) || dv.Rows[4] != (dispRow{-1, 3, true, hunkAdd}) {
 		t.Errorf("unified rows = %v", dv.Rows)
 	}
-	if !dv.changed[3] || dv.changed[0] {
-		t.Errorf("changed = %v", dv.changed)
+	if !dv.Changed[3] || dv.Changed[0] {
+		t.Errorf("changed = %v", dv.Changed)
 	}
 }
 
 func TestDiffViewFollowsEdits(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	tb := a.CurText()
-	if dv := a.DiffFor(tb); dv.changed[1] {
+	if dv := a.DiffFor(tb); dv.Changed[1] {
 		t.Fatalf("line c should be unchanged")
 	}
 	tb.Buf.SetCursor(1, 0, false)
 	tb.Buf.Insert("Z")
 	dv := a.DiffFor(tb)
-	if !dv.changed[1] {
-		t.Errorf("edited line is not marked changed: %v", dv.changed)
+	if !dv.Changed[1] {
+		t.Errorf("edited line is not marked changed: %v", dv.Changed)
 	}
 }
 
 func openNewFile(t *testing.T, a *App) *DiffView {
 	t.Helper()
-	for i, f := range a.gd.files {
+	for i, f := range a.Gd.Files {
 		if f.Path() == "new.txt" {
-			a.gd.sel = i
+			a.Gd.Sel = i
 		}
 	}
-	a.openChange(a.gd.file())
+	a.OpenChange(a.Gd.File())
 	dv := a.DiffFor(a.CurText())
 	if dv == nil {
 		t.Fatal("no diff view")
@@ -119,12 +117,12 @@ func TestSwitchingBaseRebuildsSingleView(t *testing.T) {
 	if dv := openNewFile(t, a); !dv.Single {
 		t.Fatal("not single against HEAD")
 	}
-	a.gd.base = basePR
-	a.gd.rev = "other"
+	a.Gd.Base = BasePR
+	a.Gd.rev = "other"
 	if dv := a.DiffFor(a.CurText()); !dv.Single || dv.rev != "other" {
 		t.Errorf("view not rebuilt after switching to PR: %+v", dv)
 	}
-	a.gd.base = baseHead
+	a.Gd.Base = BaseHead
 	if dv := a.DiffFor(a.CurText()); !dv.Single {
 		t.Error("view not single after switching back to HEAD")
 	}
@@ -132,54 +130,54 @@ func TestSwitchingBaseRebuildsSingleView(t *testing.T) {
 
 func TestToggleGitDiffAndKeys(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	a.gd.on = false
-	a.toggleGitDiff()
-	if !a.gd.on {
+	a.Gd.On = false
+	a.ToggleGitDiff()
+	if !a.Gd.On {
 		t.Fatal("not on")
 	}
 	a.SetFocus(FocusChanges)
-	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead, nil).(changesLoadedMsg))
+	a.ApplyChanges(LoadChanges(a.Gd.Gen, a.Root, BaseHead, nil).(ChangesLoadedMsg))
 	a.handleChangesKey(textKey("s"))
-	if a.gd.split {
+	if a.Gd.Split {
 		t.Errorf("s did not switch to unified")
 	}
 	a.handleChangesKey(textKey("j"))
-	if a.gd.sel != 1 {
-		t.Errorf("sel = %d", a.gd.sel)
+	if a.Gd.Sel != 1 {
+		t.Errorf("sel = %d", a.Gd.Sel)
 	}
-	a.toggleGitDiff()
-	if a.gd.on || a.focus == FocusChanges {
-		t.Errorf("not turned off: on=%v focus=%v", a.gd.on, a.focus)
+	a.ToggleGitDiff()
+	if a.Gd.On || a.Focus == FocusChanges {
+		t.Errorf("not turned off: on=%v focus=%v", a.Gd.On, a.Focus)
 	}
 }
 
 func TestGitDiffCommand(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	a.gitDiffCommand("unified")
-	if a.gd.split {
+	if a.Gd.Split {
 		t.Error("unified")
 	}
 	a.gitDiffCommand("split")
-	if !a.gd.split {
+	if !a.Gd.Split {
 		t.Error("split")
 	}
 	a.gitDiffCommand("off")
-	if a.gd.on {
+	if a.Gd.On {
 		t.Error("off")
 	}
 	a.gitDiffCommand("bogus")
-	if !a.msgErr {
+	if !a.MsgErr {
 		t.Error("bogus accepted")
 	}
 }
 
 func TestPRBaseFallsBackToHead(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	m := changesLoadedMsg{gen: a.gd.gen, base: basePR, err: errString("no pr")}
-	a.gd.base = basePR
-	a.applyChanges(m)
-	if a.gd.base != baseHead || !a.msgErr {
-		t.Errorf("base=%s msgErr=%v", a.gd.base, a.msgErr)
+	m := ChangesLoadedMsg{gen: a.Gd.Gen, base: BasePR, err: errString("no pr")}
+	a.Gd.Base = BasePR
+	a.ApplyChanges(m)
+	if a.Gd.Base != BaseHead || !a.MsgErr {
+		t.Errorf("base=%s msgErr=%v", a.Gd.Base, a.MsgErr)
 	}
 }
 
@@ -195,10 +193,10 @@ func TestFullPreviewDoesNotBlockEditingInGitDiff(t *testing.T) {
 	gitIn(t, dir, "commit", "-q", "-m", "init")
 	os.WriteFile(file, []byte("a\nc\n"), 0o644)
 	a := newApp(dir, file)
-	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
-	a.gd.on = true
-	a.gd.base = baseHead
-	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead, nil).(changesLoadedMsg))
+	a.Update(Resized{W: 100, H: 30})
+	a.Gd.On = true
+	a.Gd.Base = BaseHead
+	a.ApplyChanges(LoadChanges(a.Gd.Gen, a.Root, BaseHead, nil).(ChangesLoadedMsg))
 
 	tb := a.CurText()
 	tb.Preview = PreviewFull
@@ -207,7 +205,7 @@ func TestFullPreviewDoesNotBlockEditingInGitDiff(t *testing.T) {
 	}
 	ver := tb.Buf.Version
 	for _, k := range []string{"i", "Z"} {
-		a.handleHelixKey(textKey(k))
+		a.HandleHelixKey(textKey(k))
 	}
 	if tb.Buf.Version == ver {
 		t.Fatal("editing was blocked while the diff is visible")
@@ -254,7 +252,7 @@ func TestChangesWheelKeepsSelectionOnScreen(t *testing.T) {
 	for i := range 10 {
 		files = append(files, &diff.File{NewPath: fmt.Sprintf("d%d/f.go", i)})
 	}
-	g.files, g.rows = changeTree(files) // folder, file, folder, file, ...
+	g.Files, g.Rows = changeTree(files) // folder, file, folder, file, ...
 	g.scroll = 6
 	g.keepSelVisible(3)
 	if r := g.selRow(); r < 6 || r > 8 {
@@ -271,30 +269,30 @@ func TestChangesWheelKeepsSelectionOnScreen(t *testing.T) {
 func TestBranchPRsPicksThePR(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	// none: the list of every pull request is asked for
-	if cmd := a.handleBranchPRs(branchPRsMsg{seq: a.gd.prSeq}); cmd == nil || a.gd.base != baseHead || a.pal.open {
-		t.Errorf("no PR for the branch: cmd=%v base=%s", cmd, a.gd.base)
+	if cmd := a.handleBranchPRs(branchPRsMsg{seq: a.Gd.PrSeq}); cmd == nil || a.Gd.Base != BaseHead || a.Pal.Open {
+		t.Errorf("no PR for the branch: cmd=%v base=%s", cmd, a.Gd.Base)
 	}
 	// one: it is looked up at once, without a list
-	seq := a.gd.prSeq
-	if cmd := a.handleBranchPRs(branchPRsMsg{seq: seq, prs: []prSummary{{Number: 4}}}); cmd == nil || a.pal.open || a.gd.prSeq == seq {
-		t.Errorf("one PR: cmd=%v pal=%v", cmd, a.pal.open)
+	seq := a.Gd.PrSeq
+	if cmd := a.handleBranchPRs(branchPRsMsg{seq: seq, prs: []prSummary{{Number: 4}}}); cmd == nil || a.Pal.Open || a.Gd.PrSeq == seq {
+		t.Errorf("one PR: cmd=%v pal=%v", cmd, a.Pal.Open)
 	}
 	// several: a list of just those
-	a.handleBranchPRs(branchPRsMsg{seq: a.gd.prSeq, prs: []prSummary{{Number: 4}, {Number: 5}}})
-	if !a.pal.open || len(a.pal.pickAll) != 2 {
-		t.Errorf("two PRs: open=%v items=%d", a.pal.open, len(a.pal.pickAll))
+	a.handleBranchPRs(branchPRsMsg{seq: a.Gd.PrSeq, prs: []prSummary{{Number: 4}, {Number: 5}}})
+	if !a.Pal.Open || len(a.Pal.pickAll) != 2 {
+		t.Errorf("two PRs: open=%v items=%d", a.Pal.Open, len(a.Pal.pickAll))
 	}
-	a.pal.close()
+	a.Pal.Close()
 	// an answer for an older lookup is dropped
-	if cmd := a.handleBranchPRs(branchPRsMsg{seq: a.gd.prSeq - 1, prs: []prSummary{{Number: 4}}}); cmd != nil {
+	if cmd := a.handleBranchPRs(branchPRsMsg{seq: a.Gd.PrSeq - 1, prs: []prSummary{{Number: 4}}}); cmd != nil {
 		t.Error("stale answer used")
 	}
 }
 
 func TestPRLookupFails(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 5, err: errString("not found")}); cmd != nil || !a.msgErr {
-		t.Errorf(":pr 5 failing: cmd=%v msgErr=%v", cmd, a.msgErr)
+	if cmd := a.HandlePRFound(PrFoundMsg{Seq: a.Gd.PrSeq, Num: 5, err: errString("not found")}); cmd != nil || !a.MsgErr {
+		t.Errorf(":pr 5 failing: cmd=%v msgErr=%v", cmd, a.MsgErr)
 	}
 }
 
@@ -347,13 +345,13 @@ func TestDiffRowsHunkKinds(t *testing.T) {
 func TestInlineSpansFollowEdits(t *testing.T) {
 	a, file := gitDiffApp(t)
 	os.WriteFile(file, []byte("alpha beta\nc\n"), 0o644)
-	gitIn(t, a.root, "commit", "-qam", "two")
-	a.applyChanges(loadChanges(a.gd.gen, a.root, baseHead, nil).(changesLoadedMsg))
+	gitIn(t, a.Root, "commit", "-qam", "two")
+	a.ApplyChanges(LoadChanges(a.Gd.Gen, a.Root, BaseHead, nil).(ChangesLoadedMsg))
 	tb := a.CurText()
 	tb.Buf.Lines = [][]rune{[]rune("alpha gamma"), []rune("c")}
 	tb.Buf.Version++
-	a.gd.byAbs[file] = &diff.File{NewPath: "a.txt", Status: "modified"}
-	tb.dv = nil
+	a.Gd.ByAbs[file] = &diff.File{NewPath: "a.txt", Status: "modified"}
+	tb.Dv = nil
 	dv := a.DiffFor(tb)
 	if got := dv.newSpans[0]; len(got) != 1 || got[0] != (diff.Span{Start: 6, End: 10}) {
 		t.Errorf("new spans = %v", got)
@@ -391,8 +389,8 @@ func TestInlineBudgetBoundsOneBuild(t *testing.T) {
 		tb.Buf.Lines = append(tb.Buf.Lines, []rune(s+"X"))
 	}
 	tb.Buf.Version++
-	a.gd.byAbs[file] = &diff.File{NewPath: "a.txt", Status: "modified"}
-	tb.dv = &DiffView{rev: a.gd.rev, old: oldLines}
+	a.Gd.ByAbs[file] = &diff.File{NewPath: "a.txt", Status: "modified"}
+	tb.Dv = &DiffView{rev: a.Gd.rev, old: oldLines}
 	dv := a.DiffFor(tb)
 	if n := len(dv.newSpans); n == 0 || n >= 5000 {
 		t.Errorf("first build compared %d of 5000 pairs", n)
@@ -411,40 +409,40 @@ func TestStalePRLookupIsDropped(t *testing.T) {
 	if cmd == nil {
 		t.Fatal("no lookup")
 	}
-	seq := a.gd.prSeq
+	seq := a.Gd.PrSeq
 	a.closeDiff() // Space G before gh answers
-	a.handlePRFound(prFoundMsg{seq: seq, pr: &PrInfo{Number: 3, BaseRefName: "main"}})
-	if a.gd.on || a.gd.base == basePR {
-		t.Errorf("a lookup answered after closing reopened the mode: on=%v base=%s", a.gd.on, a.gd.base)
+	a.HandlePRFound(PrFoundMsg{Seq: seq, Pr: &PrInfo{Number: 3, BaseRefName: "main"}})
+	if a.Gd.On || a.Gd.Base == BasePR {
+		t.Errorf("a lookup answered after closing reopened the mode: on=%v base=%s", a.Gd.On, a.Gd.Base)
 	}
 }
 
 func TestGitDiffCommandComparesWithHead(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	a.showDiff(basePR, &PrInfo{Number: 3, BaseRefName: "main"})
+	a.ShowDiff(BasePR, &PrInfo{Number: 3, BaseRefName: "main"})
 	a.gitDiffCommand("")
-	if !a.gd.on || a.gd.base != baseHead {
-		t.Errorf(":gitdiff with the PR base shown: on=%v base=%s", a.gd.on, a.gd.base)
+	if !a.Gd.On || a.Gd.Base != BaseHead {
+		t.Errorf(":gitdiff with the PR base shown: on=%v base=%s", a.Gd.On, a.Gd.Base)
 	}
-	a.showDiff(basePR, &PrInfo{Number: 3, BaseRefName: "main"})
+	a.ShowDiff(BasePR, &PrInfo{Number: 3, BaseRefName: "main"})
 	a.gitDiffCommand("on")
-	if a.gd.base != baseHead {
-		t.Errorf(":gitdiff on kept base %s", a.gd.base)
+	if a.Gd.Base != BaseHead {
+		t.Errorf(":gitdiff on kept base %s", a.Gd.Base)
 	}
 	a.gitDiffCommand("")
-	if a.gd.on {
+	if a.Gd.On {
 		t.Error(":gitdiff with HEAD shown did not close")
 	}
 }
 
 func TestReloadWithoutGhStillUpdatesList(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	a.showDiff(basePR, &PrInfo{Number: 3, BaseRefName: "main"})
+	a.ShowDiff(BasePR, &PrInfo{Number: 3, BaseRefName: "main"})
 	a.SetFocus(FocusChanges)
 	a.handleChangesKey(textKey("r"))
-	gen := a.gd.gen
-	if cmd := a.handlePRFound(prFoundMsg{seq: a.gd.prSeq, num: 3, refresh: true, err: errString("gh: offline")}); cmd == nil || a.gd.gen == gen || !a.msgErr {
-		t.Errorf("r without gh: cmd=%v gen %d→%d msgErr=%v", cmd, gen, a.gd.gen, a.msgErr)
+	gen := a.Gd.Gen
+	if cmd := a.HandlePRFound(PrFoundMsg{Seq: a.Gd.PrSeq, Num: 3, Refresh: true, err: errString("gh: offline")}); cmd == nil || a.Gd.Gen == gen || !a.MsgErr {
+		t.Errorf("r without gh: cmd=%v gen %d→%d msgErr=%v", cmd, gen, a.Gd.Gen, a.MsgErr)
 	}
 }
 
@@ -454,7 +452,7 @@ func TestChangesFolderCollapse(t *testing.T) {
 	for _, p := range []string{"a/x.go", "a/y.go", "b/z.go"} {
 		files = append(files, &diff.File{NewPath: p})
 	}
-	g.files, g.rows = changeTree(files) // a, x, y, b, z
+	g.Files, g.Rows = changeTree(files) // a, x, y, b, z
 	g.selectRow(g.rowOf(1))             // a/y.go
 	g.setFolder(g.folderRow("a"), false)
 	if g.selDir != "a" || len(g.vis()) != 3 {
@@ -462,10 +460,10 @@ func TestChangesFolderCollapse(t *testing.T) {
 	}
 	g.move(1) // skips the files of the closed folder
 	if g.selDir != "b" {
-		t.Errorf("j from a: selDir = %q, sel = %d", g.selDir, g.sel)
+		t.Errorf("j from a: selDir = %q, sel = %d", g.selDir, g.Sel)
 	}
 	g.move(1)
-	if g.selDir != "" || g.file().Path() != "b/z.go" {
+	if g.selDir != "" || g.File().Path() != "b/z.go" {
 		t.Errorf("j from b: selDir = %q", g.selDir)
 	}
 	g.setFolder(g.folderRow("a"), true)
@@ -476,14 +474,14 @@ func TestChangesFolderCollapse(t *testing.T) {
 
 func TestChangesReloadKeepsFolderState(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	g := &a.gd
+	g := &a.Gd
 	load := func(paths ...string) {
 		var files []*diff.File
 		for _, p := range paths {
 			files = append(files, &diff.File{NewPath: p})
 		}
-		g.gen++
-		a.applyChanges(changesLoadedMsg{gen: g.gen, base: g.base, rev: g.rev, files: files})
+		g.Gen++
+		a.ApplyChanges(ChangesLoadedMsg{gen: g.Gen, base: g.Base, rev: g.rev, files: files})
 	}
 	load("a/x.go", "b/y.go", "c/z.go")
 	g.selectRow(g.rowOf(1)) // b/y.go
