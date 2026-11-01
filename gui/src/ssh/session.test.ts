@@ -95,6 +95,9 @@ function fakeShell(opts: {
           if (opts.pingReply?.() ?? true) reply({});
           break;
         }
+        case "tree.watch":
+          reply({});
+          break;
         case "session.bye":
           reply({});
           break;
@@ -561,5 +564,42 @@ describe("入れている最中に切る", () => {
     f.hang.forEach((h) => h());
     await new Promise((r) => setTimeout(r, 10));
     assert.equal(s.state.kind, "closed", "取り消しの失敗で状態を戻さない");
+  });
+});
+
+describe("Session のツリー", () => {
+  it("request は今の接続に送り、tree.changed と git.changed はつなぎ直しても届く", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    await assert.rejects(
+      s.request("tree.watch", { workspaceId: "w", paths: [] }),
+    );
+    const trees: string[][] = [];
+    const gits: number[] = [];
+    s.onTreeChanged((n) => trees.push(n.paths));
+    s.onGitChanged((n) => gits.push(n.rev));
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    assert.deepEqual(
+      await s.request("tree.watch", { workspaceId: "w-A", paths: [""] }),
+      {},
+    );
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "tree.changed",
+      params: { workspaceId: "w-A", paths: [""], rev: 2 },
+    });
+    f.drop(connectedId(f));
+    await waitFor(s, (st) => st.kind === "reconnecting");
+    await waitFor(s, (st) => st.kind === "connected");
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "git.changed",
+      params: { workspaceId: "w-A", rev: 5 },
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.deepEqual(trees, [[""]]);
+    assert.deepEqual(gits, [5]);
+    await s.close();
   });
 });

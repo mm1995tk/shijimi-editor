@@ -2,7 +2,7 @@
 // 画面の仕組み（Solid）には依存しない。描くのは Sidebar.tsx。
 //
 // 見た目は親 #271 のモック（「案：フラットな一覧」）に従う：マシンは見出し、ワークスペースは帯で、
-// どちらも同じ左端にそろえる。ツリー（D2）・上下の固定（D3）・マシンごとの色（D4）は別の Issue。
+// どちらも同じ左端にそろえる。ツリー（D2）は tree/、上下の固定（D3）・マシンごとの色（D4）は別の Issue。
 
 import type { Workspace, WorkspaceId } from "../rpc/protocol.ts";
 import { LOCAL } from "../ssh/api.ts";

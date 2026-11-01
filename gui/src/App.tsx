@@ -3,8 +3,10 @@
 // ssh の質問（パスワードなど）を窓に出す。切れたら Session が自動でつなぎ直し、
 // つなぐ先の一覧に接続の状態を出す。別の GUI に引き継がれたら、そう出してボタンでつなぎ直せるようにする（C7）。
 // 左にはつないだマシンごとの見出しとワークスペースの帯を出し、帯を押すとフォーカスを移す（D1）。
-// ツリーと編集の画面は D2・E 以降で作る。
+// フォーカスしているワークスペースの帯の下にはツリーを出す。開閉とスクロールの位置はワークスペースごとに覚え、
+// フォーカスを外して戻しても残す（D2）。編集の画面は E 以降で作る。
 import {
+  createEffect,
   createMemo,
   createSignal,
   For,
@@ -12,6 +14,7 @@ import {
   onMount,
   Show,
   type JSX,
+  untrack,
 } from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
@@ -35,6 +38,8 @@ import {
 } from "./ssh/last.ts";
 import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
+import { rows as treeRows } from "./tree/model.ts";
+import { WorkspaceTrees } from "./tree/trees.ts";
 
 /** 一覧に出す 1 行の状態。 */
 export function describeState(
@@ -108,6 +113,10 @@ export function App(props: {
   const [focusError, setFocusError] = createSignal("");
   let focusSeq = 0;
   const offStates = new Map<string, () => void>();
+  // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
+  const trees = new Map<string, WorkspaceTrees>();
+  const [treeVersion, setTreeVersion] = createSignal(0);
+  let nav: HTMLElement | undefined;
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
   // 「あと何秒」を動かす
   const [now, setNow] = createSignal(Date.now());
@@ -155,8 +164,21 @@ export function App(props: {
       return; // つないでいる最中、またはつながっている
     }
     const s = new Session(api, target);
-    const off = s.onState((st) => setStates((m) => ({ ...m, [target]: st })));
+    const tr = new WorkspaceTrees({
+      request: (method, params) => s.request(method, params),
+      onChange: () => setTreeVersion((v) => v + 1),
+      onError: (m) => console.warn(`[${target}] ${m}`),
+    });
+    trees.set(target, tr);
+    const off = s.onState((st) => {
+      setStates((m) => ({ ...m, [target]: st }));
+      // つなぎ直したら、今のワークスペースのツリーと git の印を取り直す
+      if (st.kind === "connected") tr.reconnected();
+    });
+    const offTree = s.onTreeChanged((n) => tr.handleTreeChanged(n));
+    const offGit = s.onGitChanged((n) => tr.handleGitChanged(n));
     const offWs = s.onWorkspaces((ws) => {
+      tr.retain(ws.map((w) => w.id));
       recordWorkspaces(store, target, ws.length);
       setWorkspaces((m) => ({ ...m, [target]: ws }));
       setFocus((f) => keepFocus(f, workspaces(), shjFocuses()));
@@ -168,6 +190,8 @@ export function App(props: {
     );
     offStates.set(target, () => {
       off();
+      offTree();
+      offGit();
       offWs();
       offFocus();
     });
@@ -181,6 +205,7 @@ export function App(props: {
     if (!s) return;
     offStates.get(target)?.(); // close() の closed を一覧に書き戻させない
     offStates.delete(target);
+    trees.delete(target);
     setSessions(({ [target]: _, ...rest }) => rest);
     setStates(({ [target]: _, ...rest }) => rest);
     setWorkspaces(({ [target]: _, ...rest }) => rest);
@@ -211,6 +236,39 @@ export function App(props: {
     buildSidebar(Object.keys(sessions()), states(), workspaces(), focus()),
   );
 
+  // フォーカスしているワークスペースのツリーだけを動かし（監視と取り直し）、
+  // 前にそのワークスペースで覚えたスクロールの位置に戻す（D2）
+  createEffect(() => {
+    const f = focus();
+    Object.keys(sessions()); // つないだマシンが増えたら、その WorkspaceTrees にも伝える
+    untrack(() => {
+      let restore: number | undefined;
+      for (const [t, tr] of trees) {
+        const id = f?.target === t ? f.id : null;
+        if (id !== null && id !== tr.activeId) restore = tr.get(id)?.scrollTop;
+        tr.activate(id);
+      }
+      // 描き直し（ツリーの入れ替え）のあとで戻す。初めてのワークスペースは今の位置のまま
+      if (restore !== undefined) {
+        const top = restore;
+        requestAnimationFrame(() => {
+          if (nav) nav.scrollTop = top;
+        });
+      }
+    });
+  });
+
+  function rememberScroll() {
+    const f = focus();
+    if (f && nav) trees.get(f.target)?.setScroll(f.id, nav.scrollTop);
+  }
+
+  function treeOf(target: string, id: WorkspaceId) {
+    treeVersion();
+    const s = trees.get(target)?.get(id);
+    return s && s.listings[""] ? treeRows(s) : undefined;
+  }
+
   function reply(requestId: number, value: string | null) {
     setAsks((a) => a.filter((x) => x.requestId !== requestId));
     void api.askpassReply(requestId, value);
@@ -221,6 +279,12 @@ export function App(props: {
       <Sidebar
         groups={groups()}
         onFocus={(t, id) => void focusWorkspace(t, id)}
+        treeOf={treeOf}
+        onToggle={(t, id, p) => trees.get(t)?.toggle(id, p)}
+        ref={(el) => {
+          nav = el;
+          el.addEventListener("scroll", rememberScroll, { passive: true });
+        }}
       />
       <section class="connections" aria-label="つなぐ先">
         <h1>つなぐ先</h1>

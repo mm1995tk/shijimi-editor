@@ -4,6 +4,8 @@
 //    screen.get で全部取り直す。違えばワークスペースの一覧（hello.workspaces）から取り直す
 //  - 状態（State）を外に出す。一覧の表示はこれを読む
 //  - ワークスペースの一覧と shj のフォーカスを持ち、workspace.focus でフォーカスを移す（D1）
+//  - ツリーと git の要求（tree.list / tree.watch / git.status）を今の接続に流し、
+//    その通知（tree.changed / git.changed）をつなぎ直しをまたいで渡す（D2）
 // Solid などの画面の仕組みには依存しない。
 
 import type { Client } from "../rpc/client.ts";
@@ -11,6 +13,7 @@ import { ErrorCode, RpcError } from "../rpc/message.ts";
 import type {
   HelloResult,
   Notifications,
+  Requests,
   Screen,
   ScreenUpdate,
   WorkspaceId,
@@ -75,6 +78,9 @@ export interface SessionOptions {
   onDiscard?: (reason: string, line: string) => void;
 }
 
+/** Session.request で送れる要求（ツリーと git）。 */
+export type TreeMethod = "tree.list" | "tree.watch" | "git.status";
+
 /** 1, 2, 4, 8, 16, 30 秒…（最後の値を繰り返す）。10 回で待ちは合わせて 151 秒ほど（ssh の接続待ちは別）。 */
 export const DEFAULT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
 /** 諦めるまでの試みの回数 */
@@ -115,6 +121,12 @@ export class Session {
     (w: HelloResult["workspaces"]) => void
   >();
   private readonly focusHandlers = new Set<(id: WorkspaceId | null) => void>();
+  private readonly treeHandlers = new Set<
+    (n: Notifications["tree.changed"]) => void
+  >();
+  private readonly gitHandlers = new Set<
+    (n: Notifications["git.changed"]) => void
+  >();
 
   constructor(api: ShellApi, target: string, opts: SessionOptions = {}) {
     this.api = api;
@@ -173,6 +185,30 @@ export class Session {
     if (gen !== this.generation || this.conn !== conn) return;
     this.setFocus(id);
     void this.fetchScreen(conn, gen);
+  }
+
+  /**
+   * ツリーと git の要求を今の接続で送る（D2）。つながっていないときは投げる。
+   * つなぎ直したら、呼ぶ側が取り直す（onState の connected で知る）。
+   */
+  async request<M extends TreeMethod>(
+    method: M,
+    params: Requests[M]["params"],
+  ): Promise<Requests[M]["result"]> {
+    const conn = this.conn;
+    if (!conn) throw new Error(`${this.target} につながっていません`);
+    return conn.client.request(method, params);
+  }
+
+  /** tree.changed（開いているフォルダの中身が変わった）。つなぎ直しても外れない。 */
+  onTreeChanged(h: (n: Notifications["tree.changed"]) => void): () => void {
+    this.treeHandlers.add(h);
+    return () => this.treeHandlers.delete(h);
+  }
+  /** git.changed（git の印が変わった）。つなぎ直しても外れない。 */
+  onGitChanged(h: (n: Notifications["git.changed"]) => void): () => void {
+    this.gitHandlers.add(h);
+    return () => this.gitHandlers.delete(h);
   }
 
   /** 全部の画面を取り直したとき（つなぎ直し、版の食い違い）。 */
@@ -374,6 +410,14 @@ export class Session {
         this.emitWorkspaces();
         if (this._focus !== null && c.removed?.includes(this._focus))
           this.setFocus(null);
+      }),
+      conn.client.on("tree.changed", (n) => {
+        if (gen !== this.generation || this.conn !== conn) return;
+        for (const h of [...this.treeHandlers]) h(n);
+      }),
+      conn.client.on("git.changed", (n) => {
+        if (gen !== this.generation || this.conn !== conn) return;
+        for (const h of [...this.gitHandlers]) h(n);
       }),
       startPing(
         conn.client,
