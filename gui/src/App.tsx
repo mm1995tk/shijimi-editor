@@ -11,6 +11,8 @@
 // OS のクリップボードに入れる（E2）。
 // 帯を押してフォーカスを移すと、右下のターミナルもそのワークスペースのシェルに切り替える（F2）。
 // Ctrl+Shift+` でファイルの欄とターミナルのカードを入れ替える（IDE モードとターミナルモード。F3。mode.ts）。
+// ターミナルモードでは、マシンのターミナルを数に応じて自動で並べる。Ctrl+Shift+T で増やし、`exit` で閉じて
+// 並び直し、Ctrl+Shift+矢印で隣へ移る（F4。terminal/group.ts・terminal/grid.ts）。
 import {
   createEffect,
   createMemo,
@@ -53,8 +55,9 @@ import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
 import { rows as treeRows } from "./tree/model.ts";
 import { WorkspaceTrees } from "./tree/trees.ts";
-import { TermLink } from "./terminal/link.ts";
-import { TerminalView } from "./terminal/TerminalView.tsx";
+import { directionKey, isNewTermKey } from "./terminal/grid.ts";
+import { TermGroup } from "./terminal/group.ts";
+import { TerminalGrid } from "./terminal/TerminalGrid.tsx";
 import { isModeKey, otherMode, swapWithMotion, type Mode } from "./mode.ts";
 
 /** 一覧に出す 1 行の状態。 */
@@ -129,17 +132,27 @@ export function App(props: {
   const [focusError, setFocusError] = createSignal("");
   let focusSeq = 0;
   const offStates = new Map<string, () => void>();
-  // マシンごとのターミナル（F1）。右下には、フォーカスしているマシン（無ければ最初につながったマシン）の
-  // ものを 1 つ出す。ワークスペースはシェルの cwd から決まるので、フォーカスが無くても出す
-  const termLinks = new Map<string, TermLink>();
+  // マシンごとのターミナル（F1・F4）。フォーカスしているマシン（無ければ最初につながったマシン）のものを出す。
+  // ワークスペースはシェルの cwd から決まるので、フォーカスが無くても出す。並びが変わったら termVersion を進める
+  const termGroups = new Map<string, TermGroup>();
+  const [termVersion, setTermVersion] = createSignal(0);
   const termTarget = createMemo(
     () =>
       focus()?.target ??
       [LOCAL, ...hosts()].find((t) => states()[t]?.kind === "connected"),
   );
-  const termLink = createMemo(() => {
+  const termGroup = createMemo(() => {
     const t = termTarget();
-    return t !== undefined && sessions()[t] ? termLinks.get(t) : undefined;
+    return t !== undefined && sessions()[t] ? termGroups.get(t) : undefined;
+  });
+  // 出すマシンが変わったら、前のマシンのものを外し、出すマシンのシェルを拾う
+  createEffect<TermGroup | undefined>((prev) => {
+    const g = termGroup();
+    if (g !== prev) {
+      prev?.hide();
+      g?.show();
+    }
+    return g;
   });
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
@@ -166,10 +179,26 @@ export function App(props: {
   const offs: (() => void)[] = [];
   // GUI が受けるキーなので、欄やターミナルに届く前（capture）に取って、shj にもシェルにも送らない
   const onModeKey = (e: KeyboardEvent) => {
-    if (!isModeKey(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    if (!e.repeat) toggleMode();
+    if (isModeKey(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) toggleMode();
+      return;
+    }
+    if (isNewTermKey(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) newTerminal();
+      return;
+    }
+    // 隣へ移るのは、ターミナルを並べていて、キーがターミナルに向いているときだけ（ファイルの欄の Ctrl+Shift+矢印は shj に送る）
+    const dir = directionKey(e);
+    const card = mainEl?.querySelector(":scope > .terminal");
+    if (dir && mode() === "terminal" && card?.contains(e.target as Node)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (termGroup()?.move(dir)) focusTerminal();
+    }
   };
   window.addEventListener("keydown", onModeKey, true);
   onCleanup(() => {
@@ -219,12 +248,16 @@ export function App(props: {
       onError: (m) => console.warn(`[${target}] ${m}`),
     });
     trees.set(target, tr);
-    const link = new TermLink(s, (m) => console.warn(`[${target}] ${m}`));
-    termLinks.set(target, link);
-    const offTerm = s.onTerm((e) => link.handle(e));
+    const group = new TermGroup(
+      s,
+      () => setTermVersion((v) => v + 1),
+      (m) => console.warn(`[${target}] ${m}`),
+    );
+    termGroups.set(target, group);
+    const offTerm = s.onTerm((e) => group.handle(e));
     const off = s.onState((st) => {
       // つなぎ直したら、ターミナルの溜めた出力を続きから取り直す（右下に出す前なら何もしない）
-      if (st.kind === "connected") link.reconnected();
+      if (st.kind === "connected") group.reconnected();
       setStates((m) => ({ ...m, [target]: st }));
       // つなぎ直したら、今のワークスペースのツリーと git の印を取り直す
       if (st.kind === "connected") tr.reconnected();
@@ -273,7 +306,7 @@ export function App(props: {
     offStates.get(target)?.(); // close() の closed を一覧に書き戻させない
     offStates.delete(target);
     trees.delete(target);
-    termLinks.delete(target); // シェルは止めない（次につないだら term.list で見つけてつなぐ）
+    termGroups.delete(target); // シェルは止めない（次につないだら term.list で見つけてつなぐ）
     setSessions(({ [target]: _, ...rest }) => rest);
     setStates(({ [target]: _, ...rest }) => rest);
     setWorkspaces(({ [target]: _, ...rest }) => rest);
@@ -306,7 +339,7 @@ export function App(props: {
       if (seq !== focusSeq) return;
       // 右下のターミナルも、そのワークスペースで最後に使ったシェルにする（無ければルートで作る）（F2）
       const root = workspaces()[target]?.find((w) => w.id === id)?.root;
-      if (root !== undefined) termLinks.get(target)?.switchTo(termId, root);
+      if (root !== undefined) termGroups.get(target)?.switchTo(termId, root);
       setFocus({ target, id });
     } catch (e) {
       if (seq !== focusSeq) return;
@@ -371,12 +404,36 @@ export function App(props: {
     const files = mainEl?.querySelector<HTMLElement>(":scope > .files");
     const term = mainEl?.querySelector<HTMLElement>(":scope > .terminal");
     swapWithMotion([files, term], () => setMode(next));
-    // ファイルの欄は入力用の textarea、ターミナルは xterm.js の textarea がキーを受ける
-    const input =
-      next === "terminal"
-        ? term?.querySelector<HTMLElement>("textarea")
-        : files?.querySelector<HTMLElement>(".files-ime");
-    input?.focus({ preventScroll: true });
+    // ファイルの欄は入力用の textarea、ターミナルは今使っている欄の xterm.js の textarea がキーを受ける
+    if (next === "terminal") focusTerminal();
+    else
+      files
+        ?.querySelector<HTMLElement>(".files-ime")
+        ?.focus({ preventScroll: true });
+  }
+
+  /** 今使っているターミナルの欄にキーを向ける。 */
+  function focusTerminal() {
+    // 足した欄の xterm.js が開くのを待つ
+    queueMicrotask(() =>
+      mainEl
+        ?.querySelector<HTMLElement>(
+          ":scope > .terminal .terminal-cell[data-active] textarea",
+        )
+        ?.focus({ preventScroll: true }),
+    );
+  }
+
+  /** 新しいターミナルを作って並べ、キーを向ける（Ctrl+Shift+T。F4）。フォーカスしているワークスペースのルートで開く。 */
+  function newTerminal() {
+    const g = termGroup();
+    if (!g) return;
+    const f = focus();
+    const root = f
+      ? workspaces()[f.target]?.find((w) => w.id === f.id)?.root
+      : undefined;
+    // 無ければ shj に任せる（フォーカスしているワークスペースのルート、それも無ければ ~）
+    if (g.add(root)) focusTerminal();
   }
 
   function reply(requestId: number, value: string | null) {
@@ -482,7 +539,13 @@ export function App(props: {
             </For>
           </ul>
         </section>
-        <TerminalView link={termLink()} />
+        <TerminalGrid
+          links={(termVersion(), termGroup()?.list ?? [])}
+          active={(termVersion(), termGroup()?.active)}
+          showAll={mode() === "terminal"}
+          accent={colors()[termTarget() ?? ""]}
+          onActivate={(i) => termGroup()?.setActive(i)}
+        />
       </div>
       <AskpassDialog ask={asks()[0]} onReply={reply} />
     </main>
