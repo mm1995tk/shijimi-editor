@@ -8,6 +8,7 @@ export interface KeyValueStore {
   setItem(key: string, value: string): void;
 }
 
+/** localStorage のキー。値はつなぎ先の JSON 配列。 */
 export const LAST_KEY = "shijimi-editor.lastTargets";
 
 /** 記録を読む。無い・壊れている・読めないときは空。 */
@@ -33,18 +34,9 @@ export function recordWorkspaces(
   workspaceCount: number,
 ): void {
   const cur = loadLastTargets(store);
-  const has = cur.includes(target);
-  const next =
-    workspaceCount > 0
-      ? has
-        ? cur
-        : [...cur, target]
-      : cur.filter((t) => t !== target);
-  if (
-    next === cur ||
-    (next.length === cur.length && has === workspaceCount > 0)
-  )
-    return;
+  const wanted = workspaceCount > 0;
+  if (cur.includes(target) === wanted) return;
+  const next = wanted ? [...cur, target] : cur.filter((t) => t !== target);
   try {
     store?.setItem(LAST_KEY, JSON.stringify(next));
   } catch {
