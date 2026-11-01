@@ -1,7 +1,7 @@
 // マシンごとの色（D4）。見出しと帯の左端の線、帯のアイコン、フォーカス中の帯の地に使う。
 //
-// 決め方：初めて一覧に出たマシンに、色の候補のうち使っている数がいちばん少ないもの（同じなら候補の順で先）を
-// 割り当てる。ホスト名から計算すると、マシンが 2〜3 台でも同じ色になることがあり見分けられないため。
+// 決め方：初めて一覧に出たマシンに、いま一覧に出ているマシンが使っていない候補のうち、
+// 記録全体で使っている数がいちばん少ないもの（同じなら候補の順で先）を割り当てる。ホスト名から計算すると、マシンが 2〜3 台でも同じ色になることがあり見分けられないため。
 // 割り当ては webview の localStorage に残し、再起動しても同じ色にする（消えたら割り当て直すだけ）。
 // 記録の形は、つなぎ先（ssh のホスト名か LOCAL）→ 候補の番号の JSON オブジェクト。
 
@@ -46,12 +46,20 @@ export function loadMachineColors(
   }
 }
 
-/** 使っている数がいちばん少ない候補（同じなら番号の小さいほう）。 */
-function leastUsed(assigned: Record<string, number>): number {
+/**
+ * 新しいマシンに割り当てる候補。いま一覧に出ているマシンが使っていない候補（active に無いもの）のうち、
+ * 記録全体で使っている数がいちばん少ないもの（同じなら番号の小さいほう）。
+ * 記録は消さないので、全体の数だけで選ぶと、これまでに候補の数より多くつないだあとに、
+ * いま並んでいるマシンと同じ色になってしまう。どの候補も active にあれば、全体の数だけで選ぶ。
+ */
+function pick(assigned: Record<string, number>, active: Set<number>): number {
   const count = MACHINE_COLORS.map(() => 0);
   for (const n of Object.values(assigned)) count[n]++;
-  let best = 0;
-  for (let i = 1; i < count.length; i++) if (count[i] < count[best]) best = i;
+  const all = MACHINE_COLORS.map((_, i) => i);
+  const free = all.filter((i) => !active.has(i));
+  const cands = free.length > 0 ? free : all;
+  let best = cands[0];
+  for (const i of cands) if (count[i] < count[best]) best = i;
   return best;
 }
 
@@ -64,10 +72,15 @@ export function machineColors(
   targets: string[],
 ): Record<string, string> {
   const assigned = loadMachineColors(store);
+  // targets のうち、もう色があるものの色（新しいマシンはこれと重ならないようにする）
+  const active = new Set(
+    targets.flatMap((t) => (assigned[t] !== undefined ? [assigned[t]] : [])),
+  );
   let changed = false;
   for (const t of targets) {
     if (assigned[t] !== undefined) continue;
-    assigned[t] = leastUsed(assigned);
+    assigned[t] = pick(assigned, active);
+    active.add(assigned[t]);
     changed = true;
   }
   if (changed) {

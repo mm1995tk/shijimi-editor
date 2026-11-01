@@ -28,11 +28,6 @@
   font-size: 13px;
 }
 
-.machine {
-  /* style で入れていないときの色（colors.ts の候補の最初） */
-  --machine-color: #8fb4ff;
-}
-
 /* マシンの区切り。下に固定する要素（.sidebar-after）の中の最初のマシンも、上のものと区切る。
    ただし、フォーカスしているマシンの残りの帯（.machine-rest）は同じマシンなので区切らない */
 .machine + .machine,

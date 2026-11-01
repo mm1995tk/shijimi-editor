@@ -63,6 +63,27 @@ test("候補を使い切ったら、使っている数がいちばん少ない�
   assert.equal(machineColors(s, ["new"]).new, MACHINE_COLORS[1]);
 });
 
+test("記録に候補の数だけマシンがあっても、いま並んでいるマシンとは重ならない", () => {
+  const init: Record<string, number> = {};
+  MACHINE_COLORS.forEach((_, i) => (init[`h${i}`] = i));
+  const s = mem(JSON.stringify(init));
+  const c = machineColors(s, ["h0", "new"]);
+  assert.equal(c.h0, MACHINE_COLORS[0]);
+  assert.equal(c.new, MACHINE_COLORS[1]);
+  // h1 も並べると、使っている数が同じなら番号の小さいほうから、h0・h1 の色を避ける
+  const s2 = mem(JSON.stringify({ ...init, extra: 2 }));
+  assert.equal(machineColors(s2, ["h1", "h0", "new"]).new, MACHINE_COLORS[3]);
+});
+
+test("いま並んでいるマシンが候補を全部使っていたら、記録全体でいちばん少ないもの", () => {
+  const init: Record<string, number> = {};
+  MACHINE_COLORS.forEach((_, i) => (init[`m${i}`] = i));
+  init.extra = 0;
+  const s = mem(JSON.stringify(init));
+  const targets = [...Object.keys(init), "new"];
+  assert.equal(machineColors(s, targets).new, MACHINE_COLORS[1]);
+});
+
 test("割り当てが変わらなければ書かない。保存できなくても色は返す", () => {
   let writes = 0;
   const s = mem(JSON.stringify({ a: 2 }));
