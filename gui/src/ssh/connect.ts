@@ -54,6 +54,8 @@ export async function connectShj(
   target: string,
   opts: {
     id?: string;
+    /** つなぎ直し。同じ serverId なら shj の状態が残っている（設計書 3 章） */
+    resume?: { serverId: string; rev: number };
     onDiscard?: (reason: string, line: string) => void;
   } = {},
 ): Promise<Connection> {
@@ -91,6 +93,7 @@ export async function connectShj(
       protocol: { major: 1, minor: 0 },
       client: { name: GUI_NAME, version: GUI_VERSION, kind: "web" },
       encoding: ["json"],
+      ...(opts.resume ? { resume: opts.resume } : {}),
     });
     return {
       id,

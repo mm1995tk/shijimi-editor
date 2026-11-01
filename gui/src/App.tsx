@@ -1,59 +1,74 @@
-// 接続の画面（C3）。つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで shj につなぎ、
-// ssh の質問（パスワードなど）を窓に出す。編集の画面は D 以降で作る。
-import { createSignal, For, onCleanup, onMount, type JSX } from "solid-js";
+// 接続の画面（C3, C4）。つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで shj につなぎ、
+// ssh の質問（パスワードなど）を窓に出す。切れたら Session が自動でつなぎ直し、
+// つなぐ先の一覧に接続の状態を出す。編集の画面は D 以降で作る。
+import {
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+  type JSX,
+} from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
 import { LOCAL, type AskpassRequest, type ShellApi } from "./ssh/api.ts";
-import { connectShj, type Connection } from "./ssh/connect.ts";
+import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
-
-type State =
-  | { kind: "idle" }
-  | { kind: "connecting"; target: string }
-  | { kind: "connected"; target: string; conn: Connection }
-  | { kind: "failed"; target: string; message: string };
 
 const label = (t: string) => (t === LOCAL ? "このマシン" : t);
 
-function ConnectionStatus(props: { state: State }): JSX.Element {
-  return (
-    <>
-      {(() => {
-        const s = props.state;
-        switch (s.kind) {
-          case "connecting":
-            return <p role="status">{label(s.target)} につないでいます…</p>;
-          case "connected":
-            return (
-              <p role="status">
-                {label(s.target)} につながりました（shj{" "}
-                {s.conn.hello.shj.version}）
-              </p>
-            );
-          case "failed":
-            return (
-              <pre role="alert">
-                {label(s.target)} につなげませんでした{"\n"}
-                {s.message}
-              </pre>
-            );
-          default:
-            return null;
-        }
-      })()}
-    </>
-  );
+/** 一覧に出す 1 行の状態。 */
+export function describeState(
+  s: SessionState | undefined,
+  now: number = Date.now(),
+): string {
+  if (!s) return "";
+  switch (s.kind) {
+    case "connecting":
+      if (s.retryAt !== undefined) {
+        const sec = Math.max(0, Math.ceil((s.retryAt - now) / 1000));
+        return `つなげませんでした。${sec} 秒後にもう一度（${s.attempt}/${s.max} 回目）`;
+      }
+      return s.attempt > 1
+        ? `つないでいます…（${s.attempt}/${s.max} 回目）`
+        : "つないでいます…";
+    case "connected":
+      return `つながっています（shj ${s.hello.shj.version}）`;
+    case "reconnecting": {
+      const n = `${s.attempt}/${s.max} 回目`;
+      if (s.retryAt !== undefined) {
+        const sec = Math.max(0, Math.ceil((s.retryAt - now) / 1000));
+        return `切れました。${sec} 秒後につなぎ直します（${n}）`;
+      }
+      return `切れました。つなぎ直しています…（${n}）`;
+    }
+    case "failed":
+      return "つながりません";
+    case "superseded":
+      return "別の GUI に移りました";
+    case "closed":
+      return "";
+  }
 }
 
 export function App(props: { api?: ShellApi }): JSX.Element {
   const api = props.api ?? tauriShell;
   const [hosts, setHosts] = createSignal<string[]>([]);
-  const [state, setState] = createSignal<State>({ kind: "idle" });
+  const [sessions, setSessions] = createSignal<Record<string, Session>>({});
+  const [states, setStates] = createSignal<Record<string, SessionState>>({});
+  const offStates = new Map<string, () => void>();
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
+  // 「あと何秒」を動かす
+  const [now, setNow] = createSignal(Date.now());
+  const tick = setInterval(() => setNow(Date.now()), 1000);
 
   // await の後は Owner が無いので、onCleanup は先に登録する
   const offs: (() => void)[] = [];
-  onCleanup(() => offs.forEach((f) => f()));
+  onCleanup(() => {
+    clearInterval(tick);
+    offs.forEach((f) => f());
+    for (const s of Object.values(sessions())) void s.close();
+  });
   onMount(async () => {
     setHosts(await api.listSshHosts().catch(() => []));
     offs.push(
@@ -64,25 +79,31 @@ export function App(props: { api?: ShellApi }): JSX.Element {
     );
   });
 
-  async function connect(target: string) {
-    const prev = state();
-    if (prev.kind === "connected") void prev.conn.close(); // 前の ssh / attach を残さない
-    setState({ kind: "connecting", target });
-    try {
-      const conn = await connectShj(api, target);
-      conn.client.onClose(() =>
-        setState((s) =>
-          s.kind === "connected" && s.conn === conn ? { kind: "idle" } : s,
-        ),
-      );
-      setState({ kind: "connected", target, conn });
-    } catch (e) {
-      setState({
-        kind: "failed",
-        target,
-        message: e instanceof Error ? e.message : String(e),
-      });
+  function connect(target: string) {
+    const old = sessions()[target];
+    if (old) {
+      if (old.state.kind === "failed" || old.state.kind === "superseded") {
+        old.retry();
+        return;
+      }
+      return; // つないでいる最中、またはつながっている
     }
+    const s = new Session(api, target);
+    const off = s.onState((st) => setStates((m) => ({ ...m, [target]: st })));
+    offStates.set(target, off);
+    setSessions((m) => ({ ...m, [target]: s }));
+    setStates((m) => ({ ...m, [target]: s.state }));
+    s.start();
+  }
+
+  async function disconnect(target: string) {
+    const s = sessions()[target];
+    if (!s) return;
+    offStates.get(target)?.(); // close() の closed を一覧に書き戻させない
+    offStates.delete(target);
+    setSessions(({ [target]: _, ...rest }) => rest);
+    setStates(({ [target]: _, ...rest }) => rest);
+    await s.close();
   }
 
   function reply(requestId: number, value: string | null) {
@@ -95,19 +116,51 @@ export function App(props: { api?: ShellApi }): JSX.Element {
       <h1>つなぐ先</h1>
       <ul>
         <For each={[LOCAL, ...hosts()]}>
-          {(t) => (
-            <li>
-              <button
-                disabled={state().kind === "connecting"}
-                onClick={() => void connect(t)}
-              >
-                {label(t)}
-              </button>
-            </li>
-          )}
+          {(t) => {
+            const st = () => states()[t];
+            const kind = () => st()?.kind;
+            return (
+              <li data-state={kind() ?? "idle"}>
+                <button
+                  disabled={
+                    kind() === "connecting" ||
+                    kind() === "connected" ||
+                    kind() === "reconnecting"
+                  }
+                  onClick={() => connect(t)}
+                >
+                  {label(t)}
+                </button>{" "}
+                <span role="status">{describeState(st(), now())}</span>
+                <Show
+                  when={
+                    (kind() === "reconnecting" || kind() === "connecting") &&
+                    (st() as { retryAt?: number }).retryAt !== undefined
+                  }
+                >
+                  {" "}
+                  <button onClick={() => sessions()[t]?.retryNow()}>
+                    今すぐつなぐ
+                  </button>
+                </Show>
+                <Show when={kind() === "failed" || kind() === "superseded"}>
+                  {" "}
+                  <button onClick={() => connect(t)}>つなぎ直す</button>
+                </Show>
+                <Show when={st() && kind() !== "closed"}>
+                  {" "}
+                  <button onClick={() => void disconnect(t)}>切る</button>
+                </Show>
+                <Show when={st()?.kind === "failed"}>
+                  <pre role="alert">
+                    {(st() as { message: string }).message}
+                  </pre>
+                </Show>
+              </li>
+            );
+          }}
         </For>
       </ul>
-      <ConnectionStatus state={state()} />
       <AskpassDialog ask={asks()[0]} onReply={reply} />
     </main>
   );
