@@ -49,23 +49,23 @@ func (a *App) toggleAgentPanel() tea.Cmd {
 		a.showAgent = false
 		a.follow = true
 		if len(a.tabs) > 0 {
-			return a.setFocus(focusEditor)
+			return a.effectCmd(a.setFocus(focusEditor)...)
 		}
 		a.showSide = true
-		return a.setFocus(focusExplorer)
+		return a.effectCmd(a.setFocus(focusExplorer)...)
 	}
 	a.showAgent = true
 	a.follow = true
-	return a.setFocus(focusAgent)
+	return a.effectCmd(a.setFocus(focusAgent)...)
 }
 
 // leaveAgentPanel returns to the editor, keeping the panel open.
 func (a *App) leaveAgentPanel() tea.Cmd {
 	if len(a.tabs) > 0 {
-		return a.setFocus(focusEditor)
+		return a.effectCmd(a.setFocus(focusEditor)...)
 	}
 	a.showSide = true
-	return a.setFocus(focusExplorer)
+	return a.effectCmd(a.setFocus(focusExplorer)...)
 }
 
 func (a *App) handleAgentKey(msg Key) tea.Cmd {
@@ -92,7 +92,7 @@ func (a *App) handleAgentKey(msg Key) tea.Cmd {
 	case "G", "end":
 		a.ag.scroll = 0
 	case ":":
-		return a.openCmdline(":")
+		return a.effectCmd(a.openCmdline(":")...)
 	case "esc", "tab":
 		return a.leaveAgentPanel()
 	case "alt+i":
@@ -481,5 +481,5 @@ func (a *App) agentMouse(l layout, msg Mouse) (tea.Cmd, bool) {
 		p, _, _ := a.logPos(l, msg)
 		a.ag.sel = agentSel{dragging: true, a: p, b: p}
 	}
-	return a.setFocus(focusAgent), true
+	return a.effectCmd(a.setFocus(focusAgent)...), true
 }

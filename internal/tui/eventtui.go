@@ -10,9 +10,10 @@ import (
 )
 
 // cmdEffect carries a tea.Cmd through the Effect list. It is the bridge for work
-// that has not moved to an Effect yet (saving, the
-// LSP request behind a hover, the CHANGES list, placing an AI review). P7a to
-// P7e are done; what is left goes away as P13 moves the rest into the core.
+// that has not moved to an Effect yet (the LSP requests behind a hover or a
+// rename, the CHANGES list, the diff and review screens, the terminal). The App,
+// the commands, saving and the tabs already return Effects; what is left goes
+// away as P13-04 moves the rest into the core.
 type cmdEffect struct{ cmd tea.Cmd }
 
 func (cmdEffect) isEffect() {}
@@ -105,7 +106,7 @@ func (a *App) handleEvent(ev Event) []Effect {
 		return nil
 	case lspEventMsg:
 		// Ask for the next one first, so none waits while this is handled.
-		return append([]Effect{WaitLSP{a.lsp.events}}, cmdEffects(a.handleLSPEvent(lsp.Event(ev)))...)
+		return append([]Effect{WaitLSP{a.lsp.events}}, a.handleLSPEvent(lsp.Event(ev))...)
 	}
 	if effs, ok := a.handleAgentEvent(ev); ok {
 		return effs

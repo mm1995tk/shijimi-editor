@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
@@ -198,3 +199,7 @@ type RunProbe struct{ Run func() Event }
 
 func (RepoProbed) isEvent() {}
 func (RunProbe) isEffect()  {}
+
+// batch joins Effect lists into one. It is the counterpart of tea.Batch for
+// code that returns Effects.
+func batch(lists ...[]Effect) []Effect { return slices.Concat(lists...) }

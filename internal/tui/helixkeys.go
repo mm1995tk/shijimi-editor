@@ -8,8 +8,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -33,7 +31,7 @@ func (c *helixCtx) repeat(f func()) {
 // when there are several.
 type helixCmd struct {
 	multi bool
-	run   func(a *App, c *helixCtx) tea.Cmd
+	run   func(a *App, c *helixCtx) []Effect
 }
 
 // helixCommands maps a Helix command name ("move_char_left") to its action.
@@ -57,7 +55,7 @@ func helixCommandNames() []string {
 
 func init() {
 	// def registers a command and the keys it has by default.
-	def := func(name string, multi bool, run func(a *App, c *helixCtx) tea.Cmd, keys ...string) {
+	def := func(name string, multi bool, run func(a *App, c *helixCtx) []Effect, keys ...string) {
 		helixCommands[name] = helixCmd{multi: multi, run: run}
 		for _, k := range keys {
 			helixDefaultKeys[k] = name
@@ -72,8 +70,8 @@ func init() {
 			if i == 0 {
 				k = keys
 			}
-			def("move_"+n, true, func(a *App, c *helixCtx) tea.Cmd { f(a, c, c.ext); return nil }, k...)
-			def("extend_"+n, true, func(a *App, c *helixCtx) tea.Cmd { f(a, c, true); return nil })
+			def("move_"+n, true, func(a *App, c *helixCtx) []Effect { f(a, c, c.ext); return nil }, k...)
+			def("extend_"+n, true, func(a *App, c *helixCtx) []Effect { f(a, c, true); return nil })
 		}
 	}
 	dir := func(d buffer.Move) func(a *App, c *helixCtx, ext bool) {
@@ -98,17 +96,17 @@ func init() {
 	}
 	move([]string{"next_word_end"}, wordEnd, "e")
 	move([]string{"next_long_word_end"}, wordEnd, "E")
-	def("goto_line_start", true, func(a *App, c *helixCtx) tea.Cmd { c.b.MoveCursor(buffer.Home, c.ext); return nil }, "home")
-	def("goto_line_end", true, func(a *App, c *helixCtx) tea.Cmd { c.b.MoveCursor(buffer.End, c.ext); return nil }, "end")
-	def("extend_to_line_start", true, func(a *App, c *helixCtx) tea.Cmd { c.b.MoveCursor(buffer.Home, true); return nil })
-	def("extend_to_line_end", true, func(a *App, c *helixCtx) tea.Cmd { c.b.MoveCursor(buffer.End, true); return nil })
+	def("goto_line_start", true, func(a *App, c *helixCtx) []Effect { c.b.MoveCursor(buffer.Home, c.ext); return nil }, "home")
+	def("goto_line_end", true, func(a *App, c *helixCtx) []Effect { c.b.MoveCursor(buffer.End, c.ext); return nil }, "end")
+	def("extend_to_line_start", true, func(a *App, c *helixCtx) []Effect { c.b.MoveCursor(buffer.Home, true); return nil })
+	def("extend_to_line_end", true, func(a *App, c *helixCtx) []Effect { c.b.MoveCursor(buffer.End, true); return nil })
 
-	def("page_up", false, func(a *App, c *helixCtx) tea.Cmd { c.b.MoveLines(-a.pageSize(), c.ext); return nil }, "pgup", "ctrl+b")
-	def("page_down", false, func(a *App, c *helixCtx) tea.Cmd { c.b.MoveLines(a.pageSize(), c.ext); return nil }, "pgdown", "ctrl+f")
-	def("jump_backward", false, func(a *App, c *helixCtx) tea.Cmd { return a.jumpMove(-1) }, "ctrl+o")
+	def("page_up", false, func(a *App, c *helixCtx) []Effect { c.b.MoveLines(-a.pageSize(), c.ext); return nil }, "pgup", "ctrl+b")
+	def("page_down", false, func(a *App, c *helixCtx) []Effect { c.b.MoveLines(a.pageSize(), c.ext); return nil }, "pgdown", "ctrl+f")
+	def("jump_backward", false, func(a *App, c *helixCtx) []Effect { return a.jumpMove(-1) }, "ctrl+o")
 	// Ctrl+I arrives as Tab unless the terminal tells them apart.
-	def("jump_forward", false, func(a *App, c *helixCtx) tea.Cmd { return a.jumpMove(1) }, "tab", "ctrl+i")
-	def("goto_last_line", false, func(a *App, c *helixCtx) tea.Cmd {
+	def("jump_forward", false, func(a *App, c *helixCtx) []Effect { return a.jumpMove(1) }, "tab", "ctrl+i")
+	def("goto_last_line", false, func(a *App, c *helixCtx) []Effect {
 		a.pushJump()
 		if c.hadCount {
 			c.b.GotoLine(c.count)
@@ -119,19 +117,19 @@ func init() {
 	}, "G")
 
 	// --- selection ---
-	selectLine := func(a *App, c *helixCtx) tea.Cmd { c.repeat(c.b.SelectLine); return nil }
+	selectLine := func(a *App, c *helixCtx) []Effect { c.repeat(c.b.SelectLine); return nil }
 	def("extend_line_below", true, selectLine, "x")
 	def("extend_to_line_bounds", true, selectLine, "X")
-	def("select_all", false, func(a *App, c *helixCtx) tea.Cmd { c.b.SelectAll(); return nil }, "%")
-	def("collapse_selection", true, func(a *App, c *helixCtx) tea.Cmd { c.b.ClearSelection(); return nil }, ";")
-	def("flip_selections", true, func(a *App, c *helixCtx) tea.Cmd {
+	def("select_all", false, func(a *App, c *helixCtx) []Effect { c.b.SelectAll(); return nil }, "%")
+	def("collapse_selection", true, func(a *App, c *helixCtx) []Effect { c.b.ClearSelection(); return nil }, ";")
+	def("flip_selections", true, func(a *App, c *helixCtx) []Effect {
 		if c.b.Anchor != nil {
 			p, q := *c.b.Anchor, c.b.Cur
 			c.b.Anchor, c.b.Cur = &q, p
 		}
 		return nil
 	}, "alt+;")
-	def("select_mode", false, func(a *App, c *helixCtx) tea.Cmd {
+	def("select_mode", false, func(a *App, c *helixCtx) []Effect {
 		if a.mode == modeSelect {
 			a.mode = modeNormal
 		} else {
@@ -139,17 +137,17 @@ func init() {
 		}
 		return nil
 	}, "v")
-	def("normal_mode", true, func(a *App, c *helixCtx) tea.Cmd {
+	def("normal_mode", true, func(a *App, c *helixCtx) []Effect {
 		a.mode = modeNormal
 		a.comp = nil
 		c.b.ClearSelection()
 		return nil
 	}, "esc")
-	def("no_op", false, func(a *App, c *helixCtx) tea.Cmd { return nil })
+	def("no_op", false, func(a *App, c *helixCtx) []Effect { return nil })
 
 	// --- editing ---
-	deleteSel := func(yank bool) func(a *App, c *helixCtx) tea.Cmd {
-		return func(a *App, c *helixCtx) tea.Cmd {
+	deleteSel := func(yank bool) func(a *App, c *helixCtx) []Effect {
+		return func(a *App, c *helixCtx) []Effect {
 			s, e, widened := c.b.LineDeleteRange()
 			text := c.b.DeleteRange(s, e)
 			if widened {
@@ -166,8 +164,8 @@ func init() {
 	}
 	def("delete_selection", true, deleteSel(true), "d")
 	def("delete_selection_noyank", true, deleteSel(false), "alt+d")
-	changeSel := func(yank bool) func(a *App, c *helixCtx) tea.Cmd {
-		return func(a *App, c *helixCtx) tea.Cmd {
+	changeSel := func(yank bool) func(a *App, c *helixCtx) []Effect {
+		return func(a *App, c *helixCtx) []Effect {
 			b := c.b
 			s, e := b.SelectionOrChar()
 			if _, _, ok := b.Selection(); ok {
@@ -183,31 +181,31 @@ func init() {
 	}
 	def("change_selection", true, changeSel(true), "c")
 	def("change_selection_noyank", true, changeSel(false), "alt+c")
-	def("yank", true, func(a *App, c *helixCtx) tea.Cmd {
+	def("yank", true, func(a *App, c *helixCtx) []Effect {
 		s, e := c.b.SelectionOrChar()
 		a.clipboard = c.b.TextRange(s, e)
 		a.info(i18n.T("helix.yanked"), len([]rune(a.clipboard)))
 		return nil
 	}, "y")
-	def("paste_after", true, func(a *App, c *helixCtx) tea.Cmd { a.paste(c.b, a.clipboard, true); return nil }, "p")
-	def("paste_before", true, func(a *App, c *helixCtx) tea.Cmd { a.paste(c.b, a.clipboard, false); return nil }, "P")
-	def("replace_with_yanked", true, func(a *App, c *helixCtx) tea.Cmd {
+	def("paste_after", true, func(a *App, c *helixCtx) []Effect { a.paste(c.b, a.clipboard, true); return nil }, "p")
+	def("paste_before", true, func(a *App, c *helixCtx) []Effect { a.paste(c.b, a.clipboard, false); return nil }, "P")
+	def("replace_with_yanked", true, func(a *App, c *helixCtx) []Effect {
 		if s, e, ok := c.b.Selection(); ok {
 			c.b.DeleteRange(s, e)
 			c.b.InsertBlock(a.clipboard)
 		}
 		return nil
 	}, "R")
-	def("undo", false, func(a *App, c *helixCtx) tea.Cmd { c.repeat(func() { c.b.Undo() }); return nil }, "u")
-	def("redo", false, func(a *App, c *helixCtx) tea.Cmd { c.repeat(func() { c.b.Redo() }); return nil }, "U")
-	def("insert_mode", true, func(a *App, c *helixCtx) tea.Cmd {
+	def("undo", false, func(a *App, c *helixCtx) []Effect { c.repeat(func() { c.b.Undo() }); return nil }, "u")
+	def("redo", false, func(a *App, c *helixCtx) []Effect { c.repeat(func() { c.b.Redo() }); return nil }, "U")
+	def("insert_mode", true, func(a *App, c *helixCtx) []Effect {
 		if s, _, ok := c.b.Selection(); ok {
 			c.b.Cur = s
 		}
 		c.b.ClearSelection()
 		return a.enterInsert()
 	}, "i")
-	def("append_mode", true, func(a *App, c *helixCtx) tea.Cmd {
+	def("append_mode", true, func(a *App, c *helixCtx) []Effect {
 		b := c.b
 		if _, e, ok := b.Selection(); ok {
 			b.Cur = e
@@ -217,27 +215,27 @@ func init() {
 		b.ClearSelection()
 		return a.enterInsert()
 	}, "a")
-	def("insert_at_line_start", true, func(a *App, c *helixCtx) tea.Cmd {
+	def("insert_at_line_start", true, func(a *App, c *helixCtx) []Effect {
 		c.b.ClearSelection()
 		c.b.Cur.Col = 0
 		c.b.MoveCursor(buffer.Home, false)
 		return a.enterInsert()
 	}, "I")
-	def("insert_at_line_end", true, func(a *App, c *helixCtx) tea.Cmd {
+	def("insert_at_line_end", true, func(a *App, c *helixCtx) []Effect {
 		c.b.ClearSelection()
 		c.b.MoveCursor(buffer.End, false)
 		return a.enterInsert()
 	}, "A")
-	def("open_below", true, func(a *App, c *helixCtx) tea.Cmd { c.b.OpenLine(true); return a.enterInsert() }, "o")
-	def("open_above", true, func(a *App, c *helixCtx) tea.Cmd { c.b.OpenLine(false); return a.enterInsert() }, "O")
-	def("repeat_last_insert", false, func(a *App, c *helixCtx) tea.Cmd { return a.repeatLastInsert(c.b, c.ext) }, ".")
-	def("indent", false, func(a *App, c *helixCtx) tea.Cmd { c.repeat(a.indentLines(c.b, true)); return nil }, ">")
-	def("unindent", false, func(a *App, c *helixCtx) tea.Cmd { c.repeat(a.indentLines(c.b, false)); return nil }, "<")
-	def("join_selections", false, func(a *App, c *helixCtx) tea.Cmd { c.b.JoinLines(); return nil }, "J")
-	def("switch_case", true, func(a *App, c *helixCtx) tea.Cmd { a.changeCase(c.b, "~"); return nil }, "~")
-	def("switch_to_lowercase", true, func(a *App, c *helixCtx) tea.Cmd { a.changeCase(c.b, "`"); return nil }, "`")
-	def("switch_to_uppercase", true, func(a *App, c *helixCtx) tea.Cmd { a.changeCase(c.b, "alt+`"); return nil }, "alt+`")
-	def("toggle_comments", false, func(a *App, c *helixCtx) tea.Cmd { a.toggleComment(); return nil }, "ctrl+c")
+	def("open_below", true, func(a *App, c *helixCtx) []Effect { c.b.OpenLine(true); return a.enterInsert() }, "o")
+	def("open_above", true, func(a *App, c *helixCtx) []Effect { c.b.OpenLine(false); return a.enterInsert() }, "O")
+	def("repeat_last_insert", false, func(a *App, c *helixCtx) []Effect { return a.repeatLastInsert(c.b, c.ext) }, ".")
+	def("indent", false, func(a *App, c *helixCtx) []Effect { c.repeat(a.indentLines(c.b, true)); return nil }, ">")
+	def("unindent", false, func(a *App, c *helixCtx) []Effect { c.repeat(a.indentLines(c.b, false)); return nil }, "<")
+	def("join_selections", false, func(a *App, c *helixCtx) []Effect { c.b.JoinLines(); return nil }, "J")
+	def("switch_case", true, func(a *App, c *helixCtx) []Effect { a.changeCase(c.b, "~"); return nil }, "~")
+	def("switch_to_lowercase", true, func(a *App, c *helixCtx) []Effect { a.changeCase(c.b, "`"); return nil }, "`")
+	def("switch_to_uppercase", true, func(a *App, c *helixCtx) []Effect { a.changeCase(c.b, "alt+`"); return nil }, "alt+`")
+	def("toggle_comments", false, func(a *App, c *helixCtx) []Effect { a.toggleComment(); return nil }, "ctrl+c")
 }
 
 // binding is what a key does: a named command or a ":" command line.
@@ -316,13 +314,13 @@ func (a *App) loadKeymap() {
 }
 
 // runBinding runs the command or ":" command a key is bound to.
-func (a *App) runBinding(bd binding, b *buffer.Buffer, ext bool, count int, hadCount bool) tea.Cmd {
+func (a *App) runBinding(bd binding, b *buffer.Buffer, ext bool, count int, hadCount bool) []Effect {
 	if bd.ex != "" {
 		return a.execCommand(bd.ex)
 	}
 	cmd := helixCommands[bd.name]
 	c := &helixCtx{b: b, ext: ext, count: count, hadCount: hadCount}
-	var out tea.Cmd
+	var out []Effect
 	if cmd.multi && b.HasExtra() {
 		b.ForEachCursor(func() { out = cmd.run(a, c) })
 	} else {
@@ -360,14 +358,14 @@ type insertStep struct {
 
 // repeatLastInsert replays the last insert: the command that entered insert
 // mode, the keys typed, and Esc. Nothing happens before the first insert.
-func (a *App) repeatLastInsert(b *buffer.Buffer, ext bool) tea.Cmd {
+func (a *App) repeatLastInsert(b *buffer.Buffer, ext bool) []Effect {
 	r := a.lastIns
 	if r == nil || a.replaying {
 		return nil
 	}
 	a.replaying = true
 	defer func() { a.replaying = false }()
-	cmds := []tea.Cmd{a.runBinding(r.bd, b, ext, r.count, r.hadCount)}
+	cmds := [][]Effect{a.runBinding(r.bd, b, ext, r.count, r.hadCount)}
 	for _, s := range r.steps {
 		if a.mode != modeInsert {
 			break
@@ -387,7 +385,7 @@ func (a *App) repeatLastInsert(b *buffer.Buffer, ext bool) tea.Cmd {
 	if a.mode == modeInsert {
 		cmds = append(cmds, a.handleInsertKey(Key{Code: KeyEscape}))
 	}
-	return tea.Batch(cmds...)
+	return batch(cmds...)
 }
 
 // normalizeHelixKey turns a Helix key name ("C-s", "A-x", "S-tab", "ret")

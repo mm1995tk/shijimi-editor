@@ -3,8 +3,6 @@ package tui
 import (
 	"time"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
@@ -38,7 +36,7 @@ func (h holdScroll) continues(msg Key) bool {
 
 // halfPage handles Ctrl+D (dir = 1) and Ctrl+U (dir = -1), and with Alt added
 // (Ctrl+Alt+D / Ctrl+Alt+U) the same scroll that leaves the cursor on its line.
-func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) tea.Cmd {
+func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) []Effect {
 	keep := msg.Mod.Has(ModAlt)
 	if !a.keyReleases { // one press, half a page
 		if keep {
@@ -54,7 +52,7 @@ func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) tea.Cmd {
 	}
 	a.hold = holdScroll{buf: b, dir: dir, ext: ext, code: msg.Code, keep: keep}
 	a.holdSeq++
-	return a.effectCmd(a.holdScrollTick(a.holdSeq)...)
+	return a.holdScrollTick(a.holdSeq)
 }
 
 // holdScrollTick moves the cursor and the view one line together, so the

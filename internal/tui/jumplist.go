@@ -3,8 +3,6 @@ package tui
 import (
 	"os"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
@@ -59,7 +57,7 @@ func (a *App) jumpable(l jumpLoc) bool {
 
 // jumpMove goes back (dir -1) or forward (dir +1) in the jump list, reopening
 // closed files and skipping entries whose file is gone.
-func (a *App) jumpMove(dir int) tea.Cmd {
+func (a *App) jumpMove(dir int) []Effect {
 	i := a.jumpIdx
 	if dir < 0 && i >= len(a.jumps) {
 		// Leaving the newest position: remember it so that "forward" returns.

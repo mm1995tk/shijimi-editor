@@ -315,19 +315,19 @@ func (a *App) rename() tea.Cmd {
 	for line := t.buf.Lines[s.Row]; e.Col < len(line) && isIdent(line[e.Col]); e.Col++ {
 	}
 	old := t.buf.TextRange(s, e)
-	return a.pal.ask(i18n.T("app.newname"), old, func(v string) tea.Cmd {
+	return a.effectCmd(a.pal.ask(i18n.T("app.newname"), old, func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
 		}
-		return a.lspRequest("renameProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
+		return cmdEffects(a.lspRequest("renameProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 			we, err := c.Rename(ctx, t.buf.Path, lspPos(t.buf, pos), v)
 			if err != nil {
 				return lspErrMsg{err}
 			}
 			return workspaceEditMsg{we}
-		})
-	})
+		}))
+	})...)
 }
 
 func (a *App) format(save bool) tea.Cmd {
@@ -428,16 +428,16 @@ func (a *App) showCodeActions(m codeActionsMsg) tea.Cmd {
 	for i, act := range actions {
 		items[i] = paletteItem{label: act.Title, detail: act.Kind}
 	}
-	return a.pal.pick(i18n.T("lspui.codeactions"), items, func(i int) tea.Cmd {
+	return a.effectCmd(a.pal.pick(i18n.T("lspui.codeactions"), items, func(i int) []Effect {
 		act := actions[i]
-		return a.lspReq(func(ctx context.Context) Event {
+		return cmdEffects(a.lspReq(func(ctx context.Context) Event {
 			r, err := m.client.ResolveCodeAction(ctx, act)
 			if err != nil {
 				return lspErrMsg{err}
 			}
 			return codeActionResolvedMsg{m.client, r}
-		})
-	})
+		}))
+	})...)
 }
 
 // runCodeAction applies the action's edit, then runs its command; the
@@ -491,7 +491,7 @@ func (a *App) showLocations(m locationsMsg) tea.Cmd {
 		p := lsp.Path(l.URI)
 		items[i] = paletteItem{label: fmt.Sprintf("%s:%d", a.rel(p), l.Range.Start.Line+1), detail: strings.TrimSpace(lineAt(a, p, l.Range.Start.Line))}
 	}
-	return a.pal.pick(m.title, items, func(i int) tea.Cmd { return jump(m.locs[i]) })
+	return a.effectCmd(a.pal.pick(m.title, items, func(i int) []Effect { return cmdEffects(jump(m.locs[i])) })...)
 }
 
 // lineAt returns line n of a file, from an open buffer when possible.
@@ -537,9 +537,9 @@ func (a *App) diagnosticPicker() tea.Cmd {
 	for i, e := range all {
 		items[i] = paletteItem{label: fmt.Sprintf("%s:%d %s", a.rel(e.path), e.d.Range.Start.Line+1, firstLine(e.d.Message)), detail: sevName[sevRank(e.d.Severity)]}
 	}
-	return a.pal.pick(i18n.T("ctx.diagnostics"), items, func(i int) tea.Cmd {
-		return a.showLocations(locationsMsg{i18n.T("ctx.diagnostics"), []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}})
-	})
+	return a.effectCmd(a.pal.pick(i18n.T("ctx.diagnostics"), items, func(i int) []Effect {
+		return cmdEffects(a.showLocations(locationsMsg{i18n.T("ctx.diagnostics"), []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}}))
+	})...)
 }
 
 // gotoDiagnostic jumps to the next (dir=1) or previous (dir=-1) diagnostic.
@@ -755,7 +755,7 @@ func (a *App) jumpTo(l lsp.Location) tea.Cmd {
 	p := bufPos(t.buf, l.Range.Start)
 	t.buf.SetCursor(p.Row, buffer.VisualCol(t.buf.Lines[p.Row], p.Col), false)
 	a.follow = true
-	return a.setFocus(focusEditor)
+	return a.effectCmd(a.setFocus(focusEditor)...)
 }
 
 // handleLSPReply takes the Events a language server's reply becomes. ok is
@@ -795,7 +795,7 @@ func (a *App) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 			msg.tab.buf.ApplyEdits(toEdits(msg.tab.buf, msg.edits))
 		}
 		if msg.save {
-			return cmdEffects(a.saveTab(msg.tab)), true
+			return a.saveTab(msg.tab), true
 		}
 		a.infoText(i18n.T("app.formatted"))
 	case lspErrMsg:

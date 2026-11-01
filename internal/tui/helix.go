@@ -6,8 +6,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -68,7 +66,7 @@ func fullPreviewEditorKey(msg Key) bool {
 }
 
 // handleHelixKey implements Helix-style modal editing for text tabs.
-func (a *App) handleHelixKey(msg Key) tea.Cmd {
+func (a *App) handleHelixKey(msg Key) []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -94,7 +92,7 @@ func (a *App) handleHelixKey(msg Key) tea.Cmd {
 		p := a.pending
 		a.pending = ""
 		if b.HasExtra() && (strings.Contains("ftFTr", p) || p == "g" && strings.Contains("hls", key) || p == "m i" || p == "m a") {
-			var cmd tea.Cmd
+			var cmd []Effect
 			b.ForEachCursor(func() { cmd = a.helixPending(p, key, msg) })
 			return cmd
 		}
@@ -155,7 +153,7 @@ func (a *App) handleHelixKey(msg Key) tea.Cmd {
 	return a.helixNormalKey(b, key, ext, count, hadCount)
 }
 
-func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, hadCount bool) tea.Cmd {
+func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, hadCount bool) []Effect {
 	switch key {
 	// --- movement ---
 	case "alt+pgup", "alt+pgdown": // scroll sideways; the cursor stays
@@ -200,20 +198,20 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 	case ":":
 		return a.openCmdline(":")
 	case "K":
-		return a.hover()
+		return cmdEffects(a.hover())
 	}
 	return nil
 }
 
 func (a *App) pageSize() int { return max(1, a.layout().editH-2) }
 
-func (a *App) enterInsert() tea.Cmd {
+func (a *App) enterInsert() []Effect {
 	a.recIns = nil
 	a.mode = modeInsert
 	return nil
 }
 
-func (a *App) helixPending(p, key string, msg Key) tea.Cmd {
+func (a *App) helixPending(p, key string, msg Key) []Effect {
 	t := a.cur()
 	b := t.buf
 	ext := a.mode == modeSelect
@@ -251,9 +249,9 @@ func (a *App) helixPending(p, key string, msg Key) tea.Cmd {
 			b.SetCursor(b.Cur.Row, 0, ext)
 			b.MoveCursor(buffer.Home, ext)
 		case "d":
-			return a.gotoDefinition()
+			return cmdEffects(a.gotoDefinition())
 		case "r":
-			return a.references()
+			return cmdEffects(a.references())
 		case "a":
 			a.switchLast()
 		case "t":
@@ -302,7 +300,7 @@ func (a *App) helixPending(p, key string, msg Key) tea.Cmd {
 	case " ":
 		return a.spaceMode(key)
 	case "space v":
-		return a.reviewKey(key)
+		return cmdEffects(a.reviewKey(key))
 	case "space w":
 		return a.windowKey(key)
 	}
@@ -310,7 +308,7 @@ func (a *App) helixPending(p, key string, msg Key) tea.Cmd {
 }
 
 // spaceMode handles "Space <key>" commands (Helix's space menu).
-func (a *App) spaceMode(key string) tea.Cmd {
+func (a *App) spaceMode(key string) []Effect {
 	if a.single {
 		switch key {
 		case "f", "b", "d", "D", "e", "E", "g", "G", "v", "w", "i", "?", "/", "t", "a", "s":
@@ -323,41 +321,41 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	case "b":
 		return a.bufferPicker()
 	case "k":
-		return a.hover()
+		return cmdEffects(a.hover())
 	case "o":
-		return a.openURL("")
+		return cmdEffects(a.openURL(""))
 	case "r":
-		return a.rename()
+		return cmdEffects(a.rename())
 	case ".":
-		return a.codeAction()
+		return cmdEffects(a.codeAction())
 	case "s":
-		return a.documentSymbols()
+		return cmdEffects(a.documentSymbols())
 	case "S":
-		return a.workspaceSymbols()
+		return cmdEffects(a.workspaceSymbols())
 	case "d", "D":
-		return a.diagnosticPicker()
+		return cmdEffects(a.diagnosticPicker())
 	case "e":
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	case "E":
 		if a.gd.on {
-			return a.focusChangesList()
+			return cmdEffects(a.focusChangesList())
 		}
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	case "m":
-		return a.togglePreview()
+		return cmdEffects(a.togglePreview())
 	case "g":
-		return a.openDiff(basePR)
+		return cmdEffects(a.openDiff(basePR))
 	case "G":
-		return a.openDiff(baseHead)
+		return cmdEffects(a.openDiff(baseHead))
 	case "v":
-		return a.openReviewMenu()
+		return cmdEffects(a.openReviewMenu())
 	case "w":
 		a.pending = "space w"
 		return nil
 	case "i":
-		return a.toggleAgentPanel()
+		return cmdEffects(a.toggleAgentPanel())
 	case "y":
 		if t := a.cur(); t != nil && t.kind == tabText {
 			s, e := t.buf.SelectionOrChar()
@@ -373,18 +371,18 @@ func (a *App) spaceMode(key string) tea.Cmd {
 	case "?":
 		return a.pal.show(a.root, ">")
 	case "/":
-		return a.openSearch(fQuery)
+		return cmdEffects(a.openSearch(fQuery))
 	case "c":
 		a.toggleComment()
 	case "t":
 		return a.toggleTerm()
 	case "a":
-		return a.sendContext()
+		return cmdEffects(a.sendContext())
 	}
 	return nil
 }
 
-func (a *App) handleInsertKey(msg Key) tea.Cmd {
+func (a *App) handleInsertKey(msg Key) []Effect {
 	cmd := a.insertKey(msg)
 	if a.recIns != nil && !a.replaying {
 		if a.mode == modeInsert {
@@ -396,7 +394,7 @@ func (a *App) handleInsertKey(msg Key) tea.Cmd {
 	return cmd
 }
 
-func (a *App) insertKey(msg Key) tea.Cmd {
+func (a *App) insertKey(msg Key) []Effect {
 	t := a.cur()
 	b := t.buf
 	if bd, ok := a.keymap.insert[msg.String()]; ok {
@@ -409,7 +407,7 @@ func (a *App) insertKey(msg Key) tea.Cmd {
 		b.ForEachCursor(b.ClearSelection)
 		return nil
 	case "ctrl+x", "ctrl+space":
-		return a.completion()
+		return cmdEffects(a.completion())
 	case "ctrl+w", "alt+backspace":
 		b.ForEachCursor(func() {
 			end := b.Cur
@@ -558,7 +556,7 @@ type errString string
 func (e errString) Error() string { return string(e) }
 
 // bufferPicker lists open tabs (Helix "Space b").
-func (a *App) bufferPicker() tea.Cmd {
+func (a *App) bufferPicker() []Effect {
 	items := make([]paletteItem, len(a.tabs))
 	for i, t := range a.tabs {
 		label := t.title()
@@ -567,7 +565,7 @@ func (a *App) bufferPicker() tea.Cmd {
 		}
 		items[i] = paletteItem{label: label, detail: a.rel(t.path())}
 	}
-	return a.pal.pick(i18n.T("helix.buffers"), items, func(i int) tea.Cmd {
+	return a.pal.pick(i18n.T("helix.buffers"), items, func(i int) []Effect {
 		a.pushJump()
 		a.showInPane(i)
 		return a.setFocus(focusEditor)

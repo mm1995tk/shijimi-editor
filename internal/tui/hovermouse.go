@@ -36,7 +36,7 @@ func (a *App) MouseHover() bool { return a.cfg.Editor.MouseHover }
 // left.
 func (a *App) passiveMotion(l layout, msg Mouse) tea.Cmd {
 	if cmd, ok := a.termMouse(l, msg); ok {
-		return cmd
+		return a.effectCmd(cmd...)
 	}
 	if th := a.markerAt(l, msg.X, msg.Y); th != nil && a.cfg.Editor.MouseHover && a.focus == focusEditor && !a.hoverBlocked() && a.resizing == resizeNone {
 		// resting on a comment marker shows its thread

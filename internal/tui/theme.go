@@ -292,11 +292,11 @@ func (a *App) themePicker() tea.Cmd {
 		}
 		items = append(items, paletteItem{label: n, detail: d})
 	}
-	return a.pal.pick(i18n.T("theme.title"), items, func(i int) tea.Cmd {
+	return a.effectCmd(a.pal.pick(i18n.T("theme.title"), items, func(i int) []Effect {
 		a.setTheme(items[i].label)
 		a.info(i18n.T("cmd.themeis"), curTheme.Name)
 		return nil
-	})
+	})...)
 }
 
 func themeOrDefault(name string) *Theme {

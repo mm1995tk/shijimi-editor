@@ -712,7 +712,7 @@ func (a *App) showPRList(m prListMsg) tea.Cmd {
 		}
 		items[i] = paletteItem{label: fmt.Sprintf("#%d %s%s", p.Number, p.Title, draft), detail: "@" + p.Author.Login + "  " + p.HeadRefName}
 	}
-	return a.pal.pick(i18n.T("gd.prs"), items, func(i int) tea.Cmd { return a.findPR(m.prs[i].Number) })
+	return a.effectCmd(a.pal.pick(i18n.T("gd.prs"), items, func(i int) []Effect { return cmdEffects(a.findPR(m.prs[i].Number)) })...)
 }
 
 func (a *App) toggleSplit() {
@@ -761,7 +761,7 @@ func (a *App) openChange(f *diff.File) tea.Cmd {
 		// a file already open keeps where the cursor was
 		a.showFirstChange(a.curText())
 	}
-	return a.setFocus(focusEditor)
+	return a.effectCmd(a.setFocus(focusEditor)...)
 }
 
 // showFirstChange puts the cursor on the first change of t, with a few rows
@@ -796,11 +796,11 @@ func (a *App) handleChangesKey(msg Key) tea.Cmd {
 	}
 	if a.pending == "space w" {
 		a.pending = ""
-		return a.windowKey(key)
+		return a.effectCmd(a.windowKey(key)...)
 	}
 	if a.pending == " " {
 		a.pending = ""
-		return a.spaceMode(key)
+		return a.effectCmd(a.spaceMode(key)...)
 	}
 	switch key {
 	case "up", "k":
@@ -843,14 +843,14 @@ func (a *App) handleChangesKey(msg Key) tea.Cmd {
 	case "space":
 		a.pending = " "
 	case ":":
-		return a.openCmdline(":")
+		return a.effectCmd(a.openCmdline(":")...)
 	case "tab":
-		return a.setFocus(focusExplorer)
+		return a.effectCmd(a.setFocus(focusExplorer)...)
 	case "esc", "q":
 		if len(a.tabs) > 0 {
-			return a.setFocus(focusEditor)
+			return a.effectCmd(a.setFocus(focusEditor)...)
 		}
-		return a.setFocus(focusExplorer)
+		return a.effectCmd(a.setFocus(focusExplorer)...)
 	}
 	return nil
 }
@@ -1810,7 +1810,7 @@ func (a *App) focusChangesList() tea.Cmd {
 		return a.toggleGitDiff()
 	}
 	a.showSide = true
-	return a.setFocus(focusChanges)
+	return a.effectCmd(a.setFocus(focusChanges)...)
 }
 
 // highlightText draws text with syntax colors on bg, w cells wide (lexSpans

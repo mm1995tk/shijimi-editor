@@ -56,9 +56,9 @@ func (a *App) showSymbols(m symbolsMsg) tea.Cmd {
 	for i, s := range m.syms {
 		items[i] = paletteItem{label: s.Name, detail: symbolDetail(s, "")}
 	}
-	return a.pal.pick(i18n.T("symui.title"), items, func(i int) tea.Cmd {
-		return a.jumpTo(lsp.Location{URI: m.syms[i].URI, Range: m.syms[i].Range})
-	})
+	return a.effectCmd(a.pal.pick(i18n.T("symui.title"), items, func(i int) []Effect {
+		return cmdEffects(a.jumpTo(lsp.Location{URI: m.syms[i].URI, Range: m.syms[i].Range}))
+	})...)
 }
 
 // symbolDetail is the dim text after a symbol's name: its kind, the symbol it
@@ -94,12 +94,12 @@ func (a *App) workspaceSymbols() tea.Cmd {
 	a.syncLSP()
 	a.wsSyms = nil
 	a.wsClient = c
-	return a.pal.pickLive(i18n.T("space.wsymbols"), func(i int) tea.Cmd {
+	return a.effectCmd(a.pal.pickLive(i18n.T("space.wsymbols"), func(i int) []Effect {
 		if i >= len(a.wsSyms) {
 			return nil
 		}
-		return a.jumpTo(lsp.Location{URI: a.wsSyms[i].URI, Range: a.wsSyms[i].Range})
-	})
+		return cmdEffects(a.jumpTo(lsp.Location{URI: a.wsSyms[i].URI, Range: a.wsSyms[i].Range}))
+	})...)
 }
 
 // runSymbolQuery asks the language server for the picker's current input,

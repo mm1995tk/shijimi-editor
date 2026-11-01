@@ -88,7 +88,7 @@ func (a *App) handleFormatterDone(msg formatterDoneMsg) tea.Cmd {
 		b.ApplyEdits([]buffer.Edit{edit})
 	}
 	if msg.save {
-		return a.saveTab(msg.tab)
+		return a.effectCmd(a.saveTab(msg.tab)...)
 	}
 	a.infoText(i18n.T("app.formatted"))
 	return nil
