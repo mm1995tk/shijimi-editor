@@ -11,6 +11,7 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -368,13 +369,13 @@ func fitSpans(spans []screen.Span, w int) []screen.Span {
 
 // renderMarkdown formats src into lines for a pane w columns wide. The lines
 // are not padded to w: the drawing side fills the rest with the editor
-// background. The structure of src is parseMarkdown's; the widths are here.
+// background. The structure of src is core.ParseMarkdown's; the widths are here.
 func renderMarkdown(src string, w int, o mdOpts) mdDoc {
-	return formatMarkdown(parseMarkdown(src, o.frontMatter), w, o)
+	return formatMarkdown(core.ParseMarkdown(src, o.frontMatter), w, o)
 }
 
 // formatMarkdown lays the blocks of a document out for a pane w columns wide.
-func formatMarkdown(blocks []mdBlock, w int, o mdOpts) mdDoc {
+func formatMarkdown(blocks []core.MdBlock, w int, o mdOpts) mdDoc {
 	var out []screen.Line
 	var images []screen.PreviewImage
 	gapAt := -1     // the index in out of the empty line that separates blocks
@@ -435,10 +436,10 @@ func formatMarkdown(blocks []mdBlock, w int, o mdOpts) mdDoc {
 
 	for _, b := range blocks {
 		switch b.Kind {
-		case mdGap:
+		case core.MdGap:
 			gap()
 
-		case mdPara:
+		case core.MdPara:
 			if alt, src, ok := soleImage(b.Text); ok && o.image != nil {
 				if rendered := o.image(alt, src, w); rendered != nil {
 					media(rendered)
@@ -449,7 +450,7 @@ func formatMarkdown(blocks []mdBlock, w int, o mdOpts) mdDoc {
 			emit(screen.Span{}, wrap(inlineCells(b.Text, mdStyle{}), w), screen.Span{})
 			gap()
 
-		case mdFence:
+		case core.MdFence:
 			if strings.EqualFold(b.Lang, "mermaid") && o.mermaid != nil {
 				if rendered := o.mermaid(strings.Join(b.Code, "\n"), w); rendered != nil {
 					media(rendered)
@@ -460,11 +461,11 @@ func formatMarkdown(blocks []mdBlock, w int, o mdOpts) mdDoc {
 			codeBlock(b.Code, b.Lang)
 			gap()
 
-		case mdRule:
+		case core.MdRule:
 			rule()
 			gap()
 
-		case mdHeading:
+		case core.MdHeading:
 			gap()
 			fg := map[int]screen.Style{1: screen.StyleMdH1, 2: screen.StyleMdH2}[b.Level]
 			if fg == "" {
@@ -477,7 +478,7 @@ func formatMarkdown(blocks []mdBlock, w int, o mdOpts) mdDoc {
 			}
 			gap()
 
-		case mdQuote:
+		case core.MdQuote:
 			bar := screen.Span{Text: "▎ ", Style: screen.StyleMdQuote}
 			qo, base := o, len(out)
 			qo.frontMatter = false
@@ -499,11 +500,11 @@ func formatMarkdown(blocks []mdBlock, w int, o mdOpts) mdDoc {
 			}
 			gap()
 
-		case mdTableBlock:
+		case core.MdTableBlock:
 			out = append(out, mdTable(b.Rows, b.Aligns, w)...)
 			gap()
 
-		case mdList:
+		case core.MdList:
 			pw := ansi.StringWidth(b.Prefix)
 			cells := wrap(inlineCells(b.Text, mdStyle{}), max(1, w-pw))
 			emit(screen.Span{Text: b.Prefix, Style: screen.StyleMdListMark}, cells, plainSpan(strings.Repeat(" ", pw)))

@@ -1,4 +1,4 @@
-package tui
+package core
 
 import (
 	"regexp"
@@ -49,27 +49,27 @@ func isRule(line string) bool {
 	return s[0] == '-' || s[0] == '*' || s[0] == '_'
 }
 
-// mdKind says what an mdBlock is.
-type mdKind int
+// MdKind says what an MdBlock is.
+type MdKind int
 
 const (
-	mdGap        mdKind = iota // a blank line between blocks
-	mdPara                     // Text, the lines of a paragraph joined by spaces
-	mdFence                    // Code and Lang, a fenced block (or YAML front matter)
-	mdRule                     // a thematic break
-	mdHeading                  // Level and Text
-	mdQuote                    // Inner, the blocks of the quoted text
-	mdTableBlock               // Rows and Aligns
-	mdList                     // Prefix (indent, marker, checkbox) and Text
+	MdGap        MdKind = iota // a blank line between blocks
+	MdPara                     // Text, the lines of a paragraph joined by spaces
+	MdFence                    // Code and Lang, a fenced block (or YAML front matter)
+	MdRule                     // a thematic break
+	MdHeading                  // Level and Text
+	MdQuote                    // Inner, the blocks of the quoted text
+	MdTableBlock               // Rows and Aligns
+	MdList                     // Prefix (indent, marker, checkbox) and Text
 )
 
-// mdBlock is one block of a Markdown document, before it has a width. Text and
+// MdBlock is one block of a Markdown document, before it has a width. Text and
 // code are as written; how they wrap, where a table's columns are and how wide
-// a rule is belong to the TUI (formatMarkdown). A block other than mdGap is
-// followed by a gap when it is formatted, except an mdList, which says so with
-// GapAfter, and an mdHeading, which is preceded by one too.
-type mdBlock struct {
-	Kind     mdKind
+// a rule is belong to the TUI (formatMarkdown). A block other than MdGap is
+// followed by a gap when it is formatted, except an MdList, which says so with
+// GapAfter, and an MdHeading, which is preceded by one too.
+type MdBlock struct {
+	Kind     MdKind
 	Text     string
 	Lang     string
 	Code     []string
@@ -78,19 +78,19 @@ type mdBlock struct {
 	GapAfter bool
 	Rows     [][]string
 	Aligns   []string
-	Inner    []mdBlock
+	Inner    []MdBlock
 }
 
-// parseMarkdown splits src into blocks. frontMatter shows a leading block
+// ParseMarkdown splits src into blocks. frontMatter shows a leading block
 // fenced by "---" lines as YAML instead of rules around a paragraph.
-func parseMarkdown(src string, frontMatter bool) []mdBlock {
-	var out []mdBlock
+func ParseMarkdown(src string, frontMatter bool) []MdBlock {
+	var out []MdBlock
 	lines := strings.Split(strings.ReplaceAll(src, "\r\n", "\n"), "\n")
 	start := 0
 	if frontMatter && len(lines) > 0 && strings.TrimRight(lines[0], " \t") == "---" {
 		for j := 1; j < len(lines); j++ {
 			if t := strings.TrimRight(lines[j], " \t"); t == "---" || t == "..." {
-				out = append(out, mdBlock{Kind: mdFence, Code: lines[1:j], Lang: "yaml"})
+				out = append(out, MdBlock{Kind: MdFence, Code: lines[1:j], Lang: "yaml"})
 				start = j + 1
 				break
 			}
@@ -101,7 +101,7 @@ func parseMarkdown(src string, frontMatter bool) []mdBlock {
 		if len(para) == 0 {
 			return
 		}
-		out = append(out, mdBlock{Kind: mdPara, Text: strings.Join(para, " ")})
+		out = append(out, MdBlock{Kind: MdPara, Text: strings.Join(para, " ")})
 		para = nil
 	}
 
@@ -118,24 +118,24 @@ func parseMarkdown(src string, frontMatter bool) []mdBlock {
 				}
 				code = append(code, lines[i])
 			}
-			out = append(out, mdBlock{Kind: mdFence, Code: code, Lang: lang})
+			out = append(out, MdBlock{Kind: MdFence, Code: code, Lang: lang})
 			continue
 		}
 
 		switch {
 		case strings.TrimSpace(line) == "":
 			flushPara()
-			out = append(out, mdBlock{Kind: mdGap})
+			out = append(out, MdBlock{Kind: MdGap})
 			continue
 		case isRule(line):
 			flushPara()
-			out = append(out, mdBlock{Kind: mdRule})
+			out = append(out, MdBlock{Kind: MdRule})
 			continue
 		}
 
 		if m := mdHeadingRe.FindStringSubmatch(line); m != nil {
 			flushPara()
-			out = append(out, mdBlock{Kind: mdHeading, Level: len(m[1]), Text: m[2]})
+			out = append(out, MdBlock{Kind: MdHeading, Level: len(m[1]), Text: m[2]})
 			continue
 		}
 
@@ -146,7 +146,7 @@ func parseMarkdown(src string, frontMatter bool) []mdBlock {
 				q = append(q, strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(lines[i]), ">"), " "))
 			}
 			i--
-			out = append(out, mdBlock{Kind: mdQuote, Inner: parseMarkdown(strings.Join(q, "\n"), false)})
+			out = append(out, MdBlock{Kind: MdQuote, Inner: ParseMarkdown(strings.Join(q, "\n"), false)})
 			continue
 		}
 
@@ -158,7 +158,7 @@ func parseMarkdown(src string, frontMatter bool) []mdBlock {
 				rows = append(rows, splitRow(lines[i]))
 			}
 			i--
-			out = append(out, mdBlock{Kind: mdTableBlock, Rows: rows, Aligns: aligns})
+			out = append(out, MdBlock{Kind: MdTableBlock, Rows: rows, Aligns: aligns})
 			continue
 		}
 
@@ -179,7 +179,7 @@ func parseMarkdown(src string, frontMatter bool) []mdBlock {
 				text = text[4:]
 				prefix += box
 			}
-			out = append(out, mdBlock{Kind: mdList, Prefix: prefix, Text: text, GapAfter: i+1 >= len(lines) || listItem(lines[i+1]) == nil})
+			out = append(out, MdBlock{Kind: MdList, Prefix: prefix, Text: text, GapAfter: i+1 >= len(lines) || listItem(lines[i+1]) == nil})
 			continue
 		}
 

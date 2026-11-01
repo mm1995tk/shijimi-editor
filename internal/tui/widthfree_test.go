@@ -10,7 +10,7 @@ import (
 // widthFree are the files that are meant to move to internal/core, which does
 // not use the width of terminal cells (docs/design/gui-protocol.md). Add a file
 // here once its widths have moved to the TUI.
-var widthFree = []string{"hoverparse.go", "lineinput.go", "mdparse.go"}
+var widthFree = []string{"hoverparse.go", "lineinput.go"}
 
 func TestWidthFreeFiles(t *testing.T) {
 	for _, name := range widthFree {
