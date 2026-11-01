@@ -15,6 +15,8 @@ import (
 )
 
 const (
+	// MaxSearchHits is where a search stops: SearchResult.Truncated is set and
+	// replacing is refused.
 	MaxSearchHits     = 5000
 	maxSearchFileSize = 2 << 20
 )
@@ -39,6 +41,8 @@ type SearchHit struct {
 	Skip  bool
 }
 
+// SearchResult is what RunSearch found. Files is the number of files with a
+// hit; Truncated means the search stopped at MaxSearchHits.
 type SearchResult struct {
 	Hits      []*SearchHit
 	Files     int
@@ -348,16 +352,4 @@ func SplitReplaceArgs(arg string) (query, repl string, ok bool) {
 		}
 	}
 	return q, r, ok
-}
-
-// SkipDirs are the directories that file walks (project search, the file
-// palette) do not descend into.
-var SkipDirs = map[string]bool{".git": true, "node_modules": true, ".direnv": true, "target": true, "dist": true, ".next": true}
-
-// RelTo is p relative to root, or p itself when it is outside root.
-func RelTo(root, p string) string {
-	if r, err := filepath.Rel(root, p); err == nil && !strings.HasPrefix(r, "..") {
-		return r
-	}
-	return p
 }

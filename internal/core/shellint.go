@@ -19,6 +19,8 @@ import (
 // first of ~/.bash_profile, ~/.bash_login and ~/.profile, or ~/.bashrc when
 // none exists) and puts the hook first in PROMPT_COMMAND.
 
+// ZshEnv is the .zshenv of the zsh integration. The multiplexer panes
+// (mux_shell.go) replace its OSC 133;D line with a call to the shj binary.
 const ZshEnv = `# shijimi: report each command's exit code to the terminal panel (OSC 133;D)
 if [[ -n ${SHIJIMI_ZDOTDIR+x} ]]; then
   ZDOTDIR=$SHIJIMI_ZDOTDIR
@@ -119,7 +121,7 @@ func ShellIntegration(sh string) (args, env []string) {
 	return plain, nil
 }
 
-// RemoveShellIntegration deletes the files shellIntegration wrote.
+// RemoveShellIntegration deletes the files ShellIntegration wrote.
 func RemoveShellIntegration() {
 	if shellDir != "" {
 		os.RemoveAll(shellDir)

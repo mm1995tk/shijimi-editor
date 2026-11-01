@@ -45,6 +45,8 @@ func WriteSystemClipboard(s string) {
 	go cmd.Wait()
 }
 
+// ReadSystemClipboard returns the text on the system clipboard. ok is false
+// when no clipboard helper is installed or it fails.
 func ReadSystemClipboard() (string, bool) {
 	t := findClipTool()
 	if t == nil {
