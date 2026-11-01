@@ -23,13 +23,17 @@
   overflow: hidden;
   padding: var(--files-pad-y) 0;
   box-sizing: border-box;
-  font-family:
-    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Consolas, monospace;
   font-size: 13px;
   line-height: var(--files-line-height);
   /* 等幅のマス目を崩さない（合字で文字の数が変わらないように） */
   font-variant-ligatures: none;
   white-space: pre;
+  /* 選択は shj が描く（ブラウザの文字の選択は使わない） */
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: text;
 }
 
 /* マス目の幅を測るための文字（見せない） */
@@ -76,6 +80,29 @@
   padding: 0 1ch;
 }
 
+/* キーと IME を受ける textarea（E2）。見せないが、IME の候補の窓がカーソルの近くに出るよう、
+   FilesView がカーソルのマス目に置く。変換中の文字は shj が画面に下線付きで入れる */
+.files-ime {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1ch;
+  height: var(--files-line-height);
+  padding: 0;
+  border: 0;
+  margin: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  opacity: 0;
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+  font: inherit;
+  white-space: pre;
+  pointer-events: none;
+}
+
 /* ---- タイトル行・状態行・コマンド行（E3）。モックの寸法（タイトル行 36px、状態行 24px）に合わせる ---- */
 
 /* ペインごとのタイトルを、本文と同じマス目（ch）の幅で横に並べる */
@@ -89,8 +116,8 @@
   border-bottom: 1px solid var(--files-border);
   box-sizing: border-box;
   /* 幅の ch を本文と同じにするため、フォントは本文と同じ。中の文字は UI のフォントにする */
-  font-family:
-    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Consolas, monospace;
   font-size: 13px;
 }
 
@@ -199,8 +226,8 @@
 /* コマンド行は入力をマス目で切るので、本文と同じ等幅のフォントにする */
 .files-cmdline {
   padding: 0 1ch;
-  font-family:
-    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Consolas, monospace;
   font-size: 13px;
   white-space: pre;
   color: var(--files-fg);

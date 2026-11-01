@@ -3,10 +3,15 @@
 //
 // - 文字は等幅フォントのマス目に置く。区間ごとに幅をマス目（ch）で決めるので、全角の文字もずれない。
 // - 欄の大きさが変わったら、入るマス目の桁数と行数を onResize で知らせる（呼ぶ側が view.resize を送る）。
-// - 上にペインごとのタイトル行、下に状態行（コマンド行が開いているときはコマンド行）を出す（E3。中身は bars.ts）。
+// - キー・IME・マウス・貼り付けは onInput で shj に送る（E2）。キーは見えない textarea で受ける
+//   （IME の変換と貼り付けを OS に任せるため）。変換中の文字は shj が下線付きで画面に入れて返す。
+//   イベントの受け方は filesInput.ts、パラメータの作り方は input.ts、OS のクリップボードは clipboard.ts。
+// - 上にペインごとのタイトル行、下に状態行（コマンド行が開いているときはコマンド行）を出す
+//   （E3。BarsView.tsx、中身は bars.ts）。
 // - 行番号の横の印・診断・インデントガイド（E5）、画像・プレビュー・差分（E6）はまだ描かない。
 //   差分とプレビューのペインは、行の文字だけを出す。
 import {
+  createEffect,
   createMemo,
   createSignal,
   For,
@@ -18,23 +23,16 @@ import {
   untrack,
 } from "solid-js";
 
-import type {
-  Cmdline,
-  Line,
-  Pane,
-  Screen,
-  Status,
-  Theme,
-} from "../rpc/protocol.ts";
+import type { Line, Pane, Screen, Theme } from "../rpc/protocol.ts";
+import { BottomBar, TitlesView } from "./BarsView.tsx";
+import type { OsClipboard } from "./clipboard.ts";
 import {
-  cmdlineText,
-  modeLabel,
-  statusLeft,
-  statusRight,
-  textCells,
-  titleText,
-  type StatusItem,
-} from "./bars.ts";
+  createKeyInput,
+  createOrderedSend,
+  createPointerInput,
+  type SendInput,
+} from "./filesInput.ts";
+import { isMac } from "./input.ts";
 import {
   cellsFor,
   gutterText,
@@ -45,10 +43,10 @@ import {
   type FilesSize,
   type LineOptions,
 } from "./layout.ts";
-import { colorOf, runStyle } from "./theme.ts";
+import { colorOf, filesVars, runStyle } from "./theme.ts";
 import "./files.css";
 
-export type { FilesSize };
+export type { FilesSize, SendInput };
 
 /**
  * ファイルの欄。screen（フォーカスしているマシンの画面）の files を、theme の色で描く。
@@ -59,18 +57,27 @@ export function FilesView(props: {
   screen: Screen | null;
   theme: Theme | null;
   onResize: (size: FilesSize) => void;
+  /** 入力の送り先。省くと送らない */
+  onInput?: SendInput;
+  /** OS のクリップボード（貼り付けのキーで読む）。省くと貼り付けない */
+  clipboard?: OsClipboard;
 }): JSX.Element {
   let body: HTMLDivElement | undefined;
   let measure: HTMLSpanElement | undefined;
+  let ime: HTMLTextAreaElement | undefined;
   let last: FilesSize | undefined;
   // 欄の桁数（コマンド行の入る幅に使う）
   const [cols, setCols] = createSignal(0);
 
+  /** 等幅のマス目 1 つの幅（px）。 */
+  function cellWidth(): number {
+    if (!measure) return 8;
+    return measure.getBoundingClientRect().width / measure.textContent!.length;
+  }
+
   function report() {
     if (!body || !measure) return;
-    const cw =
-      measure.getBoundingClientRect().width / measure.textContent!.length;
-    const size = cellsFor(body.clientWidth, body.clientHeight, cw);
+    const size = cellsFor(body.clientWidth, body.clientHeight, cellWidth());
     if (last && last.cols === size.cols && last.rows === size.rows) return;
     last = size;
     setCols(size.cols);
@@ -85,51 +92,70 @@ export function FilesView(props: {
       last = undefined;
       report();
     });
+    // ホイールで欄そのものがスクロールしないよう、passive にしない
+    body!.addEventListener("wheel", pointer.onWheel, { passive: false });
+    onCleanup(() => body?.removeEventListener("wheel", pointer.onWheel));
   });
 
   const files = () => props.screen?.files;
-  const color = (name: string) => colorOf(props.theme, name);
+
+  // ---- 入力（E2） ----
+
+  const send = createOrderedSend(() => props.onInput);
+  const focusIme = () => ime?.focus({ preventScroll: true });
+  // タイトル行・状態行を押しても、キーを受ける textarea からフォーカスを外さない
+  const keepFocus = (e: MouseEvent) => {
+    e.preventDefault();
+    focusIme();
+  };
+  const keys = createKeyInput({
+    send,
+    clipboard: () => props.clipboard,
+    mac: isMac(navigator.platform || navigator.userAgent),
+    ime: () => ime,
+    body: () => body,
+  });
+  const pointer = createPointerInput({
+    send,
+    clipboard: () => props.clipboard,
+    files,
+    cellWidth,
+    focus: focusIme,
+  });
+
+  // 画面が出たとき、ほかに何もフォーカスしていなければキーを受ける
+  createEffect(() => {
+    if (!files()) return;
+    if (!document.activeElement || document.activeElement === document.body)
+      focusIme();
+  });
 
   return (
-    <section
-      class="files"
-      aria-label="ファイル"
-      style={{
-        "--files-bg": color("editor.bg"),
-        "--files-fg": color("editor.fg"),
-        "--files-lineno": color("lineno"),
-        "--files-lineno-current": color("lineno.current"),
-        "--files-bar-bg": color("tab.bg"),
-        "--files-bar-fg": color("dim"),
-        "--files-border": color("border"),
-        "--files-accent": color("accent"),
-        "--files-inactive-fg": color("tab.inactive.fg"),
-      }}
-    >
-      <Show when={files()}>
-        {(f) => (
-          <div class="files-titles">
-            <Index each={f().panes}>
-              {(p, i) => (
-                <>
-                  <Show when={i > 0}>
-                    <div class="files-split" aria-hidden="true" />
-                  </Show>
-                  <TitleView
-                    pane={p()}
-                    active={i === f().active}
-                    theme={props.theme}
-                  />
-                </>
-              )}
-            </Index>
-          </div>
-        )}
-      </Show>
-      <div class="files-body" ref={body}>
+    <section class="files" aria-label="ファイル" style={filesVars(props.theme)}>
+      <TitlesView files={files()} theme={props.theme} onMouseDown={keepFocus} />
+      <div
+        class="files-body"
+        ref={body}
+        onMouseDown={pointer.onMouseDown}
+        onContextMenu={(e) => e.preventDefault()}
+      >
         <span class="files-measure" ref={measure} aria-hidden="true">
           {"0".repeat(64)}
         </span>
+        <textarea
+          class="files-ime"
+          ref={ime}
+          aria-label="ファイルの欄への入力"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck={false}
+          onKeyDown={keys.onKeyDown}
+          onPaste={keys.onPaste}
+          onCompositionStart={keys.onCompositionStart}
+          onCompositionEnd={keys.onCompositionEnd}
+          onInput={keys.onInput}
+          onFocus={keys.onFocus}
+        />
         <Show when={files()}>
           {(f) => (
             // 位置で使い回す（ペインが新しいオブジェクトになっても PaneView と変わらない行の DOM を残す）
@@ -150,16 +176,12 @@ export function FilesView(props: {
           )}
         </Show>
       </div>
-      <Show
-        when={props.screen?.cmdline}
-        fallback={
-          <Show when={props.screen?.status}>
-            {(s) => <StatusView status={s()} theme={props.theme} />}
-          </Show>
-        }
-      >
-        {(c) => <CmdlineView cmdline={c()} cols={cols()} theme={props.theme} />}
-      </Show>
+      <BottomBar
+        screen={props.screen}
+        cols={cols()}
+        theme={props.theme}
+        onMouseDown={keepFocus}
+      />
     </section>
   );
 }
@@ -177,6 +199,7 @@ function PaneView(props: {
       role="region"
       aria-label={props.pane.title?.text || props.pane.id}
       data-kind={props.pane.kind}
+      data-pane-id={props.pane.id}
       data-active={props.active ? "" : undefined}
       style={{ width: `${paneCells(props.pane)}ch` }}
     >
@@ -240,154 +263,6 @@ function LineView(props: {
           </span>
         )}
       </For>
-    </div>
-  );
-}
-
-/**
- * ペインのタイトル行。名前の欄（ファイル名、変更あり、読み取り専用、差分の数と注記）と、右にパスと差分の相手。
- * 幅はペインと同じマス目にする（左右に並べたペインの上にそろえる）。
- */
-function TitleView(props: {
-  pane: Pane;
-  active: boolean;
-  theme: Theme | null;
-}): JSX.Element {
-  const t = () => props.pane.title ?? { text: "" };
-  const text = createMemo(() => titleText(t()));
-  const color = (name: string) => colorOf(props.theme, name);
-  const diff = () => (t().added ?? 0) + (t().deleted ?? 0) > 0;
-  return (
-    <div
-      class="files-title"
-      data-active={props.active ? "" : undefined}
-      style={{ width: `${paneCells(props.pane)}ch` }}
-    >
-      <Show when={text().name}>
-        <div class="files-title-name" title={t().text}>
-          <span class="files-title-text">{text().name}</span>
-          <Show when={t().dirty}>
-            <span style={{ color: color("dirty") }} aria-label="変更あり">
-              ●
-            </span>
-          </Show>
-          <Show when={t().readOnly}>
-            <svg
-              class="files-title-lock"
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              role="img"
-              aria-label="読み取り専用"
-            >
-              <rect x="5" y="11" width="14" height="10" rx="2" />
-              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-            </svg>
-          </Show>
-          <Show when={diff()}>
-            <span style={{ color: color("git.added") }}>+{t().added ?? 0}</span>
-            <span style={{ color: color("git.deleted") }}>
-              -{t().deleted ?? 0}
-            </span>
-          </Show>
-          <Show when={t().note}>
-            <span
-              style={{
-                color: color(t().noteWarn ? "diag.warn" : "git.renamed"),
-              }}
-            >
-              {t().note}
-            </span>
-          </Show>
-        </div>
-      </Show>
-      <div class="files-title-path">
-        <Show when={text().path}>
-          <span>{text().path}</span>
-        </Show>
-        <Show when={t().peer}>
-          <span>↔ {t().peer}</span>
-        </Show>
-      </div>
-    </div>
-  );
-}
-
-/** 状態行。左にモード・ブランチ・診断・メッセージ、右に位置・字下げ・言語・版。 */
-function StatusView(props: {
-  status: Status;
-  theme: Theme | null;
-}): JSX.Element {
-  const color = (name: string | undefined) => colorOf(props.theme, name);
-  const item = (it: StatusItem) => (
-    <span class="files-status-item" style={{ color: color(it.style) }}>
-      {it.text}
-    </span>
-  );
-  return (
-    <div class="files-status" role="status" aria-label="状態行">
-      <Show when={modeLabel(props.status)}>
-        {(label) => (
-          <span
-            class="files-status-mode"
-            style={{
-              background: color(props.status.style || "mode.normal"),
-              color: color("status.fg"),
-            }}
-          >
-            {label()}
-          </span>
-        )}
-      </Show>
-      <For each={statusLeft(props.status)}>{item}</For>
-      <span class="files-status-right">
-        <For each={statusRight(props.status)}>{item}</For>
-      </span>
-    </div>
-  );
-}
-
-/** `:` と `/` の入力行（検索バーも）。cols は欄の桁数で、入らない分はカーソルが見えるように切る。 */
-function CmdlineView(props: {
-  cmdline: Cmdline;
-  cols: number;
-  theme: Theme | null;
-}): JSX.Element {
-  const color = (name: string) => colorOf(props.theme, name);
-  const parts = createMemo(() => {
-    const c = props.cmdline;
-    // 左右の余白（1 マス目ずつ）と、ラベル・案内の幅を除いた分に入れる
-    const hint = c.hint ? textCells(c.hint) + 1 : 0;
-    const cells = Math.max(1, props.cols - 2 - textCells(c.prefix) - hint);
-    return cmdlineText(c, cells);
-  });
-  return (
-    <div class="files-cmdline" aria-label="コマンド行">
-      <span
-        class="files-cmdline-prefix"
-        style={{ color: props.cmdline.hint ? color("heading") : undefined }}
-      >
-        {props.cmdline.prefix}
-      </span>
-      <span class="files-cmdline-text">
-        {parts().before}
-        <span
-          class="files-cmdline-cursor"
-          style={{
-            color: color("cursor.fg"),
-            background: color("cursor"),
-          }}
-        >
-          {parts().at}
-        </span>
-        {parts().after}
-      </span>
-      <Show when={props.cmdline.hint}>
-        <span class="files-cmdline-hint">{props.cmdline.hint}</span>
-      </Show>
     </div>
   );
 }
