@@ -68,7 +68,7 @@ func (a *App) handleProposalKey(msg Key) []Effect {
 }
 
 // proposalH is the height the proposal box is given.
-func (a *App) proposalH() int { return max(4, a.h-4) }
+func (a *App) proposalH() int { return max(4, a.screenH()-4) }
 
 // fit keeps the scroll of the proposal inside its lines. It is the part of
 // drawing the proposal that changes state, so it runs before drawing (App.fit).

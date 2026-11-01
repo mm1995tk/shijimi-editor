@@ -453,7 +453,7 @@ func (a *App) showDiff(base string, pr *prInfo) []Effect {
 	}
 	a.gd.base, a.gd.pr = base, pr
 	a.gd.stale, a.gd.staleAll = nil, false
-	a.showSide = true
+	a.setSide(true)
 	a.follow = true
 	cmd := a.reloadChanges()
 	a.gd.loading = true // just opened or switched: nothing trustworthy to show yet
@@ -860,9 +860,9 @@ func (a *App) handleChangesKey(msg Key) []Effect {
 // status lines.
 func (a *App) bodyH() int {
 	if a.gd.on {
-		return max(0, a.h-3)
+		return max(0, a.screenH()-3)
 	}
-	return max(0, a.h-1)
+	return max(0, a.screenH()-1)
 }
 
 // explorerH is the height of the file tree: the user's share of the sidebar
@@ -871,10 +871,10 @@ func (a *App) bodyH() int {
 func (a *App) explorerH() int {
 	if a.gd.on {
 		body := a.bodyH()
-		if a.explorerPct <= 0 {
+		if a.explorerShare() <= 0 {
 			return body * 7 / 10
 		}
-		return clamp(body*a.explorerPct/100, minSideSectionH, max(minSideSectionH, body-minSideSectionH))
+		return clamp(body*a.explorerShare()/100, minSideSectionH, max(minSideSectionH, body-minSideSectionH))
 	}
 	return a.bodyH()
 }
@@ -1727,7 +1727,7 @@ func (a *App) focusChangesList() []Effect {
 	if !a.gd.on {
 		return a.toggleGitDiff()
 	}
-	a.showSide = true
+	a.setSide(true)
 	return a.setFocus(focusChanges)
 }
 

@@ -38,7 +38,7 @@ func (h holdScroll) continues(msg Key) bool {
 // (Ctrl+Alt+D / Ctrl+Alt+U) the same scroll that leaves the cursor on its line.
 func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) []Effect {
 	keep := msg.Mod.Has(ModAlt)
-	if !a.keyReleases { // one press, half a page
+	if !a.releasesReported() { // one press, half a page
 		if keep {
 			a.scrollKeepCursor(b, dir*a.pageSize()/2, ext)
 		} else {

@@ -340,8 +340,8 @@ func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
 			return s.wait(), true
 		}
 		s.perms = append(s.perms, m.ask)
-		if !a.showAgent || a.focus != focusAgent {
-			a.showAgent = true
+		if !a.agentOpen() || a.focus != focusAgent {
+			a.setAgent(true)
 			a.infoText(i18n.T("agent.permask"))
 		}
 		return s.wait(), true

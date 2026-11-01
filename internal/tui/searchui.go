@@ -632,8 +632,8 @@ type searchGeom struct {
 
 func (a *App) searchGeom() searchGeom {
 	var g searchGeom
-	g.pw = min(a.w, max(30, a.w-2))
-	g.ph = min(max(a.h-2, 14), a.h)
+	g.pw = min(a.screenW(), max(30, a.screenW()-2))
+	g.ph = min(max(a.screenH()-2, 14), a.screenH())
 	g.inner = g.pw - 2
 	g.lw = (g.inner - 1) / 2
 	g.rw = g.inner - 1 - g.lw
@@ -642,7 +642,7 @@ func (a *App) searchGeom() searchGeom {
 	g.br = avail - 1 - g.bl
 	const fixedRows = 11 // title, 2x3 field rows, toggles, status, divider, bottom
 	g.bodyH = max(1, g.ph-fixedRows)
-	g.x, g.y = (a.w-g.pw)/2, min(1, max(0, a.h-g.ph))
+	g.x, g.y = (a.screenW()-g.pw)/2, min(1, max(0, a.screenH()-g.ph))
 	return g
 }
 

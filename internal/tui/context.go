@@ -107,9 +107,9 @@ func (a *App) handleContextKey(msg Key) []Effect {
 		if a.muxOn() {
 			return a.muxSend(text, false)
 		}
-		a.showTerm = true
+		a.setTerm(true)
 		cmd := a.setFocus(focusTerminal)
-		return batch(cmd, a.termEffects(a.term.paste(text)))
+		return batch(cmd, a.termPaste(text))
 	case "esc", "ctrl+c", "q":
 		a.ctx = nil
 	case "ctrl+d", "pgdown", "down", "j":
@@ -135,10 +135,10 @@ func (c *ctxPreview) render(w, maxH int) []string {
 }
 
 func (a *App) renderContext(rows []string) []string {
-	w := clamp(a.w*3/5, 30, 100)
-	box := a.ctx.render(w, max(4, a.h-4))
+	w := clamp(a.screenW()*3/5, 30, 100)
+	box := a.ctx.render(w, max(4, a.screenH()-4))
 	if ansi.StringWidth(box[0]) > w {
 		box[0] = ansi.Truncate(box[0], w, "")
 	}
-	return overlay(rows, box, (a.w-w)/2, 1)
+	return overlay(rows, box, (a.screenW()-w)/2, 1)
 }

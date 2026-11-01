@@ -335,13 +335,13 @@ func (a *App) spaceMode(key string) []Effect {
 	case "d", "D":
 		return a.diagnosticPicker()
 	case "e":
-		a.showSide = true
+		a.setSide(true)
 		return a.setFocus(focusExplorer)
 	case "E":
 		if a.gd.on {
 			return a.focusChangesList()
 		}
-		a.showSide = true
+		a.setSide(true)
 		return a.setFocus(focusExplorer)
 	case "m":
 		return a.togglePreview()
