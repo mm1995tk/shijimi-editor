@@ -52,7 +52,7 @@ func (CtlRequest) isEvent() {}
 
 // Resized, KeyReleased and ReleasesReported are the front end telling the App
 // about itself. They are not Events: App.update takes them before handleEvent
-// would, and a GUI sends its own (view.resize) instead.
+// would.
 //
 // Resized is the size of the whole screen in cells. A GUI reports the size of
 // each region instead (view.resize); the TUI has the one screen.

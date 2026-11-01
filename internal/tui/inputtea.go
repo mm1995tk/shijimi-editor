@@ -6,9 +6,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// This file is the only place bubbletea's input types are read or built (apart
-// from Update, which hands them over). It turns tea.KeyPressMsg,
-// tea.PasteMsg and tea.MouseMsg into Input, and Input back into a tea.Msg for
+// This file is the only place bubbletea's input types are read or built. fromTea
+// turns the messages Update gets (tea.KeyPressMsg, tea.PasteMsg, tea.MouseMsg,
+// tea.KeyReleaseMsg, tea.KeyboardEnhancementsMsg, tea.WindowSizeMsg) into Input
+// or the Resized, KeyReleased and ReleasesReported notices. It also turns an Input back into a tea.Msg for
 // the bubbles widget that still takes one (the review composer's textarea; P10h
 // removes it).
 
