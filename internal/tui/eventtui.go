@@ -155,7 +155,7 @@ func (a *App) handleEvent(ev Event) []Effect {
 		return a.showPRList(ev)
 	case lspEventMsg:
 		// Ask for the next one first, so none waits while this is handled.
-		return append([]Effect{WaitLSP{a.lsp.events}}, a.handleLSPEvent(lsp.Event(ev))...)
+		return append([]Effect{WaitLSP{a.lspEvents()}}, a.handleLSPEvent(lsp.Event(ev))...)
 	}
 	if effs, ok := a.handleAgentEvent(ev); ok {
 		return effs
@@ -185,7 +185,7 @@ func (a *App) handleTermEvent(ev Event) []Effect {
 	}
 	if a.term.sh == nil && a.showTerm {
 		a.showTerm = false
-		if a.focus == focusTerminal {
+		if a.focusIs(focusTerminal) {
 			return batch(effs, a.setFocus(focusEditor))
 		}
 	}
@@ -197,7 +197,7 @@ func (a *App) termFailed(err error) []Effect {
 	a.fail(err)
 	if a.term.sh == nil && a.showTerm {
 		a.showTerm = false
-		if a.focus == focusTerminal {
+		if a.focusIs(focusTerminal) {
 			return a.setFocus(focusEditor)
 		}
 	}

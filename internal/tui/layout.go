@@ -24,7 +24,7 @@ func (a *App) layout() layout {
 	var l layout
 	l.statusY = a.h - 1
 	l.bodyH = a.bodyH()
-	if a.gd.on {
+	if a.diffMode() {
 		l.top = 1
 	}
 	if a.showSide {
@@ -42,14 +42,14 @@ func (a *App) layout() layout {
 		l.split = true
 		first := (l.fullW - 1) / 2
 		second := l.fullW - 1 - first
-		if a.pane == 0 {
+		if a.focusedFirst() {
 			l.rightW, l.otherX, l.otherW = first, l.fullX+first+1, second
 		} else {
 			l.rightX, l.rightW, l.otherX, l.otherW = l.fullX+first+1, second, l.fullX, first
 		}
 	}
 	l.editY = l.top + 1
-	if a.findOpen {
+	if a.findShown() {
 		l.editY++
 	}
 	if a.showTerm {

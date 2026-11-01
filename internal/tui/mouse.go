@@ -70,19 +70,19 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd []Effect, ok bool) {
 }
 
 func (a *App) handleMouse(msg Mouse) []Effect {
-	if a.search.open {
+	if a.searchOpen() {
 		return a.searchMouse(msg)
 	}
-	if a.pal.open {
+	if a.paletteOpen() {
 		if msg.Action == MousePress && msg.Button == MouseLeft {
-			a.pal.close()
+			a.closePalette()
 		}
 		return nil
 	}
 	l := a.layout()
 	// A press or the wheel over the other pane first moves the focus there.
 	if msg.Region == RegionOther && msg.Action == MousePress && (msg.Button == MouseLeft || msg.Button == MouseWheelUp || msg.Button == MouseWheelDown) {
-		a.focusPane(1 - a.pane)
+		a.focusPane(a.otherPane())
 		l = a.layout()
 		// The pane under the pointer is the focused one now. Its corner has not
 		// moved, so Row and Col stay; only the name of the region changes.
@@ -91,19 +91,19 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 			a.capture = RegionEditor
 		}
 	}
-	if a.ag.sel.dragging {
+	if a.agentDragging() {
 		if cmd, ok := a.agentDrag(msg); ok {
 			return cmd
 		}
 	}
-	if a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
+	if a.resizing == resizeNone && !a.isDragging() && !a.term.sel.dragging {
 		if cmd, ok := a.agentMouse(msg); ok {
 			return cmd
 		}
 	}
 	// Some terminals report a drag as motion with no button; while a border
 	// or a selection is being dragged, motion is the drag whatever it says.
-	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
+	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.isDragging() && !a.term.sel.dragging {
 		return a.passiveMotion(l, msg)
 	}
 	x, y := a.screenCell(l, msg)
@@ -123,13 +123,13 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 		hwheel = hscrollWheel
 	}
 	// A popup the pointer opened only owns the wheel while the pointer is on it.
-	if wheel != 0 && a.hoverText != "" && (a.hoverAt == nil || a.inHoverBox(l, screenPt{x, y})) {
+	if wheel != 0 && a.hovering() && (!a.hoverByPointer() || a.inHoverBox(l, screenPt{x, y})) {
 		if msg.Action == MousePress {
 			a.scrollHover(wheel)
 		}
 		return nil
 	}
-	if a.hoverText != "" && msg.Button == MouseLeft {
+	if a.hovering() && msg.Button == MouseLeft {
 		// The button copies on press; the matching release must not close the hover.
 		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).copyHit(x-bx, y-by) {
 			if msg.Action == MousePress {
@@ -138,22 +138,19 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 			return nil
 		}
 	}
-	if a.card != nil && msg.Action == MousePress {
+	if a.openCard() != nil && msg.Action == MousePress {
 		if box, bx, by := a.cardBox(l); box != nil && x >= bx && y >= by && y < by+len(box) && x < bx+ansi.StringWidth(box[0]) {
 			if wheel != 0 {
-				a.card.scroll = max(0, a.card.scroll+wheel)
+				a.scrollCard(wheel)
 			}
 			return nil // reading the card
 		}
 		if wheel == 0 {
-			a.card = nil
+			a.closeCard()
 		}
 	}
 	// Past the branches that keep the popup open: the pointer's hover is over.
-	a.hoverSeq++
-	a.hoverWord = wordSpan{}
-	a.hoverCell = screenPt{-1, -1}
-	a.hoverText, a.hoverAt = "", nil
+	a.pointerMoved()
 	if msg.Action == MousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, msg) {
 		hwheel = wheel / 3 * hscrollWheel // Shift turns the vertical wheel sideways, over the text only
 	}
@@ -168,30 +165,11 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 		case msg.Region == RegionNone:
 			// the diff mode header and help lines
 		case msg.Region == RegionExplorer:
-			e := a.explorer
-			if a.gd.on && msg.Row >= a.explorerH() {
-				g := &a.gd
-				body := l.bodyH - a.explorerH() - 1
-				g.scroll = clamp(g.scroll+wheel, 0, max(0, len(g.vis())-body))
-				g.keepSelVisible(body)
-			} else {
-				eh := a.explorerH()
-				e.scroll = clamp(e.scroll+wheel, 0, max(0, len(e.flat)-(eh-1)))
-				e.sel = clamp(e.sel, e.scroll, e.scroll+eh-2)
-			}
+			a.wheelSide(msg.Row, l.bodyH, wheel)
 		case msg.Region == RegionTerminal:
 			a.term.wheel(msg, msg.Col, msg.Row, wheel)
 		default:
-			if t := a.cur(); t != nil {
-				switch t.kind {
-				case tabText:
-					if a.fullPreview(t) {
-						t.buf.MoveLines(wheel, false) // the preview scrolls with the cursor
-						break
-					}
-					t.buf.ScrollRow = clamp(t.buf.ScrollRow+wheel, 0, max(0, len(t.buf.Lines)-1))
-				}
-			}
+			a.wheelEditor(wheel)
 		}
 		return nil
 	}
@@ -225,10 +203,10 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 	left := msg.Button == MouseLeft
 	switch msg.Action {
 	case MouseRelease:
-		a.dragging = false
+		a.setDragging(false)
 		return nil
 	case MouseMotion:
-		if a.dragging {
+		if a.isDragging() {
 			a.mouseToCursor(l, msg.Row, msg.Col, true)
 		}
 		return nil
@@ -242,34 +220,7 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 	case msg.Region == RegionNone:
 		return nil // the diff mode header and help lines
 	case msg.Region == RegionExplorer:
-		sy := msg.Row
-		if a.gd.on && sy >= a.explorerH() {
-			g := &a.gd
-			if vis, i := g.vis(), sy-1-a.explorerH()+g.scroll; sy > a.explorerH() && i < len(vis) {
-				r := vis[i]
-				g.selectRow(r)
-				if g.rows[r].file < 0 {
-					g.setFolder(r, g.closed[g.rows[r].path])
-					return a.setFocus(focusChanges)
-				}
-				return a.openChange(g.files[g.sel])
-			}
-			return a.setFocus(focusChanges)
-		}
-		row := sy - 1 + a.explorer.scroll
-		if sy >= 1 && row < len(a.explorer.flat) {
-			a.explorer.sel = row
-			n := a.explorer.flat[row]
-			switch {
-			case n.isDir:
-				a.explorer.toggle(n)
-			case !double:
-				a.openTransient(n.path)
-			case a.openFile(n.path):
-				return a.setFocus(focusEditor)
-			}
-		}
-		return a.setFocus(focusExplorer)
+		return a.clickSide(msg.Row, double)
 	case msg.Region == RegionTerminal:
 		return a.setFocus(focusTerminal)
 	case msg.Region == RegionEditor && msg.Row >= l.editY-l.top && msg.Row < l.editY-l.top+l.editH:
@@ -296,15 +247,15 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 					return nil // the base side is read-only
 				}
 				if th := a.markerAt(l, x, y); th != nil {
-					a.card = &prCard{thread: th, path: a.repoPath(t.buf.Path), at: &screenPt{x, y}}
+					a.showCard(th, t.buf.Path, x, y, false)
 					return nil
 				}
 			} else if t.preview != previewOff && msg.Col >= a.editW(t, l) {
 				return nil // the preview pane is read-only
 			}
-			a.comp = nil
+			a.closeCompletion()
 			a.mouseToCursor(l, msg.Row, msg.Col, false)
-			a.dragging = true
+			a.setDragging(true)
 			return a.setFocus(focusEditor)
 		}
 	}
@@ -333,7 +284,7 @@ func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
 	r := b.ScrollRow + clamp(body, 0, max(0, l.editH-1))
 	vis := max(0, col-gutterWidth(b)) + b.ScrollCol
 	b.SetCursor(r, vis, extend)
-	a.follow = true
+	a.followCursor()
 }
 
 // passiveMotion handles pointer movement with no button held. It never moves
@@ -344,56 +295,36 @@ func (a *App) passiveMotion(l layout, msg Mouse) []Effect {
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
 	}
-	if th := a.markerAt(l, x, y); th != nil && a.cfg.Editor.MouseHover && a.focus == focusEditor && !a.hoverBlocked() && a.resizing == resizeNone {
+	if th := a.markerAt(l, x, y); th != nil && a.settings().Editor.MouseHover && a.focusIs(focusEditor) && !a.hoverBlocked() && a.resizing == resizeNone {
 		// resting on a comment marker shows its thread
-		if a.card == nil || a.card.thread != th {
-			a.card = &prCard{thread: th, path: a.repoPath(a.curText().buf.Path), byPointer: true, at: &screenPt{x, y}}
-			a.hoverText, a.hoverAt = "", nil
+		if !a.cardOnThread(th) {
+			a.showCard(th, a.curText().buf.Path, x, y, true)
+			a.closeHover()
 		}
 		return nil
 	}
-	if c := a.card; c != nil && c.byPointer {
+	if a.pointerCard() {
 		// like a hover, it stays while the pointer reads it, and closes when it leaves
 		if box, bx, by := a.cardBox(l); box == nil || x < bx || y < by || y >= by+len(box) || x >= bx+ansi.StringWidth(box[0]) {
-			a.card = nil
+			a.closeCard()
 		}
 	}
-	if !a.cfg.Editor.MouseHover || a.hoverBlocked() || a.resizing != resizeNone {
+	if !a.settings().Editor.MouseHover || a.hoverBlocked() || a.resizing != resizeNone {
 		return nil
 	}
-	if a.focus != focusEditor {
+	if !a.focusIs(focusEditor) {
 		// The keys belong to another pane; a popup must not open over them.
-		if a.hoverAt != nil {
-			a.hoverText, a.hoverAt = "", nil
+		if a.hoverByPointer() {
+			a.closeHover()
 		}
 		return nil
 	}
 	pt := screenPt{x, y}
-	if pt == a.hoverCell {
+	if a.restedOn(pt) {
 		return nil
 	}
-	a.hoverCell = pt
 	_, word, ok := a.mouseWord(l, pt)
-	if a.hoverText != "" && a.inHoverBox(l, pt) {
-		return nil // reading it (the wheel scrolls it); whatever hides below is not asked about
-	}
-	if a.hoverText != "" && a.hoverAt != nil {
-		// A pointer popup also stays while the pointer is on the word it describes.
-		if ok && word == a.hoverWord {
-			return nil
-		}
-		a.hoverText, a.hoverAt = "", nil
-	} else if ok && word == a.hoverWord {
-		return nil // the timer for this word is already running
-	}
-	a.hoverSeq++
-	a.hoverWord = wordSpan{}
-	if !ok {
-		return nil
-	}
-	a.hoverWord = word
-	seq := a.hoverSeq
-	return []Effect{StartTimer{After: hoverDelay, Fire: HoverDwell{seq}}}
+	return a.pointerRests(word, ok, a.hovering() && a.inHoverBox(l, pt))
 }
 
 // mouseBufPos maps a screen cell to the buffer position of the character under
@@ -446,26 +377,22 @@ func (a *App) inHoverBox(l layout, pt screenPt) bool {
 }
 
 func (a *App) searchMouse(msg Mouse) []Effect {
-	s := a.search
 	if msg.Action != MousePress {
 		return nil
 	}
 	switch msg.Button {
 	case MouseWheelUp:
-		s.move(-3)
+		a.searchScroll(-3)
 	case MouseWheelDown:
-		s.move(3)
+		a.searchScroll(3)
 	case MouseLeft:
-		r := s.rect
 		x, y := a.screenCell(a.layout(), msg)
-		if x < r[0] || x >= r[0]+r[2] || y < r[1] || y >= r[1]+r[3] {
-			s.close()
-		}
+		a.searchClick(x, y)
 	}
 	return nil
 }
 
 // hoverCellWord is mouseWord for the cell the pointer last rested on.
 func (a *App) hoverCellWord() (buffer.Pos, wordSpan, bool) {
-	return a.mouseWord(a.layout(), a.hoverCell)
+	return a.mouseWord(a.layout(), a.hoverCellPos())
 }

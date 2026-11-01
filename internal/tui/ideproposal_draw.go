@@ -12,8 +12,8 @@ import (
 func (p *proposal) render(a *App, w, maxH int) []string {
 	body := max(1, maxH-3)
 	title := fmt.Sprintf(i18n.T("idep.title"), a.rel(p.NewPath))
-	if a.props.Len() > 1 {
-		title += fmt.Sprintf(i18n.T("idep.waiting"), a.props.Len()-1)
+	if a.proposalCount() > 1 {
+		title += fmt.Sprintf(i18n.T("idep.waiting"), a.proposalCount()-1)
 	}
 	out := []string{stPaletteBox.Render(fit(title, w))}
 	for _, l := range p.Lines[p.scroll:min(len(p.Lines), p.scroll+body)] {
