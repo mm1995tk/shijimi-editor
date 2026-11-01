@@ -1,5 +1,6 @@
 /* 画面全体の割り付け。左に一覧（sidebar.css）、右に残り。
-   右は上がファイルの欄（files/files.css）、その下に「つなぐ先」、右下がターミナル（F1。terminal/terminal.css）。 */
+   右は上がファイルの欄（files/files.css）、右下がターミナル（F1。terminal/terminal.css）。
+   つなぐ先を選ぶ窓と接続の知らせは connect/（カードの決まりは connect/card.css）。 */
 html,
 body,
 #root {
@@ -17,13 +18,6 @@ body,
   min-width: 0;
   display: flex;
   flex-direction: column;
-}
-
-.connections {
-  flex: none;
-  max-height: 40%;
-  overflow: auto;
-  padding: 0 16px;
 }
 
 /* 右下のターミナル（F1。terminal/terminal.css）。高さはモックの 300px */

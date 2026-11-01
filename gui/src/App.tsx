@@ -1,7 +1,8 @@
 // 接続の画面（C3〜C7）。起動時は、前回ワークスペースがあったマシンにだけ自動でつなぐ（C5）。
-// つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで shj につなぎ、
-// ssh の質問（パスワードなど）を窓に出す。切れたら Session が自動でつなぎ直し、
-// つなぐ先の一覧に接続の状態を出す。別の GUI に引き継がれたら、そう出してボタンでつなぎ直せるようにする（C7）。
+// 左の一覧の一番下の「ホストを開く」で窓を出し、つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで
+// shj につなぐ（connect/HostPicker.tsx）。ssh の質問（パスワードなど）と shj を入れるかの確認は窓に出す。
+// 切れたら Session が自動でつなぎ直し、左の一覧の見出しに接続の状態を出す（丸・1 行・ボタン）。
+// つながらない・別の GUI に引き継がれた（C7）ときは右下に知らせ、ボタンでつなぎ直せるようにする（connect/Notices.tsx）。
 // 左にはつないだマシンごとの見出しとワークスペースの帯を出し、帯を押すとフォーカスを移す（D1）。
 // フォーカスしているワークスペースの帯の下にはツリーを出す。開閉とスクロールの位置はワークスペースごとに覚え、
 // フォーカスを外して戻しても残す（D2）。マシンごとに色を決めて覚え、見出しと帯の左端の線に使う（D4）。
@@ -14,11 +15,11 @@
 // ターミナルモードでは、マシンのターミナルを数に応じて自動で並べる。Ctrl+Shift+T で増やし、`exit` で閉じて
 // 並び直し、Ctrl+Shift+矢印で隣へ移る（F4。terminal/group.ts・terminal/grid.ts）。
 // 新しい版があれば右下に知らせ、押されたら入れ替えて起動し直す（C8。update/UpdateBar.tsx）。
+// 窓と知らせは、どれもモック Connect.dc.html のカードの決まりで描く（connect/card.css）。
 import {
   createEffect,
   createMemo,
   createSignal,
-  For,
   onCleanup,
   onMount,
   Show,
@@ -27,6 +28,10 @@ import {
 } from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
+import { HostPicker } from "./connect/HostPicker.tsx";
+import { InstallCard } from "./connect/InstallCard.tsx";
+import { Notices, type Notice } from "./connect/Notices.tsx";
+import { describeClient, statusLine } from "./connect/status.ts";
 import { UpdateBar } from "./update/UpdateBar.tsx";
 import { BlobStore } from "./files/blob.ts";
 import { OsClipboard } from "./files/clipboard.ts";
@@ -62,60 +67,6 @@ import { directionKey, isNewTermKey } from "./terminal/grid.ts";
 import { TermGroup } from "./terminal/group.ts";
 import { TerminalGrid } from "./terminal/TerminalGrid.tsx";
 import { isModeKey, otherMode, swapWithMotion, type Mode } from "./mode.ts";
-
-/** 一覧に出す 1 行の状態。 */
-export function describeState(
-  s: SessionState | undefined,
-  now: number = Date.now(),
-): string {
-  if (!s) return "";
-  switch (s.kind) {
-    case "connecting":
-      if (s.retryAt !== undefined) {
-        const sec = Math.max(0, Math.ceil((s.retryAt - now) / 1000));
-        return `つなげませんでした。${sec} 秒後にもう一度（${s.attempt}/${s.max} 回目）`;
-      }
-      return s.attempt > 1
-        ? `つないでいます…（${s.attempt}/${s.max} 回目）`
-        : "つないでいます…";
-    case "connected":
-      return `つながっています（shj ${s.hello.shj.version}）`;
-    case "reconnecting": {
-      const n = `${s.attempt}/${s.max} 回目`;
-      if (s.retryAt !== undefined) {
-        const sec = Math.max(0, Math.ceil((s.retryAt - now) / 1000));
-        return `切れました。${sec} 秒後につなぎ直します（${n}）`;
-      }
-      return `切れました。つなぎ直しています…（${n}）`;
-    }
-    case "needs-install":
-      return "shj がありません";
-    case "installing":
-      return "shj を入れています…";
-    case "failed":
-      return "つながりません";
-    case "superseded": {
-      const who = s.by ? describeClient(s.by) : "";
-      return who ? `別の GUI に移りました（${who}）` : "別の GUI に移りました";
-    }
-    case "closed":
-      return "";
-  }
-}
-
-/** 引き継いだ GUI を短く言う（「名前 版、HH:MM から」）。読めないところは省き、何も無ければ ""。 */
-export function describeClient(
-  by: NonNullable<Extract<SessionState, { kind: "superseded" }>["by"]>,
-): string {
-  const name = [by.client?.name, by.client?.version]
-    .filter((x) => typeof x === "string" && x !== "")
-    .join(" ");
-  const at = new Date(by.connectedAt);
-  const time = Number.isNaN(at.getTime())
-    ? ""
-    : `${at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} から`;
-  return [name, time].filter((x) => x !== "").join("、");
-}
 
 export function App(props: {
   api?: ShellApi;
@@ -185,6 +136,12 @@ export function App(props: {
   const [mode, setMode] = createSignal<Mode>("ide");
   let mainEl: HTMLDivElement | undefined;
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
+  // ホストを開く窓を出しているか
+  const [picking, setPicking] = createSignal(false);
+  // 右下の知らせのうち、閉じたもの（状態が変われば、また出す）
+  const [dismissed, setDismissed] = createSignal<ReadonlySet<SessionState>>(
+    new Set(),
+  );
   // 「あと何秒」を動かす
   const [now, setNow] = createSignal(Date.now());
   const tick = setInterval(() => setNow(Date.now()), 1000);
@@ -459,6 +416,70 @@ export function App(props: {
     if (g.add(root)) focusTerminal();
   }
 
+  /** 見出しのそばのボタン。待ち時間中なら今すぐ、使い切った・引き継がれたあとならつなぎ直す。 */
+  function retry(target: string) {
+    const s = sessions()[target];
+    if (!s) return;
+    const st = s.state;
+    if (st.kind === "failed" || st.kind === "superseded") connect(target);
+    else if (
+      (st.kind === "connecting" || st.kind === "reconnecting") &&
+      st.retryAt !== undefined
+    )
+      s.retryNow();
+  }
+
+  // shj を入れるかを聞くマシン（一度に 1 台。答えたら次のマシン）
+  const installing = createMemo(() =>
+    [LOCAL, ...hosts(), ...Object.keys(states())].find(
+      (t) => states()[t]?.kind === "needs-install",
+    ),
+  );
+
+  /** 右下に積む知らせ。つながらない・別の GUI に移った・ワークスペースに移れなかった。 */
+  const notices = createMemo<Notice[]>(() => {
+    const out: Notice[] = [];
+    const err = focusError();
+    if (err) {
+      out.push({
+        title: "ワークスペースに移れませんでした",
+        error: err,
+        primary: { label: "閉じる", run: () => setFocusError("") },
+      });
+    }
+    for (const [t, st] of Object.entries(states())) {
+      if (dismissed().has(st)) continue;
+      const label = machineLabel(t);
+      const close = {
+        label: "閉じる",
+        run: () => setDismissed((d) => new Set(d).add(st)),
+      };
+      const cut = { label: "切る", run: () => void disconnect(t) };
+      if (st.kind === "failed") {
+        out.push({
+          title: `${label} につながりません`,
+          error: st.message,
+          secondary: [close, cut],
+          primary: { label: "つなぎ直す", run: () => connect(t) },
+        });
+      } else if (st.kind === "superseded") {
+        const who = st.by ? describeClient(st.by) : "";
+        out.push({
+          title: who
+            ? `${label} は別の GUI に移りました（${who}）`
+            : `${label} は別の GUI に移りました`,
+          text:
+            `${label} の作業は、あとからつないだ別の GUI に移りました。` +
+            "取り合いにならないよう、自動ではつなぎ直しません。" +
+            "「つなぎ直す」を押すとこちらに戻し、あちらの GUI が切れます。",
+          secondary: [close, cut],
+          primary: { label: "つなぎ直す", run: () => connect(t) },
+        });
+      }
+    }
+    return out;
+  });
+
   function reply(requestId: number, value: string | null) {
     setAsks((a) => a.filter((x) => x.requestId !== requestId));
     void api.askpassReply(requestId, value);
@@ -471,6 +492,10 @@ export function App(props: {
         onFocus={(t, id) => void focusWorkspace(t, id)}
         treeOf={treeOf}
         onToggle={(t, id, p) => trees.get(t)?.toggle(id, p)}
+        statusOf={(t) => statusLine(states()[t], now())}
+        onRetry={retry}
+        onDisconnect={(t) => void disconnect(t)}
+        onOpenHost={() => setPicking(true)}
         ref={(el) => {
           nav = el;
           el.addEventListener("scroll", rememberScroll, { passive: true });
@@ -489,84 +514,6 @@ export function App(props: {
               : undefined
           }
         />
-        <section class="connections" aria-label="つなぐ先">
-          <h1>つなぐ先</h1>
-          <Show when={focusError()}>
-            <p role="alert">{focusError()}</p>
-          </Show>
-          <ul>
-            <For each={[LOCAL, ...hosts()]}>
-              {(t) => {
-                const st = () => states()[t];
-                const kind = () => st()?.kind;
-                return (
-                  <li data-state={kind() ?? "idle"}>
-                    <button
-                      disabled={
-                        kind() === "connecting" ||
-                        kind() === "connected" ||
-                        kind() === "reconnecting" ||
-                        kind() === "needs-install" ||
-                        kind() === "installing"
-                      }
-                      onClick={() => connect(t)}
-                    >
-                      {machineLabel(t)}
-                    </button>{" "}
-                    <span role="status">{describeState(st(), now())}</span>
-                    <Show
-                      when={
-                        (kind() === "reconnecting" ||
-                          kind() === "connecting") &&
-                        (st() as { retryAt?: number }).retryAt !== undefined
-                      }
-                    >
-                      {" "}
-                      <button onClick={() => sessions()[t]?.retryNow()}>
-                        今すぐつなぐ
-                      </button>
-                    </Show>
-                    <Show when={kind() === "failed" || kind() === "superseded"}>
-                      {" "}
-                      <button onClick={() => connect(t)}>つなぎ直す</button>
-                    </Show>
-                    <Show when={st() && kind() !== "closed"}>
-                      {" "}
-                      <button onClick={() => void disconnect(t)}>切る</button>
-                    </Show>
-                    <Show when={st()?.kind === "needs-install"}>
-                      <InstallPrompt
-                        target={machineLabel(t)}
-                        state={
-                          st() as Extract<
-                            SessionState,
-                            { kind: "needs-install" }
-                          >
-                        }
-                        onYes={() => void sessions()[t]?.install()}
-                        onNo={() => sessions()[t]?.declineInstall()}
-                      />
-                    </Show>
-                    <Show when={kind() === "superseded"}>
-                      <p role="alert">
-                        {machineLabel(t)} の作業は、あとからつないだ別の GUI
-                        に移りました。
-                        取り合いにならないよう、自動ではつなぎ直しません。
-                        「つなぎ直す」を押すとこちらに戻し、あちらの GUI
-                        が切れます。
-                      </p>
-                    </Show>
-                    <Show when={st()?.kind === "failed"}>
-                      <pre role="alert">
-                        {(st() as { message: string }).message}
-                      </pre>
-                    </Show>
-                  </li>
-                );
-              }}
-            </For>
-          </ul>
-        </section>
         <TerminalGrid
           links={termList()}
           active={termActive()}
@@ -575,37 +522,30 @@ export function App(props: {
           onActivate={(i) => termGroup()?.setActive(i)}
         />
       </div>
-      <AskpassDialog ask={asks()[0]} onReply={reply} />
-      <UpdateBar />
-    </main>
-  );
-}
-
-/**
- * shj が無いマシンに入れてよいかを聞く。何を・どこから・どこへ入れるかを見せ、
- * 「入れる」と押されるまで何もしない。
- */
-function InstallPrompt(props: {
-  target: string;
-  state: Extract<SessionState, { kind: "needs-install" }>;
-  onYes: () => void;
-  onNo: () => void;
-}): JSX.Element {
-  return (
-    <div role="group" aria-label="shj を入れるか">
-      <p>
-        {props.target} に shj がありません。GUI と同じ版（
-        {props.state.plan.version}）の shj を GitHub Releases（
-        {props.state.plan.release_url}）から取り、{props.target} の{" "}
-        <code>{props.state.plan.path}</code> に入れてよいですか？
-        取った実行ファイルは SHA-256
-        を確かめてから使い、合わなければ入れません。PATH の shj には触りません。
-      </p>
-      <button onClick={props.onYes}>入れる</button>{" "}
-      <button onClick={props.onNo}>入れない</button>
-      <Show when={props.state.error}>
-        <pre role="alert">{props.state.error}</pre>
+      <Show when={installing()}>
+        {(t) => (
+          <InstallCard
+            target={machineLabel(t())}
+            state={
+              states()[t()] as Extract<SessionState, { kind: "needs-install" }>
+            }
+            onYes={() => void sessions()[t()]?.install()}
+            onNo={() => sessions()[t()]?.declineInstall()}
+          />
+        )}
       </Show>
-    </div>
+      <Show when={picking()}>
+        <HostPicker
+          targets={[LOCAL, ...hosts()]}
+          stateOf={(t) => states()[t]}
+          onConnect={connect}
+          onClose={() => setPicking(false)}
+        />
+      </Show>
+      <AskpassDialog ask={asks()[0]} onReply={reply} />
+      <Notices notices={notices()}>
+        <UpdateBar />
+      </Notices>
+    </main>
   );
 }

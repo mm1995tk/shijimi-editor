@@ -2,9 +2,12 @@
 // フォーカスしているワークスペースの帯の下にはツリーを出す（D2、描くのは tree/TreeView.tsx）。
 // スクロールしても、上にフォーカスしているマシンの見出し → 帯 → 親フォルダを、下にそれより後ろの帯を固定する（D3）。
 // マシンごとの色（D4）は section の --machine-color に入れ、見出しと帯の左端の線とアイコンに使う。
+// 見出しには接続の状態（丸と、その下の短い 1 行。言葉は connect/status.ts）と、今すぐつなぐ・つなぎ直す・切るボタンを出す。
+// 一覧の一番下には「ホストを開く」を置き、押すと onOpenHost を呼ぶ（窓は connect/HostPicker.tsx）。
 // 組み立ては model.ts、色の決め方は colors.ts、見た目は sidebar.css。
 import { createMemo, For, onCleanup, onMount, Show, type JSX } from "solid-js";
 
+import type { MachineStatus } from "../connect/status.ts";
 import type { WorkspaceId } from "../rpc/protocol.ts";
 import type { TreeRow } from "../tree/model.ts";
 import { TreeView } from "../tree/TreeView.tsx";
@@ -27,6 +30,12 @@ interface Handlers {
   /** ツリーの行。まだ取っていなければ undefined */
   treeOf?: (target: string, id: WorkspaceId) => TreeRow[] | undefined;
   onToggle?: (target: string, id: WorkspaceId, path: string) => void;
+  /** 見出しの下の 1 行とボタン。省くと出さない */
+  statusOf?: (target: string) => MachineStatus;
+  /** 見出しのそばの「今すぐつなぐ」「つなぎ直す」 */
+  onRetry?: (target: string) => void;
+  /** 見出しのそばの「切る」 */
+  onDisconnect?: (target: string) => void;
 }
 
 /**
@@ -43,6 +52,8 @@ export function Sidebar(
     groups: MachineGroup[];
     /** 一覧の要素（スクロールの位置を覚えて戻すのに使う） */
     ref?: (el: HTMLElement) => void;
+    /** 一番下の「ホストを開く」 */
+    onOpenHost?: () => void;
   },
 ): JSX.Element {
   const split = createMemo(() => splitAtFocus(props.groups));
@@ -102,49 +113,71 @@ export function Sidebar(
   });
 
   return (
-    <nav
-      class="sidebar"
-      aria-label="マシンとワークスペース"
-      ref={(el) => {
-        nav = el;
-        props.ref?.(el);
-      }}
-    >
-      <For each={split().before}>
-        {(g) => <Machine group={g} {...handlers(props)} />}
-      </For>
-      <Show when={split().focused}>
-        {(g) => <Machine group={g()} sticky {...handlers(props)} />}
-      </Show>
-      <Show when={hasAfter()}>
-        <div class="sidebar-after" data-sticky="bottom">
-          <Show when={split().after.rest.length > 0}>
-            {/* 見出しの無いマシンの要素にして、マシンの色（--machine-color）を同じにする */}
-            <section
-              class="machine machine-rest"
-              style={{ "--machine-color": split().after.color }}
-              data-target={split().after.target}
-              aria-label={split().after.label}
-            >
-              <ul class="bands">
-                <For each={split().after.rest}>
-                  {(b) => (
-                    <BandItem
-                      target={split().after.target}
-                      band={b}
-                      {...handlers(props)}
-                    />
-                  )}
-                </For>
-              </ul>
-            </section>
-          </Show>
-          <For each={split().after.groups}>
-            {(g) => <Machine group={g} {...handlers(props)} />}
-          </For>
-        </div>
-      </Show>
-    </nav>
+    <div class="sidebar-column">
+      <nav
+        class="sidebar"
+        aria-label="マシンとワークスペース"
+        ref={(el) => {
+          nav = el;
+          props.ref?.(el);
+        }}
+      >
+        <For each={split().before}>
+          {(g) => <Machine group={g} {...handlers(props)} />}
+        </For>
+        <Show when={split().focused}>
+          {(g) => <Machine group={g()} sticky {...handlers(props)} />}
+        </Show>
+        <Show when={hasAfter()}>
+          <div class="sidebar-after" data-sticky="bottom">
+            <Show when={split().after.rest.length > 0}>
+              {/* 見出しの無いマシンの要素にして、マシンの色（--machine-color）を同じにする */}
+              <section
+                class="machine machine-rest"
+                style={{ "--machine-color": split().after.color }}
+                data-target={split().after.target}
+                aria-label={split().after.label}
+              >
+                <ul class="bands">
+                  <For each={split().after.rest}>
+                    {(b) => (
+                      <BandItem
+                        target={split().after.target}
+                        band={b}
+                        {...handlers(props)}
+                      />
+                    )}
+                  </For>
+                </ul>
+              </section>
+            </Show>
+            <For each={split().after.groups}>
+              {(g) => <Machine group={g} {...handlers(props)} />}
+            </For>
+          </div>
+        </Show>
+      </nav>
+      <div class="sidebar-foot">
+        <button
+          type="button"
+          class="open-host"
+          onClick={() => props.onOpenHost?.()}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            aria-hidden="true"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          ホストを開く
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -160,6 +193,15 @@ function handlers(props: Handlers): Handlers {
     get onToggle() {
       return props.onToggle;
     },
+    get statusOf() {
+      return props.statusOf;
+    },
+    get onRetry() {
+      return props.onRetry;
+    },
+    get onDisconnect() {
+      return props.onDisconnect;
+    },
   };
 }
 
@@ -168,6 +210,7 @@ function Machine(
   props: Handlers & { group: MachineGroup; sticky?: boolean },
 ): JSX.Element {
   const g = () => props.group;
+  const status = () => props.statusOf?.(g().target);
   return (
     <section
       class="machine"
@@ -179,7 +222,43 @@ function Machine(
         class="machine-heading"
         data-sticky={props.sticky ? "top" : undefined}
       >
-        <span class="machine-name">{g().label}</span>
+        <span class="machine-name" title={status()?.title || undefined}>
+          {g().label}
+        </span>
+        <Show when={status()?.retry}>
+          {(r) => (
+            <button
+              type="button"
+              class="machine-action"
+              aria-label={r() === "now" ? "今すぐつなぐ" : "つなぎ直す"}
+              title={r() === "now" ? "今すぐつなぐ" : "つなぎ直す"}
+              onClick={() => props.onRetry?.(g().target)}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+                <path d="M20 4v5h-5" />
+              </svg>
+            </button>
+          )}
+        </Show>
+        <Show when={props.onDisconnect}>
+          <button
+            type="button"
+            class="machine-action"
+            aria-label={`${g().label} を切る`}
+            title="切る"
+            onClick={() => props.onDisconnect?.(g().target)}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </Show>
         <span
           class="health"
           data-health={g().health}
@@ -188,6 +267,17 @@ function Machine(
           title={healthLabel[g().health]}
         />
       </h2>
+      <Show when={status()?.text}>
+        {(t) => (
+          <p
+            class="machine-status"
+            role="status"
+            title={status()?.title || undefined}
+          >
+            {t()}
+          </p>
+        )}
+      </Show>
       <Show
         when={g().bands.length > 0}
         fallback={<p class="no-workspace">ワークスペースはありません</p>}
