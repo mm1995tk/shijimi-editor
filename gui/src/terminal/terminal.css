@@ -4,12 +4,29 @@
    今のターミナルの印と同じくマシンの色（D4）の 2px の線を引く。タブ（見出しの帯）は作らない。
    置き場所（右下か上か）と高さは app.css が決める。 */
 .terminal {
+  position: relative;
   box-sizing: border-box;
   display: grid;
   gap: 1px;
   min-height: 0;
   background: #2a2f39;
   border-top: 1px solid #2a2f39;
+}
+
+/* 欄が無いとき（つないだマシンが無い・term.list の返事を待つ間）は、F1 と同じく空のターミナルの色にする */
+.terminal[data-empty] {
+  background: #0f1114;
+}
+
+/* IDE モードで隠しているターミナルの数。今の欄の右上に小さく出す */
+.terminal-others {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  margin: 0;
+  font-size: 11px;
+  color: #9aa3b2;
+  pointer-events: none;
 }
 
 .terminal-cell {

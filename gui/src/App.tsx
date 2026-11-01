@@ -145,6 +145,15 @@ export function App(props: {
     const t = termTarget();
     return t !== undefined && sessions()[t] ? termGroups.get(t) : undefined;
   });
+  // 並びと今使っている欄（TermGroup は signal ではないので、termVersion で描き直す）
+  const termList = () => {
+    void termVersion();
+    return termGroup()?.list ?? [];
+  };
+  const termActive = () => {
+    void termVersion();
+    return termGroup()?.active;
+  };
   // 出すマシンが変わったら、前のマシンのものを外し、出すマシンのシェルを拾う
   createEffect<TermGroup | undefined>((prev) => {
     const g = termGroup();
@@ -178,7 +187,7 @@ export function App(props: {
   // await の後は Owner が無いので、onCleanup は先に登録する
   const offs: (() => void)[] = [];
   // GUI が受けるキーなので、欄やターミナルに届く前（capture）に取って、shj にもシェルにも送らない
-  const onModeKey = (e: KeyboardEvent) => {
+  const onGuiKey = (e: KeyboardEvent) => {
     if (isModeKey(e)) {
       e.preventDefault();
       e.stopPropagation();
@@ -200,9 +209,9 @@ export function App(props: {
       if (termGroup()?.move(dir)) focusTerminal();
     }
   };
-  window.addEventListener("keydown", onModeKey, true);
+  window.addEventListener("keydown", onGuiKey, true);
   onCleanup(() => {
-    window.removeEventListener("keydown", onModeKey, true);
+    window.removeEventListener("keydown", onGuiKey, true);
     clearInterval(tick);
     offs.forEach((f) => f());
     for (const s of Object.values(sessions())) void s.close();
@@ -328,6 +337,11 @@ export function App(props: {
     if (f) sessions()[f.target]?.input(method, params);
   };
 
+  /** ワークスペースのルート（分からなければ undefined）。 */
+  function rootOf(target: string, id: WorkspaceId): string | undefined {
+    return workspaces()[target]?.find((w) => w.id === id)?.root;
+  }
+
   /** 帯を押した。shj に workspace.focus を送り、受け付けられたら GUI のフォーカスも移す。 */
   async function focusWorkspace(target: string, id: WorkspaceId) {
     const s = sessions()[target];
@@ -338,7 +352,7 @@ export function App(props: {
       const termId = await s.focusWorkspace(id);
       if (seq !== focusSeq) return;
       // 右下のターミナルも、そのワークスペースで最後に使ったシェルにする（無ければルートで作る）（F2）
-      const root = workspaces()[target]?.find((w) => w.id === id)?.root;
+      const root = rootOf(target, id);
       if (root !== undefined) termGroups.get(target)?.switchTo(termId, root);
       setFocus({ target, id });
     } catch (e) {
@@ -429,9 +443,7 @@ export function App(props: {
     const g = termGroup();
     if (!g) return;
     const f = focus();
-    const root = f
-      ? workspaces()[f.target]?.find((w) => w.id === f.id)?.root
-      : undefined;
+    const root = f ? rootOf(f.target, f.id) : undefined;
     // 無ければ shj に任せる（フォーカスしているワークスペースのルート、それも無ければ ~）
     if (g.add(root)) focusTerminal();
   }
@@ -540,8 +552,8 @@ export function App(props: {
           </ul>
         </section>
         <TerminalGrid
-          links={(termVersion(), termGroup()?.list ?? [])}
-          active={(termVersion(), termGroup()?.active)}
+          links={termList()}
+          active={termActive()}
           showAll={mode() === "terminal"}
           accent={colors()[termTarget() ?? ""]}
           onActivate={(i) => termGroup()?.setActive(i)}

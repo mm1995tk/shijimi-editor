@@ -48,8 +48,8 @@ export const RECREATED_NOTICE =
   "\r\n[前のシェルが見つからないので、新しいシェルを開きました]\r\n";
 
 /**
- * 1 つのマシンのターミナル 1 つと、それを描く画面をつなぐ。マシンごとに 1 つ作り、右下に出すときに
- * bind、外すときに unbind する。shj からの通知は handle に、つなぎ直したことは reconnected に渡す。
+ * ターミナル 1 つと、それを描く画面をつなぐ。ターミナル 1 つにつき 1 つ作り（並びは TermGroup が持つ）、
+ * 欄に出すときに bind、外すときに unbind する。shj からの通知は handle に、つなぎ直したことは reconnected に渡す。
  * 流量制御・欠けの取り直し・つなぎ直しの決まりは、このファイルの先頭のとおり。
  */
 export class TermLink {

@@ -1,4 +1,4 @@
-import { createEffect, For, on, type JSX } from "solid-js";
+import { createEffect, For, on, Show, type JSX } from "solid-js";
 
 import { cellOf, gridSize } from "./grid.ts";
 import type { TermLink } from "./link.ts";
@@ -7,7 +7,7 @@ import { TerminalView } from "./TerminalView.tsx";
 /**
  * ターミナルのカード（F1・F4）。ターミナルモードでは、マシンのターミナルを数に応じて自動で並べる
  * （grid.ts）。IDE モードでは、今使っている 1 つだけを見せる（ほかも作り直さずに動かし続ける）。
- * タブは作らない。
+ * 隠したものを忘れないよう、IDE モードでほかにもあれば、その数を右上に出す。タブは作らない。
  */
 export function TerminalGrid(props: {
   /** 並べるターミナル（TermGroup の list） */
@@ -60,6 +60,7 @@ export function TerminalGrid(props: {
       class="terminal"
       aria-label="ターミナル"
       data-split={shown() > 1 ? "" : undefined}
+      data-empty={props.links.length === 0 ? "" : undefined}
       style={template()}
       ref={el}
       onFocusIn={() => (hadFocus = true)}
@@ -79,6 +80,11 @@ export function TerminalGrid(props: {
           />
         )}
       </For>
+      <Show when={!props.showAll && props.links.length > 1}>
+        <p class="terminal-others" role="status">
+          ほかに {props.links.length - 1} つ（Ctrl+Shift+` で並べる）
+        </p>
+      </Show>
     </section>
   );
 }

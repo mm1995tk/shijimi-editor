@@ -7,10 +7,12 @@
 // DOM を使わないので node --test で確かめられる。
 
 import type { KeyLike } from "../files/input.ts";
+import { isCtrlShift } from "../mode.ts";
 
 /** 並べられるターミナルの数の上限。 */
 export const MAX_TERMS = 6;
 
+/** 隣へ移る向き（Ctrl+Shift+矢印）。 */
 export type Direction = "left" | "right" | "up" | "down";
 
 /** n 個を並べる升目の列と行の数。 */
@@ -21,13 +23,14 @@ export function gridSize(n: number): { cols: number; rows: number } {
   return { cols: 3, rows: 2 };
 }
 
-/** i 番目（0 から）の升の位置（0 からの行と列）と、何列ぶんの幅か。 */
+/** 升の位置（0 からの行と列）と、何列ぶんの幅か。 */
 export interface Cell {
   row: number;
   col: number;
   span: number;
 }
 
+/** n 個を並べたときの i 番目（0 から）の升。最後のターミナルで升目が余れば、残りの幅を全部使う。 */
 export function cellOf(i: number, n: number): Cell {
   const { cols, rows } = gridSize(n);
   const row = Math.floor(i / cols);
@@ -61,7 +64,7 @@ export function neighbor(i: number, n: number, dir: Direction): number {
 
 /** Ctrl+Shift+矢印なら向き、そうでなければ null。 */
 export function directionKey(e: KeyLike): Direction | null {
-  if (!e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return null;
+  if (!isCtrlShift(e)) return null;
   switch (e.key) {
     case "ArrowLeft":
       return "left";
@@ -78,6 +81,6 @@ export function directionKey(e: KeyLike): Direction | null {
 
 /** 新しいターミナルを作るキー（Ctrl+Shift+T）か。 */
 export function isNewTermKey(e: KeyLike): boolean {
-  if (!e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return false;
+  if (!isCtrlShift(e)) return false;
   return e.code === "KeyT" || e.key === "T" || e.key === "t";
 }

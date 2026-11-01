@@ -16,6 +16,10 @@ import type { TermEvent } from "../ssh/session.ts";
 import { MAX_TERMS, neighbor, type Direction } from "./grid.ts";
 import { TermLink, type TermPort } from "./link.ts";
 
+/**
+ * 1 つのマシンのターミナルの並びと、今使っている 1 つ（active）を持つ。並びか active が変わったら onChange を呼ぶ。
+ * 出す前は何もせず、show() で初めて動いているシェルを拾う。決まりはこのファイルの先頭のとおり。
+ */
 export class TermGroup {
   private readonly port: TermPort;
   private readonly onChange: () => void;
