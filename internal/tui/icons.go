@@ -13,12 +13,6 @@ type fileIcon struct {
 	color string
 }
 
-// iconOverride replaces parts of an icon in a theme. Empty fields keep the
-// default.
-type iconOverride struct {
-	Glyph, Color string
-}
-
 var (
 	iconFolder     = fileIcon{"folder", "", "#7aa2c8"}
 	iconFolderOpen = fileIcon{"folder-open", "", "#7aa2c8"}

@@ -67,3 +67,6 @@ func applyTheme(t *Theme) {
 	tokenColors = map[chroma.TokenType]string{}
 	rebuildStyles(t)
 }
+
+// init makes the default theme the active one before any config is read.
+func init() { applyTheme(defaultTheme) }

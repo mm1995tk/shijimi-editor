@@ -228,3 +228,28 @@ func TestCoreMethods(t *testing.T) {
 		}
 	}
 }
+
+// TestThemeApplyIsFrontEnd keeps the files that go to core from applying a
+// theme to the styles themselves: they ask the front end (setPalette).
+func TestThemeApplyIsFrontEnd(t *testing.T) {
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || slices.Contains(tuiMethodFiles, name) {
+			continue
+		}
+		f, err := parser.ParseFile(token.NewFileSet(), name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			if id, ok := n.(*ast.Ident); ok && (id.Name == "applyTheme" || id.Name == "rebuildStyles") {
+				t.Errorf("%s uses %s; ask the front end (setPalette, frontend.go)", name, id.Name)
+			}
+			return true
+		})
+	}
+}
