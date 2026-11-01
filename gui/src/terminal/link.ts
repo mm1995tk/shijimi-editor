@@ -7,6 +7,8 @@
 // - seq が飛んだ（溢れて捨てられた）とき・つなぎ直したときは、term.attach で溜めた出力を取り直す。
 //   attach の返事を待つ間に届いた term.output は、取り直す分に入っているので捨てる。
 // - term.create の返事より先に term.output が届くことがあるので、作ったら term.attach（0 から）で取り直す。
+// - ワークスペースを移したら、workspace.focus の termId（そのワークスペースで最後に使ったターミナル）に
+//   切り替える。そのワークスペースにターミナルが無ければ、ルートで新しく作る（F2）。
 //
 // DOM を使わないので node --test で確かめられる。画面は TermSink、shj は TermPort で差し替える。
 
@@ -53,6 +55,8 @@ export class TermLink {
   private readonly onError: (message: string) => void;
   private sink?: TermSink;
   private termId?: TermId;
+  /** 新しく作るときの cwd（フォーカスしているワークスペースのルート。まだ無ければ shj に任せる） */
+  private cwd?: string;
   /** 画面に渡した分の seq（バイト数の累計） */
   private received = 0;
   /** attach の返事待ち。この間の term.output は捨てる */
@@ -85,6 +89,25 @@ export class TermLink {
     this.sink = sink;
     sink.reset();
     this.received = 0;
+    void this.open(0);
+  }
+
+  /**
+   * ワークスペースを移した（F2）。termId（そのワークスペースで最後に使ったターミナル）に切り替え、
+   * 溜めた出力を全部取り直して描く。termId が無ければ cwd（そのワークスペースのルート）で新しく作る。
+   * 画面が外れていれば覚えるだけで、bind したときにそれを描く。前のシェルは止めない。
+   */
+  switchTo(termId: TermId | undefined, cwd: string): void {
+    this.cwd = cwd;
+    if (termId !== undefined && termId === this.termId) return;
+    this.termId = termId;
+    this.exited = false;
+    this.received = 0;
+    if (!this.sink) {
+      this.nextOp(); // 外している間に始めた取り直しの返事を捨てる
+      return;
+    }
+    this.sink.reset();
     void this.open(0);
   }
 
@@ -190,6 +213,11 @@ export class TermLink {
       this.exited = false;
       this.sink?.notice(RECREATED_NOTICE);
     }
+    // ワークスペースが決まっていれば、ほかのワークスペースのシェルを拾わずにそのルートで作る
+    if (this.cwd !== undefined) {
+      await this.create(op);
+      return;
+    }
     try {
       const { terms } = await this.port.request("term.list", {});
       if (op !== this.op) return;
@@ -214,6 +242,7 @@ export class TermLink {
       const r = await this.port.request("term.create", {
         cols: this.cols,
         rows: this.rows,
+        ...(this.cwd !== undefined ? { cwd: this.cwd } : {}),
       });
       if (op !== this.op) return;
       this.termId = r.termId;
@@ -301,7 +330,10 @@ export class TermLink {
     try {
       const { terms } = await this.port.request("term.list", {});
       if (op !== this.op || id !== this.termId) return;
-      if (!terms.some((t) => t.termId === id && t.alive)) this.markExited();
+      const t = terms.find((t) => t.termId === id && t.alive);
+      if (!t) this.markExited();
+      // 別の大きさの画面で使っていたターミナルに切り替えたときは、こちらの大きさに合わせる
+      else this.sendSize(t.cols, t.rows);
     } catch (e) {
       if (op === this.op) this.onError(`term.list: ${message(e)}`);
     }

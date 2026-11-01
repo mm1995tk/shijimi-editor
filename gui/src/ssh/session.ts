@@ -21,6 +21,7 @@ import type {
   Requests,
   Screen,
   ScreenUpdate,
+  TermId,
   Theme,
   WorkspaceId,
 } from "../rpc/protocol.ts";
@@ -252,15 +253,17 @@ export class Session {
   /**
    * workspace.focus を送ってフォーカスを移す。画面はそのワークスペースのものに切り替わるので、取り直す。
    * つながっていないとき・shj が断ったときは投げる（フォーカスは変えない）。
+   * 返すのは、そのワークスペースで最後に使ったターミナル（無ければ undefined）（F2）。
    */
-  async focusWorkspace(id: WorkspaceId): Promise<void> {
+  async focusWorkspace(id: WorkspaceId): Promise<TermId | undefined> {
     const conn = this.conn;
     if (!conn) throw new Error(`${this.target} につながっていません`);
     const gen = this.generation;
-    await conn.client.request("workspace.focus", { id });
-    if (gen !== this.generation || this.conn !== conn) return;
+    const r = await conn.client.request("workspace.focus", { id });
+    if (gen !== this.generation || this.conn !== conn) return r.termId;
     this.setFocus(id);
     void this.fetchScreen(conn, gen, true);
+    return r.termId;
   }
 
   /**

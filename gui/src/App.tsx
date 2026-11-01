@@ -9,6 +9,7 @@
 // どのマシンにも送る（どのマシンにフォーカスを移しても、同じ大きさの欄に描くため）。
 // 欄で受けたキー・IME・マウス・貼り付けは、フォーカスしているマシンの shj に送る。shj でコピーしたら
 // OS のクリップボードに入れる（E2）。
+// 帯を押してフォーカスを移すと、右下のターミナルもそのワークスペースのシェルに切り替える（F2）。
 import {
   createEffect,
   createMemo,
@@ -287,8 +288,12 @@ export function App(props: {
     const seq = ++focusSeq; // 続けて押したら、最後に押したものだけを使う
     setFocusError("");
     try {
-      await s.focusWorkspace(id);
-      if (seq === focusSeq) setFocus({ target, id });
+      const termId = await s.focusWorkspace(id);
+      if (seq !== focusSeq) return;
+      // 右下のターミナルも、そのワークスペースで最後に使ったシェルにする（無ければルートで作る）（F2）
+      const root = workspaces()[target]?.find((w) => w.id === id)?.root;
+      if (root !== undefined) termLinks.get(target)?.switchTo(termId, root);
+      setFocus({ target, id });
     } catch (e) {
       if (seq !== focusSeq) return;
       setFocusError(
