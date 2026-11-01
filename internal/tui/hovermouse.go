@@ -161,12 +161,6 @@ func (a *App) mouseWord(l layout, pt screenPt) (buffer.Pos, wordSpan, bool) {
 	return pos, wordSpan{pos.Row, s, e}, true
 }
 
-// popupAnchor is the cell a popup hangs from: the pointer for a hover it
-// triggered, the cursor otherwise.
-func (a *App) popupAnchor(t *tab, l layout) (x, y int) {
-	return a.posScreen(t, l, a.popupAnchorPos(t))
-}
-
 // popupAnchorPos is the place in the file a popup hangs from.
 func (a *App) popupAnchorPos(t *tab) buffer.Pos {
 	if a.comp == nil && a.hoverAt != nil {
