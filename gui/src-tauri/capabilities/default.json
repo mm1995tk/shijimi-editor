@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "メイン窓の権限。今は何も許可しない（コマンドを足すときにここへ書く）",
+  "windows": ["main"],
+  "permissions": []
+}

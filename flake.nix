@@ -81,6 +81,8 @@
               };
             };
 
+          guiDrv = import ./nix/gui.nix { inherit pkgs version; };
+
           appDrv = mkApp { };
           # The nightly build of main, installed as shj-nightly so it can sit next to shj.
           nightlyDrv = mkApp { channel = "nightly"; };
@@ -90,6 +92,7 @@
             default = appDrv;
             shijimi = appDrv;
             shj-nightly = nightlyDrv;
+            gui = guiDrv;
             treefmt = treefmtEval.config.build.configFile;
           };
 
