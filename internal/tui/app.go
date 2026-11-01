@@ -35,25 +35,23 @@ const (
 
 type span struct{ x0, x1 int }
 
-// App is the root Bubble Tea model.
-type App struct {
+// Core is the state that decides what is shown: the files, the cursor, the
+// keys' state, the language servers. It is what moves to internal/core (#384);
+// App keeps what only a terminal has (the size of the screen, which regions
+// are shown, the terminal, the pane sizes the user picked).
+type Core struct {
 	root      string
 	gitTop    string
 	cfg       *config.Config
 	keymap    helixKeymap
-	lastIns   *insertRecord     // what "." repeats
-	recIns    *insertRecord     // the insert being recorded, until Esc
-	replaying bool              // "." is running; do not record
-	caret     *caret.Writer     // the terminal output; nil in tests
-	host      Host              // the GUI of `shj serve`; nil in the TUI
-	cellSize  func() (w, h int) // terminal cell size in pixels; nil in tests
+	lastIns   *insertRecord // what "." repeats
+	recIns    *insertRecord // the insert being recorded, until Esc
+	replaying bool          // "." is running; do not record
+	host      Host          // the GUI of `shj serve`; nil in the TUI
 	lsp       *lspManager
-	w, h      int
 	focus     focus
 	explorer  *explorer
 	treeTicks int // watch ticks since the tree was last reloaded
-	term      *terminal
-	mux       muxPane // the multiplexer pane that replaces term inside a multiplexer
 	proxy     *proxy.Manager
 	pal       *palette
 	wsSyms    []lsp.Symbol // rows of the project symbol picker
@@ -69,17 +67,7 @@ type App struct {
 	card      *prCard   // a review thread shown like a hover
 	composer  *composer // the editor for a review comment
 
-	showSide bool
-	showTerm bool
-
 	// pane sizes picked by the user (0 = automatic), see resize.go
-	sideWPref   int
-	panelHPref  int
-	previewPct  int
-	diffLeftPct int // base pane share of a split diff; 0 = half
-	explorerPct int // file tree share of the diff mode sidebar; 0 = 7/10
-	resizeMode  bool
-	resizing    resizeTarget // border being dragged with the mouse
 
 	// Helix modal state
 	helix          bool
@@ -119,10 +107,8 @@ type App struct {
 	selTrack  core.SelectionTracker
 
 	// suggestion panel and ACP agent (see suggest.go, agent.go)
-	ag         *agentState
-	sg         suggestState
-	showAgent  bool
-	agentWPref int // panel width picked by the user (0 = automatic)
+	ag *agentState
+	sg suggestState
 
 	clipboard    string
 	msg          string
@@ -131,11 +117,7 @@ type App struct {
 	confirmClose bool
 	follow       bool // scroll to the cursor on next render
 	dragging     bool
-	lastClick    click  // the previous left press (adapter state: see clicks in inputtea.go)
-	capture      Region // the region a held pointer button is captured by (see locate)
-	keyReleases  bool   // the terminal reports key releases
-	askReleases  bool   // key releases were asked for in the last View
-	quitting     bool   // tea.Quit was returned (see exit)
+	lastClick    click // the previous left press (adapter state: see clicks in inputtea.go)
 	hold         holdScroll
 	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
 	lineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
@@ -157,25 +139,53 @@ type App struct {
 	previewGen int
 }
 
+// App is the root Bubble Tea model: a Core and what draws it to a terminal.
+type App struct {
+	*Core
+
+	caret       *caret.Writer     // the terminal output; nil in tests
+	cellSize    func() (w, h int) // terminal cell size in pixels; nil in tests
+	w, h        int
+	term        *terminal
+	mux         muxPane // the multiplexer pane that replaces term inside a multiplexer
+	showSide    bool
+	showTerm    bool
+	sideWPref   int
+	panelHPref  int
+	previewPct  int
+	diffLeftPct int // base pane share of a split diff; 0 = half
+	explorerPct int // file tree share of the diff mode sidebar; 0 = 7/10
+	resizeMode  bool
+	resizing    resizeTarget // border being dragged with the mouse
+	showAgent   bool
+	agentWPref  int    // panel width picked by the user (0 = automatic)
+	capture     Region // the region a held pointer button is captured by (see locate)
+	keyReleases bool   // the terminal reports key releases
+	askReleases bool   // key releases were asked for in the last View
+	quitting    bool   // tea.Quit was returned (see exit)
+}
+
 // New creates the app rooted at dir, optionally opening file.
 func New(dir, file string) *App {
 	abs, _ := filepath.Abs(dir)
 	cfg := config.Load(abs)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
-		root:     abs,
-		cfg:      cfg,
-		lsp:      newLSPManager(cfg, abs),
-		explorer: newExplorer(abs),
+		Core: &Core{
+			root:     abs,
+			cfg:      cfg,
+			lsp:      newLSPManager(cfg, abs),
+			explorer: newExplorer(abs),
+			proxy:    proxy.NewManager(),
+			pal:      newPalette(),
+			search:   newSearchPanel(cfg.Search),
+			focus:    focusExplorer,
+			helix:    cfg.Editor.Keymap != "vscode",
+			gd:       gitDiff{split: true},
+			ag:       newAgentState(),
+		},
 		term:     newTerminal(abs),
-		proxy:    proxy.NewManager(),
-		pal:      newPalette(),
-		search:   newSearchPanel(cfg.Search),
 		showSide: true,
-		focus:    focusExplorer,
-		helix:    cfg.Editor.Keymap != "vscode",
-		gd:       gitDiff{split: true},
-		ag:       newAgentState(),
 	}
 	a.explorer.icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
@@ -208,20 +218,21 @@ func NewSingle(file string) (*App, error) {
 	cfg := config.Load(dir)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	a := &App{
-		root:     dir,
-		cfg:      cfg,
-		lsp:      newLSPManager(cfg, dir),
-		explorer: &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
-		term:     newTerminal(dir),
-		proxy:    proxy.NewManager(),
-		pal:      newPalette(),
-		search:   newSearchPanel(cfg.Search),
-		focus:    focusEditor,
-		helix:    cfg.Editor.Keymap != "vscode",
-		gd:       gitDiff{split: true},
-		ag:       newAgentState(),
-		single:   true,
-		showSide: false,
+		Core: &Core{
+			root:     dir,
+			cfg:      cfg,
+			lsp:      newLSPManager(cfg, dir),
+			explorer: &explorer{root: &node{name: filepath.Base(dir), path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
+			proxy:    proxy.NewManager(),
+			pal:      newPalette(),
+			search:   newSearchPanel(cfg.Search),
+			focus:    focusEditor,
+			helix:    cfg.Editor.Keymap != "vscode",
+			gd:       gitDiff{split: true},
+			ag:       newAgentState(),
+			single:   true,
+		},
+		term: newTerminal(dir),
 	}
 	if cfg.Editor.Theme != "" {
 		applyTheme(themeOrDefault(cfg.Editor.Theme))
