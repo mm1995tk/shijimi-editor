@@ -299,18 +299,19 @@ export class Session {
   /**
    * 入力（input.* と file.open）を今の接続で送る。seq はここで付ける（送るたびに 1 つ増やす）。返事は待たない。
    * shj は受け取った順に処理する。つながっていないときは捨てる（切れている間の入力は送り直さない）。
-   * 送った seq を返す（送らなければ undefined）。
+   * 送った seq を返す（送らなければ undefined）。shj が断ったら onError を呼ぶ（無ければ onDiscard に渡すだけ）。
    */
   input<M extends InputMethod>(
     method: M,
     params: Omit<Requests[M]["params"], "seq">,
+    onError?: (e: unknown) => void,
   ): number | undefined {
     const conn = this.conn;
     if (!conn) return undefined;
     const seq = ++this.inputSeq;
     conn.client
       .request(method, { ...params, seq } as Requests[M]["params"])
-      .catch((e) => this.discard(method, e));
+      .catch((e) => (onError ? onError(e) : this.discard(method, e)));
     return seq;
   }
 

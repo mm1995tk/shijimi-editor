@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { RpcError } from "../rpc/message.ts";
 import type { ClosedEvent, ShellApi } from "./api.ts";
 import { applyWorkspaceChange, Session, type SessionState } from "./session.ts";
 
@@ -118,6 +119,19 @@ function fakeShell(opts: {
         case "input.composition":
         case "input.paste":
         case "input.focus":
+          reply({ rev: 8 });
+          break;
+        case "file.open":
+          if (msg.params.path === "gone.go") {
+            queueMicrotask(() =>
+              emit(id, {
+                jsonrpc: "2.0",
+                id: msg.id,
+                error: { code: -32003, message: "not found: gone.go" },
+              }),
+            );
+            break;
+          }
           reply({ rev: 8 });
           break;
         case "session.bye":
@@ -843,6 +857,25 @@ describe("Session の入力", () => {
     });
     await new Promise((r) => setTimeout(r, 10));
     assert.deepEqual(copied, ["copied"]);
+    await s.close();
+  });
+
+  it("input に onError を渡すと、shj が断ったときに呼ぶ（file.open）", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    const errors: unknown[] = [];
+    s.input("file.open", { workspaceId: "w-A", path: "a.go" }, (e) =>
+      errors.push(e),
+    );
+    s.input("file.open", { workspaceId: "w-A", path: "gone.go" }, (e) =>
+      errors.push(e),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(errors.length, 1);
+    assert.ok(errors[0] instanceof RpcError);
+    assert.equal((errors[0] as RpcError).codeName, "not_found");
     await s.close();
   });
 });

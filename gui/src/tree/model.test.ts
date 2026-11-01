@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { Files, Pane, TreeEntry } from "../rpc/protocol.ts";
+import { RpcError } from "../rpc/message.ts";
 import { iconFor } from "./icons.ts";
 import {
   applyGitChanged,
@@ -9,6 +10,7 @@ import {
   applyList,
   applyTreeChanged,
   currentFile,
+  openErrorText,
   dropDir,
   emptyTree,
   nest,
@@ -314,5 +316,27 @@ describe("currentFile", () => {
     assert.equal(currentFile(undefined, "/w"), undefined);
     assert.equal(currentFile(files(0, pane("/w/a.go")), undefined), undefined);
     assert.equal(currentFile(files(3, pane("/w/a.go")), "/w"), undefined);
+  });
+});
+
+describe("openErrorText", () => {
+  it("shj のエラーコードを言葉にする。知らないものは文言をそのまま", () => {
+    const err = (code: number) => new RpcError({ code, message: "m" });
+    assert.equal(
+      openErrorText("a/link", err(-32004)),
+      "a/link を開けませんでした（ワークスペースの外を指しています）",
+    );
+    assert.equal(
+      openErrorText("gone.go", err(-32003)),
+      "gone.go を開けませんでした（見つかりません）",
+    );
+    assert.equal(
+      openErrorText("x", err(-32603)),
+      "x を開けませんでした（rpc error -32603 (internal_error): m）",
+    );
+    assert.equal(
+      openErrorText("x", new Error("connection closed")),
+      "x を開けませんでした（connection closed）",
+    );
   });
 });

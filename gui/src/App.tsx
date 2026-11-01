@@ -56,7 +56,7 @@ import {
 } from "./ssh/last.ts";
 import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
-import { currentFile, rows as treeRows } from "./tree/model.ts";
+import { currentFile, openErrorText, rows as treeRows } from "./tree/model.ts";
 import { WorkspaceTrees } from "./tree/trees.ts";
 import { directionKey, isNewTermKey } from "./terminal/grid.ts";
 import { TermGroup } from "./terminal/group.ts";
@@ -134,6 +134,9 @@ export function App(props: {
   const [focus, setFocus] = createSignal<WorkspaceFocus | null>(null);
   const [focusError, setFocusError] = createSignal("");
   let focusSeq = 0;
+  /** workspace.focus の返事を待っている（ワークスペースを移している途中） */
+  let switching = false;
+  let openSeq = 0;
   const offStates = new Map<string, () => void>();
   // マシンごとのターミナル（F1・F4）。フォーカスしているマシン（無ければ最初につながったマシン）のものを出す。
   // ワークスペースはシェルの cwd から決まるので、フォーカスが無くても出す。並びが変わったら termVersion を進める
@@ -359,15 +362,18 @@ export function App(props: {
     if (!s) return;
     const seq = ++focusSeq; // 続けて押したら、最後に押したものだけを使う
     setFocusError("");
+    switching = true;
     try {
       const termId = await s.focusWorkspace(id);
       if (seq !== focusSeq) return;
+      switching = false;
       // 右下のターミナルも、そのワークスペースで最後に使ったシェルにする（無ければルートで作る）（F2）
       const root = rootOf(target, id);
       if (root !== undefined) termGroups.get(target)?.switchTo(termId, root);
       setFocus({ target, id });
     } catch (e) {
       if (seq !== focusSeq) return;
+      switching = false;
       setFocusError(
         `${machineLabel(target)} のワークスペースに移れませんでした：${
           e instanceof Error ? e.message : String(e)
@@ -426,14 +432,25 @@ export function App(props: {
   /**
    * ツリーのファイルの行を押した。そのワークスペースで file.open を送り、ファイルの欄の
    * フォーカスしているペインで開く（pane を省くと shj はフォーカスしているペインで開く）。
-   * IDE モードなら、続けて打てるようにキーもファイルの欄に向ける。
+   * 送れたら、IDE モードなら続けて打てるようにキーもファイルの欄に向ける。断られたら、帯を押して移れなかったときと同じ所に出す。
+   * ワークスペースを移している途中は送らない（shj は file.open でフォーカスを動かさないので、開いても移った先では見えない）。
    */
   function openFile(target: string, id: WorkspaceId, path: string) {
-    sessions()[target]?.input("file.open", { workspaceId: id, path });
-    if (mode() === "ide")
-      mainEl
-        ?.querySelector<HTMLElement>(":scope > .files .files-ime")
-        ?.focus({ preventScroll: true });
+    const s = sessions()[target];
+    if (!s || switching || s.focus !== id) return;
+    const seq = ++openSeq; // 続けて押したら、最後に押したものの失敗だけを出す
+    setFocusError("");
+    const sent = s.input("file.open", { workspaceId: id, path }, (e) => {
+      if (seq === openSeq) setFocusError(openErrorText(path, e));
+    });
+    if (sent !== undefined && mode() === "ide") focusFiles();
+  }
+
+  /** ファイルの欄の入力用の textarea にキーを向ける。 */
+  function focusFiles() {
+    mainEl
+      ?.querySelector<HTMLElement>(":scope > .files .files-ime")
+      ?.focus({ preventScroll: true });
   }
 
   /** ファイルの欄でフォーカスしているペインが出しているファイル（ツリーで強調する行）。 */
@@ -451,10 +468,7 @@ export function App(props: {
     swapWithMotion([files, term], () => setMode(next));
     // ファイルの欄は入力用の textarea、ターミナルは今使っている欄の xterm.js の textarea がキーを受ける
     if (next === "terminal") focusTerminal();
-    else
-      files
-        ?.querySelector<HTMLElement>(".files-ime")
-        ?.focus({ preventScroll: true });
+    else focusFiles();
   }
 
   /** 今使っているターミナルの欄にキーを向ける。 */

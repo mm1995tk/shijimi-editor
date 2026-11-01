@@ -12,6 +12,7 @@ import type {
   Requests,
   TreeEntry,
 } from "../rpc/protocol.ts";
+import { RpcError } from "../rpc/message.ts";
 import { iconFor, type TreeIcon } from "./icons.ts";
 
 /** ルートのパス（tree.list の path と同じ）。 */
@@ -351,4 +352,19 @@ export function currentFile(
     return undefined;
   }
   return pane.id.slice(base.length);
+}
+
+/** file.open が断られたときに出す文。 */
+export function openErrorText(path: string, e: unknown): string {
+  const why =
+    e instanceof RpcError
+      ? ({
+          denied: "ワークスペースの外を指しています",
+          not_found: "見つかりません",
+          invalid_params: "ファイルではありません",
+        }[e.codeName] ?? e.message)
+      : e instanceof Error
+        ? e.message
+        : String(e);
+  return `${path} を開けませんでした（${why}）`;
 }
