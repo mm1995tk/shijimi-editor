@@ -175,6 +175,8 @@ jobs:
             platform="${platform#shijimi-editor-}"
             tar -xzf "$f" -O package/bin/shj > "assets/shj-nightly-$platform"
           done
+          # GUI が shj を取ったあと、値が合うか確かめるための checksums（sha256sum の形式。GUI は gui/src-tauri/src/install.rs で読む）
+          (cd assets && sha256sum shj-nightly-* > SHA256SUMS)
           date=$(date -u +%Y-%m-%d)
           # check ジョブは本文の「Commit: <sha>」の行で前の nightly を見分けるので、形を変えない
           {

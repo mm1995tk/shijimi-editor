@@ -62,6 +62,8 @@ pub struct AskpassServer {
     /// 起動ごとの合言葉
     pub token: String,
     pending: Arc<Mutex<Vec<(u64, Pending)>>>,
+    /// 取り消された conn（「切る」）。この conn からの新しい質問は、窓に出さずにすぐ断る
+    aborted: Mutex<std::collections::HashSet<String>>,
 }
 
 /// 0700 のフォルダ。`$XDG_RUNTIME_DIR` が無ければ一時フォルダの下に作る（0700 で、既にあれば失敗させる）。
@@ -101,6 +103,7 @@ impl AskpassServer {
             sock,
             token: random_token()?,
             pending: Arc::new(Mutex::new(Vec::new())),
+            aborted: Mutex::default(),
         });
         let s = Arc::clone(&server);
         std::thread::spawn(move || {
@@ -126,7 +129,7 @@ impl AskpassServer {
         let Ok(ask) = serde_json::from_str::<Ask>(&line) else {
             return;
         };
-        let answer = if ask.token == self.token {
+        let answer = if ask.token == self.token && !self.is_aborted(&ask.conn) {
             let (tx, rx) = channel();
             self.pending.lock().unwrap().push((
                 id,
@@ -172,6 +175,23 @@ impl AskpassServer {
             let (_, pend) = p.remove(pos);
             let _ = pend.tx.send(value);
         }
+    }
+
+    /// 取り消す。今待っている質問を消し、この conn からあとで来る質問（ssh はパスワードを聞き直す）も断る。
+    /// 終わったら forget で外す。
+    pub fn abort_conn(&self, conn: &str) {
+        self.aborted.lock().unwrap().insert(conn.to_string());
+        self.cancel_conn(conn);
+    }
+
+    /// abort_conn で取り消された conn か。
+    pub fn is_aborted(&self, conn: &str) -> bool {
+        self.aborted.lock().unwrap().contains(conn)
+    }
+
+    /// 取り消しの記録を外す（その conn の処理が終わったとき）。
+    pub fn forget(&self, conn: &str) {
+        self.aborted.lock().unwrap().remove(conn);
     }
 
     /// 接続を閉じたとき、その接続の待ちをすべて取り消す。
