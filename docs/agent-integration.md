@@ -95,7 +95,7 @@ VS Code 拡張や claudecode.nvim と同じプロトコルで、shijimi を Clau
 
 ### 道具（`tools/call`）
 
-`getCurrentSelection`、`getLatestSelection`、`getOpenEditors`、`getWorkspaceFolders`、`getDiagnostics`、`openFile`、`openDiff`、`closeAllDiffTabs`、`close_tab`、`checkDocumentDirty`、`saveDocument`。一覧は `internal/ui/ide.go` の `IDETools` です。
+`getCurrentSelection`、`getLatestSelection`、`getOpenEditors`、`getWorkspaceFolders`、`getDiagnostics`、`openFile`、`openDiff`、`closeAllDiffTabs`、`close_tab`、`checkDocumentDirty`、`saveDocument`。一覧は `internal/tui/ide.go` の `IDETools` です。
 
 - `openFile` はフォーカスを動かしません（エージェントを使っているターミナルに残ります）。存在しないファイルはエラーにします。
 - `getDiagnostics` は LSP の診断です。`severity` は `Error` / `Warning` / `Information` / `Hint` です。位置は 0 始まりで、`character` は LSP の値をそのまま返します。
@@ -118,7 +118,7 @@ VS Code 拡張や claudecode.nvim と同じプロトコルで、shijimi を Clau
 
 - `internal/acp`：ACP のクライアント。エージェントを子プロセスで起動し、標準入出力で 1 行 1 メッセージの JSON-RPC 2.0 を話します。`initialize` → `session/new` → `session/prompt`、`session/cancel` を送り、`session/update`・`fs/read_text_file`・`fs/write_text_file`・`session/request_permission` を受けます。`session/new` が認証を求めたら（-32000）、最初の `authMethods` で `authenticate` を 1 回だけ試します。
 - `internal/acp/acptest`：テスト用の台本どおりに動くエージェント。テストのバイナリを、環境変数を付けてエージェントとして起動します。
-- `internal/ui/suggest.go`：提案のルール。`internal/ui/agent.go`：ACP とエディタのつなぎ。`internal/ui/agentpanel.go`：右パネル。`internal/ui/shellint.go`：zsh のシェル統合。
+- `internal/tui/suggest.go`：提案のルール。`internal/tui/agent.go`：ACP とエディタのつなぎ。`internal/tui/agentpanel.go`：右パネル。`internal/tui/shellint.go`：zsh のシェル統合。
 
 ### 決めうちした点
 
