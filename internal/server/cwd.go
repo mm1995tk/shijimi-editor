@@ -28,9 +28,6 @@ func findRoot(cwd, home string) (root, kind string, ok bool) {
 		if fi, err := os.Stat(filepath.Join(d, ".shijimi-editor")); err == nil && fi.IsDir() {
 			return d, "shijimi", true
 		}
-		if filepath.Dir(d) == d {
-			break
-		}
 	}
 	return cwd, "cwd", true
 }
@@ -95,7 +92,7 @@ func gitBranch(root string) string {
 
 // lsofCwd は lsof でプロセスの cwd を読む（macOS で proc_info が使えないときの代わり）。
 func lsofCwd(pid int) (string, error) {
-	out, err := exec.Command("lsof", "-a", "-d", "cwd", "-Fn", "-p", itoa(pid)).Output()
+	out, err := exec.Command("lsof", "-a", "-d", "cwd", "-Fn", "-p", strconv.Itoa(pid)).Output()
 	if err != nil {
 		return "", err
 	}
@@ -106,5 +103,3 @@ func lsofCwd(pid int) (string, error) {
 	}
 	return "", os.ErrNotExist
 }
-
-func itoa(n int) string { return strconv.Itoa(n) }

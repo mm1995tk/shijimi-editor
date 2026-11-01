@@ -9,7 +9,9 @@ package server
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"sync"
@@ -59,11 +61,8 @@ func (w *wsManager) resolve(cwd string) (id, root, kind string) {
 func (w *wsManager) snapshot() ([]*wsInfo, string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	out := make([]*wsInfo, 0, len(w.list))
-	for _, x := range w.list {
-		out = append(out, x)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Root < out[j].Root })
+	out := append([]*wsInfo{}, slices.Collect(maps.Values(w.list))...)
+	sortWS(out)
 	return out, w.focus
 }
 
@@ -86,8 +85,28 @@ func (w *wsManager) focusRoot() string {
 func (w *wsManager) recompute() {
 	w.recomputeMu.Lock()
 	defer w.recomputeMu.Unlock()
+	next := buildWorkspaces(w.srv.terms.all())
+	w.mu.Lock()
+	prev := w.list
+	w.list = next
+	if _, ok := next[w.focus]; !ok {
+		// フォーカスが消えた。GUI は removed から知る。P14 で Screen の宛先が要るときに通知を足す。
+		w.focus = ""
+	}
+	added, updated, removed := diffWorkspaces(prev, next)
+	for _, id := range removed {
+		delete(w.lastTerm, id)
+	}
+	w.mu.Unlock()
+	if p := changedParams(added, updated, removed); p != nil {
+		w.srv.notifyOwner("workspace.changed", p)
+	}
+}
+
+// buildWorkspaces は生きているターミナルをルートごとにまとめる。
+func buildWorkspaces(terms []*terminal) map[string]*wsInfo {
 	next := map[string]*wsInfo{}
-	for _, t := range w.srv.terms.all() {
+	for _, t := range terms {
 		t.mu.Lock()
 		alive, id, root, kind, tid := t.alive, t.wsID, t.wsRoot, t.wsKind, t.id
 		t.mu.Unlock()
@@ -96,7 +115,7 @@ func (w *wsManager) recompute() {
 		}
 		x := next[id]
 		if x == nil {
-			x = &wsInfo{ID: id, Root: root, Kind: kind, Name: baseName(root), Terms: []string{}, Files: []string{}}
+			x = &wsInfo{ID: id, Root: root, Kind: kind, Name: filepath.Base(root), Terms: []string{}, Files: []string{}}
 			if kind == "git" {
 				x.Branch = gitBranch(root)
 			}
@@ -107,16 +126,11 @@ func (w *wsManager) recompute() {
 	for _, x := range next {
 		slices.SortFunc(x.Terms, func(a, b string) int { return termIDNum(a) - termIDNum(b) })
 	}
-	w.mu.Lock()
-	prev := w.list
-	w.list = next
-	if _, ok := next[w.focus]; !ok {
-		w.focus = ""
-	}
-	w.mu.Unlock()
+	return next
+}
 
-	var added, updated []*wsInfo
-	var removed []string
+// diffWorkspaces は前回と今回の差。
+func diffWorkspaces(prev, next map[string]*wsInfo) (added, updated []*wsInfo, removed []string) {
 	for id, x := range next {
 		p, ok := prev[id]
 		switch {
@@ -131,12 +145,17 @@ func (w *wsManager) recompute() {
 			removed = append(removed, id)
 		}
 	}
-	if len(added)+len(updated)+len(removed) == 0 {
-		return
-	}
 	sortWS(added)
 	sortWS(updated)
 	slices.Sort(removed)
+	return
+}
+
+// changedParams は workspace.changed のパラメータ。差が無ければ nil。
+func changedParams(added, updated []*wsInfo, removed []string) map[string]any {
+	if len(added)+len(updated)+len(removed) == 0 {
+		return nil
+	}
 	p := map[string]any{}
 	if len(added) > 0 {
 		p["added"] = added
@@ -147,7 +166,7 @@ func (w *wsManager) recompute() {
 	if len(updated) > 0 {
 		p["updated"] = updated
 	}
-	w.srv.notifyOwner("workspace.changed", p)
+	return p
 }
 
 func sortWS(l []*wsInfo) { sort.Slice(l, func(i, j int) bool { return l[i].Root < l[j].Root }) }
@@ -155,15 +174,6 @@ func sortWS(l []*wsInfo) { sort.Slice(l, func(i, j int) bool { return l[i].Root 
 func wsEqual(a, b *wsInfo) bool {
 	return a.Root == b.Root && a.Kind == b.Kind && a.Name == b.Name && a.Branch == b.Branch &&
 		slices.Equal(a.Terms, b.Terms) && slices.Equal(a.Files, b.Files)
-}
-
-func baseName(p string) string {
-	for i := len(p) - 1; i >= 0; i-- {
-		if p[i] == '/' {
-			return p[i+1:]
-		}
-	}
-	return p
 }
 
 // watch は cwd を 1 秒に 1 回（Options.CwdInterval）読む。done が閉じるまで。

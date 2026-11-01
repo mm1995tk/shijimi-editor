@@ -206,7 +206,7 @@ func (m *termManager) create(p termCreateParams) (any, error) {
 	}
 	m.next++
 	t := &terminal{
-		mgr: m, id: fmt.Sprintf("t%d", m.next), pid: cmd.Process.Pid, cwd: cwd,
+		mgr: m, id: fmt.Sprintf("t%d", m.next), pid: cmd.Process.Pid,
 		ptmx: ptmx, cmd: cmd, cols: p.Cols, rows: p.Rows, alive: true,
 		ring: make([]byte, ringSize),
 	}
@@ -217,7 +217,7 @@ func (m *termManager) create(p termCreateParams) (any, error) {
 	m.mu.Unlock()
 	m.srv.ws.recompute()
 	m.srv.log.Info("term created", "termId", t.id, "pid", t.pid, "shell", sh, "cwd", cwd)
-	return map[string]any{"termId": t.id, "pid": t.pid, "cwd": cwd}, nil
+	return map[string]any{"termId": t.id, "pid": t.pid, "cwd": t.cwd}, nil
 }
 
 func (m *termManager) get(id string) (*terminal, error) {
