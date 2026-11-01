@@ -105,9 +105,14 @@ export function keyParams(
   if (e.key === "Dead" || e.key === "Unidentified" || e.key === "") return null;
   if (MODIFIER_KEYS.has(e.key)) return null;
   if (isGuiKey(e, mac)) return null;
+  let mods = modsOf(e);
+  // macOS の Option で打つ文字（ドイツ語配列の Option+L = "@" など）は、Alt ではなく文字として送る
+  // （macOS のターミナルの既定と同じ。Option を Meta にしない）
+  if (mac && e.altKey && !e.ctrlKey && !e.metaKey && isChar(e.key))
+    mods = mods.filter((m) => m !== "alt");
   const p: Omit<InputKeyParams, "seq" | "region"> = {
     key: e.key,
-    mods: modsOf(e),
+    mods,
     phase: phase === "release" ? "release" : e.repeat ? "repeat" : "press",
   };
   if (isChar(e.key)) p.text = e.key;
@@ -128,7 +133,8 @@ export function runeOffset(s: string, i: number): number {
 
 /**
  * ペインの中の点（px。ペインの左上から）をマス目にする。gutter は行番号の欄の幅（マス目）。
- * 行番号の欄の上や、ペインの上・左にはみ出したところは 0 にする。
+ * はみ出したところは丸めない（上は負の行、行番号の欄の上は負の桁）。core はドラッグで上や下に
+ * はみ出したらスクロールし、負の桁は 0 にする。
  */
 export function cellAt(
   x: number,
@@ -139,7 +145,7 @@ export function cellAt(
 ): { row: number; col: number } {
   const row = Math.floor(y / Math.max(1, lineHeight));
   const col = Math.floor(x / Math.max(0.1, cellWidth)) - gutter;
-  return { row: Math.max(0, row), col: Math.max(0, col) };
+  return { row, col };
 }
 
 /** ダブルクリック・トリプルクリックとみなす間隔（ms）。 */
@@ -162,6 +168,10 @@ export class ClickCounter {
     this.intervalMs = intervalMs;
   }
 
+  /**
+   * 押した。at は押した時刻（ms）、button は MouseEvent.button、pane・row・col は押したペインとマス目。
+   * 戻り値は input.mouse の clicks（1 が 1 回、2 がダブルクリック、3 がトリプルクリック）。
+   */
   press(
     at: number,
     button: number,
@@ -184,9 +194,11 @@ export class ClickCounter {
   }
 }
 
-/** WheelEvent.deltaMode */
+/** WheelEvent.deltaMode：量の単位が px。 */
 export const DOM_DELTA_PIXEL = 0;
+/** WheelEvent.deltaMode：量の単位が行（横は桁）。 */
 export const DOM_DELTA_LINE = 1;
+/** WheelEvent.deltaMode：量の単位がページ。 */
 export const DOM_DELTA_PAGE = 2;
 
 /** ホイールの量を行（dy）と桁（dx）にする。1 行・1 桁に満たない分は次に持ち越す。 */
@@ -221,6 +233,7 @@ export class WheelAccumulator {
     return { dx: ox, dy: oy };
   }
 
+  /** 持ち越している端数を捨てる（向きや場所が変わって、前の端数を使いたくないとき）。 */
   reset(): void {
     this.x = 0;
     this.y = 0;

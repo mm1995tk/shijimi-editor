@@ -4,6 +4,7 @@
 // （WebKit は、キーを押したその場の処理の中でだけ書かせる）。clipboard.write は shj から遅れて届くので、
 // 断られたら覚えておき、次にユーザーがキーかマウスを押したとき（flush）に書き直す。
 // 覚えている間に貼り付けのキーを押したら、その文字を貼る（OS のクリップボードはまだ古いので）。
+// ウィンドウがフォーカスを失ったら捨てる（ほかのアプリでコピーされうるので、もう新しいとは言えない）。
 
 /** navigator.clipboard のうち、ここで使うもの（テストで差し替える）。 */
 export interface ClipboardLike {
@@ -11,6 +12,10 @@ export interface ClipboardLike {
   readText(): Promise<string>;
 }
 
+/**
+ * OS のクリップボード。write で書き、断られたら覚えて flush で書き直す。read は貼り付ける文字を返す。
+ * ウィンドウがフォーカスを失ったら discard を呼ぶ。
+ */
 export class OsClipboard {
   private readonly cb: () => ClipboardLike | undefined;
   private readonly onError: (e: unknown) => void;
@@ -34,6 +39,11 @@ export class OsClipboard {
   /** 書けていない文字（OS のクリップボードより新しい）。無ければ undefined。 */
   get unwritten(): string | undefined {
     return this.pending;
+  }
+
+  /** 書けていない文字を捨てる（ウィンドウがフォーカスを失ったとき。ほかのアプリの内容を上書きしないように）。 */
+  discard(): void {
+    this.pending = undefined;
   }
 
   /** 書けていない文字があれば、もう一度書く（ユーザーの操作の中で呼ぶ）。 */

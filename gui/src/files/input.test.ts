@@ -61,6 +61,17 @@ describe("keyParams", () => {
     ]);
   });
 
+  it("macOS の Option で打つ文字は alt を付けない。名前のキーと、ほかの OS は付ける", () => {
+    assert.deepEqual(keyParams(key("@", { altKey: true }), true)?.mods, []);
+    assert.deepEqual(
+      keyParams(key("Backspace", { altKey: true }), true)?.mods,
+      ["alt"],
+    );
+    assert.deepEqual(keyParams(key("x", { altKey: true }), false)?.mods, [
+      "alt",
+    ]);
+  });
+
   it("押し続けは repeat、離したのは release", () => {
     assert.equal(keyParams(key("j", { repeat: true }), false)?.phase, "repeat");
     assert.equal(keyParams(key("j"), false, "release")?.phase, "release");
@@ -133,15 +144,17 @@ describe("マウス", () => {
     );
   });
 
-  it("cellAt は行番号の欄の右から桁を数え、はみ出しは 0 にする", () => {
+  it("cellAt は行番号の欄の右から桁を数え、はみ出しは丸めない", () => {
     // マス目 8px、行 22px、行番号の欄 7 桁
     assert.deepEqual(cellAt(8 * 7 + 3, 22 * 2 + 1, 8, 22, 7), {
       row: 2,
       col: 0,
     });
     assert.deepEqual(cellAt(8 * 10, 0, 8, 22, 7), { row: 0, col: 3 });
-    assert.deepEqual(cellAt(4, 5, 8, 22, 7), { row: 0, col: 0 });
-    assert.deepEqual(cellAt(-10, -30, 8, 22, 0), { row: 0, col: 0 });
+    // 行番号の欄の上は負の桁（core が 0 にする）
+    assert.deepEqual(cellAt(4, 5, 8, 22, 7), { row: 0, col: -7 });
+    // 上にはみ出したドラッグは負の行（core が上へスクロールする）
+    assert.deepEqual(cellAt(-10, -30, 8, 22, 0), { row: -2, col: -2 });
   });
 
   it("ClickCounter は同じ所を続けて押すと 2、3 と数え、そのあと 1 に戻る", () => {

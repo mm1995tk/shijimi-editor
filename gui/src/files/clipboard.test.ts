@@ -54,6 +54,21 @@ describe("OsClipboard", () => {
     assert.equal(c.unwritten, undefined);
   });
 
+  it("discard したら書き直さず、OS のクリップボードの内容を貼る", async () => {
+    const f = fakeClipboard("old");
+    const c = new OsClipboard(() => f.cb);
+    f.allow = false;
+    await c.write("copied");
+    f.allow = true;
+    // ウィンドウを離れている間に、ほかのアプリでコピーした
+    c.discard();
+    await f.cb.writeText("other");
+    await c.flush();
+    assert.equal(f.text, "other");
+    assert.equal(c.unwritten, undefined);
+    assert.equal(await c.read(), "other");
+  });
+
   it("クリップボードが無ければ、読むと空", async () => {
     const c = new OsClipboard(() => undefined);
     assert.equal(await c.read(), "");
