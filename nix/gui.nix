@@ -50,7 +50,8 @@ pkgs.rustPlatform.buildRustPackage {
     pkgs.glib-networking
   ];
 
-  doCheck = false;
+  # ssh_config のパース・ホスト名の検査などの単体テスト（cargo test）
+  doCheck = true;
 
   meta = {
     description = "GUI for shijimi-editor (Tauri)";
