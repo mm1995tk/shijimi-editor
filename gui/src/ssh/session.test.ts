@@ -95,7 +95,9 @@ function fakeShell(opts: {
             );
             break;
           }
-          reply({ rev: 9 });
+          reply(
+            msg.params.id === "w-A" ? { rev: 9, termId: "t-A" } : { rev: 9 },
+          );
           break;
         case "session.ping": {
           const error = opts.pingError?.();
@@ -425,7 +427,11 @@ describe("Session", () => {
     const gets = () =>
       f.sent.filter((x) => x.msg.method === "screen.get").length;
     const before = gets();
-    await s.focusWorkspace("w-A");
+    assert.equal(
+      await s.focusWorkspace("w-A"),
+      "t-A",
+      "最後に使ったターミナルを返す",
+    );
     await new Promise((r) => setTimeout(r, 10));
     const sentFocus = f.sent.filter((x) => x.msg.method === "workspace.focus");
     assert.deepEqual(sentFocus.at(-1)!.msg.params, { id: "w-A" });
