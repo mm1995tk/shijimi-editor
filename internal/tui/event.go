@@ -50,6 +50,20 @@ type CtlRequest struct {
 
 func (CtlRequest) isEvent() {}
 
+// Resized, KeyReleased and ReleasesReported are the front end telling the App
+// about itself. They are not Events: App.update takes them before handleEvent
+// would.
+//
+// Resized is the size of the whole screen in cells. A GUI reports the size of
+// each region instead (view.resize); the TUI has the one screen.
+type Resized struct{ W, H int }
+
+// KeyReleased is a key let go. Only a terminal that reports releases sends it.
+type KeyReleased struct{ Key Key }
+
+// ReleasesReported says whether the terminal reports key releases.
+type ReleasesReported struct{ On bool }
+
 func (WatchTick) isEvent()      {}
 func (AutoSaveDue) isEvent()    {}
 func (HoldScrollTick) isEvent() {}

@@ -104,3 +104,19 @@ func TestHitTestOtherPane(t *testing.T) {
 		t.Errorf("pane %d, capture %v", a.pane, a.capture)
 	}
 }
+
+func TestClicksCountedByTheAdapter(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	if n := a.clicks(3, 4); n != 1 {
+		t.Fatalf("first press = %d", n)
+	}
+	if n := a.clicks(3, 4); n != 2 {
+		t.Fatalf("second press = %d", n)
+	}
+	if n := a.clicks(3, 4); n != 1 {
+		t.Fatalf("third press starts over, got %d", n)
+	}
+	if n := a.clicks(5, 4); n != 1 {
+		t.Fatalf("another cell = %d", n)
+	}
+}

@@ -1,12 +1,15 @@
 package tui
 
 import (
+	"time"
+
 	tea "charm.land/bubbletea/v2"
 )
 
-// This file is the only place bubbletea's input types are read or built (apart
-// from Update, which hands them over). It turns tea.KeyPressMsg,
-// tea.PasteMsg and tea.MouseMsg into Input, and Input back into a tea.Msg for
+// This file is the only place bubbletea's input types are read or built. fromTea
+// turns the messages Update gets (tea.KeyPressMsg, tea.PasteMsg, tea.MouseMsg,
+// tea.KeyReleaseMsg, tea.KeyboardEnhancementsMsg, tea.WindowSizeMsg) into Input
+// or the Resized, KeyReleased and ReleasesReported notices. It also turns an Input back into a tea.Msg for
 // the bubbles widget that still takes one (the review composer's textarea; P10h
 // removes it).
 
@@ -137,6 +140,9 @@ func (a *App) mouseFromTea(msg tea.MouseMsg) Mouse {
 	case tea.MouseMotionMsg:
 		e.Action = MouseMotion
 	}
+	if e.Action == MousePress && e.Button == MouseLeft {
+		e.Clicks = a.clicks(e.X, e.Y)
+	}
 	return a.locate(e)
 }
 
@@ -207,4 +213,48 @@ func (a *App) hitTest(l layout, x, y int) (Region, int, int) {
 		return RegionEditor, y - l.top, x - l.rightX // the title row is row 0
 	}
 	return RegionNone, 0, 0
+}
+
+// fromTea is the one place Update's tea.Msg becomes an Input or an Event. What
+// is not a bubbletea input message (the Events and the terminal panel's own
+// messages) passes through as it is.
+func (a *App) fromTea(msg tea.Msg) any {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		return Resized{W: msg.Width, H: msg.Height}
+	case tea.KeyboardEnhancementsMsg:
+		return ReleasesReported{On: msg.SupportsEventTypes()}
+	case tea.KeyReleaseMsg:
+		return KeyReleased{Key: keyReleaseFromTea(msg)}
+	case tea.MouseMsg:
+		return a.mouseFromTea(msg)
+	case tea.KeyPressMsg:
+		return keyFromTea(msg)
+	case tea.PasteMsg:
+		return pasteFromTea(msg)
+	}
+	return msg
+}
+
+// click is a left press, kept to tell a double click from two single ones.
+type click struct {
+	x, y int
+	at   time.Time
+}
+
+const doubleClickTime = 400 * time.Millisecond
+
+// clicks records a left press at (x, y) and returns how many presses in a row
+// it makes: 2 for the second press of a double click, else 1. A third press
+// starts over. A GUI counts for itself and sends Mouse.Clicks.
+func (a *App) clicks(x, y int) int {
+	now := time.Now()
+	p := a.lastClick
+	double := !p.at.IsZero() && p.x == x && p.y == y && now.Sub(p.at) < doubleClickTime
+	a.lastClick = click{x: x, y: y, at: now}
+	if double {
+		a.lastClick.at = time.Time{}
+		return 2
+	}
+	return 1
 }
