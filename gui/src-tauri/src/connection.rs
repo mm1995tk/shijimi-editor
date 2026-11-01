@@ -41,7 +41,7 @@ pub struct Connections {
     map: Arc<Mutex<HashMap<String, Arc<Conn>>>>,
 }
 
-/// 版ごとのキャッシュのフォルダ（`$HOME` からの相対）。つなぐ先（default_remote_shj）と入れる先（install.rs）が
+/// 版ごとのキャッシュのフォルダ（`$HOME` からの相対）。つなぐ先（default_attach_command）と入れる先（install.rs）が
 /// ずれないよう、ここ 1 か所で決める。
 pub fn cache_dir_rel(version: &str) -> String {
     format!(".cache/shijimi-editor/{version}")
@@ -95,10 +95,15 @@ fn custom_attach_command(shj: &str) -> String {
     format!("command -v {shj} >/dev/null 2>&1 || exit {EXIT_SHJ_MISSING}; {shj} attach")
 }
 
-/// 普段の `shj attach`。GUI の版のキャッシュ、PATH、よく使う場所（Nix のプロファイルなど）の順に探す
+/// 普段の `shj attach`。GUI の版のキャッシュ、PATH、よく使う場所（Nix のプロファイルなど）の順に、GUI と同じ版の shj を探す
 /// （locate.rs）。ログインシェルが fish などでも動くよう、`sh -c '…'` で包む。
 fn default_attach_command(version: &str) -> String {
-    let script = locate::remote_attach_script(&cache_dir_rel(version), EXIT_SHJ_MISSING);
+    let script = locate::remote_attach_script(
+        &cache_dir_rel(version),
+        version,
+        locate::COMMON_DIRS,
+        EXIT_SHJ_MISSING,
+    );
     format!("sh -c '{script}'")
 }
 
@@ -112,7 +117,7 @@ fn remote_attach_command() -> String {
 
 fn build_command(target: &str, ask: &AskpassServer, id: &str) -> Result<Command, String> {
     if target == LOCAL {
-        let mut c = locate::local_shj_command();
+        let mut c = locate::local_shj_command(crate::version::get());
         c.arg("attach");
         return Ok(c);
     }
@@ -250,7 +255,7 @@ mod tests {
     #[test]
     fn default_attach_is_wrapped_in_sh() {
         let c = default_attach_command("1.2.3");
-        assert!(c.starts_with("sh -c '") && c.ends_with("attach'"));
+        assert!(c.starts_with("sh -c '") && c.ends_with("exit 97'"));
         // 包んだ中に単一引用符が無い（あれば引用が崩れる）
         assert_eq!(c.matches('\'').count(), 2);
         assert!(c.contains("$HOME/.cache/shijimi-editor/1.2.3/shj"));

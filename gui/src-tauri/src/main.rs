@@ -32,7 +32,8 @@ fn list_ssh_hosts() -> Vec<String> {
 }
 
 /// shj につなぐ。`target` は ssh のホスト名か `@local`。`id` は画面側が決める（イベントの宛先）。
-#[tauri::command]
+/// メインスレッドの外で動かす。「このマシン」は、ログインシェルが PATH を答えるのを待つことがある（locate.rs）
+#[tauri::command(async)]
 fn connect(
     app: tauri::AppHandle,
     state: State<AppState>,
