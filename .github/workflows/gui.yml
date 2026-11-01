@@ -1,0 +1,47 @@
+name: GUI をビルドする
+
+# gui/（Tauri の殻と Solid の Web 画面）が Linux と macOS でビルドできることを確かめる。
+# Nix のビルドが本番の作り方なので、両方の OS で nix build .#gui を回す。
+# Nix を使わない手元の作り方（npm run build と cargo build）は、Linux だけでも確かめる。
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - name: nix build .#gui
+        run: nix build .#gui --print-build-logs
+      - name: 実行ファイルがあることを確かめる
+        run: test -x result/bin/shijimi-editor-gui
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gui
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+      - run: npm ci
+      - run: npm run build

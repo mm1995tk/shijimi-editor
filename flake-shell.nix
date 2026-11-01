@@ -18,6 +18,9 @@ in
       pkgs.git
       # npm/pack.sh needs node and npm
       pkgs.nodejs_26
+      # gui/（Tauri）のビルド。Linux の WebView 周りの C ライブラリは nix build .#gui が持つ
+      pkgs.cargo
+      pkgs.rustc
     ];
 
     CGO_ENABLED = "0";
