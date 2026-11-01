@@ -6,6 +6,7 @@ import {
   cellsFor,
   diagStyle,
   gutterMark,
+  gutterNumber,
   gutterText,
   headDiagnostic,
   gutterWidth,
@@ -63,6 +64,8 @@ describe("gutter", () => {
     assert.equal(gutterText(0, 120).length, gutterWidth(120));
     assert.equal(gutterText(119, 120), "  120  ");
     assert.equal(gutterText(-1, 120), "       ");
+    assert.equal(gutterNumber(0, 120), "   1  ");
+    assert.equal(gutterNumber(-1, 120), "      ");
   });
 
   it("テキストのペインの幅は行番号の欄を足す", () => {
@@ -334,7 +337,7 @@ describe("診断（E5）", () => {
 });
 
 describe("行番号の横の印（E5）", () => {
-  it("診断の印を先にし、無ければ空ける", () => {
+  it("診断の印の色。診断の印が無ければ空ける", () => {
     assert.equal(gutterMark(plain(0, "")), undefined);
     assert.equal(
       gutterMark({
@@ -353,7 +356,7 @@ describe("行番号の横の印（E5）", () => {
         spans: [],
         marks: [{ kind: "added", style: "diff.add.sign" }],
       }),
-      "diff.add.sign",
+      undefined,
     );
   });
 });

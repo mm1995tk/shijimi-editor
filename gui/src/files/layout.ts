@@ -59,8 +59,14 @@ export function gutterWidth(total: number): number {
 
 /** 行番号の欄の文字（印の 1 桁は空き）。no はバッファの行番号（0 始まり）。 */
 export function gutterText(no: number, total: number): string {
-  if (no < 0) return " ".repeat(gutterWidth(total));
-  return ` ${String(no + 1).padStart(gutterWidth(total) - 3)}  `;
+  return ` ${gutterNumber(no, total)}`;
+}
+
+/** 行番号の欄のうち、印の 1 桁を除いた残り（右寄せの番号 + 空き 2 桁）。no が負なら空白。 */
+export function gutterNumber(no: number, total: number): string {
+  const w = gutterWidth(total) - 1;
+  if (no < 0) return " ".repeat(w);
+  return `${String(no + 1).padStart(w - 2)}  `;
 }
 
 /** ペインの横幅（マス目）。テキストは行番号の欄を足す。 */
@@ -111,43 +117,146 @@ export function headDiagnostic(
   return best;
 }
 
-/** 行番号の横の印の色の名前。印が無ければ undefined（印の桁は空ける）。診断の印を先にする。 */
+/**
+ * 行番号の横の印の色の名前。印が無ければ undefined（印の桁は空ける）。
+ * テキストのペインで shj が付ける印は診断だけなので、診断の印だけを見る（差分の印は E6）。
+ */
 export function gutterMark(line: Line): string | undefined {
-  const marks = line.marks ?? [];
-  const m = marks.find((m) => m.kind === "diag") ?? marks.find((m) => m.style);
-  return m?.style || undefined;
+  return line.marks?.find((m) => m.kind === "diag")?.style || undefined;
 }
 
 /** 1 つのマス目の見た目。 */
 type Cell = Omit<Run, "text" | "cells"> & { ch: string; cells: number };
 
-const LOOK = [
-  "fg",
-  "bg",
-  "bold",
-  "italic",
-  "underline",
-  "strike",
-  "diag",
-  "faint",
-] as const;
-
 function sameLook(a: Run, b: Cell): boolean {
   if (a.cursor || b.cursor || a.guide || b.guide) return false;
-  return LOOK.every((k) => (a[k] || undefined) === (b[k] || undefined));
+  const eq = (x: unknown, y: unknown) => (x || undefined) === (y || undefined);
+  return (
+    eq(a.fg, b.fg) &&
+    eq(a.bg, b.bg) &&
+    eq(a.bold, b.bold) &&
+    eq(a.italic, b.italic) &&
+    eq(a.underline, b.underline) &&
+    eq(a.strike, b.strike) &&
+    eq(a.diag, b.diag) &&
+    eq(a.faint, b.faint)
+  );
 }
 
 function runOf(c: Cell): Run {
   const r: Run = { text: c.ch, cells: c.cells };
-  for (const k of [...LOOK, "cursor", "guide"] as const) {
-    const v = c[k];
-    if (v) (r as unknown as Record<string, unknown>)[k] = v;
-  }
+  if (c.fg) r.fg = c.fg;
+  if (c.bg) r.bg = c.bg;
+  if (c.bold) r.bold = true;
+  if (c.italic) r.italic = true;
+  if (c.underline) r.underline = true;
+  if (c.strike) r.strike = true;
+  if (c.cursor) r.cursor = true;
+  if (c.diag) r.diag = c.diag;
+  if (c.guide) r.guide = true;
+  if (c.faint) r.faint = true;
   return r;
+}
+
+/** 行の文字を rune に分け、rune ごとにスタイルの区間の見た目を付ける。 */
+function runeLooks(line: Line): Cell[] {
+  const out: Cell[] = [];
+  for (const sp of line.spans ?? []) {
+    for (const ch of sp.text) {
+      out.push({
+        ch,
+        cells: 1,
+        fg: sp.style || undefined,
+        bg: sp.bg || undefined,
+        bold: sp.bold,
+        italic: sp.italic,
+        underline: sp.underline,
+        strike: sp.strike,
+      });
+    }
+  }
+  return out;
+}
+
+/** rune の位置 col に掛かる一番重い診断の色。その行で始まる診断が無い行には引かない（TUI と同じ）。 */
+function diagAt(line: Line, col: number): string | undefined {
+  if (!headDiagnostic(line.diag)) return undefined;
+  let best: Diagnostic | undefined;
+  for (const d of line.diag ?? []) {
+    if (col >= d.start && col < d.end && (!best || d.severity < best.severity))
+      best = d;
+  }
+  return best && diagStyle(best.severity);
+}
+
+/** インデントガイドを引く桁か。 */
+function guideCol(line: Line): (v: number) => boolean {
+  const w = line.indent ?? 0;
+  const guides = new Set(line.guides ?? []);
+  return (v) => v < w && guides.has(v);
+}
+
+/**
+ * 空行のガイドを、行末（表示上の桁 vis）より右に indent まで引く。from より左（横スクロール）は描かず、
+ * room 桁を超えない。bg は行末より右の背景。
+ */
+function tailGuides(
+  line: Line,
+  vis: number,
+  from: number,
+  room: number,
+  bg: string | undefined,
+): Cell[] {
+  const isGuide = guideCol(line);
+  const out: Cell[] = [];
+  for (let v = Math.max(vis, from); v < (line.indent ?? 0); v++) {
+    if (out.length >= room) break;
+    const guide = isGuide(v);
+    out.push({
+      ch: " ",
+      cells: 1,
+      bg,
+      fg: guide ? "indent.guide" : undefined,
+      guide,
+    });
+  }
+  return out;
 }
 
 /** 行末の診断の文言の前に空ける文字。 */
 const DIAG_LEAD = "   ● ";
+
+/** 行末に出す診断の文言（1 行目だけ）を、room 桁に収まるだけ薄く並べる。 */
+function diagMessage(d: Diagnostic, room: number): Cell[] {
+  const fg = diagStyle(d.severity);
+  const out: Cell[] = [];
+  let v = 0;
+  for (const raw of DIAG_LEAD + firstLine(d.message)) {
+    const ch = raw === "\t" ? " " : raw;
+    const w = runeWidth(ch, v);
+    if (v + w > room) break;
+    out.push({ ch, cells: w, fg, faint: true });
+    v += w;
+  }
+  return out;
+}
+
+/** 同じ見た目で続く 1 桁の文字を 1 つの区間にまとめる（全角の文字は 1 文字ずつ別の区間のまま）。 */
+function mergeRuns(cells: readonly Cell[]): Run[] {
+  const out: Run[] = [];
+  let narrow = false; // 最後の区間が 1 桁の文字だけでできている
+  for (const c of cells) {
+    const last = out.at(-1);
+    if (last && narrow && c.cells === 1 && sameLook(last, c)) {
+      last.text += c.ch;
+      last.cells++;
+      continue;
+    }
+    out.push(runOf(c));
+    narrow = c.cells === 1;
+  }
+  return out;
+}
 
 /**
  * line（p.lines の 1 つ）を、p の横スクロールと幅に合わせた区間の並びにする。
@@ -160,29 +269,8 @@ export function layoutLine(line: Line, p: Pane, o: LineOptions): Run[] {
   const text = p.kind === "text";
   const sels = text ? (p.selections ?? []) : [];
   const curs = text && o.cursor ? (p.cursors ?? []) : [];
-  const head = headDiagnostic(line.diag);
-  const guideW = line.indent ?? 0;
-  const guides = new Set(line.guides ?? []);
-  const isGuideCol = (v: number) => v < guideW && guides.has(v);
-
-  // rune ごとのスタイル
-  const runes: string[] = [];
-  const looks: Cell[] = [];
-  for (const sp of line.spans ?? []) {
-    for (const ch of sp.text) {
-      runes.push(ch);
-      looks.push({
-        ch,
-        cells: 1,
-        fg: sp.style || undefined,
-        bg: sp.bg || undefined,
-        bold: sp.bold,
-        italic: sp.italic,
-        underline: sp.underline,
-        strike: sp.strike,
-      });
-    }
-  }
+  const isGuide = guideCol(line);
+  const looks = runeLooks(line);
   const inSel = (col: number) => {
     if (row < 0) return false;
     const at = { line: row, col };
@@ -190,41 +278,25 @@ export function layoutLine(line: Line, p: Pane, o: LineOptions): Run[] {
   };
   const isCursor = (col: number) =>
     row >= 0 && curs.some((c) => c.line === row && c.col === col);
-  // col に掛かる一番重い診断の色（その行で始まる診断が無い行には引かない）
-  const diagAt = (col: number): string | undefined => {
-    if (!head) return undefined;
-    let best: Diagnostic | undefined;
-    for (const d of line.diag ?? []) {
-      if (
-        col >= d.start &&
-        col < d.end &&
-        (!best || d.severity < best.severity)
-      )
-        best = d;
-    }
-    return best && diagStyle(best.severity);
-  };
 
   const cells: Cell[] = [];
   let vis = 0;
   let drawn = 0;
-  for (let col = 0; col <= runes.length && drawn < textW; col++) {
+  for (let col = 0; col <= looks.length && drawn < textW; col++) {
     const cursor = isCursor(col);
     const sel = inSel(col);
-    const eol = col === runes.length;
+    const eol = col === looks.length;
     if (eol && !cursor && !sel) break;
-    const ch = eol ? " " : runes[col]!;
+    const look: Cell = eol ? { ch: " ", cells: 1 } : { ...looks[col]! };
+    const ch = look.ch;
     const rw = eol ? 1 : runeWidth(ch, vis);
-    const look: Cell = eol ? { ch, cells: 1 } : { ...looks[col]! };
     if (sel) look.bg = "selection";
-    if (!eol) {
-      const d = diagAt(col);
-      if (d) {
-        look.diag = d;
-        look.fg ??= d;
-      }
+    const d = eol ? undefined : diagAt(line, col);
+    if (d) {
+      look.diag = d;
+      look.fg ??= d;
     }
-    const guide = !eol && (ch === " " || ch === "\t") && isGuideCol(vis);
+    const guide = !eol && (ch === " " || ch === "\t") && isGuide(vis);
     if (guide) look.fg = "indent.guide";
     if (ch === "\t" || eol) {
       // 1 桁ずつ空白にする（カーソルとガイドは先頭の桁だけ）
@@ -253,49 +325,17 @@ export function layoutLine(line: Line, p: Pane, o: LineOptions): Run[] {
     vis += rw;
   }
 
-  // 空行のガイドは行末より右にも引く
-  const tailBg = inSel(runes.length) ? "selection" : undefined;
-  for (let v = vis; v < guideW && drawn < textW; v++) {
-    if (v < left) continue;
-    const guide = isGuideCol(v);
-    cells.push({
-      ch: " ",
-      cells: 1,
-      bg: tailBg,
-      fg: guide ? "indent.guide" : undefined,
-      guide,
-    });
-    drawn++;
-  }
+  const tailBg = inSel(looks.length) ? "selection" : undefined;
+  const tail = tailGuides(line, vis, left, textW - drawn, tailBg);
+  cells.push(...tail);
+  drawn += tail.length;
 
-  // 行末の診断の文言（TUI と同じく、6 桁より多く空いているときだけ）
-  if (head && drawn + 6 < textW) {
-    const msg = DIAG_LEAD + firstLine(head.message);
-    const fg = diagStyle(head.severity);
-    let v = 0;
-    for (const ch of msg) {
-      const w = runeWidth(ch === "\t" ? " " : ch, v);
-      if (drawn + w > textW) break;
-      cells.push({ ch: ch === "\t" ? " " : ch, cells: w, fg, faint: true });
-      drawn += w;
-      v += w;
-    }
-  }
+  // TUI と同じく、6 桁より多く空いているときだけ
+  const head = headDiagnostic(line.diag);
+  if (head && drawn + 6 < textW)
+    cells.push(...diagMessage(head, textW - drawn));
 
-  // 同じ見た目の 1 桁の文字をまとめる
-  const out: Run[] = [];
-  let narrow = false; // 最後の区間が 1 桁の文字だけでできている
-  for (const c of cells) {
-    const last = out.at(-1);
-    if (last && narrow && c.cells === 1 && sameLook(last, c)) {
-      last.text += c.ch;
-      last.cells++;
-      continue;
-    }
-    out.push(runOf(c));
-    narrow = c.cells === 1;
-  }
-  return out;
+  return mergeRuns(cells);
 }
 
 /** s の 1 行目。 */

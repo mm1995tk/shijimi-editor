@@ -39,7 +39,7 @@ import { OverlayLayer } from "./OverlayView.tsx";
 import {
   cellsFor,
   gutterMark,
-  gutterText,
+  gutterNumber,
   layoutLine,
   lineBg,
   lineKey,
@@ -273,7 +273,7 @@ function LineView(props: {
           >
             {mark() ? "●" : " "}
           </span>
-          {gutterText(props.line.no, total()).slice(1)}
+          {gutterNumber(props.line.no, total())}
         </span>
       </Show>
       <For each={runs()}>
