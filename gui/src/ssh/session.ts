@@ -5,12 +5,26 @@
 //  - 状態（State）を外に出す。一覧の表示はこれを読む
 // Solid などの画面の仕組みには依存しない。
 
-import type { HelloResult, Screen, ScreenUpdate } from "../rpc/protocol.ts";
+import type { Client } from "../rpc/client.ts";
+import type {
+  HelloResult,
+  Notifications,
+  Screen,
+  ScreenUpdate,
+} from "../rpc/protocol.ts";
 import type { ShellApi } from "./api.ts";
 import { connectShj, type Connection } from "./connect.ts";
 
+/** 接続の状態。一覧の表示はこれを読む。 */
 export type SessionState =
-  | { kind: "connecting"; attempt: number }
+  /** まだ一度もつながっていない。2 回目以降の試みでは max と reason、待ち時間中は retryAt が付く */
+  | {
+      kind: "connecting";
+      attempt: number;
+      max: number;
+      retryAt?: number;
+      reason?: string;
+    }
   | { kind: "connected"; hello: HelloResult }
   /** 切れて、つなぎ直す順番を待っている（または試している） */
   | {
@@ -28,37 +42,47 @@ export type SessionState =
   | { kind: "superseded" }
   | { kind: "closed" };
 
+/** Session の調整値。どれも省くと下の既定値。 */
 export interface SessionOptions {
   /** つなぎ直しの間隔（ms）。n 回目の失敗の後は delays[n-1]、尽きたら最後の値。 */
   delays?: number[];
   /** 諦めるまでのつなぎ直しの回数。 */
   maxAttempts?: number;
+  /** session.ping を送る間隔（ms） */
   pingIntervalMs?: number;
   /** ping の返事を待つ時間。これを過ぎたら切れたとみなす */
   pingTimeoutMs?: number;
+  /** 読めなかった行などの報告先（ログ用） */
   onDiscard?: (reason: string, line: string) => void;
 }
 
-/** 1, 2, 4, 8, 16, 30 秒…で 10 回（合わせて 5 分ほど）。 */
+/** 1, 2, 4, 8, 16, 30 秒…（最後の値を繰り返す）。10 回で待ちは合わせて 151 秒ほど（ssh の接続待ちは別）。 */
 export const DEFAULT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
+/** 諦めるまでの試みの回数 */
 export const DEFAULT_MAX_ATTEMPTS = 10;
 /** 設計書 3 章：GUI は 15 秒ごとに session.ping を送る */
 export const PING_INTERVAL_MS = 15000;
+/** ping の返事を待つ時間（ms） */
 export const PING_TIMEOUT_MS = 10000;
 
+/**
+ * 1 つのつなぎ先への接続。切れたら自動でつなぎ直し、state で今の様子を伝える。
+ * start() で始め、close() で閉じる。
+ */
 export class Session {
   readonly target: string;
   private readonly api: ShellApi;
   private readonly opts: Required<Omit<SessionOptions, "onDiscard">> &
     Pick<SessionOptions, "onDiscard">;
-  private _state: SessionState = { kind: "connecting", attempt: 0 };
+  private _state: SessionState = { kind: "connecting", attempt: 0, max: 0 };
   private conn?: Connection;
   /** 最後につながった shj の serverId と、GUI が持つ画面の版 */
   private serverId?: string;
   private rev = 0;
+  /** screen.get の返事待ち。この間の screen.update は捨てる */
+  private fetching = false;
   private _screen: Screen | null = null;
   private _workspaces: HelloResult["workspaces"] = [];
-  private timer?: ReturnType<typeof setTimeout>;
   private wake?: () => void;
   private generation = 0;
   private readonly stateHandlers = new Set<(s: SessionState) => void>();
@@ -126,7 +150,6 @@ export class Session {
   /** 閉じる（session.bye。shj とシェルは止まらない）。 */
   async close(): Promise<void> {
     this.generation++;
-    this.clearTimers();
     this.wake?.();
     const c = this.conn;
     this.conn = undefined;
@@ -139,22 +162,32 @@ export class Session {
     for (const h of [...this.stateHandlers]) h(s);
   }
 
-  private clearTimers() {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = undefined;
-  }
-
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => {
-      const t = setTimeout(done, ms);
-      const self = this;
-      function done() {
+      const done = () => {
         clearTimeout(t);
-        self.wake = undefined;
+        this.wake = undefined;
         resolve();
-      }
+      };
+      const t = setTimeout(done, ms);
       this.wake = done;
     });
+  }
+
+  /** まだ一度もつながっていなければ connecting、一度つながっていれば reconnecting。 */
+  private waiting(
+    first: boolean,
+    attempt: number,
+    reason: string,
+    retryAt?: number,
+  ): SessionState {
+    const max = this.opts.maxAttempts;
+    if (first) {
+      return attempt === 1
+        ? { kind: "connecting", attempt, max }
+        : { kind: "connecting", attempt, max, retryAt, reason };
+    }
+    return { kind: "reconnecting", attempt, max, retryAt, reason };
   }
 
   /**
@@ -170,16 +203,7 @@ export class Session {
         this.setState({ kind: "failed", message: lastError });
         return;
       }
-      if (first && attempt === 1) {
-        this.setState({ kind: "connecting", attempt });
-      } else {
-        this.setState({
-          kind: "reconnecting",
-          attempt,
-          max: this.opts.maxAttempts,
-          reason: lastError,
-        });
-      }
+      this.setState(this.waiting(first, attempt, lastError));
       try {
         const conn = await connectShj(this.api, this.target, {
           resume:
@@ -201,13 +225,9 @@ export class Session {
       if (attempt >= this.opts.maxAttempts) continue; // 次の周で failed
       const d = this.opts.delays;
       const wait = d[Math.min(attempt - 1, d.length - 1)] ?? 1000;
-      this.setState({
-        kind: "reconnecting",
-        attempt: attempt + 1,
-        max: this.opts.maxAttempts,
-        retryAt: Date.now() + wait,
-        reason: lastError,
-      });
+      this.setState(
+        this.waiting(first, attempt + 1, lastError, Date.now() + wait),
+      );
       await this.sleep(wait);
       if (gen !== this.generation) return;
     }
@@ -221,35 +241,20 @@ export class Session {
     this._workspaces = conn.hello.workspaces;
     this.serverId = conn.hello.serverId;
     this.rev = conn.hello.rev;
+    this.fetching = false;
     let superseded = false;
     const offs = [
       conn.client.on("session.superseded", () => {
         superseded = true;
       }),
-      conn.client.on("screen.update", (u) => {
-        if (gen !== this.generation) return;
-        if (u.baseRev !== this.rev) {
-          void this.fetchScreen(conn, gen);
-          return;
-        }
-        this.rev = u.rev;
-        for (const h of [...this.updateHandlers]) h(u);
-      }),
+      conn.client.on("screen.update", (u) => this.handleUpdate(conn, gen, u)),
       conn.client.on("workspace.changed", (c) => {
-        const ws = new Map(this._workspaces.map((w) => [w.id, w]));
-        for (const w of c.added ?? []) ws.set(w.id, w);
-        for (const w of c.updated ?? []) ws.set(w.id, w);
-        for (const id of c.removed ?? []) ws.delete(id);
-        this._workspaces = [...ws.values()];
+        this._workspaces = applyWorkspaceChange(this._workspaces, c);
       }),
+      startPing(conn.client, this.opts.pingIntervalMs, this.opts.pingTimeoutMs),
     ];
-    let pingTimer: ReturnType<typeof setInterval> | undefined;
-    const stop = () => {
-      offs.forEach((f) => f());
-      if (pingTimer) clearInterval(pingTimer);
-    };
     conn.client.onClose((why) => {
-      stop();
+      offs.forEach((f) => f());
       if (gen !== this.generation || this.conn !== conn) return;
       this.conn = undefined;
       if (superseded) {
@@ -261,28 +266,6 @@ export class Session {
 
     this.setState({ kind: "connected", hello: conn.hello });
 
-    // 黙って切れた ssh に気づく。返事が来なければ閉じて、つなぎ直しに回す
-    let pinging = false;
-    pingTimer = setInterval(() => {
-      if (pinging) return;
-      pinging = true;
-      let to: ReturnType<typeof setTimeout> | undefined;
-      const timeout = new Promise<never>((_, rej) => {
-        to = setTimeout(
-          () => rej(new Error("ping timed out")),
-          this.opts.pingTimeoutMs,
-        );
-      });
-      Promise.race([conn.client.request("session.ping", {}), timeout])
-        .catch((e) => {
-          conn.client.close(e instanceof Error ? e.message : String(e));
-        })
-        .finally(() => {
-          clearTimeout(to);
-          pinging = false;
-        });
-    }, this.opts.pingIntervalMs);
-
     if (replaced) {
       // shj が作り直された。古い画面は捨て、ワークスペースの一覧から取り直す（画面は D 以降）
       this._screen = null;
@@ -291,7 +274,19 @@ export class Session {
     }
   }
 
+  private handleUpdate(conn: Connection, gen: number, u: ScreenUpdate): void {
+    if (gen !== this.generation || this.conn !== conn) return;
+    if (this.fetching) return; // 取り直し中の更新は、取り直した画面に含まれる
+    if (u.baseRev !== this.rev) {
+      void this.fetchScreen(conn, gen);
+      return;
+    }
+    this.rev = u.rev;
+    for (const h of [...this.updateHandlers]) h(u);
+  }
+
   private async fetchScreen(conn: Connection, gen: number): Promise<void> {
+    this.fetching = true;
     try {
       const screen = await conn.client.request("screen.get", {});
       if (gen !== this.generation || this.conn !== conn) return;
@@ -304,6 +299,47 @@ export class Session {
         `screen.get failed: ${e instanceof Error ? e.message : String(e)}`,
         "",
       );
+    } finally {
+      this.fetching = false;
     }
   }
+}
+
+/** workspace.changed を一覧に当てる。 */
+export function applyWorkspaceChange(
+  workspaces: HelloResult["workspaces"],
+  change: Notifications["workspace.changed"],
+): HelloResult["workspaces"] {
+  const ws = new Map(workspaces.map((w) => [w.id, w]));
+  for (const w of change.added ?? []) ws.set(w.id, w);
+  for (const w of change.updated ?? []) ws.set(w.id, w);
+  for (const id of change.removed ?? []) ws.delete(id);
+  return [...ws.values()];
+}
+
+/**
+ * session.ping を intervalMs ごとに送る。timeoutMs 経っても返事が無い（またはエラー）なら
+ * 切れたとみなして client を閉じる。止める関数を返す。
+ */
+export function startPing(
+  client: Client,
+  intervalMs: number,
+  timeoutMs: number,
+): () => void {
+  let pinging = false;
+  const timer = setInterval(() => {
+    if (pinging) return;
+    pinging = true;
+    let to: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, rej) => {
+      to = setTimeout(() => rej(new Error("ping timed out")), timeoutMs);
+    });
+    Promise.race([client.request("session.ping", {}), timeout])
+      .catch((e) => client.close(e instanceof Error ? e.message : String(e)))
+      .finally(() => {
+        clearTimeout(to);
+        pinging = false;
+      });
+  }, intervalMs);
+  return () => clearInterval(timer);
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { ClosedEvent, ShellApi } from "./api.ts";
-import { Session, type SessionState } from "./session.ts";
+import { applyWorkspaceChange, Session, type SessionState } from "./session.ts";
 
 type Line = (e: { id: string; line: string }) => void;
 
@@ -227,5 +227,64 @@ describe("Session", () => {
     assert.deepEqual(updates, [8]);
     assert.equal(f.sent.filter((x) => x.msg.method === "screen.get").length, 2);
     await s.close();
+  });
+});
+
+describe("待ち時間と閉じる", () => {
+  it("一度もつながっていないうちは connecting のまま、retryNow で待ちを飛ばす", async () => {
+    const f = fakeShell({ serverIds: ["fail", "A"] });
+    const s = new Session(f.api, "h", { ...fast, delays: [60000] });
+    s.start();
+    const w = await waitFor(
+      s,
+      (st) => st.kind === "connecting" && st.retryAt !== undefined,
+    );
+    assert.equal((w as { attempt: number }).attempt, 2);
+    s.retryNow();
+    await waitFor(s, (st) => st.kind === "connected");
+    assert.equal(f.connects, 2);
+    await s.close();
+  });
+
+  it("待っている最中に close すると、それ以上つなぎに行かない", async () => {
+    const f = fakeShell({ serverIds: ["fail"] });
+    const s = new Session(f.api, "h", { ...fast, delays: [30] });
+    s.start();
+    await waitFor(s, (st) => st.kind === "connecting" && !!st.retryAt);
+    await s.close();
+    const n = f.connects;
+    await new Promise((r) => setTimeout(r, 80));
+    assert.equal(f.connects, n);
+    assert.equal(s.state.kind, "closed");
+  });
+
+  it("取り直し中に版の合わない更新が続いても screen.get は重ねない", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await new Promise((r) => setTimeout(r, 10));
+    const id = connectedId(f);
+    for (const rev of [20, 21, 22])
+      f.emit(id, {
+        jsonrpc: "2.0",
+        method: "screen.update",
+        params: { rev, baseRev: rev - 5, ackSeq: 0 },
+      });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(f.sent.filter((x) => x.msg.method === "screen.get").length, 2);
+    await s.close();
+  });
+});
+
+describe("applyWorkspaceChange", () => {
+  it("追加・更新・削除を当てる", () => {
+    const w = (id: string, name = id) => ({ id, name }) as never;
+    const r = applyWorkspaceChange([w("a"), w("b")], {
+      added: [w("c")],
+      updated: [w("a", "A")],
+      removed: ["b"],
+    });
+    assert.deepEqual(r, [w("a", "A"), w("c")]);
   });
 });

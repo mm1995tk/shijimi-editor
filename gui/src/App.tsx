@@ -25,7 +25,13 @@ export function describeState(
   if (!s) return "";
   switch (s.kind) {
     case "connecting":
-      return "つないでいます…";
+      if (s.retryAt !== undefined) {
+        const sec = Math.max(0, Math.ceil((s.retryAt - now) / 1000));
+        return `つなげませんでした。${sec} 秒後にもう一度（${s.attempt}/${s.max} 回目）`;
+      }
+      return s.attempt > 1
+        ? `つないでいます…（${s.attempt}/${s.max} 回目）`
+        : "つないでいます…";
     case "connected":
       return `つながっています（shj ${s.hello.shj.version}）`;
     case "reconnecting": {
@@ -50,6 +56,7 @@ export function App(props: { api?: ShellApi }): JSX.Element {
   const [hosts, setHosts] = createSignal<string[]>([]);
   const [sessions, setSessions] = createSignal<Record<string, Session>>({});
   const [states, setStates] = createSignal<Record<string, SessionState>>({});
+  const offStates = new Map<string, () => void>();
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
   // 「あと何秒」を動かす
   const [now, setNow] = createSignal(Date.now());
@@ -82,7 +89,8 @@ export function App(props: { api?: ShellApi }): JSX.Element {
       return; // つないでいる最中、またはつながっている
     }
     const s = new Session(api, target);
-    s.onState((st) => setStates((m) => ({ ...m, [target]: st })));
+    const off = s.onState((st) => setStates((m) => ({ ...m, [target]: st })));
+    offStates.set(target, off);
     setSessions((m) => ({ ...m, [target]: s }));
     setStates((m) => ({ ...m, [target]: s.state }));
     s.start();
@@ -91,6 +99,8 @@ export function App(props: { api?: ShellApi }): JSX.Element {
   async function disconnect(target: string) {
     const s = sessions()[target];
     if (!s) return;
+    offStates.get(target)?.(); // close() の closed を一覧に書き戻させない
+    offStates.delete(target);
     setSessions(({ [target]: _, ...rest }) => rest);
     setStates(({ [target]: _, ...rest }) => rest);
     await s.close();
@@ -122,7 +132,12 @@ export function App(props: { api?: ShellApi }): JSX.Element {
                   {label(t)}
                 </button>{" "}
                 <span role="status">{describeState(st(), now())}</span>
-                <Show when={kind() === "reconnecting"}>
+                <Show
+                  when={
+                    (kind() === "reconnecting" || kind() === "connecting") &&
+                    (st() as { retryAt?: number }).retryAt !== undefined
+                  }
+                >
                   {" "}
                   <button onClick={() => sessions()[t]?.retryNow()}>
                     今すぐつなぐ
