@@ -821,9 +821,21 @@ func (a *Core) handleAutoSave(m AutoSaveDue) []Effect {
 	return a.saveTab(t)
 }
 
-// Handle takes what fromTea (inputtea.go) made of a tea.Msg: an Input or an
-// Event.
-func (a *Core) Handle(msg any) []Effect {
+// Update takes an Input or an Event (or one of the front end's notices: Resized,
+// KeyReleased, ReleasesReported), brings the state up to date (transients,
+// split, last tab, LSP, selection) and returns the Effects of the message and
+// the ones every round owes (auto-save, preview, lexing).
+func (a *Core) Update(msg any) []Effect {
+	effs := a.handle(msg)
+	a.KeepTransients()
+	a.NormalizeSplit()
+	a.TrackLast()
+	a.SyncLSP()
+	a.NotifySelection()
+	return Batch(effs, a.ScheduleAutoSave(), a.SyncPreview(), a.LexTabs(), a.SemanticTabs())
+}
+
+func (a *Core) handle(msg any) []Effect {
 	switch msg := msg.(type) {
 	case Event:
 		return a.HandleEvent(msg)

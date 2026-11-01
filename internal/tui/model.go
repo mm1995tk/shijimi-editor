@@ -42,16 +42,10 @@ func (a *App) Init() tea.Cmd {
 	return a.effectCmd(append([]core.Effect{core.WaitLSP{a.LspEvents()}, core.WatchTimer()}, a.ProbeRepo()...)...)
 }
 
+var _ tea.Model = (*App)(nil)
+
 // Update is bubbletea's call for each message: fromTea turns it into an Input
-// or an Event for Core.Handle, the state is brought up to date (transients,
-// split, last tab, LSP, selection), and the effects of the message and the
-// ones every round owes (auto-save, preview, lexing) become one tea.Cmd.
+// or an Event for Core.Update, whose Effects become one tea.Cmd.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	effs := a.Handle(a.fromTea(msg))
-	a.KeepTransients()
-	a.NormalizeSplit()
-	a.TrackLast()
-	a.SyncLSP()
-	a.NotifySelection()
-	return a, a.effectCmd(core.Batch(effs, a.ScheduleAutoSave(), a.SyncPreview(), a.LexTabs(), a.SemanticTabs())...)
+	return a, a.effectCmd(a.Core.Update(a.fromTea(msg))...)
 }
