@@ -2,6 +2,11 @@ module github.com/mm1995tk/shijimi-editor
 
 go 1.27.3
 
+// v1.0.0 は誤って出した版。npm からは取り消した。
+// Go のモジュールプロキシからは消せないので、v1.0.1 で v1.0.0 と v1.0.1 自身を取り消し、
+// go install ...@latest が 0.x の一番新しい版を選ぶようにする。
+retract [v1.0.0, v1.0.1]
+
 require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.1.0
