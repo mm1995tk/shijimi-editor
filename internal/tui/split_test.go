@@ -204,8 +204,7 @@ var tuiMethodFiles = []string{
 // the palette's two key handlers and two drawing methods. Shrink this list;
 // never add to it.
 var appMethodTodo = []string{
-	"Init", "Update", "update", "handleInput", "handleKey", "handlePaletteKey", "submitPalette",
-	"drawCard", "drawComposer", "renderPane",
+	"update", "handleInput", "handleKey", "handlePaletteKey", "submitPalette",
 }
 
 // TestCoreMethods keeps the methods of the files that go to core on Core.

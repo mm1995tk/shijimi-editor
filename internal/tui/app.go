@@ -10,7 +10,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -298,13 +297,6 @@ func (a *Core) Close() {
 	a.muxClose()
 	core.RemoveShellIntegration()
 	removeMuxShellIntegration()
-}
-
-func (a *App) Init() tea.Cmd {
-	if a.single {
-		return a.effectCmd(watchTimer())
-	}
-	return a.effectCmd(append([]Effect{WaitLSP{a.lsp.events}, watchTimer()}, a.probeRepo()...)...)
 }
 
 // ---- helpers ----
@@ -839,16 +831,6 @@ func (a *Core) pasteText() string {
 }
 
 // ---- update ----
-
-func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	effs := a.update(a.fromTea(msg))
-	a.keepTransients()
-	a.normalizeSplit()
-	a.trackLast()
-	a.syncLSP()
-	a.notifySelection()
-	return a, a.effectCmd(batch(effs, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs(), a.semanticTabs())...)
-}
 
 // scheduleAutoSave starts a timer for every named tab edited since the last
 // call. The timer is ignored if the buffer changed again before it fires.
