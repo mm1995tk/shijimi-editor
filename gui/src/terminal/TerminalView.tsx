@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { createEffect, onCleanup, onMount, type JSX } from "solid-js";
 
+import { monoFontsReady } from "../fonts.ts";
 import type { TermLink, TermSink } from "./link.ts";
 import "./terminal.css";
 
@@ -65,11 +66,20 @@ export function TerminalView(props: {
   }
 
   onMount(() => {
-    term.open(host);
-    refit();
+    // xterm.js は open のときに字の幅を測るので、JetBrains Mono を読み終えてから開く
+    // （先に開くと代わりの字で測ってしまい、字の間が合わない）
+    let disposed = false;
     const ro = new ResizeObserver(() => refit());
-    ro.observe(host);
-    onCleanup(() => ro.disconnect());
+    onCleanup(() => {
+      disposed = true;
+      ro.disconnect();
+    });
+    void monoFontsReady.then(() => {
+      if (disposed) return;
+      term.open(host);
+      refit();
+      ro.observe(host);
+    });
   });
 
   createEffect(() => {
