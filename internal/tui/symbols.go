@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
@@ -30,14 +28,14 @@ type workspaceSymbolsMsg struct {
 }
 
 // queryLater schedules a symbolQueryMsg for the current input.
-func (p *palette) queryLater() tea.Cmd {
+func (p *palette) queryLater() []Effect {
 	p.liveSeq++
 	seq := p.liveSeq
-	return tea.Tick(symbolQueryDelay, func(time.Time) tea.Msg { return symbolQueryMsg{seq} })
+	return []Effect{StartTimer{After: symbolQueryDelay, Fire: symbolQueryMsg{seq}}}
 }
 
 // documentSymbols lists the functions, types and variables of the current file.
-func (a *App) documentSymbols() tea.Cmd {
+func (a *App) documentSymbols() []Effect {
 	return a.lspRequest("documentSymbolProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		syms, err := c.DocumentSymbols(ctx, t.buf.Path)
 		if err != nil {
@@ -47,7 +45,7 @@ func (a *App) documentSymbols() tea.Cmd {
 	})
 }
 
-func (a *App) showSymbols(m symbolsMsg) tea.Cmd {
+func (a *App) showSymbols(m symbolsMsg) []Effect {
 	if len(m.syms) == 0 {
 		a.infoText(i18n.T("symui.none"))
 		return nil
@@ -56,9 +54,9 @@ func (a *App) showSymbols(m symbolsMsg) tea.Cmd {
 	for i, s := range m.syms {
 		items[i] = paletteItem{label: s.Name, detail: symbolDetail(s, "")}
 	}
-	return a.effectCmd(a.pal.pick(i18n.T("symui.title"), items, func(i int) []Effect {
-		return cmdEffects(a.jumpTo(lsp.Location{URI: m.syms[i].URI, Range: m.syms[i].Range}))
-	})...)
+	return a.pal.pick(i18n.T("symui.title"), items, func(i int) []Effect {
+		return a.jumpTo(lsp.Location{URI: m.syms[i].URI, Range: m.syms[i].Range})
+	})
 }
 
 // symbolDetail is the dim text after a symbol's name: its kind, the symbol it
@@ -77,7 +75,7 @@ func symbolDetail(s lsp.Symbol, file string) string {
 
 // workspaceSymbols opens a picker over the project's symbols. The language
 // server does the matching: the list is asked for again as the input changes.
-func (a *App) workspaceSymbols() tea.Cmd {
+func (a *App) workspaceSymbols() []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -94,17 +92,17 @@ func (a *App) workspaceSymbols() tea.Cmd {
 	a.syncLSP()
 	a.wsSyms = nil
 	a.wsClient = c
-	return a.effectCmd(a.pal.pickLive(i18n.T("space.wsymbols"), func(i int) []Effect {
+	return a.pal.pickLive(i18n.T("space.wsymbols"), func(i int) []Effect {
 		if i >= len(a.wsSyms) {
 			return nil
 		}
-		return cmdEffects(a.jumpTo(lsp.Location{URI: a.wsSyms[i].URI, Range: a.wsSyms[i].Range}))
-	})...)
+		return a.jumpTo(lsp.Location{URI: a.wsSyms[i].URI, Range: a.wsSyms[i].Range})
+	})
 }
 
 // runSymbolQuery asks the language server for the picker's current input,
 // unless the input changed again since the timer was set.
-func (a *App) runSymbolQuery(m symbolQueryMsg) tea.Cmd {
+func (a *App) runSymbolQuery(m symbolQueryMsg) []Effect {
 	p := a.pal
 	c := a.wsClient
 	if !p.open || !p.live || m.seq != p.liveSeq || c == nil {

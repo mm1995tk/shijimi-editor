@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -132,7 +131,7 @@ const (
 )
 
 // togglePreview cycles off → beside the buffer → full width → off.
-func (a *App) togglePreview() tea.Cmd {
+func (a *App) togglePreview() []Effect {
 	t := a.curText()
 	if t == nil || !isMarkdown(t.buf.Path) {
 		a.fail(errors.New(i18n.T("preview.needmd")))
@@ -153,11 +152,11 @@ func (a *App) togglePreview() tea.Cmd {
 // syncPreview starts rendering for mermaid blocks and loading the images of
 // the visible preview. The lists are cached per buffer version, so each call
 // only does a few map lookups and a stat of each image.
-func (a *App) syncPreview() tea.Cmd {
-	cmds := []tea.Cmd{a.syncMDImages()}
+func (a *App) syncPreview() []Effect {
+	cmds := [][]Effect{a.syncMDImages()}
 	blocks := a.wantedMermaid()
 	if len(blocks) == 0 {
-		return tea.Batch(cmds...)
+		return batch(cmds...)
 	}
 	if a.mermaid == nil {
 		a.mermaid = map[string]*previewJob{}
@@ -179,12 +178,12 @@ func (a *App) syncPreview() tea.Cmd {
 			continue
 		}
 		code := code
-		cmds = append(cmds, tea.Tick(mermaidDelay, func(time.Time) tea.Msg { return mermaidStartMsg{key, code} }))
+		cmds = append(cmds, []Effect{StartTimer{After: mermaidDelay, Fire: mermaidStartMsg{key, code}}})
 	}
-	return tea.Batch(cmds...)
+	return batch(cmds...)
 }
 
-func (a *App) handleMermaidStart(m mermaidStartMsg) tea.Cmd {
+func (a *App) handleMermaidStart(m mermaidStartMsg) []Effect {
 	// drop the job if the user kept typing and the block no longer exists
 	wanted := false
 	for _, code := range a.wantedMermaid() {
@@ -197,7 +196,7 @@ func (a *App) handleMermaidStart(m mermaidStartMsg) tea.Cmd {
 		return nil
 	}
 	command := a.cfg.Editor.MermaidCommand
-	return func() tea.Msg {
+	return async(func() Event {
 		dir := mermaidCacheDir()
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return mermaidDoneMsg{key: m.key, err: err}
@@ -220,7 +219,7 @@ func (a *App) handleMermaidStart(m mermaidStartMsg) tea.Cmd {
 			return mermaidDoneMsg{key: m.key, err: fmt.Errorf("%s", strings.SplitN(msg, "\n", 2)[0])}
 		}
 		return mermaidDoneMsg{key: m.key, png: out}
-	}
+	})
 }
 
 func (a *App) handleMermaidDone(m mermaidDoneMsg) {
@@ -245,13 +244,13 @@ func (a *App) handleMermaidDone(m mermaidDoneMsg) {
 // an image again when its file changed. Decoding runs off the UI loop, so a
 // large image does not stall typing. Images no longer in the preview are
 // freed.
-func (a *App) syncMDImages() tea.Cmd {
+func (a *App) syncMDImages() []Effect {
 	t := a.curText()
 	if t == nil || t.preview == previewOff {
 		return nil
 	}
 	wanted := map[string]bool{}
-	var cmds []tea.Cmd
+	var cmds [][]Effect
 	for _, src := range t.images() {
 		path := mdImagePath(t.buf.Path, src)
 		if path == "" || wanted[path] {
@@ -272,7 +271,7 @@ func (a *App) syncMDImages() tea.Cmd {
 		}
 		// a job being read again keeps showing the old result until the new one arrives
 		job.stamp = stamp
-		cmds = append(cmds, func() tea.Msg { return mdImageDoneMsg{path, stamp, newImageView(path)} })
+		cmds = append(cmds, async(func() Event { return mdImageDoneMsg{path, stamp, newImageView(path)} }))
 	}
 	for path, job := range a.mdImages {
 		if !wanted[path] {
@@ -285,7 +284,7 @@ func (a *App) syncMDImages() tea.Cmd {
 			a.previewGen++
 		}
 	}
-	return tea.Batch(cmds...)
+	return batch(cmds...)
 }
 
 func (a *App) handleMDImageDone(m mdImageDoneMsg) {

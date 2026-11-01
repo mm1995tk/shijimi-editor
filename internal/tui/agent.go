@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/acp"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -333,7 +331,7 @@ func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
 		}
 		effs := s.wait()
 		if a.gd.on {
-			effs = append(effs, cmdEffects(a.reloadChanges())...)
+			effs = append(effs, a.reloadChanges()...)
 		}
 		return effs, true
 	case agentPermMsg:
@@ -359,7 +357,7 @@ func (a *App) handleAgentEvent(ev Event) ([]Effect, bool) {
 		if m.gen != s.gen {
 			return s.wait(), true
 		}
-		return append(cmdEffects(a.endTurn(m)), s.wait()...), true
+		return append(a.endTurn(m), s.wait()...), true
 	case agentExitMsg:
 		if m.gen != s.gen {
 			return s.wait(), true
@@ -537,7 +535,7 @@ func permTitle(r acp.PermissionRequest) string {
 }
 
 // endTurn finishes a run and does what its suggestion promised.
-func (a *App) endTurn(m agentTurnMsg) tea.Cmd {
+func (a *App) endTurn(m agentTurnMsg) []Effect {
 	s := a.ag
 	run := s.run
 	s.run = nil
@@ -587,7 +585,7 @@ func stopText(stop string) string {
 }
 
 // showAgentChanges opens diff mode so the agent's edits can be checked.
-func (a *App) showAgentChanges() tea.Cmd {
+func (a *App) showAgentChanges() []Effect {
 	if a.gd.on {
 		return a.reloadChanges()
 	}

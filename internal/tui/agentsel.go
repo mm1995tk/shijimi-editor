@@ -4,7 +4,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/rivo/uniseg"
 
@@ -188,7 +187,7 @@ func (a *App) inLog(l layout, msg Mouse) bool {
 
 // agentDrag follows a drag that began on the log, wherever the pointer goes.
 // ok is false when the event is not part of it.
-func (a *App) agentDrag(l layout, msg Mouse) (tea.Cmd, bool) {
+func (a *App) agentDrag(l layout, msg Mouse) ([]Effect, bool) {
 	s := &a.ag.sel
 	switch {
 	case msg.Action == MousePress && (msg.Button == MouseWheelUp || msg.Button == MouseWheelDown):

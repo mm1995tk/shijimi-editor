@@ -103,3 +103,6 @@ func TestAgentEventAsksForTheNext(t *testing.T) {
 		t.Fatalf("want WaitAgent on the agent channel, got %#v", effs[0])
 	}
 }
+
+// cmdOf is the tea.Cmd that carries out effs, for tests that run the result.
+func cmdOf(a *App, effs []Effect) tea.Cmd { return a.effectCmd(effs...) }

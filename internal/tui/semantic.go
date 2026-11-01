@@ -5,8 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
@@ -42,7 +40,7 @@ type semanticMsg struct {
 // semantic tokens of t's current text, or nil when they are current, a request
 // is under way, or no server provides them. Edits made meanwhile are requested
 // once that one is applied.
-func (a *App) semanticCmd(t *tab) tea.Cmd {
+func (a *App) semanticCmd(t *tab) []Effect {
 	h := t.hl
 	s := &h.sem
 	if t.kind != tabText || t.lang == nil || s.running || len(t.buf.Lines) > maxHighlightLines ||
@@ -70,12 +68,12 @@ func (a *App) semanticCmd(t *tab) tea.Cmd {
 }
 
 // semanticTabs requests semantic tokens for every text tab that is behind.
-func (a *App) semanticTabs() tea.Cmd {
-	var cmds []tea.Cmd
+func (a *App) semanticTabs() []Effect {
+	var cmds [][]Effect
 	for _, t := range a.tabs {
 		cmds = append(cmds, a.semanticCmd(t))
 	}
-	return tea.Batch(cmds...)
+	return batch(cmds...)
 }
 
 // apply stores the result of a semanticCmd. A server that stops answering

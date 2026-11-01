@@ -6,17 +6,16 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
-// cmdEffect carries a tea.Cmd through the Effect list. It is the bridge for work
-// that has not moved to an Effect yet (the LSP requests behind a hover or a
-// rename, the CHANGES list, the diff and review screens, the terminal). The App,
-// the commands, saving and the tabs already return Effects; what is left goes
-// away as P13-04 moves the rest into the core.
-type cmdEffect struct{ cmd tea.Cmd }
+// teaEffect carries a tea.Cmd through the Effect list. Two things are left on it:
+// the terminal panel, which waits on a PTY and has no Event of its own yet (P13-06
+// decides), and the review composer's bubbles textarea (its cursor blink; P10h).
+type teaEffect struct{ cmd tea.Cmd }
 
-func (cmdEffect) isEffect() {}
+func (teaEffect) isEffect() {}
 
 // effectCmd turns Effects into the tea.Cmd that carries them out. An Event
 // that a timer delivers reaches Update as the tea.Msg itself.
@@ -71,7 +70,15 @@ func (a *App) effectCmd(effs ...Effect) tea.Cmd {
 			// keyboard enhancements (see exit).
 			a.quitting = true
 			cmds = append(cmds, tea.Quit)
-		case cmdEffect:
+		case Run:
+			run := e.Run
+			cmds = append(cmds, func() tea.Msg {
+				if ev := run(); ev != nil {
+					return ev
+				}
+				return nil
+			})
+		case teaEffect:
 			cmds = append(cmds, e.cmd)
 		}
 	}
@@ -104,6 +111,50 @@ func (a *App) handleEvent(ev Event) []Effect {
 	case IDECancel:
 		a.cancelProposal(ev.Reply)
 		return nil
+	case changesLoadedMsg:
+		a.applyChanges(ev)
+		return nil
+	case highlightMsg:
+		ev.h.apply(ev)
+		return nil
+	case mermaidStartMsg:
+		return a.handleMermaidStart(ev)
+	case mermaidDoneMsg:
+		a.handleMermaidDone(ev)
+		return nil
+	case mdImageDoneMsg:
+		a.handleMDImageDone(ev)
+		return nil
+	case formatterDoneMsg:
+		return a.handleFormatterDone(ev)
+	case openURLMsg:
+		switch {
+		case ev.err != nil && ev.copyOnFail:
+			a.copyText(ev.url)
+			a.info(i18n.T("rv.openfailedcopied"), ev.url)
+		case ev.err != nil:
+			a.fail(ev.err)
+		default:
+			a.info(i18n.T("app.opened"), ev.url)
+		}
+		return nil
+	case prFoundMsg:
+		return a.handlePRFound(ev)
+	case branchPRsMsg:
+		return a.handleBranchPRs(ev)
+	case prCheckedOutMsg:
+		return a.handlePRCheckedOut(ev)
+	case prPulledMsg:
+		return a.handlePRPulled(ev)
+	case prReviewMsg:
+		return a.handlePRReview(ev)
+	case viewedMsg:
+		a.handleViewed(ev)
+		return nil
+	case reviewSentMsg:
+		return a.handleReviewSent(ev)
+	case prListMsg:
+		return a.showPRList(ev)
 	case lspEventMsg:
 		// Ask for the next one first, so none waits while this is handled.
 		return append([]Effect{WaitLSP{a.lsp.events}}, a.handleLSPEvent(lsp.Event(ev))...)
@@ -117,10 +168,10 @@ func (a *App) handleEvent(ev Event) []Effect {
 	return nil
 }
 
-// cmdEffects wraps a tea.Cmd that has not moved to an Effect yet.
-func cmdEffects(cmd tea.Cmd) []Effect {
+// teaEffects wraps a terminal tea.Cmd.
+func teaEffects(cmd tea.Cmd) []Effect {
 	if cmd == nil {
 		return nil
 	}
-	return []Effect{cmdEffect{cmd}}
+	return []Effect{teaEffect{cmd}}
 }

@@ -5,7 +5,6 @@ import (
 	"sort"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/alecthomas/chroma/v2"
 
@@ -283,7 +282,7 @@ func (a *App) setTheme(name string) bool {
 }
 
 // themePicker opens a list of the built-in themes.
-func (a *App) themePicker() tea.Cmd {
+func (a *App) themePicker() []Effect {
 	items := make([]paletteItem, 0, len(themes))
 	for _, n := range themeNames() {
 		d := ""
@@ -292,11 +291,11 @@ func (a *App) themePicker() tea.Cmd {
 		}
 		items = append(items, paletteItem{label: n, detail: d})
 	}
-	return a.effectCmd(a.pal.pick(i18n.T("theme.title"), items, func(i int) []Effect {
+	return a.pal.pick(i18n.T("theme.title"), items, func(i int) []Effect {
 		a.setTheme(items[i].label)
 		a.info(i18n.T("cmd.themeis"), curTheme.Name)
 		return nil
-	})...)
+	})
 }
 
 func themeOrDefault(name string) *Theme {

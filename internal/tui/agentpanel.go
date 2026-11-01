@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -41,7 +40,7 @@ func (a *App) agentShown(sideW int) bool {
 }
 
 // toggleAgentPanel moves to the panel, opening it, or leaves and closes it.
-func (a *App) toggleAgentPanel() tea.Cmd {
+func (a *App) toggleAgentPanel() []Effect {
 	if a.single {
 		return nil
 	}
@@ -49,26 +48,26 @@ func (a *App) toggleAgentPanel() tea.Cmd {
 		a.showAgent = false
 		a.follow = true
 		if len(a.tabs) > 0 {
-			return a.effectCmd(a.setFocus(focusEditor)...)
+			return a.setFocus(focusEditor)
 		}
 		a.showSide = true
-		return a.effectCmd(a.setFocus(focusExplorer)...)
+		return a.setFocus(focusExplorer)
 	}
 	a.showAgent = true
 	a.follow = true
-	return a.effectCmd(a.setFocus(focusAgent)...)
+	return a.setFocus(focusAgent)
 }
 
 // leaveAgentPanel returns to the editor, keeping the panel open.
-func (a *App) leaveAgentPanel() tea.Cmd {
+func (a *App) leaveAgentPanel() []Effect {
 	if len(a.tabs) > 0 {
-		return a.effectCmd(a.setFocus(focusEditor)...)
+		return a.setFocus(focusEditor)
 	}
 	a.showSide = true
-	return a.effectCmd(a.setFocus(focusExplorer)...)
+	return a.setFocus(focusExplorer)
 }
 
-func (a *App) handleAgentKey(msg Key) tea.Cmd {
+func (a *App) handleAgentKey(msg Key) []Effect {
 	n := len(a.suggestions())
 	switch msg.String() {
 	case "j", "down":
@@ -92,7 +91,7 @@ func (a *App) handleAgentKey(msg Key) tea.Cmd {
 	case "G", "end":
 		a.ag.scroll = 0
 	case ":":
-		return a.effectCmd(a.openCmdline(":")...)
+		return a.openCmdline(":")
 	case "esc", "tab":
 		return a.leaveAgentPanel()
 	case "alt+i":
@@ -102,7 +101,7 @@ func (a *App) handleAgentKey(msg Key) tea.Cmd {
 }
 
 // agentCommand runs ":agent [cancel|stop]".
-func (a *App) agentCommand(arg string) tea.Cmd {
+func (a *App) agentCommand(arg string) []Effect {
 	switch arg {
 	case "":
 		return a.toggleAgentPanel()
@@ -432,7 +431,7 @@ func wrapPlainRows(text string, w int) []wrapRow {
 
 // agentMouse handles the pointer over the panel. ok is false when (x, y)
 // is not on it.
-func (a *App) agentMouse(l layout, msg Mouse) (tea.Cmd, bool) {
+func (a *App) agentMouse(l layout, msg Mouse) ([]Effect, bool) {
 	if msg.Region != RegionAgent {
 		return nil, false
 	}
@@ -481,5 +480,5 @@ func (a *App) agentMouse(l layout, msg Mouse) (tea.Cmd, bool) {
 		p, _, _ := a.logPos(l, msg)
 		a.ag.sel = agentSel{dragging: true, a: p, b: p}
 	}
-	return a.effectCmd(a.setFocus(focusAgent)...), true
+	return a.setFocus(focusAgent), true
 }

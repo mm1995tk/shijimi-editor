@@ -40,10 +40,10 @@ type prReview struct {
 // yesNo is a question answered with y or n on the status line.
 type yesNo struct {
 	prompt  string
-	yes, no func() tea.Cmd
+	yes, no func() []Effect
 }
 
-func (a *App) handleConfirmKey(key string) tea.Cmd {
+func (a *App) handleConfirmKey(key string) []Effect {
 	c := a.confirm
 	switch key {
 	case "y", "Y":
@@ -70,24 +70,24 @@ type prReviewMsg struct {
 
 // loadReview fetches the pull request's head commit, compares it with HEAD
 // and reads its comments and viewed files.
-func (a *App) loadReview() tea.Cmd {
+func (a *App) loadReview() []Effect {
 	pr := a.gd.pr
 	if pr == nil {
 		return nil
 	}
 	a.gd.rv.seq++
 	root, seq := a.root, a.gd.rv.seq
-	return func() tea.Msg {
+	return async(func() Event {
 		fetchPR(root, pr)
 		m := prReviewMsg{seq: seq, num: pr.Number, sync: syncWith(root, pr.HeadRefOid)}
 		if pr.ID != "" {
 			m.data, m.err = loadReview(root, pr)
 		}
 		return m
-	}
+	})
 }
 
-func (a *App) handlePRReview(m prReviewMsg) tea.Cmd {
+func (a *App) handlePRReview(m prReviewMsg) []Effect {
 	rv := &a.gd.rv
 	if m.seq != rv.seq || !a.prShown() || a.gd.pr.Number != m.num {
 		return nil
@@ -216,7 +216,7 @@ var reviewItems = []spaceItem{
 }
 
 // openReviewMenu handles Space v.
-func (a *App) openReviewMenu() tea.Cmd {
+func (a *App) openReviewMenu() []Effect {
 	if !a.prShown() {
 		a.infoText(i18n.T("rv.needpr"))
 		return nil
@@ -226,7 +226,7 @@ func (a *App) openReviewMenu() tea.Cmd {
 }
 
 // reviewCommand runs Space v <key> from the command palette.
-func (a *App) reviewCommand(key string) tea.Cmd {
+func (a *App) reviewCommand(key string) []Effect {
 	if !a.prShown() {
 		return a.openReviewMenu() // says where reviewing works
 	}
@@ -234,7 +234,7 @@ func (a *App) reviewCommand(key string) tea.Cmd {
 }
 
 // reviewKey runs the command of Space v <key>.
-func (a *App) reviewKey(key string) tea.Cmd {
+func (a *App) reviewKey(key string) []Effect {
 	if !a.prShown() {
 		return nil
 	}
@@ -297,7 +297,7 @@ func (a *App) checkCommentable(p string, t *tab) error {
 }
 
 // commentLines starts a comment on the cursor line or the selected lines.
-func (a *App) commentLines() tea.Cmd {
+func (a *App) commentLines() []Effect {
 	p, t := a.reviewTarget()
 	if a.focus == focusChanges || t == nil {
 		a.fail(errors.New(i18n.T("rv.selectline")))
@@ -327,7 +327,7 @@ func (a *App) commentLines() tea.Cmd {
 	if last > first {
 		where = fmt.Sprintf(i18n.T("rv.rangeof"), p, first+1, last+1)
 	}
-	return a.compose(i18n.T("rv.commentlabel")+where, "", orig, func(body string) tea.Cmd {
+	return a.compose(i18n.T("rv.commentlabel")+where, "", orig, func(body string) []Effect {
 		th := &prThread{Path: p, Line: last + 1, Side: "RIGHT", Pending: true, Comments: []prComment{{Author: i18n.T("rv.you"), Body: body, Created: time.Now()}}}
 		if last > first {
 			th.StartLine = first + 1
@@ -339,13 +339,13 @@ func (a *App) commentLines() tea.Cmd {
 }
 
 // commentFile starts a comment on the whole current file.
-func (a *App) commentFile() tea.Cmd {
+func (a *App) commentFile() []Effect {
 	p, t := a.reviewTarget()
 	if err := a.checkCommentable(p, t); err != nil {
 		a.fail(err)
 		return nil
 	}
-	return a.compose(i18n.T("rv.filecommentlabel")+p, "", nil, func(body string) tea.Cmd {
+	return a.compose(i18n.T("rv.filecommentlabel")+p, "", nil, func(body string) []Effect {
 		a.gd.rv.pending = append(a.gd.rv.pending, &prThread{Path: p, Side: "RIGHT", File: true, Pending: true,
 			Comments: []prComment{{Author: i18n.T("rv.you"), Body: body, Created: time.Now()}}})
 		a.infoText(i18n.T("rv.filecommentadded"))
@@ -355,7 +355,7 @@ func (a *App) commentFile() tea.Cmd {
 
 // openThread opens the thread on the cursor line as a card, or lets the user
 // pick one of the file's threads.
-func (a *App) openThread() tea.Cmd {
+func (a *App) openThread() []Effect {
 	p, t := a.reviewTarget()
 	if p == "" {
 		a.fail(errors.New(i18n.T("rv.openfile")))
@@ -380,10 +380,10 @@ func (a *App) openThread() tea.Cmd {
 	for i, th := range all {
 		items[i] = paletteItem{label: threadWhere(th) + "  " + firstLine(th.Comments[0].Body), detail: "@" + th.Comments[0].Author + threadState(th)}
 	}
-	return a.effectCmd(a.pal.pick(i18n.T("rv.commentlabel")+p, items, func(i int) []Effect {
+	return a.pal.pick(i18n.T("rv.commentlabel")+p, items, func(i int) []Effect {
 		a.card = &prCard{thread: all[i], path: p}
 		return nil
-	})...)
+	})
 }
 
 // threadWhere names what a thread is about: "右 99 行目", "ファイル", ….
@@ -421,7 +421,7 @@ type viewedMsg struct {
 	err    error
 }
 
-func (a *App) toggleViewed() tea.Cmd {
+func (a *App) toggleViewed() []Effect {
 	p, _ := a.reviewTarget()
 	if p == "" {
 		a.fail(errors.New(i18n.T("rv.openfile")))
@@ -432,7 +432,7 @@ func (a *App) toggleViewed() tea.Cmd {
 	}
 	v := !a.gd.rv.viewed[p]
 	root, pr := a.root, a.gd.pr
-	return func() tea.Msg { return viewedMsg{num: pr.Number, path: p, viewed: v, err: setViewed(root, pr, p, v)} }
+	return async(func() Event { return viewedMsg{num: pr.Number, path: p, viewed: v, err: setViewed(root, pr, p, v)} })
 }
 
 func (a *App) handleViewed(m viewedMsg) {
@@ -469,29 +469,29 @@ func eventNames() map[string]string {
 	return map[string]string{"APPROVE": i18n.T("rv.event.approve"), "REQUEST_CHANGES": i18n.T("rv.event.request"), "COMMENT": i18n.T("rv.event.comment")}
 }
 
-func (a *App) startSubmit(event string) tea.Cmd {
+func (a *App) startSubmit(event string) []Effect {
 	if a.gd.pr.ID == "" {
 		return nil
 	}
 	n := len(a.gd.rv.pending)
 	title := fmt.Sprintf(i18n.T("rv.submitprompt"), eventNames()[event], n)
-	cmd := a.compose(title, "", nil, func(body string) tea.Cmd {
+	cmd := a.compose(title, "", nil, func(body string) []Effect {
 		if event != "APPROVE" && body == "" && n == 0 {
 			a.fail(errors.New(i18n.T("rv.needbody")))
 			return nil
 		}
 		a.infoText(i18n.T("rv.submitting"))
 		root, pr, threads := a.root, a.gd.pr, append([]*prThread(nil), a.gd.rv.pending...)
-		return func() tea.Msg {
+		return async(func() Event {
 			err := submitReview(root, pr, event, body, threads)
 			return reviewSentMsg{num: pr.Number, done: fmt.Sprintf(i18n.T("rv.submitted"), eventNames()[event]), sent: threads, err: err}
-		}
+		})
 	})
 	a.composer.empty = true
 	return cmd
 }
 
-func (a *App) handleReviewSent(m reviewSentMsg) tea.Cmd {
+func (a *App) handleReviewSent(m reviewSentMsg) []Effect {
 	if m.err != nil {
 		a.fail(m.err)
 		return nil
@@ -699,7 +699,7 @@ func (a *App) cardBox(l layout) (rows []string, x, y int) {
 	return rows, x, y
 }
 
-func (a *App) handleCardKey(msg Key) (tea.Cmd, bool) {
+func (a *App) handleCardKey(msg Key) ([]Effect, bool) {
 	c := a.card
 	t := c.thread
 	switch key := msg.String(); key {
@@ -722,18 +722,18 @@ func (a *App) handleCardKey(msg Key) (tea.Cmd, bool) {
 		return a.gotoThread(c), true
 	case "r":
 		if t.Pending {
-			return a.compose(i18n.T("rv.editlabel")+threadWhere(t), t.Comments[0].Body, a.threadLines(c), func(body string) tea.Cmd {
+			return a.compose(i18n.T("rv.editlabel")+threadWhere(t), t.Comments[0].Body, a.threadLines(c), func(body string) []Effect {
 				t.Comments[0].Body = body
 				return nil
 			}), true
 		}
-		return a.compose(i18n.T("rv.replylabel")+threadWhere(t), "", nil, func(body string) tea.Cmd {
+		return a.compose(i18n.T("rv.replylabel")+threadWhere(t), "", nil, func(body string) []Effect {
 			a.infoText(i18n.T("rv.replying"))
 			root, id := a.root, t.ID
 			num := a.gd.pr.Number
-			return func() tea.Msg {
+			return async(func() Event {
 				return reviewSentMsg{num: num, done: i18n.T("rv.replied"), err: replyThread(root, id, body)}
-			}
+			})
 		}), true
 	case "x":
 		if t.Pending {
@@ -753,7 +753,7 @@ func (a *App) handleCardKey(msg Key) (tea.Cmd, bool) {
 			done = i18n.T("rv.reopened")
 		}
 		num := a.gd.pr.Number
-		return func() tea.Msg { return reviewSentMsg{num: num, done: done, err: resolveThread(root, id, resolve)} }, true
+		return async(func() Event { return reviewSentMsg{num: num, done: done, err: resolveThread(root, id, resolve)} }), true
 	case "s":
 		if t.Pending || suggestion(t) == nil {
 			return nil, true
@@ -767,7 +767,7 @@ func (a *App) handleCardKey(msg Key) (tea.Cmd, bool) {
 }
 
 // gotoThread opens the thread's file with the cursor on its line.
-func (a *App) gotoThread(c *prCard) tea.Cmd {
+func (a *App) gotoThread(c *prCard) []Effect {
 	abs := filepath.Join(a.gitTopDir(), c.path)
 	if !a.openFile(abs) {
 		return nil
@@ -778,7 +778,7 @@ func (a *App) gotoThread(c *prCard) tea.Cmd {
 		t.buf.Cur = t.buf.ClampPos(buffer.Pos{Row: c.thread.Line - 1})
 		a.follow = true
 	}
-	return a.effectCmd(a.setFocus(focusEditor)...)
+	return a.setFocus(focusEditor)
 }
 
 // threadLines returns the lines a thread is on, from the open buffer.
@@ -834,7 +834,7 @@ func suggestion(t *prThread) []string {
 }
 
 // applySuggestion replaces the thread's lines with its suggestion and saves.
-func (a *App) applySuggestion(c *prCard) tea.Cmd {
+func (a *App) applySuggestion(c *prCard) []Effect {
 	if err := a.checkCommentable(c.path, nil); err != nil {
 		a.fail(errors.New(i18n.T("rv.sugglocal")))
 		return nil
@@ -873,7 +873,7 @@ func (a *App) applySuggestion(c *prCard) tea.Cmd {
 	if !a.msgErr {
 		a.info(i18n.T("rv.suggapplied"), c.path)
 	}
-	return tea.Batch(a.effectCmd(cmd...), a.effectCmd(a.setFocus(focusEditor)...))
+	return batch(cmd, a.setFocus(focusEditor))
 }
 
 // ---- the comment editor ----
@@ -885,12 +885,12 @@ type composer struct {
 	ta       textarea.Model
 	orig     []string // lines a suggestion starts from (Ctrl+S); nil = none
 	empty    bool     // an empty text may be sent
-	onSubmit func(string) tea.Cmd
+	onSubmit func(string) []Effect
 }
 
 // compose opens the comment editor. orig is what Ctrl+S puts in a
 // suggestion block.
-func (a *App) compose(title, initial string, orig []string, onSubmit func(string) tea.Cmd) tea.Cmd {
+func (a *App) compose(title, initial string, orig []string, onSubmit func(string) []Effect) []Effect {
 	ta := textarea.New()
 	ta.ShowLineNumbers = false
 	ta.Prompt = ""
@@ -905,10 +905,10 @@ func (a *App) compose(title, initial string, orig []string, onSubmit func(string
 	ta.SetValue(initial)
 	a.comp, a.hoverText = nil, ""
 	a.composer = &composer{title: title, ta: ta, orig: orig, onSubmit: onSubmit}
-	return a.composer.ta.Focus()
+	return teaEffects(a.composer.ta.Focus())
 }
 
-func (a *App) handleComposerKey(msg Key) tea.Cmd {
+func (a *App) handleComposerKey(msg Key) []Effect {
 	c := a.composer
 	switch msg.String() {
 	case "esc":
@@ -939,7 +939,7 @@ func (a *App) handleComposerKey(msg Key) tea.Cmd {
 	}
 	var cmd tea.Cmd
 	c.ta, cmd = c.ta.Update(widgetMsg(msg))
-	return cmd
+	return teaEffects(cmd)
 }
 
 // composerOverlay is the open comment editor as a screen.Overlay, iw cells

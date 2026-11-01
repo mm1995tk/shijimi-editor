@@ -352,7 +352,7 @@ func TestSwitchToPR(t *testing.T) {
 func TestCheckoutPRStashes(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	pr := &prInfo{Number: 9, HeadRefName: "other", BaseRefName: "main"}
-	msg := a.checkoutPR(pr, true)().(prCheckedOutMsg)
+	msg := cmdOf(a, a.checkoutPR(pr, true))().(prCheckedOutMsg)
 	if msg.err == nil {
 		t.Skip("gh pr checkout worked here; nothing to check")
 	}
@@ -444,7 +444,7 @@ func TestSubmitNeedsSomething(t *testing.T) {
 
 func TestComposerNewlineAndPreview(t *testing.T) {
 	a, _ := prApp(t)
-	a.compose("t", "", nil, func(string) tea.Cmd { return nil })
+	a.compose("t", "", nil, func(string) []Effect { return nil })
 	a.composer.ta.InsertString("# 見出し")
 	a.handleComposerKey(Key{Code: KeyEnter, Mod: ModShift})
 	a.composer.ta.InsertString("本文")
@@ -784,33 +784,33 @@ func TestReviewPRURLCommands(t *testing.T) {
 	const url = "https://github.com/o/r/pull/7"
 
 	reset()
-	runCmd(a, a.reviewKey("y"))
+	runCmd(a, cmdOf(a, a.reviewKey("y")))
 	if a.clipboard != url || a.msgErr || !strings.Contains(a.msg, url) {
 		t.Fatalf("copy: clip %q msg %q", a.clipboard, a.msg)
 	}
 	reset()
-	runCmd(a, a.reviewKey("o"))
+	runCmd(a, cmdOf(a, a.reviewKey("o")))
 	if opened != url || a.clipboard != "" || a.msgErr {
 		t.Fatalf("open: opened %q clip %q msg %q", opened, a.clipboard, a.msg)
 	}
 	reset()
 	remote = true
-	runCmd(a, a.reviewKey("o"))
+	runCmd(a, cmdOf(a, a.reviewKey("o")))
 	if opened != "" || a.clipboard != url || a.msgErr || !strings.Contains(a.msg, "SSH") {
 		t.Fatalf("ssh: opened %q clip %q msg %q", opened, a.clipboard, a.msg)
 	}
 	remote = false
 	reset()
 	openErr = fmt.Errorf("boom")
-	runCmd(a, a.reviewKey("o"))
+	runCmd(a, cmdOf(a, a.reviewKey("o")))
 	if a.clipboard != url || a.msgErr || strings.Contains(a.msg, "boom") {
 		t.Fatalf("fallback: clip %q msg %q err %v", a.clipboard, a.msg, a.msgErr)
 	}
 	// Not comparing with a PR base: palette commands only say so.
 	reset()
 	a.gd.base = baseHead
-	runCmd(a, a.reviewCommand("y"))
-	runCmd(a, a.reviewCommand("o"))
+	runCmd(a, cmdOf(a, a.reviewCommand("y")))
+	runCmd(a, cmdOf(a, a.reviewCommand("o")))
 	if opened != "" || a.clipboard != "" || a.msg != i18n.T("rv.needpr") {
 		t.Fatalf("needpr: opened %q clip %q msg %q", opened, a.clipboard, a.msg)
 	}
@@ -859,7 +859,7 @@ func TestCardOverlay(t *testing.T) {
 
 func TestComposerOverlay(t *testing.T) {
 	a, _ := prApp(t)
-	a.compose("title", "", []string{"x"}, func(string) tea.Cmd { return nil })
+	a.compose("title", "", []string{"x"}, func(string) []Effect { return nil })
 	a.composer.ta.SetValue("# 見出し\n本文")
 	ov := a.composerOverlay(30, 5)
 	if ov.Kind != screen.OverlayReviewCard || ov.Title != "title" || ov.Compose == nil || ov.Compose.Text != "# 見出し\n本文" {

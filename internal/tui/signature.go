@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -31,7 +30,7 @@ type signatureMsg struct {
 
 // signatureHelp asks the server for the signature at the cursor. Typing must
 // not report a missing or starting server; only an explicit request does.
-func (a *App) signatureHelp(manual bool) tea.Cmd {
+func (a *App) signatureHelp(manual bool) []Effect {
 	t := a.curText()
 	if t == nil {
 		return nil
@@ -77,7 +76,7 @@ func (a *App) showSignature(m signatureMsg) {
 
 // signatureTyped keeps the popup in step with a typed rune: ")" closes it, a
 // trigger character (re)opens it.
-func (a *App) signatureTyped(t *tab, r rune) tea.Cmd {
+func (a *App) signatureTyped(t *tab, r rune) []Effect {
 	if r == ')' {
 		a.closeSignature()
 		return nil

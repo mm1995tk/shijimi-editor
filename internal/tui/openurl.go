@@ -10,8 +10,6 @@ import (
 	"runtime"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -73,7 +71,7 @@ type openURLMsg struct {
 var urlFullRe = regexp.MustCompile(`^https?://\S+$`)
 
 // openURL opens arg, or the URL under the cursor when arg is empty.
-func (a *App) openURL(arg string) tea.Cmd {
+func (a *App) openURL(arg string) []Effect {
 	url := strings.TrimSpace(arg)
 	if url == "" {
 		t := a.curText()
@@ -93,7 +91,7 @@ func (a *App) openURL(arg string) tea.Cmd {
 		a.fail(fmt.Errorf(i18n.T("open.badurl"), url))
 		return nil
 	}
-	return func() tea.Msg { return openURLMsg{url: url, err: a.openInBrowser(url)} }
+	return async(func() Event { return openURLMsg{url: url, err: a.openInBrowser(url)} })
 }
 
 // isRemoteSession reports whether the editor runs over SSH, where a browser
@@ -103,7 +101,7 @@ var isRemoteSession = func() bool {
 }
 
 // copyPRURL copies the URL of the pull request being reviewed.
-func (a *App) copyPRURL() tea.Cmd {
+func (a *App) copyPRURL() []Effect {
 	a.copyText(a.gd.pr.URL)
 	a.info(i18n.T("rv.urlcopied"), a.gd.pr.URL)
 	return nil
@@ -111,12 +109,12 @@ func (a *App) copyPRURL() tea.Cmd {
 
 // openPRURL opens the pull request in the browser. Over SSH, or when the
 // opener fails, it copies the URL instead and says so.
-func (a *App) openPRURL() tea.Cmd {
+func (a *App) openPRURL() []Effect {
 	url := a.gd.pr.URL
 	if a.host == nil && isRemoteSession() {
 		a.copyText(url)
 		a.info(i18n.T("rv.sshcopied"), url)
 		return nil
 	}
-	return func() tea.Msg { return openURLMsg{url: url, err: a.openInBrowser(url), copyOnFail: true} }
+	return async(func() Event { return openURLMsg{url: url, err: a.openInBrowser(url), copyOnFail: true} })
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -83,7 +82,7 @@ func (a *App) currentContext() (string, bool) {
 
 // sendContext tells a connected IDE-integrated agent about the current
 // selection; otherwise it opens the preview of the context to paste.
-func (a *App) sendContext() tea.Cmd {
+func (a *App) sendContext() []Effect {
 	if a.single {
 		return nil
 	}
@@ -100,7 +99,7 @@ func (a *App) sendContext() tea.Cmd {
 }
 
 // handleContextKey drives the preview: Enter pastes, Esc cancels.
-func (a *App) handleContextKey(msg Key) tea.Cmd {
+func (a *App) handleContextKey(msg Key) []Effect {
 	switch msg.String() {
 	case "enter":
 		text := a.ctx.text
@@ -110,7 +109,7 @@ func (a *App) handleContextKey(msg Key) tea.Cmd {
 		}
 		a.showTerm = true
 		cmd := a.setFocus(focusTerminal)
-		return tea.Batch(a.effectCmd(cmd...), a.term.paste(text))
+		return batch(cmd, teaEffects(a.term.paste(text)))
 	case "esc", "ctrl+c", "q":
 		a.ctx = nil
 	case "ctrl+d", "pgdown", "down", "j":

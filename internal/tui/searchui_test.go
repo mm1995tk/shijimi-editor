@@ -32,7 +32,7 @@ func TestSearchPanelFlow(t *testing.T) {
 	other := filepath.Join(a.root, "b.txt")
 	os.WriteFile(other, []byte("foo three\n"), 0o644)
 
-	drive(a, a.openSearchArgs("foo => X", true))
+	drive(a, cmdOf(a, a.openSearchArgs("foo => X", true)))
 	if !a.search.open {
 		t.Fatal("panel must open")
 	}
@@ -48,7 +48,7 @@ func TestSearchPanelFlow(t *testing.T) {
 	if !a.search.res.Hits[0].Skip {
 		t.Fatal("ctrl+x must exclude the line")
 	}
-	drive(a, a.handleSearchKey(Key{Code: KeyEnter, Mod: ModAlt}))
+	drive(a, cmdOf(a, a.handleSearchKey(Key{Code: KeyEnter, Mod: ModAlt})))
 	if a.search.open {
 		t.Fatal("panel must close after replacing")
 	}
@@ -72,7 +72,7 @@ func TestSearchPanelFlow(t *testing.T) {
 
 func TestSearchPanelOpenHit(t *testing.T) {
 	a := newTestApp(t, "one\ntwo\nthree needle\n")
-	drive(a, a.openSearchArgs("needle", false))
+	drive(a, cmdOf(a, a.openSearchArgs("needle", false)))
 	if len(a.search.res.Hits) != 1 {
 		t.Fatalf("hits = %+v", a.search.res.Hits)
 	}
@@ -122,12 +122,12 @@ func (a *App) renderPanelForTest() []string {
 
 func TestSearchReplaceOne(t *testing.T) {
 	a := newTestApp(t, "foo one\nbar\nfoo two\nfoo three\n")
-	drive(a, a.openSearchArgs("foo => X", true))
+	drive(a, cmdOf(a, a.openSearchArgs("foo => X", true)))
 	if len(a.search.res.Hits) != 3 {
 		t.Fatalf("hits = %d", len(a.search.res.Hits))
 	}
 	a.handleSearchKey(Key{Code: KeyDown})
-	drive(a, a.handleSearchKey(altKey(string('1'))))
+	drive(a, cmdOf(a, a.handleSearchKey(altKey(string('1')))))
 	if !a.search.open {
 		t.Fatal("panel must stay open")
 	}
@@ -144,12 +144,12 @@ func TestSearchReplaceOne(t *testing.T) {
 
 func TestSearchReplaceOneExcludedLine(t *testing.T) {
 	a := newTestApp(t, "foo one\nfoo two\n")
-	drive(a, a.openSearchArgs("foo => X", true))
+	drive(a, cmdOf(a, a.openSearchArgs("foo => X", true)))
 	a.handleSearchKey(Key{Code: 'x', Mod: ModCtrl})
 	if !a.search.res.Hits[0].Skip {
 		t.Fatal("ctrl+x must exclude the line")
 	}
-	drive(a, a.handleSearchKey(altKey(string('1'))))
+	drive(a, cmdOf(a, a.handleSearchKey(altKey(string('1')))))
 	if got := a.curText().buf.Text(); !strings.HasPrefix(got, "X one\nfoo two") {
 		t.Fatalf("text = %q", got)
 	}
@@ -160,8 +160,8 @@ func TestSearchReplaceOneExcludedLine(t *testing.T) {
 
 func TestSearchReplaceOneStillMatching(t *testing.T) {
 	a := newTestApp(t, "foo\nfoo\n")
-	drive(a, a.openSearchArgs("foo => foobar", true))
-	drive(a, a.handleSearchKey(altKey(string('1'))))
+	drive(a, cmdOf(a, a.openSearchArgs("foo => foobar", true)))
+	drive(a, cmdOf(a, a.handleSearchKey(altKey(string('1')))))
 	if h := a.search.cur(); h == nil || h.Row != 1 {
 		t.Fatalf("cursor must move past the replaced line: %+v", h)
 	}
@@ -173,7 +173,7 @@ func TestSearchReplaceOneStillMatching(t *testing.T) {
 func TestSearchPanelLayout(t *testing.T) {
 	a := newTestApp(t, "foo\n")
 	a.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
-	drive(a, a.openSearch(fQuery))
+	drive(a, cmdOf(a, a.openSearch(fQuery)))
 	a.fit()
 	x, y, box := a.renderSearch()
 	if x != 1 || y != 1 || len(box) != a.h-2 {
@@ -195,7 +195,7 @@ func TestSearchPanelLayout(t *testing.T) {
 func TestSearchFieldKeepsCursorCell(t *testing.T) {
 	a := newTestApp(t, "foo\n")
 	a.Update(tea.WindowSizeMsg{Width: 60, Height: 40})
-	drive(a, a.openSearch(fQuery))
+	drive(a, cmdOf(a, a.openSearch(fQuery)))
 	// field box width is 26, so the text area is 22 cells wide.
 	for _, n := range []int{20, 21, 22, 23, 30} {
 		a.search.in[fQuery].SetValue(strings.Repeat("a", n))

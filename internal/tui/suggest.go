@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
@@ -168,13 +166,13 @@ func (a *App) handleRepoProbed(m RepoProbed) {
 
 // suggestTick runs on every watch tick: it reads the terminal panel and
 // probes the repository now and then.
-func (a *App) suggestTick() tea.Cmd {
+func (a *App) suggestTick() []Effect {
 	a.scanTerminals()
 	a.pruneDismissed()
 	a.sg.ticks++
 	a.sg.prTicks++
 	if a.sg.ticks >= probeTicks {
-		return a.effectCmd(a.probeRepo()...)
+		return a.probeRepo()
 	}
 	return nil
 }
@@ -340,7 +338,7 @@ func (a *App) dismissSuggestion() {
 
 // ---- running a suggestion ----
 
-func (a *App) runSuggestion() tea.Cmd {
+func (a *App) runSuggestion() []Effect {
 	list := a.suggestions()
 	if len(list) == 0 {
 		return nil
@@ -351,17 +349,17 @@ func (a *App) runSuggestion() tea.Cmd {
 		return a.openDiff(basePR)
 	case sgConflict:
 		files := a.sg.repo.conflicts
-		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return conflictPrompt(files) })...)
+		return a.runAgent(s.kind, s.key, s.title, func() string { return conflictPrompt(files) })
 	case sgCreatePR:
 		branch, base := a.sg.repo.branch, a.sg.repo.base
-		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return createPRPrompt(branch, base) })...)
+		return a.runAgent(s.kind, s.key, s.title, func() string { return createPRPrompt(branch, base) })
 	case sgLSPErrors:
 		text := a.errorsText()
-		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return lspPrompt(text) })...)
+		return a.runAgent(s.kind, s.key, s.title, func() string { return lspPrompt(text) })
 	case sgFailure:
 		for _, f := range a.sg.fails {
 			if fmt.Sprintf("fail:%d", f.seq) == s.key {
-				cmd := a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return failurePrompt(f) })...)
+				cmd := a.runAgent(s.kind, s.key, s.title, func() string { return failurePrompt(f) })
 				if a.ag.run != nil {
 					a.clearFailure(f.tab)
 				}
@@ -369,20 +367,20 @@ func (a *App) runSuggestion() tea.Cmd {
 			}
 		}
 	case sgApplyFix:
-		cmd := a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string { return applyFixPrompt() })...)
+		cmd := a.runAgent(s.kind, s.key, s.title, func() string { return applyFixPrompt() })
 		if a.ag.run != nil {
 			a.sg.fixOffer = false
 		}
 		return cmd
 	case sgAIReview:
 		pr, root, rev := a.gd.pr, a.root, a.gd.rev
-		return a.effectCmd(a.runAgent(s.kind, s.key, s.title, func() string {
+		return a.runAgent(s.kind, s.key, s.title, func() string {
 			out, err := run(root, nil, "git", "diff", rev, "--no-color", "--no-ext-diff", "-M")
 			if err != nil {
 				out = []byte(fmt.Sprintf(i18n.T("sg.diffunavailable"), err.Error()))
 			}
 			return reviewPrompt(pr, string(out))
-		})...)
+		})
 	}
 	return nil
 }
@@ -478,7 +476,7 @@ func parseReview(text string) ([]reviewComment, error) {
 // request. Comments GitHub would refuse are moved or dropped: a line outside
 // the diff becomes a comment on the file, and files that are not in the
 // pull request or differ from its head commit are skipped.
-func (a *App) placeReview(run *agentRun) tea.Cmd {
+func (a *App) placeReview(run *agentRun) []Effect {
 	s := a.ag
 	if !a.prShown() || a.gd.pr.Number != run.pr {
 		s.add(logEntry{kind: logError, text: i18n.T("sg.prnotshown")})

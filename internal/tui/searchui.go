@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -90,7 +89,7 @@ func (s *searchPanel) opts() core.SearchOpts {
 	}
 }
 
-func (s *searchPanel) focusField(f int) tea.Cmd {
+func (s *searchPanel) focusField(f int) []Effect {
 	s.field = (f + numFields) % numFields
 	for i := range s.in {
 		if i == s.field {
@@ -149,22 +148,22 @@ func (s *searchPanel) counts() (target, skipped int) {
 // ---- opening ----
 
 // openSearch shows the window with the conditions of the last use.
-func (a *App) openSearch(field int) tea.Cmd {
+func (a *App) openSearch(field int) []Effect {
 	if a.single {
 		return nil
 	}
 	s := a.search
 	s.open = true
-	cmds := []tea.Cmd{s.focusField(field)}
+	cmds := [][]Effect{s.focusField(field)}
 	if s.in[fQuery].Value() != "" {
-		cmds = append(cmds, a.effectCmd(a.searchNow()...))
+		cmds = append(cmds, a.searchNow())
 	}
-	return tea.Batch(cmds...)
+	return batch(cmds...)
 }
 
 // openSearchArgs opens the window for `:grep [-x globs] [-i globs] query` or
 // (replace) `:replace [-x globs] [-i globs] query => replacement`.
-func (a *App) openSearchArgs(arg string, replace bool) tea.Cmd {
+func (a *App) openSearchArgs(arg string, replace bool) []Effect {
 	field := fQuery
 	if replace {
 		field = fRepl
@@ -268,7 +267,7 @@ func (a *App) searchDone(m SearchDone) {
 
 // ---- keys ----
 
-func (a *App) handleSearchKey(msg Key) tea.Cmd {
+func (a *App) handleSearchKey(msg Key) []Effect {
 	s := a.search
 	switch key := msg.String(); key {
 	case "esc", "ctrl+c":
@@ -295,16 +294,16 @@ func (a *App) handleSearchKey(msg Key) tea.Cmd {
 		return nil
 	case "alt+c":
 		s.caseSens = !s.caseSens
-		return a.effectCmd(a.searchNow()...)
+		return a.searchNow()
 	case "alt+w":
 		s.word = !s.word
-		return a.effectCmd(a.searchNow()...)
+		return a.searchNow()
 	case "alt+r":
 		s.regex = !s.regex
-		return a.effectCmd(a.searchNow()...)
+		return a.searchNow()
 	case "alt+p":
 		s.keepCase = !s.keepCase
-		return a.effectCmd(a.searchNow()...)
+		return a.searchNow()
 	case "enter":
 		return a.searchOpenHit()
 	case "alt+enter":
@@ -316,17 +315,17 @@ func (a *App) handleSearchKey(msg Key) tea.Cmd {
 }
 
 // searchInput passes a key or a paste to the focused search field.
-func (a *App) searchInput(msg Input) tea.Cmd {
+func (a *App) searchInput(msg Input) []Effect {
 	s := a.search
 	before := s.in[s.field].Value()
 	a.lineInputUpdate(&s.in[s.field], msg)
 	if s.in[s.field].Value() != before {
-		return a.effectCmd(a.scheduleSearch()...)
+		return a.scheduleSearch()
 	}
 	return nil
 }
 
-func (a *App) searchMouse(msg Mouse) tea.Cmd {
+func (a *App) searchMouse(msg Mouse) []Effect {
 	s := a.search
 	if msg.Action != MousePress {
 		return nil
@@ -346,7 +345,7 @@ func (a *App) searchMouse(msg Mouse) tea.Cmd {
 }
 
 // searchOpenHit opens the selected line in the editor.
-func (a *App) searchOpenHit() tea.Cmd {
+func (a *App) searchOpenHit() []Effect {
 	s := a.search
 	h := s.cur()
 	if h == nil {
@@ -366,13 +365,13 @@ func (a *App) searchOpenHit() tea.Cmd {
 		}
 	}
 	a.follow = true
-	return a.effectCmd(a.setFocus(focusEditor)...)
+	return a.setFocus(focusEditor)
 }
 
 // searchReplaceAll replaces the checked lines. Every affected file is opened
 // as a buffer and edited in memory as one undo step; nothing is written to
 // disk until the user saves, so Ctrl+Z / u reverts the whole replacement.
-func (a *App) searchReplaceAll() tea.Cmd {
+func (a *App) searchReplaceAll() []Effect {
 	s := a.search
 	if s.busy {
 		a.fail(errors.New(i18n.T("search.busy")))
@@ -399,7 +398,7 @@ func (a *App) searchReplaceAll() tea.Cmd {
 
 // searchReplaceOne replaces only the selected line and keeps the panel open,
 // re-running the search so the cursor lands on the next hit.
-func (a *App) searchReplaceOne() tea.Cmd {
+func (a *App) searchReplaceOne() []Effect {
 	s := a.search
 	if s.busy {
 		a.fail(errors.New(i18n.T("search.busy")))
@@ -420,7 +419,7 @@ func (a *App) searchReplaceOne() tea.Cmd {
 		return nil
 	}
 	s.restore, s.restoreAt, s.restoreKey = true, idx, key
-	return a.effectCmd(a.searchNow()...)
+	return a.searchNow()
 }
 
 // replaceHits applies the replacement to hits, opening each affected file as

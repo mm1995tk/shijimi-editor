@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -34,9 +33,9 @@ func (a *App) MouseHover() bool { return a.cfg.Editor.MouseHover }
 // passiveMotion handles pointer movement with no button held. It never moves
 // the cursor: it only starts the dwell timer, or closes a popup the pointer
 // left.
-func (a *App) passiveMotion(l layout, msg Mouse) tea.Cmd {
+func (a *App) passiveMotion(l layout, msg Mouse) []Effect {
 	if cmd, ok := a.termMouse(l, msg); ok {
-		return a.effectCmd(cmd...)
+		return cmd
 	}
 	if th := a.markerAt(l, msg.X, msg.Y); th != nil && a.cfg.Editor.MouseHover && a.focus == focusEditor && !a.hoverBlocked() && a.resizing == resizeNone {
 		// resting on a comment marker shows its thread
@@ -87,7 +86,7 @@ func (a *App) passiveMotion(l layout, msg Mouse) tea.Cmd {
 	}
 	a.hoverWord = word
 	seq := a.hoverSeq
-	return a.effectCmd(StartTimer{After: hoverDelay, Fire: HoverDwell{seq}})
+	return []Effect{StartTimer{After: hoverDelay, Fire: HoverDwell{seq}}}
 }
 
 // hoverBlocked reports whether something that owns the keys is open (palette,

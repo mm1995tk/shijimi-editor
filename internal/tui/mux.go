@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
@@ -199,7 +197,7 @@ func (a *App) muxHide() error {
 }
 
 // muxToggle is the toggle of Ctrl+`, Space t and :sh.
-func (a *App) muxToggle() tea.Cmd {
+func (a *App) muxToggle() []Effect {
 	var err error
 	if a.mux.visible && a.mux.id != "" && a.mux.b.alive(a.mux.id) {
 		err = a.muxHide()
@@ -210,7 +208,7 @@ func (a *App) muxToggle() tea.Cmd {
 }
 
 // muxSend opens the pane and sends text to it.
-func (a *App) muxSend(text string, enter bool) tea.Cmd {
+func (a *App) muxSend(text string, enter bool) []Effect {
 	if err := a.muxOpen(); err != nil {
 		return a.muxResult(err)
 	}
@@ -226,7 +224,7 @@ func (a *App) muxClose() {
 	m.id, m.visible = "", false
 }
 
-func (a *App) muxResult(err error) tea.Cmd {
+func (a *App) muxResult(err error) []Effect {
 	if err != nil {
 		a.fail(a.muxError(err))
 	}
