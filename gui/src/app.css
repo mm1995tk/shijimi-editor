@@ -7,6 +7,31 @@ body,
   margin: 0;
 }
 
+/* ページ全体の土台。字と色はモックに合わせる（字は fonts.ts で同梱したもの） */
+:root {
+  color-scheme: dark;
+}
+
+body {
+  font:
+    13px "IBM Plex Sans JP",
+    system-ui,
+    sans-serif;
+  color: #e6e8ec;
+  background: #121418;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: #7cc4b0;
+}
+
 .app {
   display: flex;
   height: 100%;
