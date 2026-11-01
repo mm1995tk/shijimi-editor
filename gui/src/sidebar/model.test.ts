@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import type { Workspace } from "../rpc/protocol.ts";
 import { LOCAL } from "../ssh/api.ts";
+import { MACHINE_COLORS } from "./colors.ts";
 import {
   adoptFocus,
   band,
@@ -91,6 +92,24 @@ describe("buildSidebar", () => {
         ["p", true],
       ],
     );
+  });
+
+  it("マシンの色を付ける。決まっていなければ候補の最初の色", () => {
+    const groups = buildSidebar(["a", "b"], {}, {}, null, { b: "#e5b567" });
+    assert.deepEqual(
+      groups.map((g) => g.color),
+      [MACHINE_COLORS[0], "#e5b567"],
+    );
+    const s = splitAtFocus(
+      buildSidebar(
+        ["a"],
+        {},
+        { a: [ws({ id: "x", root: "/x" }), ws({ id: "y", root: "/y" })] },
+        { target: "a", id: "x" },
+        { a: "#c49cff" },
+      ),
+    );
+    assert.equal(s.after.color, "#c49cff");
   });
 
   it("同じ id でも別のマシンの帯には印を付けない", () => {

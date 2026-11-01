@@ -3,11 +3,12 @@
 //
 // 見た目は親 #271 のモック（「案：フラットな一覧」）に従う：マシンは見出し、ワークスペースは帯で、
 // どちらも同じ左端にそろえる。ツリー（D2）は tree/、上下の固定（D3）は splitAtFocus と Sidebar.tsx、
-// マシンごとの色（D4）は別の Issue。
+// マシンごとの色（D4）の決め方と保存は colors.ts。
 
 import type { Workspace, WorkspaceId } from "../rpc/protocol.ts";
 import { LOCAL } from "../ssh/api.ts";
 import type { SessionState } from "../ssh/session.ts";
+import { MACHINE_COLORS } from "./colors.ts";
 
 /** GUI がフォーカスしているワークスペース（どのマシンの、どれか）。 */
 export interface WorkspaceFocus {
@@ -37,6 +38,8 @@ export interface MachineGroup {
   target: string;
   /** 見出しの文字（このマシン / ssh のホスト名） */
   label: string;
+  /** マシンの色（D4）。見出しと帯の左端の線などに使う */
+  color: string;
   health: Health;
   bands: Band[];
 }
@@ -84,12 +87,14 @@ export function band(w: Workspace, focused: boolean): Band {
 /**
  * 一覧を組み立てる。targets はつないだ（つなごうとしている）つなぎ先で、この順に並べる。
  * 帯は shj の workspace.list と同じくルートのパスの順（増えても並びが飛ばないように）。
+ * colors はつなぎ先 → 色（colors.ts の machineColors）。無いつなぎ先は候補の最初の色にする。
  */
 export function buildSidebar(
   targets: string[],
   states: Record<string, SessionState | undefined>,
   workspaces: Record<string, Workspace[] | undefined>,
   focus: WorkspaceFocus | null,
+  colors: Record<string, string> = {},
 ): MachineGroup[] {
   return targets.map((target) => {
     const ws = [...(workspaces[target] ?? [])].sort((a, b) =>
@@ -98,6 +103,7 @@ export function buildSidebar(
     return {
       target,
       label: machineLabel(target),
+      color: colors[target] ?? MACHINE_COLORS[0],
       health: health(states[target]),
       bands: ws.map((w) =>
         band(w, focus?.target === target && focus.id === w.id),
@@ -160,6 +166,7 @@ export interface SplitSidebar {
   after: {
     target: string;
     label: string;
+    color: string;
     rest: Band[];
     groups: MachineGroup[];
   };
@@ -172,7 +179,7 @@ export function splitAtFocus(groups: MachineGroup[]): SplitSidebar {
     return {
       before: groups,
       focused: null,
-      after: { target: "", label: "", rest: [], groups: [] },
+      after: { target: "", label: "", color: "", rest: [], groups: [] },
     };
   }
   const g = groups[gi];
@@ -183,6 +190,7 @@ export function splitAtFocus(groups: MachineGroup[]): SplitSidebar {
     after: {
       target: g.target,
       label: g.label,
+      color: g.color,
       rest: g.bands.slice(bi + 1),
       groups: groups.slice(gi + 1),
     },
