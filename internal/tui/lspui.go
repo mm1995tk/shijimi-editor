@@ -11,7 +11,6 @@ import (
 	"time"
 	"unicode"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -201,12 +200,12 @@ type formatMsg struct {
 }
 type lspErrMsg struct{ err error }
 
-// lspReq builds the tea.Cmd that carries out a RunLSP.
-func (a *App) lspReq(run func(ctx context.Context) Event) tea.Cmd {
-	return a.effectCmd(RunLSP{Run: run})
+// lspReq builds the []Effect that carries out a RunLSP.
+func (a *App) lspReq(run func(ctx context.Context) Event) []Effect {
+	return []Effect{RunLSP{Run: run}}
 }
 
-func (a *App) lspRequest(capability string, f func(ctx context.Context, c *lsp.Client, t *tab) Event) tea.Cmd {
+func (a *App) lspRequest(capability string, f func(ctx context.Context, c *lsp.Client, t *tab) Event) []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -224,7 +223,7 @@ func (a *App) lspRequest(capability string, f func(ctx context.Context, c *lsp.C
 	return a.lspReq(func(ctx context.Context) Event { return f(ctx, c, t) })
 }
 
-func (a *App) hover() tea.Cmd {
+func (a *App) hover() []Effect {
 	return a.lspRequest("hoverProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		text, err := c.Hover(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
 		if err != nil {
@@ -234,7 +233,7 @@ func (a *App) hover() tea.Cmd {
 	})
 }
 
-func (a *App) gotoDefinition() tea.Cmd {
+func (a *App) gotoDefinition() []Effect {
 	return a.lspRequest("definitionProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		pos := lspPos(t.buf, t.buf.Cur)
 		locs, err := c.Definition(ctx, t.buf.Path, pos)
@@ -277,7 +276,7 @@ func onLocation(locs []lsp.Location, path string, pos lsp.Position) bool {
 	return false
 }
 
-func (a *App) references() tea.Cmd {
+func (a *App) references() []Effect {
 	return a.lspRequest("referencesProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		locs, err := c.References(ctx, t.buf.Path, lspPos(t.buf, t.buf.Cur))
 		if err != nil {
@@ -287,7 +286,7 @@ func (a *App) references() tea.Cmd {
 	})
 }
 
-func (a *App) completion() tea.Cmd {
+func (a *App) completion() []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -304,7 +303,7 @@ func (a *App) completion() tea.Cmd {
 	})
 }
 
-func (a *App) rename() tea.Cmd {
+func (a *App) rename() []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -315,22 +314,22 @@ func (a *App) rename() tea.Cmd {
 	for line := t.buf.Lines[s.Row]; e.Col < len(line) && isIdent(line[e.Col]); e.Col++ {
 	}
 	old := t.buf.TextRange(s, e)
-	return a.effectCmd(a.pal.ask(i18n.T("app.newname"), old, func(v string) []Effect {
+	return a.pal.ask(i18n.T("app.newname"), old, func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
 		}
-		return cmdEffects(a.lspRequest("renameProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
+		return a.lspRequest("renameProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 			we, err := c.Rename(ctx, t.buf.Path, lspPos(t.buf, pos), v)
 			if err != nil {
 				return lspErrMsg{err}
 			}
 			return workspaceEditMsg{we}
-		}))
-	})...)
+		})
+	})
 }
 
-func (a *App) format(save bool) tea.Cmd {
+func (a *App) format(save bool) []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -359,7 +358,7 @@ type codeActionResolvedMsg struct {
 
 // codeAction lists the quick fixes and refactorings for the selection, or
 // for the cursor position when nothing is selected.
-func (a *App) codeAction() tea.Cmd {
+func (a *App) codeAction() []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -407,7 +406,7 @@ func codeActionRange(b *buffer.Buffer, all []lsp.Diagnostic) (lsp.Range, []lsp.D
 	return rng, diags
 }
 
-func (a *App) showCodeActions(m codeActionsMsg) tea.Cmd {
+func (a *App) showCodeActions(m codeActionsMsg) []Effect {
 	if len(m.actions) == 0 {
 		a.infoText(i18n.T("lspui.noactions"))
 		return nil
@@ -428,21 +427,21 @@ func (a *App) showCodeActions(m codeActionsMsg) tea.Cmd {
 	for i, act := range actions {
 		items[i] = paletteItem{label: act.Title, detail: act.Kind}
 	}
-	return a.effectCmd(a.pal.pick(i18n.T("lspui.codeactions"), items, func(i int) []Effect {
+	return a.pal.pick(i18n.T("lspui.codeactions"), items, func(i int) []Effect {
 		act := actions[i]
-		return cmdEffects(a.lspReq(func(ctx context.Context) Event {
+		return a.lspReq(func(ctx context.Context) Event {
 			r, err := m.client.ResolveCodeAction(ctx, act)
 			if err != nil {
 				return lspErrMsg{err}
 			}
 			return codeActionResolvedMsg{m.client, r}
-		}))
-	})...)
+		})
+	})
 }
 
 // runCodeAction applies the action's edit, then runs its command; the
 // command's own edits come back as workspace/applyEdit events.
-func (a *App) runCodeAction(m codeActionResolvedMsg) tea.Cmd {
+func (a *App) runCodeAction(m codeActionResolvedMsg) []Effect {
 	if len(m.action.Edit) > 0 {
 		a.applyWorkspaceEdit(m.action.Edit)
 	}
@@ -477,7 +476,7 @@ func (a *App) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
 	a.info(i18n.T("lspui.applied"), files, n)
 }
 
-func (a *App) showLocations(m locationsMsg) tea.Cmd {
+func (a *App) showLocations(m locationsMsg) []Effect {
 	if len(m.locs) == 0 {
 		a.fail(fmt.Errorf(i18n.T("lspui.notfound"), m.title))
 		return nil
@@ -491,7 +490,7 @@ func (a *App) showLocations(m locationsMsg) tea.Cmd {
 		p := lsp.Path(l.URI)
 		items[i] = paletteItem{label: fmt.Sprintf("%s:%d", a.rel(p), l.Range.Start.Line+1), detail: strings.TrimSpace(lineAt(a, p, l.Range.Start.Line))}
 	}
-	return a.effectCmd(a.pal.pick(m.title, items, func(i int) []Effect { return cmdEffects(jump(m.locs[i])) })...)
+	return a.pal.pick(m.title, items, func(i int) []Effect { return jump(m.locs[i]) })
 }
 
 // lineAt returns line n of a file, from an open buffer when possible.
@@ -512,7 +511,7 @@ func lineAt(a *App, path string, n int) string {
 	return ""
 }
 
-func (a *App) diagnosticPicker() tea.Cmd {
+func (a *App) diagnosticPicker() []Effect {
 	type entry struct {
 		path string
 		d    lsp.Diagnostic
@@ -537,9 +536,9 @@ func (a *App) diagnosticPicker() tea.Cmd {
 	for i, e := range all {
 		items[i] = paletteItem{label: fmt.Sprintf("%s:%d %s", a.rel(e.path), e.d.Range.Start.Line+1, firstLine(e.d.Message)), detail: sevName[sevRank(e.d.Severity)]}
 	}
-	return a.effectCmd(a.pal.pick(i18n.T("ctx.diagnostics"), items, func(i int) []Effect {
-		return cmdEffects(a.showLocations(locationsMsg{i18n.T("ctx.diagnostics"), []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}}))
-	})...)
+	return a.pal.pick(i18n.T("ctx.diagnostics"), items, func(i int) []Effect {
+		return a.showLocations(locationsMsg{i18n.T("ctx.diagnostics"), []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}})
+	})
 }
 
 // gotoDiagnostic jumps to the next (dir=1) or previous (dir=-1) diagnostic.
@@ -745,7 +744,7 @@ func (a *App) lspStatus() string {
 }
 
 // jumpTo opens the file of l and puts the cursor at the start of its range.
-func (a *App) jumpTo(l lsp.Location) tea.Cmd {
+func (a *App) jumpTo(l lsp.Location) []Effect {
 	a.pushJump()
 	if !a.openFile(lsp.Path(l.URI)) {
 		return nil
@@ -755,7 +754,7 @@ func (a *App) jumpTo(l lsp.Location) tea.Cmd {
 	p := bufPos(t.buf, l.Range.Start)
 	t.buf.SetCursor(p.Row, buffer.VisualCol(t.buf.Lines[p.Row], p.Col), false)
 	a.follow = true
-	return a.effectCmd(a.setFocus(focusEditor)...)
+	return a.setFocus(focusEditor)
 }
 
 // handleLSPReply takes the Events a language server's reply becomes. ok is
@@ -765,7 +764,7 @@ func (a *App) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 	case hoverMsg:
 		a.showHover(msg)
 	case locationsMsg:
-		return cmdEffects(a.showLocations(msg)), true
+		return a.showLocations(msg), true
 	case completionMsg:
 		t := a.curText()
 		if t == nil || t != msg.tab || a.mode != modeInsert && a.helix || len(msg.items) == 0 {
@@ -781,15 +780,15 @@ func (a *App) handleLSPReply(ev Event) (effs []Effect, ok bool) {
 	case workspaceEditMsg:
 		a.applyWorkspaceEdit(msg.edit)
 	case symbolsMsg:
-		return cmdEffects(a.showSymbols(msg)), true
+		return a.showSymbols(msg), true
 	case symbolQueryMsg:
-		return cmdEffects(a.runSymbolQuery(msg)), true
+		return a.runSymbolQuery(msg), true
 	case workspaceSymbolsMsg:
 		a.showWorkspaceSymbols(msg)
 	case codeActionsMsg:
-		return cmdEffects(a.showCodeActions(msg)), true
+		return a.showCodeActions(msg), true
 	case codeActionResolvedMsg:
-		return cmdEffects(a.runCodeAction(msg)), true
+		return a.runCodeAction(msg), true
 	case formatMsg:
 		if len(msg.edits) > 0 {
 			msg.tab.buf.ApplyEdits(toEdits(msg.tab.buf, msg.edits))

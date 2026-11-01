@@ -197,9 +197,37 @@ type RepoProbed struct{ probe repoProbe }
 // delivered.
 type RunProbe struct{ Run func() Event }
 
+// Run asks for Run to be called off the main loop and its Event (nil for none)
+// to be delivered. It is the general form of RunProbe and RunSearch, for the work
+// behind the diff and review screens, the formatters and the preview.
+type Run struct{ Run func() Event }
+
+func (Run) isEffect() {}
+
 func (RepoProbed) isEvent() {}
-func (RunProbe) isEffect()  {}
+
+// async is a Run of fn.
+func async(fn func() Event) []Effect { return []Effect{Run{fn}} }
+func (RunProbe) isEffect()           {}
 
 // batch joins Effect lists into one. It is the counterpart of tea.Batch for
 // code that returns Effects.
 func batch(lists ...[]Effect) []Effect { return slices.Concat(lists...) }
+
+// The work that used to travel as a tea.Msg: what the diff and review screens,
+// the formatters, the highlighter and the preview send back from their Run.
+func (changesLoadedMsg) isEvent() {}
+func (prFoundMsg) isEvent()       {}
+func (branchPRsMsg) isEvent()     {}
+func (prCheckedOutMsg) isEvent()  {}
+func (prPulledMsg) isEvent()      {}
+func (prListMsg) isEvent()        {}
+func (prReviewMsg) isEvent()      {}
+func (viewedMsg) isEvent()        {}
+func (reviewSentMsg) isEvent()    {}
+func (formatterDoneMsg) isEvent() {}
+func (highlightMsg) isEvent()     {}
+func (mermaidStartMsg) isEvent()  {}
+func (mermaidDoneMsg) isEvent()   {}
+func (mdImageDoneMsg) isEvent()   {}
+func (openURLMsg) isEvent()       {}

@@ -388,7 +388,7 @@ func (a *App) setFocus(f focus) []Effect {
 	a.focus = f
 	a.term.blur()
 	if f == focusTerminal {
-		return cmdEffects(a.term.focus())
+		return teaEffects(a.term.focus())
 	}
 	return nil
 }
@@ -507,7 +507,7 @@ func (a *App) saveTab(t *tab) []Effect {
 	}
 	a.explorer.loadGitStatus()
 	a.info(i18n.T("app.saved"), a.rel(t.buf.Path))
-	return cmdEffects(a.afterSave())
+	return a.afterSave()
 }
 
 func (a *App) saveAll() []Effect {
@@ -754,7 +754,7 @@ func (a *App) toggleTerm() []Effect {
 		return nil
 	}
 	if a.muxOn() {
-		return cmdEffects(a.muxToggle())
+		return a.muxToggle()
 	}
 	if a.showTerm && a.focus == focusTerminal {
 		a.showTerm = false
@@ -892,7 +892,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	a.trackLast()
 	a.syncLSP()
 	a.notifySelection()
-	return a, a.effectCmd(batch(effs, a.scheduleAutoSave(), cmdEffects(a.syncPreview()), cmdEffects(a.lexTabs()), cmdEffects(a.semanticTabs()))...)
+	return a, a.effectCmd(batch(effs, a.scheduleAutoSave(), a.syncPreview(), a.lexTabs(), a.semanticTabs())...)
 }
 
 // scheduleAutoSave starts a timer for every named tab edited since the last
@@ -934,7 +934,7 @@ func (a *App) update(msg tea.Msg) []Effect {
 		}
 		a.follow = true
 	case termOutputMsg, termDoneMsg:
-		cmd := a.term.update(msg)
+		cmd := teaEffects(a.term.update(msg))
 		// A program in the terminal panel (Claude Code, tmux, …) copies with
 		// OSC 52; pass the text on to the clipboard. Any program there can do
 		// this unasked, so every copy is shown.
@@ -952,10 +952,10 @@ func (a *App) update(msg tea.Msg) []Effect {
 		if a.term.sh == nil && a.showTerm {
 			a.showTerm = false
 			if a.focus == focusTerminal {
-				return batch(cmdEffects(cmd), a.setFocus(focusEditor))
+				return batch(cmd, a.setFocus(focusEditor))
 			}
 		}
-		return cmdEffects(cmd)
+		return cmd
 	case termErrMsg:
 		a.fail(msg.err)
 		if a.term.sh == nil && a.showTerm {
@@ -965,49 +965,12 @@ func (a *App) update(msg tea.Msg) []Effect {
 			}
 		}
 		return nil
-	case mermaidStartMsg:
-		return cmdEffects(a.handleMermaidStart(msg))
-	case mermaidDoneMsg:
-		a.handleMermaidDone(msg)
-	case mdImageDoneMsg:
-		a.handleMDImageDone(msg)
-	case formatterDoneMsg:
-		return cmdEffects(a.handleFormatterDone(msg))
-	case openURLMsg:
-		if msg.err != nil && msg.copyOnFail {
-			a.copyText(msg.url)
-			a.info(i18n.T("rv.openfailedcopied"), msg.url)
-		} else if msg.err != nil {
-			a.fail(msg.err)
-		} else {
-			a.info(i18n.T("app.opened"), msg.url)
-		}
-	case changesLoadedMsg:
-		a.applyChanges(msg)
-	case highlightMsg:
-		msg.h.apply(msg)
 	case tea.KeyboardEnhancementsMsg:
 		a.keyReleases = msg.SupportsEventTypes()
 	case tea.KeyReleaseMsg:
 		k := keyReleaseFromTea(msg)
 		a.holdScrollRelease(k)
 		a.lineFlipRelease(k)
-	case prFoundMsg:
-		return cmdEffects(a.handlePRFound(msg))
-	case branchPRsMsg:
-		return cmdEffects(a.handleBranchPRs(msg))
-	case prCheckedOutMsg:
-		return cmdEffects(a.handlePRCheckedOut(msg))
-	case prPulledMsg:
-		return cmdEffects(a.handlePRPulled(msg))
-	case prReviewMsg:
-		return cmdEffects(a.handlePRReview(msg))
-	case viewedMsg:
-		a.handleViewed(msg)
-	case reviewSentMsg:
-		return cmdEffects(a.handleReviewSent(msg))
-	case prListMsg:
-		return cmdEffects(a.showPRList(msg))
 	case tea.MouseMsg:
 		return a.handleInput(a.mouseFromTea(msg))
 	case tea.KeyPressMsg:
@@ -1072,7 +1035,7 @@ func (a *App) handleLSPEvent(e lsp.Event) []Effect {
 			}
 			return nil
 		}
-		return cmdEffects(a.openURL(e.Document))
+		return a.openURL(e.Document)
 	case e.URI != "":
 		p := lsp.Path(e.URI)
 		if a.lsp.diags[p] == nil {
@@ -1105,22 +1068,22 @@ func (a *App) handleKey(msg Key) []Effect {
 	}
 
 	if a.search.open {
-		return cmdEffects(a.handleSearchKey(msg))
+		return a.handleSearchKey(msg)
 	}
 	if a.pal.open {
 		return a.handlePaletteKey(msg)
 	}
 	if a.composer != nil {
-		return cmdEffects(a.handleComposerKey(msg))
+		return a.handleComposerKey(msg)
 	}
 	if a.confirm != nil {
-		return cmdEffects(a.handleConfirmKey(key))
+		return a.handleConfirmKey(key)
 	}
 	if len(a.props) > 0 {
-		return cmdEffects(a.handleProposalKey(msg))
+		return a.handleProposalKey(msg)
 	}
 	if a.ctx != nil {
-		return cmdEffects(a.handleContextKey(msg))
+		return a.handleContextKey(msg)
 	}
 	if a.cmdOpen {
 		return a.handleCmdlineKey(msg)
@@ -1130,7 +1093,7 @@ func (a *App) handleKey(msg Key) []Effect {
 	}
 	if a.card != nil {
 		if cmd, handled := a.handleCardKey(msg); handled {
-			return cmdEffects(cmd)
+			return cmd
 		}
 	}
 	if a.hoverText != "" {
@@ -1154,7 +1117,7 @@ func (a *App) handleKey(msg Key) []Effect {
 	}
 	if a.snip != nil {
 		if cmd, handled := a.handleSnippetKey(msg); handled {
-			return cmdEffects(cmd)
+			return cmd
 		}
 	}
 
@@ -1168,13 +1131,13 @@ func (a *App) handleKey(msg Key) []Effect {
 		case "ctrl+`":
 			return a.toggleTerm()
 		case "alt+i":
-			return cmdEffects(a.toggleAgentPanel())
+			return a.toggleAgentPanel()
 		case "alt+r":
 			return a.startResize()
 		case "f1":
 			return a.pal.show(a.root, ">")
 		}
-		return cmdEffects(a.term.key(msg))
+		return teaEffects(a.term.key(msg))
 	}
 
 	insert := a.helix && a.mode == modeInsert && a.focus == focusEditor
@@ -1203,14 +1166,14 @@ func (a *App) handleKey(msg Key) []Effect {
 		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
 		// mode, or Helix insert mode.
 		if key == "ctrl+j" && a.muxOn() {
-			return cmdEffects(a.muxResult(a.muxOpen()))
+			return a.muxResult(a.muxOpen())
 		}
 		typing := a.typing()
 		if key == "ctrl+j" || !typing {
 			return a.toggleTerm()
 		}
 	case "ctrl+g":
-		return cmdEffects(a.openDiff(baseHead))
+		return a.openDiff(baseHead)
 	case "ctrl+e":
 		if a.focus == focusExplorer && len(a.tabs) > 0 {
 			return a.setFocus(focusEditor)
@@ -1235,9 +1198,9 @@ func (a *App) handleKey(msg Key) []Effect {
 	case "ctrl+2":
 		return a.focusPane(1)
 	case "alt+a":
-		return cmdEffects(a.sendContext())
+		return a.sendContext()
 	case "alt+i":
-		return cmdEffects(a.toggleAgentPanel())
+		return a.toggleAgentPanel()
 	case "alt+r":
 		return a.startResize()
 	}
@@ -1246,9 +1209,9 @@ func (a *App) handleKey(msg Key) []Effect {
 	case focusExplorer:
 		return a.handleExplorerKey(msg)
 	case focusChanges:
-		return cmdEffects(a.handleChangesKey(msg))
+		return a.handleChangesKey(msg)
 	case focusAgent:
-		return cmdEffects(a.handleAgentKey(msg))
+		return a.handleAgentKey(msg)
 	}
 	t := a.cur()
 	if t == nil {
@@ -1272,7 +1235,7 @@ func (a *App) handleKey(msg Key) []Effect {
 		}
 		if a.pending == "space v" {
 			a.pending = ""
-			return cmdEffects(a.reviewKey(key))
+			return a.reviewKey(key)
 		}
 		if a.pending == "space w" {
 			a.pending = ""
@@ -1350,7 +1313,7 @@ func (a *App) paletteInput(msg Input) []Effect {
 	p.sel = 0
 	p.filter(a.commands)
 	if p.picking && p.live && p.input.Value() != old {
-		return cmdEffects(p.queryLater())
+		return p.queryLater()
 	}
 	return nil
 }
@@ -1395,7 +1358,7 @@ func (a *App) handleExplorerKey(msg Key) []Effect {
 	key := msg.String()
 	if a.pending == "space v" {
 		a.pending = ""
-		return cmdEffects(a.reviewKey(key))
+		return a.reviewKey(key)
 	}
 	if a.pending == "space w" {
 		a.pending = ""
@@ -1647,13 +1610,13 @@ func (a *App) editorKey(t *tab, msg Key) []Effect {
 	case "ctrl+_", "ctrl+/":
 		a.toggleComment()
 	case "ctrl+space":
-		return cmdEffects(a.completion())
+		return a.completion()
 	case "f12":
-		return cmdEffects(a.gotoDefinition())
+		return a.gotoDefinition()
 	case "shift+f12":
-		return cmdEffects(a.references())
+		return a.references()
 	case "f2":
-		return cmdEffects(a.rename())
+		return a.rename()
 	case "space":
 		b.Insert(" ")
 		a.comp = nil
@@ -1675,7 +1638,7 @@ func (a *App) afterTyping(t *tab, typed []rune) []Effect {
 	if len(typed) != 1 {
 		return nil
 	}
-	return batch(cmdEffects(a.signatureTyped(t, typed[0])), a.completionTyped(t, typed[0]))
+	return batch(a.signatureTyped(t, typed[0]), a.completionTyped(t, typed[0]))
 }
 
 func (a *App) completionTyped(t *tab, r rune) []Effect {
@@ -1697,13 +1660,13 @@ func (a *App) completionTyped(t *tab, r rune) []Effect {
 	cs, _ := a.lsp.clientsFor(t)
 	for _, c := range cs {
 		if c.IsCompletionTrigger(r) {
-			return cmdEffects(a.completion())
+			return a.completion()
 		}
 	}
 	if isIdent(r) {
 		ws := wordStart(t.buf)
 		if t.buf.Cur.Col-ws.Col == 2 {
-			return cmdEffects(a.completion())
+			return a.completion()
 		}
 	}
 	return nil
@@ -1782,7 +1745,7 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd []Effect, ok bool) {
 
 func (a *App) handleMouse(msg Mouse) []Effect {
 	if a.search.open {
-		return cmdEffects(a.searchMouse(msg))
+		return a.searchMouse(msg)
 	}
 	if a.pal.open {
 		if msg.Action == MousePress && msg.Button == MouseLeft {
@@ -1804,18 +1767,18 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 	}
 	if a.ag.sel.dragging {
 		if cmd, ok := a.agentDrag(l, msg); ok {
-			return cmdEffects(cmd)
+			return cmd
 		}
 	}
 	if a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
 		if cmd, ok := a.agentMouse(l, msg); ok {
-			return cmdEffects(cmd)
+			return cmd
 		}
 	}
 	// Some terminals report a drag as motion with no button; while a border
 	// or a selection is being dragged, motion is the drag whatever it says.
 	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
-		return cmdEffects(a.passiveMotion(l, msg))
+		return a.passiveMotion(l, msg)
 	}
 	x, y := msg.X, msg.Y
 	wheel := 0
@@ -1963,7 +1926,7 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 					g.setFolder(r, g.closed[g.rows[r].path])
 					return a.setFocus(focusChanges)
 				}
-				return cmdEffects(a.openChange(g.files[g.sel]))
+				return a.openChange(g.files[g.sel])
 			}
 			return a.setFocus(focusChanges)
 		}

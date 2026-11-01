@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
@@ -70,8 +68,8 @@ func run(dir string, stdin []byte, name string, args ...string) ([]byte, error) 
 	return out, nil
 }
 
-func listPRs(root string) tea.Cmd {
-	return func() tea.Msg {
+func listPRs(root string) []Effect {
+	return async(func() Event {
 		out, err := run(root, nil, "gh", "pr", "list", "--limit", "100", "--json", "number,title,headRefName,isDraft,author")
 		if err != nil {
 			return prListMsg{err: err}
@@ -79,7 +77,7 @@ func listPRs(root string) tea.Cmd {
 		var prs []prSummary
 		err = json.Unmarshal(out, &prs)
 		return prListMsg{prs: prs, err: err}
-	}
+	})
 }
 
 // viewPR returns pull request num, or the current branch's when num is 0.

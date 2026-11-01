@@ -42,7 +42,7 @@ func TestFormatterCommand(t *testing.T) {
 		Command: "sh", Args: []string{"-c", `echo "$1"; tr a-z A-Z`, "sh", "%{buffer_name}"},
 	}}
 	b.Cur = buffer.Pos{Row: 2, Col: 2}
-	msg := a.format(false)()
+	msg := cmdOf(a, a.format(false))()
 	a.Update(msg)
 	if got, want := b.Text(), "a.txt\nONE\nTWO\nTHREE\n"; got != want {
 		t.Fatalf("got %q want %q", got, want)
@@ -64,13 +64,13 @@ func TestFormatterFailureKeepsBuffer(t *testing.T) {
 		{Command: "shijimi-no-such-formatter"},
 	} {
 		tb.lang = &config.Language{Name: "x", Formatter: f}
-		a.Update(a.format(false)())
+		a.Update(cmdOf(a, a.format(false))())
 		if got := tb.buf.Text(); got != "one\n" {
 			t.Fatalf("buffer changed: %q", got)
 		}
 	}
 	tb.lang.Formatter = &config.Formatter{Command: "sh", Args: []string{"-c", "echo boom >&2; exit 1"}}
-	msg := a.format(false)().(formatterDoneMsg)
+	msg := cmdOf(a, a.format(false))().(formatterDoneMsg)
 	if msg.err == nil || !strings.Contains(msg.err.Error(), "boom") {
 		t.Fatalf("err = %v", msg.err)
 	}

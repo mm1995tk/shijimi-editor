@@ -5,15 +5,13 @@ import (
 	"strconv"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 func browserUsage() string { return i18n.T("browser.usage") }
 
 // browser runs `:browser <sub> ...`.
-func (a *App) browser(arg string) tea.Cmd {
+func (a *App) browser(arg string) []Effect {
 	sub, rest, _ := strings.Cut(arg, " ")
 	args := strings.Fields(rest)
 	switch sub {

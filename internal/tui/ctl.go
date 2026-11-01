@@ -24,7 +24,7 @@ func ControlHandler(p *tea.Program) ctl.Handler {
 // handleCtl runs a control-socket request. The answer goes out as a ReplyCtl
 // Effect, followed by whatever the command itself asked for.
 func (a *App) handleCtl(m CtlRequest) []Effect {
-	var cmd tea.Cmd
+	var cmd []Effect
 	var resp ctl.Response
 	switch m.Req.Cmd {
 	case "diff":
@@ -35,7 +35,7 @@ func (a *App) handleCtl(m CtlRequest) []Effect {
 				resp = ctl.Response{Error: i18n.T("ctl.cantopen") + m.Req.Path}
 				break
 			}
-			cmd = tea.Batch(cmd, a.effectCmd(a.setFocus(focusEditor)...))
+			cmd = batch(cmd, a.setFocus(focusEditor))
 		}
 	case "exec":
 		resp, cmd = a.ctlExec(m.Req.Line)
@@ -49,7 +49,7 @@ func (a *App) handleCtl(m CtlRequest) []Effect {
 	default:
 		resp = ctl.Response{Error: i18n.T("ctl.unknowncmd") + m.Req.Cmd}
 	}
-	return append([]Effect{ReplyCtl{To: m.Reply, Resp: resp}}, cmdEffects(cmd)...)
+	return append([]Effect{ReplyCtl{To: m.Reply, Resp: resp}}, cmd...)
 }
 
 // reviewToRoot turns a repository-relative review path into one relative to
@@ -90,7 +90,7 @@ func agentNeedsHuman(name, arg string) bool {
 // ctlExec runs a ":" command for the control socket and reports how it went.
 // The command is the same one a person types; failures that execCommand only
 // shows in the status line are turned into the reply.
-func (a *App) ctlExec(line string) (ctl.Response, tea.Cmd) {
+func (a *App) ctlExec(line string) (ctl.Response, []Effect) {
 	line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), ":"))
 	if line == "" {
 		return ctl.Response{Error: i18n.T("ctl.emptycmd")}, nil
@@ -116,10 +116,10 @@ func (a *App) ctlExec(line string) (ctl.Response, tea.Cmd) {
 	if a.pal.open || a.cmdOpen {
 		a.pal.close()
 		a.closeCmdline()
-		return ctl.Response{Error: ":" + name + i18n.T("ctl.needhuman")}, a.effectCmd(cmd...)
+		return ctl.Response{Error: ":" + name + i18n.T("ctl.needhuman")}, cmd
 	}
 	if a.msgErr {
-		return ctl.Response{Error: a.msg}, a.effectCmd(cmd...)
+		return ctl.Response{Error: a.msg}, cmd
 	}
-	return ctl.Response{OK: true, Message: a.msg}, a.effectCmd(cmd...)
+	return ctl.Response{OK: true, Message: a.msg}, cmd
 }

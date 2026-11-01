@@ -34,11 +34,11 @@ func (a *App) handleWatch() []Effect {
 		a.treeTicks = 0
 		a.explorer.refresh()
 	}
-	effs := []Effect{watchTimer(), cmdEffect{sg}}
+	effs := append([]Effect{watchTimer()}, sg...)
 	if a.gd.on {
 		a.gd.ticks++
 		if reload || a.gd.ticks%gitDiffRefreshTicks == 0 {
-			effs = append(effs, cmdEffect{a.reloadChanges()})
+			effs = append(effs, a.reloadChanges()...)
 		}
 	}
 	return effs

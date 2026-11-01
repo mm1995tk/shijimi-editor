@@ -198,7 +198,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 	case ":":
 		return a.openCmdline(":")
 	case "K":
-		return cmdEffects(a.hover())
+		return a.hover()
 	}
 	return nil
 }
@@ -249,9 +249,9 @@ func (a *App) helixPending(p, key string, msg Key) []Effect {
 			b.SetCursor(b.Cur.Row, 0, ext)
 			b.MoveCursor(buffer.Home, ext)
 		case "d":
-			return cmdEffects(a.gotoDefinition())
+			return a.gotoDefinition()
 		case "r":
-			return cmdEffects(a.references())
+			return a.references()
 		case "a":
 			a.switchLast()
 		case "t":
@@ -300,7 +300,7 @@ func (a *App) helixPending(p, key string, msg Key) []Effect {
 	case " ":
 		return a.spaceMode(key)
 	case "space v":
-		return cmdEffects(a.reviewKey(key))
+		return a.reviewKey(key)
 	case "space w":
 		return a.windowKey(key)
 	}
@@ -321,41 +321,41 @@ func (a *App) spaceMode(key string) []Effect {
 	case "b":
 		return a.bufferPicker()
 	case "k":
-		return cmdEffects(a.hover())
+		return a.hover()
 	case "o":
-		return cmdEffects(a.openURL(""))
+		return a.openURL("")
 	case "r":
-		return cmdEffects(a.rename())
+		return a.rename()
 	case ".":
-		return cmdEffects(a.codeAction())
+		return a.codeAction()
 	case "s":
-		return cmdEffects(a.documentSymbols())
+		return a.documentSymbols()
 	case "S":
-		return cmdEffects(a.workspaceSymbols())
+		return a.workspaceSymbols()
 	case "d", "D":
-		return cmdEffects(a.diagnosticPicker())
+		return a.diagnosticPicker()
 	case "e":
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	case "E":
 		if a.gd.on {
-			return cmdEffects(a.focusChangesList())
+			return a.focusChangesList()
 		}
 		a.showSide = true
 		return a.setFocus(focusExplorer)
 	case "m":
-		return cmdEffects(a.togglePreview())
+		return a.togglePreview()
 	case "g":
-		return cmdEffects(a.openDiff(basePR))
+		return a.openDiff(basePR)
 	case "G":
-		return cmdEffects(a.openDiff(baseHead))
+		return a.openDiff(baseHead)
 	case "v":
-		return cmdEffects(a.openReviewMenu())
+		return a.openReviewMenu()
 	case "w":
 		a.pending = "space w"
 		return nil
 	case "i":
-		return cmdEffects(a.toggleAgentPanel())
+		return a.toggleAgentPanel()
 	case "y":
 		if t := a.cur(); t != nil && t.kind == tabText {
 			s, e := t.buf.SelectionOrChar()
@@ -371,13 +371,13 @@ func (a *App) spaceMode(key string) []Effect {
 	case "?":
 		return a.pal.show(a.root, ">")
 	case "/":
-		return cmdEffects(a.openSearch(fQuery))
+		return a.openSearch(fQuery)
 	case "c":
 		a.toggleComment()
 	case "t":
 		return a.toggleTerm()
 	case "a":
-		return cmdEffects(a.sendContext())
+		return a.sendContext()
 	}
 	return nil
 }
@@ -407,7 +407,7 @@ func (a *App) insertKey(msg Key) []Effect {
 		b.ForEachCursor(b.ClearSelection)
 		return nil
 	case "ctrl+x", "ctrl+space":
-		return cmdEffects(a.completion())
+		return a.completion()
 	case "ctrl+w", "alt+backspace":
 		b.ForEachCursor(func() {
 			end := b.Cur

@@ -7,7 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/x/ansi"
@@ -102,13 +101,13 @@ func (a *App) gitTopDir() string {
 // reloadChanges recomputes the CHANGES list for the current base. The list
 // on screen stays as it is until the result arrives; only showDiff marks it
 // as loading.
-func (a *App) reloadChanges() tea.Cmd {
+func (a *App) reloadChanges() []Effect {
 	a.gd.gen++
 	gen, root, base, pr := a.gd.gen, a.root, a.gd.base, a.gd.pr
-	return func() tea.Msg { return loadChanges(gen, root, base, pr) }
+	return async(func() Event { return loadChanges(gen, root, base, pr) })
 }
 
-func loadChanges(gen int, root, base string, pr *prInfo) tea.Msg {
+func loadChanges(gen int, root, base string, pr *prInfo) Event {
 	m := changesLoadedMsg{gen: gen, base: base}
 	m.rev = emptyTree
 	if out, err := run(root, nil, "git", "rev-parse", "--verify", "-q", "HEAD"); err == nil {
@@ -413,7 +412,7 @@ func (g *gitDiff) keepSelVisible(h int) {
 
 // openDiff handles Space G (base HEAD) and Space g (base PR): it opens diff
 // mode, closes it when it already compares with base, or switches the base.
-func (a *App) openDiff(base string) tea.Cmd {
+func (a *App) openDiff(base string) []Effect {
 	if a.single {
 		return nil
 	}
@@ -428,7 +427,7 @@ func (a *App) openDiff(base string) tea.Cmd {
 
 // diffWithHead opens diff mode against HEAD, or refreshes it when it is
 // already showing HEAD.
-func (a *App) diffWithHead() tea.Cmd {
+func (a *App) diffWithHead() []Effect {
 	if a.gd.on && a.gd.base == baseHead {
 		return a.reloadChanges()
 	}
@@ -436,14 +435,14 @@ func (a *App) diffWithHead() tea.Cmd {
 }
 
 // toggleGitDiff opens diff mode against HEAD, or closes it.
-func (a *App) toggleGitDiff() tea.Cmd {
+func (a *App) toggleGitDiff() []Effect {
 	if a.gd.on {
 		return a.closeDiff()
 	}
 	return a.showDiff(baseHead, nil)
 }
 
-func (a *App) showDiff(base string, pr *prInfo) tea.Cmd {
+func (a *App) showDiff(base string, pr *prInfo) []Effect {
 	a.gd.prSeq++
 	a.gd.on = true
 	a.card = nil
@@ -461,7 +460,7 @@ func (a *App) showDiff(base string, pr *prInfo) tea.Cmd {
 	return cmd
 }
 
-func (a *App) closeDiff() tea.Cmd {
+func (a *App) closeDiff() []Effect {
 	a.gd.prSeq++
 	a.gd.on = false
 	a.card = nil
@@ -476,17 +475,17 @@ func (a *App) closeDiff() tea.Cmd {
 // branchPR opens the current branch's pull request: the only one at once,
 // a list of them when there are several, or the list of every open pull
 // request when there is none.
-func (a *App) branchPR() tea.Cmd {
+func (a *App) branchPR() []Effect {
 	a.infoText(i18n.T("gd.findingpr"))
 	a.gd.prSeq++
 	root, seq, branch := a.root, a.gd.prSeq, a.branch
-	return func() tea.Msg {
+	return async(func() Event {
 		prs, err := branchPRs(root, branch)
 		return branchPRsMsg{seq: seq, prs: prs, err: err}
-	}
+	})
 }
 
-func (a *App) handleBranchPRs(m branchPRsMsg) tea.Cmd {
+func (a *App) handleBranchPRs(m branchPRsMsg) []Effect {
 	if m.seq != a.gd.prSeq {
 		return nil
 	}
@@ -504,22 +503,22 @@ func (a *App) handleBranchPRs(m branchPRsMsg) tea.Cmd {
 }
 
 // findPR looks up pull request num to compare with its base.
-func (a *App) findPR(num int) tea.Cmd { return a.lookupPR(num, false) }
+func (a *App) findPR(num int) []Effect { return a.lookupPR(num, false) }
 
 // refreshPR looks up the pull request shown again (r).
-func (a *App) refreshPR() tea.Cmd { return a.lookupPR(a.gd.pr.Number, true) }
+func (a *App) refreshPR() []Effect { return a.lookupPR(a.gd.pr.Number, true) }
 
-func (a *App) lookupPR(num int, refresh bool) tea.Cmd {
+func (a *App) lookupPR(num int, refresh bool) []Effect {
 	a.infoText(i18n.T("gd.findingpr"))
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
-	return func() tea.Msg {
+	return async(func() Event {
 		pr, err := viewPR(root, num)
 		return prFoundMsg{seq: seq, num: num, refresh: refresh, pr: pr, err: err}
-	}
+	})
 }
 
-func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
+func (a *App) handlePRFound(m prFoundMsg) []Effect {
 	if m.seq != a.gd.prSeq {
 		return nil // the mode was closed or switched meanwhile
 	}
@@ -532,14 +531,14 @@ func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
 	}
 	a.msg = ""
 	pr := m.pr
-	proceed := func() tea.Cmd {
+	proceed := func() []Effect {
 		if !m.refresh && pr.HeadRefName != a.branch {
 			return a.switchToPR(pr)
 		}
 		if g := a.gd; m.refresh && g.on && g.base == basePR && g.pr != nil && g.pr.Number == pr.Number {
 			// r on the pull request already shown: keep the list on screen
 			g.pr = pr
-			return tea.Batch(a.reloadChanges(), a.loadReview())
+			return batch(a.reloadChanges(), a.loadReview())
 		}
 		return a.openPR(pr)
 	}
@@ -547,7 +546,7 @@ func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
 		a.confirm = &yesNo{
 			prompt: fmt.Sprintf(i18n.T("gd.discardcomments"), rv.num, len(rv.pending), pr.Number),
 			yes:    proceed,
-			no:     func() tea.Cmd { a.info(i18n.T("gd.cancelopen"), pr.Number); return nil },
+			no:     func() []Effect { a.info(i18n.T("gd.cancelopen"), pr.Number); return nil },
 		}
 		return nil
 	}
@@ -556,13 +555,13 @@ func (a *App) handlePRFound(m prFoundMsg) tea.Cmd {
 
 // openPR compares with the base of pr, whose branch is checked out, and
 // loads its review.
-func (a *App) openPR(pr *prInfo) tea.Cmd {
-	return tea.Batch(a.showDiff(basePR, pr), a.loadReview())
+func (a *App) openPR(pr *prInfo) []Effect {
+	return batch(a.showDiff(basePR, pr), a.loadReview())
 }
 
 // switchToPR checks out the branch of pr with `gh pr checkout`, first asking
 // to stash uncommitted changes, then opens it.
-func (a *App) switchToPR(pr *prInfo) tea.Cmd {
+func (a *App) switchToPR(pr *prInfo) []Effect {
 	if n := a.dirtyCount(); n > 0 {
 		a.fail(fmt.Errorf(i18n.T("gd.saveswitch"), n, pr.Number))
 		return nil
@@ -577,8 +576,8 @@ func (a *App) switchToPR(pr *prInfo) tea.Cmd {
 	}
 	a.confirm = &yesNo{
 		prompt: i18n.T("gd.askstash"),
-		yes:    func() tea.Cmd { return a.checkoutPR(pr, true) },
-		no:     func() tea.Cmd { a.info(i18n.T("gd.cancelswitch"), pr.Number); return nil },
+		yes:    func() []Effect { return a.checkoutPR(pr, true) },
+		no:     func() []Effect { a.info(i18n.T("gd.cancelswitch"), pr.Number); return nil },
 	}
 	return nil
 }
@@ -590,11 +589,11 @@ type prCheckedOutMsg struct {
 	err error
 }
 
-func (a *App) checkoutPR(pr *prInfo, stash bool) tea.Cmd {
+func (a *App) checkoutPR(pr *prInfo, stash bool) []Effect {
 	a.info(i18n.T("gd.checkout"), pr.Number)
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
-	return func() tea.Msg {
+	return async(func() Event {
 		head := func() string {
 			out, _ := run(root, nil, "git", "rev-parse", "HEAD")
 			return string(out)
@@ -619,10 +618,10 @@ func (a *App) checkoutPR(pr *prInfo, stash bool) tea.Cmd {
 			}
 		}
 		return prCheckedOutMsg{seq: seq, pr: pr, err: err}
-	}
+	})
 }
 
-func (a *App) handlePRCheckedOut(m prCheckedOutMsg) tea.Cmd {
+func (a *App) handlePRCheckedOut(m prCheckedOutMsg) []Effect {
 	if m.seq != a.gd.prSeq {
 		return nil
 	}
@@ -662,7 +661,7 @@ type prPulledMsg struct {
 
 // reloadPR handles r with a pull request shown: it pulls first when only
 // the pull request has moved on.
-func (a *App) reloadPR() tea.Cmd {
+func (a *App) reloadPR() []Effect {
 	s := a.gd.rv.sync
 	if !(s.known && s.behind > 0 && s.ahead == 0) {
 		return a.refreshPR() // also refreshes the title, state and comments
@@ -670,13 +669,13 @@ func (a *App) reloadPR() tea.Cmd {
 	a.infoText(i18n.T("gd.pulling"))
 	a.gd.prSeq++
 	root, seq := a.root, a.gd.prSeq
-	return func() tea.Msg {
+	return async(func() Event {
 		_, err := run(root, nil, "git", "pull", "--ff-only")
 		return prPulledMsg{seq: seq, err: err}
-	}
+	})
 }
 
-func (a *App) handlePRPulled(m prPulledMsg) tea.Cmd {
+func (a *App) handlePRPulled(m prPulledMsg) []Effect {
 	if m.seq != a.gd.prSeq {
 		return nil
 	}
@@ -689,12 +688,12 @@ func (a *App) handlePRPulled(m prPulledMsg) tea.Cmd {
 }
 
 // prPicker lists the repository's pull requests to compare with.
-func (a *App) prPicker() tea.Cmd {
+func (a *App) prPicker() []Effect {
 	a.infoText(i18n.T("gd.fetchingprs"))
 	return listPRs(a.root)
 }
 
-func (a *App) showPRList(m prListMsg) tea.Cmd {
+func (a *App) showPRList(m prListMsg) []Effect {
 	if m.err != nil {
 		a.fail(m.err)
 		return nil
@@ -712,7 +711,7 @@ func (a *App) showPRList(m prListMsg) tea.Cmd {
 		}
 		items[i] = paletteItem{label: fmt.Sprintf("#%d %s%s", p.Number, p.Title, draft), detail: "@" + p.Author.Login + "  " + p.HeadRefName}
 	}
-	return a.effectCmd(a.pal.pick(i18n.T("gd.prs"), items, func(i int) []Effect { return cmdEffects(a.findPR(m.prs[i].Number)) })...)
+	return a.pal.pick(i18n.T("gd.prs"), items, func(i int) []Effect { return a.findPR(m.prs[i].Number) })
 }
 
 func (a *App) toggleSplit() {
@@ -721,7 +720,7 @@ func (a *App) toggleSplit() {
 }
 
 // gitDiffCommand handles ":gitdiff [on|off|split|unified]".
-func (a *App) gitDiffCommand(arg string) tea.Cmd {
+func (a *App) gitDiffCommand(arg string) []Effect {
 	f := strings.Fields(arg)
 	if len(f) == 0 {
 		return a.openDiff(baseHead)
@@ -747,7 +746,7 @@ func (a *App) gitDiffCommand(arg string) tea.Cmd {
 
 // ---- opening files from the list ----
 
-func (a *App) openChange(f *diff.File) tea.Cmd {
+func (a *App) openChange(f *diff.File) []Effect {
 	abs := filepath.Join(a.gitTopDir(), f.Path())
 	if f.Status == "deleted" {
 		a.info(i18n.T("gd.deleted"), f.Path())
@@ -761,7 +760,7 @@ func (a *App) openChange(f *diff.File) tea.Cmd {
 		// a file already open keeps where the cursor was
 		a.showFirstChange(a.curText())
 	}
-	return a.effectCmd(a.setFocus(focusEditor)...)
+	return a.setFocus(focusEditor)
 }
 
 // showFirstChange puts the cursor on the first change of t, with a few rows
@@ -787,7 +786,7 @@ func (a *App) showFirstChange(t *tab) {
 	a.follow = true
 }
 
-func (a *App) handleChangesKey(msg Key) tea.Cmd {
+func (a *App) handleChangesKey(msg Key) []Effect {
 	g := &a.gd
 	key := msg.String()
 	if a.pending == "space v" {
@@ -796,11 +795,11 @@ func (a *App) handleChangesKey(msg Key) tea.Cmd {
 	}
 	if a.pending == "space w" {
 		a.pending = ""
-		return a.effectCmd(a.windowKey(key)...)
+		return a.windowKey(key)
 	}
 	if a.pending == " " {
 		a.pending = ""
-		return a.effectCmd(a.spaceMode(key)...)
+		return a.spaceMode(key)
 	}
 	switch key {
 	case "up", "k":
@@ -843,14 +842,14 @@ func (a *App) handleChangesKey(msg Key) tea.Cmd {
 	case "space":
 		a.pending = " "
 	case ":":
-		return a.effectCmd(a.openCmdline(":")...)
+		return a.openCmdline(":")
 	case "tab":
-		return a.effectCmd(a.setFocus(focusExplorer)...)
+		return a.setFocus(focusExplorer)
 	case "esc", "q":
 		if len(a.tabs) > 0 {
-			return a.effectCmd(a.setFocus(focusEditor)...)
+			return a.setFocus(focusEditor)
 		}
-		return a.effectCmd(a.setFocus(focusExplorer)...)
+		return a.setFocus(focusExplorer)
 	}
 	return nil
 }
@@ -1798,19 +1797,19 @@ func (a *App) diffMouseToCursor(t *tab, dv *diffView, l layout, row, col int, ex
 }
 
 // afterSave refreshes what depends on the files on disk.
-func (a *App) afterSave() tea.Cmd {
+func (a *App) afterSave() []Effect {
 	if a.gd.on {
 		return a.reloadChanges()
 	}
 	return nil
 }
 
-func (a *App) focusChangesList() tea.Cmd {
+func (a *App) focusChangesList() []Effect {
 	if !a.gd.on {
 		return a.toggleGitDiff()
 	}
 	a.showSide = true
-	return a.effectCmd(a.setFocus(focusChanges)...)
+	return a.setFocus(focusChanges)
 }
 
 // highlightText draws text with syntax colors on bg, w cells wide (lexSpans

@@ -103,7 +103,7 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 	if got := a.testMedia(a.mermaidLines(code, 30), 30); !strings.Contains(ansi.Strip(strings.Join(got, "\n")), "描画中") {
 		t.Fatalf("pending placeholder expected: %q", got)
 	}
-	msg := a.handleMermaidStart(mermaidStartMsg{key, code})()
+	msg := cmdOf(a, a.handleMermaidStart(mermaidStartMsg{key, code}))()
 	done, ok := msg.(mermaidDoneMsg)
 	if !ok || done.err != nil {
 		t.Fatalf("msg = %#v", msg)

@@ -21,15 +21,15 @@ func newGoApp(t *testing.T, src string) (*App, *tab) {
 
 // lexing returns the command lexing the tab. Update starts one whenever the
 // colors fall behind, but tests drop the commands Update returns.
-func lexing(tb *tab) tea.Cmd {
+func lexing(a *App, tb *tab) tea.Cmd {
 	tb.hl.running = false
-	return tb.hl.lexCmd(tb.buf)
+	return cmdOf(a, tb.hl.lexCmd(tb.buf))
 }
 
 // lex runs the tab's lexing, as bubbletea would.
 func lex(t *testing.T, a *App, tb *tab) {
 	t.Helper()
-	cmd := lexing(tb)
+	cmd := lexing(a, tb)
 	if cmd == nil {
 		t.Fatal("no lexing to run")
 	}
@@ -58,7 +58,7 @@ func TestHighlightCatchesUpAfterBurst(t *testing.T) {
 	a, tb := newGoApp(t, "package main\n")
 	lex(t, a, tb)
 	keys(a, "o")
-	running := lexing(tb)
+	running := lexing(a, tb)
 	for _, r := range "あいう" {
 		a.Update(textKey(string(r)))
 		if tb.hl.lexCmd(tb.buf) != nil {

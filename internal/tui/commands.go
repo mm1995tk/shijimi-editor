@@ -31,7 +31,7 @@ func defaultCommands() []command {
 		{i18n.T("cmd.buffers"), "Space b", func(a *App) []Effect { return a.bufferPicker() }},
 		{i18n.T("cmd.sidebar"), "Ctrl+B", func(a *App) []Effect { a.toggleSide(); return nil }},
 		{i18n.T("cmd.focustree"), "Ctrl+E / Space e", func(a *App) []Effect { a.showSide = true; return a.setFocus(focusExplorer) }},
-		{i18n.T("cmd.preview"), "Space m / :preview", func(a *App) []Effect { return cmdEffects(a.togglePreview()) }},
+		{i18n.T("cmd.preview"), "Space m / :preview", func(a *App) []Effect { return a.togglePreview() }},
 		{i18n.T("cmd.terminal"), "Ctrl+`", func(a *App) []Effect { return a.toggleTerm() }},
 		{i18n.T("cmd.resize"), "Alt+R", func(a *App) []Effect { return a.startResize() }},
 		{i18n.T("cmd.resetsizes"), i18n.T("cmd.resetsizes.key"), func(a *App) []Effect { a.resetPanes(); return nil }},
@@ -51,44 +51,44 @@ func defaultCommands() []command {
 		{i18n.T("cmd.undo"), "u / Ctrl+Z", func(a *App) []Effect { a.withBuf(func(b *buffer.Buffer) { b.Undo() }); return nil }},
 		{i18n.T("cmd.redo"), "U / Ctrl+Y", func(a *App) []Effect { a.withBuf(func(b *buffer.Buffer) { b.Redo() }); return nil }},
 		{i18n.T("cmd.togglecomment"), "Ctrl+C / Ctrl+/", func(a *App) []Effect { a.toggleComment(); return nil }},
-		{i18n.T("cmd.grep"), "Space /", func(a *App) []Effect { return cmdEffects(a.openSearch(fQuery)) }},
-		{i18n.T("cmd.sendcontext"), "Space a / Alt+A", func(a *App) []Effect { return cmdEffects(a.sendContext()) }},
-		{i18n.T("cmd.agentpanel"), "Space i / Alt+I / :agent", func(a *App) []Effect { return cmdEffects(a.toggleAgentPanel()) }},
+		{i18n.T("cmd.grep"), "Space /", func(a *App) []Effect { return a.openSearch(fQuery) }},
+		{i18n.T("cmd.sendcontext"), "Space a / Alt+A", func(a *App) []Effect { return a.sendContext() }},
+		{i18n.T("cmd.agentpanel"), "Space i / Alt+I / :agent", func(a *App) []Effect { return a.toggleAgentPanel() }},
 		{i18n.T("cmd.agentcancel"), ":agent cancel", func(a *App) []Effect { a.cancelAgent(); return nil }},
-		{i18n.T("cmd.agentstop"), ":agent stop", func(a *App) []Effect { return cmdEffects(a.agentCommand("stop")) }},
-		{i18n.T("cmd.signature"), ":signature", func(a *App) []Effect { return cmdEffects(a.signatureHelp(true)) }},
-		{i18n.T("cmd.hover"), "Space k", func(a *App) []Effect { return cmdEffects(a.hover()) }},
-		{i18n.T("cmd.definition"), "gd / F12", func(a *App) []Effect { return cmdEffects(a.gotoDefinition()) }},
-		{i18n.T("cmd.references"), "gr / Shift+F12", func(a *App) []Effect { return cmdEffects(a.references()) }},
-		{i18n.T("cmd.rename"), "Space r / F2", func(a *App) []Effect { return cmdEffects(a.rename()) }},
-		{i18n.T("cmd.codeaction"), "Space . / :action", func(a *App) []Effect { return cmdEffects(a.codeAction()) }},
-		{i18n.T("cmd.symbols"), "Space s / :symbol", func(a *App) []Effect { return cmdEffects(a.documentSymbols()) }},
-		{i18n.T("cmd.wsymbols"), "Space S / :symbol-all", func(a *App) []Effect { return cmdEffects(a.workspaceSymbols()) }},
-		{i18n.T("cmd.format"), ":fmt", func(a *App) []Effect { return cmdEffects(a.format(false)) }},
-		{i18n.T("cmd.diagnostics"), "Space d", func(a *App) []Effect { return cmdEffects(a.diagnosticPicker()) }},
+		{i18n.T("cmd.agentstop"), ":agent stop", func(a *App) []Effect { return a.agentCommand("stop") }},
+		{i18n.T("cmd.signature"), ":signature", func(a *App) []Effect { return a.signatureHelp(true) }},
+		{i18n.T("cmd.hover"), "Space k", func(a *App) []Effect { return a.hover() }},
+		{i18n.T("cmd.definition"), "gd / F12", func(a *App) []Effect { return a.gotoDefinition() }},
+		{i18n.T("cmd.references"), "gr / Shift+F12", func(a *App) []Effect { return a.references() }},
+		{i18n.T("cmd.rename"), "Space r / F2", func(a *App) []Effect { return a.rename() }},
+		{i18n.T("cmd.codeaction"), "Space . / :action", func(a *App) []Effect { return a.codeAction() }},
+		{i18n.T("cmd.symbols"), "Space s / :symbol", func(a *App) []Effect { return a.documentSymbols() }},
+		{i18n.T("cmd.wsymbols"), "Space S / :symbol-all", func(a *App) []Effect { return a.workspaceSymbols() }},
+		{i18n.T("cmd.format"), ":fmt", func(a *App) []Effect { return a.format(false) }},
+		{i18n.T("cmd.diagnostics"), "Space d", func(a *App) []Effect { return a.diagnosticPicker() }},
 		{i18n.T("cmd.lsprestart"), ":lsp-restart", func(a *App) []Effect { return a.execCommand("lsp-restart") }},
-		{i18n.T("cmd.diffhead"), "Ctrl+G / Space G / :gitdiff", func(a *App) []Effect { return cmdEffects(a.openDiff(baseHead)) }},
-		{i18n.T("cmd.diffpr"), "Space g", func(a *App) []Effect { return cmdEffects(a.openDiff(basePR)) }},
-		{i18n.T("cmd.diffprpick"), i18n.T("cmd.diffprpick.key"), func(a *App) []Effect { return cmdEffects(a.prPicker()) }},
+		{i18n.T("cmd.diffhead"), "Ctrl+G / Space G / :gitdiff", func(a *App) []Effect { return a.openDiff(baseHead) }},
+		{i18n.T("cmd.diffpr"), "Space g", func(a *App) []Effect { return a.openDiff(basePR) }},
+		{i18n.T("cmd.diffprpick"), i18n.T("cmd.diffprpick.key"), func(a *App) []Effect { return a.prPicker() }},
 		{i18n.T("cmd.diffsplit"), ":gitdiff split|unified", func(a *App) []Effect { a.toggleSplit(); return nil }},
-		{i18n.T("cmd.diffchanges"), "", func(a *App) []Effect { return cmdEffects(a.focusChangesList()) }},
-		{i18n.T("cmd.rvcomment"), "Space v c", func(a *App) []Effect { return cmdEffects(a.reviewCommand("c")) }},
-		{i18n.T("cmd.rvfilecomment"), "Space v C", func(a *App) []Effect { return cmdEffects(a.reviewCommand("C")) }},
-		{i18n.T("cmd.rvthread"), "Space v t", func(a *App) []Effect { return cmdEffects(a.reviewCommand("t")) }},
-		{i18n.T("cmd.rvviewed"), "Space v v", func(a *App) []Effect { return cmdEffects(a.reviewCommand("v")) }},
-		{i18n.T("cmd.rvapprove"), "Space v A", func(a *App) []Effect { return cmdEffects(a.reviewCommand("A")) }},
-		{i18n.T("cmd.rvrequest"), "Space v R", func(a *App) []Effect { return cmdEffects(a.reviewCommand("R")) }},
-		{i18n.T("cmd.rvcommentonly"), "Space v S", func(a *App) []Effect { return cmdEffects(a.reviewCommand("S")) }},
-		{i18n.T("cmd.rvcopyurl"), "Space v y", func(a *App) []Effect { return cmdEffects(a.reviewCommand("y")) }},
-		{i18n.T("cmd.rvopenurl"), "Space v o", func(a *App) []Effect { return cmdEffects(a.reviewCommand("o")) }},
+		{i18n.T("cmd.diffchanges"), "", func(a *App) []Effect { return a.focusChangesList() }},
+		{i18n.T("cmd.rvcomment"), "Space v c", func(a *App) []Effect { return a.reviewCommand("c") }},
+		{i18n.T("cmd.rvfilecomment"), "Space v C", func(a *App) []Effect { return a.reviewCommand("C") }},
+		{i18n.T("cmd.rvthread"), "Space v t", func(a *App) []Effect { return a.reviewCommand("t") }},
+		{i18n.T("cmd.rvviewed"), "Space v v", func(a *App) []Effect { return a.reviewCommand("v") }},
+		{i18n.T("cmd.rvapprove"), "Space v A", func(a *App) []Effect { return a.reviewCommand("A") }},
+		{i18n.T("cmd.rvrequest"), "Space v R", func(a *App) []Effect { return a.reviewCommand("R") }},
+		{i18n.T("cmd.rvcommentonly"), "Space v S", func(a *App) []Effect { return a.reviewCommand("S") }},
+		{i18n.T("cmd.rvcopyurl"), "Space v y", func(a *App) []Effect { return a.reviewCommand("y") }},
+		{i18n.T("cmd.rvopenurl"), "Space v o", func(a *App) []Effect { return a.reviewCommand("o") }},
 		{i18n.T("cmd.treerefresh"), "R", func(a *App) []Effect { a.explorer.refresh(); return nil }},
 		{i18n.T("cmd.treenewfile"), "a", func(a *App) []Effect { return a.newFileIn(a.explorer.targetDir()) }},
 		{i18n.T("cmd.treenewfolder"), "A", func(a *App) []Effect { return a.newFolder() }},
 		{i18n.T("cmd.treerename"), "r", func(a *App) []Effect { return a.renameFile() }},
 		{i18n.T("cmd.treedelete"), "d", func(a *App) []Effect { return a.deleteFile() }},
-		{i18n.T("cmd.openurl"), "Space o / :open-url", func(a *App) []Effect { return cmdEffects(a.openURL("")) }},
+		{i18n.T("cmd.openurl"), "Space o / :open-url", func(a *App) []Effect { return a.openURL("") }},
 		{i18n.T("cmd.browserlist"), ":browser list", func(a *App) []Effect { return a.execCommand("browser list") }},
-		{i18n.T("cmd.theme"), i18n.T("cmd.theme.key"), func(a *App) []Effect { return cmdEffects(a.themePicker()) }},
+		{i18n.T("cmd.theme"), i18n.T("cmd.theme.key"), func(a *App) []Effect { return a.themePicker() }},
 		{i18n.T("cmd.keymap"), ":keymap", func(a *App) []Effect { return a.execCommand("keymap") }},
 		{i18n.T("cmd.reloadconfig"), ":config-reload", func(a *App) []Effect { return a.execCommand("config-reload") }},
 		{i18n.T("cmd.quit"), "Ctrl+Q / :q", func(a *App) []Effect { return a.quit() }},
@@ -230,15 +230,15 @@ func (a *App) execCommand(line string) []Effect {
 	case "bc!", "bclose!", "buffer-close!":
 		return a.closeTab(true)
 	case "fmt", "format":
-		return cmdEffects(a.format(false))
+		return a.format(false)
 	case "signature", "sig":
-		return cmdEffects(a.signatureHelp(true))
+		return a.signatureHelp(true)
 	case "action", "code-action", "ca":
-		return cmdEffects(a.codeAction())
+		return a.codeAction()
 	case "symbol", "sym":
-		return cmdEffects(a.documentSymbols())
+		return a.documentSymbols()
 	case "symbol-all", "sym-all":
-		return cmdEffects(a.workspaceSymbols())
+		return a.workspaceSymbols()
 	case "reload", "rl":
 		if t := a.curText(); t != nil && t.buf.Path != "" {
 			if err := t.reload(); err != nil {
@@ -251,40 +251,40 @@ func (a *App) execCommand(line string) []Effect {
 		if a.muxOn() {
 			switch arg {
 			case "":
-				return cmdEffects(a.muxToggle())
+				return a.muxToggle()
 			case "hide":
-				return cmdEffects(a.muxResult(a.muxHide()))
+				return a.muxResult(a.muxHide())
 			}
-			return cmdEffects(a.muxSend(arg, true))
+			return a.muxSend(arg, true)
 		}
 		if arg == "" {
 			return a.toggleTerm()
 		}
 		a.showTerm = true
 		cmd := a.setFocus(focusTerminal)
-		return batch(cmd, cmdEffects(a.term.run(arg)))
+		return batch(cmd, teaEffects(a.term.run(arg)))
 	case "preview", "md":
-		return cmdEffects(a.togglePreview())
+		return a.togglePreview()
 	case "vsplit", "vs", "split", "sp":
 		return a.splitOpen()
 	case "only", "on":
 		a.closeSplit(true)
 		return nil
 	case "gitdiff", "gd", "review":
-		return cmdEffects(a.gitDiffCommand(arg))
+		return a.gitDiffCommand(arg)
 	case "pr":
 		if n, err := strconv.Atoi(strings.TrimPrefix(arg, "#")); err == nil {
-			return cmdEffects(a.findPR(n))
+			return a.findPR(n)
 		}
-		return cmdEffects(a.prPicker())
+		return a.prPicker()
 	case "grep", "rg":
-		return cmdEffects(a.openSearchArgs(arg, false))
+		return a.openSearchArgs(arg, false)
 	case "browser":
-		return cmdEffects(a.browser(arg))
+		return a.browser(arg)
 	case "agent":
-		return cmdEffects(a.agentCommand(arg))
+		return a.agentCommand(arg)
 	case "replace", "rep":
-		return cmdEffects(a.openSearchArgs(arg, true))
+		return a.openSearchArgs(arg, true)
 	case "lsp-restart":
 		a.lsp.restart()
 		for _, t := range a.tabs {
@@ -314,7 +314,7 @@ func (a *App) execCommand(line string) []Effect {
 		a.loadKeymap()
 	case "theme":
 		if arg == "" {
-			return cmdEffects(a.themePicker())
+			return a.themePicker()
 		}
 		if !a.setTheme(arg) {
 			a.fail(fmt.Errorf(i18n.T("cmd.unknowntheme"), arg, strings.Join(themeNames(), ", ")))
@@ -337,7 +337,7 @@ func (a *App) execCommand(line string) []Effect {
 			a.infoText(i18n.T("cmd.keymap.vscode"))
 		}
 	case "open-url", "browse":
-		return cmdEffects(a.openURL(arg))
+		return a.openURL(arg)
 	case "tree", "explorer":
 		a.showSide = true
 		return a.setFocus(focusExplorer)

@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -119,7 +118,7 @@ func (a *App) cancelProposal(reply chan<- IDEReply) {
 
 // handleProposalKey drives the first pending proposal: Enter accepts, Esc
 // rejects.
-func (a *App) handleProposalKey(msg Key) tea.Cmd {
+func (a *App) handleProposalKey(msg Key) []Effect {
 	p := a.props[0]
 	switch msg.String() {
 	case "enter", "y":

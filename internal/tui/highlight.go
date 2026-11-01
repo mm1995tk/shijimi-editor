@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 
@@ -69,7 +68,7 @@ func (h *highlighter) Language() string {
 // lexCmd returns a command that lexes b's current text, or nil when the
 // colors are current or a lexing is under way. Edits made meanwhile are
 // lexed once that one is applied, so a burst of edits costs two lexings.
-func (h *highlighter) lexCmd(b *buffer.Buffer) tea.Cmd {
+func (h *highlighter) lexCmd(b *buffer.Buffer) []Effect {
 	if h.lexer == nil || h.running || len(b.Lines) > maxHighlightLines ||
 		h.version == b.Version && h.gen == themeGen {
 		return nil
@@ -81,10 +80,10 @@ func (h *highlighter) lexCmd(b *buffer.Buffer) tea.Cmd {
 	}
 	msg := highlightMsg{h: h, version: b.Version, gen: themeGen, lines: lines}
 	lexer, style := h.lexer, chromaStyle
-	return func() tea.Msg {
+	return async(func() Event {
 		msg.colors = lexColors(lexer, style, lines)
 		return msg
-	}
+	})
 }
 
 // apply stores the result of a lexCmd.
@@ -217,12 +216,12 @@ func commentPrefix(path string) string {
 }
 
 // lexTabs starts lexing every text tab whose colors are behind its text.
-func (a *App) lexTabs() tea.Cmd {
-	var cmds []tea.Cmd
+func (a *App) lexTabs() []Effect {
+	var cmds [][]Effect
 	for _, t := range a.tabs {
 		if t.kind == tabText {
 			cmds = append(cmds, t.hl.lexCmd(t.buf))
 		}
 	}
-	return tea.Batch(cmds...)
+	return batch(cmds...)
 }

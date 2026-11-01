@@ -210,15 +210,15 @@ func (a *App) handleIDE(m IDECall) []Effect {
 	if !pending {
 		effs = append(effs, ReplyIDE{To: m.Reply, Reply: res})
 	}
-	return append(effs, cmdEffects(cmd)...)
+	return append(effs, cmd...)
 }
 
 // ideCall runs a tool. pending is true when the reply is deferred.
-func (a *App) ideCall(m IDECall) (res IDEReply, cmd tea.Cmd, pending bool) {
-	ok := func(v any) (IDEReply, tea.Cmd, bool) {
+func (a *App) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
+	ok := func(v any) (IDEReply, []Effect, bool) {
 		return IDEReply{Content: []ide.Content{ide.JSON(v)}}, nil, false
 	}
-	fail := func(format string, args ...any) (IDEReply, tea.Cmd, bool) {
+	fail := func(format string, args ...any) (IDEReply, []Effect, bool) {
 		return IDEReply{Err: fmt.Errorf(format, args...)}, nil, false
 	}
 	var args struct {
@@ -324,7 +324,7 @@ func (a *App) ideCall(m IDECall) (res IDEReply, cmd tea.Cmd, pending bool) {
 			return ok(map[string]any{"success": false, "message": "Document not open: " + p})
 		}
 		if t.dirty() {
-			cmd = a.effectCmd(a.saveTab(t)...)
+			cmd = a.saveTab(t)
 			if a.msgErr {
 				return fail(i18n.T("ide.cantsave"), a.msg)
 			}

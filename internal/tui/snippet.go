@@ -4,8 +4,6 @@ import (
 	"sort"
 	"unicode"
 
-	tea "charm.land/bubbletea/v2"
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
@@ -263,7 +261,7 @@ func (a *App) snippetActive() bool {
 
 // handleSnippetKey moves between tab stops. handled is false for every key
 // the session does not take.
-func (a *App) handleSnippetKey(msg Key) (tea.Cmd, bool) {
+func (a *App) handleSnippetKey(msg Key) ([]Effect, bool) {
 	if !a.snippetActive() {
 		return nil, false
 	}

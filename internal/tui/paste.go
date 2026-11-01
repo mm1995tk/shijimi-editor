@@ -12,7 +12,7 @@ func (a *App) handlePaste(msg Paste) []Effect {
 	a.msg = ""
 	switch {
 	case a.search.open:
-		return cmdEffects(a.searchInput(msg))
+		return a.searchInput(msg)
 	case a.pal.open:
 		return a.paletteInput(msg)
 	case a.composer != nil:
@@ -26,7 +26,7 @@ func (a *App) handlePaste(msg Paste) []Effect {
 		return a.cmdlineInput(msg)
 	case a.focus == focusTerminal:
 		s := strings.ReplaceAll(strings.ReplaceAll(msg.Content, "\r\n", "\r"), "\n", "\r")
-		return cmdEffects(a.term.paste(s))
+		return teaEffects(a.term.paste(s))
 	case a.focus != focusEditor:
 		return nil
 	}
