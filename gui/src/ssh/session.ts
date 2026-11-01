@@ -8,6 +8,7 @@
 //    その通知（tree.changed / git.changed）をつなぎ直しをまたいで渡す（D2）
 //  - 画面を購読し（view.subscribe）、欄の大きさ（view.resize）とテーマ（theme.get）を送り受けする。
 //    screen.update を手元の画面に当て、当てたら screen.ack を返す（E1）
+//  - キー・IME・マウス・貼り付け（input.*）を順に送り、clipboard.write を渡す（E2）
 // Solid などの画面の仕組みには依存しない。
 
 import { applyUpdate } from "../files/screen.ts";
@@ -86,6 +87,14 @@ export interface SessionOptions {
 /** Session.request で送れる要求（ツリーと git）。 */
 export type TreeMethod = "tree.list" | "tree.watch" | "git.status";
 
+/** Session.input で送れる入力。 */
+export type InputMethod =
+  | "input.key"
+  | "input.composition"
+  | "input.mouse"
+  | "input.paste"
+  | "input.focus";
+
 /** 購読する領域。今はファイルの欄だけを描く（状態行とコマンド行は E3、ポップアップは E4 で足す）。 */
 export const SUBSCRIBED_REGIONS: Region[] = ["files"];
 
@@ -140,6 +149,9 @@ export class Session {
   private readonly themeHandlers = new Set<(t: Theme) => void>();
   /** ファイルの欄の大きさ（マス目）。つなぎ直したら送り直す */
   private filesSize?: { cols: number; rows: number };
+  /** 最後に送った入力の seq（つなぎ直しても増え続ける） */
+  private inputSeq = 0;
+  private readonly clipboardHandlers = new Set<(text: string) => void>();
 
   constructor(api: ShellApi, target: string, opts: SessionOptions = {}) {
     this.api = api;
@@ -248,6 +260,30 @@ export class Session {
     const conn = this.conn;
     if (!conn) throw new Error(`${this.target} につながっていません`);
     return conn.client.request(method, params);
+  }
+
+  /**
+   * 入力（input.*）を今の接続で送る。seq はここで付ける（送るたびに 1 つ増やす）。返事は待たない。
+   * shj は受け取った順に処理する。つながっていないときは捨てる（切れている間の入力は送り直さない）。
+   * 送った seq を返す（送らなければ undefined）。
+   */
+  input<M extends InputMethod>(
+    method: M,
+    params: Omit<Requests[M]["params"], "seq">,
+  ): number | undefined {
+    const conn = this.conn;
+    if (!conn) return undefined;
+    const seq = ++this.inputSeq;
+    conn.client
+      .request(method, { ...params, seq } as Requests[M]["params"])
+      .catch((e) => this.discard(method, e));
+    return seq;
+  }
+
+  /** clipboard.write（shj でコピーした。OS のクリップボードに入れる）。つなぎ直しても外れない。 */
+  onClipboard(h: (text: string) => void): () => void {
+    this.clipboardHandlers.add(h);
+    return () => this.clipboardHandlers.delete(h);
   }
 
   /** tree.changed（開いているフォルダの中身が変わった）。つなぎ直しても外れない。 */
@@ -474,6 +510,11 @@ export class Session {
       conn.client.on("git.changed", (n) => {
         if (gen !== this.generation || this.conn !== conn) return;
         for (const h of [...this.gitHandlers]) h(n);
+      }),
+      conn.client.on("clipboard.write", (n) => {
+        if (gen !== this.generation || this.conn !== conn) return;
+        if (typeof n?.text !== "string") return;
+        for (const h of [...this.clipboardHandlers]) h(n.text);
       }),
       startPing(
         conn.client,

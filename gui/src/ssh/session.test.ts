@@ -111,6 +111,13 @@ function fakeShell(opts: {
         case "tree.watch":
           reply({});
           break;
+        case "input.key":
+        case "input.mouse":
+        case "input.composition":
+        case "input.paste":
+        case "input.focus":
+          reply({ rev: 8 });
+          break;
         case "session.bye":
           reply({});
           break;
@@ -749,6 +756,68 @@ describe("Session のツリー", () => {
     await new Promise((r) => setTimeout(r, 10));
     assert.deepEqual(trees, [[""]]);
     assert.deepEqual(gits, [5]);
+    await s.close();
+  });
+});
+
+describe("Session の入力", () => {
+  it("input は seq を付けて順に送り、つながっていなければ捨てる。clipboard.write はつなぎ直しても届く", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    assert.equal(
+      s.input("input.key", {
+        region: "files",
+        key: "a",
+        mods: [],
+        phase: "press",
+      }),
+      undefined,
+    );
+    const copied: string[] = [];
+    s.onClipboard((t) => copied.push(t));
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    assert.equal(
+      s.input("input.key", {
+        region: "files",
+        key: "a",
+        mods: [],
+        text: "a",
+        phase: "press",
+      }),
+      1,
+    );
+    s.input("input.paste", { region: "files", text: "x" });
+    await new Promise((r) => setTimeout(r, 10));
+    const inputs = f.sent.filter((x) => x.msg.method.startsWith("input."));
+    assert.deepEqual(
+      inputs.map((x) => [x.msg.method, x.msg.params.seq]),
+      [
+        ["input.key", 1],
+        ["input.paste", 2],
+      ],
+    );
+    assert.deepEqual(inputs[0]!.msg.params, {
+      region: "files",
+      key: "a",
+      mods: [],
+      text: "a",
+      phase: "press",
+      seq: 1,
+    });
+
+    f.drop(connectedId(f));
+    await waitFor(s, (st) => st.kind === "reconnecting");
+    await waitFor(s, (st) => st.kind === "connected");
+    // つなぎ直しても seq は増え続ける
+    assert.equal(s.input("input.focus", { region: "files" }), 3);
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "clipboard.write",
+      params: { text: "copied" },
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.deepEqual(copied, ["copied"]);
     await s.close();
   });
 });
