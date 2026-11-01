@@ -113,6 +113,7 @@ type frontEnd interface {
 	editorCols() int
 	resetPanes()
 	setScreen(w, h int)
+	setPalette(t *Theme)
 	handleEvent(ev Event) []Effect
 	handleMouse(msg Mouse) []Effect
 }
@@ -126,3 +127,8 @@ func appOf(c *Core) *App {
 	c.frontEnd = a
 	return a
 }
+
+// setPalette makes t the colors the front end draws with (applyTheme, in
+// theme_apply.go, rewrites the palette variables and the styles built from
+// them). Core keeps which theme is chosen; how it looks is the front end's.
+func (a *App) setPalette(t *Theme) { applyTheme(t) }

@@ -191,7 +191,7 @@ func New(dir, file string) *App {
 	a.frontEnd = a
 	a.explorer.icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
-		applyTheme(themeOrDefault(cfg.Editor.Theme))
+		a.setPalette(themeOrDefault(cfg.Editor.Theme))
 	}
 	a.findInput = newInputField(0)
 	a.findInput.Placeholder = i18n.T("app.find")
@@ -238,7 +238,7 @@ func NewSingle(file string) (*App, error) {
 	}
 	a.frontEnd = a
 	if cfg.Editor.Theme != "" {
-		applyTheme(themeOrDefault(cfg.Editor.Theme))
+		a.setPalette(themeOrDefault(cfg.Editor.Theme))
 	}
 	a.findInput = newInputField(0)
 	a.findInput.Placeholder = i18n.T("app.find")

@@ -8,7 +8,7 @@ func (a *Core) setTheme(name string) bool {
 	if !ok {
 		return false
 	}
-	applyTheme(t)
+	a.setPalette(t)
 	return true
 }
 
