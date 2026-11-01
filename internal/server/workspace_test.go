@@ -16,7 +16,7 @@ func startFast(t *testing.T) (*Server, string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
-	srv, err := Listen(Options{SocketPath: filepath.Join(dir, "serve.rpc"), CwdInterval: 20 * time.Millisecond})
+	srv, err := Listen(Options{SocketPath: filepath.Join(dir, "serve.rpc"), CwdInterval: 20 * time.Millisecond, TreeInterval: 20 * time.Millisecond, GitInterval: 50 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
 	}

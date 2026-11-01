@@ -1,7 +1,7 @@
 // Package server は画面を持たない常駐プロセス「shj serve」の中身。
 // Unix ソケットで JSON-RPC を話す。設計は docs/design/gui-protocol.md の 3 章。
 //
-// 今あるメソッドは session.* / server.info / term.*（term.go）/ workspace.*（workspace.go）。
+// 今あるメソッドは session.* / server.info / term.*（term.go）/ workspace.*（workspace.go）/ tree.*・git.status（tree.go、treewatch.go、gitstat.go）。
 package server
 
 import (
@@ -49,7 +49,10 @@ type Options struct {
 	IdleCheck time.Duration // 止まる時刻を調べる間隔。0 なら 1 分
 	// CwdInterval はシェルの cwd を読む間隔。0 なら 1 秒。
 	CwdInterval time.Duration
-	Now         func() time.Time // nil なら time.Now。テストで差し替える
+	// TreeInterval は tree.watch のフォルダを見る間隔（0 なら 1 秒）、GitInterval は git の印を取り直す間隔（0 なら 3 秒）。
+	TreeInterval time.Duration
+	GitInterval  time.Duration
+	Now          func() time.Time // nil なら time.Now。テストで差し替える
 }
 
 // Server は Unix ソケットで待ち受けるサーバー。
@@ -68,6 +71,7 @@ type Server struct {
 	wg         sync.WaitGroup
 	terms      *termManager
 	ws         *wsManager
+	tree       *treeManager
 	rev        int64       // サーバー全体の版（mu で守る）
 	stopping   bool        // stop が始まった
 	beforeStop []func()    // 止まる前に走らせる（AddBeforeStop）
@@ -114,6 +118,7 @@ func Listen(opts Options) (*Server, error) {
 	srv.startedAt = srv.now()
 	srv.terms = newTermManager(srv)
 	srv.ws = newWSManager(srv)
+	srv.tree = newTreeManager(srv)
 	return srv, nil
 }
 
@@ -129,6 +134,7 @@ func (s *Server) Serve(ctx context.Context) error {
 	defer close(idleDone)
 	go s.watchIdle(idleDone)
 	go s.ws.watch(idleDone)
+	go s.tree.watch(idleDone)
 	for {
 		c, err := s.ln.Accept()
 		if err != nil {
@@ -289,6 +295,9 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 		return res, err
 	}
 	if res, err, ok := ss.workspaceRequest(req); ok {
+		return res, err
+	}
+	if res, err, ok := ss.treeRequest(req); ok {
 		return res, err
 	}
 	switch req.Method {
