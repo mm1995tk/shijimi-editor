@@ -13,6 +13,7 @@
 // Ctrl+Shift+` でファイルの欄とターミナルのカードを入れ替える（IDE モードとターミナルモード。F3。mode.ts）。
 // ターミナルモードでは、マシンのターミナルを数に応じて自動で並べる。Ctrl+Shift+T で増やし、`exit` で閉じて
 // 並び直し、Ctrl+Shift+矢印で隣へ移る（F4。terminal/group.ts・terminal/grid.ts）。
+// 新しい版があれば右下に知らせ、押されたら入れ替えて起動し直す（C8。update/UpdateBar.tsx）。
 import {
   createEffect,
   createMemo,
@@ -26,6 +27,7 @@ import {
 } from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
+import { UpdateBar } from "./update/UpdateBar.tsx";
 import { BlobStore } from "./files/blob.ts";
 import { OsClipboard } from "./files/clipboard.ts";
 import {
@@ -574,6 +576,7 @@ export function App(props: {
         />
       </div>
       <AskpassDialog ask={asks()[0]} onReply={reply} />
+      <UpdateBar />
     </main>
   );
 }

@@ -45,6 +45,17 @@ in
       description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/languages.toml` (same structure as Helix's languages.toml).";
     };
 
+    gui = {
+      enable = lib.mkEnableOption "the GUI (shijimi-editor-gui). Built with Nix it has no auto update; update it with `nix flake update` and `home-manager switch`";
+
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.gui;
+        defaultText = lib.literalExpression "shijimi.packages.\${system}.gui";
+        description = "The GUI package to install. Use `gui-nightly` for the nightly build (shijimi-editor-gui-nightly).";
+      };
+    };
+
     herdr = {
       enable = lib.mkEnableOption "the herdr key entry (`keysCommand`) that hides the pane; shijimi-editor never writes herdr's config.toml";
 
@@ -76,7 +87,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ cfg.package ];
+    home.packages = [ cfg.package ] ++ lib.optional cfg.gui.enable cfg.gui.package;
     xdg.configFile."shijimi-editor/config.toml" = lib.mkIf (cfg.settings != { }) {
       source = toml.generate "shijimi-config.toml" cfg.settings;
     };

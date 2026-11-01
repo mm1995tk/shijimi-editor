@@ -169,3 +169,16 @@ jobs:
           (cd assets && sha256sum shj-* > SHA256SUMS)
           # 再実行で上げ直せるよう、同じ名前のアセットは置き換える
           gh release upload "v$NEXT" assets/* --clobber --repo "$GITHUB_REPOSITORY"
+
+  # GUI の AppImage と署名なしの .dmg、自動更新の latest.json を、同じ Release に上げる（gui-release.yml）
+  gui:
+    needs: release
+    permissions:
+      contents: write
+    uses: ./.github/workflows/gui-release.yml
+    with:
+      version: ${{ needs.release.outputs.next }}
+      tag: v${{ needs.release.outputs.next }}
+      ref: v${{ needs.release.outputs.next }}
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN_RELEASE: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_RELEASE }}

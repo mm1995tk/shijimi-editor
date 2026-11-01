@@ -6,6 +6,7 @@ name: nightly 版を配る
 #   `latest` には触らない。nightly 専用の shijimi-editor-nightly は `latest` だけを今回の版に合わせる（#260）。dist-tag `nightly` は使わない。
 # - GitHub：`nightly` という名前の pre-release を 1 つ持ち、毎回その assets（shj-nightly-<os>-<cpu>）と
 #   本文（版・コミット・日付）を差し替える。
+# - GUI：shijimi-editor-nightly の AppImage と .dmg、自動更新の latest.json を同じ pre-release に上げる（gui-release.yml）。
 # - 前の nightly から main にコミットが無ければ何もしない（workflow_dispatch の force で作り直せる）。
 #
 # 版は X.Y.Z-nightly.<yyyymmdd>.<sha>。X.Y.Z は flake.nix の version で、flake.nix は書き換えない。
@@ -202,3 +203,18 @@ jobs:
             --prerelease \
             --title "nightly ($VERSION)" \
             --notes-file notes.md
+
+  # GUI（shijimi-editor-nightly）の AppImage と署名なしの .dmg、自動更新の latest.json を pre-release nightly に上げる
+  # （gui-release.yml）。release ジョブが pre-release を作り直したあとに上げる（先に上げると消される）
+  gui:
+    needs: [check, release]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/gui-release.yml
+    with:
+      version: ${{ needs.check.outputs.version }}
+      tag: nightly
+      ref: ${{ github.sha }}
+      channel: nightly
+    secrets:
+      OP_SERVICE_ACCOUNT_TOKEN_RELEASE: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_RELEASE }}

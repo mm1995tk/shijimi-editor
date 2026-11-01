@@ -46,3 +46,28 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+  # 自動更新（feature updater）を付けた殻。Nix の版は付けないので、ここで付けてビルドできることを確かめる。
+  # 配る版（gui-release.yml）はこれを tauri build で作る
+  updater:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: gui/package-lock.json
+      - name: Linux の WebView を入れる
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev \
+            libayatana-appindicator3-dev librsvg2-dev
+      - name: Web 画面を作る（殻が埋め込む）
+        working-directory: gui
+        run: |
+          npm ci
+          npm run build
+      - name: cargo build --features updater
+        working-directory: gui/src-tauri
+        run: cargo build --locked --features custom-protocol,updater

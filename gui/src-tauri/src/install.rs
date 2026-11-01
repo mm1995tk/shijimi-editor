@@ -106,7 +106,7 @@ fn asset_url(version: &str, name: &str) -> String {
 /// ユーザーに聞くときに見せる内容（版・入れる場所・Release のページ）を作る。
 /// 版が URL とリモートのスクリプトに入れられる文字でなければ Err。
 pub fn plan() -> Result<InstallPlan, String> {
-    let version = env!("CARGO_PKG_VERSION");
+    let version = crate::version::get();
     if !valid_version(version) {
         return Err(format!("invalid GUI version: {version:?}"));
     }

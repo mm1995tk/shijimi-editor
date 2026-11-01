@@ -53,7 +53,7 @@ pub fn cache_dir_rel(version: &str) -> String {
 
 /// 入れる先（`~/.cache/shijimi-editor/<GUI の版>/shj`）。PATH の `shj` ではない。
 pub fn default_remote_shj() -> String {
-    format!("~/{}/shj", cache_dir_rel(env!("CARGO_PKG_VERSION")))
+    format!("~/{}/shj", cache_dir_rel(crate::version::get()))
 }
 
 /// ssh の引数に渡してよいホスト名か。`-` で始まるとオプションになり、空白や制御文字は別の引数に化ける。

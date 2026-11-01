@@ -35,6 +35,12 @@
           # dirtyShortRev ends in "-dirty" when built from uncommitted changes
           commit = self.shortRev or self.dirtyShortRev or "";
 
+          # A nightly is the stable X.Y.Z plus "-nightly", the date of the
+          # commit and its hash, like the npm version (see npm/pack.sh).
+          nightlyVersion = "${version}-nightly.${
+            builtins.substring 0 8 (self.lastModifiedDate or "00000000")
+          }.${commit}";
+
           # One build for both channels. The stable shj and the nightly shj-nightly
           # are the same program; the channel is compiled in and only changes the
           # names that let the two be installed side by side (see internal/channel).
@@ -46,14 +52,8 @@
               suffix = pkgs.lib.optionalString (channel != "") "-${channel}";
               bin = "shj${suffix}";
               alias = "shijimi${suffix}";
-              # A nightly is the stable X.Y.Z plus "-nightly", the date of the
-              # commit and its hash, like the npm version (see npm/pack.sh). The
-              # binary itself gets X.Y.Z and the channel, and shows "vX.Y.Z-nightly".
-              pkgVersion =
-                version
-                +
-                  pkgs.lib.optionalString (channel != "")
-                    "${suffix}.${builtins.substring 0 8 (self.lastModifiedDate or "00000000")}.${commit}";
+              # The binary itself gets X.Y.Z and the channel, and shows "vX.Y.Z-nightly".
+              pkgVersion = if channel == "" then version else nightlyVersion;
             in
             pkgs.buildGoApplication {
               go = pkgs.go_1_27;
@@ -81,7 +81,14 @@
               };
             };
 
+          # The GUI. Built with Nix it has no auto update (update it with nix flake update).
           guiDrv = import ./nix/gui.nix { inherit pkgs version; };
+          # The nightly GUI (shijimi-editor-nightly), installed as shijimi-editor-gui-nightly.
+          guiNightlyDrv = import ./nix/gui.nix {
+            inherit pkgs;
+            version = nightlyVersion;
+            channel = "nightly";
+          };
 
           appDrv = mkApp { };
           # The nightly build of main, installed as shj-nightly so it can sit next to shj.
@@ -93,6 +100,7 @@
             shijimi = appDrv;
             shj-nightly = nightlyDrv;
             gui = guiDrv;
+            gui-nightly = guiNightlyDrv;
             treefmt = treefmtEval.config.build.configFile;
           };
 

@@ -2,9 +2,27 @@
 #   web … buildNpmPackage で vite build した dist
 #   殻  … buildRustPackage。dist を gui/dist に置いてから cargo build する
 #          （tauri が generate_context! で dist を実行ファイルに埋め込む）
-{ pkgs, version }:
+#
+# 自動更新（feature `updater`）は付けない。Nix で入れた GUI の更新は nix flake update と home-manager switch で行う。
+# 版は Tauri の設定の `version` として TAURI_CONFIG で渡す（GUI はこれを自分の版として、リモートに入れる shj の版に使う）。
+# channel = "nightly" は tauri.nightly.conf.json を重ね（名前 shijimi-editor-nightly）、実行ファイルを
+# shijimi-editor-gui-nightly にして、普通の版と並べて入れられるようにする。
+{
+  pkgs,
+  version,
+  channel ? "",
+}:
 let
   inherit (pkgs) lib stdenv;
+  nightly = channel == "nightly";
+  bin = "shijimi-editor-gui" + lib.optionalString nightly "-nightly";
+  tauriConfig =
+    lib.optionalAttrs nightly (
+      builtins.fromJSON (builtins.readFile ../gui/src-tauri/tauri.nightly.conf.json)
+    )
+    // {
+      inherit version;
+    };
 
   web = pkgs.buildNpmPackage {
     pname = "shijimi-editor-gui-web";
@@ -22,7 +40,7 @@ let
   };
 in
 pkgs.rustPlatform.buildRustPackage {
-  pname = "shijimi-editor-gui";
+  pname = bin;
   inherit version;
   src = ../gui;
   sourceRoot = "gui/src-tauri";
@@ -30,6 +48,8 @@ pkgs.rustPlatform.buildRustPackage {
 
   # release の画面は埋め込んだ Web を使う（cargo tauri build が自動で付ける feature）
   buildFeatures = [ "custom-protocol" ];
+
+  env.TAURI_CONFIG = builtins.toJSON tauriConfig;
 
   postPatch = ''
     chmod u+w ..
@@ -53,10 +73,14 @@ pkgs.rustPlatform.buildRustPackage {
   # ssh_config のパース・ホスト名の検査などの単体テスト（cargo test）
   doCheck = true;
 
+  postInstall = lib.optionalString nightly ''
+    mv $out/bin/shijimi-editor-gui $out/bin/${bin}
+  '';
+
   meta = {
     description = "GUI for shijimi-editor (Tauri)";
     license = lib.licenses.mit;
-    mainProgram = "shijimi-editor-gui";
+    mainProgram = bin;
     platforms = lib.platforms.linux ++ lib.platforms.darwin;
   };
 }

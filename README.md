@@ -46,6 +46,23 @@ npx shijimi-editor-nightly              # run it without installing
 
 To compare with the base of a pull request you need [gh](https://cli.github.com/) and `gh auth login`.
 
+### GUI
+
+The GUI (the `shijimi-editor` app) is attached to each [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases/latest) as an AppImage for Linux (`shijimi-editor-linux-x86_64.AppImage`, `shijimi-editor-linux-aarch64.AppImage`) and a `.dmg` for macOS (`shijimi-editor-macos-universal.dmg`, for both Apple silicon and Intel). The AppImage and the `.dmg` update themselves: when a newer release is out, the app offers it and installs it when you press the button.
+
+- **AppImage**: `chmod +x shijimi-editor-linux-*.AppImage` and run it.
+- **`.dmg`**: the app is not signed by Apple, so macOS refuses to open it the first time. Drag `shijimi-editor.app` to Applications, open it once (macOS says it cannot be verified; close that dialog), then go to **System Settings → Privacy & Security** and press **Open Anyway** next to the message about `shijimi-editor`. From then on it opens normally. Or remove the quarantine flag in a terminal instead: `xattr -dr com.apple.quarantine /Applications/shijimi-editor.app`.
+
+The nightly GUI is `shijimi-editor-nightly` in the [`nightly` pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/nightly) (`shijimi-editor-nightly-linux-x86_64.AppImage`, `shijimi-editor-nightly-macos-universal.dmg`, …). It has its own name, so it sits next to the stable app, and it updates itself from the `nightly` pre-release. Open the `.dmg` the same way (with `shijimi-editor-nightly.app`).
+
+With Nix, the GUI is the `gui` package (`gui-nightly` for the nightly, installed as `shijimi-editor-gui-nightly`), or `programs.shijimi-editor.gui.enable = true;` in home-manager. A GUI built with Nix does not update itself; update it with `nix flake update` and `home-manager switch` (or `nix profile upgrade`).
+
+```sh
+nix run github:mm1995tk/shijimi-editor/release#gui
+nix profile install github:mm1995tk/shijimi-editor/release#gui
+nix profile install github:mm1995tk/shijimi-editor#gui-nightly
+```
+
 ## Usage
 
 ```sh
