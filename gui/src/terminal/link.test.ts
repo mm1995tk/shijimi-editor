@@ -70,7 +70,7 @@ function fakeSink() {
   };
 }
 
-// 返事を待つ await がいくつか続くので、何回か回す
+/** term.list に出るターミナル。 */
 function alive(termId: string, isAlive = true): TermInfo {
   return {
     termId,
@@ -84,6 +84,7 @@ function alive(termId: string, isAlive = true): TermInfo {
   };
 }
 
+// 返事を待つ await がいくつか続くので、何回か回す
 const tick = async () => {
   for (let i = 0; i < 10; i++) await new Promise((r) => setTimeout(r, 0));
 };
@@ -366,6 +367,7 @@ describe("TermLink", () => {
     link.bind(s.sink);
     await tick();
     assert.ok(s.text().endsWith(EXITED_NOTICE));
+    assert.equal(s.text().split(EXITED_NOTICE).length - 1, 1); // 1 回だけ
     f.calls.length = 0;
     f.handlers["term.create"] = () => ({ termId: "t2", pid: 2, cwd: "/w" });
     link.input(enc.encode("\r"));

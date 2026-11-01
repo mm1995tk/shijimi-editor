@@ -176,11 +176,12 @@ export class TermLink {
     if (this.termId !== undefined) {
       const r = await this.attach(op, fromSeq);
       if (op !== this.op) return;
+      const wasExited = this.exited;
       // 外している間・切れている間に終わったシェルは term.exit が届かないので、生きているかを確かめる
-      if (r === "ok" && !this.exited) await this.checkAlive(op);
+      if (r === "ok" && !wasExited) await this.checkAlive(op);
       if (op !== this.op) return;
-      // 描き直した画面にだけ、終わったことをもう一度出す
-      if (r === "ok" && this.exited && fromSeq === 0)
+      // 前から終わっていたものは、描き直した画面にだけもう一度出す（checkAlive で知ったときはそちらが出す）
+      if (r === "ok" && wasExited && fromSeq === 0)
         this.sink?.notice(EXITED_NOTICE);
       if (r !== "missing") return;
       // shj が作り直された（not_found）。新しく作る
