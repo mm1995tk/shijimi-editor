@@ -148,7 +148,7 @@ func (s *searchPanel) counts() (target, skipped int) {
 // ---- opening ----
 
 // openSearch shows the window with the conditions of the last use.
-func (a *App) openSearch(field int) []Effect {
+func (a *Core) openSearch(field int) []Effect {
 	if a.single {
 		return nil
 	}
@@ -163,7 +163,7 @@ func (a *App) openSearch(field int) []Effect {
 
 // openSearchArgs opens the window for `:grep [-x globs] [-i globs] query` or
 // (replace) `:replace [-x globs] [-i globs] query => replacement`.
-func (a *App) openSearchArgs(arg string, replace bool) []Effect {
+func (a *Core) openSearchArgs(arg string, replace bool) []Effect {
 	field := fQuery
 	if replace {
 		field = fRepl
@@ -190,7 +190,7 @@ func (a *App) openSearchArgs(arg string, replace bool) []Effect {
 
 // openBufferLines returns the lines of the open text buffers; they may differ
 // from the files on disk.
-func (a *App) openBufferLines() map[string][]string {
+func (a *Core) openBufferLines() map[string][]string {
 	open := map[string][]string{}
 	for _, t := range a.tabs {
 		if t.kind == tabText && t.buf.Path != "" {
@@ -205,12 +205,12 @@ func (a *App) openBufferLines() map[string][]string {
 }
 
 // searchNow starts a search immediately.
-func (a *App) searchNow() []Effect {
+func (a *Core) searchNow() []Effect {
 	return a.searchEffects(a.search.seq.Add(1))
 }
 
 // scheduleSearch starts a search once the inputs have been idle.
-func (a *App) scheduleSearch() []Effect {
+func (a *Core) scheduleSearch() []Effect {
 	s := a.search
 	seq := s.seq.Add(1)
 	s.busy = true
@@ -219,14 +219,14 @@ func (a *App) scheduleSearch() []Effect {
 
 // searchTick starts the search a debounce timer was waiting for, unless more
 // was typed since or the window was closed.
-func (a *App) searchTick(m SearchTick) []Effect {
+func (a *Core) searchTick(m SearchTick) []Effect {
 	if !a.search.open || m.seq != a.search.seq.Load() {
 		return nil
 	}
 	return a.searchEffects(m.seq)
 }
 
-func (a *App) searchEffects(seq int64) []Effect {
+func (a *Core) searchEffects(seq int64) []Effect {
 	s := a.search
 	s.busy = true
 	o, root, open := s.opts(), a.root, a.openBufferLines()
@@ -236,7 +236,7 @@ func (a *App) searchEffects(seq int64) []Effect {
 	}}}
 }
 
-func (a *App) searchDone(m SearchDone) {
+func (a *Core) searchDone(m SearchDone) {
 	s := a.search
 	if m.seq != s.seq.Load() {
 		return
@@ -267,7 +267,7 @@ func (a *App) searchDone(m SearchDone) {
 
 // ---- keys ----
 
-func (a *App) handleSearchKey(msg Key) []Effect {
+func (a *Core) handleSearchKey(msg Key) []Effect {
 	s := a.search
 	switch key := msg.String(); key {
 	case "esc", "ctrl+c":
@@ -315,7 +315,7 @@ func (a *App) handleSearchKey(msg Key) []Effect {
 }
 
 // searchInput passes a key or a paste to the focused search field.
-func (a *App) searchInput(msg Input) []Effect {
+func (a *Core) searchInput(msg Input) []Effect {
 	s := a.search
 	before := s.in[s.field].Value()
 	a.lineInputUpdate(&s.in[s.field], msg)
@@ -326,7 +326,7 @@ func (a *App) searchInput(msg Input) []Effect {
 }
 
 // searchOpenHit opens the selected line in the editor.
-func (a *App) searchOpenHit() []Effect {
+func (a *Core) searchOpenHit() []Effect {
 	s := a.search
 	h := s.cur()
 	if h == nil {
@@ -352,7 +352,7 @@ func (a *App) searchOpenHit() []Effect {
 // searchReplaceAll replaces the checked lines. Every affected file is opened
 // as a buffer and edited in memory as one undo step; nothing is written to
 // disk until the user saves, so Ctrl+Z / u reverts the whole replacement.
-func (a *App) searchReplaceAll() []Effect {
+func (a *Core) searchReplaceAll() []Effect {
 	s := a.search
 	if s.busy {
 		a.fail(errors.New(i18n.T("search.busy")))
@@ -379,7 +379,7 @@ func (a *App) searchReplaceAll() []Effect {
 
 // searchReplaceOne replaces only the selected line and keeps the panel open,
 // re-running the search so the cursor lands on the next hit.
-func (a *App) searchReplaceOne() []Effect {
+func (a *Core) searchReplaceOne() []Effect {
 	s := a.search
 	if s.busy {
 		a.fail(errors.New(i18n.T("search.busy")))
@@ -405,7 +405,7 @@ func (a *App) searchReplaceOne() []Effect {
 
 // replaceHits applies the replacement to hits, opening each affected file as
 // a buffer. It reports whether every file could be opened.
-func (a *App) replaceHits(hits []*core.SearchHit) bool {
+func (a *Core) replaceHits(hits []*core.SearchHit) bool {
 	var paths []string
 	byPath := map[string][]*core.SearchHit{}
 	for _, h := range hits {
@@ -561,7 +561,7 @@ func (s *searchPanel) fieldBox(i, w int) [3]string {
 
 // searchCaret is the screen cell where text typed into the focused field
 // goes. It follows the layout of renderSearch and fieldBox.
-func (a *App) searchCaret() (x, y int, ok bool) {
+func (a *Core) searchCaret() (x, y int, ok bool) {
 	s := a.search
 	if s.rect[2] == 0 {
 		return 0, 0, false
@@ -582,7 +582,7 @@ func (a *App) searchCaret() (x, y int, ok bool) {
 
 // renderSearch draws the window and returns its screen position. The window
 // fills the screen except for a one-cell margin on every side.
-func (a *App) renderSearch() (x, y int, box []string) {
+func (a *Core) renderSearch() (x, y int, box []string) {
 	s := a.search
 	g := a.searchGeom()
 	pw, inner, lw, rw := g.pw, g.inner, g.lw, g.rw
@@ -630,7 +630,7 @@ type searchGeom struct {
 	bodyH        int // rows of the matched lines and the preview
 }
 
-func (a *App) searchGeom() searchGeom {
+func (a *Core) searchGeom() searchGeom {
 	var g searchGeom
 	g.pw = min(a.screenW(), max(30, a.screenW()-2))
 	g.ph = min(max(a.screenH()-2, 14), a.screenH())
@@ -649,7 +649,7 @@ func (a *App) searchGeom() searchGeom {
 // fit brings the window up to date for the frame about to be drawn: where it
 // is, the widths of the inputs, the scroll that follows the cursor and the
 // file of the preview. renderSearch only reads them.
-func (s *searchPanel) fit(a *App) {
+func (s *searchPanel) fit(a *Core) {
 	g := a.searchGeom()
 	s.bodyH = g.bodyH
 	s.rect = [4]int{g.x, g.y, g.pw, g.ph}
@@ -669,7 +669,7 @@ func (s *searchPanel) fit(a *App) {
 	}
 }
 
-func (s *searchPanel) matchedRows(a *App, w, h int) []string {
+func (s *searchPanel) matchedRows(a *Core, w, h int) []string {
 	var out []string
 	for i := s.scroll; i < len(s.res.Hits) && len(out) < h; i++ {
 		out = append(out, a.matchedRow(s.res.Hits[i], w, i == s.cursor))
@@ -683,7 +683,7 @@ func (s *searchPanel) matchedRows(a *App, w, h int) []string {
 	return out
 }
 
-func (a *App) matchedRow(h *core.SearchHit, w int, selected bool) string {
+func (a *Core) matchedRow(h *core.SearchHit, w int, selected bool) string {
 	bg, fg, dim := cPaletteBg, cEditorFg, cLineNo
 	if selected {
 		bg, fg, dim = cListSel, curTheme.Strong, curTheme.SubSel
@@ -714,7 +714,7 @@ func (a *App) matchedRow(h *core.SearchHit, w int, selected bool) string {
 
 // loadView reads the file for the View area (from the open buffer if there is
 // one) and its syntax colors.
-func (a *App) loadView(path string) {
+func (a *Core) loadView(path string) {
 	v := &a.search.view
 	if v.path == path {
 		return
@@ -731,7 +731,7 @@ func (a *App) loadView(path string) {
 	}
 }
 
-func (s *searchPanel) viewRows(a *App, w, h int) []string {
+func (s *searchPanel) viewRows(a *Core, w, h int) []string {
 	blank := stPalette.Render(fit("", w))
 	var out []string
 	if hit := s.cur(); hit != nil && h > 0 {

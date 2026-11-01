@@ -11,7 +11,7 @@ import (
 func browserUsage() string { return i18n.T("browser.usage") }
 
 // browser runs `:browser <sub> ...`.
-func (a *App) browser(arg string) []Effect {
+func (a *Core) browser(arg string) []Effect {
 	sub, rest, _ := strings.Cut(arg, " ")
 	args := strings.Fields(rest)
 	switch sub {

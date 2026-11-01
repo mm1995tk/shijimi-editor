@@ -110,6 +110,16 @@ type frontEnd interface {
 	textCols(t *tab) int
 	diffBaseCols() int
 	suggestionsShown() bool
+	editorCols() int
+	resetPanes()
 }
 
 var _ frontEnd = (*App)(nil)
+
+// appOf is an App around c, for a Core made by hand (tests): c is drawn by
+// the App it returns.
+func appOf(c *Core) *App {
+	a := &App{Core: c}
+	c.frontEnd = a
+	return a
+}

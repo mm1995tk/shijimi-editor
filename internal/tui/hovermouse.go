@@ -26,17 +26,17 @@ type mouseHover struct {
 }
 
 // MouseHover reports whether resting the pointer on a word shows its hover.
-func (a *App) MouseHover() bool { return a.cfg.Editor.MouseHover }
+func (a *Core) MouseHover() bool { return a.cfg.Editor.MouseHover }
 
 // hoverBlocked reports whether something that owns the keys is open (palette,
 // project search, context menu, command line, resize mode, agent proposal), so
 // a popup must not appear over it.
-func (a *App) hoverBlocked() bool {
+func (a *Core) hoverBlocked() bool {
 	return a.ctx != nil || a.overlayOpen() || a.cmdOpen || a.inResizeMode() || a.props.Len() > 0 || a.composer != nil || a.confirm != nil
 }
 
 // hoverDwell asks the language server about the word under a resting pointer.
-func (a *App) hoverDwell(msg HoverDwell) []Effect {
+func (a *Core) hoverDwell(msg HoverDwell) []Effect {
 	if msg.seq != a.hoverSeq || a.focus != focusEditor || a.hoverBlocked() {
 		return nil
 	}
@@ -65,7 +65,7 @@ func (a *App) hoverDwell(msg HoverDwell) []Effect {
 }
 
 // popupAnchorPos is the place in the file a popup hangs from.
-func (a *App) popupAnchorPos(t *tab) buffer.Pos {
+func (a *Core) popupAnchorPos(t *tab) buffer.Pos {
 	if a.comp == nil && a.hoverAt != nil {
 		// The file may have shrunk (a reload) since the pointer opened it.
 		row := clamp(a.hoverAt.Row, 0, len(t.buf.Lines)-1)

@@ -216,7 +216,7 @@ func commentPrefix(path string) string {
 }
 
 // lexTabs starts lexing every text tab whose colors are behind its text.
-func (a *App) lexTabs() []Effect {
+func (a *Core) lexTabs() []Effect {
 	var cmds [][]Effect
 	for _, t := range a.tabs {
 		if t.kind == tabText {

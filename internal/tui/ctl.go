@@ -23,7 +23,7 @@ func ControlHandler(p *tea.Program) ctl.Handler {
 
 // handleCtl runs a control-socket request. The answer goes out as a ReplyCtl
 // Effect, followed by whatever the command itself asked for.
-func (a *App) handleCtl(m CtlRequest) []Effect {
+func (a *Core) handleCtl(m CtlRequest) []Effect {
 	var cmd []Effect
 	var resp ctl.Response
 	switch m.Req.Cmd {
@@ -54,7 +54,7 @@ func (a *App) handleCtl(m CtlRequest) []Effect {
 
 // reviewToRoot turns a repository-relative review path into one relative to
 // the editor root, which is the terminal's working directory.
-func (a *App) reviewToRoot(p string) string {
+func (a *Core) reviewToRoot(p string) string {
 	base := a.gitTop
 	if base == "" {
 		base = a.root
@@ -90,7 +90,7 @@ func agentNeedsHuman(name, arg string) bool {
 // ctlExec runs a ":" command for the control socket and reports how it went.
 // The command is the same one a person types; failures that execCommand only
 // shows in the status line are turned into the reply.
-func (a *App) ctlExec(line string) (ctl.Response, []Effect) {
+func (a *Core) ctlExec(line string) (ctl.Response, []Effect) {
 	line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), ":"))
 	if line == "" {
 		return ctl.Response{Error: i18n.T("ctl.emptycmd")}, nil

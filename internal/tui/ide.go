@@ -36,9 +36,9 @@ func IDEHandler(p *tea.Program) ide.Handler {
 
 // SetIDE attaches the MCP server internal/cli made for the program, so the
 // editor can push events. The server is not the core's: a GUI server makes its own.
-func (a *App) SetIDE(s *ide.Server) { a.ide = s }
+func (a *Core) SetIDE(s *ide.Server) { a.ide = s }
 
-func (a *App) ideAbs(p string) string {
+func (a *Core) ideAbs(p string) string {
 	if !filepath.IsAbs(p) {
 		p = filepath.Join(a.root, p)
 	}
@@ -46,7 +46,7 @@ func (a *App) ideAbs(p string) string {
 }
 
 // ideFile resolves a path or file:// URI argument.
-func (a *App) ideFile(s string) string {
+func (a *Core) ideFile(s string) string {
 	if strings.HasPrefix(s, "file://") {
 		if u, err := url.Parse(s); err == nil {
 			s = u.Path
@@ -57,7 +57,7 @@ func (a *App) ideFile(s string) string {
 
 // currentSelection describes the active text tab's selection; ok is false
 // when no named file is open.
-func (a *App) currentSelection() (core.Selection, bool) {
+func (a *Core) currentSelection() (core.Selection, bool) {
 	t := a.curText()
 	if t == nil {
 		return core.Selection{}, false
@@ -67,7 +67,7 @@ func (a *App) currentSelection() (core.Selection, bool) {
 
 // notifySelection pushes selection_changed when the cursor or selection of
 // the active file moved since the last push.
-func (a *App) notifySelection() {
+func (a *Core) notifySelection() {
 	if a.ide == nil || !a.ide.Connected() {
 		return
 	}
@@ -83,7 +83,7 @@ func (a *App) notifySelection() {
 // mentionContext tells the connected agent about the current selection (or
 // cursor line) so it can refer to it; it returns false when no agent is
 // connected.
-func (a *App) mentionContext() bool {
+func (a *Core) mentionContext() bool {
 	if a.ide == nil || !a.ide.Connected() {
 		return false
 	}
@@ -101,7 +101,7 @@ func (a *App) mentionContext() bool {
 	return true
 }
 
-func (a *App) tabFor(path string) *tab {
+func (a *Core) tabFor(path string) *tab {
 	for _, t := range a.tabs {
 		if t.kind == tabText && t.buf.Path == path {
 			return t
@@ -115,7 +115,7 @@ var lspSeverity = map[int]string{1: "Error", 2: "Warning", 3: "Information", 4: 
 // handleIDE runs an IDE tool call. An answer that is ready goes out as a
 // ReplyIDE Effect; openDiff keeps the channel in its proposal and answers when
 // the user decides.
-func (a *App) handleIDE(m IDECall) []Effect {
+func (a *Core) handleIDE(m IDECall) []Effect {
 	res, cmd, pending := a.ideCall(m)
 	var effs []Effect
 	if !pending {
@@ -125,7 +125,7 @@ func (a *App) handleIDE(m IDECall) []Effect {
 }
 
 // ideCall runs a tool. pending is true when the reply is deferred.
-func (a *App) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
+func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 	ok := func(v any) (IDEReply, []Effect, bool) {
 		return IDEReply{Content: []ide.Content{ide.JSON(v)}}, nil, false
 	}

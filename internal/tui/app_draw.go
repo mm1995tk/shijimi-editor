@@ -325,7 +325,7 @@ func (a *App) fit() {
 		a.pal.input.SetWidth(max(1, pw-ansi.StringWidth(a.pal.label())-2))
 	}
 	if a.search.open {
-		a.search.fit(a)
+		a.search.fit(a.Core)
 	}
 	if a.showTerm {
 		a.term.fit(l.fullW, l.panelH)
@@ -344,7 +344,7 @@ func (a *App) fit() {
 	}
 	a.fitAgent(l)
 	if a.props.Len() > 0 {
-		a.propView().fit(a)
+		a.propView().fit(a.Core)
 	}
 }
 

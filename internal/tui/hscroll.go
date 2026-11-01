@@ -13,7 +13,7 @@ const hscrollWheel = 6
 
 // scrollCols moves the view d columns sideways without moving the cursor.
 // It stops at the left edge and where the end of the longest line shows.
-func (a *App) scrollCols(t *tab, d int) {
+func (a *Core) scrollCols(t *tab, d int) {
 	b := t.buf
 	textW := max(1, a.textCols(t)-gutterWidth(b))
 	widest := 0
@@ -34,7 +34,7 @@ func (a *App) scrollCols(t *tab, d int) {
 
 // scrollHalfScreen scrolls dir (-1 left, 1 right) by half the text width,
 // the sideways counterpart of Ctrl+U / Ctrl+D.
-func (a *App) scrollHalfScreen(t *tab, dir int) {
+func (a *Core) scrollHalfScreen(t *tab, dir int) {
 	textW := max(1, a.textCols(t)-gutterWidth(t.buf))
 	a.scrollCols(t, dir*max(1, textW/2))
 }

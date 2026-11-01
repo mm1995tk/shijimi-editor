@@ -23,10 +23,10 @@ const minSplitW = 41
 // splitWanted reports whether the editor area is split now. Diff mode and
 // single-file mode use the whole area for one file, and the split comes back
 // when they end.
-func (a *App) splitWanted() bool { return a.split && !a.single && !a.gd.on }
+func (a *Core) splitWanted() bool { return a.split && !a.single && !a.gd.on }
 
 // tabIndex is the index of t in a.tabs, or -1.
-func (a *App) tabIndex(t *tab) int {
+func (a *Core) tabIndex(t *tab) int {
 	if t == nil {
 		return -1
 	}
@@ -36,8 +36,7 @@ func (a *App) tabIndex(t *tab) int {
 // splitOpen splits the editor area. The file stays in the left pane, and the
 // right pane, which gets the focus, shows the last file (ga) or, with none,
 // asks for a file.
-func (a *App) splitOpen() []Effect {
-	l := a.layout()
+func (a *Core) splitOpen() []Effect {
 	switch {
 	case a.single:
 		return nil
@@ -47,7 +46,7 @@ func (a *App) splitOpen() []Effect {
 	case a.gd.on:
 		a.infoText(i18n.T("win.nodiff"))
 		return nil
-	case l.fullW < minSplitW:
+	case a.editorCols() < minSplitW:
 		a.infoText(i18n.T("win.narrow"))
 		return nil
 	}
@@ -76,7 +75,7 @@ func (a *App) splitOpen() []Effect {
 }
 
 // focusPane moves the focus to the pane on side (0 = left, 1 = right).
-func (a *App) focusPane(side int) []Effect {
+func (a *Core) focusPane(side int) []Effect {
 	if !a.splitWanted() {
 		if a.split {
 			a.infoText(i18n.T("win.nodiff"))
@@ -93,11 +92,11 @@ func (a *App) focusPane(side int) []Effect {
 }
 
 // focusOtherPane moves the focus to the other pane.
-func (a *App) focusOtherPane() []Effect { return a.focusPane(1 - a.pane) }
+func (a *Core) focusOtherPane() []Effect { return a.focusPane(1 - a.pane) }
 
 // swapPanes makes the other pane's file the focused one's, and the reverse.
 // The pane keeps its own "last file".
-func (a *App) swapPanes() {
+func (a *Core) swapPanes() {
 	cur := a.cur()
 	a.active = a.tabIndex(a.other)
 	a.other = cur
@@ -110,7 +109,7 @@ func (a *App) swapPanes() {
 
 // closeSplit goes back to one pane. keepFocused picks which file stays in it;
 // the other file stays open, only not shown.
-func (a *App) closeSplit(keepFocused bool) {
+func (a *Core) closeSplit(keepFocused bool) {
 	if !a.split {
 		a.infoText(i18n.T("win.nosplit"))
 		return
@@ -124,7 +123,7 @@ func (a *App) closeSplit(keepFocused bool) {
 
 // showInPane shows tab i in the focused pane. A tab that the other pane shows
 // is swapped over instead, so that the focus stays where it is.
-func (a *App) showInPane(i int) {
+func (a *Core) showInPane(i int) {
 	if i < 0 || i >= len(a.tabs) {
 		return
 	}
@@ -141,7 +140,7 @@ func (a *App) showInPane(i int) {
 // normalizeSplit keeps the panes consistent after an event: a closed file
 // leaves its pane empty, an empty split is dropped, and a file chosen that the
 // other pane shows takes the focus to that pane.
-func (a *App) normalizeSplit() {
+func (a *Core) normalizeSplit() {
 	if !a.split {
 		a.other, a.otherPrev = nil, nil
 		return
@@ -167,7 +166,7 @@ func (a *App) normalizeSplit() {
 }
 
 // windowKey runs Space w <key> (Helix's window menu).
-func (a *App) windowKey(key string) []Effect {
+func (a *Core) windowKey(key string) []Effect {
 	if a.single {
 		return nil
 	}
@@ -189,7 +188,7 @@ func (a *App) windowKey(key string) []Effect {
 }
 
 // toggleEditorSplit is Ctrl+\: split, or go back to one pane.
-func (a *App) toggleEditorSplit() []Effect {
+func (a *Core) toggleEditorSplit() []Effect {
 	if a.split {
 		a.closeSplit(true)
 		return nil
@@ -258,7 +257,7 @@ func joinPanes(left, right []string, leftW, rightW int) []string {
 
 // openFileHere is openFile for commands that act on the focused pane (Ctrl+O,
 // Ctrl+I): a file the other pane shows is swapped into this one.
-func (a *App) openFileHere(path string) bool {
+func (a *Core) openFileHere(path string) bool {
 	abs, _ := filepath.Abs(path)
 	if a.split && a.other != nil && a.other.path() == abs {
 		a.showInPane(a.tabIndex(a.other))

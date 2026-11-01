@@ -19,7 +19,7 @@ func ctlCall(a *App, r ctl.Request) ctl.Response {
 }
 
 func TestReviewToRoot(t *testing.T) {
-	a := &App{Core: &Core{root: "/repo/sub", gitTop: "/repo"}}
+	a := appOf(&Core{root: "/repo/sub", gitTop: "/repo"})
 	if got := a.reviewToRoot("sub/pkg/f.go"); got != "pkg/f.go" {
 		t.Errorf("with gitTop: %q", got)
 	}

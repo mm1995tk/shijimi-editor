@@ -358,4 +358,4 @@ func runeIndexes(s string, byteOffsets []int) []int {
 }
 
 // paletteWidth is the width of the palette window.
-func (a *App) paletteWidth() int { return clamp(a.screenW()*3/5, 30, 100) }
+func (a *Core) paletteWidth() int { return clamp(a.screenW()*3/5, 30, 100) }

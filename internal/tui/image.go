@@ -188,7 +188,7 @@ func (v *imageView) close() {
 // buildImagePane makes the Pane of the image tab t, w columns wide and h rows
 // high: what the image is (Caption, and Image when it could be read; the pixels
 // are what Image.Blob names). It changes nothing.
-func (a *App) buildImagePane(t *tab, w, h int) screen.Pane {
+func (a *Core) buildImagePane(t *tab, w, h int) screen.Pane {
 	v := t.img
 	p := screen.Pane{
 		ID:       v.path,
@@ -205,13 +205,13 @@ func (a *App) buildImagePane(t *tab, w, h int) screen.Pane {
 }
 
 // imageLines draws the image tab t in an area w x h.
-func (a *App) imageLines(t *tab, w, h int) []string {
+func (a *Core) imageLines(t *tab, w, h int) []string {
 	return a.drawImagePane(a.buildImagePane(t, w, h), w, h)
 }
 
 // drawImagePane draws the Pane of an image as h lines of w cells: the caption
 // line, then the image in the terminal (see body).
-func (a *App) drawImagePane(p screen.Pane, w, h int) []string {
+func (a *Core) drawImagePane(p screen.Pane, w, h int) []string {
 	out := make([]string, 0, h)
 	out = append(out, stPanelDim.Render(fit("  "+p.Caption, w)))
 	iv := &imageView{} // unreadable or gone: blank
@@ -232,7 +232,7 @@ func (a *App) drawImagePane(p screen.Pane, w, h int) []string {
 
 // blobImage is the image that a Blob names (blob.get): a local file, which may
 // be open in a tab, or a mermaid diagram of the preview. nil when it is gone.
-func (a *App) blobImage(blob string) *imageView {
+func (a *Core) blobImage(blob string) *imageView {
 	if iv := a.previewImage(blob); iv != nil {
 		return iv
 	}

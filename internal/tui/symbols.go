@@ -35,7 +35,7 @@ func (p *palette) queryLater() []Effect {
 }
 
 // documentSymbols lists the functions, types and variables of the current file.
-func (a *App) documentSymbols() []Effect {
+func (a *Core) documentSymbols() []Effect {
 	return a.lspRequest("documentSymbolProvider", func(ctx context.Context, c *lsp.Client, t *tab) Event {
 		syms, err := c.DocumentSymbols(ctx, t.buf.Path)
 		if err != nil {
@@ -45,7 +45,7 @@ func (a *App) documentSymbols() []Effect {
 	})
 }
 
-func (a *App) showSymbols(m symbolsMsg) []Effect {
+func (a *Core) showSymbols(m symbolsMsg) []Effect {
 	if len(m.syms) == 0 {
 		a.infoText(i18n.T("symui.none"))
 		return nil
@@ -75,7 +75,7 @@ func symbolDetail(s lsp.Symbol, file string) string {
 
 // workspaceSymbols opens a picker over the project's symbols. The language
 // server does the matching: the list is asked for again as the input changes.
-func (a *App) workspaceSymbols() []Effect {
+func (a *Core) workspaceSymbols() []Effect {
 	t := a.cur()
 	if t == nil || t.kind != tabText {
 		return nil
@@ -102,7 +102,7 @@ func (a *App) workspaceSymbols() []Effect {
 
 // runSymbolQuery asks the language server for the picker's current input,
 // unless the input changed again since the timer was set.
-func (a *App) runSymbolQuery(m symbolQueryMsg) []Effect {
+func (a *Core) runSymbolQuery(m symbolQueryMsg) []Effect {
 	p := a.pal
 	c := a.wsClient
 	if !p.open || !p.live || m.seq != p.liveSeq || c == nil {
@@ -118,7 +118,7 @@ func (a *App) runSymbolQuery(m symbolQueryMsg) []Effect {
 	})
 }
 
-func (a *App) showWorkspaceSymbols(m workspaceSymbolsMsg) {
+func (a *Core) showWorkspaceSymbols(m workspaceSymbolsMsg) {
 	p := a.pal
 	if !p.open || !p.live || m.seq != p.liveSeq {
 		return

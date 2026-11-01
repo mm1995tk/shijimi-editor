@@ -71,7 +71,7 @@ type openURLMsg struct {
 var urlFullRe = regexp.MustCompile(`^https?://\S+$`)
 
 // openURL opens arg, or the URL under the cursor when arg is empty.
-func (a *App) openURL(arg string) []Effect {
+func (a *Core) openURL(arg string) []Effect {
 	url := strings.TrimSpace(arg)
 	if url == "" {
 		t := a.curText()
@@ -101,7 +101,7 @@ var isRemoteSession = func() bool {
 }
 
 // copyPRURL copies the URL of the pull request being reviewed.
-func (a *App) copyPRURL() []Effect {
+func (a *Core) copyPRURL() []Effect {
 	a.copyText(a.gd.pr.URL)
 	a.info(i18n.T("rv.urlcopied"), a.gd.pr.URL)
 	return nil
@@ -109,7 +109,7 @@ func (a *App) copyPRURL() []Effect {
 
 // openPRURL opens the pull request in the browser. Over SSH, or when the
 // opener fails, it copies the URL instead and says so.
-func (a *App) openPRURL() []Effect {
+func (a *Core) openPRURL() []Effect {
 	url := a.gd.pr.URL
 	if a.host == nil && isRemoteSession() {
 		a.copyText(url)

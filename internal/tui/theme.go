@@ -206,7 +206,7 @@ var (
 func init() { applyTheme(defaultTheme) }
 
 // setTheme switches the active theme by name.
-func (a *App) setTheme(name string) bool {
+func (a *Core) setTheme(name string) bool {
 	t, ok := lookupTheme(name)
 	if !ok {
 		return false
@@ -216,7 +216,7 @@ func (a *App) setTheme(name string) bool {
 }
 
 // themePicker opens a list of the built-in themes.
-func (a *App) themePicker() []Effect {
+func (a *Core) themePicker() []Effect {
 	items := make([]paletteItem, 0, len(themes))
 	for _, n := range themeNames() {
 		d := ""

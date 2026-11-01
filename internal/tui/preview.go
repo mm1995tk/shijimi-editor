@@ -104,7 +104,7 @@ type mdImageDoneMsg struct {
 	img   *imageView
 }
 
-func (a *App) mermaidKey(code string) string {
+func (a *Core) mermaidKey(code string) string {
 	sum := sha1.Sum([]byte(a.cfg.Editor.MermaidCommand + "\x00" + code))
 	return hex.EncodeToString(sum[:])
 }
@@ -127,7 +127,7 @@ const (
 )
 
 // togglePreview cycles off → beside the buffer → full width → off.
-func (a *App) togglePreview() []Effect {
+func (a *Core) togglePreview() []Effect {
 	t := a.curText()
 	if t == nil || !isMarkdown(t.buf.Path) {
 		a.fail(errors.New(i18n.T("preview.needmd")))
@@ -148,7 +148,7 @@ func (a *App) togglePreview() []Effect {
 // syncPreview starts rendering for mermaid blocks and loading the images of
 // the visible preview. The lists are cached per buffer version, so each call
 // only does a few map lookups and a stat of each image.
-func (a *App) syncPreview() []Effect {
+func (a *Core) syncPreview() []Effect {
 	cmds := [][]Effect{a.syncMDImages()}
 	blocks := a.wantedMermaid()
 	if len(blocks) == 0 {
@@ -179,7 +179,7 @@ func (a *App) syncPreview() []Effect {
 	return batch(cmds...)
 }
 
-func (a *App) handleMermaidStart(m mermaidStartMsg) []Effect {
+func (a *Core) handleMermaidStart(m mermaidStartMsg) []Effect {
 	// drop the job if the user kept typing and the block no longer exists
 	wanted := false
 	for _, code := range a.wantedMermaid() {
@@ -218,7 +218,7 @@ func (a *App) handleMermaidStart(m mermaidStartMsg) []Effect {
 	})
 }
 
-func (a *App) handleMermaidDone(m mermaidDoneMsg) {
+func (a *Core) handleMermaidDone(m mermaidDoneMsg) {
 	job := a.mermaid[m.key]
 	if job == nil {
 		return
@@ -240,7 +240,7 @@ func (a *App) handleMermaidDone(m mermaidDoneMsg) {
 // an image again when its file changed. Decoding runs off the UI loop, so a
 // large image does not stall typing. Images no longer in the preview are
 // freed.
-func (a *App) syncMDImages() []Effect {
+func (a *Core) syncMDImages() []Effect {
 	t := a.curText()
 	if t == nil || t.preview == previewOff {
 		return nil
@@ -283,7 +283,7 @@ func (a *App) syncMDImages() []Effect {
 	return batch(cmds...)
 }
 
-func (a *App) handleMDImageDone(m mdImageDoneMsg) {
+func (a *Core) handleMDImageDone(m mdImageDoneMsg) {
 	job := a.mdImages[m.path]
 	if job == nil || job.stamp != m.stamp {
 		return // dropped, or the file changed again while it was read
@@ -307,7 +307,7 @@ func (a *App) handleMDImageDone(m mdImageDoneMsg) {
 // mdImageLines makes the rows of an image that has a line of its own in the
 // preview of the Markdown file mdPath, the same way as a mermaid diagram.
 // Images that are not local files are left to be shown as text.
-func (a *App) mdImageLines(mdPath string) func(alt, src string, w int) *mdMedia {
+func (a *Core) mdImageLines(mdPath string) func(alt, src string, w int) *mdMedia {
 	return func(alt, src string, w int) *mdMedia {
 		path := mdImagePath(mdPath, src)
 		if path == "" {
@@ -329,7 +329,7 @@ const (
 
 // previewImage is the image that a Blob of the preview names, nil when it is
 // gone.
-func (a *App) previewImage(blob string) *imageView {
+func (a *Core) previewImage(blob string) *imageView {
 	if path, ok := strings.CutPrefix(blob, blobFile); ok {
 		if job := a.mdImages[path]; job != nil {
 			return job.img
@@ -372,7 +372,7 @@ func jobLines(job *previewJob, blob string, w int, loading, errPrefix string, ab
 func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
 // mermaidLines makes the rows of one diagram (or its placeholder) for the preview.
-func (a *App) mermaidLines(code string, w int) *mdMedia {
+func (a *Core) mermaidLines(code string, w int) *mdMedia {
 	source := func() []screen.Line { return mdCodeBlock(strings.Split(code, "\n"), "mermaid", w) }
 	key := a.mermaidKey(code)
 	return jobLines(a.mermaid[key], blobMermaid+key, w, i18n.T("preview.rendering"), "mermaid: ", source)
@@ -383,7 +383,7 @@ func (a *App) mermaidLines(code string, w int) *mdMedia {
 // around the editor cursor is visible. It changes nothing but the cache of the
 // document rendered at width w (prevCache), which is made again when the
 // width, the buffer or an image changed.
-func (a *App) buildPreviewPane(t *tab, w, h int) screen.Pane {
+func (a *Core) buildPreviewPane(t *tab, w, h int) screen.Pane {
 	if t.prevCache == nil || t.prevW != w || t.prevVer != t.buf.Version || t.prevGen != a.previewGen {
 		doc := renderMarkdown(t.buf.Text(), w, mdOpts{mermaid: a.mermaidLines, image: a.mdImageLines(t.buf.Path), frontMatter: true})
 		t.prevCache = &doc
@@ -418,7 +418,7 @@ func (a *App) buildPreviewPane(t *tab, w, h int) screen.Pane {
 
 // wantedMermaid returns the mermaid blocks on screen: in the current tab's
 // preview, and in an open review comment or comment editor.
-func (a *App) wantedMermaid() []string {
+func (a *Core) wantedMermaid() []string {
 	var out []string
 	if t := a.curText(); t != nil && t.preview != previewOff {
 		out = t.mermaidBlocks()
@@ -449,6 +449,6 @@ func (t *tab) scan() {
 // fullPreview reports whether t is showing the Markdown preview alone. In
 // diff mode the diff takes the whole area instead, so the buffer stays
 // visible and editable.
-func (a *App) fullPreview(t *tab) bool {
+func (a *Core) fullPreview(t *tab) bool {
 	return t != nil && t.preview == previewFull && a.diffFile(t) == nil
 }

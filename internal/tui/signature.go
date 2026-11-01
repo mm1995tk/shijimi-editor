@@ -30,7 +30,7 @@ type signatureMsg struct {
 
 // signatureHelp asks the server for the signature at the cursor. Typing must
 // not report a missing or starting server; only an explicit request does.
-func (a *App) signatureHelp(manual bool) []Effect {
+func (a *Core) signatureHelp(manual bool) []Effect {
 	t := a.curText()
 	if t == nil {
 		return nil
@@ -59,7 +59,7 @@ func (a *App) signatureHelp(manual bool) []Effect {
 	return a.lspReq(func(ctx context.Context) Event { return req(ctx, c, t) })
 }
 
-func (a *App) showSignature(m signatureMsg) {
+func (a *Core) showSignature(m signatureMsg) {
 	t := a.curText()
 	if t == nil || t != m.tab || m.seq != a.sigSeq || t.buf.Cur.Row != m.pos.Row || a.mode != modeInsert && a.helix && !m.manual {
 		return
@@ -76,7 +76,7 @@ func (a *App) showSignature(m signatureMsg) {
 
 // signatureTyped keeps the popup in step with a typed rune: ")" closes it, a
 // trigger character (re)opens it.
-func (a *App) signatureTyped(t *tab, r rune) []Effect {
+func (a *Core) signatureTyped(t *tab, r rune) []Effect {
 	if r == ')' {
 		a.closeSignature()
 		return nil
@@ -136,13 +136,13 @@ func drawSignature(ov screen.Overlay, maxW int) []string {
 func (s *signaturePopup) render(maxW int) []string { return drawSignature(s.overlay(), maxW) }
 
 // sigVisible reports whether the popup still belongs to the cursor's row.
-func (a *App) sigVisible() bool {
+func (a *Core) sigVisible() bool {
 	t := a.curText()
 	return a.sig != nil && t == a.sig.tab && !a.fullPreview(t) && t.buf.Cur.Row == a.sig.row
 }
 
 // closeSignature hides the popup and drops replies to requests still in flight.
-func (a *App) closeSignature() {
+func (a *Core) closeSignature() {
 	a.sig = nil
 	a.sigSeq++
 }

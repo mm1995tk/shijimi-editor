@@ -9,7 +9,7 @@ package tui
 
 const lineFlipKey = '\\'
 
-func (a *App) flipLineNumbers() {
+func (a *Core) flipLineNumbers() {
 	if !a.releasesReported() {
 		a.lineFlip = !a.lineFlip
 		return
@@ -19,20 +19,20 @@ func (a *App) flipLineNumbers() {
 
 // lineFlipOtherKey ends the flip when a key other than \ is pressed while
 // the terminal reports key releases.
-func (a *App) lineFlipOtherKey(msg Key) {
+func (a *Core) lineFlipOtherKey(msg Key) {
 	if a.releasesReported() && msg.Code != lineFlipKey {
 		a.lineFlip = false
 	}
 }
 
 // lineFlipRelease ends the flip when \ is let go.
-func (a *App) lineFlipRelease(msg Key) {
+func (a *Core) lineFlipRelease(msg Key) {
 	if msg.Code == lineFlipKey {
 		a.lineFlip = false
 	}
 }
 
 // relativeLineNumbers reports whether line numbers count from the cursor line.
-func (a *App) relativeLineNumbers() bool {
+func (a *Core) relativeLineNumbers() bool {
 	return (a.cfg.Editor.LineNumber == "relative") != a.lineFlip
 }

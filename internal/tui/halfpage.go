@@ -36,7 +36,7 @@ func (h holdScroll) continues(msg Key) bool {
 
 // halfPage handles Ctrl+D (dir = 1) and Ctrl+U (dir = -1), and with Alt added
 // (Ctrl+Alt+D / Ctrl+Alt+U) the same scroll that leaves the cursor on its line.
-func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) []Effect {
+func (a *Core) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) []Effect {
 	keep := msg.Mod.Has(ModAlt)
 	if !a.releasesReported() { // one press, half a page
 		if keep {
@@ -57,7 +57,7 @@ func (a *App) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) []Effect {
 
 // holdScrollTick moves the cursor and the view one line together, so the
 // cursor stays on its screen row while the text flows past it.
-func (a *App) holdScrollTick(seq int) []Effect {
+func (a *Core) holdScrollTick(seq int) []Effect {
 	h := a.hold
 	if h.buf == nil || seq != a.holdSeq {
 		return nil
@@ -80,11 +80,11 @@ func (a *App) holdScrollTick(seq int) []Effect {
 	return []Effect{StartTimer{After: holdScrollFrame, Fire: HoldScrollTick{seq}}}
 }
 
-func (a *App) stopHoldScroll() { a.hold = holdScroll{} }
+func (a *Core) stopHoldScroll() { a.hold = holdScroll{} }
 
 // holdScrollRelease stops the scroll when the held letter is let go. The
 // release of D or U ends it even if Ctrl was let go first.
-func (a *App) holdScrollRelease(msg Key) {
+func (a *Core) holdScrollRelease(msg Key) {
 	if a.hold.buf != nil && msg.Code == a.hold.code {
 		a.stopHoldScroll()
 	}
@@ -93,7 +93,7 @@ func (a *App) holdScrollRelease(msg Key) {
 // wantKeyReleases reports whether Ctrl+D / Ctrl+U would scroll now: the Helix
 // normal or select mode in the editor, with nothing open on top. Text is not
 // typed there, so losing IME input to key-release reporting does no harm.
-func (a *App) wantKeyReleases() bool {
+func (a *Core) wantKeyReleases() bool {
 	return a.helix && a.mode != modeInsert && a.focus == focusEditor && a.curText() != nil &&
 		!a.overlayOpen() && !a.cmdOpen && !a.findOpen && a.props.Len() == 0 && a.ctx == nil
 }
@@ -103,7 +103,7 @@ func (a *App) wantKeyReleases() bool {
 // the same margin that keeps the cursor in view) the cursor is pushed along
 // the edge. It reports whether the view moved; the view stops when the first
 // or the last line is at the edge of the screen.
-func (a *App) scrollKeepCursor(b *buffer.Buffer, n int, ext bool) bool {
+func (a *Core) scrollKeepCursor(b *buffer.Buffer, n int, ext bool) bool {
 	h := a.editRows()
 	if h <= 0 {
 		return false

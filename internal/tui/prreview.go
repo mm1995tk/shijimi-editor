@@ -42,7 +42,7 @@ type yesNo struct {
 	yes, no func() []Effect
 }
 
-func (a *App) handleConfirmKey(key string) []Effect {
+func (a *Core) handleConfirmKey(key string) []Effect {
 	c := a.confirm
 	switch key {
 	case "y", "Y":
@@ -69,7 +69,7 @@ type prReviewMsg struct {
 
 // loadReview fetches the pull request's head commit, compares it with HEAD
 // and reads its comments and viewed files.
-func (a *App) loadReview() []Effect {
+func (a *Core) loadReview() []Effect {
 	pr := a.gd.pr
 	if pr == nil {
 		return nil
@@ -86,7 +86,7 @@ func (a *App) loadReview() []Effect {
 	})
 }
 
-func (a *App) handlePRReview(m prReviewMsg) []Effect {
+func (a *Core) handlePRReview(m prReviewMsg) []Effect {
 	rv := &a.gd.rv
 	if m.seq != rv.seq || !a.prShown() || a.gd.pr.Number != m.num {
 		return nil
@@ -109,14 +109,14 @@ func (a *App) handlePRReview(m prReviewMsg) []Effect {
 }
 
 // prShown reports whether diff mode compares with a pull request's base.
-func (a *App) prShown() bool {
+func (a *Core) prShown() bool {
 	return a.gd.on && a.gd.base == basePR && a.gd.pr != nil
 }
 
 // ---- files ----
 
 // repoPath is abs relative to the repository top, as GitHub names files.
-func (a *App) repoPath(abs string) string {
+func (a *Core) repoPath(abs string) string {
 	if r, err := filepath.Rel(a.gitTopDir(), abs); err == nil {
 		return filepath.ToSlash(r)
 	}
@@ -125,7 +125,7 @@ func (a *App) repoPath(abs string) string {
 
 // isStale reports whether file p (from the repository top) differs from the
 // pull request's head commit, so its line numbers may not match GitHub's.
-func (a *App) isStale(p string) bool {
+func (a *Core) isStale(p string) bool {
 	return a.gd.staleAll || a.gd.stale[p]
 }
 
@@ -175,7 +175,7 @@ func (rv *prReview) viewedCount(files []*diff.File) int {
 }
 
 // commentMark returns the marker color for line row (0-based) of t, or "".
-func (a *App) commentMark(t *tab) func(row int) string {
+func (a *Core) commentMark(t *tab) func(row int) string {
 	if !a.prShown() || t.buf.Path == "" {
 		return nil
 	}
@@ -215,7 +215,7 @@ var reviewItems = []spaceItem{
 }
 
 // openReviewMenu handles Space v.
-func (a *App) openReviewMenu() []Effect {
+func (a *Core) openReviewMenu() []Effect {
 	if !a.prShown() {
 		a.infoText(i18n.T("rv.needpr"))
 		return nil
@@ -225,7 +225,7 @@ func (a *App) openReviewMenu() []Effect {
 }
 
 // reviewCommand runs Space v <key> from the command palette.
-func (a *App) reviewCommand(key string) []Effect {
+func (a *Core) reviewCommand(key string) []Effect {
 	if !a.prShown() {
 		return a.openReviewMenu() // says where reviewing works
 	}
@@ -233,7 +233,7 @@ func (a *App) reviewCommand(key string) []Effect {
 }
 
 // reviewKey runs the command of Space v <key>.
-func (a *App) reviewKey(key string) []Effect {
+func (a *Core) reviewKey(key string) []Effect {
 	if !a.prShown() {
 		return nil
 	}
@@ -262,7 +262,7 @@ func (a *App) reviewKey(key string) []Effect {
 
 // reviewTarget is the file a review command acts on: the selected one in
 // CHANGES, otherwise the current tab's.
-func (a *App) reviewTarget() (string, *tab) {
+func (a *Core) reviewTarget() (string, *tab) {
 	if a.focus == focusChanges {
 		if f := a.gd.file(); f != nil {
 			abs := filepath.Join(a.gitTopDir(), f.Path())
@@ -282,7 +282,7 @@ func (a *App) reviewTarget() (string, *tab) {
 }
 
 // checkCommentable reports why file p of tab t cannot take comments, or nil.
-func (a *App) checkCommentable(p string, t *tab) error {
+func (a *Core) checkCommentable(p string, t *tab) error {
 	if p == "" || a.gd.byAbs[filepath.Join(a.gitTopDir(), p)] == nil {
 		return errors.New(i18n.T("rv.needchanged"))
 	}
@@ -296,7 +296,7 @@ func (a *App) checkCommentable(p string, t *tab) error {
 }
 
 // commentLines starts a comment on the cursor line or the selected lines.
-func (a *App) commentLines() []Effect {
+func (a *Core) commentLines() []Effect {
 	p, t := a.reviewTarget()
 	if a.focus == focusChanges || t == nil {
 		a.fail(errors.New(i18n.T("rv.selectline")))
@@ -338,7 +338,7 @@ func (a *App) commentLines() []Effect {
 }
 
 // commentFile starts a comment on the whole current file.
-func (a *App) commentFile() []Effect {
+func (a *Core) commentFile() []Effect {
 	p, t := a.reviewTarget()
 	if err := a.checkCommentable(p, t); err != nil {
 		a.fail(err)
@@ -354,7 +354,7 @@ func (a *App) commentFile() []Effect {
 
 // openThread opens the thread on the cursor line as a card, or lets the user
 // pick one of the file's threads.
-func (a *App) openThread() []Effect {
+func (a *Core) openThread() []Effect {
 	p, t := a.reviewTarget()
 	if p == "" {
 		a.fail(errors.New(i18n.T("rv.openfile")))
@@ -420,7 +420,7 @@ type viewedMsg struct {
 	err    error
 }
 
-func (a *App) toggleViewed() []Effect {
+func (a *Core) toggleViewed() []Effect {
 	p, _ := a.reviewTarget()
 	if p == "" {
 		a.fail(errors.New(i18n.T("rv.openfile")))
@@ -434,7 +434,7 @@ func (a *App) toggleViewed() []Effect {
 	return async(func() Event { return viewedMsg{num: pr.Number, path: p, viewed: v, err: setViewed(root, pr, p, v)} })
 }
 
-func (a *App) handleViewed(m viewedMsg) {
+func (a *Core) handleViewed(m viewedMsg) {
 	if !a.prShown() || a.gd.pr.Number != m.num {
 		return // another pull request is shown now
 	}
@@ -468,7 +468,7 @@ func eventNames() map[string]string {
 	return map[string]string{"APPROVE": i18n.T("rv.event.approve"), "REQUEST_CHANGES": i18n.T("rv.event.request"), "COMMENT": i18n.T("rv.event.comment")}
 }
 
-func (a *App) startSubmit(event string) []Effect {
+func (a *Core) startSubmit(event string) []Effect {
 	if a.gd.pr.ID == "" {
 		return nil
 	}
@@ -490,7 +490,7 @@ func (a *App) startSubmit(event string) []Effect {
 	return cmd
 }
 
-func (a *App) handleReviewSent(m reviewSentMsg) []Effect {
+func (a *Core) handleReviewSent(m reviewSentMsg) []Effect {
 	if m.err != nil {
 		a.fail(m.err)
 		return nil
@@ -559,7 +559,7 @@ type prCard struct {
 
 // cardDoc lays the thread out as markdown at width w (content only): for
 // each comment a header line, then its body, with a rule between comments.
-func (a *App) cardDoc(c *prCard, w int) mdDoc {
+func (a *Core) cardDoc(c *prCard, w int) mdDoc {
 	t := c.thread
 	var doc mdDoc
 	for i, cm := range t.Comments {
@@ -590,7 +590,7 @@ func (a *App) cardDoc(c *prCard, w int) mdDoc {
 // line of the thread in the pane of its file (if that is the current one).
 // Lines hold the card's content, header lines included. It clamps c.scroll
 // and changes nothing else. Drawing it is drawCard's work.
-func (a *App) cardOverlay(c *prCard, w, maxH int) screen.Overlay {
+func (a *Core) cardOverlay(c *prCard, w, maxH int) screen.Overlay {
 	doc := a.cardDoc(c, w)
 	h := min(len(doc.Lines), maxH)
 	c.scroll = clamp(c.scroll, 0, max(0, len(doc.Lines)-h))
@@ -636,7 +636,7 @@ func relTime(t time.Time) string {
 }
 
 // cardHint lists the card's keys.
-func (a *App) cardHint(c *prCard) string {
+func (a *Core) cardHint(c *prCard) string {
 	t := c.thread
 	if t.Pending {
 		return i18n.T("rv.hint.own")
@@ -677,7 +677,7 @@ func (a *App) drawCard(ov screen.Overlay) []string {
 	return append(out, bd.Render("╰"+bottom+"╯"))
 }
 
-func (a *App) handleCardKey(msg Key) ([]Effect, bool) {
+func (a *Core) handleCardKey(msg Key) ([]Effect, bool) {
 	c := a.card
 	t := c.thread
 	switch key := msg.String(); key {
@@ -745,7 +745,7 @@ func (a *App) handleCardKey(msg Key) ([]Effect, bool) {
 }
 
 // gotoThread opens the thread's file with the cursor on its line.
-func (a *App) gotoThread(c *prCard) []Effect {
+func (a *Core) gotoThread(c *prCard) []Effect {
 	abs := filepath.Join(a.gitTopDir(), c.path)
 	if !a.openFile(abs) {
 		return nil
@@ -760,7 +760,7 @@ func (a *App) gotoThread(c *prCard) []Effect {
 }
 
 // threadLines returns the lines a thread is on, from the open buffer.
-func (a *App) threadLines(c *prCard) []string {
+func (a *Core) threadLines(c *prCard) []string {
 	t := c.thread
 	if t.File || t.Line <= 0 {
 		return nil
@@ -812,7 +812,7 @@ func suggestion(t *prThread) []string {
 }
 
 // applySuggestion replaces the thread's lines with its suggestion and saves.
-func (a *App) applySuggestion(c *prCard) []Effect {
+func (a *Core) applySuggestion(c *prCard) []Effect {
 	if err := a.checkCommentable(c.path, nil); err != nil {
 		a.fail(errors.New(i18n.T("rv.sugglocal")))
 		return nil
@@ -868,7 +868,7 @@ type composer struct {
 
 // compose opens the comment editor. orig is what Ctrl+S puts in a
 // suggestion block.
-func (a *App) compose(title, initial string, orig []string, onSubmit func(string) []Effect) []Effect {
+func (a *Core) compose(title, initial string, orig []string, onSubmit func(string) []Effect) []Effect {
 	ta := textarea.New()
 	ta.ShowLineNumbers = false
 	ta.Prompt = ""
@@ -889,7 +889,7 @@ func (a *App) compose(title, initial string, orig []string, onSubmit func(string
 	return nil
 }
 
-func (a *App) handleComposerKey(msg Key) []Effect {
+func (a *Core) handleComposerKey(msg Key) []Effect {
 	c := a.composer
 	switch msg.String() {
 	case "esc":
@@ -928,7 +928,7 @@ func (a *App) handleComposerKey(msg Key) []Effect {
 // label takes the first row). Compose.PreviewLabel is empty when previewRows
 // is 0, as there is no room. It changes nothing. Drawing it is drawComposer's
 // work.
-func (a *App) composerOverlay(iw, previewRows int) screen.Overlay {
+func (a *Core) composerOverlay(iw, previewRows int) screen.Overlay {
 	c := a.composer
 	ov := screen.Overlay{
 		Kind:    screen.OverlayReviewCard,
@@ -990,7 +990,7 @@ func (a *App) drawComposer(ov screen.Overlay, input []string) []string {
 }
 
 // reviewMermaid returns the mermaid blocks of the open card and editor.
-func (a *App) reviewMermaid() []string {
+func (a *Core) reviewMermaid() []string {
 	var out []string
 	if c := a.card; c != nil {
 		for _, cm := range c.thread.Comments {
@@ -1008,7 +1008,7 @@ func (a *App) reviewMermaid() []string {
 // reviewNote is what the file name line of a diff says about the review of
 // t's file: whether it differs from the pull request, and its comments
 // that have no line to sit on.
-func (a *App) reviewNote(t *tab) string {
+func (a *Core) reviewNote(t *tab) string {
 	if !a.prShown() {
 		return ""
 	}

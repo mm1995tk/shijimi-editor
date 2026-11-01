@@ -17,7 +17,7 @@ import (
 // titleOf is the title row of the pane showing t: the path of the file being
 // edited relative to the root (just the name in single-file mode), and ● when
 // it is unsaved. It is nil when no file is open.
-func (a *App) titleOf(t *tab) *screen.Title {
+func (a *Core) titleOf(t *tab) *screen.Title {
 	if t == nil {
 		return nil
 	}
@@ -40,7 +40,7 @@ func modeStyleName(m editMode) screen.Style {
 }
 
 // statusOf is the status line as it is now.
-func (a *App) statusOf() screen.Status {
+func (a *Core) statusOf() screen.Status {
 	var s screen.Status
 	if a.helix && a.focus == focusEditor && a.curText() != nil {
 		s.Mode, s.Style = a.mode.label(), modeStyleName(a.mode)
@@ -114,7 +114,7 @@ func (a *App) statusOf() screen.Status {
 // A y/n question (confirm) has the two answers as Items; "press again to
 // discard" (confirmQuit, confirmClose) has none, as the same key answers it.
 // It has no place in a pane. It changes nothing. Drawing it is drawStatus's work.
-func (a *App) confirmOverlay() *screen.Overlay {
+func (a *Core) confirmOverlay() *screen.Overlay {
 	ov := screen.Overlay{Kind: screen.OverlayConfirm}
 	switch {
 	case a.confirm != nil:
@@ -129,7 +129,7 @@ func (a *App) confirmOverlay() *screen.Overlay {
 }
 
 // cmdlineState is the ":" / "/" line when it is open.
-func (a *App) cmdlineState() *screen.Cmdline {
+func (a *Core) cmdlineState() *screen.Cmdline {
 	if !a.cmdOpen {
 		return nil
 	}
@@ -137,7 +137,7 @@ func (a *App) cmdlineState() *screen.Cmdline {
 }
 
 // findState is the find bar when it is open.
-func (a *App) findState() *screen.Cmdline {
+func (a *Core) findState() *screen.Cmdline {
 	if !a.findOpen {
 		return nil
 	}
