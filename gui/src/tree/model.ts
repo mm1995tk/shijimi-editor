@@ -6,6 +6,7 @@
 // git.changed、フォルダの印は gitChildren から GUI が求める。
 
 import type {
+  Files,
   GitMark,
   Notifications,
   Requests,
@@ -305,4 +306,49 @@ export function nest(rs: TreeRow[]): TreeNode[] {
     stack.push(node);
   }
   return top;
+}
+
+/** 行で押したキー（と押したこと）でする操作。 */
+export type RowAction = "toggle" | "open";
+
+/**
+ * 行でキーを押したときの操作。key が undefined なら押した（クリック）とみなす。
+ * フォルダは開閉（Enter・Space・閉じていれば →・開いていれば ←）、ファイルは file.open で開く（押す・Enter・Space）。
+ * 5000 件より先の印の行は何もしない。
+ */
+export function rowAction(
+  row: Pick<TreeRow, "dir" | "expanded" | "truncated">,
+  key?: string,
+): RowAction | null {
+  if (row.truncated) return null;
+  const press = key === undefined || key === "Enter" || key === " ";
+  if (!row.dir) return press ? "open" : null;
+  if (
+    press ||
+    (key === "ArrowRight" && !row.expanded) ||
+    (key === "ArrowLeft" && row.expanded)
+  ) {
+    return "toggle";
+  }
+  return null;
+}
+
+/**
+ * ファイルの欄でフォーカスしているペインが出しているファイルの、ルートからの相対パス（ツリーの行の path と同じ）。
+ * テキストと画像のペインの id はファイルの絶対パス。ルートの外のファイル・差分・プレビュー・ようこそは undefined。
+ */
+export function currentFile(
+  files: Files | null | undefined,
+  root: string | undefined,
+): string | undefined {
+  if (!files || !root) return undefined;
+  const pane = files.panes[files.active];
+  if (!pane || (pane.kind !== "text" && pane.kind !== "image")) {
+    return undefined;
+  }
+  const base = root.endsWith("/") ? root : `${root}/`;
+  if (!pane.id.startsWith(base) || pane.id.length === base.length) {
+    return undefined;
+  }
+  return pane.id.slice(base.length);
 }

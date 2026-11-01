@@ -804,15 +804,24 @@ describe("Session の入力", () => {
       1,
     );
     s.input("input.paste", { region: "files", text: "x" });
+    s.input("file.open", { workspaceId: "w-A", path: "src/a.go" });
     await new Promise((r) => setTimeout(r, 10));
-    const inputs = f.sent.filter((x) => x.msg.method.startsWith("input."));
+    const inputs = f.sent.filter(
+      (x) => x.msg.method.startsWith("input.") || x.msg.method === "file.open",
+    );
     assert.deepEqual(
       inputs.map((x) => [x.msg.method, x.msg.params.seq]),
       [
         ["input.key", 1],
         ["input.paste", 2],
+        ["file.open", 3],
       ],
     );
+    assert.deepEqual(inputs[2]!.msg.params, {
+      workspaceId: "w-A",
+      path: "src/a.go",
+      seq: 3,
+    });
     assert.deepEqual(inputs[0]!.msg.params, {
       region: "files",
       key: "a",
@@ -826,7 +835,7 @@ describe("Session の入力", () => {
     await waitFor(s, (st) => st.kind === "reconnecting");
     await waitFor(s, (st) => st.kind === "connected");
     // つなぎ直しても seq は増え続ける
-    assert.equal(s.input("input.focus", { region: "files" }), 3);
+    assert.equal(s.input("input.focus", { region: "files" }), 4);
     f.emit(connectedId(f), {
       jsonrpc: "2.0",
       method: "clipboard.write",

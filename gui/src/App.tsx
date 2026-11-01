@@ -56,7 +56,7 @@ import {
 } from "./ssh/last.ts";
 import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
-import { rows as treeRows } from "./tree/model.ts";
+import { currentFile, rows as treeRows } from "./tree/model.ts";
 import { WorkspaceTrees } from "./tree/trees.ts";
 import { directionKey, isNewTermKey } from "./terminal/grid.ts";
 import { TermGroup } from "./terminal/group.ts";
@@ -423,6 +423,26 @@ export function App(props: {
     return s && s.listings[""] ? treeRows(s) : undefined;
   }
 
+  /**
+   * ツリーのファイルの行を押した。そのワークスペースで file.open を送り、ファイルの欄の
+   * フォーカスしているペインで開く（pane を省くと shj はフォーカスしているペインで開く）。
+   * IDE モードなら、続けて打てるようにキーもファイルの欄に向ける。
+   */
+  function openFile(target: string, id: WorkspaceId, path: string) {
+    sessions()[target]?.input("file.open", { workspaceId: id, path });
+    if (mode() === "ide")
+      mainEl
+        ?.querySelector<HTMLElement>(":scope > .files .files-ime")
+        ?.focus({ preventScroll: true });
+  }
+
+  /** ファイルの欄でフォーカスしているペインが出しているファイル（ツリーで強調する行）。 */
+  function currentOf(target: string, id: WorkspaceId) {
+    const f = focus();
+    if (f?.target !== target || f.id !== id) return undefined;
+    return currentFile(screens()[target]?.files, rootOf(target, id));
+  }
+
   /** IDE モードとターミナルモードを入れ替え、上に来た大きいカードにキーを向ける（F3）。 */
   function toggleMode() {
     const next = otherMode(mode());
@@ -471,6 +491,8 @@ export function App(props: {
         onFocus={(t, id) => void focusWorkspace(t, id)}
         treeOf={treeOf}
         onToggle={(t, id, p) => trees.get(t)?.toggle(id, p)}
+        onOpen={openFile}
+        currentOf={currentOf}
         ref={(el) => {
           nav = el;
           el.addEventListener("scroll", rememberScroll, { passive: true });

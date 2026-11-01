@@ -10,6 +10,7 @@
   --tree-deleted: #c74e39;
   --tree-dim: #6e6e6e;
   --tree-hover: #1d2129;
+  --tree-current: #2c3442;
 
   display: flex;
   flex-direction: column;
@@ -27,7 +28,7 @@
   cursor: default;
   user-select: none;
 }
-.tree-row[aria-expanded] {
+.tree-row:not(.tree-truncated) {
   cursor: pointer;
 }
 
@@ -45,6 +46,10 @@
 }
 .tree-row:hover {
   background: var(--tree-hover);
+}
+/* ファイルの欄でフォーカスしているペインが出しているファイルの行（モックの色） */
+.tree-row[aria-selected="true"] {
+  background: var(--tree-current);
 }
 .tree-row:focus-visible {
   outline: 1px solid var(--machine-color, #8fb4ff);

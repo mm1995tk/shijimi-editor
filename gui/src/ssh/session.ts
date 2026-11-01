@@ -103,13 +103,14 @@ export type TermEvent =
   | { method: "term.exit"; params: Notifications["term.exit"] }
   | { method: "term.title"; params: Notifications["term.title"] };
 
-/** Session.input で送れる入力。 */
+/** Session.input で送れる入力。file.open も shj は入力と同じ並びで処理するので、同じ seq の数え方で送る。 */
 export type InputMethod =
   | "input.key"
   | "input.composition"
   | "input.mouse"
   | "input.paste"
-  | "input.focus";
+  | "input.focus"
+  | "file.open";
 
 /** 購読する領域。ファイルの欄と状態行とコマンド行と、その上に重ねるポップアップ（E4）を描く。 */
 export const SUBSCRIBED_REGIONS: Region[] = [
@@ -296,7 +297,7 @@ export class Session {
   }
 
   /**
-   * 入力（input.*）を今の接続で送る。seq はここで付ける（送るたびに 1 つ増やす）。返事は待たない。
+   * 入力（input.* と file.open）を今の接続で送る。seq はここで付ける（送るたびに 1 つ増やす）。返事は待たない。
    * shj は受け取った順に処理する。つながっていないときは捨てる（切れている間の入力は送り直さない）。
    * 送った seq を返す（送らなければ undefined）。
    */

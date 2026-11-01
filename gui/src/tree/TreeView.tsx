@@ -1,10 +1,17 @@
 // ツリー（D2）を描く。行は model.ts の rows、見た目は tree.css（モック「案：フラットな一覧」に合わせる）。
-// フォルダの行は押すと開閉する。ファイルを開くのは E 以降（file.open）。
+// フォルダの行は押すと開閉し、ファイルの行は押すと（Enter でも）ファイルの欄で開く（file.open。何をするかは model.ts の rowAction）。
+// ファイルの欄でフォーカスしているペインが出しているファイルの行は強調する（モックと同じ背景）。
 // 開いたフォルダの行は、中身をスクロールしている間だけ上に固定する（D3）。そのために行を親子の要素に組む。
 import { Index, Match, Show, Switch, type JSX } from "solid-js";
 
 import type { TreeIcon } from "./icons.ts";
-import { nest, type RowMark, type TreeNode, type TreeRow } from "./model.ts";
+import {
+  nest,
+  rowAction,
+  type RowMark,
+  type TreeNode,
+  type TreeRow,
+} from "./model.ts";
 import "./tree.css";
 
 /** 印の文字と、読み上げの言葉。 */
@@ -24,19 +31,29 @@ function markLabel(m: RowMark): string {
   return markText[m.letter];
 }
 
+/** 行を押したときに呼ぶものと、強調する行。 */
+interface RowHandlers {
+  onToggle: (path: string) => void;
+  /** ファイルの行を押した（path はルートからの相対パス） */
+  onOpen?: (path: string) => void;
+  /** ファイルの欄で開いているファイル（強調する行の path） */
+  current?: string;
+}
+
 /**
  * ツリー。rows が空でも枠は出す（取っている最中）。
  * 開いたフォルダの行は data-sticky を付け、中身をスクロールしている間は上に固定する
  * （固定する位置は --tree-sticky-top から深さ × 行の高さ下）。
  */
-export function TreeView(props: {
-  rows: TreeRow[];
-  label: string;
-  onToggle: (path: string) => void;
-}): JSX.Element {
+export function TreeView(
+  props: RowHandlers & {
+    rows: TreeRow[];
+    label: string;
+  },
+): JSX.Element {
   return (
     <div class="tree" role="tree" aria-label={props.label}>
-      <Nodes nodes={nest(props.rows)} onToggle={props.onToggle} />
+      <Nodes nodes={nest(props.rows)} handlers={props} />
     </div>
   );
 }
@@ -44,16 +61,16 @@ export function TreeView(props: {
 /** 行とその中身を 1 つの要素に入れて並べる（sticky の行が、中身の要素の中だけで止まるように）。 */
 function Nodes(props: {
   nodes: TreeNode[];
-  onToggle: (path: string) => void;
+  handlers: RowHandlers;
 }): JSX.Element {
   return (
     // 位置で使い回す（開閉で行が増減しても、押した行の要素とフォーカスが残る）
     <Index each={props.nodes}>
       {(n) => (
         <div class="tree-group">
-          <Row row={n().row} onToggle={props.onToggle} />
+          <Row row={n().row} handlers={props.handlers} />
           <Show when={n().children.length > 0}>
-            <Nodes nodes={n().children} onToggle={props.onToggle} />
+            <Nodes nodes={n().children} handlers={props.handlers} />
           </Show>
         </div>
       )}
@@ -61,12 +78,18 @@ function Nodes(props: {
   );
 }
 
-function Row(props: {
-  row: TreeRow;
-  onToggle: (path: string) => void;
-}): JSX.Element {
+function Row(props: { row: TreeRow; handlers: RowHandlers }): JSX.Element {
   const r = () => props.row;
   const mark = () => r().mark;
+  /** 押した（key が undefined）・キーを押した。何かしたら true。 */
+  const act = (key?: string): boolean => {
+    const a = rowAction(r(), key);
+    if (a === "toggle") props.handlers.onToggle(r().path);
+    else if (a === "open" && props.handlers.onOpen)
+      props.handlers.onOpen(r().path);
+    else return false;
+    return true;
+  };
   return (
     <Show
       when={!r().truncated}
@@ -88,23 +111,17 @@ function Row(props: {
         aria-level={r().depth + 1}
         aria-expanded={r().dir ? r().expanded : undefined}
         aria-busy={r().loading ? "true" : undefined}
+        aria-selected={
+          !r().dir && props.handlers.current === r().path ? "true" : undefined
+        }
         data-mark={markKey(mark())}
         data-sticky={r().dir && r().expanded ? "top" : undefined}
         style={{ "--tree-depth": String(r().depth) }}
         title={r().path}
-        tabIndex={r().dir ? 0 : -1}
-        onClick={() => r().dir && props.onToggle(r().path)}
+        tabIndex={0}
+        onClick={() => act()}
         onKeyDown={(e) => {
-          if (!r().dir) return;
-          if (
-            e.key === "Enter" ||
-            e.key === " " ||
-            (e.key === "ArrowRight" && !r().expanded) ||
-            (e.key === "ArrowLeft" && r().expanded)
-          ) {
-            e.preventDefault();
-            props.onToggle(r().path);
-          }
+          if (act(e.key)) e.preventDefault();
         }}
       >
         <Guides depth={r().depth} />
