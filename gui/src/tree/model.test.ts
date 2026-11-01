@@ -1,17 +1,21 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { TreeEntry } from "../rpc/protocol.ts";
+import type { Files, Pane, TreeEntry } from "../rpc/protocol.ts";
+import { RpcError } from "../rpc/message.ts";
 import { iconFor } from "./icons.ts";
 import {
   applyGitChanged,
   applyGitStatus,
   applyList,
   applyTreeChanged,
+  currentFile,
+  openErrorText,
   dropDir,
   emptyTree,
   nest,
   ROOT,
+  rowAction,
   rows,
   toggle,
   watchPaths,
@@ -235,5 +239,104 @@ describe("nest", () => {
 
   it("空なら空", () => {
     assert.deepEqual(nest([]), []);
+  });
+});
+
+describe("rowAction", () => {
+  const fileRow = { dir: false, expanded: false };
+  const closed = { dir: true, expanded: false };
+  const open = { dir: true, expanded: true };
+
+  it("ファイルは押す・Enter・Space で開く。ほかのキーでは何もしない", () => {
+    assert.equal(rowAction(fileRow), "open");
+    assert.equal(rowAction(fileRow, "Enter"), "open");
+    assert.equal(rowAction(fileRow, " "), "open");
+    assert.equal(rowAction(fileRow, "ArrowRight"), null);
+    assert.equal(rowAction(fileRow, "a"), null);
+  });
+
+  it("フォルダは押す・Enter・Space で開閉し、→ は閉じているとき、← は開いているときだけ", () => {
+    assert.equal(rowAction(closed), "toggle");
+    assert.equal(rowAction(open, "Enter"), "toggle");
+    assert.equal(rowAction(open, " "), "toggle");
+    assert.equal(rowAction(closed, "ArrowRight"), "toggle");
+    assert.equal(rowAction(open, "ArrowRight"), null);
+    assert.equal(rowAction(open, "ArrowLeft"), "toggle");
+    assert.equal(rowAction(closed, "ArrowLeft"), null);
+  });
+
+  it("5000 件より先の印の行は何もしない", () => {
+    assert.equal(rowAction({ ...fileRow, truncated: true }), null);
+    assert.equal(rowAction({ ...fileRow, truncated: true }, "Enter"), null);
+  });
+});
+
+describe("currentFile", () => {
+  const pane = (id: string, kind = "text"): Pane => ({
+    id,
+    kind,
+    title: { text: id },
+    viewport: { top: 0, rows: 1, cols: 1, left: 0, total: 1 },
+    curLine: 0,
+  });
+  const files = (active: number, ...panes: Pane[]): Files => ({
+    panes,
+    active,
+  });
+
+  it("フォーカスしているペインのファイルを、ルートからの相対パスにする", () => {
+    const f = files(
+      1,
+      pane("/w/README.md"),
+      pane("/w/internal/ui/explorer.go"),
+    );
+    assert.equal(currentFile(f, "/w"), "internal/ui/explorer.go");
+    assert.equal(currentFile(f, "/w/"), "internal/ui/explorer.go");
+    assert.equal(
+      currentFile(files(0, pane("/w/a.png", "image")), "/w"),
+      "a.png",
+    );
+  });
+
+  it("ルートの外・名前が前だけ同じフォルダ・差分やプレビューは無し", () => {
+    assert.equal(currentFile(files(0, pane("/x/a.go")), "/w"), undefined);
+    assert.equal(currentFile(files(0, pane("/wx/a.go")), "/w"), undefined);
+    assert.equal(
+      currentFile(files(0, pane("/w/a.md#preview", "preview")), "/w"),
+      undefined,
+    );
+    assert.equal(
+      currentFile(files(0, pane("/w/a.go:base", "diff")), "/w"),
+      undefined,
+    );
+    assert.equal(currentFile(files(0, pane("", "welcome")), "/w"), undefined);
+  });
+
+  it("画面やルートがまだ無ければ無し", () => {
+    assert.equal(currentFile(undefined, "/w"), undefined);
+    assert.equal(currentFile(files(0, pane("/w/a.go")), undefined), undefined);
+    assert.equal(currentFile(files(3, pane("/w/a.go")), "/w"), undefined);
+  });
+});
+
+describe("openErrorText", () => {
+  it("shj のエラーコードを言葉にする。知らないものは文言をそのまま", () => {
+    const err = (code: number) => new RpcError({ code, message: "m" });
+    assert.equal(
+      openErrorText("a/link", err(-32004)),
+      "a/link を開けませんでした（ワークスペースの外を指しています）",
+    );
+    assert.equal(
+      openErrorText("gone.go", err(-32003)),
+      "gone.go を開けませんでした（見つかりません）",
+    );
+    assert.equal(
+      openErrorText("x", err(-32603)),
+      "x を開けませんでした（rpc error -32603 (internal_error): m）",
+    );
+    assert.equal(
+      openErrorText("x", new Error("connection closed")),
+      "x を開けませんでした（connection closed）",
+    );
   });
 });
