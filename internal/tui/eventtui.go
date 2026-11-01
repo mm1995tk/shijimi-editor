@@ -10,9 +10,9 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
-// teaEffect carries a tea.Cmd through the Effect list. Two things are left on it:
-// the terminal panel, which waits on a PTY and has no Event of its own yet (P13-06
-// decides), and the review composer's bubbles textarea (its cursor blink; P10h).
+// teaEffect carries a tea.Cmd through the Effect list. Only the terminal panel is
+// left on it: it waits on a PTY and has no Event of its own yet (P13-06, #382,
+// decides).
 type teaEffect struct{ cmd tea.Cmd }
 
 func (teaEffect) isEffect() {}
