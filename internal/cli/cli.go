@@ -15,7 +15,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/kitty"
-	"github.com/mm1995tk/shijimi-editor/internal/ui"
+	"github.com/mm1995tk/shijimi-editor/internal/tui"
 )
 
 // Main runs shijimi with the command-line arguments in os.Args.
@@ -25,7 +25,7 @@ func Main() {
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
 		if arg == "-v" || arg == "--version" {
-			fmt.Println("shijimi " + ui.VersionLabel())
+			fmt.Println("shijimi " + tui.VersionLabel())
 			return
 		}
 		if arg == "-h" || arg == "--help" {
@@ -64,15 +64,15 @@ func Main() {
 			file, single = arg, true
 		}
 	}
-	var app *ui.App
+	var app *tui.App
 	if single {
 		var err error
-		if app, err = ui.NewSingle(file); err != nil {
+		if app, err = tui.NewSingle(file); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 	} else {
-		app = ui.New(dir, file)
+		app = tui.New(dir, file)
 	}
 	closeSock := func() {}
 	// The terminal cursor follows the typing position so that an IME shows
@@ -86,7 +86,7 @@ func Main() {
 	closeIDE := func() {}
 	// Single-file mode starts neither the IDE integration nor the control socket.
 	if abs, err := filepath.Abs(dir); err == nil && !single {
-		if srv, err := ide.Start(abs, ui.IDETools(), ui.IDEHandler(p)); err == nil {
+		if srv, err := ide.Start(abs, tui.IDETools(), tui.IDEHandler(p)); err == nil {
 			closeIDE = srv.Close
 			app.SetIDE(srv)
 			os.Setenv(ide.EnvPort, strconv.Itoa(srv.Port()))
@@ -96,7 +96,7 @@ func Main() {
 	}
 	// The socket is best-effort: the editor still works without it.
 	if path, err := ctl.SocketPath(); err == nil && !single {
-		if srv, err := ctl.Listen(path, ui.ControlHandler(p)); err == nil {
+		if srv, err := ctl.Listen(path, tui.ControlHandler(p)); err == nil {
 			closeSock = srv.Close
 			os.Setenv(ctl.EnvSocket, path)
 		}
