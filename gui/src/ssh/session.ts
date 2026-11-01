@@ -12,8 +12,13 @@ import type {
   Screen,
   ScreenUpdate,
 } from "../rpc/protocol.ts";
-import type { ShellApi } from "./api.ts";
-import { connectShj, type Connection } from "./connect.ts";
+import type { InstallPlan, ShellApi } from "./api.ts";
+import {
+  connectShj,
+  newId,
+  ShjMissingError,
+  type Connection,
+} from "./connect.ts";
 
 /** 接続の状態。一覧の表示はこれを読む。 */
 export type SessionState =
@@ -36,6 +41,13 @@ export type SessionState =
       retryAt?: number;
       reason: string;
     }
+  /**
+   * リモートに shj が無い。ユーザーに聞くまで何も入れない。install() で入れ、declineInstall() で断る。
+   * error は直前の入れ方が失敗した理由。
+   */
+  | { kind: "needs-install"; plan: InstallPlan; error?: string }
+  /** shj を取って、確かめて、リモートに送っている */
+  | { kind: "installing"; plan: InstallPlan }
   /** 回数を使い切った。ボタンで retry() できる */
   | { kind: "failed"; message: string }
   /** 別の GUI に引き継がれた。自動ではつなぎ直さない（取り合いになるため。表示は C7） */
@@ -84,6 +96,8 @@ export class Session {
   private _screen: Screen | null = null;
   private _workspaces: HelloResult["workspaces"] = [];
   private wake?: () => void;
+  /** 入れている最中の id（「切る」で askpass の質問を取り消すのに使う） */
+  private installId?: string;
   private generation = 0;
   private readonly stateHandlers = new Set<(s: SessionState) => void>();
   private readonly screenHandlers = new Set<(s: Screen) => void>();
@@ -155,6 +169,59 @@ export class Session {
     this.wake?.();
   }
 
+  /**
+   * shj が無いリモートに、ユーザーが「入れる」と答えたあとで呼ぶ。GUI と同じ版の shj を取り、
+   * SHA-256 を確かめて入れ、つなぎ直す。失敗したら needs-install（error 付き）に戻る。
+   */
+  async install(): Promise<void> {
+    const s = this._state;
+    if (s.kind !== "needs-install") return;
+    const gen = ++this.generation;
+    const plan = s.plan;
+    this.setState({ kind: "installing", plan });
+    const id = newId();
+    this.installId = id;
+    try {
+      await this.api.installRemote(id, this.target);
+    } catch (e) {
+      if (this.installId === id) this.installId = undefined;
+      if (gen !== this.generation) return;
+      this.setState({
+        kind: "needs-install",
+        plan,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      return;
+    }
+    if (this.installId === id) this.installId = undefined;
+    if (gen !== this.generation) return;
+    await this.run(0, "");
+  }
+
+  /** 入れない。何も入れず、「つながりません」にする（つなぎ直すと、もう一度聞く）。 */
+  declineInstall(): void {
+    if (this._state.kind !== "needs-install") return;
+    this.generation++;
+    this.setState({
+      kind: "failed",
+      message: `shj が ${this.target} にありません（入れませんでした）`,
+    });
+  }
+
+  private async askInstall(gen: number): Promise<void> {
+    try {
+      const plan = await this.api.installPlan();
+      if (gen === this.generation)
+        this.setState({ kind: "needs-install", plan });
+    } catch (e) {
+      if (gen !== this.generation) return;
+      this.setState({
+        kind: "failed",
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
   /** 閉じる（session.bye。shj とシェルは止まらない）。 */
   async close(): Promise<void> {
     this.generation++;
@@ -162,6 +229,10 @@ export class Session {
     const c = this.conn;
     this.conn = undefined;
     this.setState({ kind: "closed" });
+    // 入れている最中なら取り消す（質問の窓が残ったり、パスワードの聞き直しで入れ続けたりしないように）
+    const installId = this.installId;
+    this.installId = undefined;
+    if (installId) void this.api.installCancel(installId).catch(() => {});
     await c?.close();
   }
 
@@ -228,6 +299,11 @@ export class Session {
         return;
       } catch (e) {
         if (gen !== this.generation) return;
+        if (e instanceof ShjMissingError) {
+          // つなぎ直しても同じ。聞く段階へ進む（何も入れずに待つ）
+          await this.askInstall(gen);
+          return;
+        }
         lastError = e instanceof Error ? e.message : String(e);
       }
       if (attempt >= this.opts.maxAttempts) continue; // 次の周で failed

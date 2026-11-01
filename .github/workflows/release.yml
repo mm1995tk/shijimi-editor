@@ -165,5 +165,7 @@ jobs:
             platform="${platform#shijimi-editor-}"
             tar -xzf "$f" -O package/bin/shj > "assets/shj-$platform"
           done
+          # GUI が shj を取ったあと、値が合うか確かめるための checksums（sha256sum の形式。GUI は gui/src-tauri/src/install.rs で読む）
+          (cd assets && sha256sum shj-* > SHA256SUMS)
           # 再実行で上げ直せるよう、同じ名前のアセットは置き換える
           gh release upload "v$NEXT" assets/* --clobber --repo "$GITHUB_REPOSITORY"

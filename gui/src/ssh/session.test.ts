@@ -8,13 +8,19 @@ type Line = (e: { id: string; line: string }) => void;
 
 /** 接続ごとに挙動を決められる偽の殻。 */
 function fakeShell(opts: {
-  serverIds: string[]; // n 回目の接続の serverId。"fail" なら ssh が終わる
+  serverIds: string[]; // n 回目の接続の serverId。"fail" なら ssh が終わる、"missing" なら shj が無い（97）
+  installFails?: string; // 入れるのがこの理由で失敗する
+  installHangs?: boolean; // 入れる処理が終わらない（取り消されるまで）
   pingReply?: () => boolean;
 }) {
   const lines: Line[] = [];
   const closeds: ((e: ClosedEvent) => void)[] = [];
   const sent: { id: string; msg: any }[] = [];
   let n = 0;
+  const installs: string[] = [];
+  const cancels: string[] = [];
+  const installIds: string[] = [];
+  const hang: (() => void)[] = [];
   const serverOf = new Map<string, string>();
   const emit = (id: string, obj: unknown) =>
     lines.forEach((f) => f({ id, line: JSON.stringify(obj) }));
@@ -23,9 +29,11 @@ function fakeShell(opts: {
     connect: async (id) => {
       const sid = opts.serverIds[Math.min(n, opts.serverIds.length - 1)];
       n++;
-      if (sid === "fail") {
+      if (sid === "fail" || sid === "missing") {
         queueMicrotask(() =>
-          closeds.forEach((f) => f({ id, code: 255, stderr: "refused" })),
+          closeds.forEach((f) =>
+            f({ id, code: sid === "missing" ? 97 : 255, stderr: "refused" }),
+          ),
         );
         return;
       }
@@ -72,11 +80,37 @@ function fakeShell(opts: {
       return () => void closeds.splice(closeds.indexOf(f), 1);
     },
     onAskpass: async () => () => {},
+    installPlan: async () => ({
+      version: "0.0.0",
+      path: "~/.cache/shijimi-editor/0.0.0/shj",
+      release_url: "https://example.invalid/r",
+    }),
+    installCancel: async (id) => {
+      cancels.push(id);
+    },
+    installRemote: async (id, target) => {
+      if (opts.installHangs) {
+        installIds.push(id);
+        return new Promise((_, rej) =>
+          hang.push(() => rej(new Error("cancelled"))),
+        );
+      }
+      installs.push(target);
+      if (opts.installFails) throw new Error(opts.installFails);
+      // 入れたので、次からは shj がある
+      opts.serverIds.splice(0, opts.serverIds.length, "A");
+      n = 0;
+      return { path: "p", asset: "a", sha256: "h" };
+    },
     onAskpassDone: async () => () => {},
   };
   return {
     api,
     sent,
+    installs,
+    cancels,
+    installIds,
+    hang,
     emit,
     /** ssh が切れた */
     drop(id: string) {
@@ -305,5 +339,90 @@ describe("applyWorkspaceChange", () => {
       removed: ["b"],
     });
     assert.deepEqual(r, [w("a", "A"), w("c")]);
+  });
+});
+
+describe("shj が無いリモート", () => {
+  it("つなぎ直さず、聞く段階で止まる。ユーザーが答えるまで何も入れない", async () => {
+    const f = fakeShell({ serverIds: ["missing"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    const st = await waitFor(s, (x) => x.kind === "needs-install");
+    assert.equal(st.kind === "needs-install" && st.plan.version, "0.0.0");
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(f.connects, 1, "つなぎ直しを繰り返さない");
+    assert.deepEqual(f.installs, [], "聞く前に入れない");
+    await s.close();
+  });
+
+  it("入れると答えたら入れて、つなぎ直して connected になる", async () => {
+    const f = fakeShell({ serverIds: ["missing"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    const done = s.install();
+    assert.equal(s.state.kind, "installing");
+    await done;
+    await waitFor(s, (x) => x.kind === "connected");
+    assert.deepEqual(f.installs, ["h"]);
+    await s.close();
+  });
+
+  it("入れるのに失敗したら、理由付きで聞く段階に戻る（つながない）", async () => {
+    const f = fakeShell({
+      serverIds: ["missing"],
+      installFails: "SHA-256 mismatch",
+    });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    await s.install();
+    assert.ok(
+      s.state.kind === "needs-install" &&
+        s.state.error?.includes("SHA-256 mismatch"),
+    );
+    assert.equal(f.connects, 1);
+    await s.close();
+  });
+
+  it("入れないと答えたら何も入れず failed。つなぎ直すと、もう一度聞く", async () => {
+    const f = fakeShell({ serverIds: ["missing"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    s.declineInstall();
+    assert.equal(s.state.kind, "failed");
+    assert.deepEqual(f.installs, []);
+    s.retry();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    assert.deepEqual(f.installs, []);
+    await s.close();
+  });
+
+  it("聞く段階以外では install() は何もしない", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "connected");
+    await s.install();
+    assert.deepEqual(f.installs, []);
+    await s.close();
+  });
+});
+
+describe("入れている最中に切る", () => {
+  it("close() が askpass の質問を取り消す", async () => {
+    const f = fakeShell({ serverIds: ["missing"], installHangs: true });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (x) => x.kind === "needs-install");
+    void s.install();
+    assert.equal(s.state.kind, "installing");
+    await s.close();
+    assert.deepEqual(f.cancels, f.installIds);
+    assert.equal(f.cancels.length, 1);
+    f.hang.forEach((h) => h());
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(s.state.kind, "closed", "取り消しの失敗で状態を戻さない");
   });
 });

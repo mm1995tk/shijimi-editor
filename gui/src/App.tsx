@@ -50,6 +50,10 @@ export function describeState(
       }
       return `切れました。つなぎ直しています…（${n}）`;
     }
+    case "needs-install":
+      return "shj がありません";
+    case "installing":
+      return "shj を入れています…";
     case "failed":
       return "つながりません";
     case "superseded":
@@ -152,7 +156,9 @@ export function App(props: {
                   disabled={
                     kind() === "connecting" ||
                     kind() === "connected" ||
-                    kind() === "reconnecting"
+                    kind() === "reconnecting" ||
+                    kind() === "needs-install" ||
+                    kind() === "installing"
                   }
                   onClick={() => connect(t)}
                 >
@@ -178,6 +184,16 @@ export function App(props: {
                   {" "}
                   <button onClick={() => void disconnect(t)}>切る</button>
                 </Show>
+                <Show when={st()?.kind === "needs-install"}>
+                  <InstallPrompt
+                    target={label(t)}
+                    state={
+                      st() as Extract<SessionState, { kind: "needs-install" }>
+                    }
+                    onYes={() => void sessions()[t]?.install()}
+                    onNo={() => sessions()[t]?.declineInstall()}
+                  />
+                </Show>
                 <Show when={st()?.kind === "failed"}>
                   <pre role="alert">
                     {(st() as { message: string }).message}
@@ -190,5 +206,34 @@ export function App(props: {
       </ul>
       <AskpassDialog ask={asks()[0]} onReply={reply} />
     </main>
+  );
+}
+
+/**
+ * shj が無いマシンに入れてよいかを聞く。何を・どこから・どこへ入れるかを見せ、
+ * 「入れる」と押されるまで何もしない。
+ */
+function InstallPrompt(props: {
+  target: string;
+  state: Extract<SessionState, { kind: "needs-install" }>;
+  onYes: () => void;
+  onNo: () => void;
+}): JSX.Element {
+  return (
+    <div role="group" aria-label="shj を入れるか">
+      <p>
+        {props.target} に shj がありません。GUI と同じ版（
+        {props.state.plan.version}）の shj を GitHub Releases（
+        {props.state.plan.release_url}）から取り、{props.target} の{" "}
+        <code>{props.state.plan.path}</code> に入れてよいですか？
+        取った実行ファイルは SHA-256
+        を確かめてから使い、合わなければ入れません。PATH の shj には触りません。
+      </p>
+      <button onClick={props.onYes}>入れる</button>{" "}
+      <button onClick={props.onNo}>入れない</button>
+      <Show when={props.state.error}>
+        <pre role="alert">{props.state.error}</pre>
+      </Show>
+    </div>
   );
 }

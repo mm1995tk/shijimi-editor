@@ -3,6 +3,7 @@
 
 mod askpass;
 mod connection;
+mod install;
 mod ssh_config;
 
 use std::path::PathBuf;
@@ -51,6 +52,36 @@ fn disconnect(state: State<AppState>, id: String) {
     state.conns.close(&id);
 }
 
+/// リモートに入れるものの説明（ユーザーに聞くときに見せる）。
+#[tauri::command]
+fn install_plan() -> Result<install::InstallPlan, String> {
+    install::plan()
+}
+
+/// リモートに shj を入れる。画面がユーザーに聞いたあとにだけ呼ぶ（ここでは聞かない）。
+/// `id` は askpass の質問の宛先（接続の id と同じ形）。
+#[tauri::command]
+async fn install_remote(
+    state: State<'_, AppState>,
+    id: String,
+    target: String,
+) -> Result<install::InstallResult, String> {
+    if id.is_empty() || id.len() > 64 {
+        return Err("invalid connection id".into());
+    }
+    let ask = Arc::clone(&state.askpass);
+    tauri::async_runtime::spawn_blocking(move || install::install(&target, &ask, &id))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// 入れている最中の取り消し（「切る」）。待っている ssh の質問を消し、あとで来る質問（ssh のパスワードの聞き直し）も断り、
+/// 転送中の ssh を殺す。入れる処理は `cancelled` で終わる（取得中の curl は終わるのを待つ）。
+#[tauri::command]
+fn install_cancel(state: State<AppState>, id: String) {
+    state.askpass.abort_conn(&id);
+}
+
 /// ssh の質問（askpass）への答え。`None` は取り消し。
 #[tauri::command]
 fn askpass_reply(state: State<AppState>, request_id: u64, value: Option<String>) {
@@ -78,7 +109,10 @@ fn main() {
             connect,
             send,
             disconnect,
-            askpass_reply
+            askpass_reply,
+            install_plan,
+            install_remote,
+            install_cancel
         ])
         .build(tauri::generate_context!())
         .expect("failed to build the shijimi-editor GUI")
