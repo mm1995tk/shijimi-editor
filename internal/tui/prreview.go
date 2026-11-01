@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/textarea"
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
@@ -905,7 +904,10 @@ func (a *App) compose(title, initial string, orig []string, onSubmit func(string
 	ta.SetValue(initial)
 	a.comp, a.hoverText = nil, ""
 	a.composer = &composer{title: title, ta: ta, orig: orig, onSubmit: onSubmit}
-	return teaEffects(a.composer.ta.Focus())
+	// The cursor is drawn by the screen (SetVirtualCursor(false)), so the blink
+	// command the textarea hands back has nothing to do.
+	a.composer.ta.Focus()
+	return nil
 }
 
 func (a *App) handleComposerKey(msg Key) []Effect {
@@ -937,9 +939,8 @@ func (a *App) handleComposerKey(msg Key) []Effect {
 		c.ta.InsertString(block)
 		return nil
 	}
-	var cmd tea.Cmd
-	c.ta, cmd = c.ta.Update(widgetMsg(msg))
-	return teaEffects(cmd)
+	c.ta, _ = c.ta.Update(widgetMsg(msg)) // the blink command is not used, see compose
+	return nil
 }
 
 // composerOverlay is the open comment editor as a screen.Overlay, iw cells
