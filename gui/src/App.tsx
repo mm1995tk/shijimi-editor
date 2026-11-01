@@ -10,6 +10,7 @@
 // 欄で受けたキー・IME・マウス・貼り付けは、フォーカスしているマシンの shj に送る。shj でコピーしたら
 // OS のクリップボードに入れる（E2）。
 // 帯を押してフォーカスを移すと、右下のターミナルもそのワークスペースのシェルに切り替える（F2）。
+// Ctrl+Shift+` でファイルの欄とターミナルのカードを入れ替える（IDE モードとターミナルモード。F3。mode.ts）。
 import {
   createEffect,
   createMemo,
@@ -54,6 +55,7 @@ import { rows as treeRows } from "./tree/model.ts";
 import { WorkspaceTrees } from "./tree/trees.ts";
 import { TermLink } from "./terminal/link.ts";
 import { TerminalView } from "./terminal/TerminalView.tsx";
+import { isModeKey, otherMode, swapWithMotion, type Mode } from "./mode.ts";
 
 /** 一覧に出す 1 行の状態。 */
 export function describeState(
@@ -152,6 +154,9 @@ export function App(props: {
     (e) => console.warn("clipboard:", e),
   );
   let nav: HTMLElement | undefined;
+  // IDE モード（上がファイルの欄）かターミナルモード（上がターミナル）か（F3）
+  const [mode, setMode] = createSignal<Mode>("ide");
+  let mainEl: HTMLDivElement | undefined;
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
   // 「あと何秒」を動かす
   const [now, setNow] = createSignal(Date.now());
@@ -159,7 +164,16 @@ export function App(props: {
 
   // await の後は Owner が無いので、onCleanup は先に登録する
   const offs: (() => void)[] = [];
+  // GUI が受けるキーなので、欄やターミナルに届く前（capture）に取って、shj にもシェルにも送らない
+  const onModeKey = (e: KeyboardEvent) => {
+    if (!isModeKey(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!e.repeat) toggleMode();
+  };
+  window.addEventListener("keydown", onModeKey, true);
   onCleanup(() => {
+    window.removeEventListener("keydown", onModeKey, true);
     clearInterval(tick);
     offs.forEach((f) => f());
     for (const s of Object.values(sessions())) void s.close();
@@ -351,6 +365,20 @@ export function App(props: {
     return s && s.listings[""] ? treeRows(s) : undefined;
   }
 
+  /** IDE モードとターミナルモードを入れ替え、上に来た大きいカードにキーを向ける（F3）。 */
+  function toggleMode() {
+    const next = otherMode(mode());
+    const files = mainEl?.querySelector<HTMLElement>(":scope > .files");
+    const term = mainEl?.querySelector<HTMLElement>(":scope > .terminal");
+    swapWithMotion([files, term], () => setMode(next));
+    // ファイルの欄は入力用の textarea、ターミナルは xterm.js の textarea がキーを受ける
+    const input =
+      next === "terminal"
+        ? term?.querySelector<HTMLElement>("textarea")
+        : files?.querySelector<HTMLElement>(".files-ime");
+    input?.focus({ preventScroll: true });
+  }
+
   function reply(requestId: number, value: string | null) {
     setAsks((a) => a.filter((x) => x.requestId !== requestId));
     void api.askpassReply(requestId, value);
@@ -368,7 +396,7 @@ export function App(props: {
           el.addEventListener("scroll", rememberScroll, { passive: true });
         }}
       />
-      <div class="main">
+      <div class="main" data-mode={mode()} ref={mainEl}>
         <FilesView
           screen={focus() ? (screens()[focus()!.target] ?? null) : null}
           theme={focus() ? (themes()[focus()!.target] ?? null) : null}
