@@ -297,3 +297,64 @@ func TestFrontEndAsksCore(t *testing.T) {
 		})
 	}
 }
+
+// styleCoreTodo are the files that go to core and still draw with a lipgloss
+// style (bgfg or an st* variable from styles.go). They are drawing that has
+// not moved to a *_draw.go yet. Shrink this list; never add to it.
+var styleCoreTodo = []string{
+	"agentpanel.go", "context.go", "gitdiff.go", "hover.go", "image.go", "lspui.go",
+	"palette.go", "prreview.go", "searchui.go", "signature.go", "spacemenu.go", "terminal.go", "window.go",
+}
+
+// TestStylesStayInTui keeps the files that go to core from drawing with the
+// styles of styles.go, apart from styleCoreTodo.
+func TestStylesStayInTui(t *testing.T) {
+	fset := token.NewFileSet()
+	styles, err := parser.ParseFile(fset, "styles.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{"bgfg": true}
+	for _, d := range styles.Decls {
+		if gd, ok := d.(*ast.GenDecl); ok {
+			for _, s := range gd.Specs {
+				if vs, ok := s.(*ast.ValueSpec); ok {
+					for _, id := range vs.Names {
+						names[id.Name] = true
+					}
+				}
+			}
+		}
+	}
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	used := map[string]bool{}
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || slices.Contains(tuiMethodFiles, name) {
+			continue
+		}
+		f, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(f, func(n ast.Node) bool {
+			if id, ok := n.(*ast.Ident); ok && names[id.Name] {
+				used[name] = true
+			}
+			return true
+		})
+	}
+	for name := range used {
+		if !slices.Contains(styleCoreTodo, name) {
+			t.Errorf("%s draws with a style of styles.go; draw in a *_draw.go (or add it to styleCoreTodo only if it already did)", name)
+		}
+	}
+	for _, name := range styleCoreTodo {
+		if !used[name] {
+			t.Errorf("%s no longer uses a style; remove it from styleCoreTodo", name)
+		}
+	}
+}

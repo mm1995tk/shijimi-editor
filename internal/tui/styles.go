@@ -1,26 +1,6 @@
 package tui
 
-import (
-	"strings"
-
-	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
-)
-
-// Palette colors. They are variables so applyTheme can swap them at runtime;
-// see theme.go.
-var (
-	cEditorBg, cEditorFg, cSideBg, cSideFg, cTabBarBg, cTabInact, cTabInactFg string
-	cAccent, cLineNo, cLineNoCur, cCurLine, cSelection, cMatch, cBorder       string
-	cPaletteBg, cListSel, cListSelUnf, cDirty, cError                         string
-	cIndentGuide                                                              string
-)
-
-// Diff colors; set by applyTheme.
-var (
-	cAddBg, cDelBg, cAddSign, cDelSign, cHunkFg, cHunkBg, cNoteBg string
-	cAddWordBg, cDelWordBg, cModSign, cBarView                    string
-)
+import "charm.land/lipgloss/v2"
 
 func bgfg(bg, fg string) lipgloss.Style {
 	return lipgloss.NewStyle().Background(lipgloss.Color(bg)).Foreground(lipgloss.Color(fg))
@@ -75,46 +55,4 @@ func rebuildStyles(t *Theme) {
 	stPaletteHi = bgfg(cPaletteBg, t.PaletteHi).Bold(true)
 	stPaletteHiS = bgfg(cListSel, t.PaletteHi).Bold(true)
 	stPaletteBox = bgfg(cPaletteBg, cAccent)
-}
-
-// fit truncates or pads s (which may contain ANSI codes) to exactly w cells.
-func fit(s string, w int) string {
-	if w <= 0 {
-		return ""
-	}
-	sw := ansi.StringWidth(s)
-	if sw > w {
-		s = ansi.Truncate(s, w, "…")
-		sw = ansi.StringWidth(s)
-	}
-	if sw < w {
-		s += strings.Repeat(" ", w-sw)
-	}
-	return s
-}
-
-// overlay draws box lines over base lines starting at (x, y).
-func overlay(base []string, box []string, x, y int) []string {
-	for i, bl := range box {
-		r := y + i
-		if r < 0 || r >= len(base) {
-			continue
-		}
-		line := base[r]
-		bw := ansi.StringWidth(bl)
-		left := ansi.Truncate(line, x, "")
-		right := ansi.TruncateLeft(line, x+bw, "")
-		base[r] = left + "\x1b[0m" + bl + "\x1b[0m" + right
-	}
-	return base
-}
-
-func clamp(v, lo, hi int) int {
-	if v < lo {
-		return lo
-	}
-	if v > hi {
-		return hi
-	}
-	return v
 }
