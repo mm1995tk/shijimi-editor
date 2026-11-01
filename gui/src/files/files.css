@@ -1,0 +1,77 @@
+/* ファイルの欄（E1）。親 #271 のモック「案：フラットな一覧」の寸法に合わせる。
+   色はテーマ（theme.get）から FilesView.tsx が --files-* に入れる。
+   行の高さと上下の余白は layout.ts の LINE_HEIGHT・PAD_Y と同じにする（行数の計算に使う）。 */
+
+.files {
+  --files-line-height: 22px;
+  --files-pad-y: 10px;
+
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--files-bg);
+  color: var(--files-fg);
+}
+
+.files-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  overflow: hidden;
+  padding: var(--files-pad-y) 0;
+  box-sizing: border-box;
+  font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
+    Consolas, monospace;
+  font-size: 13px;
+  line-height: var(--files-line-height);
+  /* 等幅のマス目を崩さない（合字で文字の数が変わらないように） */
+  font-variant-ligatures: none;
+  white-space: pre;
+}
+
+/* マス目の幅を測るための文字（見せない） */
+.files-measure {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.files-pane {
+  flex: none;
+  overflow: hidden;
+}
+
+/* 左右に並べたペインの間の 1 桁 */
+.files-split {
+  flex: none;
+  width: 1ch;
+  align-self: stretch;
+}
+
+.files-line {
+  height: var(--files-line-height);
+  overflow: hidden;
+}
+
+.files-gutter {
+  color: var(--files-lineno);
+}
+
+.files-gutter[data-current] {
+  color: var(--files-lineno-current);
+}
+
+/* 区間の幅はマス目（ch）で style に入れる。全角の文字も 2ch に収める */
+.files-run {
+  display: inline-block;
+  height: var(--files-line-height);
+  vertical-align: top;
+  overflow: hidden;
+}
+
+.files-caption {
+  padding: 0 1ch;
+}
