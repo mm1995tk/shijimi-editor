@@ -425,6 +425,13 @@ func TestCardOverlay(t *testing.T) {
 	if ov.View.Top != ov.View.Total-4 || len(ov.Lines) != 4 || ov.Lines[0].No != ov.View.Top {
 		t.Errorf("view = %+v, %d lines (scroll is clamped to the last page)", *ov.View, len(ov.Lines))
 	}
+	if a.Card.scroll != 99 {
+		t.Errorf("CardOverlay changed the scroll to %d", a.Card.scroll)
+	}
+	a.FitCard(40, 4)
+	if a.Card.scroll != ov.View.Top {
+		t.Errorf("FitCard clamped the scroll to %d, want %d", a.Card.scroll, ov.View.Top)
+	}
 	if ov.Hint != a.cardHint(a.Card) {
 		t.Errorf("hint = %q", ov.Hint)
 	}

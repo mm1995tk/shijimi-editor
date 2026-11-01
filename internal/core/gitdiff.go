@@ -1093,31 +1093,67 @@ func (a *Core) SplitShown() bool {
 	return a.Gd.Split && !a.DiffSingle(a.DiffFile(a.CurText()))
 }
 
-// DiffFor returns the up-to-date diff view of t, or nil outside diff mode.
+// DiffFor returns the up-to-date diff view of t, or nil outside diff mode. It
+// keeps the view on t (t.Dv), made again when it is out of date: the front
+// end calls it before drawing (fit) and on keys; drawing reads DiffOf.
 func (a *Core) DiffFor(t *Tab) *DiffView {
 	f := a.DiffFile(t)
 	if f == nil {
 		return nil
 	}
-	if t.Dv == nil || t.Dv.rev != a.Gd.rev || t.Dv.Single != a.DiffSingle(f) {
-		dv := &DiffView{rev: a.Gd.rev, Single: a.DiffSingle(f)}
-		dv.path = f.OldPath
-		if dv.path == "" {
-			dv.path = f.Path()
-		}
-		if f.Status != "added" {
-			if out, err := run(a.GitTopDir(), nil, "git", "show", a.Gd.rev+":"+dv.path); err == nil {
-				dv.old = splitText(string(out))
-			}
-		}
-		if m := lexers.Match(filepath.Base(f.Path())); m != nil {
-			dv.lexer = chroma.Coalesce(m)
-		}
-		t.Dv = dv
+	if !a.diffBaseFresh(t.Dv, f) {
+		t.Dv = a.newDiffView(f)
 	}
 	dv := t.Dv
-	if !dv.valid || dv.ver != t.Buf.Version || dv.split != a.Gd.Split {
+	if !a.diffBuilt(dv, t) {
 		dv.build(t, a.Gd.Split)
+	}
+	return dv
+}
+
+// DiffOf is DiffFor that changes nothing, for drawing: the view kept on t
+// when it is up to date (DiffFor made it so before the frame), otherwise one
+// made for this call alone. nil outside diff mode.
+func (a *Core) DiffOf(t *Tab) *DiffView {
+	f := a.DiffFile(t)
+	if f == nil {
+		return nil
+	}
+	if dv := t.Dv; a.diffBaseFresh(dv, f) && a.diffBuilt(dv, t) {
+		return dv
+	}
+	dv := a.newDiffView(f)
+	dv.build(t, a.Gd.Split)
+	return dv
+}
+
+// diffBaseFresh reports whether dv (nil: none) compares against the base of
+// the changed file f as diff mode has it now.
+func (a *Core) diffBaseFresh(dv *DiffView, f *diff.File) bool {
+	return dv != nil && dv.rev == a.Gd.rev && dv.Single == a.DiffSingle(f)
+}
+
+// diffBuilt reports whether dv's rows are built from t's buffer as it is and
+// for the layout (split or unified) diff mode has now.
+func (a *Core) diffBuilt(dv *DiffView, t *Tab) bool {
+	return dv.valid && dv.ver == t.Buf.Version && dv.split == a.Gd.Split
+}
+
+// newDiffView is the diff view of the changed file f against the compared
+// revision, not built yet.
+func (a *Core) newDiffView(f *diff.File) *DiffView {
+	dv := &DiffView{rev: a.Gd.rev, Single: a.DiffSingle(f)}
+	dv.path = f.OldPath
+	if dv.path == "" {
+		dv.path = f.Path()
+	}
+	if f.Status != "added" {
+		if out, err := run(a.GitTopDir(), nil, "git", "show", a.Gd.rev+":"+dv.path); err == nil {
+			dv.old = splitText(string(out))
+		}
+	}
+	if m := lexers.Match(filepath.Base(f.Path())); m != nil {
+		dv.lexer = chroma.Coalesce(m)
 	}
 	return dv
 }

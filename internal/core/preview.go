@@ -387,18 +387,42 @@ func (a *Core) MermaidLines(code string, w int) *MdMedia {
 	return jobLines(a.Mermaid[key], blobMermaid+key, w, i18n.T("preview.rendering"), "mermaid: ", source)
 }
 
+// previewFresh reports whether t's cached preview (prevCache) is the document
+// rendered at width w as the buffer and the images are now.
+func (a *Core) previewFresh(t *Tab, w int) bool {
+	return t.prevCache != nil && t.PrevW == w && t.prevVer == t.Buf.Version && t.prevGen == a.PreviewGen
+}
+
+// renderPreview renders the Markdown of t at width w.
+func (a *Core) renderPreview(t *Tab, w int) MdDoc {
+	return RenderMarkdown(t.Buf.Text(), w, MdOpts{Mermaid: a.MermaidLines, image: a.mdImageLines(t.Buf.Path), FrontMatter: true})
+}
+
+// FitPreview makes the cache of t's preview (prevCache) the document rendered
+// at width w, made again when the width, the buffer or an image changed. The
+// front end calls it before drawing (fit), so BuildPreviewPane only reads it.
+func (a *Core) FitPreview(t *Tab, w int) {
+	if a.previewFresh(t, w) {
+		return
+	}
+	doc := a.renderPreview(t, w)
+	t.prevCache = &doc
+	t.PrevW, t.prevVer, t.prevGen = w, t.Buf.Version, a.PreviewGen
+}
+
 // BuildPreviewPane makes the Pane of the Markdown preview of t, w columns
 // wide and h rows high: the part of the document in view, scrolled so the part
-// around the editor cursor is visible. It changes nothing but the cache of the
-// document rendered at width w (prevCache), which is made again when the
-// width, the buffer or an image changed.
+// around the editor cursor is visible. It changes nothing: it reads the
+// document FitPreview cached for width w, or renders one for this call alone
+// when the cache is not for it.
 func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
-	if t.prevCache == nil || t.PrevW != w || t.prevVer != t.Buf.Version || t.prevGen != a.PreviewGen {
-		doc := RenderMarkdown(t.Buf.Text(), w, MdOpts{Mermaid: a.MermaidLines, image: a.mdImageLines(t.Buf.Path), FrontMatter: true})
-		t.prevCache = &doc
-		t.PrevW, t.prevVer, t.prevGen = w, t.Buf.Version, a.PreviewGen
+	var doc MdDoc
+	if a.previewFresh(t, w) {
+		doc = *t.prevCache
+	} else {
+		doc = a.renderPreview(t, w)
 	}
-	all := t.prevCache.Lines
+	all := doc.Lines
 	top := 0
 	if span := len(all) - h; span > 0 {
 		n := max(1, len(t.Buf.Lines)-1)
@@ -417,7 +441,7 @@ func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
 		l.No = top + i
 		p.Lines = append(p.Lines, l)
 	}
-	for _, im := range t.prevCache.Images {
+	for _, im := range doc.Images {
 		if im.Row < end && im.Row+im.Rows > top {
 			p.Preview.Images = append(p.Preview.Images, im)
 		}

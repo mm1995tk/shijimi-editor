@@ -2,9 +2,12 @@ package tui
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
@@ -71,10 +74,40 @@ func TestBuildPreviewPane(t *testing.T) {
 func TestPreviewPaneRendersAgainWhenWidthChanges(t *testing.T) {
 	a := previewApp(t, t.TempDir(), strings.Repeat("あ", 30)+"\n")
 	tb := a.Tabs[0]
+	a.FitPreview(tb, 20)
 	narrow := a.BuildPreviewPane(tb, 20, 10)
+	a.FitPreview(tb, 80)
 	wide := a.BuildPreviewPane(tb, 80, 10)
 	if len(narrow.Lines) <= len(wide.Lines) || tb.PrevW != 80 {
 		t.Fatalf("lines %d (20 wide) %d (80 wide), cached for %d", len(narrow.Lines), len(wide.Lines), tb.PrevW)
+	}
+}
+
+// Drawing reads the preview fit cached: it caches nothing itself (#284).
+func TestDrawingLeavesPreviewCache(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "x.md")
+	if err := os.WriteFile(p, []byte("# 見出し\n\n本文\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := New(dir, p)
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	tb := a.CurText()
+	tb.Preview = core.PreviewSplit
+	before := a.renderFrameText()
+	if tb.PrevW != 0 {
+		t.Fatalf("drawing cached the preview at width %d", tb.PrevW)
+	}
+	a.fit()
+	w := a.previewW(tb, a.layout())
+	if w <= 0 || tb.PrevW != w {
+		t.Fatalf("fit cached width %d, want %d", tb.PrevW, w)
+	}
+	if after := a.renderFrameText(); after != before {
+		t.Errorf("the frame changed with the cache:\n%s\n---\n%s", before, after)
+	}
+	if tb.PrevW != w {
+		t.Errorf("drawing changed the cached width to %d", tb.PrevW)
 	}
 }
 

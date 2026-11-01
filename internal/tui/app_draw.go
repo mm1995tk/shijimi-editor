@@ -46,20 +46,32 @@ func (a *App) editW(t *core.Tab, l layout) int {
 	return l.rightW
 }
 
+// previewW is the width of t's Markdown preview in layout l: all of the area
+// for a full preview, what the editor leaves beside it otherwise, and 0 when
+// none is shown (off, or the diff view in its place).
+func (a *App) previewW(t *core.Tab, l layout) int {
+	if t.Preview == core.PreviewOff || a.DiffFile(t) != nil {
+		return 0
+	}
+	if t.Preview == core.PreviewFull {
+		return l.rightW
+	}
+	return l.rightW - a.editW(t, l) - 1
+}
+
 func (a *App) renderText(t *core.Tab, l layout, focused bool) []string {
-	if dv := a.DiffFor(t); dv != nil {
+	if dv := a.DiffOf(t); dv != nil {
 		return a.renderDiffText(t, dv, l, focused)
 	}
 	if t.Preview == core.PreviewFull {
-		return a.previewLines(t, l.rightW, l.editH)
+		return a.previewLines(t, a.previewW(t, l), l.editH)
 	}
 	ew := a.editW(t, l)
 	edit := renderEditor(t, ew, l.editH, a.EditorOpts(t, focused))
 	if t.Preview == core.PreviewOff {
 		return edit
 	}
-	pw := l.rightW - ew - 1
-	prev := a.previewLines(t, pw, l.editH)
+	prev := a.previewLines(t, a.previewW(t, l), l.editH)
 	sep := stSeparator.Render("│")
 	for i := range edit {
 		edit[i] += sep + prev[i]
@@ -273,8 +285,10 @@ func (a *App) ScrollHover(d int) {
 
 // fit brings the state that depends on the window size and on what is open
 // up to date for the frame about to be drawn: the scroll that follows the
-// cursor, the palette's filtered list and the widths of the inputs. It runs
-// before renderFrame, which only reads the state.
+// cursor, the palette's filtered list, the widths of the inputs, the diff
+// views and Markdown previews of the panes, the review card's scroll and the
+// images sent to the terminal. It runs before renderFrame, which only reads
+// the state.
 func (a *App) fit() {
 	// Key releases let Ctrl+D / Ctrl+U scroll only while held. Some terminals
 	// (herdr 0.9.5) then drop text committed by an IME, so they are asked
@@ -287,29 +301,21 @@ func (a *App) fit() {
 		return
 	}
 	l := a.layout()
-	// The panes: a tab's diff view is made here, and the scroll of a pane
-	// that is not being edited follows its cursor in the width it has now.
-	type pane struct {
-		t       *core.Tab
-		focused bool
-	}
-	panes := []pane{{a.Cur(), a.FocusIn(core.FocusEditor)}}
-	if l.split {
-		panes = append(panes, pane{a.OtherTab(), false})
-	}
-	for _, p := range panes {
-		pl := l
-		if p.t == a.OtherTab() && l.split {
-			pl = l.otherLayout()
-		}
+	// The panes: a tab's diff view and Markdown preview are made here, and
+	// the scroll of a pane that is not being edited follows its cursor in the
+	// width it has now.
+	for _, p := range a.framePanes(l) {
 		if p.t == nil || p.t.Kind == core.TabImage {
 			continue
 		}
 		if p.t.Kind == core.TabText {
 			a.DiffFor(p.t)
+			if pw := a.previewW(p.t, p.l); pw > 0 {
+				a.FitPreview(p.t, pw)
+			}
 		}
 		if !p.focused && !a.FullPreview(p.t) {
-			core.EnsureCursorVisible(p.t.Buf, a.editW(p.t, pl), pl.editH) // the width changed under it
+			core.EnsureCursorVisible(p.t.Buf, a.editW(p.t, p.l), p.l.editH) // the width changed under it
 		}
 	}
 	if t := a.CurText(); t != nil {
@@ -326,6 +332,44 @@ func (a *App) fit() {
 	}
 	a.fitAgent(l)
 	a.FitProposals()
+	a.fitCard(l)
+	a.fitComposer(l)
+	a.fitPaneImages(l)
+}
+
+// framePane is a pane of the editor in the frame: its tab, its layout and
+// whether it is the focused one with the keys.
+type framePane struct {
+	t       *core.Tab
+	l       layout
+	focused bool
+}
+
+// framePanes is the panes renderFrame draws in layout l: the focused one,
+// and the other one while the editor is split.
+func (a *App) framePanes(l layout) []framePane {
+	panes := []framePane{{a.Cur(), l, a.FocusIn(core.FocusEditor)}}
+	if l.split {
+		panes = append(panes, framePane{a.OtherTab(), l.otherLayout(), false})
+	}
+	return panes
+}
+
+// fitPaneImages sends the images the panes are about to show to the
+// terminal: an image tab's, and those of a Markdown preview in view. It runs
+// after the scroll is fitted, which the part of the preview in view follows.
+func (a *App) fitPaneImages(l layout) {
+	for _, p := range a.framePanes(l) {
+		switch {
+		case p.t == nil:
+		case p.t.Kind == core.TabImage:
+			a.sendImagePane(p.t, p.l.rightW, p.l.editH)
+		case p.t.Kind == core.TabText:
+			if pw := a.previewW(p.t, p.l); pw > 0 {
+				a.sendMdImages(a.BuildPreviewPane(p.t, pw, p.l.editH).Preview.Images, pw)
+			}
+		}
+	}
 }
 
 // fitAgent fits the suggestion panel's state to the area it is drawn in.

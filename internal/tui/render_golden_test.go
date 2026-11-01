@@ -209,6 +209,12 @@ func TestRenderGolden(t *testing.T) {
 // render is the frame renderFrame draws, without the cursor.
 func (a *App) render() string {
 	a.fit()
+	return a.renderFrameText()
+}
+
+// renderFrameText is the frame renderFrame draws from the state as it is, without
+// fit first.
+func (a *App) renderFrameText() string {
 	frame, _ := a.renderFrame()
 	return frame
 }

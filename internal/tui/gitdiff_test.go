@@ -482,3 +482,25 @@ func TestRefreshPRKeepsEmptyListFromFlickering(t *testing.T) {
 		t.Errorf("view = %q", got)
 	}
 }
+
+// Drawing reads the diff view fit made: it keeps none itself (#284).
+func TestDrawingLeavesDiffView(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	tb := a.CurText()
+	tb.Dv = nil
+	before := a.renderFrameText()
+	if tb.Dv != nil {
+		t.Fatal("drawing kept a diff view")
+	}
+	a.fit()
+	dv := tb.Dv
+	if dv == nil {
+		t.Fatal("fit made no diff view")
+	}
+	if after := a.renderFrameText(); after != before {
+		t.Errorf("the frame changed with the kept view:\n%s\n---\n%s", before, after)
+	}
+	if tb.Dv != dv {
+		t.Error("drawing replaced the diff view")
+	}
+}
