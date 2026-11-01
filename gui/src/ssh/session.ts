@@ -3,6 +3,7 @@
 //  - 切れたら間隔を空けて何度かつなぎ直す。session.hello で resume を送り、同じ serverId なら
 //    screen.get で全部取り直す。違えばワークスペースの一覧（hello.workspaces）から取り直す
 //  - 状態（State）を外に出す。一覧の表示はこれを読む
+//  - ワークスペースの一覧と shj のフォーカスを持ち、workspace.focus でフォーカスを移す（D1）
 // Solid などの画面の仕組みには依存しない。
 
 import type { Client } from "../rpc/client.ts";
@@ -12,6 +13,7 @@ import type {
   Notifications,
   Screen,
   ScreenUpdate,
+  WorkspaceId,
 } from "../rpc/protocol.ts";
 import type { InstallPlan, ShellApi } from "./api.ts";
 import {
@@ -100,6 +102,8 @@ export class Session {
   private fetching = false;
   private _screen: Screen | null = null;
   private _workspaces: HelloResult["workspaces"] = [];
+  /** shj がフォーカスしているワークスペース（workspace.list と workspace.focus で知る） */
+  private _focus: WorkspaceId | null = null;
   private wake?: () => void;
   /** 入れている最中の id（「切る」で askpass の質問を取り消すのに使う） */
   private installId?: string;
@@ -110,6 +114,7 @@ export class Session {
   private readonly workspaceHandlers = new Set<
     (w: HelloResult["workspaces"]) => void
   >();
+  private readonly focusHandlers = new Set<(id: WorkspaceId | null) => void>();
 
   constructor(api: ShellApi, target: string, opts: SessionOptions = {}) {
     this.api = api;
@@ -136,6 +141,10 @@ export class Session {
   get connection(): Connection | undefined {
     return this.conn;
   }
+  /** shj がフォーカスしているワークスペース。知らないうちは null。 */
+  get focus(): WorkspaceId | null {
+    return this._focus;
+  }
 
   onState(h: (s: SessionState) => void): () => void {
     this.stateHandlers.add(h);
@@ -146,6 +155,26 @@ export class Session {
     this.workspaceHandlers.add(h);
     return () => this.workspaceHandlers.delete(h);
   }
+  /** shj のフォーカスが分かったとき・変わったとき（つながった後の workspace.list、focusWorkspace、フォーカス先が消えたとき）。 */
+  onFocus(h: (id: WorkspaceId | null) => void): () => void {
+    this.focusHandlers.add(h);
+    return () => this.focusHandlers.delete(h);
+  }
+
+  /**
+   * workspace.focus を送ってフォーカスを移す。画面はそのワークスペースのものに切り替わるので、取り直す。
+   * つながっていないとき・shj が断ったときは投げる（フォーカスは変えない）。
+   */
+  async focusWorkspace(id: WorkspaceId): Promise<void> {
+    const conn = this.conn;
+    if (!conn) throw new Error(`${this.target} につながっていません`);
+    const gen = this.generation;
+    await conn.client.request("workspace.focus", { id });
+    if (gen !== this.generation || this.conn !== conn) return;
+    this.setFocus(id);
+    void this.fetchScreen(conn, gen);
+  }
+
   /** 全部の画面を取り直したとき（つなぎ直し、版の食い違い）。 */
   onScreen(h: (s: Screen) => void): () => void {
     this.screenHandlers.add(h);
@@ -343,6 +372,8 @@ export class Session {
       conn.client.on("workspace.changed", (c) => {
         this._workspaces = applyWorkspaceChange(this._workspaces, c);
         this.emitWorkspaces();
+        if (this._focus !== null && c.removed?.includes(this._focus))
+          this.setFocus(null);
       }),
       startPing(
         conn.client,
@@ -366,12 +397,36 @@ export class Session {
 
     this.setState({ kind: "connected", hello: conn.hello });
     this.emitWorkspaces();
+    // hello にはフォーカスが無いので、workspace.list で尋ねる（画面の取り直しは待たせない）
+    void this.fetchFocus(conn, gen);
 
     if (replaced) {
       // shj が作り直された。古い画面は捨て、ワークスペースの一覧から取り直す（画面は D 以降）
       this._screen = null;
     } else {
       await this.fetchScreen(conn, gen);
+    }
+  }
+
+  private setFocus(id: WorkspaceId | null): void {
+    if (this._focus === id) return;
+    this._focus = id;
+    for (const h of [...this.focusHandlers]) h(id);
+  }
+
+  private async fetchFocus(conn: Connection, gen: number): Promise<void> {
+    try {
+      const r = await conn.client.request("workspace.list", {});
+      if (gen !== this.generation || this.conn !== conn) return;
+      this._workspaces = r.workspaces;
+      this.emitWorkspaces();
+      this.setFocus(r.focus);
+    } catch (e) {
+      // 切れたなら onClose が見る。フォーカスが分からないだけで、帯は出せる
+      this.opts.onDiscard?.(
+        `workspace.list failed: ${e instanceof Error ? e.message : String(e)}`,
+        "",
+      );
     }
   }
 
