@@ -27,7 +27,7 @@ function screen(...panes: Pane[]): Screen {
     rev: 5,
     ackSeq: 1,
     focus: "files",
-    status: { mode: "NOR" },
+    status: { mode: "NOR", style: "mode.normal", cursor: { line: 0, col: 0 } },
     files: { panes, active: 0 },
   };
 }
@@ -139,7 +139,10 @@ describe("applyUpdate", () => {
   });
 
   it("cmdline の null は閉じたこと", () => {
-    const prev: Screen = { ...screen(), cmdline: { prefix: ":", text: "w" } };
+    const prev: Screen = {
+      ...screen(),
+      cmdline: { prefix: ":", text: "w", cursor: 1 },
+    };
     const next = applyUpdate(prev, {
       rev: 6,
       baseRev: 5,

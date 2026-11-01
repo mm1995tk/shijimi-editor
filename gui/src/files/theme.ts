@@ -14,6 +14,15 @@ const FALLBACK: Record<string, string> = {
   selection: "#2c3a55",
   cursor: "#e6e8ec",
   "cursor.fg": "#121418",
+  // タイトル行・状態行（E3）
+  "tab.bg": "#181b21",
+  "tab.inactive.fg": "#9aa3b2",
+  dim: "#9aa3b2",
+  border: "#2a2f39",
+  accent: "#8fb4ff",
+  dirty: "#e2c08d",
+  "mode.normal": "#7cc4b0",
+  "status.fg": "#0f1114",
 };
 
 /** name の色。テーマに無ければ控えの色、それも無ければ undefined。 */
@@ -47,4 +56,23 @@ export function runStyle(
     .join(" ");
   if (deco) st["text-decoration"] = deco;
   return st;
+}
+
+/** ファイルの欄の CSS の変数（files.css の --files-*）。 */
+export function filesVars(
+  theme: Theme | null | undefined,
+): Record<string, string | undefined> {
+  const c = (name: string) => colorOf(theme, name);
+  return {
+    "--files-bg": c("editor.bg"),
+    "--files-fg": c("editor.fg"),
+    "--files-lineno": c("lineno"),
+    "--files-lineno-current": c("lineno.current"),
+    // タイトル行・状態行（E3）
+    "--files-bar-bg": c("tab.bg"),
+    "--files-bar-fg": c("dim"),
+    "--files-border": c("border"),
+    "--files-accent": c("accent"),
+    "--files-inactive-fg": c("tab.inactive.fg"),
+  };
 }

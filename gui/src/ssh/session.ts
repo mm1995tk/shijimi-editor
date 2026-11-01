@@ -7,7 +7,7 @@
 //  - ツリーと git の要求（tree.list / tree.watch / git.status）を今の接続に流し、
 //    その通知（tree.changed / git.changed）をつなぎ直しをまたいで渡す（D2）
 //  - 画面を購読し（view.subscribe）、欄の大きさ（view.resize）とテーマ（theme.get）を送り受けする。
-//    screen.update を手元の画面に当て、当てたら screen.ack を返す（E1）
+//    screen.update を手元の画面に当て、当てたら screen.ack を返す（E1）。購読するのはファイルの欄・状態行・コマンド行（E3）
 //  - キー・IME・マウス・貼り付け（input.*）を順に送り、clipboard.write を渡す（E2）
 // Solid などの画面の仕組みには依存しない。
 
@@ -109,8 +109,8 @@ export type InputMethod =
   | "input.paste"
   | "input.focus";
 
-/** 購読する領域。今はファイルの欄だけを描く（状態行とコマンド行は E3、ポップアップは E4 で足す）。 */
-export const SUBSCRIBED_REGIONS: Region[] = ["files"];
+/** 購読する領域。ファイルの欄と状態行とコマンド行を描く（ポップアップは E4 で足す）。 */
+export const SUBSCRIBED_REGIONS: Region[] = ["files", "status", "cmdline"];
 
 /** 1, 2, 4, 8, 16, 30 秒…（最後の値を繰り返す）。10 回で待ちは合わせて 151 秒ほど（ssh の接続待ちは別）。 */
 export const DEFAULT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000];
@@ -200,6 +200,7 @@ export class Session {
 
   /**
    * ファイルの欄の大きさ（等幅のマス目の桁数と行数。タイトル行を含めない）を shj に送る（view.resize）。
+   * 状態行とコマンド行は欄と同じ幅なので、同じ桁数を送る。
    * つながっていなければ覚えておき、つないだときに送る。
    */
   resize(size: { cols: number; rows: number }): void {
@@ -214,7 +215,13 @@ export class Session {
     const size = this.filesSize;
     if (!size) return;
     conn.client
-      .request("view.resize", { regions: { files: size } })
+      .request("view.resize", {
+        regions: {
+          files: size,
+          status: { cols: size.cols },
+          cmdline: { cols: size.cols },
+        },
+      })
       .catch((e) => this.discard("view.resize", e));
   }
 

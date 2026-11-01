@@ -6,11 +6,14 @@
 // - キー・IME・マウス・貼り付けは onInput で shj に送る（E2）。キーは見えない textarea で受ける
 //   （IME の変換と貼り付けを OS に任せるため）。変換中の文字は shj が下線付きで画面に入れて返す。
 //   イベントの受け方は filesInput.ts、パラメータの作り方は input.ts、OS のクリップボードは clipboard.ts。
-// - タイトル行（E3）、行番号の横の印・診断・インデントガイド（E5）、画像・プレビュー・差分（E6）はまだ描かない。
+// - 上にペインごとのタイトル行、下に状態行（コマンド行が開いているときはコマンド行）を出す
+//   （E3。BarsView.tsx、中身は bars.ts）。
+// - 行番号の横の印・診断・インデントガイド（E5）、画像・プレビュー・差分（E6）はまだ描かない。
 //   差分とプレビューのペインは、行の文字だけを出す。
 import {
   createEffect,
   createMemo,
+  createSignal,
   For,
   Index,
   onCleanup,
@@ -21,6 +24,7 @@ import {
 } from "solid-js";
 
 import type { Line, Pane, Screen, Theme } from "../rpc/protocol.ts";
+import { BottomBar, TitlesView } from "./BarsView.tsx";
 import type { OsClipboard } from "./clipboard.ts";
 import {
   createKeyInput,
@@ -39,7 +43,7 @@ import {
   type FilesSize,
   type LineOptions,
 } from "./layout.ts";
-import { colorOf, runStyle } from "./theme.ts";
+import { colorOf, filesVars, runStyle } from "./theme.ts";
 import "./files.css";
 
 export type { FilesSize, SendInput };
@@ -62,6 +66,8 @@ export function FilesView(props: {
   let measure: HTMLSpanElement | undefined;
   let ime: HTMLTextAreaElement | undefined;
   let last: FilesSize | undefined;
+  // 欄の桁数（コマンド行の入る幅に使う）
+  const [cols, setCols] = createSignal(0);
 
   /** 等幅のマス目 1 つの幅（px）。 */
   function cellWidth(): number {
@@ -74,6 +80,7 @@ export function FilesView(props: {
     const size = cellsFor(body.clientWidth, body.clientHeight, cellWidth());
     if (last && last.cols === size.cols && last.rows === size.rows) return;
     last = size;
+    setCols(size.cols);
     props.onResize(size);
   }
   onMount(() => {
@@ -91,12 +98,16 @@ export function FilesView(props: {
   });
 
   const files = () => props.screen?.files;
-  const color = (name: string) => colorOf(props.theme, name);
 
   // ---- 入力（E2） ----
 
   const send = createOrderedSend(() => props.onInput);
   const focusIme = () => ime?.focus({ preventScroll: true });
+  // タイトル行・状態行を押しても、キーを受ける textarea からフォーカスを外さない
+  const keepFocus = (e: MouseEvent) => {
+    e.preventDefault();
+    focusIme();
+  };
   const keys = createKeyInput({
     send,
     clipboard: () => props.clipboard,
@@ -120,21 +131,18 @@ export function FilesView(props: {
   });
 
   return (
-    <section
-      class="files"
-      aria-label="ファイル"
-      style={{
-        "--files-bg": color("editor.bg"),
-        "--files-fg": color("editor.fg"),
-        "--files-lineno": color("lineno"),
-        "--files-lineno-current": color("lineno.current"),
-      }}
-    >
+    <section class="files" aria-label="ファイル" style={filesVars(props.theme)}>
+      <TitlesView files={files()} theme={props.theme} onMouseDown={keepFocus} />
       <div
         class="files-body"
         ref={body}
         onMouseDown={pointer.onMouseDown}
         onContextMenu={(e) => e.preventDefault()}
+        // 本文はスクロールさせない（行の位置は shj が決める）。IME のキャレットなどでずれたら戻す
+        onScroll={(e) => {
+          e.currentTarget.scrollTop = 0;
+          e.currentTarget.scrollLeft = 0;
+        }}
       >
         <span class="files-measure" ref={measure} aria-hidden="true">
           {"0".repeat(64)}
@@ -173,6 +181,12 @@ export function FilesView(props: {
           )}
         </Show>
       </div>
+      <BottomBar
+        screen={props.screen}
+        cols={cols()}
+        theme={props.theme}
+        onMouseDown={keepFocus}
+      />
     </section>
   );
 }
