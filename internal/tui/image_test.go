@@ -32,7 +32,7 @@ func TestImageViewSendsOncePerSize(t *testing.T) {
 	cellW, cellH = 10, 20
 	takeGraphics()
 	v := &imageView{path: "a.png", img: image.NewRGBA(image.Rect(0, 0, 400, 400)), format: "png", id: 7}
-	a := &App{tabs: []*tab{{kind: tabImage, img: v}}}
+	a := &App{Core: &Core{tabs: []*tab{{kind: tabImage, img: v}}}}
 	lines := a.imageLines(a.tabs[0], 30, 12)
 	if len(lines) != 12 {
 		t.Fatalf("got %d lines", len(lines))
@@ -74,7 +74,7 @@ func TestImageViewFromData(t *testing.T) {
 func TestBuildImagePane(t *testing.T) {
 	cellW, cellH = 10, 20
 	v := &imageView{path: "/x/a.png", img: image.NewRGBA(image.Rect(0, 0, 400, 300)), format: "png", size: 2048, id: 9}
-	a := &App{tabs: []*tab{{kind: tabImage, img: v}}}
+	a := &App{Core: &Core{tabs: []*tab{{kind: tabImage, img: v}}}}
 	p := a.buildImagePane(a.tabs[0], 30, 12)
 	want := screen.ImageRef{Blob: blobFile + "/x/a.png", Width: 400, Height: 300, Format: "png", Size: 2048}
 	if p.Kind != screen.KindImage || p.Title.Text != "a.png" || p.Image == nil || *p.Image != want || p.Caption != "PNG  400×300  2.0 KB" {
