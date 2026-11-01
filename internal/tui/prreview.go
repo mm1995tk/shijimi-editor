@@ -848,11 +848,7 @@ func (a *Core) compose(title, initial string, orig []string, onSubmit func(strin
 	ta.Prompt = ""
 	ta.CharLimit = 0
 	ta.SetHeight(6)
-	st := ta.Styles()
-	base := bgfg(cPaletteBg, cEditorFg)
-	st.Focused = textarea.StyleState{Base: base, Text: base, CursorLine: base, Placeholder: bgfg(cPaletteBg, curTheme.Dim), EndOfBuffer: base, Prompt: base}
-	st.Blurred = st.Focused
-	ta.SetStyles(st)
+	styleComposer(&ta)
 	ta.Placeholder = i18n.T("rv.markdownok")
 	ta.SetValue(initial)
 	a.comp, a.hoverText = nil, ""

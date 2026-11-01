@@ -1,9 +1,6 @@
 package tui
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -68,31 +65,6 @@ func wrapCells(lines [][]hoverCell, w int, code bool) []hoverLine {
 		out = append(out, hoverLine{code: code})
 	}
 	return out
-}
-
-// renderCells draws cells on bg, padded with spaces to w cells.
-func renderCells(cs []hoverCell, bg string, w int) string {
-	var sb strings.Builder
-	width := 0
-	for i := 0; i < len(cs); {
-		j := i
-		var run strings.Builder
-		for j < len(cs) && cs[j].st == cs[i].st {
-			run.WriteRune(cs[j].r)
-			width += ansi.StringWidth(string(cs[j].r))
-			j++
-		}
-		fg := styleColor(cs[i].st)
-		if fg == "" {
-			fg = cHoverFg
-		}
-		sb.WriteString(bgfg(bg, fg).Bold(cs[i].st == screen.StyleHoverHead).Render(run.String()))
-		i = j
-	}
-	if width < w {
-		sb.WriteString(bgfg(bg, cHoverFg).Render(strings.Repeat(" ", w-width)))
-	}
-	return sb.String()
 }
 
 // hoverCopyLabel is the click target drawn on the top border's right end.
@@ -178,64 +150,3 @@ func (v hoverView) overlay(scroll int) screen.Overlay {
 
 // render draws the box scrolled by scroll rows.
 func (v hoverView) render(scroll int) []string { return drawHover(v.overlay(scroll)) }
-
-// drawHover draws a hover Overlay as a box of cells: border, padding, code
-// bands and a scroll indicator on the bottom border.
-func drawHover(ov screen.Overlay) []string {
-	vw := screen.Viewport{Cols: 1}
-	if ov.View != nil {
-		vw = *ov.View
-	}
-	width := max(vw.Cols, 1)
-	end := vw.Top + len(ov.Lines)
-	bd := bgfg(cHoverBg, cHoverBorder)
-	iw := width + 2
-	out := make([]string, 0, len(ov.Lines)+2)
-	top := strings.Repeat("─", iw)
-	if n := ansi.StringWidth(ov.CopyLabel); n+2 <= iw {
-		top = strings.Repeat("─", iw-n-1) + ov.CopyLabel + "─"
-	}
-	out = append(out, bd.Render("╭"+top+"╮"))
-	for _, l := range ov.Lines {
-		bg := cHoverBg
-		if l.Band != "" {
-			bg = styleColor(l.Band)
-		}
-		pad := bgfg(bg, cHoverFg).Render(" ")
-		var cells []hoverCell
-		if l.Rule {
-			cells = make([]hoverCell, width)
-			for i := range cells {
-				cells[i] = hoverCell{r: '─', st: screen.StyleHoverRule}
-			}
-		}
-		for _, sp := range l.Spans {
-			for _, r := range sp.Text {
-				cells = append(cells, hoverCell{r: r, st: sp.Style})
-			}
-		}
-		out = append(out, bd.Render("│")+pad+renderCells(cells, bg, width)+pad+bd.Render("│"))
-	}
-	ind := ""
-	hint := ov.Hint
-	if vw.Total > vw.Rows {
-		ind = fmt.Sprintf(" %d/%d ", end, vw.Total)
-		if vw.Top > 0 {
-			ind = "↑" + ind
-		}
-		if end < vw.Total {
-			ind += "↓"
-		}
-	}
-	bottom := strings.Repeat("─", iw)
-	switch hn, in := ansi.StringWidth(hint), ansi.StringWidth(ind); {
-	case in > 0 && hn+in+3 <= iw:
-		bottom = "─" + hint + strings.Repeat("─", iw-hn-in-2) + ind + "─"
-	case in == 0 && hn+2 <= iw:
-		bottom = "─" + hint + strings.Repeat("─", iw-hn-1)
-	case in > 0 && in < iw:
-		bottom = strings.Repeat("─", iw-in-1) + ind + "─"
-	}
-	out = append(out, bd.Render("╰"+bottom+"╯"))
-	return out
-}

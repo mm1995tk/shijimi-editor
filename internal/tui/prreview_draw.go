@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/textarea"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
@@ -139,4 +140,13 @@ func (a *App) drawComposer(ov screen.Overlay, input []string) []string {
 		}
 	}
 	return append(rows, bd.Render("╰"+strings.Repeat("─", w-2)+"╯"))
+}
+
+// styleComposer gives the comment editor the colours of the palette.
+func styleComposer(ta *textarea.Model) {
+	st := ta.Styles()
+	base := bgfg(cPaletteBg, cEditorFg)
+	st.Focused = textarea.StyleState{Base: base, Text: base, CursorLine: base, Placeholder: bgfg(cPaletteBg, curTheme.Dim), EndOfBuffer: base, Prompt: base}
+	st.Blurred = st.Focused
+	ta.SetStyles(st)
 }

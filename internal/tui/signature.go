@@ -2,9 +2,6 @@ package tui
 
 import (
 	"context"
-	"strings"
-
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -111,25 +108,6 @@ func (s *signaturePopup) overlay() screen.Overlay {
 		ov.Pane, ov.At = s.tab.path(), &at
 	}
 	return ov
-}
-
-// drawSignature draws a signature Overlay as a box of cells, cut to maxW.
-func drawSignature(ov screen.Overlay, maxW int) []string {
-	var sb strings.Builder
-	sb.WriteString(stPalette.Render(" "))
-	for _, sp := range ov.Lines[0].Spans {
-		st := stPalette
-		if sp.Style == screen.StylePaletteHi {
-			st = stPaletteHi
-		}
-		sb.WriteString(st.Render(sp.Text))
-	}
-	sb.WriteString(stPalette.Render(" "))
-	line := sb.String()
-	if ansi.StringWidth(line) > maxW {
-		line = fit(line, maxW)
-	}
-	return []string{line}
 }
 
 // render is the popup as a box of cells.
