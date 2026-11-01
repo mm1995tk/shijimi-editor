@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/alecthomas/chroma/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
+	"github.com/rivo/uniseg"
 )
 
 // dvGeom is where the parts of a diff view sit on screen.
@@ -276,4 +279,103 @@ func drawCompareBar(branch string, pr *prInfo, w int) string {
 // drawDiffHelp draws the keys of diff mode (diffHelp) on the line below it.
 func drawDiffHelp(help string, w int) string {
 	return bgfg(cSideBg, curTheme.Dim).Render(fit(help, w))
+}
+
+// changedLine reports whether pl is a line of a change on the current side of
+// a diff (drawn on the added background).
+func changedLine(pl screen.Line) bool {
+	for _, m := range pl.Marks {
+		if m.Kind == screen.MarkAdded || m.Kind == screen.MarkModified {
+			return true
+		}
+	}
+	return false
+}
+
+func isDeletedLine(pl screen.Line) bool {
+	for _, m := range pl.Marks {
+		if m.Kind == screen.MarkDeleted {
+			return true
+		}
+	}
+	return false
+}
+
+// drawSpans draws spans on bg, w cells wide. The runes inside words get
+// wordBg instead. The first skip cells of the line are left out (a sideways
+// scroll).
+func drawSpans(spans []screen.Span, bg string, words []screen.Cols, wordBg string, w, skip int) string {
+	if w <= 0 {
+		return ""
+	}
+	var sb strings.Builder
+	used, idx, col := 0, 0, 0 // cells drawn, rune index into the line, cells passed
+	var run strings.Builder
+	var runKey cellStyle
+	flush := func() {
+		if run.Len() > 0 {
+			sb.WriteString(styleFor(runKey).Render(run.String()))
+			run.Reset()
+		}
+	}
+	// emit draws s in fg and reports whether there is room for more.
+	emit := func(s, fg string) bool {
+		// by grapheme cluster, measured as the terminal draws it
+		for g := uniseg.NewGraphemes(s); g.Next(); {
+			cell := bg
+			for _, wd := range words {
+				if idx >= wd.Start && idx < wd.End {
+					cell = wordBg
+					break
+				}
+			}
+			idx += len(g.Runes())
+			ch := g.Str()
+			if ch == "\t" {
+				ch = "    "
+			}
+			cw := ansi.StringWidth(ch)
+			if cw == 0 && skip > 0 && used == 0 { // a combining mark of the rune left of the view
+				continue
+			}
+			if col < skip { // left of the view; a wide rune cut by the edge leaves blanks
+				col += cw
+				if col <= skip {
+					continue
+				}
+				ch = strings.Repeat(" ", col-skip)
+				cw = col - skip
+			}
+			if used+cw > w {
+				return false
+			}
+			if k := (cellStyle{fg: fg, bg: cell}); k != runKey {
+				flush()
+				runKey = k
+			}
+			run.WriteString(ch)
+			used += cw
+		}
+		return used < w
+	}
+	for _, sp := range spans {
+		fg := styleColor(sp.Style)
+		if fg == "" {
+			fg = cEditorFg
+		}
+		if !emit(sp.Text, fg) {
+			break
+		}
+	}
+	flush()
+	if used < w {
+		sb.WriteString(styleFor(cellStyle{fg: cEditorFg, bg: bg}).Render(strings.Repeat(" ", w-used)))
+	}
+	return sb.String()
+}
+
+// highlightText draws text with syntax colors on bg, w cells wide (lexSpans
+// drawn by drawSpans). The runes inside spans get markBg instead.
+func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, markBg string, w, skip int) string {
+	return drawSpans(lexSpans(text, lex), bg, colsOf(spans), markBg, w, skip)
 }

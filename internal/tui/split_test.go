@@ -308,7 +308,7 @@ func TestStylesStayInTui(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	names := map[string]bool{"bgfg": true}
+	names := map[string]bool{"bgfg": true, "styleFor": true}
 	for _, d := range styles.Decls {
 		if gd, ok := d.(*ast.GenDecl); ok {
 			for _, s := range gd.Specs {
