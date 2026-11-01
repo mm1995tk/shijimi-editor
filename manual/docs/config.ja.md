@@ -71,10 +71,14 @@ listen-host = "127.0.0.1"
 [terminal]
 multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "none"
 
+
 # ~/.config/shijimi-editor/config.toml だけで有効
 [agent]
 command = "claude-agent-acp"
 args = []
+
+[server]
+idle_stop_days = 7        # 0 = never stop
 ```
 
 ## 項目
@@ -96,6 +100,7 @@ args = []
 | `[keys.normal]` `[keys.insert]` `[keys.select]` | Helix モードのキーの差し替え（`~/.config/shijimi-editor/` だけ） | [編集（Helix モード）](editing-helix.md#キーの差し替え) |
 | `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | 提案パネルが使う ACP エージェント | [AI エージェント連携](agent.md) |
+| `server.idle_stop_days` | GUI がつながらないまま `shj serve` が動き続ける日数。過ぎると自分で止まる（既定 7、0 で止まらない）。動いているシェルも終わる。未保存の編集は元のファイルの隣に `<ファイル名>.bk`（あれば `.bk.1` …）として書き、元のファイルは書き換えない | — |
 
 ## テーマ
 

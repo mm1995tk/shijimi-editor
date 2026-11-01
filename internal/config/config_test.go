@@ -484,3 +484,23 @@ func TestMultiplexerKeys(t *testing.T) {
 		t.Fatalf("unknown value must be ignored: %q", c.Terminal.Multiplexer)
 	}
 }
+
+func TestServeIdleStopDays(t *testing.T) {
+	c := &Config{Serve: Serve{IdleStopDays: 7}}
+	c.mergeServe("[server]\nidle_stop_days = 0\n")
+	if c.Serve.IdleStopDays != 0 {
+		t.Fatalf("0: %d", c.Serve.IdleStopDays)
+	}
+	c.mergeServe("[server]\nidle_stop_days = 3\n")
+	if c.Serve.IdleStopDays != 3 {
+		t.Fatalf("3: %d", c.Serve.IdleStopDays)
+	}
+	c.mergeServe("[server]\nidle_stop_days = -1\n")
+	if c.Serve.IdleStopDays != 3 {
+		t.Fatalf("negative must be ignored: %d", c.Serve.IdleStopDays)
+	}
+	c.mergeServe("[server]\nidle_stop_days = \"x\"\n")
+	if c.Serve.IdleStopDays != 3 {
+		t.Fatalf("string must be ignored: %d", c.Serve.IdleStopDays)
+	}
+}

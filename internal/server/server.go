@@ -1,8 +1,7 @@
 // Package server は画面を持たない常駐プロセス「shj serve」の中身。
 // Unix ソケットで JSON-RPC を話す。設計は docs/design/gui-protocol.md の 3 章。
 //
-// 今あるメソッドは session.* / server.info / term.*（term.go）。
-// ワークスペースなどは後の Issue で足す。
+// 今あるメソッドは session.* / server.info / term.*（term.go）/ workspace.*（workspace.go）。
 package server
 
 import (
@@ -45,6 +44,12 @@ type Options struct {
 	SocketPath string
 	Shj        Shj
 	Logger     *slog.Logger // nil なら捨てる
+	// IdleStop は GUI が何もつながらないままこの時間が過ぎたら止まる設定（[server] idle_stop_days）。0 なら止まらない。
+	IdleStop  time.Duration
+	IdleCheck time.Duration // 止まる時刻を調べる間隔。0 なら 1 分
+	// CwdInterval はシェルの cwd を読む間隔。0 なら 1 秒。
+	CwdInterval time.Duration
+	Now         func() time.Time // nil なら time.Now。テストで差し替える
 }
 
 // Server は Unix ソケットで待ち受けるサーバー。
@@ -62,6 +67,10 @@ type Server struct {
 	owner      *session  // いま受けつけている GUI（session.hello を済ませた最新の接続）。無ければ nil
 	wg         sync.WaitGroup
 	terms      *termManager
+	ws         *wsManager
+	rev        int64       // サーバー全体の版（mu で守る）
+	stopping   bool        // stop が始まった
+	beforeStop []func()    // 止まる前に走らせる（AddBeforeStop）
 	focus      Workspace   // ctl と ide の届け先。無ければ nil
 	ctlSrv     *ctl.Server // StartControl で開く
 	ideSrv     *ide.Server // StartIDE で開く
@@ -96,14 +105,15 @@ func Listen(opts Options) (*Server, error) {
 		log = slog.New(slog.DiscardHandler)
 	}
 	srv := &Server{
-		opts:      opts,
-		log:       log,
-		ln:        ln,
-		serverID:  hex.EncodeToString(id),
-		startedAt: time.Now(),
-		sessions:  map[*session]struct{}{},
+		opts:     opts,
+		log:      log,
+		ln:       ln,
+		serverID: hex.EncodeToString(id),
+		sessions: map[*session]struct{}{},
 	}
+	srv.startedAt = srv.now()
 	srv.terms = newTermManager(srv)
+	srv.ws = newWSManager(srv)
 	return srv, nil
 }
 
@@ -115,6 +125,10 @@ func (s *Server) Serve(ctx context.Context) error {
 	stop := context.AfterFunc(ctx, func() { s.ln.Close() })
 	defer stop()
 	s.log.Info("serving", "socket", s.opts.SocketPath, "serverId", s.serverID, "pid", os.Getpid())
+	idleDone := make(chan struct{})
+	defer close(idleDone)
+	go s.watchIdle(idleDone)
+	go s.ws.watch(idleDone)
 	for {
 		c, err := s.ln.Accept()
 		if err != nil {
@@ -176,7 +190,7 @@ func (s *Server) accept(c net.Conn) {
 		if s.owner == ss {
 			s.owner = nil
 		}
-		s.lastClient = time.Now()
+		s.lastClient = s.now()
 		s.mu.Unlock()
 		// 状態（ファイル・core・ターミナル）はそのまま残す。
 		s.log.Info("client gone", "reason", fmt.Sprint(ss.conn.Err()))
@@ -191,7 +205,7 @@ func (s *Server) lastClientAt() *time.Time {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(s.sessions) > 0 {
-		t := time.Now()
+		t := s.now()
 		return &t
 	}
 	if s.lastClient.IsZero() {
@@ -247,11 +261,11 @@ type HelloResult struct {
 	StartedAt    time.Time       `json:"startedAt"`
 	Supersedes   *Peer           `json:"supersedes,omitempty"`
 	Capabilities []string        `json:"capabilities"`
-	Workspaces   []any           `json:"workspaces"`
+	Workspaces   []*wsInfo       `json:"workspaces"`
 	Rev          int64           `json:"rev"`
 }
 
-// InfoResult は server.info の結果。idleStopAt は B4 で埋まる（今は null）。
+// InfoResult は server.info の結果。idleStopAt は GUI がつながっている間と、止まらない設定（0）のとき null。
 type InfoResult struct {
 	Shj          Shj        `json:"shj"`
 	ServerID     string     `json:"serverId"`
@@ -274,6 +288,9 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 	if res, err, ok := ss.termRequest(req); ok {
 		return res, err
 	}
+	if res, err, ok := ss.workspaceRequest(req); ok {
+		return res, err
+	}
 	switch req.Method {
 	case "session.hello":
 		return ss.helloReq(req)
@@ -282,6 +299,11 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 	case "session.bye":
 		// GUI を閉じるだけ。shj とシェルは止めない。接続は GUI が閉じる。
 		return struct{}{}, nil
+	case "server.shutdown":
+		if err := ss.needHello(); err != nil {
+			return nil, err
+		}
+		return ss.srv.shutdownReq(req)
 	case "server.info":
 		if err := ss.needHello(); err != nil {
 			return nil, err
@@ -291,8 +313,10 @@ func (ss *session) handle(_ context.Context, req *rpc.Message) (any, error) {
 			Shj:          s.opts.Shj,
 			ServerID:     s.serverID,
 			PID:          os.Getpid(),
-			Uptime:       int64(time.Since(s.startedAt) / time.Second),
+			Uptime:       int64(s.now().Sub(s.startedAt) / time.Second),
 			LastClientAt: s.lastClientAt(),
+			IdleStopAt:   s.idleStopAt(),
+			Workspaces:   s.ws.count(),
 			Terminals:    s.terms.count(),
 		}, nil
 	}
@@ -363,6 +387,7 @@ func (ss *session) helloReq(req *rpc.Message) (any, error) {
 			prev.conn.Close()
 		})
 	}
+	wsl, _ := s.ws.snapshot()
 	ss.srv.log.Info("hello", "client", p.Client.Name, "version", p.Client.Version, "kind", p.Client.Kind)
 	return HelloResult{
 		Protocol:     Protocol,
@@ -372,6 +397,21 @@ func (ss *session) helloReq(req *rpc.Message) (any, error) {
 		StartedAt:    s.startedAt,
 		Supersedes:   sup,
 		Capabilities: []string{},
-		Workspaces:   []any{},
+		Workspaces:   wsl,
+		Rev:          s.currentRev(),
 	}, nil
+}
+
+// bumpRev はサーバー全体の版を 1 つ進める。
+func (s *Server) bumpRev() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.rev++
+	return s.rev
+}
+
+func (s *Server) currentRev() int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.rev
 }

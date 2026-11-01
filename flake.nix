@@ -65,8 +65,8 @@
               subPackages = [ "cmd/shj" ];
               CGO_ENABLED = 0;
               ldflags = [
-                "-X github.com/mm1995tk/shijimi-editor/internal/ui.Version=${version}"
-                "-X github.com/mm1995tk/shijimi-editor/internal/ui.Commit=${commit}"
+                "-X github.com/mm1995tk/shijimi-editor/internal/tui.Version=${version}"
+                "-X github.com/mm1995tk/shijimi-editor/internal/tui.Commit=${commit}"
                 "-X github.com/mm1995tk/shijimi-editor/internal/channel.Channel=${channel}"
               ];
               # The same binary also answers to "shijimi" (or "shijimi-nightly").
