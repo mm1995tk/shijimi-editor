@@ -176,7 +176,7 @@ func (a *App) locate(x, y int, m Mouse) Mouse {
 // pointerHeld reports whether something is being dragged, for the terminals
 // that report a drag as motion with no button.
 func (a *App) pointerHeld() bool {
-	return a.resizing != resizeNone || a.isDragging() || a.term.sel.dragging || a.term.grab || a.agentDragging()
+	return a.resizing != ResizeNone || a.isDragging() || a.term.sel.dragging || a.term.grab || a.agentDragging()
 }
 
 // regionOrigin is the screen cell that is row 0, column 0 of a region.

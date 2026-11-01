@@ -69,7 +69,7 @@ func (a *App) termMouse(l layout, msg Mouse) (cmd []Effect, ok bool) {
 	return nil, sent || grabbed
 }
 
-func (a *App) handleMouse(msg Mouse) []Effect {
+func (a *App) HandleMouse(msg Mouse) []Effect {
 	if a.searchOpen() {
 		return a.searchMouse(msg)
 	}
@@ -96,14 +96,14 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 			return cmd
 		}
 	}
-	if a.resizing == resizeNone && !a.isDragging() && !a.term.sel.dragging {
+	if a.resizing == ResizeNone && !a.isDragging() && !a.term.sel.dragging {
 		if cmd, ok := a.agentMouse(msg); ok {
 			return cmd
 		}
 	}
 	// Some terminals report a drag as motion with no button; while a border
 	// or a selection is being dragged, motion is the drag whatever it says.
-	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.isDragging() && !a.term.sel.dragging {
+	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == ResizeNone && !a.isDragging() && !a.term.sel.dragging {
 		return a.passiveMotion(l, msg)
 	}
 	x, y := a.screenCell(l, msg)
@@ -125,7 +125,7 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 	// A popup the pointer opened only owns the wheel while the pointer is on it.
 	if wheel != 0 && a.hovering() && (!a.hoverByPointer() || a.inHoverBox(l, screenPt{x, y})) {
 		if msg.Action == MousePress {
-			a.scrollHover(wheel)
+			a.ScrollHover(wheel)
 		}
 		return nil
 	}
@@ -174,22 +174,22 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 		return nil
 	}
 
-	if a.resizing != resizeNone {
+	if a.resizing != ResizeNone {
 		switch msg.Action {
 		case MouseMotion:
 			a.dragResize(l, x, y)
 			return nil
 		case MouseRelease:
-			a.resizing = resizeNone
+			a.resizing = ResizeNone
 			return nil
 		}
 		// A press means the release was lost (pointer left the window).
-		a.resizing = resizeNone
+		a.resizing = ResizeNone
 	}
 	if msg.Action == MousePress && msg.Button == MouseLeft {
-		if r := a.resizeHit(l, x, y); r != resizeNone {
+		if r := a.resizeHit(l, x, y); r != ResizeNone {
 			a.resizing = r
-			if r == resizeExplorer {
+			if r == ResizeExplorer {
 				return a.setFocus(focusChanges)
 			}
 			return nil
@@ -237,13 +237,13 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 					return nil
 				}
 				g := a.dvGeom(l)
-				if msg.Col >= g.barX-l.rightX {
+				if msg.Col >= g.BarX-l.rightX {
 					if dv := a.diffFor(t); dv != nil {
 						a.diffBarClick(t, dv, g, y)
 					}
 					return nil
 				}
-				if msg.Col < g.rightX-l.rightX {
+				if msg.Col < g.RightX-l.rightX {
 					return nil // the base side is read-only
 				}
 				if th := a.markerAt(l, x, y); th != nil {
@@ -295,7 +295,7 @@ func (a *App) passiveMotion(l layout, msg Mouse) []Effect {
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
 	}
-	if th := a.markerAt(l, x, y); th != nil && a.settings().Editor.MouseHover && a.focusIs(focusEditor) && !a.hoverBlocked() && a.resizing == resizeNone {
+	if th := a.markerAt(l, x, y); th != nil && a.settings().Editor.MouseHover && a.focusIs(focusEditor) && !a.hoverBlocked() && a.resizing == ResizeNone {
 		// resting on a comment marker shows its thread
 		if !a.cardOnThread(th) {
 			a.showCard(th, a.curText().buf.Path, x, y, true)
@@ -309,7 +309,7 @@ func (a *App) passiveMotion(l layout, msg Mouse) []Effect {
 			a.closeCard()
 		}
 	}
-	if !a.settings().Editor.MouseHover || a.hoverBlocked() || a.resizing != resizeNone {
+	if !a.settings().Editor.MouseHover || a.hoverBlocked() || a.resizing != ResizeNone {
 		return nil
 	}
 	if !a.focusIs(focusEditor) {
@@ -393,6 +393,6 @@ func (a *App) searchMouse(msg Mouse) []Effect {
 }
 
 // hoverCellWord is mouseWord for the cell the pointer last rested on.
-func (a *App) hoverCellWord() (buffer.Pos, wordSpan, bool) {
+func (a *App) HoverCellWord() (buffer.Pos, wordSpan, bool) {
 	return a.mouseWord(a.layout(), a.hoverCellPos())
 }

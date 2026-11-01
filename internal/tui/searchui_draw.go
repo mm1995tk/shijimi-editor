@@ -98,7 +98,7 @@ func (s *searchPanel) fieldBox(i, w int) [3]string {
 	}
 	title := " " + searchLabels()[i] + " "
 	// The width of the input is set in fit.
-	body := s.in[i].view(inputStyleOn(cPaletteBg))
+	body := viewField(&s.in[i], inputStyleOn(cPaletteBg))
 	if s.in[i].Value() == "" {
 		body = s.placeholderView(i)
 	}

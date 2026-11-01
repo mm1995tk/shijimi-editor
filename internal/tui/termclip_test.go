@@ -49,9 +49,9 @@ func TestTerminalDragSelectCopies(t *testing.T) {
 	a.View()
 	l := a.layout()
 	x0, y0 := l.rightX, l.panelY+2
-	a.handleMouse(a.locate(x0+6, y0, Mouse{Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(x0+3, y0+1, Mouse{Action: MouseMotion, Button: MouseLeft}))
-	a.handleMouse(a.locate(x0+3, y0+1, Mouse{Action: MouseRelease, Button: MouseLeft}))
+	a.HandleMouse(a.locate(x0+6, y0, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.HandleMouse(a.locate(x0+3, y0+1, Mouse{Action: MouseMotion, Button: MouseLeft}))
+	a.HandleMouse(a.locate(x0+3, y0+1, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	if want := "world\n日本"; a.clipboard != want {
 		t.Fatalf("clipboard = %q, want %q", a.clipboard, want)
 	}
@@ -75,8 +75,8 @@ func TestTerminalClickDoesNotCopy(t *testing.T) {
 	tab.vt.Write([]byte("hello"))
 	a.clipboard = "keep"
 	l := a.layout()
-	a.handleMouse(a.locate(l.rightX+1, l.panelY+2, Mouse{Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(l.rightX+1, l.panelY+2, Mouse{Action: MouseRelease, Button: MouseLeft}))
+	a.HandleMouse(a.locate(l.rightX+1, l.panelY+2, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.HandleMouse(a.locate(l.rightX+1, l.panelY+2, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	if a.clipboard != "keep" || a.term.sel.on {
 		t.Fatalf("clipboard = %q sel = %+v; a click should not copy", a.clipboard, a.term.sel)
 	}
@@ -91,9 +91,9 @@ func TestTerminalShiftDragSelectsInMouseProgram(t *testing.T) {
 	a.View()
 	l := a.layout()
 	y := l.panelY + 2
-	a.handleMouse(a.locate(l.rightX, y, Mouse{Action: MousePress, Button: MouseLeft, Shift: true}))
-	a.handleMouse(a.locate(l.rightX+2, y, Mouse{Action: MouseMotion, Button: MouseLeft, Shift: true}))
-	a.handleMouse(a.locate(l.rightX+2, y, Mouse{Action: MouseRelease, Button: MouseLeft, Shift: true}))
+	a.HandleMouse(a.locate(l.rightX, y, Mouse{Action: MousePress, Button: MouseLeft, Shift: true}))
+	a.HandleMouse(a.locate(l.rightX+2, y, Mouse{Action: MouseMotion, Button: MouseLeft, Shift: true}))
+	a.HandleMouse(a.locate(l.rightX+2, y, Mouse{Action: MouseRelease, Button: MouseLeft, Shift: true}))
 	if a.clipboard != "abc" || a.term.grab {
 		t.Fatalf("clipboard = %q grab = %v, want abc copied without the program", a.clipboard, a.term.grab)
 	}

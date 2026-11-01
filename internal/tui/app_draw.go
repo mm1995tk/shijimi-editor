@@ -22,7 +22,7 @@ func findInputCells(w int) int {
 }
 
 func (a *App) renderFind(w int) string {
-	return drawFind(*a.findState(), a.findField().view(inputStyleOn(cPaletteBg)), w)
+	return drawFind(*a.findState(), viewField(a.findField(), inputStyleOn(cPaletteBg)), w)
 }
 
 var modeStyles map[editMode]lipgloss.Style
@@ -33,7 +33,7 @@ func (a *App) renderStatus() string { return drawStatus(a.statusOf(), a.confirmO
 // is open and zero while the preview fills the area.
 func (a *App) editW(t *tab, l layout) int {
 	if a.diffFile(t) != nil {
-		return a.dvGeom(l).rightW
+		return a.dvGeom(l).RightW
 	}
 	switch t.preview {
 	case previewSplit:
@@ -193,14 +193,14 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	}
 
 	if a.contextOpen() {
-		rows = drawContext(rows, a.contextPreview(), a.screenW(), a.screenH())
+		rows = drawContext(rows, a.contextPreview(), a.ScreenW(), a.ScreenH())
 	}
 	if a.proposalsOpen() {
 		rows = a.renderProposal(rows)
 	}
 
 	if a.commandLineOpen() {
-		rows = append(rows, a.renderCmdline())
+		rows = append(rows, drawCmdline(*a.cmdlineState(), viewField(a.cmdField(), inputStyleOn(cEditorBg)), a.ScreenW()))
 	} else {
 		rows = append(rows, a.renderStatus())
 	}
@@ -263,7 +263,7 @@ func (a *App) hoverOverlay(l layout) screen.Overlay {
 // hoverBox is the hover popup as a box of cells.
 func (a *App) hoverBox(l layout) []string { return drawHover(a.hoverOverlay(l)) }
 
-func (a *App) scrollHover(d int) {
+func (a *App) ScrollHover(d int) {
 	v := a.hoverView(a.layout())
 	a.setHoverTop(clamp(a.hoverTop()+d, 0, v.maxScroll()))
 }
@@ -310,9 +310,10 @@ func (a *App) fit() {
 		}
 	}
 	if t := a.curText(); t != nil {
-		a.fitCursor(t, a.editW(t, l), l.editH, a.dvGeom(l).h)
+		a.fitCursor(t, a.editW(t, l), l.editH, a.dvGeom(l).H)
 	}
 	a.fitPalette()
+	a.fitContext(a.h)
 	if a.showTerm {
 		a.term.fit(l.fullW, l.panelH)
 	}

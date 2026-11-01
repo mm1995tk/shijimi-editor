@@ -41,7 +41,7 @@ type SearchHit struct {
 	Skip  bool
 }
 
-// SearchResult is what RunSearch found. Files is the number of files with a
+// SearchResult is what SearchProject found. Files is the number of files with a
 // hit; Truncated means the search stopped at MaxSearchHits.
 type SearchResult struct {
 	Hits      []*SearchHit
@@ -198,10 +198,10 @@ func readTextLines(p string) (lines []string, ok bool) {
 	return strings.Split(s, "\n"), true
 }
 
-// RunSearch scans the project. open maps absolute paths of open buffers to
+// SearchProject scans the project. open maps absolute paths of open buffers to
 // their (possibly unsaved) lines, which take precedence over the disk.
 // cancelled is polled between files so a superseded search stops early.
-func RunSearch(root string, o SearchOpts, open map[string][]string, cancelled func() bool) SearchResult {
+func SearchProject(root string, o SearchOpts, open map[string][]string, cancelled func() bool) SearchResult {
 	var res SearchResult
 	if o.Query == "" {
 		return res

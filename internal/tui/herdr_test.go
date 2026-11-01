@@ -131,12 +131,12 @@ func TestHerdrCommands(t *testing.T) {
 func TestHerdrOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := herdrApp(t)
 	a.cfg.Experimental.Multiplexer = false
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("herdr must be off when the setting is off")
 	}
 	a.cfg.Experimental.Multiplexer = true
 	t.Setenv("HERDR_ENV", "")
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("herdr must be off outside herdr")
 	}
 	a.toggleTerm()
@@ -150,7 +150,7 @@ func TestHerdrCommandEnd(t *testing.T) {
 	a, _ := herdrApp(t)
 	a.mux.id = "w1-p2"
 	a.resolveMux() // commandEnded needs the backend that a created pane would have
-	a.commandEnded(1)
+	a.CommandEnded(1)
 	if len(a.sg.fails) != 1 || a.sg.fails[0].code != 1 || len(a.sg.fails[0].output) == 0 {
 		t.Fatalf("fails: %+v", a.sg.fails)
 	}
@@ -158,8 +158,8 @@ func TestHerdrCommandEnd(t *testing.T) {
 	if len(a.sg.fails) != 1 {
 		t.Fatal("scanTerminals dropped the herdr failure")
 	}
-	a.commandEnded(130)
-	a.commandEnded(0)
+	a.CommandEnded(130)
+	a.CommandEnded(0)
 	if len(a.sg.fails) != 0 {
 		t.Fatalf("success must clear: %+v", a.sg.fails)
 	}
@@ -181,7 +181,7 @@ func TestHerdrShellIntegration(t *testing.T) {
 func TestMuxNoneKeepsBuiltinTerminal(t *testing.T) {
 	a, f := herdrApp(t)
 	a.cfg.Terminal.Multiplexer = "none"
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("none must use the built-in terminal even inside herdr")
 	}
 	a.toggleTerm()
@@ -195,7 +195,7 @@ func TestMuxAutoFollowsParents(t *testing.T) {
 	a, _ := herdrApp(t)
 	a.cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "herdr", "systemd")
-	if !a.muxOn() || a.mux.b.name() != "herdr" {
+	if !a.MuxOn() || a.mux.b.name() != "herdr" {
 		t.Fatalf("herdr parent not used: %v", a.mux.b)
 	}
 }
@@ -206,7 +206,7 @@ func TestMuxAutoInnerWins(t *testing.T) {
 	a, f := herdrApp(t)
 	a.cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "tmux: server", "herdr", "systemd")
-	if a.muxOn() || len(f.calls) != 0 {
+	if a.MuxOn() || len(f.calls) != 0 {
 		t.Fatal("the inner tmux must win over herdr")
 	}
 }
@@ -215,7 +215,7 @@ func TestMuxAutoNoMultiplexer(t *testing.T) {
 	a, _ := herdrApp(t)
 	a.cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "alacritty", "init")
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("no multiplexer among the parents")
 	}
 }
@@ -223,7 +223,7 @@ func TestMuxAutoNoMultiplexer(t *testing.T) {
 func TestMuxUnsupportedFallsBack(t *testing.T) {
 	a, _ := herdrApp(t)
 	a.cfg.Terminal.Multiplexer = "tmux"
-	if a.muxOn() || !strings.Contains(a.msg, "tmux") {
+	if a.MuxOn() || !strings.Contains(a.msg, "tmux") {
 		t.Fatalf("expected the built-in terminal and a message: %q", a.msg)
 	}
 }
@@ -262,20 +262,20 @@ func TestMuxKindOf(t *testing.T) {
 func TestMuxHerdrWithoutEnv(t *testing.T) {
 	a, _ := herdrApp(t)
 	t.Setenv("HERDR_ENV", "")
-	if a.muxOn() || strings.Contains(a.msg, "not supported") || !strings.Contains(a.msg, "herdr") {
+	if a.MuxOn() || strings.Contains(a.msg, "not supported") || !strings.Contains(a.msg, "herdr") {
 		t.Fatalf("expected the unavailable message: %q", a.msg)
 	}
 }
 
 func TestMuxConfigReload(t *testing.T) {
 	a, f := herdrApp(t)
-	if !a.muxOn() {
+	if !a.MuxOn() {
 		t.Fatal("herdr expected")
 	}
 	a.mux.id, a.mux.visible = "w1-p2", true
 	a.cfg.Terminal.Multiplexer = "none"
 	a.mux.resolved = false // what :config-reload does
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("none must take effect after a reload")
 	}
 	if !f.has("pane close w1-p2") || a.mux.id != "" {

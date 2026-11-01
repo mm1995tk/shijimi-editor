@@ -11,7 +11,7 @@ import (
 // The core answers an Event with Effects and never touches bubbletea.
 func TestWatchTickEffects(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	effs := a.handleEvent(WatchTick{})
+	effs := a.HandleEvent(WatchTick{})
 	var timer *StartTimer
 	for _, e := range effs {
 		if st, ok := e.(StartTimer); ok {
@@ -28,7 +28,7 @@ func TestWatchTickEffects(t *testing.T) {
 
 func TestStaleHoldScrollTickIsDropped(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	if effs := a.handleEvent(HoldScrollTick{seq: a.holdSeq + 1}); len(effs) != 0 {
+	if effs := a.HandleEvent(HoldScrollTick{seq: a.holdSeq + 1}); len(effs) != 0 {
 		t.Fatalf("stale tick produced %#v", effs)
 	}
 }
@@ -60,7 +60,7 @@ func TestStartTimerDeliversEvent(t *testing.T) {
 // answer, so none is missed while the core works.
 func TestLSPServerEventAsksForTheNext(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	effs := a.handleEvent(lspEventMsg(lsp.Event{Server: "gopls", Message: "ready"}))
+	effs := a.HandleEvent(lspEventMsg(lsp.Event{Server: "gopls", Message: "ready"}))
 	var waits int
 	for _, e := range effs {
 		if w, ok := e.(WaitLSP); ok && w.From == a.lsp.events {
@@ -76,11 +76,11 @@ func TestLSPServerEventAsksForTheNext(t *testing.T) {
 func TestStaleSignatureReplyIsDropped(t *testing.T) {
 	a := newTestApp(t, "one\n")
 	a.sigSeq = 5
-	a.handleEvent(signatureMsg{tab: a.curText(), seq: 4, manual: true, help: &lsp.SignatureHelp{Label: "f()"}})
+	a.HandleEvent(signatureMsg{tab: a.curText(), seq: 4, manual: true, help: &lsp.SignatureHelp{Label: "f()"}})
 	if a.sig != nil {
 		t.Fatal("stale reply opened the popup")
 	}
-	a.handleEvent(signatureMsg{tab: a.curText(), seq: 5, manual: true, help: &lsp.SignatureHelp{Label: "f()"}})
+	a.HandleEvent(signatureMsg{tab: a.curText(), seq: 5, manual: true, help: &lsp.SignatureHelp{Label: "f()"}})
 	if a.sig == nil {
 		t.Fatal("current reply was dropped")
 	}
@@ -92,7 +92,7 @@ func TestAgentEventAsksForTheNext(t *testing.T) {
 	a := newTestApp(t, "one\n")
 	a.ag.gen = 2
 	a.ag.armed = true
-	effs := a.handleEvent(agentUpdateMsg{gen: 1})
+	effs := a.HandleEvent(agentUpdateMsg{gen: 1})
 	if len(a.ag.log) != 0 {
 		t.Fatalf("stale update was logged: %+v", a.ag.log)
 	}

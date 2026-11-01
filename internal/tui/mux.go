@@ -19,8 +19,6 @@ import (
 // [terminal] multiplexer is "none", or the editor does not run in a
 // multiplexer that is supported.
 
-// muxFailTab is the termFailure.tab of failures seen in the multiplexer pane.
-const muxFailTab = -1
 
 // muxBackend is what a multiplexer has to do for the terminal commands.
 // Adding a multiplexer means implementing it and adding it to newMuxBackend
@@ -129,7 +127,7 @@ func (a *App) resolveMux() {
 }
 
 // muxOn reports whether the terminal commands should use a multiplexer pane.
-func (a *App) muxOn() bool {
+func (a *App) MuxOn() bool {
 	if a.singleFile() || a.settings() == nil || !a.settings().Experimental.Multiplexer {
 		return false
 	}
@@ -176,7 +174,7 @@ func (a *App) muxCreate() error {
 
 // muxOpen shows the pane and moves focus to it, creating it the first time
 // and again after it has ended.
-func (a *App) muxOpen() error {
+func (a *App) MuxOpen() error {
 	m := &a.mux
 	if m.id == "" || !m.b.alive(m.id) {
 		m.id, m.visible = "", false
@@ -189,7 +187,7 @@ func (a *App) muxOpen() error {
 	return nil
 }
 
-func (a *App) muxHide() error {
+func (a *App) MuxHide() error {
 	if err := a.mux.b.hide(); err != nil {
 		return err
 	}
@@ -198,26 +196,26 @@ func (a *App) muxHide() error {
 }
 
 // muxToggle is the toggle of Ctrl+`, Space t and :sh.
-func (a *App) muxToggle() []Effect {
+func (a *App) MuxToggle() []Effect {
 	var err error
 	if a.mux.visible && a.mux.id != "" && a.mux.b.alive(a.mux.id) {
-		err = a.muxHide()
+		err = a.MuxHide()
 	} else {
-		err = a.muxOpen()
+		err = a.MuxOpen()
 	}
-	return a.muxResult(err)
+	return a.MuxResult(err)
 }
 
 // muxSend opens the pane and sends text to it.
-func (a *App) muxSend(text string, enter bool) []Effect {
-	if err := a.muxOpen(); err != nil {
-		return a.muxResult(err)
+func (a *App) MuxSend(text string, enter bool) []Effect {
+	if err := a.MuxOpen(); err != nil {
+		return a.MuxResult(err)
 	}
-	return a.muxResult(a.mux.b.send(a.mux.id, text, enter))
+	return a.MuxResult(a.mux.b.send(a.mux.id, text, enter))
 }
 
 // muxClose closes the pane that this editor created, if it is still there.
-func (a *App) muxClose() {
+func (a *App) MuxClose() {
 	m := &a.mux
 	if m.b != nil && m.id != "" && m.b.alive(m.id) {
 		m.b.close(m.id)
@@ -225,7 +223,7 @@ func (a *App) muxClose() {
 	m.id, m.visible = "", false
 }
 
-func (a *App) muxResult(err error) []Effect {
+func (a *App) MuxResult(err error) []Effect {
 	if err != nil {
 		a.fail(a.muxError(err))
 	}
@@ -235,10 +233,10 @@ func (a *App) muxResult(err error) []Effect {
 // commandEnded handles the exit code that the shell in the multiplexer pane
 // reports with "shj command-end <code>" (see muxShellIntegration). It
 // plays the part of scanTerminals for the built-in terminal.
-func (a *App) commandEnded(code int) {
+func (a *App) CommandEnded(code int) {
 	switch code {
 	case 0:
-		a.clearFailure(muxFailTab)
+		a.clearFailure(MuxFailTab)
 	case 130:
 		// Ctrl+C: the user stopped it on purpose.
 	default:
@@ -246,6 +244,6 @@ func (a *App) commandEnded(code int) {
 		if a.mux.b != nil && a.mux.id != "" {
 			tail = a.mux.b.tail(a.mux.id, failTail)
 		}
-		a.addFailureTab(muxFailTab, 1, code, "", tail)
+		a.addFailureTab(MuxFailTab, 1, code, "", tail)
 	}
 }

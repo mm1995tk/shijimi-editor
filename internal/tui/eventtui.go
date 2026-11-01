@@ -81,93 +81,9 @@ func (a *App) effectCmd(effs ...Effect) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// handleEvent is the core's entry for Events. The TUI calls it from Update.
-func (a *App) handleEvent(ev Event) []Effect {
-	switch ev := ev.(type) {
-	case AutoSaveDue:
-		return a.handleAutoSave(ev)
-	case WatchTick:
-		return a.handleWatch()
-	case HoldScrollTick:
-		return a.holdScrollTick(ev.seq)
-	case HoverDwell:
-		return a.hoverDwell(ev)
-	case SearchTick:
-		return a.searchTick(ev)
-	case RepoProbed:
-		a.handleRepoProbed(ev)
-		return nil
-	case SearchDone:
-		a.searchDone(ev)
-		return nil
-	case termOutputMsg, termDoneMsg:
-		return a.handleTermEvent(ev)
-	case CtlRequest:
-		return a.handleCtl(ev)
-	case IDECall:
-		return a.handleIDE(ev)
-	case IDECancel:
-		a.cancelProposal(ev.Reply)
-		return nil
-	case changesLoadedMsg:
-		a.applyChanges(ev)
-		return nil
-	case highlightMsg:
-		ev.h.apply(ev)
-		return nil
-	case mermaidStartMsg:
-		return a.handleMermaidStart(ev)
-	case mermaidDoneMsg:
-		a.handleMermaidDone(ev)
-		return nil
-	case mdImageDoneMsg:
-		a.handleMDImageDone(ev)
-		return nil
-	case formatterDoneMsg:
-		return a.handleFormatterDone(ev)
-	case openURLMsg:
-		switch {
-		case ev.err != nil && ev.copyOnFail:
-			a.copyText(ev.url)
-			a.info(i18n.T("rv.openfailedcopied"), ev.url)
-		case ev.err != nil:
-			a.fail(ev.err)
-		default:
-			a.info(i18n.T("app.opened"), ev.url)
-		}
-		return nil
-	case prFoundMsg:
-		return a.handlePRFound(ev)
-	case branchPRsMsg:
-		return a.handleBranchPRs(ev)
-	case prCheckedOutMsg:
-		return a.handlePRCheckedOut(ev)
-	case prPulledMsg:
-		return a.handlePRPulled(ev)
-	case prReviewMsg:
-		return a.handlePRReview(ev)
-	case viewedMsg:
-		a.handleViewed(ev)
-		return nil
-	case reviewSentMsg:
-		return a.handleReviewSent(ev)
-	case prListMsg:
-		return a.showPRList(ev)
-	case lspEventMsg:
-		// Ask for the next one first, so none waits while this is handled.
-		return append([]Effect{WaitLSP{a.lspEvents()}}, a.handleLSPEvent(lsp.Event(ev))...)
-	}
-	if effs, ok := a.handleAgentEvent(ev); ok {
-		return effs
-	}
-	if effs, ok := a.handleLSPReply(ev); ok {
-		return effs
-	}
-	return nil
-}
 
-// handleTermEvent is the shell of the terminal panel printing or ending.
-func (a *App) handleTermEvent(ev Event) []Effect {
+// HandleTermEvent is the shell of the terminal panel printing or ending.
+func (a *App) HandleTermEvent(ev Event) []Effect {
 	effs := a.term.update(ev)
 	// A program in the terminal panel (Claude Code, tmux, …) copies with
 	// OSC 52; pass the text on to the clipboard. Any program there can do

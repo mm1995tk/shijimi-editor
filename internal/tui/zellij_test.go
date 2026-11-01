@@ -169,14 +169,14 @@ func TestZellijBadReply(t *testing.T) {
 func TestZellijOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := zellijApp(t)
 	a.cfg.Experimental.Multiplexer = false
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("zellij must be off when the setting is off")
 	}
 	a.resolveMux()
 	t.Setenv("ZELLIJ", "")
 	a.cfg.Experimental.Multiplexer = true
 	a.resolveMux()
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("zellij must be off outside zellij")
 	}
 	t.Setenv("SHELL", "/bin/sh") // a shell that fails to start closes the panel at once
@@ -191,14 +191,14 @@ func TestZellijCommandEnd(t *testing.T) {
 	a, _ := zellijApp(t)
 	a.mux.id = "terminal_2"
 	a.resolveMux()
-	a.commandEnded(1)
+	a.CommandEnded(1)
 	if len(a.sg.fails) != 1 || a.sg.fails[0].code != 1 {
 		t.Fatalf("fails: %+v", a.sg.fails)
 	}
 	if out := a.sg.fails[0].output; len(out) == 0 || out[len(out)-1] != "make: *** error" {
 		t.Fatalf("output must lose the padding: %q", out)
 	}
-	a.commandEnded(0)
+	a.CommandEnded(0)
 	if len(a.sg.fails) != 0 {
 		t.Fatalf("success must clear: %+v", a.sg.fails)
 	}
@@ -208,7 +208,7 @@ func TestZellijAutoFollowsParents(t *testing.T) {
 	a, _ := zellijApp(t)
 	a.cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "zellij", "systemd")
-	if !a.muxOn() || a.mux.b.name() != "zellij" {
+	if !a.MuxOn() || a.mux.b.name() != "zellij" {
 		t.Fatalf("zellij parent not used: %v", a.mux.b)
 	}
 }

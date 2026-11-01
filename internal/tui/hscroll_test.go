@@ -42,15 +42,15 @@ func TestHScrollWheelAndAltPgDn(t *testing.T) {
 	a := newTestApp(t, strings.Repeat("x", 300)+"\n")
 	b := a.curText().buf
 	l := a.layout()
-	a.handleMouse(a.locate(l.rightX+10, l.editY+1, Mouse{Action: MousePress, Button: MouseWheelRight}))
+	a.HandleMouse(a.locate(l.rightX+10, l.editY+1, Mouse{Action: MousePress, Button: MouseWheelRight}))
 	if b.ScrollCol != hscrollWheel {
 		t.Fatalf("wheel right -> %d", b.ScrollCol)
 	}
-	a.handleMouse(a.locate(l.rightX+10, l.editY+1, Mouse{Action: MousePress, Button: MouseWheelDown, Shift: true}))
+	a.HandleMouse(a.locate(l.rightX+10, l.editY+1, Mouse{Action: MousePress, Button: MouseWheelDown, Shift: true}))
 	if b.ScrollCol != 2*hscrollWheel {
 		t.Fatalf("shift+wheel down -> %d", b.ScrollCol)
 	}
-	a.handleMouse(a.locate(l.rightX+10, l.editY+1, Mouse{Action: MousePress, Button: MouseWheelLeft}))
+	a.HandleMouse(a.locate(l.rightX+10, l.editY+1, Mouse{Action: MousePress, Button: MouseWheelLeft}))
 	if b.ScrollCol != hscrollWheel || b.ScrollRow != 0 {
 		t.Fatalf("wheel left -> col %d row %d", b.ScrollCol, b.ScrollRow)
 	}
@@ -83,7 +83,7 @@ func TestHScrollShiftWheelOutsideTextStaysVertical(t *testing.T) {
 	a := New(dir, filepath.Join(dir, "f00.txt"))
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	l := a.layout()
-	a.handleMouse(a.locate(2, l.editY+2, Mouse{Action: MousePress, Button: MouseWheelDown, Shift: true}))
+	a.HandleMouse(a.locate(2, l.editY+2, Mouse{Action: MousePress, Button: MouseWheelDown, Shift: true}))
 	if a.explorer.scroll == 0 {
 		t.Fatalf("Shift+wheel over the explorer did not scroll it")
 	}

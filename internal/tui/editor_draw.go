@@ -341,3 +341,9 @@ func renderWelcome(w, h int, helix bool) []string {
 	}
 	return out
 }
+
+// renderEditor draws the visible part of a buffer as exactly h lines of
+// width w: the Pane of the buffer (buildTextPane), drawn as cells.
+func renderEditor(t *tab, w, h int, o editorOpts) []string {
+	return drawTextPane(buildTextPane(t, w, h, o.paneOpts), w, h, o)
+}

@@ -6,6 +6,8 @@ import (
 
 	"charm.land/bubbles/v2/textarea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -58,10 +60,10 @@ func (a *App) markerAt(l layout, x, y int) *prThread {
 		return nil
 	}
 	g := a.dvGeom(l)
-	if x != g.rightX || y < g.top || y >= g.top+g.h {
+	if x != g.RightX || y < g.Top || y >= g.Top+g.H {
 		return nil
 	}
-	idx := dv.start(t.buf.ScrollRow) + y - g.top
+	idx := dv.start(t.buf.ScrollRow) + y - g.Top
 	if idx >= len(dv.rows) || dv.rows[idx].new < 0 {
 		return nil
 	}
@@ -79,13 +81,11 @@ func (a *App) markerAt(l layout, x, y int) *prThread {
 // IME shows its composition.
 func (a *App) composerCaret(l layout) (x, y int, ok bool) {
 	rows, bx, by := a.composerBox(l)
-	ta := a.composerArea()
-	ta.SetVirtualCursor(false)
-	c := ta.Cursor()
-	if c == nil {
+	cx, cy, ok := a.composerArea().CursorCell()
+	if !ok {
 		return 0, 0, false
 	}
-	x, y = bx+2+c.Position.X, by+1+c.Position.Y
+	x, y = bx+2+cx, by+1+cy
 	return x, y, y < by+len(rows) && x < a.w
 }
 
@@ -142,6 +142,27 @@ func (a *App) drawComposer(ov screen.Overlay, input []string) []string {
 	return append(rows, bd.Render("╰"+strings.Repeat("─", w-2)+"╯"))
 }
 
+
+// textArea is the review comment editor's input: a bubbles textarea in the
+// colours of the palette.
+type textArea struct{ ta textarea.Model }
+
+// NewTextArea is a focused text area holding initial (core.FrontEnd).
+func (a *App) NewTextArea(initial string) core.TextArea {
+	ta := textarea.New()
+	ta.ShowLineNumbers = false
+	ta.Prompt = ""
+	ta.CharLimit = 0
+	ta.SetHeight(6)
+	styleComposer(&ta)
+	ta.Placeholder = i18n.T("rv.markdownok")
+	ta.SetValue(initial)
+	// Focus hands back the cursor's blink command; its BlinkMsg is never routed to
+	// the textarea (see update), so it is dropped.
+	ta.Focus()
+	return &textArea{ta: ta}
+}
+
 // styleComposer gives the comment editor the colours of the palette.
 func styleComposer(ta *textarea.Model) {
 	st := ta.Styles()
@@ -149,4 +170,25 @@ func styleComposer(ta *textarea.Model) {
 	st.Focused = textarea.StyleState{Base: base, Text: base, CursorLine: base, Placeholder: bgfg(cPaletteBg, curTheme.Dim), EndOfBuffer: base, Prompt: base}
 	st.Blurred = st.Focused
 	ta.SetStyles(st)
+}
+
+func (t *textArea) Value() string         { return t.ta.Value() }
+func (t *textArea) InsertString(s string) { t.ta.InsertString(s) }
+func (t *textArea) Line() int             { return t.ta.Line() }
+func (t *textArea) Column() int           { return t.ta.Column() }
+func (t *textArea) SetWidth(w int)        { t.ta.SetWidth(w) }
+func (t *textArea) View() string          { return t.ta.View() }
+
+// Update passes a key or a paste to the textarea; the blink command it
+// returns is not used.
+func (t *textArea) Update(in core.Input) { t.ta, _ = t.ta.Update(widgetMsg(in)) }
+
+func (t *textArea) CursorCell() (x, y int, ok bool) {
+	ta := t.ta // a copy: the real one keeps its virtual cursor
+	ta.SetVirtualCursor(false)
+	c := ta.Cursor()
+	if c == nil {
+		return 0, 0, false
+	}
+	return c.Position.X, c.Position.Y, true
 }

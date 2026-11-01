@@ -94,10 +94,10 @@ func TestSearchPanelDebounce(t *testing.T) {
 	keys("nee")
 	stale := SearchTick{seq: a.search.seq.Load()}
 	keys("dle")
-	if a.handleEvent(stale) != nil {
+	if a.HandleEvent(stale) != nil {
 		t.Fatal("a superseded tick must be dropped")
 	}
-	effs := a.handleEvent(SearchTick{seq: a.search.seq.Load()})
+	effs := a.HandleEvent(SearchTick{seq: a.search.seq.Load()})
 	if len(effs) != 1 {
 		t.Fatalf("the latest tick must start a search, got %#v", effs)
 	}
@@ -109,7 +109,7 @@ func TestSearchPanelDebounce(t *testing.T) {
 	if !ok || len(done.res.Hits) != 1 {
 		t.Fatalf("got %#v", done)
 	}
-	if a.handleEvent(done) != nil || a.search.busy || len(a.search.res.Hits) != 1 {
+	if a.HandleEvent(done) != nil || a.search.busy || len(a.search.res.Hits) != 1 {
 		t.Fatal("the result was not taken")
 	}
 }

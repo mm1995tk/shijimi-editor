@@ -13,21 +13,14 @@ import (
 	"github.com/rivo/uniseg"
 )
 
-// dvGeom is where the parts of a diff view sit on screen.
-type dvGeom struct {
-	top, h         int // first content row and number of content rows
-	leftW          int // width of the base pane (0 when unified)
-	rightX, rightW int // the editable pane
-	barX           int // the change bar at the right edge
-}
 
-func (a *App) dvGeom(l layout) dvGeom {
+func (a *App) dvGeom(l layout) core.DiffGeom {
 	w := max(0, l.rightW-1) // the last column is the change bar
-	g := dvGeom{top: l.editY + 1, h: max(0, l.editH-1), rightX: l.rightX, rightW: w, barX: l.rightX + w}
+	g := core.DiffGeom{Top: l.editY + 1, H: max(0, l.editH-1), RightX: l.rightX, RightW: w, BarX: l.rightX + w}
 	if a.splitShown() {
-		g.leftW = a.diffLeftWidth(w)
-		g.rightX = l.rightX + g.leftW + 1
-		g.rightW = w - g.leftW - 1
+		g.LeftW = a.diffLeftWidth(w)
+		g.RightX = l.rightX + g.LeftW + 1
+		g.RightW = w - g.LeftW - 1
 	}
 	return g
 }
@@ -42,8 +35,8 @@ func (a *App) posScreen(t *tab, l layout, p buffer.Pos) (x, y int) {
 	y = l.editY + p.Row - b.ScrollRow
 	if dv := a.diffFor(t); dv != nil {
 		g := a.dvGeom(l)
-		x += g.rightX - l.rightX
-		y = g.top + dv.newIdx[min(b.Cur.Row, len(dv.newIdx)-1)] - dv.start(b.ScrollRow)
+		x += g.RightX - l.rightX
+		y = g.Top + dv.newIdx[min(b.Cur.Row, len(dv.newIdx)-1)] - dv.start(b.ScrollRow)
 	}
 	return x, y
 }
@@ -71,14 +64,14 @@ func (a *App) diffMouseToCursor(t *tab, dv *diffView, l layout, row, col int, ex
 	g := a.dvGeom(l)
 	b := t.buf
 	// g is in screen cells; row and col count from the pane's corner.
-	gTop, gLeft := g.top-l.top, g.rightX-l.rightX
-	col = clamp(col, gLeft, gLeft+g.rightW-1)
+	gTop, gLeft := g.Top-l.top, g.RightX-l.rightX
+	col = clamp(col, gLeft, gLeft+g.RightW-1)
 	if row < gTop {
 		b.MoveLines(-1, extend)
-	} else if row >= gTop+g.h {
+	} else if row >= gTop+g.H {
 		b.MoveLines(1, extend)
 	}
-	idx := clamp(dv.start(b.ScrollRow)+clamp(row-gTop, 0, max(0, g.h-1)), 0, len(dv.rows)-1)
+	idx := clamp(dv.start(b.ScrollRow)+clamp(row-gTop, 0, max(0, g.H-1)), 0, len(dv.rows)-1)
 	newRow := -1
 	for i := idx; i < len(dv.rows) && newRow < 0; i++ {
 		newRow = dv.rows[i].new
@@ -192,18 +185,18 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 }
 
 // drawDiff draws the rows of the Panes of a diff (the last one is the current
-// side and has the change bar) as g.h lines.
-func drawDiff(panes []screen.Pane, g dvGeom, o editorOpts) []string {
+// side and has the change bar) as g.H lines.
+func drawDiff(panes []screen.Pane, g core.DiffGeom, o editorOpts) []string {
 	cur := panes[len(panes)-1]
 	two := len(panes) == 2
-	bar := changeBar(cur.Diff, g.h)
-	ld := newLineDrawer(cur, g.rightW, o)
-	width := g.rightW
+	bar := changeBar(cur.Diff, g.H)
+	ld := newLineDrawer(cur, g.RightW, o)
+	width := g.RightW
 	if two {
-		width += g.leftW + 1
+		width += g.LeftW + 1
 	}
-	out := make([]string, 0, g.h)
-	for i := range g.h {
+	out := make([]string, 0, g.H)
+	for i := range g.H {
 		if i >= len(cur.Lines) {
 			out = append(out, stEmpty.Render(fit("", width))+bar[i])
 			continue
@@ -211,12 +204,12 @@ func drawDiff(panes []screen.Pane, g dvGeom, o editorOpts) []string {
 		pl := cur.Lines[i]
 		var line string
 		if pl.Blank || isDeletedLine(pl) { // the deleted lines of a unified diff
-			line = drawOldLine(cur, pl, g.rightW)
+			line = drawOldLine(cur, pl, g.RightW)
 		} else {
 			line = ld.draw(pl)
 		}
 		if two {
-			line = drawOldLine(panes[0], panes[0].Lines[i], g.leftW) + stSeparator.Render("│") + line
+			line = drawOldLine(panes[0], panes[0].Lines[i], g.LeftW) + stSeparator.Render("│") + line
 		}
 		out = append(out, line+bar[i])
 	}

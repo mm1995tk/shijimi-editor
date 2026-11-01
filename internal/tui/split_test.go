@@ -18,7 +18,7 @@ import (
 //   - lipgloss is imported only by the files that draw. The state that decides
 //     what is shown never builds a style.
 //   - the layout (cells of each pane) is used only by the files that draw or
-//     locate a screen cell. Code that goes to core asks editRows / textCols
+//     locate a screen cell. Code that goes to core asks editRows / TextCols
 //     (layout.go) instead.
 
 // lipglossFiles are the files that may import lipgloss.

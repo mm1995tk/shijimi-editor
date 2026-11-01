@@ -134,17 +134,17 @@ func TestHoverCopyKeyAndButton(t *testing.T) {
 	if !v.copyHit(col, 0) {
 		t.Fatalf("copyHit(%d,0) = false", col)
 	}
-	a.handleMouse(a.locate(bx+col, by, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.HandleMouse(a.locate(bx+col, by, Mouse{Action: MousePress, Button: MouseLeft}))
 	if a.clipboard != goplsHover || a.hoverText == "" {
 		t.Fatalf("button: clipboard=%q hover=%v", a.clipboard, a.hoverText != "")
 	}
-	a.handleMouse(a.locate(bx+col, by, Mouse{Action: MouseRelease, Button: MouseLeft}))
+	a.HandleMouse(a.locate(bx+col, by, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	if a.hoverText == "" {
 		t.Fatal("release on the button closed the hover")
 	}
 
 	a.clipboard = ""
-	a.handleMouse(a.locate(bx+2, by+1, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.HandleMouse(a.locate(bx+2, by+1, Mouse{Action: MousePress, Button: MouseLeft}))
 	if a.clipboard != "" || a.hoverText != "" {
 		t.Fatalf("click elsewhere: clipboard=%q hover=%v", a.clipboard, a.hoverText != "")
 	}

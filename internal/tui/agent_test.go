@@ -328,13 +328,13 @@ func TestPanelMouse(t *testing.T) {
 	a.sg.fixOffer = true
 	l := a.layout()
 	// row 0 is the title, rows 1-2 the first suggestion, rows 3-4 the second
-	a.handleMouse(a.locate(l.agentX+2, l.top+4, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.HandleMouse(a.locate(l.agentX+2, l.top+4, Mouse{Action: MousePress, Button: MouseLeft}))
 	if a.focus != focusAgent || a.sg.sel != 1 {
 		t.Errorf("focus = %v, sel = %d", a.focus, a.sg.sel)
 	}
-	a.handleMouse(a.locate(l.agentX-1, l.top+5, Mouse{Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(l.agentX-21, l.top+5, Mouse{Action: MouseMotion, Button: MouseLeft}))
-	a.handleMouse(a.locate(l.agentX-21, l.top+5, Mouse{Action: MouseRelease, Button: MouseLeft}))
+	a.HandleMouse(a.locate(l.agentX-1, l.top+5, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.HandleMouse(a.locate(l.agentX-21, l.top+5, Mouse{Action: MouseMotion, Button: MouseLeft}))
+	a.HandleMouse(a.locate(l.agentX-21, l.top+5, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	if got := a.layout().agentW; got != l.agentW+20 {
 		t.Errorf("width = %d, want %d", got, l.agentW+20)
 	}

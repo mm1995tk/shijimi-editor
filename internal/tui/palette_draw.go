@@ -14,7 +14,7 @@ func drawPalette(ov screen.Overlay, in *inputField, w int) []string {
 	var out []string
 	label := paletteLabel(ov.Title, ov.Field.Prefix)
 	out = append(out, stPaletteBox.Render(fit("", w)))
-	out = append(out, stPaletteBox.Render(label)+fitStyled(in.view(inputStyleOn(cPaletteBg)), w-ansi.StringWidth(label), stPalette))
+	out = append(out, stPaletteBox.Render(label)+fitStyled(viewField(in, inputStyleOn(cPaletteBg)), w-ansi.StringWidth(label), stPalette))
 	for i, it := range ov.Items {
 		out = append(out, renderItem(it, w, i == ov.Active))
 	}

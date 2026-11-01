@@ -11,7 +11,6 @@ import (
 func (c *ctxPreview) render(w, maxH int) []string {
 	lines := strings.Split(strings.TrimRight(c.text, "\n"), "\n")
 	body := max(1, maxH-3)
-	c.scroll = clamp(c.scroll, 0, max(0, len(lines)-body))
 	out := []string{stPaletteBox.Render(fit(i18n.T("ctx.title"), w))}
 	for _, l := range lines[c.scroll:min(len(lines), c.scroll+body)] {
 		out = append(out, stPalette.Render(fit(" "+strings.ReplaceAll(l, "\t", "    "), w)))

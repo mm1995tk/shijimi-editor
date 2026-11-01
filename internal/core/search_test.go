@@ -130,25 +130,25 @@ func TestRunSearch(t *testing.T) {
 	write("bin.dat", "Test\x00\x01")
 	cancel := func() bool { return false }
 
-	res := RunSearch(dir, SearchOpts{Query: "test", Exclude: []string{"gen/**", "*.lock"}}, nil, cancel)
+	res := SearchProject(dir, SearchOpts{Query: "test", Exclude: []string{"gen/**", "*.lock"}}, nil, cancel)
 	if res.Err != nil || res.Files != 2 || len(res.Hits) != 2 {
 		t.Fatalf("res = %+v", res)
 	}
-	res = RunSearch(dir, SearchOpts{Query: "test", Include: []string{"*.go"}}, nil, cancel)
+	res = SearchProject(dir, SearchOpts{Query: "test", Include: []string{"*.go"}}, nil, cancel)
 	if res.Files != 3 {
 		t.Fatalf("include files = %d", res.Files)
 	}
 	// unsaved buffer content wins over the disk
 	open := map[string][]string{filepath.Join(dir, "b.go"): {"nothing here"}}
-	res = RunSearch(dir, SearchOpts{Query: "TestB"}, open, cancel)
+	res = SearchProject(dir, SearchOpts{Query: "TestB"}, open, cancel)
 	if len(res.Hits) != 0 {
 		t.Fatalf("hits = %+v", res.Hits)
 	}
-	res = RunSearch(dir, SearchOpts{Query: "("}, nil, cancel)
+	res = SearchProject(dir, SearchOpts{Query: "("}, nil, cancel)
 	if len(res.Hits) == 0 {
 		t.Fatal("literal parenthesis must match")
 	}
-	if res := RunSearch(dir, SearchOpts{Query: "("}, nil, func() bool { return true }); len(res.Hits) != 0 {
+	if res := SearchProject(dir, SearchOpts{Query: "("}, nil, func() bool { return true }); len(res.Hits) != 0 {
 		t.Fatal("cancelled search must stop")
 	}
 }

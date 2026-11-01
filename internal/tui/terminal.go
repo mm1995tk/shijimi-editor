@@ -10,26 +10,11 @@ import (
 	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
-	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/term"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
-// termOutputMsg says the shell printed something and termDoneMsg that it ended.
-// A shell that cannot be started is an error from terminal.start, not an Event.
-// The pump of the PTY
-// (internal/term) sends both on terminal.ch; WaitTerm hands them to
-// Update, which gives them to handleTermEvent.
-type termOutputMsg struct{ id int }
-
-type termDoneMsg struct {
-	id  int
-	err error
-}
-
-func (termOutputMsg) isEvent() {}
-func (termDoneMsg) isEvent()   {}
 
 // termTab is the shell running on its own PTY (internal/term), drawn through
 // a VT emulator.
@@ -110,7 +95,7 @@ func (t *terminal) wait() []Effect {
 // start runs a login shell in the current directory on a fresh PTY.
 func (t *terminal) start() ([]Effect, error) {
 	sh := term.DefaultShell()
-	args, env := core.ShellIntegration(sh)
+	args, env := ShellIntegration(sh)
 	cols, rows := max(1, t.w), max(1, t.h)
 	sess, err := term.Start(term.Options{Shell: sh, Args: args, Dir: t.cwd, Env: env, Cols: cols, Rows: rows})
 	if err != nil {
@@ -382,9 +367,9 @@ func sgrColor(c vt.Color, fg, isFG bool) string {
 		return fmt.Sprintf("%d;2;%d;%d;%d", base, r, g, b)
 	}
 	// Default colors match the editor and follow the current theme.
-	rgb := hexRGB(cEditorBg)
+	rgb := hexRGB(curTheme.EditorBg)
 	if isFG {
-		rgb = hexRGB(cEditorFg)
+		rgb = hexRGB(curTheme.EditorFg)
 	}
 	return fmt.Sprintf("%d;2;%d;%d;%d", base, rgb[0], rgb[1], rgb[2])
 }
@@ -640,3 +625,17 @@ func (t *termTab) close() {
 		t.sess.Close()
 	}
 }
+
+// The shell as the failure scan of core sees it (core.Shell).
+
+func (t *termTab) ID() int { return t.id }
+
+func (t *termTab) TakeCommandEnds() []int { return t.vt.TakeCommandEnds() }
+
+func (t *termTab) NewLines() []string {
+	lines, next := t.vt.LinesSince(t.scanned)
+	t.scanned = next
+	return lines
+}
+
+func (t *termTab) Tail(n int) []string { return t.vt.Tail(n) }

@@ -177,14 +177,14 @@ func TestTmuxSplitEnv(t *testing.T) {
 func TestTmuxOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := tmuxApp(t)
 	a.cfg.Experimental.Multiplexer = false
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("tmux must be off when the setting is off")
 	}
 	a.resolveMux()
 	t.Setenv("TMUX", "")
 	a.cfg.Experimental.Multiplexer = true
 	a.resolveMux()
-	if a.muxOn() {
+	if a.MuxOn() {
 		t.Fatal("tmux must be off outside tmux")
 	}
 	a.toggleTerm()
@@ -198,14 +198,14 @@ func TestTmuxCommandEnd(t *testing.T) {
 	a, _ := tmuxApp(t)
 	a.mux.id = "%2"
 	a.resolveMux()
-	a.commandEnded(1)
+	a.CommandEnded(1)
 	if len(a.sg.fails) != 1 || a.sg.fails[0].code != 1 {
 		t.Fatalf("fails: %+v", a.sg.fails)
 	}
 	if out := a.sg.fails[0].output; len(out) == 0 || out[len(out)-1] != "make: *** error" {
 		t.Fatalf("output must lose the padding: %q", out)
 	}
-	a.commandEnded(0)
+	a.CommandEnded(0)
 	if len(a.sg.fails) != 0 {
 		t.Fatalf("success must clear: %+v", a.sg.fails)
 	}
@@ -215,7 +215,7 @@ func TestTmuxAutoFollowsParents(t *testing.T) {
 	a, _ := tmuxApp(t)
 	a.cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "tmux: server", "systemd")
-	if !a.muxOn() || a.mux.b.name() != "tmux" {
+	if !a.MuxOn() || a.mux.b.name() != "tmux" {
 		t.Fatalf("tmux parent not used: %v", a.mux.b)
 	}
 }

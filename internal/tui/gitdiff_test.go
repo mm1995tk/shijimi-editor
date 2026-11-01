@@ -153,7 +153,7 @@ func TestOpenNewFileAgainstHeadIsOnePane(t *testing.T) {
 			t.Errorf("line %d of the new file is marked", i)
 		}
 	}
-	if g := a.dvGeom(a.layout()); g.leftW != 0 || g.rightX != a.layout().rightX {
+	if g := a.dvGeom(a.layout()); g.LeftW != 0 || g.RightX != a.layout().rightX {
 		t.Errorf("new file is split: %+v", g)
 	}
 	for _, k := range barKinds(len(dv.rows), len(dv.rows), dv.hunks) {
@@ -174,7 +174,7 @@ func TestOnePaneHidesSplitHintAndIgnoresHeaderClick(t *testing.T) {
 	}
 	split := a.gd.split
 	l := a.layout()
-	a.handleMouse(a.locate(l.rightX+2, l.editY, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.HandleMouse(a.locate(l.rightX+2, l.editY, Mouse{Action: MousePress, Button: MouseLeft}))
 	if a.gd.split != split || !dv.single {
 		t.Error("clicking the header of a one-pane file switched split")
 	}
@@ -207,7 +207,7 @@ func TestOpenNewFileAgainstPRIsOnePane(t *testing.T) {
 	if !dv.single {
 		t.Error("new file against a PR is not one pane")
 	}
-	if g := a.dvGeom(a.layout()); g.leftW != 0 {
+	if g := a.dvGeom(a.layout()); g.LeftW != 0 {
 		t.Errorf("new file against a PR is split: %+v", g)
 	}
 }
@@ -268,7 +268,7 @@ func TestPRBaseFallsBackToHead(t *testing.T) {
 func TestChangesListClickAndTab(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	click := func(y int) {
-		a.handleMouse(a.locate(2, y, Mouse{Action: MousePress, Button: MouseLeft}))
+		a.HandleMouse(a.locate(2, y, Mouse{Action: MousePress, Button: MouseLeft}))
 	}
 	h := 1 + a.explorerH() // below the header and the file tree
 	click(h + 2)           // second file
@@ -565,8 +565,8 @@ func TestChangeBarClickScrolls(t *testing.T) {
 	if !strings.Contains(view, "▐") {
 		t.Errorf("no mark on the bar")
 	}
-	a.handleMouse(a.locate(g.barX, g.top+g.h-1, Mouse{Action: MousePress, Button: MouseLeft}))
-	if s := dv.start(tb.buf.ScrollRow); s < len(dv.rows)-g.h-1 {
+	a.HandleMouse(a.locate(g.BarX, g.Top+g.H-1, Mouse{Action: MousePress, Button: MouseLeft}))
+	if s := dv.start(tb.buf.ScrollRow); s < len(dv.rows)-g.H-1 {
 		t.Errorf("click at the bottom of the bar scrolled to row %d of %d", s, len(dv.rows))
 	}
 	if tb.buf.Cur.Row != 0 {
@@ -690,8 +690,8 @@ func TestBarClickOutsideTheBarRows(t *testing.T) {
 	dv := a.diffFor(tb)
 	g := a.dvGeom(a.layout())
 	tb.buf.ScrollRow = 2
-	a.diffBarClick(tb, dv, g, g.top-1)
-	a.diffBarClick(tb, dv, g, g.top+g.h)
+	a.diffBarClick(tb, dv, g, g.Top-1)
+	a.diffBarClick(tb, dv, g, g.Top+g.H)
 	if tb.buf.ScrollRow != 2 {
 		t.Errorf("a click outside the bar scrolled to %d", tb.buf.ScrollRow)
 	}
@@ -801,12 +801,12 @@ func TestSidebarSplitDrag(t *testing.T) {
 	l := a.layout()
 	body := a.bodyH()
 
-	if got := a.resizeHit(l, 1, l.top+a.explorerH()); got != resizeExplorer {
+	if got := a.resizeHit(l, 1, l.top+a.explorerH()); got != ResizeExplorer {
 		t.Fatalf("hit = %v", got)
 	}
 	a.focus = focusEditor
-	a.handleMouse(a.locate(1, l.top+a.explorerH(), Mouse{Action: MousePress, Button: MouseLeft}))
-	if a.focus != focusChanges || a.resizing != resizeExplorer {
+	a.HandleMouse(a.locate(1, l.top+a.explorerH(), Mouse{Action: MousePress, Button: MouseLeft}))
+	if a.focus != focusChanges || a.resizing != ResizeExplorer {
 		t.Fatalf("press: focus %v resizing %v", a.focus, a.resizing)
 	}
 	a.dragResize(l, 1, l.top+body/2)
@@ -815,11 +815,11 @@ func TestSidebarSplitDrag(t *testing.T) {
 	}
 
 	a.dragResize(l, 1, l.top)
-	if got := a.explorerH(); got != minSideSectionH {
+	if got := a.explorerH(); got != MinSideSectionH {
 		t.Fatalf("tree min: %d", got)
 	}
 	a.dragResize(l, 1, l.top+body)
-	if got := body - a.explorerH(); got != minSideSectionH {
+	if got := body - a.explorerH(); got != MinSideSectionH {
 		t.Fatalf("changes min: %d", got)
 	}
 
@@ -830,8 +830,8 @@ func TestSidebarSplitDrag(t *testing.T) {
 		t.Fatalf("ratio %v -> %v", before, got)
 	}
 
-	a.resizing = resizeNone
-	a.startResize()
+	a.resizing = ResizeNone
+	a.StartResize()
 	press(a, "=")
 	if got, want := a.explorerH(), a.bodyH()*7/10; got != want {
 		t.Fatalf("reset %d, want %d", got, want)

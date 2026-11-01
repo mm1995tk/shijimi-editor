@@ -61,21 +61,21 @@ func (a *App) layout() layout {
 }
 
 // editRows is the number of text rows the editor shows.
-func (a *App) editRows() int { return a.layout().editH }
+func (a *App) EditRows() int { return a.layout().editH }
 
 // textCols is the width of the pane of t, its line numbers included,
 // from which a sideways scroll subtracts gutterWidth.
-func (a *App) textCols(t *tab) int { return a.editW(t, a.layout()) }
+func (a *App) TextCols(t *tab) int { return a.editW(t, a.layout()) }
 
 // diffBaseCols is the width of the base side of a split diff.
-func (a *App) diffBaseCols() int { return a.dvGeom(a.layout()).leftW }
+func (a *App) DiffBaseCols() int { return a.dvGeom(a.layout()).LeftW }
 
 // editorCols is the width of the editor area, which a split divides.
-func (a *App) editorCols() int { return a.layout().fullW }
+func (a *App) EditorCols() int { return a.layout().fullW }
 
 // suggestionsShown reports whether the suggestion panel is open, in which case
 // the status line leaves the suggestion count to it.
-func (a *App) suggestionsShown() bool { return a.layout().agentW > 0 }
+func (a *App) SuggestionsShown() bool { return a.layout().agentW > 0 }
 
 // inEditorText reports whether the pointer is over the text of the current text
 // tab, where the sideways wheel scrolls it.
@@ -95,7 +95,18 @@ func (a *App) cursorShown(t *tab, l layout, x, y int) bool {
 	left, w, top, h := l.rightX, a.editW(t, l), l.editY, l.editH
 	if dv := a.diffFor(t); dv != nil {
 		g := a.dvGeom(l)
-		left, top, h = g.rightX, g.top, g.h
+		left, top, h = g.RightX, g.Top, g.H
 	}
 	return x >= left+gutterWidth(t.buf) && x < left+w && x < a.w && y >= top && y < top+h
+}
+
+// otherLayout is l for the pane that is not focused.
+func (l layout) otherLayout() layout {
+	l.rightX, l.rightW = l.otherX, l.otherW
+	return l
+}
+// inOtherPane reports whether the cell (x, y) is in the unfocused pane,
+// including its title row.
+func (l layout) inOtherPane(x, y int) bool {
+	return l.split && x >= l.otherX && x < l.otherX+l.otherW && y >= l.top && y < l.panelY
 }

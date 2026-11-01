@@ -23,7 +23,7 @@ func TestResizeKeys(t *testing.T) {
 	a.showTerm = true
 	side, panel := a.layout().sideW, a.layout().panelH
 
-	a.startResize()
+	a.StartResize()
 	a.handleKey(Key{Code: KeyRight})
 	a.handleKey(Key{Code: KeyUp})
 	l := a.layout()
@@ -44,7 +44,7 @@ func TestResizeKeys(t *testing.T) {
 		t.Fatalf("size lost: %d", a.layout().sideW)
 	}
 
-	a.startResize()
+	a.StartResize()
 	press(a, "=")
 	if l := a.layout(); l.sideW != side || l.panelH != panel {
 		t.Fatalf("reset: %d %d", l.sideW, l.panelH)
@@ -54,7 +54,7 @@ func TestResizeKeys(t *testing.T) {
 func TestResizeClamp(t *testing.T) {
 	a := resizeApp(t)
 	a.showTerm = true
-	a.startResize()
+	a.StartResize()
 	for range 200 {
 		a.handleKey(Key{Code: KeyLeft})
 		a.handleKey(Key{Code: KeyDown})
@@ -85,7 +85,7 @@ func TestResizePreviewRatio(t *testing.T) {
 	if def != (l.rightW-1)/2 {
 		t.Fatalf("default split changed: %d", def)
 	}
-	a.startResize()
+	a.StartResize()
 	press(a, ">")
 	if a.editorWidth(l.rightW) <= def {
 		t.Fatal("editor should grow")
@@ -103,13 +103,13 @@ func TestResizeMouseDrag(t *testing.T) {
 	a.showTerm = true
 	l := a.layout()
 	mouse := func(act MouseAction, x, y int) {
-		a.handleMouse(a.locate(x, y, Mouse{Action: act, Button: MouseLeft}))
+		a.HandleMouse(a.locate(x, y, Mouse{Action: act, Button: MouseLeft}))
 	}
 
 	mouse(MousePress, l.sideW, 5)
 	mouse(MouseMotion, 40, 5)
 	mouse(MouseRelease, 40, 5)
-	if a.layout().sideW != 40 || a.resizing != resizeNone {
+	if a.layout().sideW != 40 || a.resizing != ResizeNone {
 		t.Fatalf("side drag: %d", a.layout().sideW)
 	}
 
@@ -126,7 +126,7 @@ func TestResizeWithCompletionOpen(t *testing.T) {
 	a.showTerm = true
 	a.comp = &completionPopup{}
 	panel := a.layout().panelH
-	a.startResize()
+	a.StartResize()
 	a.handleKey(Key{Code: KeyUp})
 	if a.layout().panelH != panel+resizeStep {
 		t.Fatalf("panel %d->%d", panel, a.layout().panelH)
@@ -135,9 +135,9 @@ func TestResizeWithCompletionOpen(t *testing.T) {
 
 func TestResizeLostRelease(t *testing.T) {
 	a := resizeApp(t)
-	a.resizing = resizeSide
-	a.handleMouse(a.locate(60, 5, Mouse{Action: MousePress, Button: MouseLeft}))
-	if a.resizing != resizeNone {
+	a.resizing = ResizeSide
+	a.HandleMouse(a.locate(60, 5, Mouse{Action: MousePress, Button: MouseLeft}))
+	if a.resizing != ResizeNone {
 		t.Fatal("stale drag state kept")
 	}
 }
@@ -150,7 +150,7 @@ func TestDiffSplitResize(t *testing.T) {
 		t.Fatalf("default %d", got)
 	}
 
-	a.resizing = resizeDiff
+	a.resizing = ResizeDiff
 	a.dragResize(l, l.rightX+30, l.editY)
 	if got := a.diffLeftWidth(w); got < 29 || got > 30 {
 		t.Fatalf("drag to 30: %d", got)
@@ -165,8 +165,8 @@ func TestDiffSplitResize(t *testing.T) {
 		t.Fatalf("right min: left %d of %d", got, w)
 	}
 
-	a.resizing = resizeNone
-	a.startResize()
+	a.resizing = ResizeNone
+	a.StartResize()
 	press(a, "=")
 	if got := a.diffLeftWidth(w); got != (w-1)/2 {
 		t.Fatalf("reset %d", got)
@@ -181,12 +181,12 @@ func TestResizeKeysFollowFocus(t *testing.T) {
 		t.Skip("split is not shown")
 	}
 	l := a.layout()
-	w := a.dvGeom(l).rightW + a.dvGeom(l).leftW + 1
+	w := a.dvGeom(l).RightW + a.dvGeom(l).LeftW + 1
 	side, panel, left, tree := l.sideW, l.panelH, a.diffLeftWidth(w), a.explorerH()
 
 	// the editor: ← → move the │ of the split diff, ↑ ↓ the terminal
 	a.focus = focusEditor
-	a.startResize()
+	a.StartResize()
 	press(a, "l")
 	press(a, "k")
 	if got := a.diffLeftWidth(w); got <= left {
@@ -233,11 +233,11 @@ func TestResizeKeysWideScreen(t *testing.T) {
 		t.Skip("split is not shown")
 	}
 	a.focus = focusEditor
-	a.startResize()
+	a.StartResize()
 	for _, k := range []string{"l", "h"} {
-		before := a.dvGeom(a.layout()).leftW
+		before := a.dvGeom(a.layout()).LeftW
 		press(a, k)
-		if got := a.dvGeom(a.layout()).leftW; got == before {
+		if got := a.dvGeom(a.layout()).LeftW; got == before {
 			t.Fatalf("%s: diff left stays %d", k, got)
 		}
 	}
@@ -258,7 +258,7 @@ func TestResizeKeysEditorBorders(t *testing.T) {
 	a := New(dir, file)
 	a.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
 	a.focus = focusEditor
-	a.startResize()
+	a.StartResize()
 
 	// nothing on the right: the sidebar edge
 	side := a.layout().sideW

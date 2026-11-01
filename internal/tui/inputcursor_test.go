@@ -15,7 +15,7 @@ func TestInputCursorVisible(t *testing.T) {
 	ti.SetCursor(0)
 
 	want := lipgloss.NewStyle().Foreground(lipgloss.Color(curTheme.Cursor)).Reverse(true).Render(" ")
-	if view := ti.view(inputStyleOn(cPaletteBg)); !strings.Contains(view, want) {
+	if view := viewField(&ti, inputStyleOn(cPaletteBg)); !strings.Contains(view, want) {
 		t.Fatalf("cursor cell should be %q, got %q", want, view)
 	}
 }
