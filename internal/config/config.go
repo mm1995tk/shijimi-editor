@@ -209,9 +209,9 @@ func Load(root string) *Config {
 			c.mergeBrowser(string(data))
 			c.mergeExperimental(string(data))
 			c.mergeTerminal(string(data))
-			c.mergeServe(string(data))
 			if user {
 				c.mergeAgent(string(data))
+				c.mergeServe(string(data))
 				c.mergeKeys(string(data))
 			}
 			c.Sources = append(c.Sources, filepath.Join(d, "config.toml"))
@@ -221,9 +221,9 @@ func Load(root string) *Config {
 			c.mergeBrowserRaw(raw)
 			c.mergeExperimentalRaw(raw)
 			c.mergeTerminalRaw(raw)
-			c.mergeServeRaw(raw)
 			if user {
 				c.mergeAgentRaw(raw)
+				c.mergeServeRaw(raw)
 				c.mergeKeysRaw(raw)
 			}
 			c.Sources = append(c.Sources, filepath.Join(d, "config.nix"))

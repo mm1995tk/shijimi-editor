@@ -102,12 +102,11 @@ func Listen(opts Options) (*Server, error) {
 		log = slog.New(slog.DiscardHandler)
 	}
 	srv := &Server{
-		opts:      opts,
-		log:       log,
-		ln:        ln,
-		serverID:  hex.EncodeToString(id),
-		startedAt: time.Now(),
-		sessions:  map[*session]struct{}{},
+		opts:     opts,
+		log:      log,
+		ln:       ln,
+		serverID: hex.EncodeToString(id),
+		sessions: map[*session]struct{}{},
 	}
 	srv.startedAt = srv.now()
 	srv.terms = newTermManager(srv)

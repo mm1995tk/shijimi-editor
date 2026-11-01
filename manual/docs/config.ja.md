@@ -71,13 +71,14 @@ listen-host = "127.0.0.1"
 [terminal]
 multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "none"
 
-[server]
-idle_stop_days = 7        # 0 = never stop
 
 # ~/.config/shijimi-editor/config.toml だけで有効
 [agent]
 command = "claude-agent-acp"
 args = []
+
+[server]
+idle_stop_days = 7        # 0 = never stop
 ```
 
 ## 項目

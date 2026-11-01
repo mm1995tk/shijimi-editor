@@ -169,3 +169,17 @@ func TestWriteBackup(t *testing.T) {
 		t.Fatalf("original changed: %q", b)
 	}
 }
+
+func TestWriteBackupKeepsMode(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "s.txt")
+	if err := os.WriteFile(p, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := WriteBackup(p, []byte("y"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := os.Stat(got); st.Mode().Perm() != 0o600 {
+		t.Fatalf("mode: %v", st.Mode().Perm())
+	}
+}

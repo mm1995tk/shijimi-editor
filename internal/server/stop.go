@@ -120,12 +120,16 @@ func (s *Server) shutdownReq(req *rpc.Message) (any, error) {
 // if the name is taken. It never overwrites a file, and never touches path. It
 // returns the path it wrote.
 func WriteBackup(path string, data []byte) (string, error) {
+	perm := os.FileMode(0o600)
+	if st, err := os.Stat(path); err == nil {
+		perm = st.Mode().Perm()
+	}
 	for i := 0; ; i++ {
 		name := path + ".bk"
 		if i > 0 {
 			name = fmt.Sprintf("%s.bk.%d", path, i)
 		}
-		f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		f, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
 		if os.IsExist(err) {
 			continue
 		}
