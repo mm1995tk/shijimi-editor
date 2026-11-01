@@ -1,0 +1,219 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import type { TreeEntry } from "../rpc/protocol.ts";
+import { iconFor } from "./icons.ts";
+import {
+  applyGitChanged,
+  applyGitStatus,
+  applyList,
+  applyTreeChanged,
+  dropDir,
+  emptyTree,
+  ROOT,
+  rows,
+  toggle,
+  watchPaths,
+  type TreeState,
+} from "./model.ts";
+
+const dir = (name: string, more: Partial<TreeEntry> = {}): TreeEntry => ({
+  name,
+  kind: "dir",
+  ...more,
+});
+const file = (name: string, more: Partial<TreeEntry> = {}): TreeEntry => ({
+  name,
+  kind: "file",
+  ...more,
+});
+
+/** ルートに internal/ と README.md、internal に ui/ と a.go がある木。internal を開いてある。 */
+function sample(): TreeState {
+  let s = emptyTree();
+  s = applyList(s, ROOT, {
+    entries: [dir("internal"), file("README.md")],
+    rev: 1,
+  });
+  s = toggle(s, "internal");
+  s = applyList(s, "internal", {
+    entries: [dir("ui"), file("a.go")],
+    rev: 1,
+  });
+  return s;
+}
+
+describe("rows", () => {
+  it("開いたフォルダの中身を、深さを付けてフォルダの下に並べる", () => {
+    const r = rows(sample());
+    assert.deepEqual(
+      r.map((x) => [x.path, x.depth, x.dir, x.expanded]),
+      [
+        ["internal", 0, true, true],
+        ["internal/ui", 1, true, false],
+        ["internal/a.go", 1, false, false],
+        ["README.md", 0, false, false],
+      ],
+    );
+    assert.equal(r[0].icon.kind, "folder-open");
+    assert.equal(r[1].icon.kind, "folder");
+    assert.equal(r[2].icon.kind, "go");
+  });
+
+  it("開いたがまだ取っていないフォルダは loading", () => {
+    const s = toggle(sample(), "internal/ui");
+    const ui = rows(s).find((x) => x.path === "internal/ui");
+    assert.equal(ui?.expanded, true);
+    assert.equal(ui?.loading, true);
+  });
+
+  it("閉じたら中身は出さないが、子の開閉は覚えておく", () => {
+    let s = toggle(sample(), "internal/ui");
+    s = applyList(s, "internal/ui", { entries: [file("b.go")], rev: 1 });
+    s = toggle(s, "internal");
+    assert.deepEqual(
+      rows(s).map((x) => x.path),
+      ["internal", "README.md"],
+    );
+    s = toggle(s, "internal");
+    assert.deepEqual(
+      rows(s).map((x) => x.path),
+      [
+        "internal",
+        "internal/ui",
+        "internal/ui/b.go",
+        "internal/a.go",
+        "README.md",
+      ],
+    );
+  });
+
+  it("5000 件で切れたフォルダの最後に「ここから先は出していない」の行を出す", () => {
+    const s = applyList(emptyTree(), ROOT, {
+      entries: [file("a"), file("b")],
+      truncated: true,
+      rev: 1,
+    });
+    const r = rows(s);
+    assert.equal(r.length, 3);
+    assert.equal(r[2].truncated, true);
+  });
+
+  it("git.status より前は tree.list の git と gitChildren で印を出す", () => {
+    let s = applyList(emptyTree(), ROOT, {
+      entries: [
+        dir("internal", { gitChildren: true }),
+        dir("node_modules", { git: "!" }),
+        file("a.go", { git: "M" }),
+        file("b.go"),
+      ],
+      rev: 1,
+    });
+    assert.deepEqual(
+      rows(s).map((x) => x.mark),
+      [
+        { kind: "children" },
+        { kind: "ignored" },
+        { kind: "file", letter: "M" },
+        null,
+      ],
+    );
+    // git.status のあとは全体の印から求める（フォルダの「•」も）
+    s = applyGitStatus(s, { branch: "main", marks: { "b.go": "?" }, rev: 3 });
+    assert.deepEqual(
+      rows(s).map((x) => x.mark),
+      [null, { kind: "ignored" }, null, { kind: "file", letter: "?" }],
+    );
+    s = applyGitChanged(s, {
+      workspaceId: "w",
+      marks: { "internal/x/y.go": "A" },
+      rev: 4,
+    });
+    assert.deepEqual(rows(s)[0].mark, { kind: "children" });
+  });
+});
+
+describe("watchPaths", () => {
+  it("ルートと、画面に出ている開いたフォルダ", () => {
+    let s = toggle(sample(), "internal/ui");
+    assert.deepEqual(watchPaths(s), [ROOT, "internal", "internal/ui"]);
+    s = toggle(s, "internal");
+    assert.deepEqual(watchPaths(s), [ROOT]);
+  });
+});
+
+describe("applyList", () => {
+  it("tree.changed の版より古い返事は捨てる", () => {
+    const { state } = applyTreeChanged(sample(), ["internal"], 5);
+    const s = applyList(state, "internal", { entries: [], rev: 4 });
+    assert.equal(s, state);
+    const t = applyList(state, "internal", { entries: [], rev: 5 });
+    assert.deepEqual(t.listings.internal.entries, []);
+  });
+
+  it("中身から消えたフォルダは、開いていた印と中身も消す", () => {
+    let s = toggle(sample(), "internal/ui");
+    s = applyList(s, "internal/ui", { entries: [file("b.go")], rev: 1 });
+    s = applyList(s, "internal", { entries: [file("a.go")], rev: 2 });
+    assert.equal(s.expanded["internal/ui"], undefined);
+    assert.equal(s.listings["internal/ui"], undefined);
+    assert.equal(s.expanded.internal, true);
+  });
+});
+
+describe("dropDir", () => {
+  it("読めなかったフォルダを、中のものごと忘れる", () => {
+    let s = toggle(sample(), "internal/ui");
+    s = dropDir(s, "internal");
+    assert.deepEqual(s.expanded, {});
+    assert.deepEqual(Object.keys(s.listings), [ROOT]);
+  });
+});
+
+describe("applyTreeChanged", () => {
+  it("画面に出ているフォルダだけを取り直す", () => {
+    const s = toggle(sample(), "internal"); // 閉じる
+    const r = applyTreeChanged(s, [ROOT, "internal"], 2);
+    assert.deepEqual(r.refetch, [ROOT]);
+    assert.equal(r.state.minRev.internal, 2);
+  });
+});
+
+describe("git の印", () => {
+  it("版の古い git.changed は捨て、null の印は消す", () => {
+    let s = applyGitStatus(emptyTree(), {
+      branch: "main",
+      marks: { a: "M", b: "A" },
+      rev: 2,
+    });
+    s = applyGitChanged(s, { workspaceId: "w", marks: { c: "M" }, rev: 2 });
+    assert.deepEqual(s.marks, { a: "M", b: "A" });
+    s = applyGitChanged(s, { workspaceId: "w", marks: { a: null }, rev: 3 });
+    assert.deepEqual(s.marks, { b: "A" });
+  });
+
+  it("git.status の返事より先に来た git.changed は、返事より新しいものだけ当てる", () => {
+    let s = applyGitChanged(emptyTree(), {
+      workspaceId: "w",
+      marks: { old: "M" },
+      rev: 1,
+    });
+    s = applyGitChanged(s, { workspaceId: "w", marks: { new: "M" }, rev: 3 });
+    s = applyGitStatus(s, { branch: "", marks: { base: "A" }, rev: 2 });
+    assert.deepEqual(s.marks, { base: "A", new: "M" });
+    assert.equal(s.gitRev, 3);
+  });
+});
+
+describe("iconFor", () => {
+  it("TUI と同じく、名前が拡張子より先", () => {
+    assert.equal(iconFor("go.mod", false, false).kind, "go");
+    assert.equal(iconFor("flake.lock", false, false).kind, "nix");
+    assert.equal(iconFor("Cargo.lock", false, false).kind, "lock");
+    assert.equal(iconFor("App.TSX", false, false).kind, "ts");
+    assert.equal(iconFor(".gitignore", false, false).kind, "git");
+    assert.equal(iconFor("LICENSE", false, false).kind, "license");
+    assert.equal(iconFor("noext", false, false).kind, "default");
+    assert.equal(iconFor("src", true, true).kind, "folder-open");
+  });
+});
