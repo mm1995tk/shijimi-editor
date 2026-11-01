@@ -102,8 +102,6 @@ func (a *App) handleEvent(ev Event) []Effect {
 		return nil
 	case termOutputMsg, termDoneMsg:
 		return a.handleTermEvent(ev)
-	case termErrMsg:
-		return a.termFailed(ev.err)
 	case CtlRequest:
 		return a.handleCtl(ev)
 	case IDECall:

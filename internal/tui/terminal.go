@@ -16,9 +16,10 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
-// termOutputMsg says the shell printed something, termDoneMsg that it ended
-// and termErrMsg that none could be started. The pump of the PTY
-// (internal/term) sends the first two on terminal.ch; WaitTerm hands them to
+// termOutputMsg says the shell printed something and termDoneMsg that it ended.
+// A shell that cannot be started is an error from terminal.start, not an Event.
+// The pump of the PTY
+// (internal/term) sends both on terminal.ch; WaitTerm hands them to
 // Update, which gives them to handleTermEvent.
 type termOutputMsg struct{ id int }
 
@@ -27,12 +28,8 @@ type termDoneMsg struct {
 	err error
 }
 
-// termErrMsg reports a failure to start a shell.
-type termErrMsg struct{ err error }
-
 func (termOutputMsg) isEvent() {}
 func (termDoneMsg) isEvent()   {}
-func (termErrMsg) isEvent()    {}
 
 // termTab is the shell running on its own PTY (internal/term), drawn through
 // a VT emulator.

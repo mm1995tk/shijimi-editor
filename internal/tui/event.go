@@ -202,7 +202,7 @@ func (RunAgent) isEffect()  {}
 // WaitTerm asks for the next thing the terminal panel's shell did (printed,
 // ended) to be delivered as an Event. It is asked again after each one
 // (terminal.armed keeps it to one at a time). The PTY itself is
-// internal/term's; the Events are termOutputMsg, termDoneMsg and termErrMsg.
+// internal/term's; the Events are termOutputMsg and termDoneMsg.
 type WaitTerm struct{ From <-chan Event }
 
 func (WaitTerm) isEffect() {}

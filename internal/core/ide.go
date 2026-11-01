@@ -68,19 +68,22 @@ type IDEReply struct {
 	Err     error
 }
 
-// IDEPos, IDERange and Selection are the editor state reported by
+// IDEPos is a position in a file, as the IDE protocol numbers it. IDEPos,
+// IDERange and Selection together are the editor state reported by
 // getCurrentSelection and the selection_changed notification.
 type IDEPos struct {
 	Line      int `json:"line"`
 	Character int `json:"character"`
 }
 
+// IDERange is a span of text; IsEmpty when it is only a cursor.
 type IDERange struct {
 	Start   IDEPos `json:"start"`
 	End     IDEPos `json:"end"`
 	IsEmpty bool   `json:"isEmpty"`
 }
 
+// Selection is the selection of a file.
 type Selection struct {
 	Text      string   `json:"text"`
 	FilePath  string   `json:"filePath"`
@@ -255,6 +258,7 @@ func UnifiedDiff(oldText, newText string) []PropLine {
 // The first is the one the user is asked about.
 type Proposals struct{ list []*Proposal }
 
+// Len is how many proposals are waiting.
 func (q *Proposals) Len() int { return len(q.list) }
 
 // First is the proposal being asked about, or nil.
@@ -265,6 +269,7 @@ func (q *Proposals) First() *Proposal {
 	return q.list[0]
 }
 
+// Add queues p after the ones already waiting.
 func (q *Proposals) Add(p *Proposal) { q.list = append(q.list, p) }
 
 // Resolve answers the agent and drops the proposal. The editor never writes

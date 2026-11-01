@@ -204,7 +204,7 @@ func (m *termManager) create(p termCreateParams) (any, error) {
 	ptmx, cmd := sess.File(), sess.Cmd()
 	m.next++
 	t := &terminal{
-		mgr: m, id: fmt.Sprintf("t%d", m.next), pid: cmd.Process.Pid,
+		mgr: m, id: fmt.Sprintf("t%d", m.next), pid: sess.Pid(),
 		ptmx: ptmx, cmd: cmd, cols: p.Cols, rows: p.Rows, alive: true,
 		ring: make([]byte, ringSize),
 	}

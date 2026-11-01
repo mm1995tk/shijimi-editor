@@ -153,9 +153,9 @@ func (a *App) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 			return ok(map[string]any{"success": true, "text": sel.Text, "filePath": sel.FilePath,
 				"fileUrl": sel.FileURL, "selection": sel.Selection})
 		}
-		if m.Tool == "getLatestSelection" && a.selTrack.Last() != nil {
-			return ok(map[string]any{"success": true, "text": a.selTrack.Last().Text, "filePath": a.selTrack.Last().FilePath,
-				"fileUrl": a.selTrack.Last().FileURL, "selection": a.selTrack.Last().Selection})
+		if last := a.selTrack.Last(); m.Tool == "getLatestSelection" && last != nil {
+			return ok(map[string]any{"success": true, "text": last.Text, "filePath": last.FilePath,
+				"fileUrl": last.FileURL, "selection": last.Selection})
 		}
 		return ok(map[string]any{"success": false, "message": "No active editor found"})
 	case "getOpenEditors":
@@ -195,8 +195,8 @@ func (a *App) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 				ds = append(ds, map[string]any{
 					"message": d.Message, "severity": lspSeverity[sevRank(d.Severity)], "source": d.Source,
 					"range": map[string]any{
-						"start": core.IDEPos{d.Range.Start.Line, d.Range.Start.Character},
-						"end":   core.IDEPos{d.Range.End.Line, d.Range.End.Character},
+						"start": core.IDEPos{Line: d.Range.Start.Line, Character: d.Range.Start.Character},
+						"end":   core.IDEPos{Line: d.Range.End.Line, Character: d.Range.End.Character},
 					},
 				})
 			}
