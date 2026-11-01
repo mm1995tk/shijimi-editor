@@ -20,7 +20,7 @@ import {
   runeOffset,
   WheelAccumulator,
 } from "./input.ts";
-import { gutterWidth, LINE_HEIGHT } from "./layout.ts";
+import { LINE_HEIGHT, paneGutter } from "./layout.ts";
 
 /** 入力を shj に送る（seq は送る側が付ける）。 */
 export type SendInput = <M extends InputMethod>(
@@ -262,7 +262,7 @@ export function createPointerInput(o: {
     const p = o.files()?.panes.find((q) => q.id === id);
     if (!id || !p) return null;
     const r = el.getBoundingClientRect();
-    const gutter = p.kind === "text" ? gutterWidth(p.viewport.total) : 0;
+    const gutter = paneGutter(p);
     return {
       pane: id,
       ...cellAt(x - r.left, y - r.top, o.cellWidth(), LINE_HEIGHT, gutter),

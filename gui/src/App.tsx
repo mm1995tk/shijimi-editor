@@ -26,6 +26,7 @@ import {
 } from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
+import { BlobStore } from "./files/blob.ts";
 import { OsClipboard } from "./files/clipboard.ts";
 import {
   FilesView,
@@ -166,6 +167,8 @@ export function App(props: {
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
   const [treeVersion, setTreeVersion] = createSignal(0);
+  // マシンごとの画像の実体（E6）。blob.get で取ったものを覚えておく
+  const blobStores = new Map<string, BlobStore>();
   // マシンごとの画面とテーマ（E1）。Session が持つものを写す
   const [screens, setScreens] = createSignal<Record<string, Screen | null>>({});
   const [themes, setThemes] = createSignal<Record<string, Theme | null>>({});
@@ -263,6 +266,10 @@ export function App(props: {
       (m) => console.warn(`[${target}] ${m}`),
     );
     termGroups.set(target, group);
+    blobStores.set(
+      target,
+      new BlobStore((params) => s.request("blob.get", params)),
+    );
     const offTerm = s.onTerm((e) => group.handle(e));
     const off = s.onState((st) => {
       // つなぎ直したら、ターミナルの溜めた出力を続きから取り直す（右下に出す前なら何もしない）
@@ -316,6 +323,8 @@ export function App(props: {
     offStates.delete(target);
     trees.delete(target);
     termGroups.delete(target); // シェルは止めない（次につないだら term.list で見つけてつなぐ）
+    blobStores.get(target)?.clear();
+    blobStores.delete(target);
     setSessions(({ [target]: _, ...rest }) => rest);
     setStates(({ [target]: _, ...rest }) => rest);
     setWorkspaces(({ [target]: _, ...rest }) => rest);
@@ -472,6 +481,11 @@ export function App(props: {
           onResize={resizeFiles}
           onInput={sendInput}
           clipboard={clipboard}
+          blobs={
+            focus() && sessions()[focus()!.target]
+              ? blobStores.get(focus()!.target)
+              : undefined
+          }
         />
         <section class="connections" aria-label="つなぐ先">
           <h1>つなぐ先</h1>

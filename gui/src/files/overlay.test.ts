@@ -78,7 +78,7 @@ describe("anchorCell", () => {
       panes: [
         pane({
           id: "l",
-          kind: "diff",
+          kind: "preview",
           viewport: { top: 0, rows: 5, cols: 30, left: 0, total: 5 },
         }),
         pane({

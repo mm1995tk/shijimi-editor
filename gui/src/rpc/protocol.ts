@@ -136,9 +136,61 @@ export interface Title {
   noteWarn?: boolean;
 }
 
+/** 画像の参照。Go の screen.ImageRef。実体は blob.get（id は blob）で取る。 */
+export interface ImageRef {
+  blob: string;
+  /** 画像のピクセル数 */
+  width: number;
+  height: number;
+  /** 画像の形式（png など）。画像のペインのとき */
+  format?: string;
+  /** ファイルの大きさ（バイト）。画像のペインのとき */
+  size?: number;
+}
+
+/**
+ * プレビュー（とレビューカード）の中の画像 1 つ。Go の screen.PreviewImage。表示行 [row, row+rows) を使い、
+ * この範囲の行は空。col は左に空ける桁（引用の中の画像）。
+ */
+export interface PreviewImage {
+  row: number;
+  rows: number;
+  col?: number;
+  image: ImageRef;
+}
+
+/** 変更のある表示行の範囲 [start, end)。Go の screen.Hunk。 */
+export interface Hunk {
+  start: number;
+  end: number;
+  kind: "added" | "deleted" | "modified";
+}
+
+/** 差分のペイン（kind が "diff"）の追加の項目。Go の screen.DiffInfo。 */
+export interface DiffInfo {
+  /** 変更の前（old）・後（new）・前後を行ごとに並べた 1 列（unified） */
+  side: "old" | "new" | "unified";
+  /** lines[0] の表示行 */
+  top: number;
+  /** 表示行の全部の数 */
+  rows: number;
+  hunks: Hunk[] | null;
+}
+
+/** Markdown プレビューのペイン（kind が "preview"）の追加の項目。Go の screen.PreviewInfo。 */
+export interface PreviewInfo {
+  /** lines[0] の表示行 */
+  top: number;
+  /** 表示行の全部の数 */
+  rows: number;
+  /** 画像の場所。row の小さい順で、重ならない */
+  images: PreviewImage[] | null;
+}
+
 export interface Pane {
   id: string;
   title: Title;
+  /** "text" | "image" | "diff" | "preview" | "welcome" */
   kind: string;
   viewport: Viewport;
   /** 見えている行だけ。上から並ぶ */
@@ -149,6 +201,14 @@ export interface Pane {
   cursors?: Pos[] | null;
   /** cursors と同じ並び。選択の無いカーソルは start と end が同じ */
   selections?: Range[] | null;
+  /** kind が "image" のとき。読めなかったときは無い */
+  image?: ImageRef | null;
+  /** kind が "image" のとき、画像の説明の行（形式・大きさ・容量。読めなかったときはその理由） */
+  caption?: string;
+  /** kind が "diff" のとき */
+  diff?: DiffInfo | null;
+  /** kind が "preview" のとき */
+  preview?: PreviewInfo | null;
   [more: string]: unknown;
 }
 
@@ -254,8 +314,8 @@ export interface Overlay {
   hint?: string;
   /** 枠の上の右端の「コピー」 */
   copyLabel?: string;
-  /** レビューカードの中の画像（E6 で描く） */
-  images?: unknown[];
+  /** レビューカードの中の画像。row は lines の no と同じ表示行の番号 */
+  images?: PreviewImage[] | null;
   compose?: Compose;
 }
 

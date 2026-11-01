@@ -11,7 +11,9 @@
 // - 補完・ホバー・パレットなどのポップアップ（E4）を本文の上に重ねる（OverlayView.tsx、置き場所は
 //   overlay.ts）。確認は状態行に出す。
 // - 行番号の横の印・診断の波線と行末の文言・インデントガイド（E5）を描く（並べ方は layout.ts）。
-// - 画像・プレビュー・差分（E6）はまだ描かない。差分とプレビューのペインは、行の文字だけを出す。
+// - 画像・プレビュー・差分（E6）を Pane.kind で描き分ける（部品は MediaView.tsx）。画像の実体は blob.get で
+//   取る（blob.ts。onBlobs が無ければ画像は出さない）。差分は左右のペイン（1 列のときは 1 つ）が来て、
+//   変更の後の側の右端に変更のバー（diff.ts）を重ねる。行の色分けは layout.ts。
 import {
   createEffect,
   createMemo,
@@ -27,6 +29,7 @@ import {
 
 import type { Line, Pane, Screen, Theme } from "../rpc/protocol.ts";
 import { BottomBar, TitlesView } from "./BarsView.tsx";
+import type { BlobSource } from "./blob.ts";
 import type { OsClipboard } from "./clipboard.ts";
 import {
   createKeyInput,
@@ -40,6 +43,8 @@ import {
   cellsFor,
   gutterMark,
   gutterNumber,
+  hasGutter,
+  isCurrentLine,
   layoutLine,
   lineBg,
   lineKey,
@@ -47,10 +52,11 @@ import {
   type FilesSize,
   type LineOptions,
 } from "./layout.ts";
+import { ChangeBar, ImageBody, PreviewImages } from "./MediaView.tsx";
 import { colorOf, filesVars, runStyle } from "./theme.ts";
 import "./files.css";
 
-export type { FilesSize, SendInput };
+export type { BlobSource, FilesSize, SendInput };
 
 /**
  * ファイルの欄。screen（フォーカスしているマシンの画面）の files を、theme の色で描く。
@@ -65,6 +71,8 @@ export function FilesView(props: {
   onInput?: SendInput;
   /** OS のクリップボード（貼り付けのキーで読む）。省くと貼り付けない */
   clipboard?: OsClipboard;
+  /** 画像の取り先（blob.get）。省くと画像を出さない */
+  blobs?: BlobSource;
 }): JSX.Element {
   let body: HTMLDivElement | undefined;
   let measure: HTMLSpanElement | undefined;
@@ -179,6 +187,7 @@ export function FilesView(props: {
                     pane={p()}
                     active={i === f().active}
                     theme={props.theme}
+                    blobs={props.blobs}
                   />
                 </>
               )}
@@ -190,6 +199,7 @@ export function FilesView(props: {
           files={files()}
           area={size()}
           theme={props.theme}
+          blobs={props.blobs}
           onMouseDown={keepFocus}
         />
       </div>
@@ -207,9 +217,18 @@ function PaneView(props: {
   pane: Pane;
   active: boolean;
   theme: Theme | null;
+  blobs?: BlobSource;
 }): JSX.Element {
   const opts = createMemo<LineOptions>(() => ({ cursor: props.active }));
-  const text = () => props.pane.kind === "text";
+  const gutter = () => hasGutter(props.pane);
+  const image = () => props.pane.kind === "image";
+  const preview = () =>
+    props.pane.kind === "preview" ? props.pane.preview : undefined;
+  // 変更のバーは変更の後の側（右か 1 列）に出す
+  const diff = () =>
+    props.pane.kind === "diff" && props.pane.diff?.side !== "old"
+      ? props.pane.diff
+      : undefined;
   return (
     <div
       class="files-pane"
@@ -220,20 +239,46 @@ function PaneView(props: {
       data-active={props.active ? "" : undefined}
       style={{ width: `${paneCells(props.pane)}ch` }}
     >
-      <Show when={props.pane.kind === "image" && props.pane.caption}>
-        <div class="files-caption">{String(props.pane.caption)}</div>
+      <Show when={image()}>
+        <ImageBody
+          caption={props.pane.caption}
+          image={props.pane.image}
+          rows={props.pane.viewport.rows}
+          blobs={props.blobs}
+        />
       </Show>
-      <For each={props.pane.lines ?? []}>
-        {(line) => (
-          <LineView
-            line={line}
-            pane={props.pane}
-            opts={opts()}
-            gutter={text()}
+      <Show when={!image()}>
+        <For each={props.pane.lines ?? []}>
+          {(line) => (
+            <LineView
+              line={line}
+              pane={props.pane}
+              opts={opts()}
+              gutter={gutter()}
+              theme={props.theme}
+            />
+          )}
+        </For>
+      </Show>
+      <Show when={preview()}>
+        {(pv) => (
+          <PreviewImages
+            images={pv().images}
+            top={pv().top}
+            cols={props.pane.viewport.cols}
+            blobs={props.blobs}
+          />
+        )}
+      </Show>
+      <Show when={diff()}>
+        {(d) => (
+          <ChangeBar
+            diff={d()}
+            rows={props.pane.viewport.rows}
             theme={props.theme}
           />
         )}
-      </For>
+      </Show>
     </div>
   );
 }
@@ -257,8 +302,7 @@ function LineView(props: {
   });
   const total = createMemo(() => props.pane.viewport.total);
   const mark = createMemo(() => gutterMark(props.line));
-  const current = () =>
-    props.line.no >= 0 && props.line.no === props.pane.curLine;
+  const current = () => isCurrentLine(props.line, props.pane);
   return (
     <div class="files-line" style={{ background: colorOf(props.theme, bg()) }}>
       <Show when={props.gutter}>
@@ -269,9 +313,9 @@ function LineView(props: {
         >
           <span
             class="files-gutter-mark"
-            style={{ color: colorOf(props.theme, mark()) }}
+            style={{ color: colorOf(props.theme, mark()?.style) }}
           >
-            {mark() ? "●" : " "}
+            {mark()?.ch ?? " "}
           </span>
           {gutterNumber(props.line.no, total())}
         </span>
