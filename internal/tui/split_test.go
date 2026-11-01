@@ -30,16 +30,9 @@ var lipglossFiles = []string{
 // layoutFiles are the files that may use layout: they draw, or turn a screen
 // cell into a region and back. They stay in tui.
 var layoutFiles = []string{
-	"layout.go", "caret.go", "inputtea.go", "app_draw.go", "gitdiff_draw.go", "prreview_draw.go",
+	"layout.go", "mouse.go", "resize.go", "caret.go", "inputtea.go", "app_draw.go", "gitdiff_draw.go", "prreview_draw.go",
 	"signature_draw.go", "spacemenu_draw.go",
 	"window.go",
-}
-
-// layoutTodo are files that go to core but still take a layout for mouse hit
-// tests (handleMouse, termMouse, mouseToCursor, agent, border and hover hit
-// tests). Shrink this list; never add to it.
-var layoutTodo = []string{
-	"agentpanel.go", "agentsel.go", "app.go", "hovermouse.go", "resize.go", "searchui.go",
 }
 
 func TestFileKnowledge(t *testing.T) {
@@ -69,11 +62,8 @@ func TestFileKnowledge(t *testing.T) {
 			}
 			return !usesLayout
 		})
-		if usesLayout && !slices.Contains(layoutFiles, name) && !slices.Contains(layoutTodo, name) {
+		if usesLayout && !slices.Contains(layoutFiles, name) {
 			t.Errorf("%s uses layout; ask editRows / textCols (layout.go) instead", name)
-		}
-		if !usesLayout && slices.Contains(layoutTodo, name) {
-			t.Errorf("%s no longer uses layout; remove it from layoutTodo", name)
 		}
 	}
 }

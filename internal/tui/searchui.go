@@ -325,26 +325,6 @@ func (a *App) searchInput(msg Input) []Effect {
 	return nil
 }
 
-func (a *App) searchMouse(msg Mouse) []Effect {
-	s := a.search
-	if msg.Action != MousePress {
-		return nil
-	}
-	switch msg.Button {
-	case MouseWheelUp:
-		s.move(-3)
-	case MouseWheelDown:
-		s.move(3)
-	case MouseLeft:
-		r := s.rect
-		x, y := a.screenCell(a.layout(), msg)
-		if x < r[0] || x >= r[0]+r[2] || y < r[1] || y >= r[1]+r[3] {
-			s.close()
-		}
-	}
-	return nil
-}
-
 // searchOpenHit opens the selected line in the editor.
 func (a *App) searchOpenHit() []Effect {
 	s := a.search
