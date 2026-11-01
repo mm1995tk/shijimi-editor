@@ -4,8 +4,6 @@ import (
 	"maps"
 	"sort"
 	"strings"
-
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // syntaxColors are the token colors a theme provides.
@@ -13,6 +11,12 @@ type syntaxColors struct {
 	Text, Comment, Preproc, Keyword, Namespace, Type, Name, Function string
 	Const, String, Escape, Number                                    string
 	Control                                                          string // if, return, ... (semantic tokens); "" = Keyword
+}
+
+// iconOverride replaces parts of an icon in a theme. Empty fields keep the
+// default.
+type iconOverride struct {
+	Glyph, Color string
 }
 
 // Theme is a complete color scheme for the UI and syntax highlighting.
@@ -202,35 +206,6 @@ var (
 	// themeGen increments on every applyTheme so caches can invalidate.
 	themeGen int
 )
-
-func init() { applyTheme(defaultTheme) }
-
-// setTheme switches the active theme by name.
-func (a *Core) setTheme(name string) bool {
-	t, ok := lookupTheme(name)
-	if !ok {
-		return false
-	}
-	applyTheme(t)
-	return true
-}
-
-// themePicker opens a list of the built-in themes.
-func (a *Core) themePicker() []Effect {
-	items := make([]paletteItem, 0, len(themes))
-	for _, n := range themeNames() {
-		d := ""
-		if n == curTheme.Name {
-			d = i18n.T("theme.current")
-		}
-		items = append(items, paletteItem{label: n, detail: d})
-	}
-	return a.pal.pick(i18n.T("theme.title"), items, func(i int) []Effect {
-		a.setTheme(items[i].label)
-		a.info(i18n.T("cmd.themeis"), curTheme.Name)
-		return nil
-	})
-}
 
 func themeOrDefault(name string) *Theme {
 	if t, ok := lookupTheme(name); ok {
