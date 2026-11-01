@@ -904,8 +904,8 @@ func (a *App) compose(title, initial string, orig []string, onSubmit func(string
 	ta.SetValue(initial)
 	a.comp, a.hoverText = nil, ""
 	a.composer = &composer{title: title, ta: ta, orig: orig, onSubmit: onSubmit}
-	// The cursor is drawn by the screen (SetVirtualCursor(false)), so the blink
-	// command the textarea hands back has nothing to do.
+	// Focus hands back the cursor's blink command; its BlinkMsg is never routed to
+	// the textarea (see update), so it is dropped.
 	a.composer.ta.Focus()
 	return nil
 }
