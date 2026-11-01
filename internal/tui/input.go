@@ -120,7 +120,7 @@ const (
 // and the line and column inside that part (0-based, from the part's top-left
 // corner). Clicks is how many presses in a row hit the same spot: a GUI counts
 // them and sends the number; the TUI leaves it 0 and keeps its own double
-// click timer (App.lastClick).
+// click timer (App.clicks in inputtea.go).
 //
 // X and Y are the cell on the whole screen. Only the TUI has them, and only
 // what is anchored to a screen cell uses them: popups (hover, the review card,

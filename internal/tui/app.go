@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
@@ -134,7 +133,7 @@ type App struct {
 	confirmClose bool
 	follow       bool // scroll to the cursor on next render
 	dragging     bool
-	lastClick    click  // the previous left press, to spot a double click
+	lastClick    click  // the previous left press (adapter state: see clicks in inputtea.go)
 	capture      Region // the region a held pointer button is captured by (see locate)
 	keyReleases  bool   // the terminal reports key releases
 	askReleases  bool   // key releases were asked for in the last View
@@ -886,7 +885,7 @@ func (a *App) pasteText() string {
 // ---- update ----
 
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	effs := a.update(msg)
+	effs := a.update(a.fromTea(msg))
 	a.keepTransients()
 	a.normalizeSplit()
 	a.trackLast()
@@ -923,12 +922,15 @@ func (a *App) handleAutoSave(m AutoSaveDue) []Effect {
 	return a.saveTab(t)
 }
 
-func (a *App) update(msg tea.Msg) []Effect {
+// update takes what fromTea (inputtea.go) made of a tea.Msg: an Input or an
+// Event. The terminal panel's own messages (termOutputMsg and the like) are not
+// tea types.
+func (a *App) update(msg any) []Effect {
 	switch msg := msg.(type) {
 	case Event:
 		return a.handleEvent(msg)
-	case tea.WindowSizeMsg:
-		a.w, a.h = msg.Width, msg.Height
+	case Resized:
+		a.w, a.h = msg.W, msg.H
 		if a.cellSize != nil {
 			updateCellSize(a.cellSize())
 		}
@@ -965,18 +967,11 @@ func (a *App) update(msg tea.Msg) []Effect {
 			}
 		}
 		return nil
-	case tea.KeyboardEnhancementsMsg:
-		a.keyReleases = msg.SupportsEventTypes()
-	case tea.KeyReleaseMsg:
-		k := keyReleaseFromTea(msg)
-		a.holdScrollRelease(k)
-		a.lineFlipRelease(k)
-	case tea.MouseMsg:
-		return a.handleInput(a.mouseFromTea(msg))
-	case tea.KeyPressMsg:
-		return a.handleInput(keyFromTea(msg))
-	case tea.PasteMsg:
-		return a.handleInput(pasteFromTea(msg))
+	case ReleasesReported:
+		a.keyReleases = msg.On
+	case KeyReleased:
+		a.holdScrollRelease(msg.Key)
+		a.lineFlipRelease(msg.Key)
 	case Input:
 		return a.handleInput(msg)
 	}
@@ -1910,7 +1905,7 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 	if !left {
 		return nil
 	}
-	double := a.isDoubleClick(x, y)
+	double := msg.Clicks >= 2
 
 	switch {
 	case msg.Region == RegionNone:
@@ -1983,27 +1978,6 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 		}
 	}
 	return nil
-}
-
-// click is a left press, kept to tell a double click from two single ones.
-type click struct {
-	x, y int
-	at   time.Time
-}
-
-const doubleClickTime = 400 * time.Millisecond
-
-// isDoubleClick records a left press at (x, y) and reports whether it is the
-// second press of a double click. A third press starts over.
-func (a *App) isDoubleClick(x, y int) bool {
-	now := time.Now()
-	p := a.lastClick
-	double := !p.at.IsZero() && p.x == x && p.y == y && now.Sub(p.at) < doubleClickTime
-	a.lastClick = click{x: x, y: y, at: now}
-	if double {
-		a.lastClick.at = time.Time{}
-	}
-	return double
 }
 
 func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
