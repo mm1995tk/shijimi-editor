@@ -30,6 +30,9 @@ func (a *App) View() tea.View {
 	return v
 }
 
+// Init is bubbletea's first call: the effects that start the app (the watch
+// timer; unless in single-file mode, waiting on the language servers and
+// probing the repository).
 func (a *App) Init() tea.Cmd {
 	if a.single {
 		return a.effectCmd(watchTimer())
@@ -37,6 +40,10 @@ func (a *App) Init() tea.Cmd {
 	return a.effectCmd(append([]Effect{WaitLSP{a.lsp.events}, watchTimer()}, a.probeRepo()...)...)
 }
 
+// Update is bubbletea's call for each message: fromTea turns it into an Input
+// or an Event for Core.update, the state is brought up to date (transients,
+// split, last tab, LSP, selection), and the effects of the message and the
+// ones every round owes (auto-save, preview, lexing) become one tea.Cmd.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	effs := a.update(a.fromTea(msg))
 	a.keepTransients()
