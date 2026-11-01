@@ -1,0 +1,147 @@
+/* 左の一覧（D1）。親 #271 のモック「案：フラットな一覧」の寸法と色に合わせる。
+   マシンごとの色（D4）は --machine-color で差し替える。決まるまでは 1 色。 */
+
+.sidebar {
+  --sidebar-bg: #181b21;
+  --sidebar-border: #2a2f39;
+  --sidebar-text: #c9ced6;
+  --sidebar-muted: #9aa3b2;
+  --band-bg: #1f232b;
+  --band-hover: #262b34;
+  --health-up: #7cc4b0;
+  --health-pending: #e5b567;
+  --health-down: #5c6370;
+
+  box-sizing: border-box;
+  width: 300px;
+  min-width: 240px;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  color: var(--sidebar-text);
+  font-size: 13px;
+}
+
+.machine {
+  --machine-color: #8fb4ff;
+}
+
+.machine + .machine {
+  margin-top: 6px;
+  border-top: 1px solid var(--sidebar-border);
+}
+
+/* 見出し・帯・（D2 の）ルート直下の行は同じ左端にそろえる。左の 3px は machine の色の線 */
+.machine-heading,
+.band,
+.no-workspace {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 9px;
+  border-left: 3px solid var(--machine-color);
+}
+
+.machine-heading {
+  height: 32px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.machine-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.health {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--health-down);
+}
+.health[data-health="up"] {
+  background: var(--health-up);
+}
+.health[data-health="pending"] {
+  background: var(--health-pending);
+}
+
+.no-workspace {
+  height: 30px;
+  margin: 0;
+  color: var(--sidebar-muted);
+  font-size: 12px;
+}
+
+.bands {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bands li + li {
+  margin-top: 2px;
+}
+
+.band {
+  width: 100%;
+  height: 30px;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: var(--band-bg);
+  color: var(--sidebar-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.band:hover {
+  background: var(--band-hover);
+}
+.band:focus-visible {
+  outline: 1px solid var(--machine-color);
+  outline-offset: -1px;
+}
+/* フォーカス中の帯は、マシンの色を薄く敷いて太字にする */
+.band[aria-current="true"] {
+  background: color-mix(in srgb, var(--machine-color) 22%, var(--sidebar-bg));
+  font-weight: 600;
+}
+
+.band-icon {
+  flex: none;
+  fill: none;
+  stroke: var(--machine-color);
+  stroke-width: 1.4;
+}
+
+.band-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.band-title.path {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.band-detail {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sidebar-muted);
+  font-size: 11px;
+  font-weight: 400;
+}

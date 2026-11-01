@@ -14,6 +14,8 @@ function fakeShell(opts: {
   pingReply?: () => boolean;
   /** ping にこのエラーで答える（引き継がれた後の not_owner など） */
   pingError?: () => { code: number; message: string } | undefined;
+  /** workspace.list で返すフォーカス */
+  focus?: string | null;
 }) {
   const lines: Line[] = [];
   const closeds: ((e: ClosedEvent) => void)[] = [];
@@ -62,6 +64,25 @@ function fakeShell(opts: {
           break;
         case "screen.get":
           reply({ rev: 7, ackSeq: 0, focus: "w", status: null });
+          break;
+        case "workspace.list":
+          reply({
+            workspaces: [{ id: `w-${serverOf.get(id)}` }],
+            focus: opts.focus ?? null,
+          });
+          break;
+        case "workspace.focus":
+          if (msg.params.id === "nope") {
+            queueMicrotask(() =>
+              emit(id, {
+                jsonrpc: "2.0",
+                id: msg.id,
+                error: { code: -32001, message: "no such workspace: nope" },
+              }),
+            );
+            break;
+          }
+          reply({ rev: 9 });
           break;
         case "session.ping": {
           const error = opts.pingError?.();
@@ -339,15 +360,63 @@ describe("Session", () => {
     s.start();
     await waitFor(s, (st) => st.kind === "connected");
     await new Promise((r) => setTimeout(r, 10));
-    assert.deepEqual(seen, [["w-A"]]);
+    // hello の一覧と、フォーカスを尋ねた workspace.list の一覧
+    assert.deepEqual(seen, [["w-A"], ["w-A"]]);
     f.emit(connectedId(f), {
       jsonrpc: "2.0",
       method: "workspace.changed",
       params: { removed: ["w-A"] },
     });
     await new Promise((r) => setTimeout(r, 10));
-    assert.deepEqual(seen, [["w-A"], []]);
+    assert.deepEqual(seen, [["w-A"], ["w-A"], []]);
     await s.close();
+  });
+
+  it("つながると workspace.list で shj のフォーカスを知り、フォーカス先が消えたら null にする", async () => {
+    const f = fakeShell({ serverIds: ["A"], focus: "w-A" });
+    const s = new Session(f.api, "h", fast);
+    const seen: (string | null)[] = [];
+    s.onFocus((id) => seen.push(id));
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(s.focus, "w-A");
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "workspace.changed",
+      params: { removed: ["w-A"] },
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.deepEqual(seen, ["w-A", null]);
+    await s.close();
+  });
+
+  it("focusWorkspace は workspace.focus を送り、受け付けられたらフォーカスを移して画面を取り直す", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(s.focus, null);
+    const gets = () =>
+      f.sent.filter((x) => x.msg.method === "screen.get").length;
+    const before = gets();
+    await s.focusWorkspace("w-A");
+    await new Promise((r) => setTimeout(r, 10));
+    const sentFocus = f.sent.filter((x) => x.msg.method === "workspace.focus");
+    assert.deepEqual(sentFocus.at(-1)!.msg.params, { id: "w-A" });
+    assert.equal(s.focus, "w-A");
+    assert.equal(gets(), before + 1);
+
+    await assert.rejects(s.focusWorkspace("nope"), /no such workspace/);
+    assert.equal(s.focus, "w-A", "断られたらフォーカスは変えない");
+    await s.close();
+  });
+
+  it("つながっていないときの focusWorkspace は投げる", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    await assert.rejects(s.focusWorkspace("w-A"), /つながっていません/);
   });
 });
 
