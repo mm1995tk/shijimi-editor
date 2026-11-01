@@ -3,9 +3,6 @@ package tui
 import (
 	"path/filepath"
 	"slices"
-	"strings"
-
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
@@ -206,30 +203,6 @@ func (l layout) otherLayout() layout {
 // including its title row.
 func (l layout) inOtherPane(x, y int) bool {
 	return l.split && x >= l.otherX && x < l.otherX+l.otherW && y >= l.top && y < l.panelY
-}
-
-// joinPanes puts the two panes side by side with a line between them.
-func joinPanes(left, right []string, leftW, rightW int) []string {
-	n := max(len(left), len(right))
-	out := make([]string, n)
-	sep := stSeparator.Render("│")
-	pad := func(s string, w int) string {
-		if n := ansi.StringWidth(s); n < w {
-			return s + stEmpty.Render(strings.Repeat(" ", w-n))
-		}
-		return s
-	}
-	for i := range out {
-		var l, r string
-		if i < len(left) {
-			l = left[i]
-		}
-		if i < len(right) {
-			r = right[i]
-		}
-		out[i] = pad(l, leftW) + sep + pad(r, rightW)
-	}
-	return out
 }
 
 // openFileHere is openFile for commands that act on the focused pane (Ctrl+O,

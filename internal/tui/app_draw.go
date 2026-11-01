@@ -135,8 +135,9 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		rows[i] = sb.String()
 	}
 	if a.diffMode() {
-		rows = append([]string{a.renderDiffHeader(a.w)}, rows...)
-		rows = append(rows, a.renderDiffHelp(a.w))
+		branch, pr := a.compareBase()
+		rows = append([]string{drawCompareBar(branch, pr, a.w)}, rows...)
+		rows = append(rows, drawDiffHelp(a.diffHelp(), a.w))
 	}
 
 	// popups anchored at the cursor
@@ -187,12 +188,12 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	}
 
 	if a.searchOpen() {
-		x, y, box := a.renderSearch()
-		rows = overlay(rows, box, x, y)
+		g := a.searchGeom()
+		rows = overlay(rows, drawSearch(a.searchWindow(), g, a.rel), g.x, g.y)
 	}
 
 	if a.contextOpen() {
-		rows = a.renderContext(rows)
+		rows = drawContext(rows, a.contextPreview(), a.screenW(), a.screenH())
 	}
 	if a.proposalsOpen() {
 		rows = a.renderProposal(rows)

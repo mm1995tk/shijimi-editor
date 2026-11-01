@@ -195,6 +195,8 @@ var tuiMethodFiles = []string{
 	"app_draw.go", "caret.go", "frontend.go", "model.go", "layout.go", "mouse.go", "resize.go",
 	"mux.go", "eventtui.go", "inputtea.go", "ideproposal_draw.go", "prreview_draw.go",
 	"editor_draw.go", "explorer_draw.go", "gitdiff_draw.go", "inputview.go", "lines_draw.go",
+	"agentpanel_draw.go", "context_draw.go", "hover_draw.go", "image_draw.go", "lspui_draw.go", "palette_draw.go",
+	"searchui_draw.go", "terminal_draw.go", "window_draw.go",
 	"preview_draw.go", "signature_draw.go", "spacemenu_draw.go", "styles.go", "theme_apply.go",
 }
 
@@ -298,23 +300,15 @@ func TestFrontEndAsksCore(t *testing.T) {
 	}
 }
 
-// styleCoreTodo are the files that go to core and still draw with a lipgloss
-// style (bgfg or an st* variable from styles.go). They are drawing that has
-// not moved to a *_draw.go yet. Shrink this list; never add to it.
-var styleCoreTodo = []string{
-	"agentpanel.go", "context.go", "gitdiff.go", "hover.go", "image.go", "lspui.go",
-	"palette.go", "prreview.go", "searchui.go", "signature.go", "spacemenu.go", "terminal.go", "window.go",
-}
-
 // TestStylesStayInTui keeps the files that go to core from drawing with the
-// styles of styles.go, apart from styleCoreTodo.
+// styles of styles.go: they hand an Overlay or a Pane to a *_draw.go.
 func TestStylesStayInTui(t *testing.T) {
 	fset := token.NewFileSet()
 	styles, err := parser.ParseFile(fset, "styles.go", nil, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	names := map[string]bool{"bgfg": true}
+	names := map[string]bool{"bgfg": true, "styleFor": true}
 	for _, d := range styles.Decls {
 		if gd, ok := d.(*ast.GenDecl); ok {
 			for _, s := range gd.Specs {
@@ -330,7 +324,7 @@ func TestStylesStayInTui(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	used := map[string]bool{}
+	var used []string
 	for _, e := range entries {
 		name := e.Name()
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") || slices.Contains(tuiMethodFiles, name) {
@@ -342,19 +336,12 @@ func TestStylesStayInTui(t *testing.T) {
 		}
 		ast.Inspect(f, func(n ast.Node) bool {
 			if id, ok := n.(*ast.Ident); ok && names[id.Name] {
-				used[name] = true
+				used = append(used, name)
 			}
 			return true
 		})
 	}
-	for name := range used {
-		if !slices.Contains(styleCoreTodo, name) {
-			t.Errorf("%s draws with a style of styles.go; draw in a *_draw.go (or add it to styleCoreTodo only if it already did)", name)
-		}
-	}
-	for _, name := range styleCoreTodo {
-		if !used[name] {
-			t.Errorf("%s no longer uses a style; remove it from styleCoreTodo", name)
-		}
+	for _, name := range slices.Compact(used) {
+		t.Errorf("%s draws with a style of styles.go; draw in a *_draw.go (and add that file to tuiMethodFiles)", name)
 	}
 }

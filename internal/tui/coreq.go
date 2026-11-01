@@ -100,3 +100,9 @@ func (a *Core) cmdField() *inputField  { return &a.cmdInput }
 func (a *Core) hoverContent() string { return a.hoverText }
 func (a *Core) hoverTop() int        { return a.hoverScroll }
 func (a *Core) setHoverTop(n int)    { a.hoverScroll = n }
+
+// searchWindow is the state of the search window.
+func (a *Core) searchWindow() *searchPanel { return a.search }
+
+// contextPreview is the context preview that is open (nil when none is).
+func (a *Core) contextPreview() *ctxPreview { return a.ctx }

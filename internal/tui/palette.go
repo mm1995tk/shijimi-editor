@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/x/ansi"
 	"github.com/sahilm/fuzzy"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
@@ -238,66 +237,6 @@ func (p *palette) overlay() screen.Overlay {
 		ov.Hint = i18n.T("palette.nomatch")
 	}
 	return ov
-}
-
-// drawPalette draws a palette Overlay as a box w cells wide. in is the TUI's
-// state of the input (what is in view of a long text); the Overlay holds the
-// text and the caret.
-func drawPalette(ov screen.Overlay, in *inputField, w int) []string {
-	var out []string
-	label := paletteLabel(ov.Title, ov.Field.Prefix)
-	out = append(out, stPaletteBox.Render(fit("", w)))
-	out = append(out, stPaletteBox.Render(label)+fitStyled(in.view(inputStyleOn(cPaletteBg)), w-ansi.StringWidth(label), stPalette))
-	for i, it := range ov.Items {
-		out = append(out, renderItem(it, w, i == ov.Active))
-	}
-	if ov.Hint != "" {
-		out = append(out, stPaletteDim.Render(fit(ov.Hint, w)))
-	}
-	out = append(out, stPalette.Render(fit("", w)))
-	return out
-}
-
-func renderItem(it screen.Item, w int, selected bool) string {
-	base, hi := stPalette, stPaletteHi
-	if selected {
-		base, hi = stPaletteSel, stPaletteHiS
-	}
-	matched := map[int]bool{}
-	for _, m := range it.Matched {
-		matched[m] = true
-	}
-	var sb strings.Builder
-	sb.WriteString(base.Render("  "))
-	used := 2
-	for i, r := range []rune(it.Label) {
-		rw := ansi.StringWidth(string(r))
-		if used+rw > w-1 {
-			break
-		}
-		if matched[i] {
-			sb.WriteString(hi.Render(string(r)))
-		} else {
-			sb.WriteString(base.Render(string(r)))
-		}
-		used += rw
-	}
-	if it.Detail != "" && it.Detail != "." {
-		d := "  " + it.Detail
-		dw := ansi.StringWidth(d)
-		if used+dw < w {
-			st := stPaletteDim
-			if selected {
-				st = bgfg(cListSel, curTheme.SubSel)
-			}
-			sb.WriteString(st.Render(d))
-			used += dw
-		}
-	}
-	if used < w {
-		sb.WriteString(base.Render(strings.Repeat(" ", w-used)))
-	}
-	return sb.String()
 }
 
 // pick opens the palette as a fuzzy list; onPick receives the index into items.

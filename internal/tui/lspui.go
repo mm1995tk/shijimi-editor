@@ -11,8 +11,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/charmbracelet/x/ansi"
-
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -702,25 +700,6 @@ func (c *completionPopup) overlay(maxH int) screen.Overlay {
 		ov.Items = append(ov.Items, screen.Item{Label: it.Label, Detail: it.Detail, Kind: completionKinds[it.Kind]})
 	}
 	return ov
-}
-
-// drawCompletion draws a completion Overlay as a box of cells.
-func drawCompletion(ov screen.Overlay) []string {
-	w := 20
-	for _, it := range ov.Items {
-		w = max(w, ansi.StringWidth(it.Label)+10)
-	}
-	w = min(w, 60)
-	out := make([]string, 0, len(ov.Items))
-	for i, it := range ov.Items {
-		st, dim := stPalette, stPaletteDim
-		if i == ov.Active {
-			st, dim = stPaletteSel, bgfg(cListSel, curTheme.SubSel)
-		}
-		label := fit(" "+it.Label, w-9)
-		out = append(out, st.Render(label)+dim.Render(fit(" "+it.Kind, 9)))
-	}
-	return out
 }
 
 func (a *Core) lspStatus() string {
