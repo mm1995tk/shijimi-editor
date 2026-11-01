@@ -44,4 +44,5 @@ jobs:
           cache: npm
           cache-dependency-path: gui/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build
