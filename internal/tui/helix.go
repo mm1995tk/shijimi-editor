@@ -203,7 +203,7 @@ func (a *App) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int, 
 	return nil
 }
 
-func (a *App) pageSize() int { return max(1, a.layout().editH-2) }
+func (a *App) pageSize() int { return max(1, a.editRows()-2) }
 
 func (a *App) enterInsert() []Effect {
 	a.recIns = nil
@@ -257,9 +257,9 @@ func (a *App) helixPending(p, key string, msg Key) []Effect {
 		case "t":
 			b.SetCursor(b.ScrollRow, 0, ext)
 		case "b":
-			b.SetCursor(b.ScrollRow+a.layout().editH-1, 0, ext)
+			b.SetCursor(b.ScrollRow+a.editRows()-1, 0, ext)
 		case "c":
-			b.SetCursor(b.ScrollRow+a.layout().editH/2, 0, ext)
+			b.SetCursor(b.ScrollRow+a.editRows()/2, 0, ext)
 		}
 	case "m":
 		switch key {
