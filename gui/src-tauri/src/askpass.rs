@@ -18,8 +18,11 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
+/// 中継先の Unix ソケットのパス（ssh の子の askpass に渡す）。
 pub const ENV_SOCK: &str = "SHIJIMI_ASKPASS_SOCK";
+/// 呼び出し元を確かめる使い捨ての合言葉。
 pub const ENV_TOKEN: &str = "SHIJIMI_ASKPASS_TOKEN";
+/// どの接続の質問か（接続を閉じたとき待ちを取り消すため）。
 pub const ENV_CONN: &str = "SHIJIMI_ASKPASS_CONN";
 
 /// ユーザーが答えないまま待つ上限。過ぎたら取り消し扱いにする。
@@ -52,8 +55,11 @@ struct Pending {
     tx: Sender<Option<String>>,
 }
 
+/// GUI 本体の askpass の受け口。ssh の質問を窓に出し、答えを待つ。
 pub struct AskpassServer {
+    /// 待ち受けるソケット
     pub sock: PathBuf,
+    /// 起動ごとの合言葉
     pub token: String,
     pending: Arc<Mutex<Vec<(u64, Pending)>>>,
 }
@@ -70,6 +76,7 @@ fn private_dir() -> std::io::Result<PathBuf> {
     Ok(dir)
 }
 
+/// /dev/urandom から 16 バイトの合言葉（16 進）を作る。
 pub fn random_token() -> std::io::Result<String> {
     use std::io::Read;
     let mut b = [0u8; 16];
@@ -78,6 +85,14 @@ pub fn random_token() -> std::io::Result<String> {
 }
 
 impl AskpassServer {
+    /// ソケットのフォルダを消す（終了時）。
+    pub fn cleanup(&self) {
+        if let Some(dir) = self.sock.parent() {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
+
+    /// 受け口を作り、受け付けるスレッドを始める。
     pub fn start(app: AppHandle) -> std::io::Result<Arc<Self>> {
         let dir = private_dir()?;
         let sock = dir.join("askpass.sock");

@@ -34,6 +34,7 @@ struct Conn {
     stdin: Mutex<ChildStdin>,
 }
 
+/// 開いている接続（子プロセス）の表。
 #[derive(Default)]
 pub struct Connections {
     map: Arc<Mutex<HashMap<String, Arc<Conn>>>>,
@@ -79,10 +80,11 @@ fn build_command(target: &str, ask: &AskpassServer, id: &str) -> Result<Command,
 }
 
 impl Connections {
+    /// 子プロセスを起動し、出力の中継を始める。ssh が自分で終わったら、その接続の askpass の待ちも取り消す。
     pub fn open(
         &self,
         app: &AppHandle,
-        ask: &AskpassServer,
+        ask: &Arc<AskpassServer>,
         id: String,
         target: &str,
     ) -> Result<(), String> {
@@ -92,7 +94,7 @@ impl Connections {
         if self.map.lock().unwrap().contains_key(&id) {
             return Err("connection id already in use".into());
         }
-        let mut cmd = build_command(target, ask, &id)?;
+        let mut cmd = build_command(target, &ask, &id)?;
         let mut child = cmd
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -126,6 +128,7 @@ impl Connections {
 
         let app = app.clone();
         let map = Arc::clone(&self.map);
+        let ask = Arc::clone(ask);
         std::thread::spawn(move || {
             for line in BufReader::new(stdout).split(b'\n').map_while(Result::ok) {
                 let line = String::from_utf8_lossy(&line).into_owned();
@@ -140,6 +143,7 @@ impl Connections {
             let _ = err_thread.join();
             let code = child.lock().unwrap().wait().ok().and_then(|s| s.code());
             map.lock().unwrap().remove(&id); // 終わった後の send は失敗させる
+            ask.cancel_conn(&id);
             let stderr = tail.lock().unwrap().join("\n");
             let _ = app.emit("shj-closed", ClosedEvent { id, code, stderr });
         });
@@ -163,6 +167,7 @@ impl Connections {
         }
     }
 
+    /// 全部の接続を終わらせる（アプリの終了時）。
     pub fn close_all(&self) {
         let ids: Vec<String> = self.map.lock().unwrap().keys().cloned().collect();
         for id in ids {

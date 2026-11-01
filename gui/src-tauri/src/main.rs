@@ -44,6 +44,7 @@ fn send(state: State<AppState>, id: String, text: String) -> Result<(), String> 
     state.conns.send(&id, &text)
 }
 
+/// 接続を閉じる（待っている ssh の質問も取り消す）。リモートの shj serve は止まらない。
 #[tauri::command]
 fn disconnect(state: State<AppState>, id: String) {
     state.askpass.cancel_conn(&id);
@@ -85,6 +86,7 @@ fn main() {
             if let RunEvent::Exit = event {
                 if let Some(s) = app.try_state::<AppState>() {
                     s.conns.close_all();
+                    s.askpass.cleanup();
                 }
             }
         });

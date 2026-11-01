@@ -5,10 +5,10 @@ import {
   For,
   onCleanup,
   onMount,
-  Show,
   type JSX,
 } from "solid-js";
 
+import { AskpassDialog } from "./AskpassDialog.tsx";
 import { LOCAL, type AskpassRequest, type ShellApi } from "./ssh/api.ts";
 import { connectShj, type Connection } from "./ssh/connect.ts";
 import { tauriShell } from "./ssh/tauri.ts";
@@ -19,25 +19,60 @@ type State =
   | { kind: "connected"; target: string; conn: Connection }
   | { kind: "failed"; target: string; message: string };
 
+const label = (t: string) => (t === LOCAL ? "このマシン" : t);
+
+function ConnectionStatus(props: { state: State }): JSX.Element {
+  return (
+    <>
+      {(() => {
+        const s = props.state;
+        switch (s.kind) {
+          case "connecting":
+            return <p role="status">{label(s.target)} につないでいます…</p>;
+          case "connected":
+            return (
+              <p role="status">
+                {label(s.target)} につながりました（shj{" "}
+                {s.conn.hello.shj.version}）
+              </p>
+            );
+          case "failed":
+            return (
+              <pre role="alert">
+                {label(s.target)} につなげませんでした{"\n"}
+                {s.message}
+              </pre>
+            );
+          default:
+            return null;
+        }
+      })()}
+    </>
+  );
+}
+
 export function App(props: { api?: ShellApi }): JSX.Element {
   const api = props.api ?? tauriShell;
   const [hosts, setHosts] = createSignal<string[]>([]);
   const [state, setState] = createSignal<State>({ kind: "idle" });
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
-  const [answer, setAnswer] = createSignal("");
 
+  // await の後は Owner が無いので、onCleanup は先に登録する
+  const offs: (() => void)[] = [];
+  onCleanup(() => offs.forEach((f) => f()));
   onMount(async () => {
     setHosts(await api.listSshHosts().catch(() => []));
-    const offs = [
+    offs.push(
       await api.onAskpass((e) => setAsks((a) => [...a, e])),
       await api.onAskpassDone((id) =>
         setAsks((a) => a.filter((x) => x.requestId !== id)),
       ),
-    ];
-    onCleanup(() => offs.forEach((f) => f()));
+    );
   });
 
   async function connect(target: string) {
+    const prev = state();
+    if (prev.kind === "connected") void prev.conn.close(); // 前の ssh / attach を残さない
     setState({ kind: "connecting", target });
     try {
       const conn = await connectShj(api, target);
@@ -56,17 +91,10 @@ export function App(props: { api?: ShellApi }): JSX.Element {
     }
   }
 
-  function reply(value: string | null) {
-    const ask = asks()[0];
-    if (!ask) return;
-    setAsks((a) => a.slice(1));
-    setAnswer("");
-    void api.askpassReply(ask.requestId, value);
+  function reply(requestId: number, value: string | null) {
+    setAsks((a) => a.filter((x) => x.requestId !== requestId));
+    void api.askpassReply(requestId, value);
   }
-
-  const label = (t: string) => (t === LOCAL ? "このマシン" : t);
-  // ホスト鍵の確認（yes/no）は見える文字で打たせる。それ以外（パスワード・認証コード）は伏せる
-  const isSecret = (prompt: string) => !/\(yes\/no|\[fingerprint\]/i.test(prompt);
 
   return (
     <main aria-label="shijimi-editor">
@@ -85,53 +113,8 @@ export function App(props: { api?: ShellApi }): JSX.Element {
           )}
         </For>
       </ul>
-      {(() => {
-        const s = state();
-        switch (s.kind) {
-          case "connecting":
-            return <p role="status">{label(s.target)} につないでいます…</p>;
-          case "connected":
-            return (
-              <p role="status">
-                {label(s.target)} につながりました（shj {s.conn.hello.shj.version}）
-              </p>
-            );
-          case "failed":
-            return (
-              <pre role="alert">
-                {label(s.target)} につなげませんでした{"\n"}
-                {s.message}
-              </pre>
-            );
-          default:
-            return null;
-        }
-      })()}
-      <Show when={asks()[0]}>
-        {(ask) => (
-          <dialog open aria-modal="true" aria-label="ssh の質問">
-            <form
-              method="dialog"
-              onSubmit={(e) => {
-                e.preventDefault();
-                reply(answer());
-              }}
-            >
-              <p>{ask().prompt}</p>
-              <input
-                type={isSecret(ask().prompt) ? "password" : "text"}
-                value={answer()}
-                onInput={(e) => setAnswer(e.currentTarget.value)}
-                autofocus
-              />
-              <button type="submit">OK</button>
-              <button type="button" onClick={() => reply(null)}>
-                取り消し
-              </button>
-            </form>
-          </dialog>
-        )}
-      </Show>
+      <ConnectionStatus state={state()} />
+      <AskpassDialog ask={asks()[0]} onReply={reply} />
     </main>
   );
 }
