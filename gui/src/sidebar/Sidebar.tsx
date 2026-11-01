@@ -36,11 +36,15 @@ interface Handlers {
   onRetry?: (target: string) => void;
   /** 見出しのそばの「切る」 */
   onDisconnect?: (target: string) => void;
+  /** ツリーのファイルの行を押した */
+  onOpen?: (target: string, id: WorkspaceId, path: string) => void;
+  /** ファイルの欄で開いているファイル（ツリーで強調する行の path）。無ければ undefined */
+  currentOf?: (target: string, id: WorkspaceId) => string | undefined;
 }
 
 /**
  * 左の一覧。つないだマシンごとに見出しとワークスペースの帯を出し、帯を押すと onFocus を呼ぶ。
- * フォーカスしている帯の下に treeOf のツリーを出し、フォルダを押すと onToggle を呼ぶ。
+ * フォーカスしている帯の下に treeOf のツリーを出し、フォルダを押すと onToggle、ファイルを押すと onOpen を呼ぶ。
  *
  * 上下の固定（D3）は CSS の sticky で、要素の組み方で止まるところを決める:
  * フォーカスしているマシンの見出しはそのマシンの要素（帯はフォーカスしている帯まで）の中で、
@@ -202,6 +206,12 @@ function handlers(props: Handlers): Handlers {
     get onDisconnect() {
       return props.onDisconnect;
     },
+    get onOpen() {
+      return props.onOpen;
+    },
+    get currentOf() {
+      return props.currentOf;
+    },
   };
 }
 
@@ -339,6 +349,8 @@ function BandItem(
             rows={rows()}
             label={`${b().title} のファイル`}
             onToggle={(p) => props.onToggle?.(props.target, b().id, p)}
+            onOpen={(p) => props.onOpen?.(props.target, b().id, p)}
+            current={props.currentOf?.(props.target, b().id)}
           />
         )}
       </Show>

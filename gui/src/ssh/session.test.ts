@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { RpcError } from "../rpc/message.ts";
 import type { ClosedEvent, ShellApi } from "./api.ts";
 import { applyWorkspaceChange, Session, type SessionState } from "./session.ts";
 
@@ -118,6 +119,19 @@ function fakeShell(opts: {
         case "input.composition":
         case "input.paste":
         case "input.focus":
+          reply({ rev: 8 });
+          break;
+        case "file.open":
+          if (msg.params.path === "gone.go") {
+            queueMicrotask(() =>
+              emit(id, {
+                jsonrpc: "2.0",
+                id: msg.id,
+                error: { code: -32003, message: "not found: gone.go" },
+              }),
+            );
+            break;
+          }
           reply({ rev: 8 });
           break;
         case "session.bye":
@@ -804,15 +818,24 @@ describe("Session の入力", () => {
       1,
     );
     s.input("input.paste", { region: "files", text: "x" });
+    s.input("file.open", { workspaceId: "w-A", path: "src/a.go" });
     await new Promise((r) => setTimeout(r, 10));
-    const inputs = f.sent.filter((x) => x.msg.method.startsWith("input."));
+    const inputs = f.sent.filter(
+      (x) => x.msg.method.startsWith("input.") || x.msg.method === "file.open",
+    );
     assert.deepEqual(
       inputs.map((x) => [x.msg.method, x.msg.params.seq]),
       [
         ["input.key", 1],
         ["input.paste", 2],
+        ["file.open", 3],
       ],
     );
+    assert.deepEqual(inputs[2]!.msg.params, {
+      workspaceId: "w-A",
+      path: "src/a.go",
+      seq: 3,
+    });
     assert.deepEqual(inputs[0]!.msg.params, {
       region: "files",
       key: "a",
@@ -826,7 +849,7 @@ describe("Session の入力", () => {
     await waitFor(s, (st) => st.kind === "reconnecting");
     await waitFor(s, (st) => st.kind === "connected");
     // つなぎ直しても seq は増え続ける
-    assert.equal(s.input("input.focus", { region: "files" }), 3);
+    assert.equal(s.input("input.focus", { region: "files" }), 4);
     f.emit(connectedId(f), {
       jsonrpc: "2.0",
       method: "clipboard.write",
@@ -834,6 +857,25 @@ describe("Session の入力", () => {
     });
     await new Promise((r) => setTimeout(r, 10));
     assert.deepEqual(copied, ["copied"]);
+    await s.close();
+  });
+
+  it("input に onError を渡すと、shj が断ったときに呼ぶ（file.open）", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    const errors: unknown[] = [];
+    s.input("file.open", { workspaceId: "w-A", path: "a.go" }, (e) =>
+      errors.push(e),
+    );
+    s.input("file.open", { workspaceId: "w-A", path: "gone.go" }, (e) =>
+      errors.push(e),
+    );
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(errors.length, 1);
+    assert.ok(errors[0] instanceof RpcError);
+    assert.equal((errors[0] as RpcError).codeName, "not_found");
     await s.close();
   });
 });
