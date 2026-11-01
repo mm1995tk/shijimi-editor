@@ -72,28 +72,28 @@ func (a *App) diffLeftWidth(w int) int {
 func (a *App) resizeSide(delta int) {
 	a.sideWPref = a.sideWidth() + delta
 	a.sideWPref = a.sideWidth()
-	a.follow = true
+	a.followCursor()
 }
 
 func (a *App) resizeTerm(delta int) {
 	a.panelHPref = a.panelHeight() + delta
 	a.panelHPref = a.panelHeight()
-	a.follow = true
+	a.followCursor()
 }
 
 func (a *App) resizePreviewBy(deltaPct int) {
 	a.previewPct = clamp(a.previewPercent()+deltaPct, 10, 90)
-	a.follow = true
+	a.followCursor()
 }
 
 func (a *App) resetPanes() {
 	a.sideWPref, a.panelHPref, a.previewPct, a.agentWPref, a.diffLeftPct, a.explorerPct = 0, 0, 0, 0, 0, 0
-	a.follow = true
+	a.followCursor()
 }
 
 func (a *App) startResize() []Effect {
-	a.comp = nil
-	a.hoverText = ""
+	a.closeCompletion()
+	a.closeHover()
 	a.resizeMode = true
 	a.infoText(i18n.T("resize.hint"))
 	return nil
@@ -118,20 +118,20 @@ func (a *App) editorBorder(t *tab) resizeTarget {
 // the focused pane, a vertical border for ← → and a horizontal one for ↑ ↓.
 func (a *App) keyBorder(l layout, across bool) resizeTarget {
 	if !across {
-		if (a.focus == focusExplorer || a.focus == focusChanges) && a.showSide && a.gd.on {
+		if (a.focusIs(focusExplorer) || a.focusIs(focusChanges)) && a.showSide && a.diffMode() {
 			return resizeExplorer
 		}
 		return resizeTerm
 	}
-	switch a.focus {
-	case focusEditor:
+	switch {
+	case a.focusIs(focusEditor):
 		if b := a.editorBorder(a.curText()); b != resizeNone {
 			return b
 		}
 		if l.agentW > 0 {
 			return resizeAgent
 		}
-	case focusAgent:
+	case a.focusIs(focusAgent):
 		if l.agentW > 0 {
 			return resizeAgent
 		}
@@ -159,16 +159,16 @@ func (a *App) moveBorder(l layout, target resizeTarget, d int) {
 	case resizeAgent:
 		a.agentWPref = a.agentWidth() - d
 		a.agentWPref = a.agentWidth()
-		a.follow = true
+		a.followCursor()
 	case resizeDiff:
 		if avail := l.rightW - 2; avail > 0 {
 			a.diffLeftPct = clamp(pctToward(a.dvGeom(l).leftW+d, avail, d), 1, 99)
-			a.follow = true
+			a.followCursor()
 		}
 	case resizePreview:
 		if avail := l.rightW - 1; avail > 0 {
 			a.previewPct = clamp(pctToward(a.editW(a.curText(), l)+d, avail, d), 10, 90)
-			a.follow = true
+			a.followCursor()
 		}
 	case resizeExplorer:
 		if body := a.bodyH(); body > 0 {
@@ -198,7 +198,7 @@ func (a *App) handleResizeKey(key string) []Effect {
 		a.resetPanes()
 	case "esc", "enter", "q", "alt+r":
 		a.resizeMode = false
-		a.msg = ""
+		a.clearMsg()
 		return nil
 	}
 	a.infoText(i18n.T("resize.hint"))
@@ -212,7 +212,7 @@ func (a *App) resizeHit(l layout, x, y int) resizeTarget {
 		return resizeSide
 	case a.showTerm && y == l.panelY && x >= l.fullX:
 		return resizeTerm
-	case a.showSide && a.gd.on && x < l.sideW && y == l.top+a.explorerH():
+	case a.showSide && a.diffMode() && x < l.sideW && y == l.top+a.explorerH():
 		return resizeExplorer
 	}
 	t := a.curText()
@@ -254,5 +254,5 @@ func (a *App) dragResize(l layout, x, y int) {
 			a.previewPct = clamp((x-l.rightX)*100/avail, 10, 90)
 		}
 	}
-	a.follow = true
+	a.followCursor()
 }

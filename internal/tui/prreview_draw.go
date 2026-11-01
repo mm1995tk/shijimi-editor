@@ -10,7 +10,7 @@ import (
 
 // cardBox lays out the open card for layout l.
 func (a *App) cardBox(l layout) (rows []string, x, y int) {
-	c := a.card
+	c := a.openCard()
 	w := min(84, l.rightW-2)
 	if w < 20 {
 		return nil, 0, 0
@@ -31,7 +31,7 @@ func (a *App) cardBox(l layout) (rows []string, x, y int) {
 
 // composerBox draws the editor over the bottom of the editor area.
 func (a *App) composerBox(l layout) (rows []string, x, y int) {
-	c := a.composer
+	c := a.openComposer()
 	w := min(96, l.rightW-2)
 	if w < 24 {
 		w = max(10, l.rightW)
@@ -68,7 +68,7 @@ func (a *App) markerAt(l layout, x, y int) *prThread {
 	if a.isStale(p) {
 		return nil
 	}
-	if ts := a.gd.rv.lineThreads(p, dv.rows[idx].new+1); len(ts) > 0 {
+	if ts := a.lineThreads(p, dv.rows[idx].new+1); len(ts) > 0 {
 		return ts[0]
 	}
 	return nil
@@ -78,7 +78,7 @@ func (a *App) markerAt(l layout, x, y int) *prThread {
 // IME shows its composition.
 func (a *App) composerCaret(l layout) (x, y int, ok bool) {
 	rows, bx, by := a.composerBox(l)
-	ta := a.composer.ta
+	ta := a.composerArea()
 	ta.SetVirtualCursor(false)
 	c := ta.Cursor()
 	if c == nil {
