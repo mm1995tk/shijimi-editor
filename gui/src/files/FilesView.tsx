@@ -10,8 +10,8 @@
 //   （E3。BarsView.tsx、中身は bars.ts）。
 // - 補完・ホバー・パレットなどのポップアップ（E4）を本文の上に重ねる（OverlayView.tsx、置き場所は
 //   overlay.ts）。確認は状態行に出す。
-// - 行番号の横の印・診断・インデントガイド（E5）、画像・プレビュー・差分（E6）はまだ描かない。
-//   差分とプレビューのペインは、行の文字だけを出す。
+// - 行番号の横の印・診断の波線と行末の文言・インデントガイド（E5）を描く（並べ方は layout.ts）。
+// - 画像・プレビュー・差分（E6）はまだ描かない。差分とプレビューのペインは、行の文字だけを出す。
 import {
   createEffect,
   createMemo,
@@ -38,7 +38,8 @@ import { isMac } from "./input.ts";
 import { OverlayLayer } from "./OverlayView.tsx";
 import {
   cellsFor,
-  gutterText,
+  gutterMark,
+  gutterNumber,
   layoutLine,
   lineBg,
   lineKey,
@@ -255,6 +256,7 @@ function LineView(props: {
     return untrack(() => lineBg(props.line, props.pane));
   });
   const total = createMemo(() => props.pane.viewport.total);
+  const mark = createMemo(() => gutterMark(props.line));
   const current = () =>
     props.line.no >= 0 && props.line.no === props.pane.curLine;
   return (
@@ -265,7 +267,13 @@ function LineView(props: {
           data-current={current() ? "" : undefined}
           aria-hidden="true"
         >
-          {gutterText(props.line.no, total())}
+          <span
+            class="files-gutter-mark"
+            style={{ color: colorOf(props.theme, mark()) }}
+          >
+            {mark() ? "●" : " "}
+          </span>
+          {gutterNumber(props.line.no, total())}
         </span>
       </Show>
       <For each={runs()}>

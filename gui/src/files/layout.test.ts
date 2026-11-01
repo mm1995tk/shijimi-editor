@@ -4,7 +4,11 @@ import { describe, it } from "node:test";
 import type { Line, Pane, Pos, Range } from "../rpc/protocol.ts";
 import {
   cellsFor,
+  diagStyle,
+  gutterMark,
+  gutterNumber,
   gutterText,
+  headDiagnostic,
   gutterWidth,
   layoutLine,
   lineBg,
@@ -37,7 +41,15 @@ const plain = (no: number, text: string): Line => ({
 /** 区間を「文字列|桁数|印」の短い形にする（読みやすく比べるため）。 */
 function show(runs: Run[]): string[] {
   return runs.map((r) => {
-    const marks = [r.fg, r.bg, r.cursor && "cursor", r.bold && "bold"]
+    const marks = [
+      r.fg,
+      r.bg,
+      r.cursor && "cursor",
+      r.bold && "bold",
+      r.diag && `~${r.diag}`,
+      r.guide && "guide",
+      r.faint && "faint",
+    ]
       .filter(Boolean)
       .join(",");
     return `${r.text}|${r.cells}${marks ? `|${marks}` : ""}`;
@@ -52,6 +64,8 @@ describe("gutter", () => {
     assert.equal(gutterText(0, 120).length, gutterWidth(120));
     assert.equal(gutterText(119, 120), "  120  ");
     assert.equal(gutterText(-1, 120), "       ");
+    assert.equal(gutterNumber(0, 120), "   1  ");
+    assert.equal(gutterNumber(-1, 120), "      ");
   });
 
   it("テキストのペインの幅は行番号の欄を足す", () => {
@@ -241,5 +255,173 @@ describe("lineKey", () => {
       ),
       k,
     );
+  });
+});
+
+describe("診断（E5）", () => {
+  const diagLine = (text: string, diag: Line["diag"]): Line => ({
+    no: 0,
+    spans: [{ text }],
+    diag,
+  });
+
+  it("範囲に重さの色の波線を引き、行末の後ろに一番重い文言を薄く出す", () => {
+    const l = diagLine("x := y", [
+      { start: 5, end: 6, severity: 2, message: "unused" },
+      { start: 0, end: 1, severity: 1, message: "undefined: x\nmore" },
+    ]);
+    const p = pane({
+      viewport: { top: 0, rows: 10, cols: 30, left: 0, total: 9 },
+    });
+    assert.deepEqual(show(layoutLine(l, p, { cursor: false })), [
+      "x|1|diag.error,~diag.error",
+      " := |4",
+      "y|1|diag.warn,~diag.warn",
+      "   ● undefined: x|17|diag.error,faint",
+    ]);
+  });
+
+  it("文字に色があれば色はそのままで、波線だけ引く。重なりは重いほう", () => {
+    const l: Line = {
+      no: 0,
+      spans: [{ text: "ab", style: "syntax.keyword" }],
+      diag: [
+        { start: 0, end: 2, severity: 3, message: "i" },
+        { start: 1, end: 2, severity: 1, message: "e" },
+      ],
+    };
+    const p = pane({
+      viewport: { top: 0, rows: 10, cols: 2, left: 0, total: 9 },
+    });
+    assert.deepEqual(show(layoutLine(l, p, { cursor: false })), [
+      "a|1|syntax.keyword,~diag.info",
+      "b|1|syntax.keyword,~diag.error",
+    ]);
+  });
+
+  it("前の行から続く診断だけの行には何も描かない", () => {
+    const l = diagLine("ab", [
+      { start: 0, end: 3, severity: 1, message: "e", cont: true },
+    ]);
+    assert.deepEqual(show(layoutLine(l, pane(), { cursor: false })), ["ab|2"]);
+  });
+
+  it("文言は幅で切り、空きが 6 桁以下なら出さない", () => {
+    const l = diagLine("ab", [
+      { start: 0, end: 1, severity: 1, message: "long message" },
+    ]);
+    const p = (cols: number) =>
+      pane({ viewport: { top: 0, rows: 10, cols, left: 0, total: 9 } });
+    assert.equal(
+      show(layoutLine(l, p(10), { cursor: false })).at(-1),
+      "   ● lon|8|diag.error,faint",
+    );
+    assert.equal(layoutLine(l, p(8), { cursor: false }).length, 2);
+  });
+
+  it("重さの色の名前と、文言を出す診断", () => {
+    assert.equal(diagStyle(1), "diag.error");
+    assert.equal(diagStyle(2), "diag.warn");
+    assert.equal(diagStyle(3), "diag.info");
+    assert.equal(diagStyle(4), "diag.hint");
+    assert.equal(
+      headDiagnostic([
+        { start: 0, end: 1, severity: 1, message: "c", cont: true },
+        { start: 0, end: 1, severity: 3, message: "i" },
+        { start: 0, end: 1, severity: 2, message: "w" },
+      ])?.message,
+      "w",
+    );
+    assert.equal(headDiagnostic(undefined), undefined);
+  });
+});
+
+describe("行番号の横の印（E5）", () => {
+  it("診断の印の色。診断の印が無ければ空ける", () => {
+    assert.equal(gutterMark(plain(0, "")), undefined);
+    assert.equal(
+      gutterMark({
+        no: 0,
+        spans: [],
+        marks: [
+          { kind: "modified", style: "diff.mod.sign" },
+          { kind: "diag", style: "diag.warn" },
+        ],
+      }),
+      "diag.warn",
+    );
+    assert.equal(
+      gutterMark({
+        no: 0,
+        spans: [],
+        marks: [{ kind: "added", style: "diff.add.sign" }],
+      }),
+      undefined,
+    );
+  });
+});
+
+describe("インデントガイド（E5）", () => {
+  it("guides の桁の空白に引き、indent より右と文字の上には引かない", () => {
+    const l: Line = {
+      no: 0,
+      spans: [{ text: "        x  y" }],
+      guides: [0, 4, 9],
+      indent: 8,
+    };
+    assert.deepEqual(show(layoutLine(l, pane(), { cursor: false })), [
+      " |1|indent.guide,guide",
+      "   |3",
+      " |1|indent.guide,guide",
+      "   x  y|7",
+    ]);
+  });
+
+  it("タブは先頭の 1 桁に引く", () => {
+    const l: Line = {
+      no: 0,
+      spans: [{ text: "\t\tx" }],
+      guides: [0, 4],
+      indent: 8,
+    };
+    assert.deepEqual(show(layoutLine(l, pane(), { cursor: false })), [
+      " |1|indent.guide,guide",
+      "   |3|indent.guide",
+      " |1|indent.guide,guide",
+      "   |3|indent.guide",
+      "x|1",
+    ]);
+  });
+
+  it("空行は行末より右にも indent まで引く。横スクロールより左は描かない", () => {
+    const l: Line = { no: 0, spans: [], guides: [0, 4], indent: 8 };
+    assert.deepEqual(show(layoutLine(l, pane(), { cursor: false })), [
+      " |1|indent.guide,guide",
+      "   |3",
+      " |1|indent.guide,guide",
+      "   |3",
+    ]);
+    const p = pane({
+      viewport: { top: 0, rows: 10, cols: 20, left: 2, total: 9 },
+    });
+    assert.deepEqual(show(layoutLine(l, p, { cursor: false })), [
+      "  |2",
+      " |1|indent.guide,guide",
+      "   |3",
+    ]);
+  });
+
+  it("ガイドの上のカーソルはカーソルとして描く", () => {
+    const l: Line = {
+      no: 0,
+      spans: [{ text: "    x" }],
+      guides: [0],
+      indent: 4,
+    };
+    const p = pane({ cursors: [at(0, 0)] });
+    assert.deepEqual(show(layoutLine(l, p, { cursor: true })), [
+      " |1|indent.guide,cursor,guide",
+      "   x|4",
+    ]);
   });
 });
