@@ -6,8 +6,12 @@
 // - 入れ替えは約 0.3 秒の動きにする（FLIP：先に割り付けを変え、前の位置と大きさから今のものへ動かす）。
 //   割り付けはすぐ変わるので、ファイルの欄とターミナルの大きさ（view.resize・term.resize）もすぐ変わる。
 //   カードは作り直さないので、中身は動き続ける。
+// - IDE モードでも、フォーカスしているワークスペースでファイルを開いていない（ワークスペースが無いときも）
+//   あいだは、ファイルの欄を出さず、右の列を全部ターミナルにする（親 #271 のモック U2）。ファイルを開いたら
+//   上がファイルの欄・下がターミナルに戻る。ターミナルモードは、開いていなくても今のまま変えない。
 
 import type { KeyLike } from "./files/input.ts";
+import type { Files } from "./rpc/protocol.ts";
 
 export type Mode = "ide" | "terminal";
 
@@ -26,6 +30,14 @@ export function isModeKey(e: KeyLike): boolean {
 /** Ctrl と Shift だけを押しているか（Alt・Meta は押していない）。GUI が受けるキーはどれもこの形。 */
 export function isCtrlShift(e: KeyLike): boolean {
   return e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey;
+}
+
+/**
+ * ファイルの欄にファイルを開いているか。shj は何も開いていないとき "welcome" のペインを 1 つだけ送る。
+ * 画面がまだ来ていない（files が無い）ときも、開いていないとみなす。
+ */
+export function hasOpenFile(files: Files | null | undefined): boolean {
+  return !!files?.panes.some((p) => p.kind !== "welcome");
 }
 
 /** もう一方のモード。 */
