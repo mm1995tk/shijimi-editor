@@ -11,7 +11,8 @@ export const tauriShell: ShellApi = {
   disconnect: (id) => invoke("disconnect", { id }),
   askpassReply: (requestId, value) =>
     invoke("askpass_reply", { requestId, value }),
-  onLine: (h) => listen<{ id: string; line: string }>("shj-line", (e) => h(e.payload)),
+  onLine: (h) =>
+    listen<{ id: string; line: string }>("shj-line", (e) => h(e.payload)),
   onClosed: (h) => listen("shj-closed", (e) => h(e.payload as never)),
   onAskpass: (h) => listen("askpass", (e) => h(e.payload as never)),
   onAskpassDone: (h) => listen<number>("askpass-done", (e) => h(e.payload)),

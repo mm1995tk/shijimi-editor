@@ -42,9 +42,8 @@ pub struct Connections {
 
 /// リモートの shj の場所。`~` はリモートのシェルが展開する。版ごとに分ける（設計書 3 章）。
 fn remote_shj() -> String {
-    std::env::var("SHIJIMI_REMOTE_SHJ").unwrap_or_else(|_| {
-        format!("~/.cache/shijimi-editor/{}/shj", env!("CARGO_PKG_VERSION"))
-    })
+    std::env::var("SHIJIMI_REMOTE_SHJ")
+        .unwrap_or_else(|_| format!("~/.cache/shijimi-editor/{}/shj", env!("CARGO_PKG_VERSION")))
 }
 
 /// ssh の引数に渡してよいホスト名か。`-` で始まるとオプションになり、空白や制御文字は別の引数に化ける。

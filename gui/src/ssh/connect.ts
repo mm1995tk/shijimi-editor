@@ -52,7 +52,10 @@ function makeTransport(api: ShellApi, id: string): Transport {
 export async function connectShj(
   api: ShellApi,
   target: string,
-  opts: { id?: string; onDiscard?: (reason: string, line: string) => void } = {},
+  opts: {
+    id?: string;
+    onDiscard?: (reason: string, line: string) => void;
+  } = {},
 ): Promise<Connection> {
   const id = opts.id ?? newId();
   const unlisten: Unlisten[] = [];

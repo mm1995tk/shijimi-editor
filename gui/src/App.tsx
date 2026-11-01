@@ -1,12 +1,6 @@
 // 接続の画面（C3）。つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで shj につなぎ、
 // ssh の質問（パスワードなど）を窓に出す。編集の画面は D 以降で作る。
-import {
-  createSignal,
-  For,
-  onCleanup,
-  onMount,
-  type JSX,
-} from "solid-js";
+import { createSignal, For, onCleanup, onMount, type JSX } from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
 import { LOCAL, type AskpassRequest, type ShellApi } from "./ssh/api.ts";

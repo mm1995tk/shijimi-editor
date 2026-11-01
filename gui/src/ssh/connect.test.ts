@@ -15,7 +15,7 @@ function fakeApi(onConnect: (h: Handlers, id: string, target: string) => void) {
   const sent: { id: string; text: string }[] = [];
   const connects: { id: string; target: string }[] = [];
   const disconnects: string[] = [];
-  const reg = <T,>(list: T[], f: T) => {
+  const reg = <T>(list: T[], f: T) => {
     list.push(f);
     return Promise.resolve(() => {
       list.splice(list.indexOf(f), 1);
@@ -33,7 +33,10 @@ function fakeApi(onConnect: (h: Handlers, id: string, target: string) => void) {
       if (msg.method === "session.bye") {
         queueMicrotask(() =>
           h.line.forEach((f) =>
-            f({ id, line: JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: {} }) }),
+            f({
+              id,
+              line: JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: {} }),
+            }),
           ),
         );
       }

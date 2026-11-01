@@ -103,8 +103,7 @@ fn expand_include(pat: &str, home: &Path, ssh_dir: &Path) -> Vec<PathBuf> {
     } else {
         ssh_dir.join(pat)
     };
-    let (Some(dir), Some(name)) = (path.parent(), path.file_name().and_then(|n| n.to_str()))
-    else {
+    let (Some(dir), Some(name)) = (path.parent(), path.file_name().and_then(|n| n.to_str())) else {
         return Vec::new();
     };
     if !name.contains(['*', '?']) {
