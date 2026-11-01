@@ -3,9 +3,13 @@
 //
 // - 文字は等幅フォントのマス目に置く。区間ごとに幅をマス目（ch）で決めるので、全角の文字もずれない。
 // - 欄の大きさが変わったら、入るマス目の桁数と行数を onResize で知らせる（呼ぶ側が view.resize を送る）。
+// - キー・IME・マウス・貼り付けは onInput で shj に送る（E2）。キーは見えない textarea で受ける
+//   （IME の変換と貼り付けを OS に任せるため）。変換中の文字は shj が下線付きで画面に入れて返す。
+//   イベントの受け方は filesInput.ts、パラメータの作り方は input.ts、OS のクリップボードは clipboard.ts。
 // - タイトル行（E3）、行番号の横の印・診断・インデントガイド（E5）、画像・プレビュー・差分（E6）はまだ描かない。
 //   差分とプレビューのペインは、行の文字だけを出す。
 import {
+  createEffect,
   createMemo,
   For,
   Index,
@@ -17,6 +21,14 @@ import {
 } from "solid-js";
 
 import type { Line, Pane, Screen, Theme } from "../rpc/protocol.ts";
+import type { OsClipboard } from "./clipboard.ts";
+import {
+  createKeyInput,
+  createOrderedSend,
+  createPointerInput,
+  type SendInput,
+} from "./filesInput.ts";
+import { isMac } from "./input.ts";
 import {
   cellsFor,
   gutterText,
@@ -30,7 +42,7 @@ import {
 import { colorOf, runStyle } from "./theme.ts";
 import "./files.css";
 
-export type { FilesSize };
+export type { FilesSize, SendInput };
 
 /**
  * ファイルの欄。screen（フォーカスしているマシンの画面）の files を、theme の色で描く。
@@ -41,16 +53,25 @@ export function FilesView(props: {
   screen: Screen | null;
   theme: Theme | null;
   onResize: (size: FilesSize) => void;
+  /** 入力の送り先。省くと送らない */
+  onInput?: SendInput;
+  /** OS のクリップボード（貼り付けのキーで読む）。省くと貼り付けない */
+  clipboard?: OsClipboard;
 }): JSX.Element {
   let body: HTMLDivElement | undefined;
   let measure: HTMLSpanElement | undefined;
+  let ime: HTMLTextAreaElement | undefined;
   let last: FilesSize | undefined;
+
+  /** 等幅のマス目 1 つの幅（px）。 */
+  function cellWidth(): number {
+    if (!measure) return 8;
+    return measure.getBoundingClientRect().width / measure.textContent!.length;
+  }
 
   function report() {
     if (!body || !measure) return;
-    const cw =
-      measure.getBoundingClientRect().width / measure.textContent!.length;
-    const size = cellsFor(body.clientWidth, body.clientHeight, cw);
+    const size = cellsFor(body.clientWidth, body.clientHeight, cellWidth());
     if (last && last.cols === size.cols && last.rows === size.rows) return;
     last = size;
     props.onResize(size);
@@ -64,10 +85,39 @@ export function FilesView(props: {
       last = undefined;
       report();
     });
+    // ホイールで欄そのものがスクロールしないよう、passive にしない
+    body!.addEventListener("wheel", pointer.onWheel, { passive: false });
+    onCleanup(() => body?.removeEventListener("wheel", pointer.onWheel));
   });
 
   const files = () => props.screen?.files;
   const color = (name: string) => colorOf(props.theme, name);
+
+  // ---- 入力（E2） ----
+
+  const send = createOrderedSend(() => props.onInput);
+  const focusIme = () => ime?.focus({ preventScroll: true });
+  const keys = createKeyInput({
+    send,
+    clipboard: () => props.clipboard,
+    mac: isMac(navigator.platform || navigator.userAgent),
+    ime: () => ime,
+    body: () => body,
+  });
+  const pointer = createPointerInput({
+    send,
+    clipboard: () => props.clipboard,
+    files,
+    cellWidth,
+    focus: focusIme,
+  });
+
+  // 画面が出たとき、ほかに何もフォーカスしていなければキーを受ける
+  createEffect(() => {
+    if (!files()) return;
+    if (!document.activeElement || document.activeElement === document.body)
+      focusIme();
+  });
 
   return (
     <section
@@ -80,10 +130,29 @@ export function FilesView(props: {
         "--files-lineno-current": color("lineno.current"),
       }}
     >
-      <div class="files-body" ref={body}>
+      <div
+        class="files-body"
+        ref={body}
+        onMouseDown={pointer.onMouseDown}
+        onContextMenu={(e) => e.preventDefault()}
+      >
         <span class="files-measure" ref={measure} aria-hidden="true">
           {"0".repeat(64)}
         </span>
+        <textarea
+          class="files-ime"
+          ref={ime}
+          aria-label="ファイルの欄への入力"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck={false}
+          onKeyDown={keys.onKeyDown}
+          onPaste={keys.onPaste}
+          onCompositionStart={keys.onCompositionStart}
+          onCompositionEnd={keys.onCompositionEnd}
+          onInput={keys.onInput}
+          onFocus={keys.onFocus}
+        />
         <Show when={files()}>
           {(f) => (
             // 位置で使い回す（ペインが新しいオブジェクトになっても PaneView と変わらない行の DOM を残す）
@@ -121,6 +190,7 @@ function PaneView(props: {
       role="region"
       aria-label={props.pane.title?.text || props.pane.id}
       data-kind={props.pane.kind}
+      data-pane-id={props.pane.id}
       data-active={props.active ? "" : undefined}
       style={{ width: `${paneCells(props.pane)}ch` }}
     >

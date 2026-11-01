@@ -7,6 +7,8 @@
 // フォーカスを外して戻しても残す（D2）。マシンごとに色を決めて覚え、見出しと帯の左端の線に使う（D4）。
 // 右上にはフォーカスしているマシンの shj が送る画面のファイルの欄を描く（E1）。欄の大きさは、つないだ
 // どのマシンにも送る（どのマシンにフォーカスを移しても、同じ大きさの欄に描くため）。
+// 欄で受けたキー・IME・マウス・貼り付けは、フォーカスしているマシンの shj に送る。shj でコピーしたら
+// OS のクリップボードに入れる（E2）。
 import {
   createEffect,
   createMemo,
@@ -20,7 +22,12 @@ import {
 } from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
-import { FilesView, type FilesSize } from "./files/FilesView.tsx";
+import { OsClipboard } from "./files/clipboard.ts";
+import {
+  FilesView,
+  type FilesSize,
+  type SendInput,
+} from "./files/FilesView.tsx";
 import type { Screen, Theme, Workspace, WorkspaceId } from "./rpc/protocol.ts";
 import {
   adoptFocus,
@@ -139,6 +146,10 @@ export function App(props: {
   const [themes, setThemes] = createSignal<Record<string, Theme | null>>({});
   // ファイルの欄の大きさ。新しくつなぐマシンにも送る
   let filesSize: FilesSize | undefined;
+  const clipboard = new OsClipboard(
+    () => navigator.clipboard,
+    (e) => console.warn("clipboard:", e),
+  );
   let nav: HTMLElement | undefined;
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
   // 「あと何秒」を動かす
@@ -222,6 +233,7 @@ export function App(props: {
     const offTheme = s.onTheme((th) =>
       setThemes((m) => ({ ...m, [target]: th })),
     );
+    const offClipboard = s.onClipboard((text) => void clipboard.write(text));
     offStates.set(target, () => {
       offTerm();
       off();
@@ -232,6 +244,7 @@ export function App(props: {
       offScreen();
       offUpdate();
       offTheme();
+      offClipboard();
     });
     if (filesSize) s.resize(filesSize);
     setSessions((m) => ({ ...m, [target]: s }));
@@ -260,6 +273,12 @@ export function App(props: {
     filesSize = size;
     for (const s of Object.values(sessions())) s.resize(size);
   }
+
+  /** ファイルの欄で受けた入力を、フォーカスしているマシンの shj に送る。 */
+  const sendInput: SendInput = (method, params) => {
+    const f = focus();
+    if (f) sessions()[f.target]?.input(method, params);
+  };
 
   /** 帯を押した。shj に workspace.focus を送り、受け付けられたら GUI のフォーカスも移す。 */
   async function focusWorkspace(target: string, id: WorkspaceId) {
@@ -349,6 +368,8 @@ export function App(props: {
           screen={focus() ? (screens()[focus()!.target] ?? null) : null}
           theme={focus() ? (themes()[focus()!.target] ?? null) : null}
           onResize={resizeFiles}
+          onInput={sendInput}
+          clipboard={clipboard}
         />
         <section class="connections" aria-label="つなぐ先">
           <h1>つなぐ先</h1>
