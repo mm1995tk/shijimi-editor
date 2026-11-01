@@ -22,7 +22,7 @@ func findInputCells(w int) int {
 }
 
 func (a *App) renderFind(w int) string {
-	return drawFind(*a.findState(), a.findInput.view(inputStyleOn(cPaletteBg)), w)
+	return drawFind(*a.findState(), a.findField().view(inputStyleOn(cPaletteBg)), w)
 }
 
 var modeStyles map[editMode]lipgloss.Style
@@ -135,8 +135,9 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		rows[i] = sb.String()
 	}
 	if a.diffMode() {
-		rows = append([]string{a.renderDiffHeader(a.w)}, rows...)
-		rows = append(rows, a.renderDiffHelp(a.w))
+		branch, pr := a.compareBase()
+		rows = append([]string{drawCompareBar(branch, pr, a.w)}, rows...)
+		rows = append(rows, drawDiffHelp(a.diffHelp(), a.w))
 	}
 
 	// popups anchored at the cursor
@@ -187,12 +188,12 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	}
 
 	if a.searchOpen() {
-		x, y, box := a.renderSearch()
-		rows = overlay(rows, box, x, y)
+		g := a.searchGeom()
+		rows = overlay(rows, drawSearch(a.searchWindow(), g, a.rel), g.x, g.y)
 	}
 
 	if a.contextOpen() {
-		rows = a.renderContext(rows)
+		rows = drawContext(rows, a.contextPreview(), a.screenW(), a.screenH())
 	}
 	if a.proposalsOpen() {
 		rows = a.renderProposal(rows)
@@ -243,14 +244,14 @@ func (a *App) hoverView(l layout) hoverView {
 		above := cy - l.editY
 		h = min(h, max(below, above))
 	}
-	return newHoverView(a.hoverText, min(80, l.rightW-2), max(h, 3))
+	return newHoverView(a.hoverContent(), min(80, l.rightW-2), max(h, 3))
 }
 
 // hoverOverlay is the open hover popup as a screen.Overlay, hanging from the
 // character it describes: the pointer's for a hover it triggered, the cursor's
 // otherwise. Drawing it as cells is drawHover's work.
 func (a *App) hoverOverlay(l layout) screen.Overlay {
-	ov := a.hoverView(l).overlay(a.hoverScroll)
+	ov := a.hoverView(l).overlay(a.hoverTop())
 	if t := a.curText(); t != nil {
 		ov.Pane = t.path()
 		at := toScreenPos(a.popupAnchorPos(t))
@@ -264,7 +265,7 @@ func (a *App) hoverBox(l layout) []string { return drawHover(a.hoverOverlay(l)) 
 
 func (a *App) scrollHover(d int) {
 	v := a.hoverView(a.layout())
-	a.hoverScroll = clamp(a.hoverScroll+d, 0, v.maxScroll())
+	a.setHoverTop(clamp(a.hoverTop()+d, 0, v.maxScroll()))
 }
 
 // fit brings the state that depends on the window size and on what is open
@@ -291,11 +292,11 @@ func (a *App) fit() {
 	}
 	panes := []pane{{a.cur(), a.focusIn(focusEditor)}}
 	if l.split {
-		panes = append(panes, pane{a.other, false})
+		panes = append(panes, pane{a.otherTab(), false})
 	}
 	for _, p := range panes {
 		pl := l
-		if p.t == a.other && l.split {
+		if p.t == a.otherTab() && l.split {
 			pl = l.otherLayout()
 		}
 		if p.t == nil || p.t.kind == tabImage {
@@ -309,67 +310,26 @@ func (a *App) fit() {
 		}
 	}
 	if t := a.curText(); t != nil {
-		if a.follow {
-			if dv := a.diffFor(t); dv != nil {
-				a.ensureDiffVisible(t, dv, a.editW(t, l), a.dvGeom(l).h)
-			} else if !a.fullPreview(t) { // the hidden editor is 0 wide: following it would scroll to the cursor column
-				ensureCursorVisible(t.buf, a.editW(t, l), l.editH)
-			}
-			a.follow = false
-		}
-		t.buf.ScrollRow = clamp(t.buf.ScrollRow, 0, max(0, len(t.buf.Lines)-1))
+		a.fitCursor(t, a.editW(t, l), l.editH, a.dvGeom(l).h)
 	}
-	if a.pal.open {
-		a.pal.filter(a.commands)
-		pw := a.paletteWidth()
-		a.pal.input.SetWidth(max(1, pw-ansi.StringWidth(a.pal.label())-2))
-	}
-	if a.search.open {
-		a.search.fit(a.Core)
-	}
+	a.fitPalette()
 	if a.showTerm {
 		a.term.fit(l.fullW, l.panelH)
 	}
-	if a.findOpen {
-		a.findInput.SetWidth(max(1, findInputCells(l.rightW)-1))
-	}
-	if a.cmdOpen {
-		a.cmdInput.SetWidth(max(1, a.w-3))
-	}
+	a.fitFields(findInputCells(l.rightW), a.w)
 	if a.showSide {
-		a.explorer.ensureVisible(a.explorerH() - 1)
-		if a.gd.on {
-			a.fitChanges(l.bodyH - a.explorerH() - 1)
-		}
+		a.fitSide(l.bodyH)
 	}
 	a.fitAgent(l)
-	if a.props.Len() > 0 {
-		a.propView().fit(a.Core)
-	}
+	a.fitProposals()
 }
 
-// fitAgent fits the panel's state to the area it is drawn in: the selected
-// suggestion, the scroll and the selection of the log, and where the log
-// sits (agentView, which the mouse reads). It is the part of drawing the
-// panel that changes state, so it runs before drawing (fit).
+// fitAgent fits the suggestion panel's state to the area it is drawn in.
 func (a *App) fitAgent(l layout) {
 	if l.agentW <= 0 {
 		return
 	}
-	w := l.agentW
-	lay := a.agentLayout(w, l.bodyH, a.focusIn(focusAgent))
-	a.sg.sel = lay.sel
-	log := a.renderLog(w)
-	a.ag.scroll = clamp(a.ag.scroll, 0, max(0, len(log)-lay.logRows))
-	end := len(log) - a.ag.scroll
-	start := max(0, end-lay.logRows)
-	if a.ag.view.w != w {
-		a.ag.sel = agentSel{}
-	}
-	a.ag.view = agentView{rows: log, y0: lay.head + lay.cardRows, start: start, n: end - start, w: w}
-	if a.ag.sel.a.row >= len(log) || a.ag.sel.b.row >= len(log) {
-		a.ag.sel = agentSel{}
-	}
+	a.fitAgentPanel(l.agentW, l.bodyH)
 }
 
 // popupAnchor is the cell a popup hangs from: the pointer for a hover it
@@ -383,7 +343,7 @@ func (a *App) popupAnchor(t *tab, l layout) (x, y int) {
 func (a *App) renderPane(t *tab, l layout, current, focused bool) []string {
 	rows := make([]string, 0, l.editH+2)
 	rows = append(rows, a.renderTitle(t, l.rightW, current))
-	if a.findOpen {
+	if a.findShown() {
 		if current {
 			rows = append(rows, a.renderFind(l.rightW))
 		} else {
@@ -392,7 +352,7 @@ func (a *App) renderPane(t *tab, l layout, current, focused bool) []string {
 	}
 	switch {
 	case t == nil:
-		rows = append(rows, renderWelcome(l.rightW, l.editH, a.helix)...)
+		rows = append(rows, renderWelcome(l.rightW, l.editH, a.helixOn())...)
 	case t.kind == tabImage:
 		rows = append(rows, a.imageLines(t, l.rightW, l.editH)...)
 	default:

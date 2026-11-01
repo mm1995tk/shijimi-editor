@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/textarea"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // cardBox lays out the open card for layout l.
 func (a *App) cardBox(l layout) (rows []string, x, y int) {
-	c := a.card
+	c := a.openCard()
 	w := min(84, l.rightW-2)
 	if w < 20 {
 		return nil, 0, 0
@@ -31,7 +32,7 @@ func (a *App) cardBox(l layout) (rows []string, x, y int) {
 
 // composerBox draws the editor over the bottom of the editor area.
 func (a *App) composerBox(l layout) (rows []string, x, y int) {
-	c := a.composer
+	c := a.openComposer()
 	w := min(96, l.rightW-2)
 	if w < 24 {
 		w = max(10, l.rightW)
@@ -68,7 +69,7 @@ func (a *App) markerAt(l layout, x, y int) *prThread {
 	if a.isStale(p) {
 		return nil
 	}
-	if ts := a.gd.rv.lineThreads(p, dv.rows[idx].new+1); len(ts) > 0 {
+	if ts := a.lineThreads(p, dv.rows[idx].new+1); len(ts) > 0 {
 		return ts[0]
 	}
 	return nil
@@ -78,7 +79,7 @@ func (a *App) markerAt(l layout, x, y int) *prThread {
 // IME shows its composition.
 func (a *App) composerCaret(l layout) (x, y int, ok bool) {
 	rows, bx, by := a.composerBox(l)
-	ta := a.composer.ta
+	ta := a.composerArea()
 	ta.SetVirtualCursor(false)
 	c := ta.Cursor()
 	if c == nil {
@@ -139,4 +140,13 @@ func (a *App) drawComposer(ov screen.Overlay, input []string) []string {
 		}
 	}
 	return append(rows, bd.Render("╰"+strings.Repeat("─", w-2)+"╯"))
+}
+
+// styleComposer gives the comment editor the colours of the palette.
+func styleComposer(ta *textarea.Model) {
+	st := ta.Styles()
+	base := bgfg(cPaletteBg, cEditorFg)
+	st.Focused = textarea.StyleState{Base: base, Text: base, CursorLine: base, Placeholder: bgfg(cPaletteBg, curTheme.Dim), EndOfBuffer: base, Prompt: base}
+	st.Blurred = st.Focused
+	ta.SetStyles(st)
 }

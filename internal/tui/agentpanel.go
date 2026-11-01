@@ -229,61 +229,6 @@ func (a *Core) agentScreen(w, h int, focused bool) screen.Agent {
 	return ag
 }
 
-// drawAgent draws the panel as h lines of w cells.
-func drawAgent(ag screen.Agent, w, h int, focused bool) []string {
-	out := make([]string, 0, h)
-	out = append(out, stPanelTitle.Render(fit(ag.Title, w)))
-	if ag.Empty != "" {
-		out = append(out, stPanelDim.Render(fit(ag.Empty, w)))
-	}
-	for _, s := range ag.Items {
-		st := stPanel
-		mark := "   "
-		if s.Selected {
-			mark = " ▸ "
-			st = stSideSel
-			if focused {
-				st = stSideSelFocus
-			}
-		}
-		out = append(out, st.Render(fit(mark+s.Title, w)))
-		out = append(out, stPanelDim.Render(fit("     "+s.Detail, w)))
-	}
-	if ag.Rule {
-		out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
-	}
-	if ag.Status != "" {
-		out = append(out, stPanelTitle.Render(fit(ag.Status, w)))
-	}
-	body := h - len(out) - boolInt(ag.Hint != "")
-	var card []string
-	for _, p := range ag.Perms {
-		card = append(card, stPaletteHi.Render(fit(p.Title, w)))
-		for _, l := range p.Lines {
-			card = append(card, stPalette.Render(fit("  "+l, w)))
-		}
-		card = append(card, stPaletteDim.Render(fit(p.Keys, w)))
-	}
-	if len(card) > body {
-		card = card[:max(0, body)]
-	}
-	out = append(out, card...)
-	for _, r := range ag.Log {
-		row := drawMdLine(r.Line, w)
-		if r.SelFrom < r.SelTo {
-			row = markRow(row, w, r.SelFrom, r.SelTo)
-		}
-		out = append(out, row)
-	}
-	for len(out) < h-boolInt(ag.Hint != "") {
-		out = append(out, stPanel.Render(strings.Repeat(" ", w)))
-	}
-	if ag.Hint != "" {
-		out = append(out, stPanelDim.Render(fit(" "+ag.Hint, w)))
-	}
-	return out[:h]
-}
-
 func boolInt(b bool) int {
 	if b {
 		return 1
@@ -457,4 +402,24 @@ func (a *Core) agentMouse(msg Mouse) ([]Effect, bool) {
 		a.ag.sel = agentSel{dragging: true, a: p, b: p}
 	}
 	return a.setFocus(focusAgent), true
+}
+
+// fitAgentPanel fits the panel's state to the area it is drawn in, w wide and
+// h tall: the selected suggestion, the scroll and the selection of the log,
+// and where the log sits (agentView, which the mouse reads). It is the part
+// of drawing the panel that changes state, so it runs before drawing (fit).
+func (a *Core) fitAgentPanel(w, h int) {
+	lay := a.agentLayout(w, h, a.focusIn(focusAgent))
+	a.sg.sel = lay.sel
+	log := a.renderLog(w)
+	a.ag.scroll = clamp(a.ag.scroll, 0, max(0, len(log)-lay.logRows))
+	end := len(log) - a.ag.scroll
+	start := max(0, end-lay.logRows)
+	if a.ag.view.w != w {
+		a.ag.sel = agentSel{}
+	}
+	a.ag.view = agentView{rows: log, y0: lay.head + lay.cardRows, start: start, n: end - start, w: w}
+	if a.ag.sel.a.row >= len(log) || a.ag.sel.b.row >= len(log) {
+		a.ag.sel = agentSel{}
+	}
 }

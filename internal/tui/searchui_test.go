@@ -218,3 +218,9 @@ func TestSearchFieldKeepsCursorCell(t *testing.T) {
 		t.Fatal("NUL in output")
 	}
 }
+
+// renderSearch draws the window as the frame does and returns where it sits.
+func (a *App) renderSearch() (x, y int, box []string) {
+	g := a.searchGeom()
+	return g.x, g.y, drawSearch(a.searchWindow(), g, a.rel)
+}

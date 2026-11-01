@@ -100,7 +100,7 @@ func (a *App) resolveMux() {
 	m.resolved = true
 	old := m.b
 	m.b = nil
-	want := a.cfg.Terminal.Multiplexer
+	want := a.settings().Terminal.Multiplexer
 	explicit := want != "auto" && want != "" && want != "none"
 	kind := want
 	if want == "auto" || want == "" {
@@ -130,7 +130,7 @@ func (a *App) resolveMux() {
 
 // muxOn reports whether the terminal commands should use a multiplexer pane.
 func (a *App) muxOn() bool {
-	if a.single || a.cfg == nil || !a.cfg.Experimental.Multiplexer {
+	if a.singleFile() || a.settings() == nil || !a.settings().Experimental.Multiplexer {
 		return false
 	}
 	if !a.mux.resolved {
@@ -166,7 +166,7 @@ func (a *App) muxPaneEnv() []string {
 // muxCreate splits a new pane off the editor's pane and focuses it.
 func (a *App) muxCreate() error {
 	m := &a.mux
-	id, err := m.b.split(a.root, a.muxPaneEnv())
+	id, err := m.b.split(a.rootDir(), a.muxPaneEnv())
 	if err != nil {
 		return err
 	}

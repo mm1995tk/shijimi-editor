@@ -118,7 +118,6 @@ type Core struct {
 	confirmClose bool
 	follow       bool // scroll to the cursor on next render
 	dragging     bool
-	lastClick    click // the previous left press (adapter state: see clicks in inputtea.go)
 	hold         holdScroll
 	holdSeq      int  // tells the current hold-scroll tick chain from stale ones
 	lineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
@@ -161,6 +160,7 @@ type App struct {
 	showAgent   bool
 	agentWPref  int    // panel width picked by the user (0 = automatic)
 	capture     Region // the region a held pointer button is captured by (see locate)
+	lastClick   click  // the previous left press (see clicks in inputtea.go)
 	keyReleases bool   // the terminal reports key releases
 	askReleases bool   // key releases were asked for in the last View
 	quitting    bool   // tea.Quit was returned (see exit)

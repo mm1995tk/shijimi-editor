@@ -66,7 +66,7 @@ func TestImageViewFromData(t *testing.T) {
 	if v.err != nil || v.format != "png" || v.name() != "page.png" {
 		t.Fatalf("view = %+v", v)
 	}
-	if got := len((&App{}).drawImagePane(screen.Pane{Caption: v.info()}, 10, 5)); got != 5 {
+	if got := len(drawImagePane(screen.Pane{Caption: v.info()}, nil, 10, 5)); got != 5 {
 		t.Fatalf("render lines = %d", got)
 	}
 }
@@ -97,7 +97,7 @@ func TestBuildImagePane(t *testing.T) {
 	if p.Image != nil || !strings.Contains(p.Caption, "boom") {
 		t.Fatalf("pane = %+v", p)
 	}
-	lines := a.drawImagePane(p, 30, 4)
+	lines := drawImagePane(p, nil, 30, 4)
 	if len(lines) != 4 {
 		t.Fatalf("got %d lines", len(lines))
 	}

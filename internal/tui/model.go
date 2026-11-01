@@ -34,10 +34,10 @@ func (a *App) View() tea.View {
 // timer; unless in single-file mode, waiting on the language servers and
 // probing the repository).
 func (a *App) Init() tea.Cmd {
-	if a.single {
+	if a.singleFile() {
 		return a.effectCmd(watchTimer())
 	}
-	return a.effectCmd(append([]Effect{WaitLSP{a.lsp.events}, watchTimer()}, a.probeRepo()...)...)
+	return a.effectCmd(append([]Effect{WaitLSP{a.lspEvents()}, watchTimer()}, a.probeRepo()...)...)
 }
 
 // Update is bubbletea's call for each message: fromTea turns it into an Input
