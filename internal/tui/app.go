@@ -1775,7 +1775,7 @@ func (a *App) handleMouse(msg Mouse) []Effect {
 	if msg.Action == MouseMotion && msg.Button == MouseNone && a.resizing == resizeNone && !a.dragging && !a.term.sel.dragging {
 		return a.passiveMotion(l, msg)
 	}
-	x, y := msg.X, msg.Y
+	x, y := a.screenCell(l, msg)
 	wheel := 0
 	switch msg.Button {
 	case MouseWheelUp:

@@ -74,19 +74,19 @@ func TestHitTestRegions(t *testing.T) {
 func TestMouseCaptureKeepsRegion(t *testing.T) {
 	a := newTestApp(t, "hello\n")
 	l := a.layout()
-	press := a.locate(Mouse{X: l.rightX + 2, Y: l.editY, Action: MousePress, Button: MouseLeft})
+	press := a.locate(l.rightX+2, l.editY, Mouse{Action: MousePress, Button: MouseLeft})
 	if press.Region != RegionEditor {
 		t.Fatalf("press: %+v", press)
 	}
-	drag := a.locate(Mouse{X: 1, Y: l.top + 5, Action: MouseMotion, Button: MouseLeft})
+	drag := a.locate(1, l.top+5, Mouse{Action: MouseMotion, Button: MouseLeft})
 	if drag.Region != RegionEditor || drag.Col != 1-l.rightX {
 		t.Errorf("drag over the tree: %+v", drag)
 	}
-	rel := a.locate(Mouse{X: 1, Y: l.top + 5, Action: MouseRelease, Button: MouseLeft})
+	rel := a.locate(1, l.top+5, Mouse{Action: MouseRelease, Button: MouseLeft})
 	if rel.Region != RegionEditor || a.capture != RegionNone {
 		t.Errorf("release: %+v, capture %v", rel, a.capture)
 	}
-	if m := a.locate(Mouse{X: 1, Y: l.top + 5, Action: MouseMotion, Button: MouseNone}); m.Region != RegionExplorer {
+	if m := a.locate(1, l.top+5, Mouse{Action: MouseMotion, Button: MouseNone}); m.Region != RegionExplorer {
 		t.Errorf("motion with no button after the release: %+v", m)
 	}
 }
@@ -99,7 +99,7 @@ func TestHitTestOtherPane(t *testing.T) {
 		t.Errorf("other pane: %v (%d, %d)", r, row, col)
 	}
 	// A press there focuses the pane; the position inside it is kept.
-	a.Update(a.locate(Mouse{X: l.otherX + 3, Y: l.editY + 1, Action: MousePress, Button: MouseLeft}))
+	a.Update(a.locate(l.otherX+3, l.editY+1, Mouse{Action: MousePress, Button: MouseLeft}))
 	if a.pane == 1 || a.capture != RegionEditor {
 		t.Errorf("pane %d, capture %v", a.pane, a.capture)
 	}
@@ -118,5 +118,21 @@ func TestClicksCountedByTheAdapter(t *testing.T) {
 	}
 	if n := a.clicks(5, 4); n != 1 {
 		t.Fatalf("another cell = %d", n)
+	}
+}
+
+// screenCell undoes locate for every cell, in every region, so the core can
+// work without the screen cell in a Mouse.
+func TestScreenCellInvertsLocate(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	l := a.layout()
+	for y := range a.h {
+		for x := range a.w {
+			m := a.locate(x, y, Mouse{Action: MouseMotion})
+			if gx, gy := a.screenCell(l, m); gx != x || gy != y {
+				t.Fatalf("(%d,%d) -> %+v -> (%d,%d)", x, y, m, gx, gy)
+			}
+		}
 	}
 }

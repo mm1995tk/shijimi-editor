@@ -23,9 +23,9 @@ func TestAgentDragSelectCopies(t *testing.T) {
 	a, l := agentSelApp(t, logEntry{kind: logInfo, text: "hello world\n日本語です"})
 	y := agentRowY(a, l, 0)
 	// the log starts with one column of indent
-	a.handleMouse(a.locate(Mouse{X: l.agentX + 7, Y: y, Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(Mouse{X: l.agentX + 4, Y: y + 1, Action: MouseMotion, Button: MouseLeft}))
-	a.handleMouse(a.locate(Mouse{X: l.agentX + 4, Y: y + 1, Action: MouseRelease, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.agentX+7, y, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.agentX+4, y+1, Mouse{Action: MouseMotion, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.agentX+4, y+1, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	if want := "world\n日本"; a.clipboard != want {
 		t.Fatalf("clipboard = %q, want %q", a.clipboard, want)
 	}
@@ -70,10 +70,10 @@ func TestAgentSelectionJoinsWrappedRows(t *testing.T) {
 func TestAgentSelectionOutsidePanel(t *testing.T) {
 	a, l := agentSelApp(t, logEntry{kind: logInfo, text: "abc\ndef"})
 	y := agentRowY(a, l, 0)
-	a.handleMouse(a.locate(Mouse{X: l.agentX + 1, Y: y, Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.agentX+1, y, Mouse{Action: MousePress, Button: MouseLeft}))
 	// dragged far left of the panel and below it
-	a.handleMouse(a.locate(Mouse{X: 0, Y: y + 1, Action: MouseMotion, Button: MouseLeft}))
-	a.handleMouse(a.locate(Mouse{X: 0, Y: a.h - 1, Action: MouseRelease, Button: MouseLeft}))
+	a.handleMouse(a.locate(0, y+1, Mouse{Action: MouseMotion, Button: MouseLeft}))
+	a.handleMouse(a.locate(0, a.h-1, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	if a.ag.sel.dragging || a.clipboard == "" || strings.Contains(a.clipboard, "x") {
 		t.Fatalf("sel = %+v clipboard = %q", a.ag.sel, a.clipboard)
 	}
@@ -84,8 +84,8 @@ func TestAgentClickDoesNotCopy(t *testing.T) {
 	a.focus = focusEditor
 	a.clipboard = "keep"
 	y := agentRowY(a, l, 0)
-	a.handleMouse(a.locate(Mouse{X: l.agentX + 2, Y: y, Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(Mouse{X: l.agentX + 2, Y: y, Action: MouseRelease, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.agentX+2, y, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.agentX+2, y, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	if a.clipboard != "keep" || a.ag.sel.on || a.focus != focusAgent {
 		t.Fatalf("clipboard = %q sel = %+v focus = %v", a.clipboard, a.ag.sel, a.focus)
 	}
@@ -98,10 +98,10 @@ func TestAgentSelectionStaysOnTextWhenScrolled(t *testing.T) {
 	}
 	a, l := agentSelApp(t, log...)
 	y := agentRowY(a, l, a.ag.view.start+2)
-	a.handleMouse(a.locate(Mouse{X: l.agentX + 1, Y: y, Action: MousePress, Button: MouseLeft}))
-	a.handleMouse(a.locate(Mouse{X: l.agentX + 3, Y: y, Action: MouseRelease, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.agentX+1, y, Mouse{Action: MousePress, Button: MouseLeft}))
+	a.handleMouse(a.locate(l.agentX+3, y, Mouse{Action: MouseRelease, Button: MouseLeft}))
 	before := ansi.Strip(a.ag.view.rows[a.ag.sel.a.row].plain)
-	a.handleMouse(a.locate(Mouse{X: l.agentX + 3, Y: y, Action: MousePress, Button: MouseWheelUp}))
+	a.handleMouse(a.locate(l.agentX+3, y, Mouse{Action: MousePress, Button: MouseWheelUp}))
 	a.render()
 	if !a.ag.sel.on || ansi.Strip(a.ag.view.rows[a.ag.sel.a.row].plain) != before {
 		t.Fatalf("selection moved: %+v", a.ag.sel)

@@ -337,7 +337,8 @@ func (a *App) searchMouse(msg Mouse) []Effect {
 		s.move(3)
 	case MouseLeft:
 		r := s.rect
-		if msg.X < r[0] || msg.X >= r[0]+r[2] || msg.Y < r[1] || msg.Y >= r[1]+r[3] {
+		x, y := a.screenCell(a.layout(), msg)
+		if x < r[0] || x >= r[0]+r[2] || y < r[1] || y >= r[1]+r[3] {
 			s.close()
 		}
 	}

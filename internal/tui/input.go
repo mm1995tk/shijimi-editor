@@ -122,15 +122,15 @@ const (
 // them itself; the TUI counts in its adapter (App.clicks in inputtea.go). The
 // core only reads the number. Zero means not counted (not a left press).
 //
-// X and Y are the cell on the whole screen. Only the TUI has them, and only
-// what is anchored to a screen cell uses them: popups (hover, the review card,
-// completion), the search and palette boxes, and dragging a border. A GUI draws
-// those itself. While a button is held, Region stays the one the press was in
-// (see App.locate) and Row and Col may fall outside it.
+// There is no screen cell in a Mouse. Where a TUI popup or a border hangs from
+// a screen cell, the TUI works the cell out from Region, Row and Col
+// (App.screenCell); a GUI draws those itself. While a button is held, Region
+// stays the one the press was in (see App.locate) and Row and Col may fall
+// outside it. For RegionNone, which has no corner of its own, Row and Col count
+// from the top-left of the screen.
 type Mouse struct {
 	Region           Region
 	Row, Col         int
-	X, Y             int
 	Button           MouseButton
 	Action           MouseAction
 	Shift, Alt, Ctrl bool
