@@ -138,6 +138,53 @@ describe("WorkspaceTrees", () => {
     });
   });
 
+  it("子を開いたまま親を閉じて開くと、子も取り直し、子が消えていたら監視を教え直す", async () => {
+    const fs: Record<string, TreeEntry[]> = {
+      "": [dir("a")],
+      a: [dir("b")],
+      "a/b": [file("old")],
+    };
+    const f = fakeShj(fs);
+    const t = new WorkspaceTrees({ request: f.request, onChange: () => {} });
+    t.activate("w");
+    await settle();
+    t.toggle("w", "a");
+    await settle();
+    t.toggle("w", "a/b");
+    await settle();
+    t.toggle("w", "a"); // 閉じる
+    await settle();
+
+    // 閉じている間に a/b の中身が変わった
+    fs["a/b"] = [file("new")];
+    f.sent.length = 0;
+    t.toggle("w", "a");
+    await settle();
+    assert.deepEqual(
+      f.sent.filter((x) => x.method === "tree.list").map((x) => x.params.path),
+      ["a", "a/b"],
+    );
+    assert.deepEqual(
+      rows(t.get("w")!).map((r) => r.path),
+      ["a", "a/b", "a/b/new"],
+    );
+
+    // 閉じている間に a/b が消えた
+    t.toggle("w", "a");
+    await settle();
+    fs.a = [];
+    delete fs["a/b"];
+    f.sent.length = 0;
+    t.toggle("w", "a");
+    await settle();
+    await settle();
+    assert.equal(t.get("w")?.expanded["a/b"], undefined);
+    assert.deepEqual(f.sent.at(-1), {
+      method: "tree.watch",
+      params: { workspaceId: "w", paths: ["", "a"] },
+    });
+  });
+
   it("git.changed を当てる", async () => {
     const f = fakeShj({ "": [file("a")] });
     let changes = 0;

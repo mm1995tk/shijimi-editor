@@ -30,6 +30,10 @@ export type TreeRequest = <M extends TreeMethod>(
   params: Requests[M]["params"],
 ) => Promise<Requests[M]["result"]>;
 
+/**
+ * 1 台のマシン（1 つの Session）の、ワークスペースごとのツリー。フォーカスしているワークスペースだけを監視し、
+ * 外したワークスペースも開閉・取った中身・スクロールの位置を覚えておく。変わったら onChange を呼ぶ。
+ */
 export class WorkspaceTrees {
   private readonly send: TreeRequest;
   private readonly onChange: () => void;
@@ -102,10 +106,17 @@ export class WorkspaceTrees {
     const next = toggle(s, dir);
     this.update(id, next);
     if (id !== this.active) return;
-    const opened = !!next.expanded[dir];
-    void this.watch(id).then(() => {
-      if (opened) return this.list(id, dir);
-    });
+    if (!next.expanded[dir]) {
+      void this.watch(id);
+      return;
+    }
+    // 中に開いたままのフォルダがあれば、それも取り直す（閉じている間は監視していなかったので）
+    void this.watch(id).then(() =>
+      this.fetchDirs(
+        id,
+        watchPaths(next).filter((p) => p === dir || p.startsWith(`${dir}/`)),
+      ),
+    );
   }
 
   /** スクロールの位置を覚える。 */
@@ -114,6 +125,7 @@ export class WorkspaceTrees {
     if (s && s.scrollTop !== top) this.states.set(id, { ...s, scrollTop: top });
   }
 
+  /** tree.changed を受けた。今のワークスペースなら、画面に出ているフォルダを取り直す。 */
   handleTreeChanged(n: Notifications["tree.changed"]): void {
     const s = this.states.get(n.workspaceId);
     if (!s) return;
@@ -123,6 +135,7 @@ export class WorkspaceTrees {
     for (const p of refetch) void this.list(n.workspaceId, p);
   }
 
+  /** git.changed を受けた。印を当てる（フォーカスしていないワークスペースにも）。 */
   handleGitChanged(n: Notifications["git.changed"]): void {
     const s = this.states.get(n.workspaceId);
     if (!s) return;
@@ -141,17 +154,21 @@ export class WorkspaceTrees {
     if (id !== this.active) return;
     const s = this.states.get(id);
     if (!s) return;
-    await Promise.all([
-      ...watchPaths(s).map((p) => this.list(id, p)),
-      this.gitStatus(id),
-    ]);
-    // 消えていたフォルダを除いたので、監視を教え直す
+    await Promise.all([this.fetchDirs(id, watchPaths(s)), this.gitStatus(id)]);
+  }
+
+  /**
+   * dirs を取り直す。消えていたフォルダを除いて監視するパスが変わったら、監視を教え直す
+   * （tree.watch は消えたパスがあると全体を断るので、先に送ったものは断られている）。
+   */
+  private async fetchDirs(id: WorkspaceId, dirs: string[]): Promise<void> {
+    const before = this.states.get(id);
+    if (!before) return;
+    const key = (s: TreeState) => watchPaths(s).join("\n");
+    const was = key(before);
+    await Promise.all(dirs.map((p) => this.list(id, p)));
     const after = this.states.get(id);
-    if (
-      after &&
-      id === this.active &&
-      watchPaths(after).length !== watchPaths(s).length
-    ) {
+    if (after && id === this.active && key(after) !== was) {
       await this.watch(id);
     }
   }

@@ -1,5 +1,5 @@
 // 左の一覧のツリー（D2）の状態。1 つのワークスペースの、開いているフォルダ・取った中身・git の印・
-// スクロールの位置を持つ。画面の仕組み（Solid）にも接続にも依存しない。送り受けは trees.ts、描くのは Sidebar.tsx。
+// スクロールの位置を持つ。画面の仕組み（Solid）にも接続にも依存しない。送り受けは trees.ts、描くのは TreeView.tsx。
 //
 // 設計書 3 章「ファイルのツリー」：開閉とスクロールの位置は GUI が持つ。フォルダを開いたら tree.list で
 // 1 階層取り、tree.watch で開いているフォルダを教え、tree.changed で取り直す。git の印は git.status と
@@ -44,6 +44,7 @@ export interface TreeState {
   scrollTop: number;
 }
 
+/** まだ何も取っていない・何も開いていないツリー。 */
 export function emptyTree(): TreeState {
   return {
     listings: {},
@@ -62,6 +63,7 @@ export function parentOf(path: string): string {
   return i < 0 ? ROOT : path.slice(0, i);
 }
 
+/** フォルダのパスと名前をつなぐ（ルートなら名前だけ）。 */
 export function joinPath(dir: string, name: string): string {
   return dir === ROOT ? name : `${dir}/${name}`;
 }

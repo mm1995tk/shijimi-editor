@@ -1,5 +1,5 @@
 // ツリーのアイコン（D2）。どのファイルにどのアイコンを出すかは TUI の対応表（internal/core/icons.go）を写す。
-// TUI は Nerd Font の文字で出すが、GUI は文字のフォントに頼らず SVG で描く（描くのは TreeIconView.tsx）。
+// TUI は Nerd Font の文字で出すが、GUI は文字のフォントに頼らず SVG で描く（描くのは TreeView.tsx の TreeIconView）。
 // 形はモック（親 #271「案：フラットな一覧」）に合わせる：フォルダは塗り、ファイルは枠と短い札。
 
 export type TreeIconKind =
