@@ -24,7 +24,7 @@ flake の `homeManagerModules.default` を読み込みます。
 
 - `settings` は `~/.config/shijimi-editor/config.toml` に書き出します。
 - `languages` は `~/.config/shijimi-editor/languages.toml` に書き出します。
-- `package = inputs.shijimi.packages.${pkgs.system}.shj-nightly` にすると nightly 版が入ります（[インストール](install.md)）。`~/.config/shijimi-editor-nightly/` が無い間は、上のファイルを読みます。
+- `package = inputs.shijimi.packages.${pkgs.system}.shj-nightly` にすると nightly 版が入ります（[インストール](install.md)）。このとき、上の 2 つのファイルは `~/.config/shijimi-editor-nightly/` に書き出します。
 
 ```nix
 {
