@@ -255,12 +255,24 @@ export interface TermInfo {
 /** GUI から shj への要求（→ shj）。メソッド名 → パラメータと結果。 */
 export interface Requests {
   "session.hello": { params: HelloParams; result: HelloResult };
-  "session.bye": { params: Record<string, never>; result: Record<string, never> };
-  "session.ping": { params: Record<string, never>; result: Record<string, never> };
+  "session.bye": {
+    params: Record<string, never>;
+    result: Record<string, never>;
+  };
+  "session.ping": {
+    params: Record<string, never>;
+    result: Record<string, never>;
+  };
   "server.info": { params: Record<string, never>; result: ServerInfo };
-  "server.shutdown": { params: { force?: boolean }; result: { terminals: number } };
+  "server.shutdown": {
+    params: { force?: boolean };
+    result: { terminals: number };
+  };
 
-  "view.subscribe": { params: { regions: Region[] }; result: Record<string, never> };
+  "view.subscribe": {
+    params: { regions: Region[] };
+    result: Record<string, never>;
+  };
   "view.resize": {
     params: {
       regions: {
@@ -280,18 +292,43 @@ export interface Requests {
   };
 
   "input.key": { params: InputKeyParams; result: { rev: number } };
-  "input.composition": { params: InputCompositionParams; result: { rev: number } };
+  "input.composition": {
+    params: InputCompositionParams;
+    result: { rev: number };
+  };
   "input.mouse": { params: InputMouseParams; result: { rev: number } };
-  "input.paste": { params: { seq: number; region: string; text: string }; result: { rev: number } };
-  "input.focus": { params: { seq: number; region: string }; result: { rev: number } };
-  "command.run": { params: { seq: number; line: string }; result: { ok: boolean; message: string } };
+  "input.paste": {
+    params: { seq: number; region: string; text: string };
+    result: { rev: number };
+  };
+  "input.focus": {
+    params: { seq: number; region: string };
+    result: { rev: number };
+  };
+  "command.run": {
+    params: { seq: number; line: string };
+    result: { ok: boolean; message: string };
+  };
   "file.open": {
-    params: { seq: number; workspaceId: WorkspaceId; path: string; line?: number; col?: number; pane?: string };
+    params: {
+      seq: number;
+      workspaceId: WorkspaceId;
+      path: string;
+      line?: number;
+      col?: number;
+      pane?: string;
+    };
     result: { rev: number };
   };
 
   "term.create": {
-    params: { cwd?: string; cols: number; rows: number; shell?: string; env?: Record<string, string> };
+    params: {
+      cwd?: string;
+      cols: number;
+      rows: number;
+      shell?: string;
+      env?: Record<string, string>;
+    };
     result: { termId: TermId; pid: number; cwd: string };
   };
   "term.list": { params: Record<string, never>; result: { terms: TermInfo[] } };
@@ -300,27 +337,57 @@ export interface Requests {
     result: { seq: number; replay: string; cols: number; rows: number };
   };
   "term.close": { params: { termId: TermId }; result: Record<string, never> };
-  "term.resize": { params: { termId: TermId; cols: number; rows: number }; result: Record<string, never> };
-  "term.input": { params: { termId: TermId; data: string }; result: Record<string, never> };
+  "term.resize": {
+    params: { termId: TermId; cols: number; rows: number };
+    result: Record<string, never>;
+  };
+  "term.input": {
+    params: { termId: TermId; data: string };
+    result: Record<string, never>;
+  };
 
-  "workspace.list": { params: Record<string, never>; result: { workspaces: Workspace[]; focus: WorkspaceId | null } };
-  "workspace.focus": { params: { id: WorkspaceId }; result: { rev: number; termId?: TermId } };
-  "workspace.close_files": { params: { id: WorkspaceId }; result: Record<string, never> };
+  "workspace.list": {
+    params: Record<string, never>;
+    result: { workspaces: Workspace[]; focus: WorkspaceId | null };
+  };
+  "workspace.focus": {
+    params: { id: WorkspaceId };
+    result: { rev: number; termId?: TermId };
+  };
+  "workspace.close_files": {
+    params: { id: WorkspaceId };
+    result: Record<string, never>;
+  };
 
   "tree.list": {
     params: { workspaceId: WorkspaceId; path: string };
     result: { entries: TreeEntry[]; truncated?: boolean; rev: number };
   };
-  "tree.watch": { params: { workspaceId: WorkspaceId; paths: string[] }; result: Record<string, never> };
+  "tree.watch": {
+    params: { workspaceId: WorkspaceId; paths: string[] };
+    result: Record<string, never>;
+  };
   "tree.create": {
     params: { workspaceId: WorkspaceId; path: string; kind: "file" | "dir" };
     result: Record<string, never>;
   };
-  "tree.rename": { params: { workspaceId: WorkspaceId; from: string; to: string }; result: Record<string, never> };
-  "tree.delete": { params: { workspaceId: WorkspaceId; path: string }; result: Record<string, never> };
+  "tree.rename": {
+    params: { workspaceId: WorkspaceId; from: string; to: string };
+    result: Record<string, never>;
+  };
+  "tree.delete": {
+    params: { workspaceId: WorkspaceId; path: string };
+    result: Record<string, never>;
+  };
   "git.status": {
     params: { workspaceId: WorkspaceId };
-    result: { branch: string; ahead?: number; behind?: number; marks: Record<string, GitMark>; rev: number };
+    result: {
+      branch: string;
+      ahead?: number;
+      behind?: number;
+      marks: Record<string, GitMark>;
+      rev: number;
+    };
   };
 }
 
@@ -336,7 +403,11 @@ export interface Notifications {
   "term.exit": { termId: TermId; code: number; signal?: string };
   "term.title": { termId: TermId; title: string };
   "term.cwd": { termId: TermId; cwd: string; workspaceId: WorkspaceId | null };
-  "workspace.changed": { added?: Workspace[]; removed?: WorkspaceId[]; updated?: Workspace[] };
+  "workspace.changed": {
+    added?: Workspace[];
+    removed?: WorkspaceId[];
+    updated?: Workspace[];
+  };
   "tree.changed": { workspaceId: WorkspaceId; paths: string[]; rev: number };
   "git.changed": {
     workspaceId: WorkspaceId;
@@ -347,6 +418,15 @@ export interface Notifications {
 }
 
 /** `capabilities` に入っているか。新しい機能は、これで見分けてから使う。 */
-export function hasCapability(hello: Pick<HelloResult, "capabilities">, name: string): boolean {
+export function hasCapability(
+  hello: Pick<HelloResult, "capabilities">,
+  name: string,
+): boolean {
   return hello.capabilities.includes(name);
+}
+
+/** GUI から shj へ送る通知（返事の無いもの）。メソッド名 → パラメータ。 */
+export interface GuiNotifications {
+  "screen.ack": { rev: number };
+  "term.ack": { termId: TermId; seq: number };
 }

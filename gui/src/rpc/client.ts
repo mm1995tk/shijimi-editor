@@ -2,7 +2,7 @@
 // 始まりの目印より前の行の読み捨てを受け持つ。
 // 線（ssh の標準入出力や Tauri の IPC など）は Transport で差し替える。ブラウザの API には依存しない。
 
-import type { Notifications, Requests } from "./protocol.ts";
+import type { GuiNotifications, Notifications, Requests } from "./protocol.ts";
 import {
   ConnectionClosedError,
   ErrorCode,
@@ -74,15 +74,23 @@ export class Client {
   }
 
   /** shj への要求。返事（結果）を待つ。エラー応答は RpcError で、接続が閉じたら ConnectionClosedError で失敗する。 */
-  request<M extends keyof Requests>(method: M, params: Requests[M]["params"]): Promise<Requests[M]["result"]> {
+  request<M extends keyof Requests>(
+    method: M,
+    params: Requests[M]["params"],
+  ): Promise<Requests[M]["result"]> {
     if (this.closed) {
       return Promise.reject(new ConnectionClosedError(this.closeReason));
     }
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
+      this.pending.set(id, {
+        resolve: resolve as (v: unknown) => void,
+        reject,
+      });
       try {
-        this.transport.write(JSON.stringify({ jsonrpc: VERSION, id, method, params }));
+        this.transport.write(
+          JSON.stringify({ jsonrpc: VERSION, id, method, params }),
+        );
       } catch (e) {
         this.pending.delete(id);
         reject(e);
@@ -91,13 +99,19 @@ export class Client {
   }
 
   /** shj への通知（返事は来ない）。 */
-  notify<M extends keyof GuiNotifications>(method: M, params: GuiNotifications[M]): void {
+  notify<M extends keyof GuiNotifications>(
+    method: M,
+    params: GuiNotifications[M],
+  ): void {
     if (this.closed) return;
     this.transport.write(JSON.stringify({ jsonrpc: VERSION, method, params }));
   }
 
   /** shj からの通知を受ける。外す関数を返す。知らない通知は何も起きない。 */
-  on<M extends keyof Notifications>(method: M, handler: NotificationHandler<Notifications[M]>): () => void {
+  on<M extends keyof Notifications>(
+    method: M,
+    handler: NotificationHandler<Notifications[M]>,
+  ): () => void {
     let set = this.handlers.get(method);
     if (!set) {
       set = new Set();
@@ -174,19 +188,32 @@ export class Client {
       this.handleResponse(msg, line);
     } else if (isRequest(msg)) {
       // shj から GUI への要求は今のところ無い。知らないものは「無い」と返す。
-      this.transport.write(
-        JSON.stringify({
-          jsonrpc: VERSION,
-          id: msg.id,
-          error: { code: ErrorCode.MethodNotFound, message: `method not found: ${msg.method}` },
-        }),
-      );
+      try {
+        this.transport.write(
+          JSON.stringify({
+            jsonrpc: VERSION,
+            id: msg.id,
+            error: {
+              code: ErrorCode.MethodNotFound,
+              message: `method not found: ${msg.method}`,
+            },
+          }),
+        );
+      } catch (e) {
+        this.onDiscard?.(
+          `failed to reply to : ${e instanceof Error ? e.message : String(e)}`,
+          line,
+        );
+      }
     } else if (isNotification(msg)) {
       this.dispatch(msg.method, msg.params);
     }
   }
 
-  private handleResponse(msg: SuccessResponse | ErrorResponse, line: string): void {
+  private handleResponse(
+    msg: SuccessResponse | ErrorResponse,
+    line: string,
+  ): void {
     const p = msg.id == null ? undefined : this.pending.get(msg.id);
     if (msg.id == null || !p) {
       // id を読めなかったエラーや、待っていない要求の返事
@@ -207,7 +234,10 @@ export class Client {
       try {
         f();
       } catch (e) {
-        this.onDiscard?.(`handler for ${method} threw: ${e instanceof Error ? e.message : String(e)}`, "");
+        this.onDiscard?.(
+          `handler for ${method} threw: ${e instanceof Error ? e.message : String(e)}`,
+          "",
+        );
       }
     };
     for (const h of [...this.anyHandlers]) guard(() => h(method, params));
@@ -215,10 +245,4 @@ export class Client {
     if (!set) return;
     for (const h of [...set]) guard(() => h(params));
   }
-}
-
-/** GUI から shj へ送る通知（返事の無いもの）。 */
-export interface GuiNotifications {
-  "screen.ack": { rev: number };
-  "term.ack": { termId: string; seq: number };
 }

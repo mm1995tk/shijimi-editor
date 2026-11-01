@@ -1,6 +1,7 @@
 // JSON-RPC 2.0 の線の上の形。Go 側の internal/rpc に合わせてある。
 // 設計は docs/design/gui-protocol.md の 3 章「土台」。
 
+/** JSON-RPC のバージョン文字列。 */
 export const VERSION = "2.0";
 
 /** 始まりの目印。ssh のログインシェルが出す motd などを読み捨てるために、shj attach が最初に 1 行出す。 */
@@ -53,7 +54,11 @@ export class RpcError extends Error {
 
   constructor(e: ErrorObject) {
     const name = codeName(e.code);
-    super(name ? `rpc error ${e.code} (${name}): ${e.message}` : `rpc error ${e.code}: ${e.message}`);
+    super(
+      name
+        ? `rpc error ${e.code} (${name}): ${e.message}`
+        : `rpc error ${e.code}: ${e.message}`,
+    );
     this.name = "RpcError";
     this.code = e.code;
     this.data = e.data;
@@ -100,14 +105,17 @@ export interface ErrorResponse {
 
 export type Message = Request | Notification | SuccessResponse | ErrorResponse;
 
+/** 要求（id あり・method あり。返事を求める呼び出し）か。 */
 export function isRequest(m: Message): m is Request {
   return "method" in m && "id" in m && m.id != null;
 }
 
+/** 通知（id なし・method あり。返事を求めない呼び出し）か。 */
 export function isNotification(m: Message): m is Notification {
   return "method" in m && !isRequest(m);
 }
 
+/** 応答（method なし。成功でもエラーでも）か。 */
 export function isResponse(m: Message): m is SuccessResponse | ErrorResponse {
   return !("method" in m);
 }
@@ -137,7 +145,12 @@ export function parseMessage(line: string): Message {
   }
   if ("error" in o) {
     const e = o.error as Partial<ErrorObject> | null;
-    if (typeof e !== "object" || e === null || typeof e.code !== "number" || typeof e.message !== "string") {
+    if (
+      typeof e !== "object" ||
+      e === null ||
+      typeof e.code !== "number" ||
+      typeof e.message !== "string"
+    ) {
       throw new Error("error must be {code, message}");
     }
     return o as unknown as ErrorResponse;

@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { Client, type Transport } from "./client.ts";
-import { ConnectionClosedError, ErrorCode, MARKER, RpcError, parseMessage } from "./message.ts";
+import {
+  ConnectionClosedError,
+  ErrorCode,
+  MARKER,
+  RpcError,
+  parseMessage,
+} from "./message.ts";
 import { hasCapability } from "./protocol.ts";
 
 class FakeTransport implements Transport {
@@ -38,7 +44,13 @@ describe("要求と応答の対応", () => {
     assert.notEqual(t.sent[0].id, t.sent[1].id);
 
     // b の返事が先に来る
-    c.feed(line({ jsonrpc: "2.0", id: t.sent[1].id, result: { workspaces: [], focus: null } }));
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        id: t.sent[1].id,
+        result: { workspaces: [], focus: null },
+      }),
+    );
     c.feed(line({ jsonrpc: "2.0", id: t.sent[0].id, result: { pid: 7 } }));
     assert.deepEqual(await b, { workspaces: [], focus: null });
     assert.deepEqual(await a, { pid: 7 });
@@ -47,7 +59,13 @@ describe("要求と応答の対応", () => {
   it("エラー応答は RpcError で失敗する", async () => {
     const { t, c } = setup();
     const p = c.request("term.close", { termId: "t1" });
-    c.feed(line({ jsonrpc: "2.0", id: t.sent[0].id, error: { code: -32003, message: "no such terminal" } }));
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        id: t.sent[0].id,
+        error: { code: -32003, message: "no such terminal" },
+      }),
+    );
     await assert.rejects(p, (e: unknown) => {
       assert.ok(e instanceof RpcError);
       assert.equal(e.code, ErrorCode.NotFound);
@@ -59,7 +77,13 @@ describe("要求と応答の対応", () => {
   it("待っていない id の応答は捨てる", async () => {
     const { c, discards } = setup();
     c.feed(line({ jsonrpc: "2.0", id: 999, result: {} }));
-    c.feed(line({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error" } }));
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        id: null,
+        error: { code: -32700, message: "parse error" },
+      }),
+    );
     assert.equal(discards.length, 2);
   });
 
@@ -92,9 +116,21 @@ describe("通知", () => {
     const { c } = setup();
     const got: unknown[] = [];
     const off = c.on("clipboard.write", (p) => got.push(p));
-    c.feed(line({ jsonrpc: "2.0", method: "clipboard.write", params: { text: "hi" } }));
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        method: "clipboard.write",
+        params: { text: "hi" },
+      }),
+    );
     off();
-    c.feed(line({ jsonrpc: "2.0", method: "clipboard.write", params: { text: "later" } }));
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        method: "clipboard.write",
+        params: { text: "later" },
+      }),
+    );
     assert.deepEqual(got, [{ text: "hi" }]);
   });
 
@@ -114,8 +150,20 @@ describe("通知", () => {
       throw new Error("boom");
     });
     c.on("notify", (p) => got.push(p.text));
-    c.feed(line({ jsonrpc: "2.0", method: "url.open", params: { url: "https://example.com" } }));
-    c.feed(line({ jsonrpc: "2.0", method: "notify", params: { level: "info", text: "ok" } }));
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        method: "url.open",
+        params: { url: "https://example.com" },
+      }),
+    );
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        method: "notify",
+        params: { level: "info", text: "ok" },
+      }),
+    );
     assert.deepEqual(got, ["ok"]);
     assert.equal(discards.length, 1);
   });
@@ -123,14 +171,21 @@ describe("通知", () => {
   it("GUI からの通知は id を付けずに送る", () => {
     const { c, t } = setup();
     c.notify("screen.ack", { rev: 5 });
-    assert.deepEqual(t.sent[0], { jsonrpc: "2.0", method: "screen.ack", params: { rev: 5 } });
+    assert.deepEqual(t.sent[0], {
+      jsonrpc: "2.0",
+      method: "screen.ack",
+      params: { rev: 5 },
+    });
   });
 
   it("shj からの要求には method_not_found を返す", () => {
     const { c, t } = setup();
     c.feed(line({ jsonrpc: "2.0", id: 1, method: "future.ask", params: {} }));
     assert.equal(t.sent[0].id, 1);
-    assert.equal((t.sent[0].error as { code: number }).code, ErrorCode.MethodNotFound);
+    assert.equal(
+      (t.sent[0].error as { code: number }).code,
+      ErrorCode.MethodNotFound,
+    );
   });
 });
 
@@ -139,7 +194,11 @@ describe("1 行 1 メッセージ", () => {
     const { c } = setup();
     const got: string[] = [];
     c.on("notify", (p) => got.push(p.text));
-    const l = line({ jsonrpc: "2.0", method: "notify", params: { level: "info", text: "日本語\nの中の改行" } });
+    const l = line({
+      jsonrpc: "2.0",
+      method: "notify",
+      params: { level: "info", text: "日本語\nの中の改行" },
+    });
     const bytes = l.length;
     c.feed(l.slice(0, 10));
     c.feed(l.slice(10, bytes - 1));
@@ -152,7 +211,12 @@ describe("1 行 1 メッセージ", () => {
     const { c } = setup();
     const got: string[] = [];
     c.on("notify", (p) => got.push(p.text));
-    const m = (text: string) => JSON.stringify({ jsonrpc: "2.0", method: "notify", params: { level: "i", text } });
+    const m = (text: string) =>
+      JSON.stringify({
+        jsonrpc: "2.0",
+        method: "notify",
+        params: { level: "i", text },
+      });
     c.feed(`${m("a")}\r\n\n${m("b")}\n${m("c")}`);
     assert.deepEqual(got, ["a", "b"]);
   });
@@ -163,7 +227,13 @@ describe("1 行 1 メッセージ", () => {
     c.on("notify", (p) => got.push(p.text));
     c.feed("not json\n");
     c.feed(line({ jsonrpc: "1.0", method: "notify" }));
-    c.feed(line({ jsonrpc: "2.0", method: "notify", params: { level: "i", text: "ok" } }));
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        method: "notify",
+        params: { level: "i", text: "ok" },
+      }),
+    );
     assert.deepEqual(got, ["ok"]);
     assert.equal(discards.length, 2);
   });
@@ -177,13 +247,25 @@ describe("始まりの目印", () => {
     assert.equal(c.isReady, false);
 
     c.feed("Welcome to host (motd)\n");
-    c.feed(line({ jsonrpc: "2.0", method: "notify", params: { level: "i", text: "before" } }));
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        method: "notify",
+        params: { level: "i", text: "before" },
+      }),
+    );
     assert.deepEqual(got, []);
     assert.equal(c.isReady, false);
 
     c.feed(MARKER + "\n");
     assert.equal(c.isReady, true);
-    c.feed(line({ jsonrpc: "2.0", method: "notify", params: { level: "i", text: "after" } }));
+    c.feed(
+      line({
+        jsonrpc: "2.0",
+        method: "notify",
+        params: { level: "i", text: "after" },
+      }),
+    );
     assert.deepEqual(got, ["after"]);
 
     const p = c.request("session.ping", {});
@@ -203,7 +285,14 @@ describe("始まりの目印", () => {
     const { c } = setup({ waitForMarker: true });
     const got: string[] = [];
     c.on("notify", (p) => got.push(p.text));
-    c.feed(`junk\n${MARKER}\n` + line({ jsonrpc: "2.0", method: "notify", params: { level: "i", text: "x" } }));
+    c.feed(
+      `junk\n${MARKER}\n` +
+        line({
+          jsonrpc: "2.0",
+          method: "notify",
+          params: { level: "i", text: "x" },
+        }),
+    );
     assert.deepEqual(got, ["x"]);
   });
 
@@ -229,7 +318,9 @@ describe("メッセージの読み取り", () => {
     assert.throws(() => parseMessage("[]"));
     assert.throws(() => parseMessage('{"jsonrpc":"2.0"}'));
     assert.throws(() => parseMessage('{"jsonrpc":"2.0","id":{},"method":"x"}'));
-    assert.throws(() => parseMessage('{"jsonrpc":"2.0","id":1,"error":{"code":"x"}}'));
+    assert.throws(() =>
+      parseMessage('{"jsonrpc":"2.0","id":1,"error":{"code":"x"}}'),
+    );
   });
 });
 
