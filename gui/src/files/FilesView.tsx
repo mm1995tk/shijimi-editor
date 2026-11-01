@@ -172,6 +172,7 @@ export function FilesView(props: {
             <Index each={f().panes}>
               {(p, i) => (
                 <>
+                  {/* 左右に並べたペインの間の線（E7）。割り方は shj が決め、ペインの幅は viewport で来る */}
                   <Show when={i > 0}>
                     <div class="files-split" aria-hidden="true" />
                   </Show>
