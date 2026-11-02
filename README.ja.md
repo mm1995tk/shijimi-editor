@@ -1,10 +1,10 @@
-# <img src="manual/docs/assets/icon.png" alt="" width="32" align="top"> shijimi
+# <img src="website/manual/docs/assets/icon.png" alt="" width="32" align="top"> shijimi
 
 [English](README.md) | 日本語
 
 ターミナルで動く統合開発環境 (TUI) です。画面の作りは VS Code に合わせています。編集操作は、Helix 風のモード編集と、モードの無い VS Code 風の操作から選べます。コマンド名は `shj` です。
 
-ホームページ: <https://mm1995tk.github.io/shijimi-editor/ja/> / 説明書（英語と日本語）: <https://mm1995tk.github.io/shijimi-editor/manual/ja/>（ソースは [`site/`](site/) と [`manual/`](manual/)）
+ホームページ: <https://mm1995tk.github.io/shijimi-editor/ja/> / 説明書（英語と日本語）: <https://mm1995tk.github.io/shijimi-editor/manual/ja/>（ソースは [`website/home/`](website/home/) と [`website/manual/`](website/manual/)）
 
 ## 機能
 
@@ -71,7 +71,7 @@ shj main.go    # ファイルだけを編集する（単体編集モード。$ED
 
 `shj` の代わりに `shijimi` と打っても同じです（Nix で入れたときは両方入ります）。
 
-ファイルを渡すと単体編集モードになります。ファイルツリー・LSP・ターミナル・差分モード・エージェントを起動せず、`:q` `:wq` で閉じると終了します（詳しくは[インストールと起動](manual/docs/install.ja.md)）。
+ファイルを渡すと単体編集モードになります。ファイルツリー・LSP・ターミナル・差分モード・エージェントを起動せず、`:q` `:wq` で閉じると終了します（詳しくは[インストールと起動](website/manual/docs/install.ja.md)）。
 
 ## 設定
 
@@ -451,16 +451,16 @@ cmux（macOS だけ。`CMUX_WORKSPACE_ID` と `CMUX_SURFACE_ID` あり）でも�
 
 ## 説明書とホームページの編集
 
-説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `manual/` から作ります。ホームページは `site/` の素の HTML です。`main` に push すると GitHub Actions が両方を GitHub Pages に公開します。ホームページは一番上に、説明書は `/manual/` の下に置きます。説明書を手元で確認するには次を実行します。
+説明書は [MkDocs Material](https://squidfunk.github.io/mkdocs-material/) で `website/manual/` から作ります。ホームページは `website/home/` の素の HTML です。`main` に push すると GitHub Actions が両方を GitHub Pages に公開します。ホームページは一番上に、説明書は `/manual/` の下に置きます。説明書を手元で確認するには次を実行します。
 
 ```sh
-pip install -r manual/requirements.txt
-mkdocs serve --config-file manual/mkdocs.yml
+pip install -r website/manual/requirements.txt
+mkdocs serve --config-file website/manual/mkdocs.yml
 ```
 
-説明書は、ページごとに英語（`名前.en.md`、既定）と日本語（`名前.ja.md`）を置きます。片方を変えたら、もう片方も変えてください。`manual/check-translations.sh` が、全ページに両方の言語があることと構造が同じことを確かめ、CI がプルリクエストで実行します（片方の言語だけが変わったときも失敗します。誤字の修正など、翻訳が要らないときは、プルリクエストのタイトルに `[skip-i18n-check]` を入れるとその部分を飛ばせます）。
+説明書は、ページごとに英語（`名前.en.md`、既定）と日本語（`名前.ja.md`）を置きます。片方を変えたら、もう片方も変えてください。`website/manual/check-translations.sh` が、全ページに両方の言語があることと構造が同じことを確かめ、CI がプルリクエストで実行します（片方の言語だけが変わったときも失敗します。誤字の修正など、翻訳が要らないときは、プルリクエストのタイトルに `[skip-i18n-check]` を入れるとその部分を飛ばせます）。
 
-ホームページのスクリーンショットとデモ動画（`site/images/`）は [vhs](https://github.com/charmbracelet/vhs) で撮ります。画像と mermaid の図は Kitty graphics protocol が要るので、kitty で撮ります。画面を変えたら `site/screenshots/record.sh`（Nix が要ります）を実行して撮り直してください。場面は `site/screenshots/tapes/`（vhs）と `site/screenshots/kitty/`（kitty）に書いてあります。
+ホームページのスクリーンショットとデモ動画（`website/home/images/`）は [vhs](https://github.com/charmbracelet/vhs) で撮ります。画像と mermaid の図は Kitty graphics protocol が要るので、kitty で撮ります。画面を変えたら `website/home/screenshots/record.sh`（Nix が要ります）を実行して撮り直してください。場面は `website/home/screenshots/tapes/`（vhs）と `website/home/screenshots/kitty/`（kitty）に書いてあります。
 
 ## ライセンス
 

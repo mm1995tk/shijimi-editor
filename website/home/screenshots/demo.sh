@@ -7,7 +7,7 @@ dir=$1
 here=$(cd "$(dirname "$0")" && pwd)
 rm -rf "$dir"
 mkdir -p "$dir/internal/store" "$dir/docs"
-cp "$here/../../manual/docs/assets/icon.png" "$dir/docs/icon.png"
+cp "$here/../../../manual/docs/assets/icon.png" "$dir/docs/icon.png"
 cd "$dir"
 
 cat >go.mod <<'EOF'
