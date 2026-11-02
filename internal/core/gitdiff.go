@@ -114,7 +114,7 @@ func gitTop(dir string) (string, error) {
 	}
 	cand := filepath.Clean(dir)
 	if rel != "." {
-		for range strings.Split(rel, string(filepath.Separator)) {
+		for range strings.SplitSeq(rel, string(filepath.Separator)) {
 			cand = filepath.Dir(cand)
 		}
 	}
