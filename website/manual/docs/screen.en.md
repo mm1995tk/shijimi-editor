@@ -50,7 +50,7 @@ Press `Alt+R` to enter resize mode.
 | `=` | Reset to the initial values |
 | `Esc` | Leave resize mode |
 
-The focused pane decides which border the arrow keys move.
+The focused pane decides which border the arrow keys move. The borders they move are drawn in the accent color while resize mode is on (in diff mode, the boundary between the explorer and CHANGES is the CHANGES heading row, which is drawn in the accent color). A border you drag with the mouse is drawn the same way.
 
 | Focused pane | `←` / `→` | `↑` / `↓` |
 | --- | --- | --- |

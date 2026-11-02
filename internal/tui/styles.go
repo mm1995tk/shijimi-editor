@@ -12,6 +12,7 @@ func bgfg(bg, fg string) lipgloss.Style {
 
 var (
 	stSide, stSideDir, stSideTitle, stSideActive, stSideSel, stSideSelFocus, stSeparator lipgloss.Style
+	stSeparatorLit, stPanelBordLit, stSideTitleLit                                       lipgloss.Style
 	stTabBar, stTabActive, stTabInactive, stTabDirty                                     lipgloss.Style
 	stLineNo, stLineNoCur, stEmpty, stWelcome, stWelcomeH, stFind, stFindLabel           lipgloss.Style
 	stPanelTitle, stPanelTab, stPanel, stPanelDim, stPanelCmd, stPanelBord               lipgloss.Style
@@ -28,6 +29,8 @@ func rebuildStyles(t *core.Theme) {
 	stSideSel = bgfg(cListSelUnf, t.Strong)
 	stSideSelFocus = bgfg(cListSel, t.Strong)
 	stSeparator = bgfg(cSideBg, cBorder)
+	stSeparatorLit = bgfg(cSideBg, cAccent).Bold(true)
+	stSideTitleLit = bgfg(cAccent, t.AccentFg).Bold(true)
 
 	stTabBar = bgfg(cTabBarBg, cTabInactFg)
 	stTabActive = bgfg(cEditorBg, t.Strong)
@@ -49,6 +52,7 @@ func rebuildStyles(t *core.Theme) {
 	stPanelDim = bgfg(cEditorBg, cLineNo)
 	stPanelCmd = bgfg(cEditorBg, t.PanelCmd)
 	stPanelBord = bgfg(cEditorBg, cBorder)
+	stPanelBordLit = bgfg(cEditorBg, cAccent).Bold(true)
 
 	stStatus = bgfg(cAccent, t.AccentFg)
 	stStatusError = bgfg(t.StatusErrBg, t.AccentFg)

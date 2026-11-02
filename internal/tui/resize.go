@@ -131,6 +131,26 @@ func (a *App) keyBorder(l layout, across bool) core.ResizeTarget {
 	return core.ResizeSide
 }
 
+// borderLit reports whether border b is drawn in the accent color: it is
+// being dragged with the mouse, or the arrow keys move it in resize mode.
+func (a *App) borderLit(l layout, b core.ResizeTarget) bool {
+	switch {
+	case b == core.ResizeNone:
+		return false
+	case a.resizing == b:
+		return true
+	}
+	return a.resizeMode && (a.keyBorder(l, true) == b || a.keyBorder(l, false) == b)
+}
+
+// separator is the │ of border b, lit or not (see borderLit).
+func (a *App) separator(l layout, b core.ResizeTarget) string {
+	if a.borderLit(l, b) {
+		return stSeparatorLit.Render("│")
+	}
+	return stSeparator.Render("│")
+}
+
 // pctToward is the share that gives n cells of avail, or failing that the
 // nearest width past n in the direction d, so a key press always moves a
 // border (one percent may be more than a cell).

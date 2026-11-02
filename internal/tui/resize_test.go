@@ -3,6 +3,7 @@ package tui
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -291,4 +292,38 @@ func TestResizeKeysEditorBorders(t *testing.T) {
 	if got := a.layout().agentW; got != agent+resizeStep {
 		t.Fatalf("panel moved: %d", got)
 	}
+}
+
+// TestResizeBorderLit: in resize mode the borders the arrow keys move are drawn
+// in the accent color, and only then.
+func TestResizeBorderLit(t *testing.T) {
+	a := resizeApp(t)
+	a.showTerm = true
+	a.fit()
+	sideLit, termLit := stSeparatorLit.Render("│"), stPanelBordLit.Render(strings.Repeat("─", a.layout().fullW))
+	frame := func() string { s, _ := a.renderFrame(); return s }
+	if f := frame(); strings.Contains(f, sideLit) || strings.Contains(f, termLit) {
+		t.Fatal("a border is lit outside resize mode")
+	}
+
+	a.StartResize()
+	l := a.layout()
+	if !a.borderLit(l, core.ResizeSide) || !a.borderLit(l, core.ResizeTerm) || a.borderLit(l, core.ResizeAgent) {
+		t.Fatalf("lit: side %v term %v agent %v", a.borderLit(l, core.ResizeSide), a.borderLit(l, core.ResizeTerm), a.borderLit(l, core.ResizeAgent))
+	}
+	if f := frame(); !strings.Contains(f, sideLit) || !strings.Contains(f, termLit) {
+		t.Fatal("the borders being moved are not lit")
+	}
+
+	press(a, "esc")
+	if f := frame(); strings.Contains(f, sideLit) || strings.Contains(f, termLit) {
+		t.Fatal("a border stays lit after leaving resize mode")
+	}
+
+	// a border dragged with the mouse is lit too
+	a.resizing = core.ResizeSide
+	if f := frame(); !strings.Contains(f, sideLit) {
+		t.Fatal("the dragged border is not lit")
+	}
+	a.resizing = core.ResizeNone
 }
