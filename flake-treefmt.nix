@@ -7,10 +7,13 @@ _: {
     enable = true;
     edition = "2021";
   };
-  # gui/ の Web 画面（Solid + TypeScript）。ほかのディレクトリの Markdown などには触れない
+  # gui/ の Web 画面（Solid + TypeScript）と、根に置いたその設定。ほかのディレクトリの Markdown などには触れない
   programs.prettier = {
     enable = true;
     includes = [
+      "package.json"
+      "tsconfig.json"
+      "vite.config.ts"
       "gui/**/*.ts"
       "gui/**/*.tsx"
       "gui/**/*.html"
@@ -21,7 +24,7 @@ _: {
   # package-lock.json は npm が書く。整形すると次の npm install で差分が出る
   settings.global.excludes = [
     "gomod2nix.toml"
-    "gui/package-lock.json"
+    "package-lock.json"
     "gui/src-tauri/icons/*"
     "gui/src-tauri/gen/*"
   ];

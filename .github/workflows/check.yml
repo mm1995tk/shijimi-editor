@@ -1,0 +1,44 @@
+name: 検査
+
+# flake の checks（nix flake check）を Linux と macOS で回す。手元の nix flake check と同じもの:
+#   formatting   … nix fmt で差分が出ない
+#   go-test      … go test ./...
+#   gui          … nix build .#gui（殻の cargo test も回る）
+#   gui-web-test … Web 画面の npm test
+# 自動更新（feature updater）を付けた殻は Nix の版に無いので、devShell の中で別に確かめる。
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - name: nix flake check
+        run: nix flake check --print-build-logs
+
+  # 自動更新を付けた殻。配る版（gui-release.yml）はこれを tauri build で作る
+  updater:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - name: Web 画面を作る（殻が埋め込む）
+        run: nix develop --command bash -c 'npm ci && npm run build'
+      - name: cargo build --features updater
+        run: nix develop --command cargo build --locked -p shijimi-editor-gui --features custom-protocol,updater

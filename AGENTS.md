@@ -13,14 +13,16 @@ Run these from the Nix devShell (`nix develop`, or `direnv allow`):
 
 ```sh
 go test ./...        # must pass
-nix fmt              # must leave no changes (nixfmt / gofmt / taplo)
+nix fmt              # must leave no changes (nixfmt / gofmt / taplo / rustfmt / prettier)
+nix flake check      # what CI runs: formatting, go test ./..., the GUI build (cargo test) and npm test
 ```
 
-`nix build` builds the package and also runs the tests.
+Run every command from the root of the repository. `go.mod`, `package.json` (the GUI's web UI, sources in `gui/`) and `Cargo.toml` (a workspace whose member is the GUI's Tauri shell, `gui/src-tauri`) are all there. Do not `cd` into `gui/`.
 
 ## Rules that CI or tests enforce
 
 - **Dependencies**: after changing `go.mod`, run `gomod2nix` and commit the updated `gomod2nix.toml`.
+  After changing `package-lock.json`, update `npmDepsHash` in `packaging/nix/gui.nix` (set it to `lib.fakeHash`, run `nix build .#gui`, and copy the hash it prints).
 - **UI strings**: code contains no UI text. Add a key to both `internal/i18n/en.go` and `internal/i18n/ja.go` and use `i18n.T("key")`. A test fails when the two tables differ.
 - **Manual**: each page in `website/manual/docs/` exists as `name.en.md` and `name.ja.md`. When you change one, change the other in the same change. `website/manual/check-translations.sh origin/main` checks it, and CI runs it on pull requests.
 

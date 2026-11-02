@@ -331,13 +331,17 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ## 開発
 
-Nix の devShell（Go・gopls・gomod2nix・git）を使います。direnv があれば `.envrc` で自動で入ります。
+Nix の devShell（Go・gopls・gomod2nix・git・Node.js・Rust。Linux では GUI 用の WebView のライブラリも）を使います。direnv があれば `.envrc` で自動で入ります。コマンドはどれもリポジトリの根で動かします。`go.mod`、`package.json`（GUI の Web 画面）、`Cargo.toml`（GUI の Tauri の殻 `gui/src-tauri` を持つ workspace）はどれも根にあります。
 
 ```sh
 nix develop            # または direnv allow
 go test ./...
 go build ./cmd/shj
-nix build              # パッケージをビルド（テストも実行）
+npm ci                 # GUI の Web 画面（最初と、package-lock.json が変わったとき）
+npm test
+npm run tauri dev      # GUI を動かす（devShell の外では nix run .#gui-dev）
+cargo test             # GUI の Tauri の殻
+nix flake check        # CI が回す検査を全部（整形・go test・GUI のビルドとテスト）
 scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
 ```
 

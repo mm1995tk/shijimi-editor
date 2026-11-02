@@ -14,5 +14,5 @@
     "skipLibCheck": true,
     "isolatedModules": true
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["gui/src", "vite.config.ts"]
 }

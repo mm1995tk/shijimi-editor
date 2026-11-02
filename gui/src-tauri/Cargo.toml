@@ -6,10 +6,10 @@ license = "MIT"
 description = "GUI for shijimi-editor (Tauri shell)"
 
 [build-dependencies]
-tauri-build = "=2.7.3"
+tauri-build = { version = "=2.7.3", features = [] }
 
 [dependencies]
-tauri = "=2.12.4"
+tauri = { version = "=2.12.4", features = [] }
 # 版は Cargo.lock にすでにある（tauri が使っている）ものに合わせる
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.154"
@@ -23,6 +23,3 @@ tauri-plugin-updater = { version = "=2.14.0", optional = true }
 custom-protocol = ["tauri/custom-protocol"]
 # 自動更新。リリースの workflow（.github/workflows/gui-release.yml）だけが付ける
 updater = ["dep:tauri-plugin-updater"]
-
-[profile.release]
-strip = true

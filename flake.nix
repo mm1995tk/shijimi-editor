@@ -121,14 +121,15 @@
           };
 
           # GUI を開発用に起動する（tauri dev）。リポジトリのどこからでも nix run .#gui-dev で動く。
-          # devShell の中で動かすので、Node・Rust・WebView のライブラリは devShell と同じものになる
+          # devShell の中で動かすので、Node・Rust・WebView のライブラリは devShell と同じものになる。
+          # devShell の中なら、根で npm run tauri dev と同じ
           apps.gui-dev = flake-utils.lib.mkApp {
             drv = pkgs.writeShellApplication {
               name = "gui-dev";
               runtimeInputs = [ pkgs.git ];
               text = ''
                 root="$(git rev-parse --show-toplevel)"
-                cd "$root/gui"
+                cd "$root"
                 # node_modules が無いか package-lock.json より古ければ入れ直す
                 exec nix develop "$root" --command bash -c '
                   if [ ! -f node_modules/.package-lock.json ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then
