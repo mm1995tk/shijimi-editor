@@ -63,7 +63,7 @@
 
 - nightly 版は安定版と同じプログラムで、ビルド時の `-X github.com/mm1995tk/shijimi-editor/internal/channel.Channel=nightly` だけが違います。バイナリ名は `shj-nightly`（`shijimi-nightly` も）、設定は `~/.config/shijimi-editor-nightly/`、ソケットのディレクトリも別なので、安定版と並べて入れられます。設定の `[experimental]` の既定値は nightly 版だけ `true` です。
 - Nix：`nix build .#shj-nightly`。`version` は `flake.nix` の `X.Y.Z` に `-nightly.<yyyymmdd>.<sha>` を付けたものです（`X.Y.Z` はまだ出ていない次のリリースの番号ではなく、`flake.nix` にある今の番号です）。`shj-nightly --version` は `vX.Y.Z-nightly (<sha>)` と出ます。
-- npm：`npm/pack.sh X.Y.Z-nightly.<yyyymmdd>.<sha> <dir>` で、本体のパッケージ `shijimi-editor-nightly`（コマンドは `shj-nightly` と `shijimi-nightly`）と、OS / CPU ごとのパッケージ（名前は安定版と同じ `shijimi-editor-<os>-<cpu>`、版だけ nightly の版）の tarball ができます。
+- npm：`packaging/npm/pack.sh X.Y.Z-nightly.<yyyymmdd>.<sha> <dir>` で、本体のパッケージ `shijimi-editor-nightly`（コマンドは `shj-nightly` と `shijimi-nightly`）と、OS / CPU ごとのパッケージ（名前は安定版と同じ `shijimi-editor-<os>-<cpu>`、版だけ nightly の版）の tarball ができます。
 - 毎日ビルドして配るのは `nightly.yml`（次の節）です。
 
 ### nightly.yml がすること
@@ -72,7 +72,7 @@
 
 1. 版 `X.Y.Z-nightly.<yyyymmdd>.<sha>` を決めます。`X.Y.Z` は `flake.nix` の `version`、日付はコミットの日付（UTC）、`<sha>` は短い形です。`flake.nix` は書き換えず、`vX.Y.Z` のタグも打ちません。
 2. pre-release `nightly` の本文の `Commit: <sha>` を読み、main のコミットが前の nightly から進んでいなければ、何もせずに成功します（`workflow_dispatch` の `force` を `true` にすると、進んでいなくても作り直します）。
-3. `npm/pack.sh` で OS と CPU ごとの `shj-nightly` をビルドし、npm に publish します。`shijimi-editor-<os>-<cpu>` は安定版と共有なので `--tag nightly` で publish し、`latest` は動かしません。`shijimi-editor-nightly` は nightly 専用なので `--tag latest` で publish し、`npm install -g shijimi-editor-nightly` が毎回の nightly の版を入れるようにします。dist-tag `nightly` は `shijimi-editor-nightly` では使いません（`npm dist-tag add` は Trusted Publishing では認証できないため。過去に付いた古い `nightly` タグは `npm dist-tag rm shijimi-editor-nightly nightly` で手で消します）。認証は `release.yml` と同じ Trusted Publishing（OIDC）で、npm 側で `nightly.yml` を `shijimi-editor-nightly` と `shijimi-editor-<os>-<cpu>` の Trusted Publisher に登録しておく必要があります（`release.yml` の登録とは別です）。
+3. `packaging/npm/pack.sh` で OS と CPU ごとの `shj-nightly` をビルドし、npm に publish します。`shijimi-editor-<os>-<cpu>` は安定版と共有なので `--tag nightly` で publish し、`latest` は動かしません。`shijimi-editor-nightly` は nightly 専用なので `--tag latest` で publish し、`npm install -g shijimi-editor-nightly` が毎回の nightly の版を入れるようにします。dist-tag `nightly` は `shijimi-editor-nightly` では使いません（`npm dist-tag add` は Trusted Publishing では認証できないため。過去に付いた古い `nightly` タグは `npm dist-tag rm shijimi-editor-nightly nightly` で手で消します）。認証は `release.yml` と同じ Trusted Publishing（OIDC）で、npm 側で `nightly.yml` を `shijimi-editor-nightly` と `shijimi-editor-<os>-<cpu>` の Trusted Publisher に登録しておく必要があります（`release.yml` の登録とは別です）。
 4. pre-release `nightly` を作り直します（タグ `nightly` をそのコミットに付け直し、`shj-nightly-<os>-<cpu>` を assets に置き、本文に版・コミット・日付を書きます）。
 
 ## 止める・変える

@@ -136,7 +136,7 @@ jobs:
       - name: パッケージを作る
         env:
           NEXT: ${{ needs.release.outputs.next }}
-        run: npm/pack.sh "$NEXT" "$RUNNER_TEMP/npm"
+        run: packaging/npm/pack.sh "$NEXT" "$RUNNER_TEMP/npm"
       # tarball のまま渡す（upload-artifact は zip にするとき実行権限を落とすので、bin/shj の権限は tarball の中に残す）
       - uses: actions/upload-artifact@v7
         with:

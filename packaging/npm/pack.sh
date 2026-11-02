@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds shj for each OS and CPU and packs the npm packages into OUT_DIR.
 #
-#   npm/pack.sh VERSION OUT_DIR
+#   packaging/npm/pack.sh VERSION OUT_DIR
 #
 # VERSION is X.Y.Z without the leading "v", or X.Y.Z-nightly.<yyyymmdd>.<sha>
 # for a nightly. OUT_DIR gets one tarball for each platform package
@@ -14,8 +14,8 @@
 # (internal/kitty uses unix.IoctlGetWinsize).
 set -euo pipefail
 
-version="${1:?usage: npm/pack.sh VERSION OUT_DIR}"
-out="${2:?usage: npm/pack.sh VERSION OUT_DIR}"
+version="${1:?usage: packaging/npm/pack.sh VERSION OUT_DIR}"
+out="${2:?usage: packaging/npm/pack.sh VERSION OUT_DIR}"
 # The binary gets X.Y.Z and the channel; it shows the version as "vX.Y.Z-nightly".
 channel=""
 if [[ "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-nightly\.[0-9]{8}\.[0-9a-f]+$ ]]; then
@@ -28,7 +28,7 @@ else
   exit 1
 fi
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$(cd "$(dirname "$0")/../.." && pwd)"
 mkdir -p "$out"
 out="$(cd "$out" && pwd)"
 work="$(mktemp -d)"
@@ -82,7 +82,7 @@ for t in "${targets[@]}"; do
 done
 
 dir="$work/shijimi-editor"
-cp -R "$root/npm/shijimi-editor" "$dir"
+cp -R "$root/packaging/npm/shijimi-editor" "$dir"
 cp "$root/LICENSE" "$root/README.md" "$dir/"
 # optionalDependencies is made from targets, so the list of platforms is only there.
 # A nightly renames the package and its commands with "-nightly"; bin/shj.js stays.

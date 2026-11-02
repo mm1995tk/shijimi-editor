@@ -183,7 +183,7 @@ fn split_version(v: &str) -> Option<(&str, Option<&str>)> {
     is_xyz(v).then_some((v, None))
 }
 
-/// PATH などで探す shj の名前。nightly の shj は `shj-nightly` の名前で入る（flake.nix・npm/pack.sh）。
+/// PATH などで探す shj の名前。nightly の shj は `shj-nightly` の名前で入る（flake.nix・packaging/npm/pack.sh）。
 fn shj_names(gui_version: &str) -> &'static [&'static str] {
     match split_version(gui_version) {
         Some((_, Some(_))) => &["shj-nightly", "shj"],
