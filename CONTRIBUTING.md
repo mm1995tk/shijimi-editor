@@ -17,8 +17,10 @@ Use the Nix devShell. With direnv, `.envrc` enters it automatically.
 nix develop            # or: direnv allow
 go test ./...
 scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
-nix build              # build the package (also runs the tests)
+nix flake check        # every check CI runs: formatting, go test, the GUI build and its tests
 ```
+
+Everything runs from the root of the repository. For the GUI, `npm ci`, `npm test`, `npm run tauri dev` (outside the devShell: `nix run .#gui-dev`) and `cargo test` also run there.
 
 - Run `scripts/tidy.sh` before you push (outside the devShell: `nix run .#tidy`). CI runs it and fails if it changes anything (it also updates `gomod2nix.toml` after you change `go.mod`).
 - User-visible strings go in both [`internal/i18n/en.go`](internal/i18n/en.go) and [`internal/i18n/ja.go`](internal/i18n/ja.go). A test checks that the keys match.
@@ -29,7 +31,7 @@ See "Development" and "Editing the manual" in the [README](README.md) for detail
 ## Pull requests
 
 - Keep one pull request to one change.
-- Make sure `go test ./...` passes and `scripts/tidy.sh` leaves no changes.
+- Make sure `nix flake check` passes and `scripts/tidy.sh` leaves no changes.
 - Describe what changed and why, and link the issue if there is one.
 
 By sending a pull request, you agree that your contribution is licensed under the [MIT License](LICENSE).

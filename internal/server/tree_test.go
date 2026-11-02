@@ -384,27 +384,41 @@ func TestGitStatusAndChanged(t *testing.T) {
 	if st.Branch == "" || st.Marks["a.txt"] != "M" || st.Marks["sub/new.txt"] != "?" || len(st.Marks) != 2 || st.Rev == 0 {
 		t.Fatalf("status: %+v", st)
 	}
-	// 印が変わると git.changed が差分だけ届く。
+	// 印が変わると git.changed が差分だけ届く。2 つの変更の間に監視が発火すると、
+	// 通知は 2 回に分かれることがあるので、届いた通知をまとめて見る。
 	gitDo(t, root, "checkout", "-q", "--", "a.txt")
 	write(t, filepath.Join(root, "sub", "b.txt"), "2")
-	waitFor(t, "git.changed", func() bool { return len(nt.all("git.changed")) > 0 })
-	var m struct {
+	type changed struct {
 		WorkspaceID string             `json:"workspaceId"`
 		Branch      *string            `json:"branch"`
 		Marks       map[string]*string `json:"marks"`
 		Rev         int64              `json:"rev"`
 	}
-	mustJSON(t, *nt.all("git.changed")[0], &m)
-	if m.WorkspaceID != id || m.Branch != nil || m.Rev <= st.Rev {
-		t.Fatalf("git.changed: %+v", m)
+	marks := map[string]*string{}
+	merge := func() {
+		marks = map[string]*string{}
+		for _, raw := range nt.all("git.changed") {
+			var m changed
+			mustJSON(t, *raw, &m)
+			if m.WorkspaceID != id || m.Branch != nil || m.Rev <= st.Rev {
+				t.Fatalf("git.changed: %+v", m)
+			}
+			maps.Copy(marks, m.Marks)
+		}
 	}
-	if v, ok := m.Marks["a.txt"]; !ok || v != nil {
-		t.Errorf("a.txt must be null: %+v", m.Marks)
+	waitFor(t, "git.changed", func() bool {
+		merge()
+		_, a := marks["a.txt"]
+		_, b := marks["sub/b.txt"]
+		return a && b
+	})
+	if v, ok := marks["a.txt"]; !ok || v != nil {
+		t.Errorf("a.txt must be null: %+v", marks)
 	}
-	if v := m.Marks["sub/b.txt"]; v == nil || *v != "M" {
-		t.Errorf("sub/b.txt: %+v", m.Marks)
+	if v := marks["sub/b.txt"]; v == nil || *v != "M" {
+		t.Errorf("sub/b.txt: %+v", marks)
 	}
-	if _, ok := m.Marks["sub/new.txt"]; ok {
+	if _, ok := marks["sub/new.txt"]; ok {
 		t.Error("unchanged mark must not be sent")
 	}
 	// ブランチが変わると branch が届く。

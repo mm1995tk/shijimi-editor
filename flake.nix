@@ -120,9 +120,64 @@
             };
           };
 
+          # GUI を開発用に起動する（tauri dev）。リポジトリのどこからでも nix run .#gui-dev で動く。
+          # devShell の中で動かすので、Node・Rust・WebView のライブラリは devShell と同じものになる。
+          # devShell の中なら、根で npm run tauri dev と同じ
+          apps.gui-dev = flake-utils.lib.mkApp {
+            drv = pkgs.writeShellApplication {
+              name = "gui-dev";
+              runtimeInputs = [ pkgs.git ];
+              text = ''
+                root="$(git rev-parse --show-toplevel)"
+                cd "$root"
+                # node_modules が無いか package-lock.json より古ければ入れ直す
+                exec nix develop "$root" --command bash -c '
+                  if [ ! -f node_modules/.package-lock.json ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then
+                    npm ci
+                  fi
+                  exec npm run tauri dev -- "$@"
+                ' gui-dev "$@"
+              '';
+            };
+          };
+
           devShells = import ./flake-shell.nix { inherit pkgs project-name; };
           formatter = treefmtEval.config.build.wrapper;
-          checks.formatting = treefmtEval.config.build.check self;
+
+          # nix flake check で回す検査。CI（check.yml）も同じものを回す
+          checks = {
+            formatting = treefmtEval.config.build.check self;
+
+            # GUI の殻（cargo test も回る）と Web 画面のテスト（npm test）
+            gui = guiDrv;
+            gui-web-test = guiDrv.web.overrideAttrs (_: {
+              pname = "shijimi-editor-gui-web-test";
+              doCheck = true;
+              checkPhase = ''
+                runHook preCheck
+                npm test
+                runHook postCheck
+              '';
+            });
+          }
+          # Go の全パッケージのテスト。packages の shj は subPackages が cmd/shj だけなので、
+          # そのままでは internal/ のテストが回らない。入れるときのビルドは重くしたくないので、ここだけで回す。
+          # Linux だけ。macOS の Nix のビルド環境には PATH に ps が無く、ソケットのパスが長すぎ、
+          # PTY のシェルも動かないので、テストが前提にする環境にならない。macOS では CI（check.yml）が
+          # devShell の中で go test ./... を回す
+          // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            go-test = appDrv.overrideAttrs (_: {
+              pname = "shijimi-go-test";
+              nativeCheckInputs = [ pkgs.git ];
+              checkPhase = ''
+                runHook preCheck
+                export HOME="$TMPDIR/home"
+                mkdir -p "$HOME"
+                go test ./...
+                runHook postCheck
+              '';
+            });
+          };
         }
       );
     in

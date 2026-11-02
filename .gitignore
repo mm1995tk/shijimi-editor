@@ -5,7 +5,7 @@ result
 vendor
 tmp
 /_site
-/gui/node_modules
+/node_modules
+/target
 /gui/dist
-/gui/src-tauri/target
 /gui/src-tauri/gen

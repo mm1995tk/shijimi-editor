@@ -276,11 +276,10 @@ func (e *Explorer) IsIgnored(n *Node) bool {
 func (e *Explorer) loadGitStatus() {
 	e.Git = map[string]string{}
 	e.ignored = map[string]bool{}
-	top, err := run(e.root.Path, nil, "git", "rev-parse", "--show-toplevel")
+	topDir, err := gitTop(e.root.Path)
 	if err != nil {
 		return
 	}
-	topDir := strings.TrimSpace(string(top))
 	// --ignored=matching lists an ignored directory as one entry instead of
 	// every file under it. Git before 2.18 lacks it; fall back to no ignores.
 	out, err := run(e.root.Path, nil, "git", "status", "--porcelain", "--untracked-files=all", "--ignored=matching", "-z")

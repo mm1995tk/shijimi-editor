@@ -333,13 +333,17 @@ How you open it decides what you compare with (the base). Pressing the same key 
 
 ## Development
 
-Use the Nix devShell (Go, gopls, gomod2nix, git). With direnv, `.envrc` enters it automatically.
+Use the Nix devShell (Go, gopls, gomod2nix, git, Node.js, Rust, and on Linux the WebView libraries for the GUI). With direnv, `.envrc` enters it automatically. Every command runs from the root of the repository: `go.mod`, `package.json` (the GUI's web UI) and `Cargo.toml` (a workspace with the GUI's Tauri shell, `gui/src-tauri`) are all there.
 
 ```sh
 nix develop            # or: direnv allow
 go test ./...
 go build ./cmd/shj
-nix build              # build the package (also runs the tests)
+npm ci                 # the GUI's web UI (once, and after package-lock.json changes)
+npm test
+npm run tauri dev      # run the GUI (outside the devShell: nix run .#gui-dev)
+cargo test             # the GUI's Tauri shell
+nix flake check        # every check CI runs: formatting, go test, the GUI build and its tests
 scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
 ```
 

@@ -127,16 +127,12 @@ jobs:
         with:
           ref: v${{ needs.release.outputs.next }}
           persist-credentials: false
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 26.12.1
+      # go と node は devShell のもの（手元と同じ）
+      - uses: cachix/install-nix-action@v31
       - name: パッケージを作る
         env:
           NEXT: ${{ needs.release.outputs.next }}
-        run: packaging/npm/pack.sh "$NEXT" "$RUNNER_TEMP/npm"
+        run: nix develop --command packaging/npm/pack.sh "$NEXT" "$RUNNER_TEMP/npm"
       # tarball のまま渡す（upload-artifact は zip にするとき実行権限を落とすので、bin/shj の権限は tarball の中に残す）
       - uses: actions/upload-artifact@v7
         with:
