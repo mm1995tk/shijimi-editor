@@ -18,7 +18,7 @@ let
   bin = "shijimi-editor-gui" + lib.optionalString nightly "-nightly";
   tauriConfig =
     lib.optionalAttrs nightly (
-      builtins.fromJSON (builtins.readFile ../gui/src-tauri/tauri.nightly.conf.json)
+      builtins.fromJSON (builtins.readFile ../../gui/src-tauri/tauri.nightly.conf.json)
     )
     // {
       inherit version;
@@ -27,7 +27,7 @@ let
   web = pkgs.buildNpmPackage {
     pname = "shijimi-editor-gui-web";
     inherit version;
-    src = ../gui;
+    src = ../../gui;
     # package-lock.json を変えたら、ここを lib.fakeHash にして nix build .#gui を回し、出た値に直す
     npmDepsHash = "sha256-o88Hy2e9d3WIWPG9gwVwMWWlCUm2q7eTdcv+k2pkBs4=";
     # tauri の CLI は殻のビルドには使わない（cargo を直接回す）。バイナリの取得を避ける
@@ -42,9 +42,9 @@ in
 pkgs.rustPlatform.buildRustPackage {
   pname = bin;
   inherit version;
-  src = ../gui;
+  src = ../../gui;
   sourceRoot = "gui/src-tauri";
-  cargoLock.lockFile = ../gui/src-tauri/Cargo.lock;
+  cargoLock.lockFile = ../../gui/src-tauri/Cargo.lock;
 
   # release の画面は埋め込んだ Web を使う（cargo tauri build が自動で付ける feature）
   buildFeatures = [ "custom-protocol" ];

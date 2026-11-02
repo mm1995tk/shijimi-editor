@@ -16,7 +16,7 @@ in
       pkgs.gomod2nix
       pkgs.gopls
       pkgs.git
-      # npm/pack.sh needs node and npm
+      # packaging/npm/pack.sh needs node and npm
       pkgs.nodejs_26
       # gui/（Tauri）のビルド。Linux の WebView 周りの C ライブラリは nix build .#gui が持つ
       pkgs.cargo

@@ -36,7 +36,7 @@
           commit = self.shortRev or self.dirtyShortRev or "";
 
           # A nightly is the stable X.Y.Z plus "-nightly", the date of the
-          # commit and its hash, like the npm version (see npm/pack.sh).
+          # commit and its hash, like the npm version (see packaging/npm/pack.sh).
           nightlyVersion = "${version}-nightly.${
             builtins.substring 0 8 (self.lastModifiedDate or "00000000")
           }.${commit}";
@@ -82,9 +82,9 @@
             };
 
           # The GUI. Built with Nix it has no auto update (update it with nix flake update).
-          guiDrv = import ./nix/gui.nix { inherit pkgs version; };
+          guiDrv = import ./packaging/nix/gui.nix { inherit pkgs version; };
           # The nightly GUI (shijimi-editor-nightly), installed as shijimi-editor-gui-nightly.
-          guiNightlyDrv = import ./nix/gui.nix {
+          guiNightlyDrv = import ./packaging/nix/gui.nix {
             inherit pkgs;
             version = nightlyVersion;
             channel = "nightly";
@@ -128,7 +128,7 @@
     in
     perSystem
     // {
-      homeManagerModules.default = import ./nix/home-manager-module.nix self;
+      homeManagerModules.default = import ./packaging/nix/home-manager-module.nix self;
       homeManagerModules.shijimi-editor = self.homeManagerModules.default;
     };
 }
