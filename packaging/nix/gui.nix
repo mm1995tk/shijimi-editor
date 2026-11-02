@@ -77,6 +77,9 @@ pkgs.rustPlatform.buildRustPackage {
     mv $out/bin/shijimi-editor-gui $out/bin/${bin}
   '';
 
+  # Web 画面だけのビルド。flake の checks が npm test を足して使う（入れるときのビルドではテストを回さない）
+  passthru = { inherit web; };
+
   meta = {
     description = "GUI for shijimi-editor (Tauri)";
     license = lib.licenses.mit;
