@@ -91,6 +91,39 @@ type branchPRsMsg struct {
 
 // ---- loading ----
 
+// gitTop returns the top of the git work tree that holds dir. git prints the
+// top with symbolic links resolved (on macOS /var/... becomes /private/var/...),
+// but the tree and the buffers keep the paths as the project was opened, so
+// the top is written in dir's spelling whenever dir lies under it through
+// links. When it does not (a link into the middle of a repository), the
+// resolved top is returned.
+func gitTop(dir string) (string, error) {
+	out, err := run(dir, nil, "git", "rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", err
+	}
+	top := strings.TrimSpace(string(out))
+	realTop, err1 := filepath.EvalSymlinks(top)
+	realDir, err2 := filepath.EvalSymlinks(dir)
+	if err1 != nil || err2 != nil {
+		return top, nil
+	}
+	rel, err := filepath.Rel(realTop, realDir)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return top, nil
+	}
+	cand := filepath.Clean(dir)
+	if rel != "." {
+		for range strings.Split(rel, string(filepath.Separator)) {
+			cand = filepath.Dir(cand)
+		}
+	}
+	if r, err := filepath.EvalSymlinks(cand); err == nil && r == realTop {
+		return cand, nil
+	}
+	return top, nil
+}
+
 // GitTopDir is the top of the git repository, or the project root outside one.
 func (a *Core) GitTopDir() string {
 	if a.GitTop != "" {
@@ -138,8 +171,7 @@ func LoadChanges(gen int, root, base string, pr *PrInfo) Event {
 		return m
 	}
 	files := diff.Parse(string(out))
-	top, _ := run(root, nil, "git", "rev-parse", "--show-toplevel")
-	topDir := strings.TrimSpace(string(top))
+	topDir, _ := gitTop(root)
 	if base == BasePR {
 		m.stale = map[string]bool{}
 		if names, err := run(root, nil, "git", "diff", "--name-only", "--no-renames", "-z", pr.HeadRefOid); err == nil {

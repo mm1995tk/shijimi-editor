@@ -184,8 +184,8 @@ func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) *Core {
 	if out, err := run(abs, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
 		a.Branch = strings.TrimSpace(string(out))
 	}
-	if out, err := run(abs, nil, "git", "rev-parse", "--show-toplevel"); err == nil {
-		a.GitTop = strings.TrimSpace(string(out))
+	if top, err := gitTop(abs); err == nil {
+		a.GitTop = top
 	}
 	if file != "" && a.OpenFile(file) {
 		a.Focus = FocusEditor
