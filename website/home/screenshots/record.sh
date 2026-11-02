@@ -2,12 +2,12 @@
 # Records the screenshots and the demo video of the home page.
 # The tapes in tapes/ are recorded with vhs, and the scenes in kitty/ are taken
 # in kitty, because images and mermaid diagrams need the Kitty graphics protocol.
-# usage: site/screenshots/record.sh [TAPE_OR_SCENE...]   (default: all of them)
-# Needs Nix. The results go to site/images/.
+# usage: website/home/screenshots/record.sh [TAPE_OR_SCENE...]   (default: all of them)
+# Needs Nix. The results go to website/home/images/.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
-repo=$(cd "$here/../.." && pwd)
+repo=$(cd "$here/../../.." && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
@@ -67,4 +67,4 @@ for f in "${files[@]}"; do
 done
 
 # The tapes that only take screenshots also write a GIF; keep just what the page uses.
-cp -f "$work"/out/*.png "$work"/out/*.mp4 "$repo/site/images/" 2>/dev/null || true
+cp -f "$work"/out/*.png "$work"/out/*.mp4 "$repo/website/home/images/" 2>/dev/null || true

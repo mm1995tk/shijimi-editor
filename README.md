@@ -1,10 +1,10 @@
-# <img src="manual/docs/assets/icon.png" alt="" width="32" align="top"> shijimi
+# <img src="website/manual/docs/assets/icon.png" alt="" width="32" align="top"> shijimi
 
 English | [日本語](README.ja.md)
 
 An integrated development environment for the terminal (TUI). The screen is laid out like VS Code. For editing you can choose between Helix-style modal editing and modeless VS Code-style keys. The command is `shj`.
 
-Home page: <https://mm1995tk.github.io/shijimi-editor/> / Manual (English, with a Japanese version): <https://mm1995tk.github.io/shijimi-editor/manual/> (source in [`site/`](site/) and [`manual/`](manual/))
+Home page: <https://mm1995tk.github.io/shijimi-editor/> / Manual (English, with a Japanese version): <https://mm1995tk.github.io/shijimi-editor/manual/> (source in [`website/home/`](website/home/) and [`website/manual/`](website/manual/))
 
 The UI is in English by default. To switch it to Japanese, set `ui-language = "ja"` in `config.toml` (see [UI language](#ui-language)).
 
@@ -73,7 +73,7 @@ shj main.go    # edit just one file (single-file mode, for $EDITOR)
 
 `shijimi` works the same as `shj` (installing with Nix gives you both).
 
-Given a file, shj starts in single-file mode. It does not start the file tree, LSP, terminal, diff mode or agent, and exits when you close it with `:q` or `:wq` (see [Installation and startup](manual/docs/install.en.md) in the manual).
+Given a file, shj starts in single-file mode. It does not start the file tree, LSP, terminal, diff mode or agent, and exits when you close it with `:q` or `:wq` (see [Installation and startup](website/manual/docs/install.en.md) in the manual).
 
 ## Settings
 
@@ -453,16 +453,16 @@ cmux (macOS only; `CMUX_WORKSPACE_ID` and `CMUX_SURFACE_ID` set) also works, wit
 
 ## Editing the manual and the home page
 
-The manual is built from `manual/` with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). The home page is the plain HTML in `site/`. When you push to `main`, GitHub Actions publishes both to GitHub Pages: the home page at the root and the manual under `/manual/`. To preview the manual locally, run:
+The manual is built from `website/manual/` with [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). The home page is the plain HTML in `website/home/`. When you push to `main`, GitHub Actions publishes both to GitHub Pages: the home page at the root and the manual under `/manual/`. To preview the manual locally, run:
 
 ```sh
-pip install -r manual/requirements.txt
-mkdocs serve --config-file manual/mkdocs.yml
+pip install -r website/manual/requirements.txt
+mkdocs serve --config-file website/manual/mkdocs.yml
 ```
 
-The manual has an English page (`name.en.md`, the default) and a Japanese page (`name.ja.md`) for each page. When you change one, change the other too. `manual/check-translations.sh` checks that every page has both languages and the same structure, and CI runs it on pull requests (it also fails when only one language of a page changed; add `[skip-i18n-check]` to the pull request title to skip that part, for a typo fix for example).
+The manual has an English page (`name.en.md`, the default) and a Japanese page (`name.ja.md`) for each page. When you change one, change the other too. `website/manual/check-translations.sh` checks that every page has both languages and the same structure, and CI runs it on pull requests (it also fails when only one language of a page changed; add `[skip-i18n-check]` to the pull request title to skip that part, for a typo fix for example).
 
-The screenshots and the demo video of the home page (`site/images/`) are recorded with [vhs](https://github.com/charmbracelet/vhs), and the ones with images and mermaid diagrams are taken in kitty, because they need the Kitty graphics protocol. After a change to the screen, run `site/screenshots/record.sh` (it needs Nix) to record them again. The scenes are in `site/screenshots/tapes/` (vhs) and `site/screenshots/kitty/` (kitty).
+The screenshots and the demo video of the home page (`website/home/images/`) are recorded with [vhs](https://github.com/charmbracelet/vhs), and the ones with images and mermaid diagrams are taken in kitty, because they need the Kitty graphics protocol. After a change to the screen, run `website/home/screenshots/record.sh` (it needs Nix) to record them again. The scenes are in `website/home/screenshots/tapes/` (vhs) and `website/home/screenshots/kitty/` (kitty).
 
 ## License
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Checks that the Japanese and English manual pages are in sync.
 #
-#   manual/check-translations.sh [BASE_REF]
+#   website/manual/check-translations.sh [BASE_REF]
 #
 # 1. Every page has both docs/<name>.ja.md and docs/<name>.en.md.
 # 2. Each pair has the same number of headings, code fences and table rows.
@@ -9,7 +9,7 @@
 #    the merge base must have the other language changed too.
 #
 # To skip check 3 for a change that needs no translation (a typo fix, say),
-# put "[skip-i18n-check]" in the pull request title (see manual.yml).
+# put "[skip-i18n-check]" in the pull request title (see website.yml).
 set -euo pipefail
 
 cd "$(dirname "$0")/docs"
