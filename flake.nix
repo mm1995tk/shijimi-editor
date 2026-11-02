@@ -148,20 +148,6 @@
           checks = {
             formatting = treefmtEval.config.build.check self;
 
-            # Go の全パッケージのテスト。packages の shj は subPackages が cmd/shj だけなので、
-            # そのままでは internal/ のテストが回らない。入れるときのビルドは重くしたくないので、ここだけで回す
-            go-test = appDrv.overrideAttrs (_: {
-              pname = "shijimi-go-test";
-              nativeCheckInputs = [ pkgs.git ];
-              checkPhase = ''
-                runHook preCheck
-                export HOME="$TMPDIR/home"
-                mkdir -p "$HOME"
-                go test ./...
-                runHook postCheck
-              '';
-            });
-
             # GUI の殻（cargo test も回る）と Web 画面のテスト（npm test）
             gui = guiDrv;
             gui-web-test = guiDrv.web.overrideAttrs (_: {
@@ -170,6 +156,24 @@
               checkPhase = ''
                 runHook preCheck
                 npm test
+                runHook postCheck
+              '';
+            });
+          }
+          # Go の全パッケージのテスト。packages の shj は subPackages が cmd/shj だけなので、
+          # そのままでは internal/ のテストが回らない。入れるときのビルドは重くしたくないので、ここだけで回す。
+          # Linux だけ。macOS の Nix のビルド環境には PATH に ps が無く、ソケットのパスが長すぎ、
+          # PTY のシェルも動かないので、テストが前提にする環境にならない。macOS では CI（check.yml）が
+          # devShell の中で go test ./... を回す
+          // pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            go-test = appDrv.overrideAttrs (_: {
+              pname = "shijimi-go-test";
+              nativeCheckInputs = [ pkgs.git ];
+              checkPhase = ''
+                runHook preCheck
+                export HOME="$TMPDIR/home"
+                mkdir -p "$HOME"
+                go test ./...
                 runHook postCheck
               '';
             });

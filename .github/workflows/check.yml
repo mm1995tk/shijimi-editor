@@ -2,7 +2,7 @@ name: 検査
 
 # flake の checks（nix flake check）を Linux と macOS で回す。手元の nix flake check と同じもの:
 #   formatting   … nix fmt で差分が出ない
-#   go-test      … go test ./...
+#   go-test      … go test ./...（Linux だけ。macOS は devShell の中で go test ./... を回す）
 #   gui          … nix build .#gui（殻の cargo test も回る）
 #   gui-web-test … Web 画面の npm test
 # 自動更新（feature updater）を付けた殻は Nix の版に無いので、devShell の中で別に確かめる。
@@ -31,6 +31,11 @@ jobs:
       - uses: cachix/install-nix-action@v31
       - name: nix flake check
         run: nix flake check --print-build-logs
+      # macOS の Nix のビルド環境では Go のテストが前提にする環境にならない（flake.nix の checks を見よ）ので、
+      # 手元と同じ devShell の中で回す
+      - name: go test ./...（macOS）
+        if: runner.os == 'macOS'
+        run: nix develop --command go test ./...
 
   # 自動更新を付けた殻。配る版（gui-release.yml）はこれを tauri build で作る
   updater:
