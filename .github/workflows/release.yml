@@ -59,6 +59,15 @@ jobs:
             echo "::error::$target は前のリリース v$last より後のコミットではありません"
             exit 1
           fi
+          # 後のジョブ（npm-pack と gui）は、main のワークフローのまま、このコミットのファイルでビルドする。
+          # その置き場所がこのコミットに無ければ、タグを打つ前に止める（v0.8.0 は置き場所を変える前のコミットで、
+          # タグを打ったあとに npm-pack と gui が落ちた）。
+          for f in packaging/npm/pack.sh package-lock.json gui/src-tauri/tauri.conf.json; do
+            if ! git cat-file -e "$target:$f" 2>/dev/null; then
+              echo "::error::$target に $f がありません。このワークフローではリリースできない古いコミットです"
+              exit 1
+            fi
+          done
           git switch -q --detach "$target"
 
       - name: バージョンを上げる
