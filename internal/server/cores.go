@@ -11,8 +11,9 @@ import (
 // while another workspace has the focus (docs/design/gui-protocol.md, 3 章
 // 「ワークスペース」). Roots are normalized paths, as in wsInfo.Root.
 type Cores interface {
-	// Open makes sure root has a core. workspace.focus calls it.
-	Open(root string)
+	// Open makes sure root has a core. workspace.focus calls it. It fails when
+	// the workspace's configuration files have mistakes: there is no core then.
+	Open(root string) error
 	// Files is the absolute paths of the files open in root's core.
 	Files(root string) []string
 	// Kept is the roots whose cores have any file open, named or not. Their

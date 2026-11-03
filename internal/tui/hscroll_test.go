@@ -82,7 +82,7 @@ func TestHScrollShiftWheelOutsideTextStaysVertical(t *testing.T) {
 	for i := range 60 {
 		os.WriteFile(filepath.Join(dir, fmt.Sprintf("f%02d.txt", i)), []byte(strings.Repeat("x", 300)+"\n"), 0o644)
 	}
-	a := New(dir, filepath.Join(dir, "f00.txt"))
+	a := mustNew(dir, filepath.Join(dir, "f00.txt"))
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	l := a.layout()
 	a.HandleMouse(a.locate(2, l.editY+2, core.Mouse{Action: core.MousePress, Button: core.MouseWheelDown, Shift: true}))
@@ -106,7 +106,7 @@ func TestHScrollSplitDiffMovesBaseSideAndHidesCaret(t *testing.T) {
 	gitIn(t, dir, "add", ".")
 	gitIn(t, dir, "commit", "-q", "-m", "init")
 	os.WriteFile(file, []byte(long("new")), 0o644)
-	a := New(dir, file)
+	a := mustNew(dir, file)
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	a.Gd.On = true
 	a.Gd.Base = core.BaseHead

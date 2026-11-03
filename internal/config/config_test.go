@@ -32,7 +32,7 @@ name = "mylang"
 file-types = ["ml2", { glob = "*.special" }]
 language-servers = [{ name = "my-gopls", except-features = ["format"] }]
 `), 0o644)
-	c := Load(root)
+	c := load(root)
 	l := c.LanguageFor(filepath.Join(root, "main.go"))
 	if l == nil || l.Name != "go" || len(l.Servers) != 1 || l.Servers[0] != "my-gopls" || l.IndentUnit != "\t" {
 		t.Fatalf("go = %+v", l)
@@ -56,12 +56,12 @@ func TestFileIconsOption(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	if !Load(root).Editor.FileIcons {
+	if !load(root).Editor.FileIcons {
 		t.Fatal("file-icons should default to true")
 	}
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[editor]\nfile-icons = false\n"), 0o644)
-	if Load(root).Editor.FileIcons {
+	if load(root).Editor.FileIcons {
 		t.Fatal("file-icons = false should disable icons")
 	}
 }
@@ -76,7 +76,7 @@ func TestSearchConfig(t *testing.T) {
 exclude = ["*.lock", "dist/**"]
 include = ["*.go"]
 `), 0o644)
-	c := Load(root)
+	c := load(root)
 	if len(c.Search.Exclude) != 2 || c.Search.Exclude[1] != "dist/**" || len(c.Search.Include) != 1 {
 		t.Fatalf("search = %+v", c.Search)
 	}
@@ -89,12 +89,12 @@ func TestBrowserConfigOnlyFromOwnDirs(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	os.MkdirAll(filepath.Join(cfg, "shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("[browser]\nlisten-host = \"10.0.0.1\"\n"), 0o644)
-	if got := Load(root).Browser.ListenHost; got != "10.0.0.1" {
+	if got := load(root).Browser.ListenHost; got != "10.0.0.1" {
 		t.Fatalf("user = %q", got)
 	}
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[browser]\nlisten-host = \"::1\"\n"), 0o644)
-	if got := Load(root).Browser.ListenHost; got != "::1" {
+	if got := load(root).Browser.ListenHost; got != "::1" {
 		t.Fatalf("listen-host = %q", got)
 	}
 }
@@ -113,7 +113,7 @@ command = "nixd"
 name = "nix"
 language-servers = ["nixd"]
 `), 0o644)
-	if got := Load(root).Languages["nix"].Servers; len(got) != 1 || got[0] != "nixd" {
+	if got := load(root).Languages["nix"].Servers; len(got) != 1 || got[0] != "nixd" {
 		t.Fatalf("nix servers = %v", got)
 	}
 }
@@ -122,7 +122,7 @@ func TestAutoSave(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	c := Load(root)
+	c := load(root)
 	if !c.Editor.AutoSave || c.Editor.AutoSaveDelay != time.Second {
 		t.Fatalf("default = %+v", c.Editor)
 	}
@@ -132,7 +132,7 @@ func TestAutoSave(t *testing.T) {
 enable = false
 timeout = 2500
 `), 0o644)
-	c = Load(root)
+	c = load(root)
 	if c.Editor.AutoSave || c.Editor.AutoSaveDelay != 2500*time.Millisecond {
 		t.Fatalf("override = %+v", c.Editor)
 	}
@@ -142,17 +142,17 @@ func TestThemeOption(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	if Load(root).Editor.Theme != "" {
+	if load(root).Editor.Theme != "" {
 		t.Fatal("theme should default to empty")
 	}
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("theme = \"github_dark\"\n"), 0o644)
-	if got := Load(root).Editor.Theme; got != "github_dark" {
+	if got := load(root).Editor.Theme; got != "github_dark" {
 		t.Fatalf("top-level theme = %q", got)
 	}
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[editor]\ntheme = \"light\"\n"), 0o644)
-	if got := Load(root).Editor.Theme; got != "light" {
+	if got := load(root).Editor.Theme; got != "light" {
 		t.Fatalf("editor.theme = %q", got)
 	}
 }
@@ -185,7 +185,7 @@ func TestNixConfig(t *testing.T) {
     { name = "mylang"; file-types = [ "ml2" { glob = "*.special"; } ]; language-servers = [ { name = "my-gopls"; } ]; }
   ];
 }`), 0o644)
-	c := Load(root)
+	c := load(root)
 	if c.Editor.Keymap != "vscode" || c.Editor.LineNumber != "relative" || c.Editor.AutoSaveDelay != 250*time.Millisecond {
 		t.Fatalf("editor = %+v", c.Editor)
 	}
@@ -209,12 +209,12 @@ func TestMouseHoverOption(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	if !Load(root).Editor.MouseHover {
+	if !load(root).Editor.MouseHover {
 		t.Fatal("mouse-hover should default to true")
 	}
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[editor]\nmouse-hover = false\n"), 0o644)
-	if Load(root).Editor.MouseHover {
+	if load(root).Editor.MouseHover {
 		t.Fatal("mouse-hover = false should disable it")
 	}
 }
@@ -222,12 +222,12 @@ func TestMouseHoverOption(t *testing.T) {
 func TestIndentGuidesOption(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	if !Load(root).Editor.IndentGuides {
+	if !load(root).Editor.IndentGuides {
 		t.Fatal("indent-guides should default to true")
 	}
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[editor.indent-guides]\nrender = false\n"), 0o644)
-	if Load(root).Editor.IndentGuides {
+	if load(root).Editor.IndentGuides {
 		t.Fatal("render = false should disable indent guides")
 	}
 }
@@ -246,7 +246,10 @@ environment = { A = "1" }
 `), 0o644)
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[agent]\ncommand = \"evil\"\n"), 0o644)
-	c := Load(root)
+	c, err := Load(root)
+	if err == nil {
+		t.Fatal("a project's [agent] must be an error")
+	}
 	if c.Agent.Command != "claude-agent-acp" || len(c.Agent.Args) != 1 || c.Agent.Env["A"] != "1" {
 		t.Fatalf("agent = %+v", c.Agent)
 	}
@@ -262,7 +265,7 @@ func TestHelixDirsAreIgnored(t *testing.T) {
 		os.WriteFile(filepath.Join(d, "config.toml"), []byte("theme = \"github_dark\"\n[editor]\nfile-icons = false\n"), 0o644)
 		os.WriteFile(filepath.Join(d, "languages.toml"), []byte("[[language]]\nname = \"mylang\"\nfile-types = [\"ml2\"]\n"), 0o644)
 	}
-	c := Load(root)
+	c := load(root)
 	if c.Editor.Theme != "" || !c.Editor.FileIcons {
 		t.Fatalf("helix config.toml must be ignored: %+v", c.Editor)
 	}
@@ -275,7 +278,7 @@ func TestUILanguageOption(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
-	if got := Load(root).Editor.UILanguage; got != "en" {
+	if got := load(root).Editor.UILanguage; got != "en" {
 		t.Fatalf("ui-language should default to en, got %q", got)
 	}
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
@@ -283,50 +286,50 @@ func TestUILanguageOption(t *testing.T) {
 		os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte(s), 0o644)
 	}
 	write("ui-language = \"ja\"\n")
-	if got := Load(root).Editor.UILanguage; got != "ja" {
+	if got := load(root).Editor.UILanguage; got != "ja" {
 		t.Fatalf("ui-language = %q, want ja", got)
 	}
 	write("ui-language = \"fr\"\n")
-	if got := Load(root).Editor.UILanguage; got != "en" {
-		t.Fatalf("an unsupported language should keep en, got %q", got)
+	if c, err := Load(root); err == nil || c.Editor.UILanguage != "en" {
+		t.Fatalf("an unsupported language is an error, got %q, %v", c.Editor.UILanguage, err)
 	}
 }
 
 func TestMergeKeys(t *testing.T) {
-	c := &Config{}
-	c.mergeKeys(`
+	root := t.TempDir()
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(filepath.Join(xdg, "shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(xdg, "shijimi-editor", "config.toml"), []byte(`
 [keys.normal]
 "C-s" = ":write"
 h = "move_char_right"
-[keys.normal.g]
-a = "no_op"
 [keys.insert]
 "A-x" = "normal_mode"
 [keys.select]
 j = "extend_line_below"
-`)
+`), 0o644)
+	c := load(root)
 	if c.Keys.Normal["C-s"] != ":write" || c.Keys.Normal["h"] != "move_char_right" {
 		t.Fatalf("normal = %v", c.Keys.Normal)
 	}
 	if c.Keys.Insert["A-x"] != "normal_mode" || c.Keys.Select["j"] != "extend_line_below" {
 		t.Fatalf("insert = %v, select = %v", c.Keys.Insert, c.Keys.Select)
 	}
-	if len(c.Keys.Invalid) != 1 || c.Keys.Invalid[0] != "keys.normal.g" {
-		t.Fatalf("invalid = %v", c.Keys.Invalid)
-	}
 }
 
-func TestKeysReadOnlyFromUserConfig(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", home)
+// [agent], [server] and [keys] in a project's config are not read, and say so
+// instead of being ignored in silence.
+func TestUserOnlySectionsInProjectAreErrors(t *testing.T) {
 	root := t.TempDir()
-	os.MkdirAll(filepath.Join(home, "shijimi-editor"), 0o755)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
-	os.WriteFile(filepath.Join(home, "shijimi-editor", "config.toml"), []byte("[keys.normal]\nh = \"move_char_right\"\n"), 0o644)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[keys.normal]\nl = \":sh evil\"\n"), 0o644)
-	c := Load(root)
-	if c.Keys.Normal["h"] != "move_char_right" {
-		t.Fatalf("user keys not read: %v", c.Keys.Normal)
+	c, err := Load(root)
+	if err == nil {
+		t.Fatal("a project's [keys] must be an error")
 	}
 	if _, ok := c.Keys.Normal["l"]; ok {
 		t.Fatalf("project keys must not be read: %v", c.Keys.Normal)
@@ -335,7 +338,7 @@ func TestKeysReadOnlyFromUserConfig(t *testing.T) {
 
 func goplsConfig(t *testing.T, root string) map[string]any {
 	t.Helper()
-	s := Load(root).Servers["gopls"]
+	s := load(root).Servers["gopls"]
 	if s == nil {
 		t.Fatal("no gopls server")
 	}
@@ -404,7 +407,7 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 
 	// A nightly build without its own directory reads the stable one, [agent] included.
 	channel.SetForTest(t, channel.Nightly)
-	c := Load(root)
+	c := load(root)
 	if c.Editor.Theme != "stable" || c.Agent.Command != "a" {
 		t.Fatalf("nightly without its own dir must read shijimi-editor: %+v %+v", c.Editor, c.Agent)
 	}
@@ -415,7 +418,7 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 	// Once shijimi-editor-nightly exists, the stable directory is not read at all.
 	os.MkdirAll(filepath.Join(cfg, "shijimi-editor-nightly"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor-nightly", "config.toml"), []byte("[agent]\ncommand = \"b\"\n"), 0o644)
-	c = Load(root)
+	c = load(root)
 	if c.Editor.Theme != "" || c.Agent.Command != "b" {
 		t.Fatalf("nightly must read only shijimi-editor-nightly: %+v %+v", c.Editor, c.Agent)
 	}
@@ -425,7 +428,7 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 
 	// The stable build never looks at the nightly directory.
 	channel.SetForTest(t, "")
-	c = Load(root)
+	c = load(root)
 	if c.Editor.Theme != "stable" || c.Agent.Command != "a" || c.Experimental.Default {
 		t.Fatalf("stable must read shijimi-editor: %+v %+v %+v", c.Editor, c.Agent, c.Experimental)
 	}
@@ -436,22 +439,22 @@ func TestExperimentalMultiplexer(t *testing.T) {
 	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	t.Setenv("HOME", t.TempDir())
-	if Load(root).Experimental.Multiplexer {
+	if load(root).Experimental.Multiplexer {
 		t.Fatal("herdr must default to false on the stable channel")
 	}
 	channel.SetForTest(t, channel.Nightly)
-	if !Load(root).Experimental.Multiplexer {
+	if !load(root).Experimental.Multiplexer {
 		t.Fatal("herdr must default to true on the nightly channel")
 	}
 	os.MkdirAll(filepath.Join(cfg, "shijimi-editor-nightly"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor-nightly", "config.toml"), []byte("[experimental]\nherdr = false\n"), 0o644)
-	if Load(root).Experimental.Multiplexer {
+	if load(root).Experimental.Multiplexer {
 		t.Fatal("herdr = false must win over the nightly default")
 	}
 	channel.SetForTest(t, "")
 	os.MkdirAll(filepath.Join(cfg, "shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("[experimental]\nherdr = true\n"), 0o644)
-	if !Load(root).Experimental.Multiplexer {
+	if !load(root).Experimental.Multiplexer {
 		t.Fatal("herdr = true must win over the stable default")
 	}
 }
@@ -465,7 +468,7 @@ func TestMultiplexerKeys(t *testing.T) {
 	os.MkdirAll(dir, 0o755)
 	write := func(s string) *Config {
 		os.WriteFile(filepath.Join(dir, "config.toml"), []byte(s), 0o644)
-		return Load(root)
+		return load(root)
 	}
 	if c := write(""); c.Terminal.Multiplexer != "auto" {
 		t.Fatalf("default: %q", c.Terminal.Multiplexer)
@@ -480,27 +483,45 @@ func TestMultiplexerKeys(t *testing.T) {
 	if c := write("[terminal]\nmultiplexer = \"None\"\n"); c.Terminal.Multiplexer != "none" {
 		t.Fatalf("none: %q", c.Terminal.Multiplexer)
 	}
-	if c := write("[terminal]\nmultiplexer = \"screen\"\n"); c.Terminal.Multiplexer != "auto" {
-		t.Fatalf("unknown value must be ignored: %q", c.Terminal.Multiplexer)
+	os.WriteFile(filepath.Join(dir, "config.toml"), []byte("[terminal]\nmultiplexer = \"screen\"\n"), 0o644)
+	if _, err := Load(root); err == nil {
+		t.Fatal("an unknown multiplexer must be an error")
 	}
 }
 
 func TestServeIdleStopDays(t *testing.T) {
-	c := &Config{Serve: Serve{IdleStopDays: 7}}
-	c.mergeServe("[server]\nidle_stop_days = 0\n")
-	if c.Serve.IdleStopDays != 0 {
-		t.Fatalf("0: %d", c.Serve.IdleStopDays)
+	root := t.TempDir()
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("HOME", t.TempDir())
+	dir := filepath.Join(cfg, "shijimi-editor")
+	os.MkdirAll(dir, 0o755)
+	write := func(s string) (*Config, error) {
+		os.WriteFile(filepath.Join(dir, "config.toml"), []byte(s), 0o644)
+		return Load(root)
 	}
-	c.mergeServe("[server]\nidle_stop_days = 3\n")
-	if c.Serve.IdleStopDays != 3 {
-		t.Fatalf("3: %d", c.Serve.IdleStopDays)
+	if c, err := write(""); err != nil || c.Serve.IdleStopDays != 7 {
+		t.Fatalf("default: %d, %v", c.Serve.IdleStopDays, err)
 	}
-	c.mergeServe("[server]\nidle_stop_days = -1\n")
-	if c.Serve.IdleStopDays != 3 {
-		t.Fatalf("negative must be ignored: %d", c.Serve.IdleStopDays)
+	if c, err := write("[server]\nidle_stop_days = 0\n"); err != nil || c.Serve.IdleStopDays != 0 {
+		t.Fatalf("0: %d, %v", c.Serve.IdleStopDays, err)
 	}
-	c.mergeServe("[server]\nidle_stop_days = \"x\"\n")
-	if c.Serve.IdleStopDays != 3 {
-		t.Fatalf("string must be ignored: %d", c.Serve.IdleStopDays)
+	if c, err := write("[server]\nidle_stop_days = 3\n"); err != nil || c.Serve.IdleStopDays != 3 {
+		t.Fatalf("3: %d, %v", c.Serve.IdleStopDays, err)
 	}
+	if _, err := write("[server]\nidle_stop_days = -1\n"); err == nil {
+		t.Fatal("negative must be an error")
+	}
+	if _, err := write("[server]\nidle_stop_days = \"x\"\n"); err == nil {
+		t.Fatal("string must be an error")
+	}
+}
+
+// load is Load for a configuration that must be valid.
+func load(root string) *Config {
+	c, err := Load(root)
+	if err != nil {
+		panic(err)
+	}
+	return c
 }

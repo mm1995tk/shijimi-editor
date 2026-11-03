@@ -326,7 +326,7 @@ func TestOpenChangePutsCursorOnFirstChange(t *testing.T) {
 	mod[30], mod[35] = "x", "y"
 	write("mod.txt", mod)
 	write("del.txt", slices.Delete(slices.Clone(lines), 20, 22))
-	a := New(dir, "")
+	a := mustNew(dir, "")
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	a.Gd.On = true
 	a.Gd.Base = core.BaseHead

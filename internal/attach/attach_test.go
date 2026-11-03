@@ -2,6 +2,7 @@ package attach
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -125,4 +126,25 @@ func TestStartTimeout(t *testing.T) {
 		t.Fatal("want error")
 	}
 	_ = os.Remove
+}
+
+// shj serve が起動できずに終わったら、待ちきる前にその理由を返す。
+func TestRunReportsWhyServeExited(t *testing.T) {
+	dir := t.TempDir()
+	var out bytes.Buffer
+	start := time.Now()
+	err := Run(Options{
+		SocketPath: filepath.Join(dir, "s"), LockPath: filepath.Join(dir, "l"),
+		Start:       func() error { return nil },
+		Exited:      func() (string, bool) { return "config.toml:3: unknown key", true },
+		WaitTimeout: 5 * time.Second,
+		In:          strings.NewReader(""), Out: &out,
+	})
+	var se *StartError
+	if !errors.As(err, &se) || se.Reason != "config.toml:3: unknown key" {
+		t.Fatalf("err = %v", err)
+	}
+	if time.Since(start) > 2*time.Second {
+		t.Fatal("it waited for the timeout")
+	}
 }

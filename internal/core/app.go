@@ -139,25 +139,35 @@ type Core struct {
 // New creates the core rooted at dir, optionally opening file. fe is the front
 // end it is drawn by. The core has the process-wide parts (Shared) to itself,
 // as in the TUI: Close closes them too.
-func New(fe FrontEnd, dir, file string) *Core {
-	a := newCore(NewShared(), fe, dir, file, true)
+//
+// A mistake in a configuration file is an *config.Error and no core: shijimi
+// does not start with settings it cannot read as written.
+func New(fe FrontEnd, dir, file string) (*Core, error) {
+	a, err := newCore(NewShared(), fe, dir, file, true)
+	if err != nil {
+		return nil, err
+	}
 	a.ownShared = true
-	return a
+	return a, nil
 }
 
 // NewIn creates the core rooted at dir on the process-wide parts sh, which
 // other cores may share; Close leaves them open. `shj serve` makes a core per
 // workspace this way (Workspaces). The UI language is the process's, so NewIn
 // leaves it as it is (New sets it from the root's config).
-func NewIn(sh *Shared, fe FrontEnd, dir, file string) *Core {
+func NewIn(sh *Shared, fe FrontEnd, dir, file string) (*Core, error) {
 	return newCore(sh, fe, dir, file, false)
 }
 
-func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) *Core {
+func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) (*Core, error) {
 	abs, _ := filepath.Abs(dir)
-	cfg := config.Load(abs)
+	cfg, err := config.Load(abs)
 	if setLang {
+		// also with a mistake: the settings that did read give the language of the report
 		i18n.SetLang(cfg.Editor.UILanguage)
+	}
+	if err != nil {
+		return nil, err
 	}
 	a := &Core{
 		FrontEnd: fe,
@@ -191,7 +201,7 @@ func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) *Core {
 		a.Focus = FocusEditor
 	}
 	a.loadKeymap()
-	return a
+	return a, nil
 }
 
 // NewSingle creates the core in single-file mode: only file is edited, with no
@@ -201,8 +211,11 @@ func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) *Core {
 func NewSingle(fe FrontEnd, file string) (*Core, error) {
 	abs, _ := filepath.Abs(file)
 	dir := filepath.Dir(abs)
-	cfg := config.Load(dir)
+	cfg, err := config.Load(dir)
 	i18n.SetLang(cfg.Editor.UILanguage)
+	if err != nil {
+		return nil, err
+	}
 	a := &Core{
 		FrontEnd:  fe,
 		Root:      dir,

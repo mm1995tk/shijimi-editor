@@ -83,8 +83,8 @@
 
 ## 設定の書き方
 
-設定は、Helix と互換がある `languages.toml` に書きます。
-Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーしてください。
+設定は、Helix と同じ書き方の `languages.toml` に書きます。
+Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーして、下の表に無い項目を消してください。shijimi-editor が読まない項目があると、起動しません（[設定ファイル](config.md#ファイルに間違いがあるとき)）。
 読み込む場所と順番は [設定ファイル](config.md) にあります。
 
 ```toml

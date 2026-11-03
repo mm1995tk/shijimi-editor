@@ -12,7 +12,7 @@ import (
 )
 
 func resizeApp(t *testing.T) *App {
-	a := New(t.TempDir(), "")
+	a := mustNew(t.TempDir(), "")
 	a.w, a.h = 120, 40
 	return a
 }
@@ -258,7 +258,7 @@ func TestResizeKeysEditorBorders(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "a.md")
 	os.WriteFile(file, []byte("# a\n"), 0o644)
-	a := New(dir, file)
+	a := mustNew(dir, file)
 	a.Update(tea.WindowSizeMsg{Width: 200, Height: 40})
 	a.Focus = core.FocusEditor
 	a.StartResize()

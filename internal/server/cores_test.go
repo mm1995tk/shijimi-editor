@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -16,12 +18,14 @@ type fakeCores struct {
 	opened  []string
 	closed  []string
 	cleared []string
+	openErr error // what Open returns
 }
 
-func (f *fakeCores) Open(root string) {
+func (f *fakeCores) Open(root string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.opened = append(f.opened, root)
+	return f.openErr
 }
 
 func (f *fakeCores) Files(root string) []string {
@@ -106,4 +110,25 @@ func TestWorkspaceKeptByOpenFiles(t *testing.T) {
 		return false
 	})
 	waitFor(t, "core closed", func() bool { return fc.seen(&fc.closed, root) })
+}
+
+// A workspace whose core cannot be made (its configuration has a mistake) does
+// not take the focus, and the reason reaches the client.
+func TestWorkspaceFocusFailsWhenCoreCannotBeMade(t *testing.T) {
+	srv, sock := startFast(t)
+	root := normalizePath(t.TempDir())
+	fc := &fakeCores{files: map[string][]string{root: {filepath.Join(root, "a.go")}}, openErr: errors.New("config.toml:2: unknown key")}
+	srv.SetCores(fc)
+	c, _ := termClient(t, sock)
+	ctx := context.Background()
+	var l wsList
+	waitFor(t, "workspace", func() bool {
+		l = wsList{}
+		c.Call(ctx, "workspace.list", map[string]any{}, &l)
+		return len(l.Workspaces) == 1
+	})
+	err := c.Call(ctx, "workspace.focus", map[string]any{"id": l.Workspaces[0].ID}, nil)
+	if err == nil || !strings.Contains(err.Error(), "config.toml:2: unknown key") {
+		t.Fatalf("err = %v", err)
+	}
 }

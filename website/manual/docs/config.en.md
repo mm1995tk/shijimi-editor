@@ -15,7 +15,28 @@ They are loaded in the following order. Later ones take precedence.
 - Write language servers in `languages.toml` ([LSP](lsp.md)).
 - Write everything else in `config.toml` (this page).
 - Run `:config-reload` while running to reload them.
+- If a file has a mistake, shijimi-editor does not start ([If a file has a mistake](#if-a-file-has-a-mistake)).
 - `[agent]` is read only from the user's own `config.toml` (`~/.config/shijimi-editor/config.toml`, or the nightly build's directory below) ([AI agent integration](agent.md)).
+
+## If a file has a mistake
+
+If any file has a mistake, `shj` and `shj serve` do not start. They print the file, the line and the reason for every mistake, and exit with a non-zero status:
+
+```
+/home/me/.config/shijimi-editor/config.toml:4: editor.bogus: unknown key (shijimi-editor does not read it)
+/home/me/.config/shijimi-editor/config.toml:3: editor.file-icons: must be true or false, but it is a string
+```
+
+These are mistakes:
+
+- TOML syntax errors, and Nix files (`config.nix` / `languages.nix`) that do not evaluate (Nix has no lines, so the setting is shown instead).
+- Unknown keys. This includes keys that Helix has but shijimi-editor does not read, such as `comment-token` in `languages.toml`. Only the keys in this manual are read.
+- Values of the wrong type, such as a string where a number goes, and values that are not allowed (`ui-language`, `[terminal]` `multiplexer`, a negative `idle_stop_days`, `timeout` of 0 or less).
+- `[agent]`, `[server]` and `[keys]` in a project's `.shijimi-editor/config.toml`, because they are read only from the user's own directory.
+
+Older versions ignored these mistakes in silence. After an update, a file that used to start the editor may stop it; fix what the message points at.
+
+While it is running, `:config-reload` with a mistake in a file does not stop the editor. It keeps the current settings and shows the first mistake in the status line. With `shj serve`, a mistake in a project's file stops that workspace from opening, and the GUI shows the reason in the error of the workspace switch. A mistake in the user's own files stops `shj serve` itself, and `shj attach` passes the reason to the GUI as the connection error.
 
 ## Nightly build
 

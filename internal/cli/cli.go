@@ -2,6 +2,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,7 +31,7 @@ func Main() {
 			return
 		}
 		if arg == "-h" || arg == "--help" {
-			i18n.SetLang(config.Load(dir).Editor.UILanguage)
+			setLangFromConfig(dir)
 			fmt.Println(i18n.T("help.usage"))
 			fmt.Println(i18n.T("help.single1"))
 			fmt.Println(i18n.T("help.single2"))
@@ -46,15 +47,15 @@ func Main() {
 			return
 		}
 		if arg == "attach" {
-			i18n.SetLang(config.Load(dir).Editor.UILanguage)
+			setLangFromConfig(dir)
 			os.Exit(runAttach(os.Args[2:]))
 		}
 		if arg == "serve" {
-			i18n.SetLang(config.Load(dir).Editor.UILanguage)
+			setLangFromConfig(dir)
 			os.Exit(runServe(os.Args[2:]))
 		}
 		if ctl.IsSubcommand(arg) {
-			i18n.SetLang(config.Load(dir).Editor.UILanguage)
+			setLangFromConfig(dir)
 			os.Exit(ctl.Run(os.Args[1:],
 				func(s string) { fmt.Println(s) },
 				func(s string) { fmt.Fprintln(os.Stderr, s) }))
@@ -69,11 +70,13 @@ func Main() {
 	if single {
 		var err error
 		if app, err = tui.NewSingle(file); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			failConfig(err)
 		}
 	} else {
-		app = tui.New(dir, file)
+		var err error
+		if app, err = tui.New(dir, file); err != nil {
+			failConfig(err)
+		}
 	}
 	closeSock := func() {}
 	// The terminal cursor follows the typing position so that an IME shows
@@ -111,4 +114,30 @@ func Main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// setLangFromConfig sets the UI language from dir's settings, for the commands
+// that need nothing else from them. A mistake in the files is not reported
+// here: the commands that run the editor report it, and the others work
+// without settings.
+func setLangFromConfig(dir string) {
+	cfg, _ := config.Load(dir)
+	i18n.SetLang(cfg.Editor.UILanguage)
+}
+
+// failConfig reports why the editor could not start and exits. A mistake in a
+// configuration file is listed with every file, line and reason.
+func failConfig(err error) {
+	fmt.Fprintln(os.Stderr, configErrorText(err))
+	os.Exit(1)
+}
+
+// configErrorText is err for a terminal: a *config.Error gets a heading with
+// its count.
+func configErrorText(err error) string {
+	var ce *config.Error
+	if errors.As(err, &ce) {
+		return fmt.Sprintf(i18n.T("config.err.head"), len(ce.Problems)) + "\n" + ce.Error()
+	}
+	return err.Error()
 }

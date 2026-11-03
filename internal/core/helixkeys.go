@@ -292,9 +292,6 @@ func buildHelixKeymap(k config.Keys) (km helixKeymap, warnings []string) {
 	overlay(km.sel, "keys.select", k.Select)
 	km.insert = map[string]binding{}
 	overlay(km.insert, "keys.insert", k.Insert)
-	for _, p := range k.Invalid {
-		warnings = append(warnings, fmt.Sprintf(i18n.T("keys.invalid"), p))
-	}
 	return km, warnings
 }
 
