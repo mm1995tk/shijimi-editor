@@ -72,7 +72,7 @@ func (a *App) renderText(t *core.Tab, l layout, focused bool) []string {
 		return edit
 	}
 	prev := a.previewLines(t, a.previewW(t, l), l.editH)
-	sep := stSeparator.Render("│")
+	sep := a.separator(l, core.ResizePreview)
 	for i := range edit {
 		edit[i] += sep + prev[i]
 	}
@@ -106,7 +106,11 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	}
 	t := a.Cur()
 	if a.showTerm {
-		right = append(right, a.term.render(l.fullW, l.panelH, a.FocusIn(core.FocusTerminal))...)
+		panel := a.term.render(l.fullW, l.panelH, a.FocusIn(core.FocusTerminal))
+		if len(panel) > 0 && a.borderLit(l, core.ResizeTerm) {
+			panel[0] = stPanelBordLit.Render(strings.Repeat("─", l.fullW))
+		}
+		right = append(right, panel...)
 	}
 
 	rows := make([]string, l.bodyH)
@@ -118,7 +122,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	if a.showSide {
 		side = drawExplorer(a.ExplorerScreen(a.ExplorerH(), activePath), l.sideW, a.ExplorerH(), a.FocusIn(core.FocusExplorer))
 		if a.DiffMode() {
-			side = append(side, drawChanges(a.ChangesScreen(l.sideW, l.bodyH-a.ExplorerH()), l.sideW, l.bodyH-a.ExplorerH(), a.FocusIn(core.FocusChanges))...)
+			side = append(side, drawChanges(a.ChangesScreen(l.sideW, l.bodyH-a.ExplorerH()), l.sideW, l.bodyH-a.ExplorerH(), a.FocusIn(core.FocusChanges), a.borderLit(l, core.ResizeExplorer))...)
 		}
 	}
 	var agent []string
@@ -126,11 +130,12 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		focused := a.FocusIn(core.FocusAgent)
 		agent = drawAgent(a.AgentScreen(l.agentW, l.bodyH, focused), l.agentW, l.bodyH, focused)
 	}
+	sideSep, agentSep := a.separator(l, core.ResizeSide), a.separator(l, core.ResizeAgent)
 	for i := range rows {
 		var sb strings.Builder
 		if a.showSide {
 			sb.WriteString(side[i])
-			sb.WriteString(stSeparator.Render("│"))
+			sb.WriteString(sideSep)
 		}
 		if i < len(right) {
 			sb.WriteString(right[i])
@@ -143,7 +148,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 			} else {
 				sb.WriteString(stEmpty.Render(strings.Repeat(" ", l.fullW)))
 			}
-			sb.WriteString(stSeparator.Render("│"))
+			sb.WriteString(agentSep)
 			sb.WriteString(agent[i])
 		}
 		rows[i] = sb.String()

@@ -56,7 +56,7 @@ func (a *App) renderDiffText(t *core.Tab, dv *core.DiffView, l layout, focused b
 	}
 	out := make([]string, 0, l.editH)
 	out = append(out, drawDiffHeader(panes[len(panes)-1].Title, hint, l.rightW))
-	return append(out, drawDiff(panes, g, opts)...)
+	return append(out, drawDiff(panes, g, opts, a.separator(l, core.ResizeDiff))...)
 }
 
 // diffMouseToCursor moves the cursor to the buffer line under (x, y) in a
@@ -89,11 +89,15 @@ func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, c
 }
 
 // drawChanges draws the list of changed files as h lines of w cells.
-func drawChanges(ch screen.Changes, w, h int, focused bool) []string {
+func drawChanges(ch screen.Changes, w, h int, focused, lit bool) []string {
 	out := make([]string, 0, h)
 	chip := ch.Chip
 	tw := max(0, w-ansi.StringWidth(chip))
-	out = append(out, stSideTitle.Render(core.Fit(ch.Title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(core.Fit(chip, w-tw)))
+	if lit { // the title row is the border with the explorer, and it is being moved
+		out = append(out, stSideTitleLit.Render(core.Fit(ch.Title, tw)+core.Fit(chip, w-tw)))
+	} else {
+		out = append(out, stSideTitle.Render(core.Fit(ch.Title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(core.Fit(chip, w-tw)))
+	}
 	for i := range max(0, h-1) {
 		if i >= len(ch.Rows) {
 			msg := ""
@@ -186,8 +190,8 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 }
 
 // drawDiff draws the rows of the Panes of a diff (the last one is the current
-// side and has the change bar) as g.H lines.
-func drawDiff(panes []screen.Pane, g core.DiffGeom, o core.EditorOpts) []string {
+// side and has the change bar) as g.H lines, with sep between two panes.
+func drawDiff(panes []screen.Pane, g core.DiffGeom, o core.EditorOpts, sep string) []string {
 	cur := panes[len(panes)-1]
 	two := len(panes) == 2
 	bar := changeBar(cur.Diff, g.H)
@@ -210,7 +214,7 @@ func drawDiff(panes []screen.Pane, g core.DiffGeom, o core.EditorOpts) []string 
 			line = ld.draw(pl)
 		}
 		if two {
-			line = drawOldLine(panes[0], panes[0].Lines[i], g.LeftW) + stSeparator.Render("│") + line
+			line = drawOldLine(panes[0], panes[0].Lines[i], g.LeftW) + sep + line
 		}
 		out = append(out, line+bar[i])
 	}
