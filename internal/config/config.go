@@ -208,42 +208,37 @@ func Load(root string) (*Config, error) {
 		path string
 		user bool
 	}
+	// the files of a directory, in the order they are applied: a Nix file after the TOML of the same name
+	files := []struct {
+		name   string
+		schema map[string]field
+		read   func(path string, schema map[string]field, user bool) (map[string]any, []Problem, bool)
+		config bool // config.*, otherwise languages.*
+	}{
+		{"config.toml", configSchema, readTOML, true},
+		{"config.nix", configSchema, readNix, true},
+		{"languages.toml", languagesSchema, readTOML, false},
+		{"languages.nix", languagesSchema, readNix, false},
+	}
 	var dirs []configDir
 	if d, ok := userConfigDir(); ok {
 		dirs = append(dirs, configDir{userDir(d), true})
 	}
 	dirs = append(dirs, configDir{filepath.Join(root, ".shijimi-editor"), false})
 	for _, dir := range dirs {
-		d, user := dir.path, dir.user
-		path := filepath.Join(d, "config.toml")
-		if raw, ps, ok := readTOML(path, configSchema, user); ok {
+		for _, f := range files {
+			path := filepath.Join(dir.path, f.name)
+			raw, ps, ok := f.read(path, f.schema, dir.user)
 			probs = append(probs, ps...)
-			c.mergeConfigRaw(raw, user)
-			c.Sources = append(c.Sources, path)
-		} else {
-			probs = append(probs, ps...)
-		}
-		path = filepath.Join(d, "config.nix")
-		if raw, ps, ok := readNix(path, configSchema, user); ok {
-			probs = append(probs, ps...)
-			c.mergeConfigRaw(raw, user)
-			c.Sources = append(c.Sources, path)
-		} else {
-			probs = append(probs, ps...)
-		}
-		path = filepath.Join(d, "languages.toml")
-		if raw, ps, ok := readTOML(path, languagesSchema, user); ok {
-			probs = append(probs, ps...)
-			c.mergeLanguagesRaw(raw, path)
-		} else {
-			probs = append(probs, ps...)
-		}
-		path = filepath.Join(d, "languages.nix")
-		if raw, ps, ok := readNix(path, languagesSchema, user); ok {
-			probs = append(probs, ps...)
-			c.mergeLanguagesRaw(raw, path)
-		} else {
-			probs = append(probs, ps...)
+			if !ok {
+				continue
+			}
+			if f.config {
+				c.mergeConfigRaw(raw, dir.user)
+				c.Sources = append(c.Sources, path)
+			} else {
+				c.mergeLanguagesRaw(raw, path)
+			}
 		}
 	}
 	if len(probs) > 0 {
@@ -306,6 +301,9 @@ func readNix(path string, schema map[string]field, user bool) (raw map[string]an
 	if !exists {
 		return nil, nil, false
 	}
+	if errors.Is(err, errNixTop) {
+		return nil, []Problem{{File: path, code: "config.err.nixtop"}}, false
+	}
 	if err != nil {
 		return nil, []Problem{{File: path, code: "config.err.nix", args: []any{err.Error()}}}, false
 	}
@@ -357,6 +355,9 @@ func userConfigDir() (string, bool) {
 // there is no such file; err is why a file that exists could not be
 // evaluated (nix is not installed, evaluation fails, the result is not an
 // attribute set).
+// errNixTop is the result of a Nix file that is not an attribute set.
+var errNixTop = errors.New("not an attribute set")
+
 func evalNix(path string) (raw map[string]any, exists bool, err error) {
 	if _, err := os.Stat(path); err != nil {
 		return nil, false, nil
@@ -375,7 +376,7 @@ func evalNix(path string) (raw map[string]any, exists bool, err error) {
 		return nil, true, err
 	}
 	if err := json.Unmarshal(out, &raw); err != nil || raw == nil {
-		return nil, true, errors.New(i18n.T("config.err.nixtop"))
+		return nil, true, errNixTop
 	}
 	for k, v := range raw {
 		raw[k] = normalizeJSON(v)

@@ -23,12 +23,24 @@ type Problem struct {
 	args []any
 }
 
+// typeKey is the i18n key of a type's name. It stays a key in Problem.args and
+// is translated in Reason, like the reason itself, so that a message is in one
+// language: the one set after Load has read the settings.
+type typeKey string
+
 // Reason is the problem without its place.
 func (p Problem) Reason() string {
 	if len(p.args) == 0 {
 		return i18n.T(p.code)
 	}
-	return fmt.Sprintf(i18n.T(p.code), p.args...)
+	args := make([]any, len(p.args))
+	for i, a := range p.args {
+		if k, ok := a.(typeKey); ok {
+			a = i18n.T(string(k))
+		}
+		args[i] = a
+	}
+	return fmt.Sprintf(i18n.T(p.code), args...)
 }
 
 // Error is "file:line: key: reason" (the line and the key are left out when
@@ -200,7 +212,7 @@ func checkUILanguage(v any) (string, []any) {
 
 func checkMultiplexer(v any) (string, []any) {
 	s, _ := v.(string)
-	if !containsString(Multiplexers, strings.ToLower(strings.TrimSpace(s))) {
+	if !slices.Contains(Multiplexers, strings.ToLower(strings.TrimSpace(s))) {
 		return "config.err.oneof", []any{strings.Join(Multiplexers, ", ")}
 	}
 	return "", nil
@@ -218,10 +230,6 @@ func checkPositive(v any) (string, []any) {
 		return "config.err.positive", nil
 	}
 	return "", nil
-}
-
-func containsString(list []string, s string) bool {
-	return slices.Contains(list, s)
 }
 
 // validator collects the problems of one file.
@@ -290,7 +298,7 @@ func (v *validator) table(m map[string]any, schema map[string]field, path []stri
 }
 
 func (v *validator) value(x any, f field, path []string) {
-	bad := func(want string) { v.add(path, "config.err.type", i18n.T(want), describe(x)) }
+	bad := func(want string) { v.add(path, "config.err.type", typeKey(want), describe(x)) }
 	switch f.kind {
 	case kString:
 		if _, ok := x.(string); !ok {
@@ -315,7 +323,7 @@ func (v *validator) value(x any, f field, path []string) {
 		}
 		for i, e := range list {
 			if _, ok := e.(string); !ok {
-				v.add(extend(path, fmt.Sprintf("[%d]", i)), "config.err.type", i18n.T("config.type.string"), describe(e))
+				v.add(extend(path, fmt.Sprintf("[%d]", i)), "config.err.type", typeKey("config.type.string"), describe(e))
 			}
 		}
 		return
@@ -327,7 +335,7 @@ func (v *validator) value(x any, f field, path []string) {
 		}
 		for _, k := range sortedKeys(m) {
 			if _, ok := m[k].(string); !ok {
-				v.add(extend(path, k), "config.err.type", i18n.T("config.type.string"), describe(m[k]))
+				v.add(extend(path, k), "config.err.type", typeKey("config.type.string"), describe(m[k]))
 			}
 		}
 		return
@@ -350,7 +358,7 @@ func (v *validator) value(x any, f field, path []string) {
 		for _, k := range sortedKeys(m) {
 			e, ok := m[k].(map[string]any)
 			if !ok {
-				v.add(extend(path, k), "config.err.type", i18n.T("config.type.table"), describe(m[k]))
+				v.add(extend(path, k), "config.err.type", typeKey("config.type.table"), describe(m[k]))
 				continue
 			}
 			v.table(e, f.sub, extend(path, k))
@@ -366,13 +374,11 @@ func (v *validator) value(x any, f field, path []string) {
 			p := extend(path, fmt.Sprintf("[%d]", i))
 			m, ok := e.(map[string]any)
 			if !ok {
-				v.add(p, "config.err.type", i18n.T("config.type.table"), describe(e))
+				v.add(p, "config.err.type", typeKey("config.type.table"), describe(e))
 				continue
 			}
-			if name, _ := m["name"].(string); name == "" {
-				if _, has := m["name"]; !has {
-					v.add(p, "config.err.required", "name")
-				}
+			if name, has := m["name"]; !has || name == "" {
+				v.add(p, "config.err.required", "name")
 			}
 			v.table(m, f.sub, p)
 		}
@@ -395,7 +401,7 @@ func (v *validator) value(x any, f field, path []string) {
 					}
 				}
 			default:
-				v.add(p, "config.err.type", i18n.T("config.type.stringortable"), describe(e))
+				v.add(p, "config.err.type", typeKey("config.type.stringortable"), describe(e))
 			}
 		}
 		return
@@ -439,26 +445,26 @@ func asList(x any) ([]any, bool) {
 }
 
 // describe names the type of a decoded value for a message.
-func describe(x any) string {
+func describe(x any) typeKey {
 	switch x.(type) {
 	case string:
-		return i18n.T("config.type.string")
+		return typeKey("config.type.string")
 	case bool:
-		return i18n.T("config.type.bool")
+		return typeKey("config.type.bool")
 	case int64:
-		return i18n.T("config.type.int")
+		return typeKey("config.type.int")
 	case float64:
-		return i18n.T("config.type.float")
+		return typeKey("config.type.float")
 	case map[string]any:
-		return i18n.T("config.type.table")
+		return typeKey("config.type.table")
 	case []any, []map[string]any, []string:
-		return i18n.T("config.type.array")
+		return typeKey("config.type.array")
 	case time.Time:
-		return i18n.T("config.type.datetime")
+		return typeKey("config.type.datetime")
 	case nil:
-		return i18n.T("config.type.null")
+		return typeKey("config.type.null")
 	}
-	return fmt.Sprintf("%T", x)
+	return typeKey(fmt.Sprintf("%T", x))
 }
 
 // lineIndex maps the keys of a TOML source to their lines. It reads the source

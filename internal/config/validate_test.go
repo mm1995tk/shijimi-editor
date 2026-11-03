@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // setup makes a user directory and a project directory and returns a function
@@ -300,5 +302,36 @@ func TestValidConfigHasNoError(t *testing.T) {
 	root, _, _ := setup(t)
 	if _, err := Load(root); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// The whole message is in the language that is set when it is printed, the
+// type names too, not in the language of the moment Load ran.
+func TestMessageIsInOneLanguage(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLang(i18n.Default) })
+	root, _, write := setup(t)
+	write("config.toml", "ui-language = \"ja\"\n[editor]\nfile-icons = \"yes\"\n")
+	c, err := Load(root)
+	if err == nil {
+		t.Fatal("no error")
+	}
+	i18n.SetLang(c.Editor.UILanguage)
+	got := err.Error()
+	if !strings.Contains(got, "true か false で書いてください（今は 文字列 です）") {
+		t.Fatalf("message = %q", got)
+	}
+	i18n.SetLang(i18n.English)
+	if got := err.Error(); !strings.Contains(got, "must be true or false, but it is a string") {
+		t.Fatalf("message = %q", got)
+	}
+}
+
+func TestLanguageNameIsRequired(t *testing.T) {
+	root, _, write := setup(t)
+	for _, c := range []string{"[[language]]\nfile-types = [\"x\"]\n", "[[language]]\nname = \"\"\n"} {
+		write("languages.toml", c)
+		if _, err := Load(root); err == nil {
+			t.Errorf("no error for %q", c)
+		}
 	}
 }
