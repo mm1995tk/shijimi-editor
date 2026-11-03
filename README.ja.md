@@ -75,7 +75,7 @@ shj main.go    # ファイルだけを編集する（単体編集モード。$ED
 
 ## 設定
 
-次の順に読み込み、後のものが優先されます（`languages.toml` は Helix と互換があります。Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーしてください）。
+次の順に読み込み、後のものが優先されます（`languages.toml` は Helix と同じ書き方です。Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーして、shijimi-editor が読まない項目を消してください）。設定ファイルに間違い（書き方の間違い・知らない項目・型の違い）があると、shijimi-editor は起動せず、ファイルの場所・行・理由を出します。
 
 1. 組み込みの既定値（gopls / rust-analyzer / typescript-language-server など）
 2. `~/.config/shijimi-editor/languages.toml`、`~/.config/shijimi-editor/config.toml`

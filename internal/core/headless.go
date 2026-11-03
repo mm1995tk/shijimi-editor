@@ -19,10 +19,14 @@ type headless struct {
 func newHeadless() *headless { return &headless{W: 80, H: 24} }
 
 // newHeadlessCore is a core rooted at dir on a headless front end.
-func newHeadlessCore(sh *Shared, dir string) *Core {
+func newHeadlessCore(sh *Shared, dir string) (*Core, error) {
 	h := newHeadless()
-	h.core = NewIn(sh, h, dir, "")
-	return h.core
+	c, err := NewIn(sh, h, dir, "")
+	if err != nil {
+		return nil, err
+	}
+	h.core = c
+	return c, nil
 }
 
 func (h *headless) ScreenW() int                  { return h.W }

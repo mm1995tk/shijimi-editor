@@ -331,7 +331,11 @@ func (ss *session) workspaceRequest(req *rpc.Message) (res any, err error, handl
 		return nil, rpc.Errorf(rpc.CodeNotFound, "no such workspace: %s", p.ID), true
 	}
 	if cores != nil {
-		cores.Open(x.Root)
+		if err := cores.Open(x.Root); err != nil {
+			// The workspace does not take the focus: it has no core to show.
+			w.recomputeMu.Unlock()
+			return nil, rpc.Errorf(rpc.CodeInternalError, "%s", err), true
+		}
 	}
 	w.mu.Lock()
 	w.focus = p.ID

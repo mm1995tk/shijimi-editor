@@ -23,6 +23,10 @@ type Options struct {
 	LockPath   string
 	// Start は shj serve を切り離して起動する。待たずに返ってよい。
 	Start func() error
+	// Exited は、Start で起こした shj serve が待つ間に終わったかを返す。終わっていたら
+	// その理由（標準エラー出力の中身など）を返す。無ければ nil でよい。設定の間違いなどで
+	// serve が起動できないとき、待ちきる前にその理由を attach の標準エラー出力へ届けるために使う。
+	Exited func() (reason string, exited bool)
 	// WaitTimeout はソケットができるのを待つ最長時間。0 なら 5 秒。
 	WaitTimeout time.Duration
 	// Poll は待つ間隔。0 なら 50 ミリ秒。
@@ -78,12 +82,26 @@ func connect(o Options) (net.Conn, error) {
 		if err == nil {
 			return c, nil
 		}
+		if o.Exited != nil {
+			if reason, exited := o.Exited(); exited {
+				// 終わる間際に socket ができていたかもしれない。
+				if c, err := net.Dial("unix", o.SocketPath); err == nil {
+					return c, nil
+				}
+				return nil, &StartError{Reason: reason}
+			}
+		}
 		if time.Now().After(deadline) {
 			return nil, fmt.Errorf("shj serve did not start within %s: %w", o.WaitTimeout, err)
 		}
 		time.Sleep(o.Poll)
 	}
 }
+
+// StartError は shj serve が起動できずに終わったときのエラー。Reason はその標準エラー出力。
+type StartError struct{ Reason string }
+
+func (e *StartError) Error() string { return e.Reason }
 
 // lock は path に flock(LOCK_EX) をかける。timeout の間だけ待つ。
 func lock(path string, timeout, poll time.Duration) (func(), error) {

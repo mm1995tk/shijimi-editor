@@ -56,7 +56,7 @@ func headlessCore(t *testing.T, text string) (*Core, string) {
 	dir := t.TempDir()
 	p := writeFile(t, dir, "a.txt", text)
 	sh := NewShared()
-	c := newHeadlessCore(sh, dir)
+	c, _ := newHeadlessCore(sh, dir)
 	t.Cleanup(func() { c.Close(); sh.Close() })
 	if !c.OpenFile(p) {
 		t.Fatalf("open: %s", c.Msg)
@@ -172,7 +172,7 @@ func TestWorkspaceRunsEffects(t *testing.T) {
 		}
 	})
 	before := runtime.NumGoroutine()
-	w := ws.Open(t.TempDir())
+	w, _ := ws.Open(t.TempDir())
 	select {
 	case <-changed:
 	case <-time.After(10 * time.Second):

@@ -191,7 +191,7 @@ func TestServeTypingSendsChangedLine(t *testing.T) {
 	if err := os.WriteFile(path, []byte("one\ntwo\nthree\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	w := e.cores.Open(e.root)
+	w, _ := e.cores.Open(e.root)
 	key := func(c *core.Core, s string) {
 		if s == "esc" {
 			c.Update(core.Key{Code: core.KeyEscape})
@@ -251,7 +251,7 @@ func TestServeInputKeyAndFileOpen(t *testing.T) {
 	if err := os.WriteFile(other, []byte("b\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	e.cores.Open(e.root).Do(func(c *core.Core) { c.OpenFile(other) })
+	mustOpen(e.cores, e.root).Do(func(c *core.Core) { c.OpenFile(other) })
 	c, nt, id, _ := e.connect(t)
 	ctx := context.Background()
 	seen := 1
@@ -308,4 +308,13 @@ func TestServeInputKeyAndFileOpen(t *testing.T) {
 	if _, st := key(5, "ArrowUp", ""); st == nil || st.Position != "1:2" {
 		t.Errorf("status after ArrowUp: %+v", st)
 	}
+}
+
+// mustOpen is ws.Open for a configuration that must be valid.
+func mustOpen(ws *core.Workspaces, root string) *core.Workspace {
+	w, err := ws.Open(root)
+	if err != nil {
+		panic(err)
+	}
+	return w
 }

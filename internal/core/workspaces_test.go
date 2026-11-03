@@ -26,11 +26,11 @@ func TestWorkspacesEditSeparately(t *testing.T) {
 
 	ws := NewWorkspaces(NewShared(), nil)
 	defer ws.CloseAll()
-	w1, w2 := ws.Open(r1), ws.Open(r2)
+	w1, w2 := openWS(ws, r1), openWS(ws, r2)
 	if w1 == w2 {
 		t.Fatal("two roots got the same workspace")
 	}
-	if ws.Open(r1) != w1 {
+	if openWS(ws, r1) != w1 {
 		t.Fatal("opening a root again made another core")
 	}
 
@@ -92,12 +92,12 @@ func TestWorkspacesWriteBackups(t *testing.T) {
 
 	ws := NewWorkspaces(NewShared(), nil)
 	defer ws.CloseAll()
-	ws.Open(r1).Do(func(c *Core) {
+	openWS(ws, r1).Do(func(c *Core) {
 		c.OpenFile(p1)
 		c.CurText().Buf.Lines[0] = []rune("ONE")
 		c.CurText().Buf.Dirty = true
 	})
-	ws.Open(r2).Do(func(c *Core) {
+	openWS(ws, r2).Do(func(c *Core) {
 		c.OpenFile(clean)
 		c.OpenFile(p2)
 		c.CurText().Buf.Lines[0] = []rune("TWO")
@@ -135,7 +135,7 @@ func TestCloseFilesKeepsUnsaved(t *testing.T) {
 	p2 := writeFile(t, r, "b.txt", "two\n")
 	ws := NewWorkspaces(NewShared(), nil)
 	defer ws.CloseAll()
-	ws.Open(r).Do(func(c *Core) {
+	openWS(ws, r).Do(func(c *Core) {
 		c.OpenFile(p1)
 		c.OpenFile(p2)
 		c.CurText().Buf.Dirty = true
@@ -162,7 +162,7 @@ func TestCloseFilesKeepsShownFile(t *testing.T) {
 	}
 	ws := NewWorkspaces(NewShared(), nil)
 	defer ws.CloseAll()
-	ws.Open(r).Do(func(c *Core) {
+	openWS(ws, r).Do(func(c *Core) {
 		for _, p := range ps {
 			c.OpenFile(p)
 		}
@@ -180,4 +180,13 @@ func TestCloseFilesKeepsShownFile(t *testing.T) {
 			t.Errorf("shown %s, want %s", got, ps[1])
 		}
 	})
+}
+
+// openWS is ws.Open for a configuration that must be valid.
+func openWS(ws *Workspaces, root string) *Workspace {
+	w, err := ws.Open(root)
+	if err != nil {
+		panic(err)
+	}
+	return w
 }

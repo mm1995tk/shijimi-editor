@@ -156,19 +156,25 @@ func cleanRoot(root string) string {
 
 // Open is the workspace at root, made with a new core if it has none. A new
 // core starts as the TUI's does: it waits on its language servers and watches
-// its files on disk.
-func (ws *Workspaces) Open(root string) *Workspace {
+// its files on disk. A mistake in the workspace's configuration files (a
+// *config.Error) is returned and no core is made; the next Open reads the
+// files again.
+func (ws *Workspaces) Open(root string) (*Workspace, error) {
 	root = cleanRoot(root)
 	if w := ws.Lookup(root); w != nil {
-		return w
+		return w, nil
 	}
 	// Making a core reads the config and runs git, so it is done without the
 	// lock: a slow workspace does not hold up the others.
 	var c *Core
+	var err error
 	if ws.front != nil {
-		c = NewIn(ws.shared, ws.front(), root, "")
+		c, err = NewIn(ws.shared, ws.front(), root, "")
 	} else {
-		c = newHeadlessCore(ws.shared, root)
+		c, err = newHeadlessCore(ws.shared, root)
+	}
+	if err != nil {
+		return nil, err
 	}
 	ws.mu.Lock()
 	w := &Workspace{Root: root, core: c, onChange: ws.onChange, done: make(chan struct{})}
@@ -176,12 +182,12 @@ func (ws *Workspaces) Open(root string) *Workspace {
 		// someone made it meanwhile; theirs stays
 		ws.mu.Unlock()
 		w.core.Close()
-		return got
+		return got, nil
 	}
 	ws.cores[root] = w
 	ws.mu.Unlock()
 	w.run([]Effect{WaitLSP{c.LspEvents()}, WatchTimer()})
-	return w
+	return w, nil
 }
 
 // Lookup is the workspace at root, or nil if it has no core.

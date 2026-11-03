@@ -34,7 +34,7 @@ in
           editor.line-number = "relative";
         }
       '';
-      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/config.toml` (same structure as Helix's config.toml), or {file}`shijimi-editor-nightly/config.toml` for the nightly package.";
+      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/config.toml` (the same way of writing as Helix's config.toml; keys shijimi-editor does not read are errors and it does not start), or {file}`shijimi-editor-nightly/config.toml` for the nightly package.";
     };
 
     languages = lib.mkOption {
@@ -46,7 +46,7 @@ in
           language = [{ name = "go"; language-servers = ["gopls"]; }];
         }
       '';
-      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/languages.toml` (same structure as Helix's languages.toml), or {file}`shijimi-editor-nightly/languages.toml` for the nightly package.";
+      description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/languages.toml` (the same way of writing as Helix's languages.toml; keys shijimi-editor does not read are errors and it does not start), or {file}`shijimi-editor-nightly/languages.toml` for the nightly package.";
     };
 
     gui = {

@@ -90,7 +90,7 @@ func TestDrawingLeavesPreviewCache(t *testing.T) {
 	if err := os.WriteFile(p, []byte("# 見出し\n\n本文\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a := New(dir, p)
+	a := mustNew(dir, p)
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	tb := a.CurText()
 	tb.Preview = core.PreviewSplit

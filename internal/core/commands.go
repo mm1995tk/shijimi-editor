@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -292,7 +293,18 @@ func (a *Core) ExecCommand(line string) []Effect {
 		}
 		a.InfoText(i18n.T("cmd.lsprestarted"))
 	case "config-reload":
-		a.Cfg = config.Load(a.Root)
+		cfg, err := config.Load(a.Root)
+		if err != nil {
+			// Unlike at startup the editor is running: keep the settings it has
+			// and say what is wrong.
+			if ce, ok := errors.AsType[*config.Error](err); ok {
+				a.Fail(errString(fmt.Sprintf(i18n.T("config.err.reload"), ce.Summary())))
+			} else {
+				a.Fail(err)
+			}
+			return nil
+		}
+		a.Cfg = cfg
 		a.MuxReset() // [terminal] multiplexer may have changed
 		i18n.SetLang(a.Cfg.Editor.UILanguage)
 		a.Commands = defaultCommands()

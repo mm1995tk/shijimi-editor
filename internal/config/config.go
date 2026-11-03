@@ -6,10 +6,14 @@ package config
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
 	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -116,9 +120,6 @@ type Keys struct {
 	Normal map[string]string
 	Insert map[string]string
 	Select map[string]string
-	// Invalid lists entries that could not be read (a value that is not a
-	// string, such as a Helix sub-table), as "keys.normal.g".
-	Invalid []string
 }
 
 // Experimental is the [experimental] section of config.toml: switches for
@@ -180,7 +181,13 @@ const nixEvalTimeout = 15 * time.Second
 // directories are not read. In each directory
 // `config.nix` / `languages.nix` are evaluated with `nix eval --json` and
 // applied after the TOML file of the same name.
-func Load(root string) *Config {
+//
+// A mistake in a file (TOML syntax, a key that is not read, a value of the
+// wrong type, a Nix file that does not evaluate) is an *Error that lists every
+// mistake with its file, line and reason. The Config returned with it is
+// still usable for what it needs before it reports (the UI language), but the
+// caller must not run with it.
+func Load(root string) (*Config, error) {
 	c := &Config{
 		Browser:      Browser{ListenHost: "127.0.0.1"},
 		Experimental: Experimental{Default: channel.IsNightly(), Multiplexer: channel.IsNightly()},
@@ -190,12 +197,28 @@ func Load(root string) *Config {
 		Languages:    map[string]*Language{},
 		Servers:      map[string]*Server{},
 	}
-	c.mergeLanguages(defaultLanguages, "")
+	var probs []Problem
+	if err := c.mergeLanguages(defaultLanguages, ""); err != nil {
+		// the built-in table is part of the program; a mistake in it is a bug
+		panic(err)
+	}
 
 	// user marks the user's own directory, the only one [agent] and [keys] are read from.
 	type configDir struct {
 		path string
 		user bool
+	}
+	// the files of a directory, in the order they are applied: a Nix file after the TOML of the same name
+	files := []struct {
+		name   string
+		schema map[string]field
+		read   func(path string, schema map[string]field, user bool) (map[string]any, []Problem, bool)
+		config bool // config.*, otherwise languages.*
+	}{
+		{"config.toml", configSchema, readTOML, true},
+		{"config.nix", configSchema, readNix, true},
+		{"languages.toml", languagesSchema, readTOML, false},
+		{"languages.nix", languagesSchema, readNix, false},
 	}
 	var dirs []configDir
 	if d, ok := userConfigDir(); ok {
@@ -203,39 +226,88 @@ func Load(root string) *Config {
 	}
 	dirs = append(dirs, configDir{filepath.Join(root, ".shijimi-editor"), false})
 	for _, dir := range dirs {
-		d, user := dir.path, dir.user
-		if data, err := os.ReadFile(filepath.Join(d, "config.toml")); err == nil {
-			c.mergeEditor(string(data))
-			c.mergeBrowser(string(data))
-			c.mergeExperimental(string(data))
-			c.mergeTerminal(string(data))
-			if user {
-				c.mergeAgent(string(data))
-				c.mergeServe(string(data))
-				c.mergeKeys(string(data))
+		for _, f := range files {
+			path := filepath.Join(dir.path, f.name)
+			raw, ps, ok := f.read(path, f.schema, dir.user)
+			probs = append(probs, ps...)
+			if !ok {
+				continue
 			}
-			c.Sources = append(c.Sources, filepath.Join(d, "config.toml"))
-		}
-		if raw, ok := evalNix(filepath.Join(d, "config.nix")); ok {
-			c.mergeEditorRaw(raw)
-			c.mergeBrowserRaw(raw)
-			c.mergeExperimentalRaw(raw)
-			c.mergeTerminalRaw(raw)
-			if user {
-				c.mergeAgentRaw(raw)
-				c.mergeServeRaw(raw)
-				c.mergeKeysRaw(raw)
+			if f.config {
+				c.mergeConfigRaw(raw, dir.user)
+				c.Sources = append(c.Sources, path)
+			} else {
+				c.mergeLanguagesRaw(raw, path)
 			}
-			c.Sources = append(c.Sources, filepath.Join(d, "config.nix"))
-		}
-		if data, err := os.ReadFile(filepath.Join(d, "languages.toml")); err == nil {
-			c.mergeLanguages(string(data), filepath.Join(d, "languages.toml"))
-		}
-		if raw, ok := evalNix(filepath.Join(d, "languages.nix")); ok {
-			c.mergeLanguagesRaw(raw, filepath.Join(d, "languages.nix"))
 		}
 	}
-	return c
+	if len(probs) > 0 {
+		return c, &Error{Problems: probs}
+	}
+	return c, nil
+}
+
+// mergeConfigRaw applies a decoded config.toml / config.nix. user is whether
+// it is from the user's own directory.
+func (c *Config) mergeConfigRaw(raw map[string]any, user bool) {
+	c.mergeEditorRaw(raw)
+	c.mergeBrowserRaw(raw)
+	c.mergeExperimentalRaw(raw)
+	c.mergeTerminalRaw(raw)
+	if user {
+		c.mergeAgentRaw(raw)
+		c.mergeServeRaw(raw)
+		c.mergeKeysRaw(raw)
+	}
+}
+
+// tomlPrefix is the place the decoder puts at the start of its messages.
+var tomlPrefix = regexp.MustCompile(`^toml: (line \d+ ?)?(\(last key "[^"]*"\))?:? ?`)
+
+// readTOML reads and checks a TOML file. found is false when the file does not
+// exist or cannot be decoded; the problems are returned either way.
+func readTOML(path string, schema map[string]field, user bool) (raw map[string]any, probs []Problem, found bool) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil, false
+		}
+		return nil, []Problem{{File: path, code: "config.err.read", args: []any{err.Error()}}}, false
+	}
+	if _, err := toml.Decode(string(data), &raw); err != nil {
+		p := Problem{File: path, code: "config.err.syntax", args: []any{err.Error()}}
+		if pe, ok := errors.AsType[toml.ParseError](err); ok {
+			p.Line = pe.Position.Line
+			msg := pe.Message
+			if msg == "" {
+				msg = tomlPrefix.ReplaceAllString(err.Error(), "")
+			}
+			// The decoder counts the newline that ended the line as part of the
+			// next one when it was not expected there.
+			if p.Line > 1 && strings.Contains(msg, `'\n'`) {
+				p.Line--
+			}
+			p.args = []any{msg}
+		}
+		return nil, []Problem{p}, false
+	}
+	return raw, validate(raw, schema, path, string(data), user), true
+}
+
+// readNix evaluates a Nix file and checks the result. found is false when the
+// file does not exist or does not evaluate.
+func readNix(path string, schema map[string]field, user bool) (raw map[string]any, probs []Problem, found bool) {
+	raw, exists, err := evalNix(path)
+	if !exists {
+		return nil, nil, false
+	}
+	if errors.Is(err, errNixTop) {
+		return nil, []Problem{{File: path, code: "config.err.nixtop"}}, false
+	}
+	if err != nil {
+		return nil, []Problem{{File: path, code: "config.err.nix", args: []any{err.Error()}}}, false
+	}
+	return raw, validate(raw, schema, path, "", user), true
 }
 
 // UserDir returns the user's own configuration directory, such as
@@ -279,37 +351,46 @@ func userConfigDir() (string, bool) {
 }
 
 // evalNix evaluates a Nix file to JSON and returns it in the shape the TOML
-// decoder produces, so both formats share one merge path. ok is false when
-// the file is missing, nix is unavailable, or evaluation fails.
-func evalNix(path string) (map[string]any, bool) {
+// decoder produces, so both formats share one merge path. exists is false when
+// there is no such file; err is why a file that exists could not be
+// evaluated (nix is not installed, evaluation fails, the result is not an
+// attribute set).
+// errNixTop is the result of a Nix file that is not an attribute set.
+var errNixTop = errors.New("not an attribute set")
+
+func evalNix(path string) (raw map[string]any, exists bool, err error) {
 	if _, err := os.Stat(path); err != nil {
-		return nil, false
+		return nil, false, nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), nixEvalTimeout)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "nix", "--extra-experimental-features", "nix-command",
 		"eval", "--json", "--file", path).Output()
 	if err != nil {
-		return nil, false
+		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
+			return nil, true, errors.New(lastLines(string(ee.Stderr)))
+		}
+		if ctx.Err() != nil {
+			return nil, true, fmt.Errorf("nix eval did not finish in %s", nixEvalTimeout)
+		}
+		return nil, true, err
 	}
-	var raw map[string]any
-	if err := json.Unmarshal(out, &raw); err != nil {
-		return nil, false
+	if err := json.Unmarshal(out, &raw); err != nil || raw == nil {
+		return nil, true, errNixTop
 	}
 	for k, v := range raw {
 		raw[k] = normalizeJSON(v)
 	}
-	// [[language]] is an array of tables in TOML.
-	if list, ok := raw["language"].([]any); ok {
-		tables := make([]map[string]any, 0, len(list))
-		for _, x := range list {
-			if m, ok := x.(map[string]any); ok {
-				tables = append(tables, m)
-			}
-		}
-		raw["language"] = tables
+	return raw, true, nil
+}
+
+// lastLines is the end of a nix error message, where the reason is.
+func lastLines(s string) string {
+	lines := strings.Split(strings.TrimSpace(s), "\n")
+	if len(lines) > 3 {
+		lines = lines[len(lines)-3:]
 	}
-	return raw, true
+	return strings.TrimSpace(strings.Join(lines, " "))
 }
 
 // normalizeJSON turns integral JSON numbers into int64, as the TOML decoder does.
@@ -331,36 +412,12 @@ func normalizeJSON(v any) any {
 	return v
 }
 
-func (c *Config) mergeEditor(data string) {
-	var raw map[string]any
-	if _, err := toml.Decode(data, &raw); err != nil {
-		return
-	}
-	c.mergeEditorRaw(raw)
-}
-
-func (c *Config) mergeBrowser(data string) {
-	var raw map[string]any
-	if _, err := toml.Decode(data, &raw); err != nil {
-		return
-	}
-	c.mergeBrowserRaw(raw)
-}
-
 func (c *Config) mergeBrowserRaw(raw map[string]any) {
 	if br, ok := raw["browser"].(map[string]any); ok {
 		if v, ok := br["listen-host"].(string); ok && v != "" {
 			c.Browser.ListenHost = v
 		}
 	}
-}
-
-func (c *Config) mergeExperimental(data string) {
-	var raw map[string]any
-	if _, err := toml.Decode(data, &raw); err != nil {
-		return
-	}
-	c.mergeExperimentalRaw(raw)
 }
 
 func (c *Config) mergeExperimentalRaw(raw map[string]any) {
@@ -375,14 +432,6 @@ func (c *Config) mergeExperimentalRaw(raw map[string]any) {
 	}
 }
 
-func (c *Config) mergeTerminal(data string) {
-	var raw map[string]any
-	if _, err := toml.Decode(data, &raw); err != nil {
-		return
-	}
-	c.mergeTerminalRaw(raw)
-}
-
 func (c *Config) mergeTerminalRaw(raw map[string]any) {
 	if t, ok := raw["terminal"].(map[string]any); ok {
 		if v, ok := t["multiplexer"].(string); ok {
@@ -392,14 +441,6 @@ func (c *Config) mergeTerminalRaw(raw map[string]any) {
 			}
 		}
 	}
-}
-
-func (c *Config) mergeServe(data string) {
-	var raw map[string]any
-	if _, err := toml.Decode(data, &raw); err != nil {
-		return
-	}
-	c.mergeServeRaw(raw)
 }
 
 func (c *Config) mergeServeRaw(raw map[string]any) {
@@ -415,14 +456,6 @@ func (c *Config) mergeServeRaw(raw map[string]any) {
 			}
 		}
 	}
-}
-
-func (c *Config) mergeKeys(data string) {
-	var raw map[string]any
-	if _, err := toml.Decode(data, &raw); err != nil {
-		return
-	}
-	c.mergeKeysRaw(raw)
 }
 
 func (c *Config) mergeKeysRaw(raw map[string]any) {
@@ -445,7 +478,6 @@ func (c *Config) mergeKeysRaw(raw map[string]any) {
 		for k, v := range tbl {
 			s, ok := v.(string)
 			if !ok {
-				c.Keys.Invalid = append(c.Keys.Invalid, "keys."+mode+"."+k)
 				continue
 			}
 			if *dst == nil {
@@ -454,15 +486,6 @@ func (c *Config) mergeKeysRaw(raw map[string]any) {
 			(*dst)[k] = strings.TrimSpace(s)
 		}
 	}
-	sort.Strings(c.Keys.Invalid)
-}
-
-func (c *Config) mergeAgent(data string) {
-	var raw map[string]any
-	if _, err := toml.Decode(data, &raw); err != nil {
-		return
-	}
-	c.mergeAgentRaw(raw)
 }
 
 func (c *Config) mergeAgentRaw(raw map[string]any) {
@@ -554,12 +577,14 @@ func stringList(v any) []string {
 	return out
 }
 
-func (c *Config) mergeLanguages(data, source string) {
+// mergeLanguages applies a languages.toml given as text.
+func (c *Config) mergeLanguages(data, source string) error {
 	var raw map[string]any
 	if _, err := toml.Decode(data, &raw); err != nil {
-		return
+		return err
 	}
 	c.mergeLanguagesRaw(raw, source)
+	return nil
 }
 
 // mergeConfig merges a language server's config key by key; values in over
@@ -614,8 +639,9 @@ func (c *Config) mergeLanguagesRaw(raw map[string]any, source string) {
 			}
 		}
 	}
-	langs, _ := raw["language"].([]map[string]any)
-	for _, m := range langs {
+	langs, _ := asList(raw["language"])
+	for _, item := range langs {
+		m, _ := item.(map[string]any)
 		name, _ := m["name"].(string)
 		if name == "" {
 			continue

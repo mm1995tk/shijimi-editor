@@ -54,11 +54,19 @@ func runServe(args []string) int {
 	logger := slog.New(slog.NewTextHandler(logw, nil))
 	var idle time.Duration
 	if home, err := os.UserHomeDir(); err == nil {
-		cfg := config.Load(home)
-		idle = time.Duration(cfg.Serve.IdleStopDays) * 24 * time.Hour
-		// The UI language is the process's: the home config sets it once, and
-		// the workspaces' cores leave it alone (core.NewIn).
+		cfg, err := config.Load(home)
+		// The language is the process's: the home config sets it once, and
+		// the workspaces' cores leave it alone (core.NewIn). It is set before the
+		// mistakes are reported so that they are in the user's language.
 		i18n.SetLang(cfg.Editor.UILanguage)
+		if err != nil {
+			// serve does not start with settings it cannot read as written. attach
+			// passes this on to the GUI.
+			logger.Error("config", "err", err)
+			fmt.Fprintln(os.Stderr, configErrorText(err))
+			return 1
+		}
+		idle = time.Duration(cfg.Serve.IdleStopDays) * 24 * time.Hour
 	}
 	srv, err := server.Listen(server.Options{
 		SocketPath: sock,

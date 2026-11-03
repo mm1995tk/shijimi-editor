@@ -15,7 +15,28 @@
 - `languages.toml` には言語サーバーを書きます（[LSP](lsp.md)）。
 - `config.toml` にはそれ以外を書きます（このページ）。
 - 実行中に `:config-reload` を実行すると、読み直します。
+- 間違いのあるファイルがあると、shijimi-editor は起動しません（[ファイルに間違いがあるとき](#ファイルに間違いがあるとき)）。
 - `[agent]` はユーザー自身の `config.toml`（`~/.config/shijimi-editor/config.toml`、または下の nightly 版のディレクトリ）からだけ読みます（[AI エージェント連携](agent.md)）。
+
+## ファイルに間違いがあるとき
+
+どれか 1 つのファイルに間違いがあると、`shj` も `shj serve` も起動しません。間違い全部について、ファイルの場所・行・理由を出して、0 以外で終わります。
+
+```
+/home/me/.config/shijimi-editor/config.toml:4: editor.bogus: 知らない項目です（shijimi-editor は読みません）
+/home/me/.config/shijimi-editor/config.toml:3: editor.file-icons: true か false で書いてください（今は 文字列 です）
+```
+
+次のものが間違いです。
+
+- TOML の書き方の間違い。評価できない Nix のファイル（`config.nix` / `languages.nix`）。Nix には行が無いので、行の代わりに項目の名前を出します。
+- 知らない項目。Helix にあっても shijimi-editor が読まない項目（`languages.toml` の `comment-token` など）も含みます。このマニュアルに載っている項目だけを読みます。
+- 型の違い（数を書くところに文字を書いた、など）と、使えない値（`ui-language`、`[terminal]` の `multiplexer`、負の `idle_stop_days`、0 以下の `timeout`）。
+- プロジェクトの `.shijimi-editor/config.toml` に書いた `[agent]`・`[server]`・`[keys]`。これらはユーザー自身のフォルダからだけ読みます。
+
+以前のバージョンは、これらの間違いを黙って無視していました。更新したあと、今まで起動できたファイルで起動しなくなることがあります。出たメッセージの場所を直してください。
+
+起動中の `:config-reload` で間違いが見つかっても、エディタは止まりません。今の設定のまま、最初の間違いをステータス行に出します。`shj serve` では、プロジェクトのファイルの間違いは、そのワークスペースを開けない形で出て、GUI にはワークスペースを切り替えたときのエラーとして理由が出ます。ユーザー自身のファイルの間違いは `shj serve` 自体を止め、`shj attach` がその理由を GUI の接続エラーとして渡します。
 
 ## nightly 版
 

@@ -39,12 +39,17 @@ type App struct {
 	quitting    bool        // tea.Quit was returned (see exit)
 }
 
-// New creates the app rooted at dir, optionally opening file.
-func New(dir, file string) *App {
+// New creates the app rooted at dir, optionally opening file. A mistake in a
+// configuration file is the error (a *config.Error), and there is no app.
+func New(dir, file string) (*App, error) {
 	abs, _ := filepath.Abs(dir)
 	a := &App{term: newTerminal(abs), showSide: true}
-	a.Core = core.New(a, dir, file)
-	return a
+	c, err := core.New(a, dir, file)
+	if err != nil {
+		return nil, err
+	}
+	a.Core = c
+	return a, nil
 }
 
 // NewSingle creates the app in single-file mode: only file is edited, with no

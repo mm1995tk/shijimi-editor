@@ -75,7 +75,7 @@ func goldenApp(t *testing.T) *App {
 	if err := os.WriteFile(p, []byte(goldenSrc), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a := New(dir, p)
+	a := mustNew(dir, p)
 	a.Helix = true
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	return a

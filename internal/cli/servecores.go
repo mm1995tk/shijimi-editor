@@ -2,10 +2,12 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 	"github.com/mm1995tk/shijimi-editor/internal/server"
 )
@@ -16,7 +18,13 @@ type serveCores struct{ ws *core.Workspaces }
 
 var _ server.Cores = serveCores{}
 
-func (s serveCores) Open(root string) { s.ws.Open(root) }
+func (s serveCores) Open(root string) error {
+	_, err := s.ws.Open(root)
+	if err != nil {
+		return fmt.Errorf(i18n.T("serve.workspaceconfig"), root, err)
+	}
+	return nil
+}
 
 func (s serveCores) Files(root string) []string {
 	var out []string
@@ -236,8 +244,10 @@ func (s serveCores) Command(root, line string) (ok bool, message string) {
 
 // OpenFile is file.open, in root's core (made if it has none).
 func (s serveCores) OpenFile(root, path string, at *screen.Pos, pane string) error {
-	w := s.ws.Open(root)
-	var err error
+	w, err := s.ws.Open(root)
+	if err != nil {
+		return err
+	}
 	w.Apply(func(c *core.Core) []core.Effect {
 		return c.Apply(func() []core.Effect {
 			effs, ok := c.OpenAt(path, at, pane)

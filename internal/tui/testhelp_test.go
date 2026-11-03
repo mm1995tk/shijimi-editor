@@ -90,7 +90,7 @@ func gitDiffApp(t *testing.T) (*App, string) {
 	gitIn(t, dir, "commit", "-q", "-m", "init")
 	os.WriteFile(file, []byte("a\nc\nd\nx\ne\n"), 0o644)
 	os.WriteFile(filepath.Join(dir, "new.txt"), []byte("n1\nn2\n"), 0o644)
-	a := New(dir, file)
+	a := mustNew(dir, file)
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	a.Gd.On = true
 	a.Gd.Base = core.BaseHead
@@ -160,7 +160,7 @@ func newTestApp(t *testing.T, content string) *App {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "a.txt")
 	os.WriteFile(p, []byte(content), 0o644)
-	a := New(dir, p)
+	a := mustNew(dir, p)
 	a.Helix = true
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	return a
@@ -171,7 +171,7 @@ func newGoApp(t *testing.T, src string) (*App, *core.Tab) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "a.go")
 	os.WriteFile(p, []byte(src), 0o644)
-	a := New(dir, p)
+	a := mustNew(dir, p)
 	a.Helix = true
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	return a, a.CurText()
@@ -238,7 +238,7 @@ func prApp(t *testing.T) (*App, string) {
 	os.WriteFile(filepath.Join(dir, "b.txt"), []byte("b1\nb2\n"), 0o644)
 	gitIn(t, dir, "add", ".")
 	gitIn(t, dir, "commit", "-q", "-m", "change")
-	a := New(dir, file)
+	a := mustNew(dir, file)
 	a.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	pr := &core.PrInfo{ID: "PR_1", Number: 7, Title: "t", State: "OPEN", BaseRefName: "main", HeadRefName: "feature", HeadRefOid: gitOut(t, dir, "rev-parse", "HEAD")}
 	a.ShowDiff(core.BasePR, pr)
@@ -278,5 +278,14 @@ func splitApp(t *testing.T) (*App, []string) {
 func appOf(c *core.Core) *App {
 	a := &App{Core: c}
 	c.FrontEnd = a
+	return a
+}
+
+// mustNew is New for a configuration that must be valid.
+func mustNew(dir, file string) *App {
+	a, err := New(dir, file)
+	if err != nil {
+		panic(err)
+	}
 	return a
 }
