@@ -222,7 +222,14 @@ func (a *Core) ExecCommand(line string) []Effect {
 			return a.SetFocus(FocusEditor)
 		}
 	case "n", "new":
-		return a.newFile()
+		if a.single {
+			return nil
+		}
+		if arg == "" {
+			a.Fail(errString(i18n.T("cmd.newfile.usage")))
+			return nil
+		}
+		return a.createFile(arg)
 	case "bc", "bclose", "buffer-close":
 		return a.CloseTab(false)
 	case "bc!", "bclose!", "buffer-close!":

@@ -118,6 +118,7 @@ var ja = map[string]string{
 	"cmd.lsprestarted":         "言語サーバーを再起動しました",
 	"cmd.moreunsaved":          "他にも未保存のファイルが %d 個あります",
 	"cmd.newfile":              "ファイル: 新しいファイル",
+	"cmd.newfile.usage":        "使い方: :new <パス>（ファイルには名前が必要です）",
 	"cmd.lastfile":             "表示: 直前のファイル",
 	"cmd.split":                "表示: エディタを分割",
 	"cmd.splitfocus":           "表示: もう一方の欄へ",

@@ -276,7 +276,7 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 
 ### `:` commands
 
-`:w` `:w <path>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <path>` `:n` `:bc` `:bc!` `:fmt` `:reload` `:<line number>` `:sh <command>` `:grep [-x exclude-glob] [-i include-glob] <text>` `:replace [-x exclude-glob] [-i include-glob] <text> => <replacement>` `:pr [number]` `:gitdiff [on|off|split|unified]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]` `:open-url [URL]` (without an argument, the URL under the cursor)
+`:w` `:w <path>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <path>` `:n <path>` `:bc` `:bc!` `:fmt` `:reload` `:<line number>` `:sh <command>` `:grep [-x exclude-glob] [-i include-glob] <text>` `:replace [-x exclude-glob] [-i include-glob] <text> => <replacement>` `:pr [number]` `:gitdiff [on|off|split|unified]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]` `:open-url [URL]` (without an argument, the URL under the cursor)
 
 ### Global
 

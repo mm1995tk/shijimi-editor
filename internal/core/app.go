@@ -499,39 +499,46 @@ func (a *Core) saveTo(t *Tab, v string) []Effect {
 	return cmd
 }
 
+// newFile asks for a name and creates the file. A file without a name has
+// nowhere to be saved, so one is never created.
 func (a *Core) newFile() []Effect {
 	if a.single {
 		return nil
 	}
-	a.addTab(NewTab(buffer.New()))
-	return a.SetFocus(FocusEditor)
+	return a.newFileIn(a.Root)
 }
 
 func (a *Core) newFileIn(dir string) []Effect {
 	return a.Pal.Ask(i18n.T("app.newfile"), dir+string(filepath.Separator), func(v string) []Effect {
-		v = strings.TrimSpace(v)
-		if v == "" || strings.HasSuffix(v, string(filepath.Separator)) {
+		return a.createFile(v)
+	})
+}
+
+// createFile creates the file at v (relative to the root unless absolute),
+// with its parent folders, unless it exists, and opens it.
+func (a *Core) createFile(v string) []Effect {
+	v = strings.TrimSpace(v)
+	if v == "" || strings.HasSuffix(v, string(filepath.Separator)) {
+		return nil
+	}
+	if !filepath.IsAbs(v) {
+		v = filepath.Join(a.Root, v)
+	}
+	if _, err := os.Stat(v); err != nil {
+		if err := os.MkdirAll(filepath.Dir(v), 0o755); err != nil {
+			a.Fail(err)
 			return nil
 		}
-		if !filepath.IsAbs(v) {
-			v = filepath.Join(a.Root, v)
+		if err := os.WriteFile(v, nil, 0o644); err != nil {
+			a.Fail(err)
+			return nil
 		}
-		if _, err := os.Stat(v); err != nil {
-			if err := os.MkdirAll(filepath.Dir(v), 0o755); err != nil {
-				a.Fail(err)
-				return nil
-			}
-			if err := os.WriteFile(v, nil, 0o644); err != nil {
-				a.Fail(err)
-				return nil
-			}
-		}
-		a.Explorer.Refresh()
-		if a.OpenFile(v) {
-			return a.SetFocus(FocusEditor)
-		}
-		return nil
-	})
+	}
+	a.Explorer.Refresh()
+	if a.OpenFile(v) {
+		return a.SetFocus(FocusEditor)
+	}
+	return nil
 }
 
 func (a *Core) newFolder() []Effect {

@@ -118,6 +118,7 @@ var en = map[string]string{
 	"cmd.lsprestarted":         "Restarted the language server",
 	"cmd.moreunsaved":          "There are %d more unsaved files",
 	"cmd.newfile":              "File: New file",
+	"cmd.newfile.usage":        "Usage: :new <path> (a file needs a name)",
 	"cmd.lastfile":             "View: Last file",
 	"cmd.split":                "View: Split the editor",
 	"cmd.splitfocus":           "View: Other editor pane",
