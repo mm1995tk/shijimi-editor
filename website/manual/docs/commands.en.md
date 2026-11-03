@@ -14,7 +14,7 @@ In VS Code mode, you can do the same from the command palette (`F1`).
 | `:wq` | `:x` | Save and quit |
 | `:wqa` | `:xa` | Save all and quit |
 | `:o <path>` | `:open` `:e` `:edit` | Open a file |
-| `:n` | `:new` | New file |
+| `:n <path>` | `:new <path>` | New file (a name is required) |
 | `:bc` | `:bclose` `:buffer-close` | Close the buffer |
 | `:bc!` | `:bclose!` `:buffer-close!` | Close the buffer without saving |
 | `:reload` | `:rl` | Reload from disk |

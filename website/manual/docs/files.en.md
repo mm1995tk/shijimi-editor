@@ -7,7 +7,7 @@
 | `Ctrl+P` (also `Space f` in Helix mode) | Quick Open. Type part of a file name and pick it |
 | `Space b` (Helix mode) | Pick from the list of open buffers |
 | `:o <path>` | Open a file by path |
-| `Ctrl+N` / `:n` | New unnamed file |
+| `Ctrl+N` / `:n <path>` | New file (asks for a name; `:n` needs a path) |
 | `Enter` in the file tree | Open the selected file |
 
 ## Saving
