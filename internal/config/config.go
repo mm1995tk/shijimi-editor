@@ -281,8 +281,7 @@ func readTOML(path string, schema map[string]field, user bool) (raw map[string]a
 	}
 	if _, err := toml.Decode(string(data), &raw); err != nil {
 		p := Problem{File: path, code: "config.err.syntax", args: []any{err.Error()}}
-		var pe toml.ParseError
-		if errors.As(err, &pe) {
+		if pe, ok := errors.AsType[toml.ParseError](err); ok {
 			p.Line = pe.Position.Line
 			msg := pe.Message
 			if msg == "" {
@@ -367,8 +366,7 @@ func evalNix(path string) (raw map[string]any, exists bool, err error) {
 	out, err := exec.CommandContext(ctx, "nix", "--extra-experimental-features", "nix-command",
 		"eval", "--json", "--file", path).Output()
 	if err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) {
+		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
 			return nil, true, errors.New(lastLines(string(ee.Stderr)))
 		}
 		if ctx.Err() != nil {

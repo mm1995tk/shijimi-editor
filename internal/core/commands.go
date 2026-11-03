@@ -297,8 +297,7 @@ func (a *Core) ExecCommand(line string) []Effect {
 		if err != nil {
 			// Unlike at startup the editor is running: keep the settings it has
 			// and say what is wrong.
-			var ce *config.Error
-			if errors.As(err, &ce) {
+			if ce, ok := errors.AsType[*config.Error](err); ok {
 				a.Fail(errString(fmt.Sprintf(i18n.T("config.err.reload"), ce.Summary())))
 			} else {
 				a.Fail(err)

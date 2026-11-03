@@ -135,8 +135,7 @@ func failConfig(err error) {
 // configErrorText is err for a terminal: a *config.Error gets a heading with
 // its count.
 func configErrorText(err error) string {
-	var ce *config.Error
-	if errors.As(err, &ce) {
+	if ce, ok := errors.AsType[*config.Error](err); ok {
 		return fmt.Sprintf(i18n.T("config.err.head"), len(ce.Problems)) + "\n" + ce.Error()
 	}
 	return err.Error()
