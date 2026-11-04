@@ -2,9 +2,8 @@ package core
 
 import "github.com/mm1995tk/shijimi-editor/internal/buffer"
 
-// FrontEnd is what Core asks of the front end that draws it: the size of the
-// are shown, the terminal panel and the multiplexer
-// pane, the borders the user drags, and the few questions that need the
+// FrontEnd is what Core asks of the front end that draws it: which regions
+// are shown, the terminal panel and the multiplexer pane, the borders the user drags, and the few questions that need the
 // layout. Core holds the front end it is drawn by (set in New); in the program
 // it is internal/tui.App.
 type FrontEnd interface {

@@ -52,6 +52,7 @@ var _ tea.Model = (*App)(nil)
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
 		a.w, a.h = ws.Width, ws.Height
+		a.Core.SetSizes(core.Sizes{ScreenW: a.w, ScreenH: a.h}) // layout() reads the width from the core
 		if a.cellSize != nil {
 			core.UpdateCellSize(a.cellSize())
 		}

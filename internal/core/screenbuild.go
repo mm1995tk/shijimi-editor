@@ -42,7 +42,7 @@ func (a *Core) BuildScreen(v screen.View) screen.Screen {
 	return sc
 }
 
-// fitScreenSize makes the front end's screen the files region (cols x rows)
+// fitScreenSize hands the core the sizes of the files region (cols x rows)
 // and the status line: the core's paging and scrolling read it (EditRows,
 // TextCols). The GUI draws the one editor, so every width is the files
 // region's. A new size makes the scroll follow the cursor again.

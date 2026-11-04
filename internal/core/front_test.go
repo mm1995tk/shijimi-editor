@@ -33,8 +33,8 @@ func (f *testFront) Exit()                   { f.exited = true }
 func (f *testFront) SideShown() bool         { return f.side }
 func (f *testFront) TermShown() bool         { return f.term }
 func (f *testFront) AgentOpen() bool         { return f.agent }
-func (f *testFront) SetSide(on bool)         { f.side = on; f.push() }
-func (f *testFront) SetTerm(on bool)         { f.term = on; f.push() }
+func (f *testFront) SetSide(on bool)         { f.side = on }
+func (f *testFront) SetTerm(on bool)         { f.term = on }
 func (f *testFront) SetAgent(on bool)        { f.agent = on }
 func (f *testFront) AgentWidthPref() int     { return 0 }
 func (f *testFront) ExplorerShare() int      { return 0 }

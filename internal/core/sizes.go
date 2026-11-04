@@ -53,3 +53,6 @@ func (a *Core) EditorCols() int { return a.sizes.EditorCols }
 
 // SuggestionsShown reports whether the suggestion panel is open.
 func (a *Core) SuggestionsShown() bool { return a.sizes.SuggestionsShown }
+
+// Sizes is the sizes the core last was given.
+func (a *Core) Sizes() Sizes { return a.sizes }
