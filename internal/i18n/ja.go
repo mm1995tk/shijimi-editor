@@ -327,6 +327,7 @@ var ja = map[string]string{
 	"open.failed":              "%s が失敗しました: %s",
 	"open.failedv":             "%s が失敗しました: %v",
 	"open.needurl":             "URL を指定してください",
+	"open.remote":              "SSH 越しではブラウザを開きません（手元の画面に出ないため）",
 	"open.noopener":            "URL を開くコマンドが見つかりません（%s をインストールしてください）",
 	"open.nourl":               "カーソル位置に URL がありません（:open-url <URL> で指定できます）",
 	"open.unsupportedos":       "この OS には対応していません: %s",

@@ -27,6 +27,7 @@ type Workspaces struct {
 	coresMu  sync.Mutex            // held by whoever touches any core: see Workspace
 	cores    map[string]*Workspace // key -> its core
 	onChange func()                // SetOnChange
+	port     Port                  // SetPort
 }
 
 // Workspace is the core of one workspace root. Whoever touches the core does
@@ -98,7 +99,7 @@ func (w *Workspace) wait(from <-chan Event) {
 }
 
 // run carries out effs as internal/tui's effectCmd does. A core of `shj serve`
-// never quits: Quit is dropped (closing the GUI leaves the server running).
+// never quits (closing the GUI leaves the server running): the server's Port drops Exit.
 func (w *Workspace) run(effs []Effect) {
 	for _, e := range effs {
 		switch e := e.(type) {
@@ -147,6 +148,14 @@ func NewWorkspaces(sh *Shared, front func() FrontEnd) *Workspaces {
 	return &Workspaces{shared: sh, front: front, cores: map[string]*Workspace{}}
 }
 
+// SetPort sets the Port of the cores made after: the UI they clipboard and open
+// URLs through (the server, whose GUI sits on the user's machine).
+func (ws *Workspaces) SetPort(p Port) {
+	ws.mu.Lock()
+	ws.port = p
+	ws.mu.Unlock()
+}
+
 // SetOnChange sets what is called when a core changed on its own: an Event
 // came back from the work it asked for (a language server's reply, a timer).
 // The server rebuilds the screen then. It applies to the cores made after.
@@ -175,6 +184,9 @@ func (ws *Workspaces) Open(key, root string) (*Workspace, error) {
 	}
 	// Making a core reads the config and runs git, so it is done without the
 	// lock: a slow workspace does not hold up the others.
+	ws.mu.Lock()
+	port := ws.port
+	ws.mu.Unlock()
 	var c *Core
 	var err error
 	if ws.front != nil {
@@ -184,6 +196,9 @@ func (ws *Workspaces) Open(key, root string) (*Workspace, error) {
 	}
 	if err != nil {
 		return nil, err
+	}
+	if port != nil {
+		c.SetPort(port)
 	}
 	ws.mu.Lock()
 	w := &Workspace{Key: key, Root: root, mu: &ws.coresMu, core: c, onChange: ws.onChange, done: make(chan struct{})}

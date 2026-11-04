@@ -11,6 +11,9 @@ import (
 
 func TestOpenURLCommand(t *testing.T) {
 	a := newTestApp(t, "go https://example.com/x now\n")
+	oldSSH := core.IsRemoteSession
+	core.IsRemoteSession = func() bool { return false }
+	defer func() { core.IsRemoteSession = oldSSH }()
 	var opened string
 	old := core.OpenExternal
 	core.OpenExternal = func(u string) error { opened = u; return nil }
@@ -42,6 +45,9 @@ func TestOpenURLCommand(t *testing.T) {
 
 func TestOpenURLOpenerFailureShown(t *testing.T) {
 	a := newTestApp(t, "x\n")
+	oldSSH := core.IsRemoteSession
+	core.IsRemoteSession = func() bool { return false }
+	defer func() { core.IsRemoteSession = oldSSH }()
 	old := core.OpenExternal
 	core.OpenExternal = func(string) error { return errors.New("xdg-open が失敗しました") }
 	defer func() { core.OpenExternal = old }()
@@ -56,5 +62,20 @@ func TestOpenURLOpenerFailureShown(t *testing.T) {
 func runCmd(a *App, cmd tea.Cmd) {
 	if cmd != nil {
 		a.Update(cmd())
+	}
+}
+
+// Over SSH the TUI does not run the opener: the browser would not appear on the
+// user's screen.
+func TestOpenURLOverSSHNotOpened(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	oldOpen, oldSSH := core.OpenExternal, core.IsRemoteSession
+	defer func() { core.OpenExternal, core.IsRemoteSession = oldOpen, oldSSH }()
+	core.OpenExternal = func(u string) error { t.Fatalf("opened %q over SSH", u); return nil }
+	core.IsRemoteSession = func() bool { return true }
+
+	runCmd(a, a.effectCmd(a.ExecCommand("open-url https://a.example")...))
+	if !a.MsgErr {
+		t.Fatalf("expected an error, msg %q", a.Msg)
 	}
 }

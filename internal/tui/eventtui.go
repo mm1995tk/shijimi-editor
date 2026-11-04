@@ -63,11 +63,6 @@ func (a *App) effectCmd(effs ...core.Effect) tea.Cmd {
 			e.To <- e.Resp
 		case core.ReplyIDE:
 			e.To <- e.Reply
-		case core.Quit:
-			// From here on the View keeps asking the terminal for the same
-			// keyboard enhancements (see exit).
-			a.quitting = true
-			cmds = append(cmds, tea.Quit)
 		case core.Run:
 			run := e.Run
 			cmds = append(cmds, func() tea.Msg {
@@ -78,6 +73,8 @@ func (a *App) effectCmd(effs ...core.Effect) tea.Cmd {
 			})
 		}
 	}
+	cmds = append(cmds, a.later...)
+	a.later = nil
 	return tea.Batch(cmds...)
 }
 

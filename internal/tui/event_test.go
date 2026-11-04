@@ -8,15 +8,16 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
-// Quit is carried out by the TUI: tea.Quit, and the program is marked as ending.
-func TestQuitEffect(t *testing.T) {
+// The core's Exit (the Port) ends the program: tea.Quit, and it is marked as ending.
+func TestExitEndsProgram(t *testing.T) {
 	a := newTestApp(t, "one\n")
-	cmd := a.effectCmd(core.Quit{})
+	a.Exit()
+	cmd := a.effectCmd()
 	if cmd == nil {
 		t.Fatal("no command")
 	}
 	if _, ok := cmd().(tea.QuitMsg); !ok {
-		t.Fatal("Quit must end the program")
+		t.Fatal("Exit must end the program")
 	}
 	if !a.quitting {
 		t.Fatal("quitting not set")

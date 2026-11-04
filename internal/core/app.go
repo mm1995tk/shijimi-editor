@@ -36,33 +36,34 @@ type span struct{ x0, x1 int }
 type Core struct {
 	FrontEnd // what draws it (internal/tui.App)
 
-	Root      string
-	GitTop    string
-	Cfg       *config.Config
-	keymap    helixKeymap
-	lastIns   *insertRecord // what "." repeats
-	recIns    *insertRecord // the insert being recorded, until Esc
-	replaying bool          // "." is running; do not record
-	host      Host          // the GUI of `shj serve`; nil in the TUI
-	Lsp       *lspManager
-	Focus     Focus
-	Explorer  *Explorer
-	treeTicks int     // watch ticks since the tree was last reloaded
-	shared    *Shared // the port forwards, which the process has one of
-	ownShared bool    // the core made shared itself (New), so Close closes it
-	Pal       *Palette
-	wsSyms    []lsp.Symbol // rows of the project symbol picker
-	wsClient  *lsp.Client  // server the project symbol picker asks
-	Search    *SearchPanel
-	Tabs      []*Tab
-	jumps     []jumpLoc // positions to return to (Ctrl+O / Ctrl+I)
-	jumpIdx   int       // where in jumps the user is; len(jumps) = at the newest
-	Active    int
-	Branch    string
-	Gd        gitDiff
-	Confirm   *YesNo    // a y/n question on the status line
-	Card      *PrCard   // a review thread shown like a hover
-	Composer  *composer // the editor for a review comment
+	Root           string
+	GitTop         string
+	Cfg            *config.Config
+	keymap         helixKeymap
+	lastIns        *insertRecord // what "." repeats
+	recIns         *insertRecord // the insert being recorded, until Esc
+	replaying      bool          // "." is running; do not record
+	port           Port          // the UI's side of what the core cannot do itself (SetPort)
+	copyOnOpenFail string        // the URL openPRURL asked to open: copy it if that fails
+	Lsp            *lspManager
+	Focus          Focus
+	Explorer       *Explorer
+	treeTicks      int     // watch ticks since the tree was last reloaded
+	shared         *Shared // the port forwards, which the process has one of
+	ownShared      bool    // the core made shared itself (New), so Close closes it
+	Pal            *Palette
+	wsSyms         []lsp.Symbol // rows of the project symbol picker
+	wsClient       *lsp.Client  // server the project symbol picker asks
+	Search         *SearchPanel
+	Tabs           []*Tab
+	jumps          []jumpLoc // positions to return to (Ctrl+O / Ctrl+I)
+	jumpIdx        int       // where in jumps the user is; len(jumps) = at the newest
+	Active         int
+	Branch         string
+	Gd             gitDiff
+	Confirm        *YesNo    // a y/n question on the status line
+	Card           *PrCard   // a review thread shown like a hover
+	Composer       *composer // the editor for a review comment
 
 	// pane sizes picked by the user (0 = automatic), see resize.go
 
@@ -182,6 +183,7 @@ func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) (*Core, er
 		Helix:    cfg.Editor.Keymap != "vscode",
 		Gd:       gitDiff{Split: true},
 		Ag:       newAgentState(),
+		port:     nopPort{},
 	}
 	a.Explorer.Icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
@@ -231,6 +233,7 @@ func NewSingle(fe FrontEnd, file string, b Build) (*Core, error) {
 		Gd:        gitDiff{Split: true},
 		Ag:        newAgentState(),
 		single:    true,
+		port:      nopPort{},
 	}
 	if cfg.Editor.Theme != "" {
 		a.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
@@ -762,11 +765,11 @@ func (a *Core) Quit() []Effect {
 	return a.exit()
 }
 
-// exit ends the program. From here on the View keeps asking the terminal for
-// the same keyboard enhancements: when they change, Bubble Tea queries the
-// terminal, and the reply (CSI ? flags u) can arrive after input is no longer
-// read, so the shell would get it as typed text such as "3u".
-func (a *Core) exit() []Effect { return []Effect{Quit{}} }
+// exit says the program may end (the Port's Exit).
+func (a *Core) exit() []Effect {
+	a.port.Exit()
+	return nil
+}
 
 // OpenFind opens the find bar on the current file.
 func (a *Core) OpenFind() []Effect {
@@ -813,18 +816,11 @@ func (a *Core) toggleComment() {
 	}
 }
 
-// CopyText puts s in the clipboard register and on the system clipboard (the
-// GUI's under shj serve).
+// CopyText puts s in the clipboard register and on the user's clipboard (the
+// Port's WriteClipboard).
 func (a *Core) CopyText(s string) {
 	a.Clipboard = s
-	if a.host != nil {
-		a.host.WriteClipboard(s)
-		return
-	}
-	WriteSystemClipboard(s)
-	// Over SSH there is no local helper tool; the outer terminal can still
-	// take the text through OSC 52.
-	a.SendClipboard(s)
+	a.port.WriteClipboard(s)
 }
 
 // activePath is the file of the current tab, or "" when it has none.

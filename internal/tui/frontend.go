@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"github.com/charmbracelet/x/ansi"
-
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
@@ -63,14 +61,6 @@ func (a *App) ReleasesReported() bool { return a.keyReleases }
 
 // SetReleasesReported records whether the terminal sends key releases.
 func (a *App) SetReleasesReported(on bool) { a.keyReleases = on }
-
-// SendClipboard asks the terminal the program runs in to set the system
-// clipboard (an OSC 52 write outside the frame). It does nothing without one.
-func (a *App) SendClipboard(s string) {
-	if a.caret != nil {
-		_ = a.caret.Send([]byte(ansi.SetSystemClipboard(s)))
-	}
-}
 
 // TermBlur takes the keys away from the terminal panel.
 func (a *App) TermBlur() { a.term.blur() }

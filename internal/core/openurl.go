@@ -59,19 +59,23 @@ func urlAt(line []rune, col int) (string, bool) {
 	return "", false
 }
 
-// openURLMsg reports the result of running the opener.
-type openURLMsg struct {
-	url string
-	err error
-	// copyOnFail copies url to the clipboard when opening failed, instead of
-	// showing the error.
-	copyOnFail bool
+// OpenURLResult is what a UI that tried to open a URL (the Port's OpenURL)
+// tells the core afterwards. Err is nil when it opened.
+type OpenURLResult struct {
+	URL string
+	Err error
 }
+
+// ErrRemoteSession is the Err of an OpenURLResult when the UI did not try: the
+// editor runs over SSH, where a browser opened here would not appear on the
+// user's screen.
+var ErrRemoteSession = errors.New("remote session")
 
 var urlFullRe = regexp.MustCompile(`^https?://\S+$`)
 
 // openURL opens arg, or the URL under the cursor when arg is empty.
 func (a *Core) openURL(arg string) []Effect {
+	a.copyOnOpenFail = ""
 	url := strings.TrimSpace(arg)
 	if url == "" {
 		t := a.CurText()
@@ -91,11 +95,12 @@ func (a *Core) openURL(arg string) []Effect {
 		a.Fail(fmt.Errorf(i18n.T("open.badurl"), url))
 		return nil
 	}
-	return async(func() Event { return openURLMsg{url: url, err: a.openInBrowser(url)} })
+	a.port.OpenURL(url)
+	return nil
 }
 
-// IsRemoteSession reports whether the editor runs over SSH, where a browser
-// opened here would not appear on the user's screen. It is replaced in tests.
+// IsRemoteSession reports whether the editor runs over SSH. The TUI does not open
+// a browser then (ErrRemoteSession). It is replaced in tests.
 var IsRemoteSession = func() bool {
 	return os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_TTY") != ""
 }
@@ -111,10 +116,29 @@ func (a *Core) copyPRURL() []Effect {
 // opener fails, it copies the URL instead and says so.
 func (a *Core) openPRURL() []Effect {
 	url := a.Gd.Pr.URL
-	if a.host == nil && IsRemoteSession() {
-		a.CopyText(url)
-		a.Info(i18n.T("rv.sshcopied"), url)
-		return nil
+	a.copyOnOpenFail = url
+	a.port.OpenURL(url)
+	return nil
+}
+
+// handleOpenURLResult shows how opening a URL went. For the pull request's URL
+// (openPRURL) a failure copies it instead, and says so.
+func (a *Core) handleOpenURLResult(ev OpenURLResult) []Effect {
+	copyOnFail := a.copyOnOpenFail == ev.URL
+	a.copyOnOpenFail = ""
+	switch {
+	case ev.Err != nil && copyOnFail && errors.Is(ev.Err, ErrRemoteSession):
+		a.CopyText(ev.URL)
+		a.Info(i18n.T("rv.sshcopied"), ev.URL)
+	case ev.Err != nil && copyOnFail:
+		a.CopyText(ev.URL)
+		a.Info(i18n.T("rv.openfailedcopied"), ev.URL)
+	case errors.Is(ev.Err, ErrRemoteSession):
+		a.Fail(errors.New(i18n.T("open.remote")))
+	case ev.Err != nil:
+		a.Fail(ev.Err)
+	default:
+		a.Info(i18n.T("app.opened"), ev.URL)
 	}
-	return async(func() Event { return openURLMsg{url: url, err: a.openInBrowser(url), copyOnFail: true} })
+	return nil
 }

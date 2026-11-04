@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
 )
 
@@ -161,11 +160,7 @@ func (SearchDone) isEvent() {}
 // delivered. The search stops by itself once a newer one supersedes it.
 type RunSearch struct{ Run func() Event }
 
-// Quit says the program may end.
-type Quit struct{}
-
 func (StartTimer) isEffect() {}
-func (Quit) isEffect()       {}
 func (ReplyCtl) isEffect()   {}
 func (ReplyIDE) isEffect()   {}
 func (RunLSP) isEffect()     {}
@@ -245,7 +240,7 @@ func (HighlightMsg) isEvent()     {}
 func (MermaidStartMsg) isEvent()  {}
 func (MermaidDoneMsg) isEvent()   {}
 func (MdImageDoneMsg) isEvent()   {}
-func (openURLMsg) isEvent()       {}
+func (OpenURLResult) isEvent()    {}
 
 // TermOutputMsg says the terminal panel's shell printed something and
 // TermDoneMsg that it ended. A shell that cannot be started is an error from
@@ -321,17 +316,8 @@ func (a *Core) HandleEvent(ev Event) []Effect {
 		return nil
 	case FormatterDoneMsg:
 		return a.handleFormatterDone(ev)
-	case openURLMsg:
-		switch {
-		case ev.err != nil && ev.copyOnFail:
-			a.CopyText(ev.url)
-			a.Info(i18n.T("rv.openfailedcopied"), ev.url)
-		case ev.err != nil:
-			a.Fail(ev.err)
-		default:
-			a.Info(i18n.T("app.opened"), ev.url)
-		}
-		return nil
+	case OpenURLResult:
+		return a.handleOpenURLResult(ev)
 	case PrFoundMsg:
 		return a.HandlePRFound(ev)
 	case branchPRsMsg:
