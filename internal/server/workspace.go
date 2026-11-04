@@ -55,12 +55,14 @@ type wsManager struct {
 	// recomputeMu は recompute 全体と、フォルダの切り替え・閉じる・フォーカスを 1 つずつにする（通知の順序を保つ）。
 	recomputeMu sync.Mutex
 
-	mu    sync.Mutex
-	home  string
-	reg   map[string]*wsState // id -> ワークスペース
-	next  int
-	list  map[string]*wsInfo // 前回の recompute の結果
-	focus string             // フォーカスしているワークスペースの id。無ければ ""
+	mu        sync.Mutex
+	home      string
+	reg       map[string]*wsState // id -> ワークスペース
+	next      int
+	list      map[string]*wsInfo // 前回の recompute の結果
+	focus     string             // フォーカスしているワークスペースの id。無ければ ""
+	restoring bool               // restore の途中（persist は書かない）
+	saved     []byte             // persist が最後に書いた内容
 }
 
 func newWSManager(s *Server) *wsManager {
@@ -153,10 +155,14 @@ func (w *wsManager) folderOf(id string) (string, bool) {
 func (w *wsManager) create() (id, termID string, err error) {
 	w.recomputeMu.Lock()
 	defer w.recomputeMu.Unlock()
-	dir := w.startDir()
+	return w.createLocked(newWorkspaceID(), w.startDir())
+}
+
+// createLocked は recomputeMu を持って呼ぶ。wsID のワークスペースを作り、プライマリターミナルを dir で始める。
+func (w *wsManager) createLocked(wsID, dir string) (id, termID string, err error) {
 	w.mu.Lock()
 	w.next++
-	st := &wsState{id: newWorkspaceID(), seq: w.next}
+	st := &wsState{id: wsID, seq: w.next}
 	if root, kind, ok := w.resolve(dir); ok {
 		st.root, st.kind = root, kind
 	}
@@ -204,6 +210,7 @@ func (w *wsManager) recomputeLocked() {
 	if p := changedParams(added, updated, removed); p != nil {
 		w.srv.notifyOwner("workspace.changed", p)
 	}
+	w.persist()
 }
 
 // buildWorkspaces はワークスペースの一覧を作る。分割したターミナルは属するワークスペースごとにまとめる。

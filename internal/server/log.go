@@ -16,6 +16,15 @@ const DefaultMaxLog = 10 << 20
 // LogPath は serve.log の場所を返す。$XDG_STATE_HOME/shijimi-editor/serve.log、
 // 無ければ ~/.local/state/shijimi-editor/serve.log。nightly は shijimi-editor-nightly。
 func LogPath() (string, error) {
+	dir, err := stateDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "serve.log"), nil
+}
+
+// stateDir は serve.log とワークスペースの一覧を置くフォルダ。
+func stateDir() (string, error) {
 	base := os.Getenv("XDG_STATE_HOME")
 	if base == "" {
 		home, err := os.UserHomeDir()
@@ -24,7 +33,7 @@ func LogPath() (string, error) {
 		}
 		base = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(base, "shijimi-editor"+buildinfo.Suffix(), "serve.log"), nil
+	return filepath.Join(base, "shijimi-editor"+buildinfo.Suffix()), nil
 }
 
 // logFile は上限を超えたら先頭を捨てる追記専用のログファイル。

@@ -130,7 +130,7 @@ start_dir = "~/work"      # where a new workspace's shell starts (default ~)
 | `browser.listen-host` | Listen address for port forwarding | [External browser and port forwarding](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | The ACP agent used by the suggestions panel | [AI agent integration](agent.md) |
 | `server.start_dir` | The folder where the primary terminal of a new workspace starts (an absolute path, or one that starts with `~`). Default `~`. A folder that does not exist is a mistake in the configuration. If it is inside a project, the workspace's folder is decided at once | — |
-| `server.idle_stop_days` | Days `shj serve` stays up with no GUI connected before it stops itself (default 7, 0 = never). Running shells end with it; unsaved edits are written next to the file as `<name>.bk` (`.bk.1`, ... if taken) and the file itself is not changed | — |
+| `server.idle_stop_days` | Days `shj serve` stays up with no GUI connected before it stops itself (default 7, 0 = never). Running shells end with it; unsaved edits are written next to the file as `<name>.bk` (`.bk.1`, ... if taken) and the file itself is not changed. The list of workspaces (their folders, and the ones with no folder yet) is saved in `workspaces.json` next to `serve.log`, and the next `shj serve` makes them again, each with a new primary shell in its folder (in `start_dir` if the folder is gone or not decided). Split terminals and open files do not come back | — |
 
 ## Themes
 
