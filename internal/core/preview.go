@@ -278,7 +278,7 @@ func (a *Core) syncMDImages() []Effect {
 	for path, job := range a.MdImages {
 		if !wanted[path] {
 			if job.Img != nil {
-				job.Img.Close()
+				a.port.ImageClosed(job.Img.Id)
 			}
 			delete(a.MdImages, path)
 			// a preview drawn before (another tab's) still refers to the
@@ -297,7 +297,7 @@ func (a *Core) HandleMDImageDone(m MdImageDoneMsg) {
 		return // dropped, or the file changed again while it was read
 	}
 	if job.Img != nil {
-		job.Img.Close()
+		a.port.ImageClosed(job.Img.Id)
 	}
 	job.done, job.Img, job.Err = true, nil, ""
 	a.PreviewGen++

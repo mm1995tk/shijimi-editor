@@ -17,11 +17,11 @@ import (
 
 func TestImageViewSendsOncePerSize(t *testing.T) {
 	core.CellW, core.CellH = 10, 20
-	core.TakeGraphics()
+	takeGraphics()
 	v := &core.ImageView{Path: "a.png", Img: image.NewRGBA(image.Rect(0, 0, 400, 400)), Format: "png", Id: 7}
 	a := appOf(&core.Core{Tabs: []*core.Tab{{Kind: core.TabImage, Img: v}}})
 	lines := a.imageLines(a.Tabs[0], 30, 12)
-	if g := core.TakeGraphics(); g != "" {
+	if g := takeGraphics(); g != "" {
 		t.Errorf("drawing sent the image")
 	}
 	a.sendImagePane(a.Tabs[0], 30, 12)
@@ -33,18 +33,18 @@ func TestImageViewSendsOncePerSize(t *testing.T) {
 			t.Errorf("line %d width = %d", i, w)
 		}
 	}
-	g := core.TakeGraphics()
+	g := takeGraphics()
 	if !strings.Contains(g, "\x1b_Ga=T,U=1,f=100,i=7,c=22,r=11,") {
 		t.Errorf("transmit not queued: %q", g[:min(len(g), 60)])
 	}
 	core.ThemeGen++ // rebuild the lines without changing the size
 	a.sendImagePane(a.Tabs[0], 30, 12)
 	a.imageLines(a.Tabs[0], 30, 12)
-	if g := core.TakeGraphics(); g != "" {
+	if g := takeGraphics(); g != "" {
 		t.Errorf("same size sent again")
 	}
-	v.Close()
-	if g := core.TakeGraphics(); g != "\x1b_Ga=d,d=I,i=7,q=2\x1b\\" {
+	a.ImageClosed(v.Id)
+	if g := takeGraphics(); g != "\x1b_Ga=d,d=I,i=7,q=2\x1b\\" {
 		t.Errorf("close = %q", g)
 	}
 }

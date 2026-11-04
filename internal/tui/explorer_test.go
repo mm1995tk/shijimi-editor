@@ -16,7 +16,7 @@ import (
 // render fits the tree to h rows and draws it, the way View does.
 func renderExplorer(e *core.Explorer, w, h int, focused bool, activePath string) []string {
 	e.EnsureVisible(h - 1)
-	return drawExplorer(e.Screen(h, activePath), w, h, focused)
+	return drawExplorer(e, activePath, w, h, focused)
 }
 
 func TestExplorerRenderIndentGuides(t *testing.T) {
@@ -120,5 +120,27 @@ func TestExplorerDimsIgnoredFiles(t *testing.T) {
 		} else if !strings.HasSuffix(plain, " U") {
 			t.Errorf("%s: missing status letter: %q", n.Name, plain)
 		}
+	}
+}
+
+// The rows of the tree hold only what is in view, and making them changes
+// nothing: the scroll is fitted before (EnsureVisible).
+func TestExplorerRowsInView(t *testing.T) {
+	dir := t.TempDir()
+	for _, n := range []string{"a", "b", "c", "d", "e"} {
+		if err := os.WriteFile(filepath.Join(dir, n), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	e := core.NewExplorer(dir)
+	e.Sel = 4
+	e.EnsureVisible(2) // a window of 2 rows
+	before := e.Scroll
+	rows := explorerRows(e, 3, filepath.Join(dir, "a"))
+	if e.Scroll != before {
+		t.Fatalf("making the rows moved the scroll: %d -> %d", before, e.Scroll)
+	}
+	if len(rows) != 2 || !rows[1].selected || rows[1].name != "e" || rows[0].selected {
+		t.Errorf("rows = %+v", rows)
 	}
 }

@@ -17,7 +17,8 @@ func sendImage(v *core.ImageView, w, h int) {
 		return
 	}
 	src := v.Img.Bounds()
-	v.Send(core.FitImage(src.Dx(), src.Dy(), w, h))
+	pw, ph, cols, rows := core.FitImage(src.Dx(), src.Dy(), w, h)
+	sendPixels(v, pw, ph, cols, rows)
 }
 
 // sendMdImages sends the images of a Markdown document drawn w cells wide

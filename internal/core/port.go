@@ -50,6 +50,9 @@ type Port interface {
 	// in its own terminal it tells the core with AddFailureTab, ClearFailure
 	// and KeepFailuresOf.
 	CommandEnded(code int)
+	// ImageClosed says the image Id is not shown any more, so that a UI frees
+	// what it holds for it (the TUI's terminal graphics).
+	ImageClosed(id uint32)
 }
 
 // nopPort is the Port of a core whose UI has not set one: it does nothing.
@@ -72,6 +75,7 @@ func (nopPort) TermRun(string)          {}
 func (nopPort) TermPaste(string)        {}
 func (nopPort) TermClose()              {}
 func (nopPort) CommandEnded(int)        {}
+func (nopPort) ImageClosed(uint32)      {}
 
 // SetPort sets the Port. The TUI sets itself (internal/tui.New); a core of
 // `shj serve` gets the server's (Workspaces.SetPort).

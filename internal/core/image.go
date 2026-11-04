@@ -6,7 +6,6 @@ import (
 	"image"
 	_ "image/gif"
 	_ "image/jpeg"
-	"image/png"
 	"math"
 	"math/rand/v2"
 	"os"
@@ -15,12 +14,10 @@ import (
 	"sync"
 
 	_ "golang.org/x/image/bmp"
-	"golang.org/x/image/draw"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
-	"github.com/mm1995tk/shijimi-editor/internal/kitty"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -30,18 +27,16 @@ func isImage(path string) bool {
 	return imageExts[strings.ToLower(filepath.Ext(path))]
 }
 
-// ImageView shows an image with the Kitty graphics protocol: the pixels are
-// sent to the terminal out of band (see queueGraphics) and the view itself
-// only holds Unicode placeholder cells that the terminal draws the image on.
+// ImageView is an image that is shown: what was read of the file, and Id, the
+// number a UI uses to name the picture. How it is shown is the UI's business:
+// the TUI sends the pixels to the terminal out of band (internal/tui).
 type ImageView struct {
 	Path   string
 	Img    image.Image
 	Format string
 	Size   int64
 	Err    error
-	Id     uint32 // Kitty image id
-
-	sentCols, sentRows, sentPW, sentPH int // placement the terminal holds
+	Id     uint32 // the picture's number, unique in the process (the TUI names its terminal graphics by it)
 
 	CacheW, CacheH int
 	CacheCell      [2]int // cell size the cache was built for
@@ -127,24 +122,10 @@ func nextImageID() uint32 {
 	return lastImageID
 }
 
-// graphics holds Kitty graphics sequences (image data, deletions) waiting to
-// be written to the terminal. Views queue them while rendering; App.View
-// sends them before the frame that shows the placeholders.
-var graphics []string
-
-func queueGraphics(s string) { graphics = append(graphics, s) }
-
-// TakeGraphics returns the queued sequences and empties the queue.
-func TakeGraphics() string {
-	s := strings.Join(graphics, "")
-	graphics = nil
-	return s
-}
-
 // FitImage returns the size an image of sw x sh pixels is shown at in a box
 // of w x h cells: its pixel size (never enlarged) and the cells it spans.
 func FitImage(sw, sh, w, h int) (pw, ph, cols, rows int) {
-	maxCols, maxRows := min(w, kitty.MaxCells), min(h, kitty.MaxCells)
+	maxCols, maxRows := min(w, MaxImageCells), min(h, MaxImageCells)
 	scale := min(float64(maxCols*CellW)/float64(sw), float64(maxRows*CellH)/float64(sh), 1)
 	pw = max(1, int(math.Round(float64(sw)*scale)))
 	ph = max(1, int(math.Round(float64(sh)*scale)))
@@ -156,37 +137,8 @@ func FitImage(sw, sh, w, h int) (pw, ph, cols, rows int) {
 // RowsFor returns the rows the image needs when it is w columns wide at most.
 func (v *ImageView) RowsFor(w int) int {
 	b := v.Img.Bounds()
-	_, _, _, rows := FitImage(b.Dx(), b.Dy(), w, kitty.MaxCells)
+	_, _, _, rows := FitImage(b.Dx(), b.Dy(), w, MaxImageCells)
 	return rows
-}
-
-// Send queues the image scaled to pw x ph pixels, placed on cols x rows cells,
-// unless the terminal already holds exactly that.
-func (v *ImageView) Send(pw, ph, cols, rows int) {
-	if v.sentCols == cols && v.sentRows == rows && v.sentPW == pw && v.sentPH == ph {
-		return
-	}
-	src := v.Img.Bounds()
-	img := v.Img
-	if pw != src.Dx() || ph != src.Dy() {
-		dst := image.NewRGBA(image.Rect(0, 0, pw, ph))
-		draw.CatmullRom.Scale(dst, dst.Bounds(), v.Img, src, draw.Src, nil)
-		img = dst
-	}
-	var buf bytes.Buffer
-	if err := (&png.Encoder{CompressionLevel: png.BestSpeed}).Encode(&buf, img); err != nil {
-		return
-	}
-	queueGraphics(kitty.Transmit(v.Id, buf.Bytes(), cols, rows))
-	v.sentCols, v.sentRows, v.sentPW, v.sentPH = cols, rows, pw, ph
-}
-
-// Close frees the image in the terminal.
-func (v *ImageView) Close() {
-	if v.sentCols != 0 {
-		queueGraphics(kitty.Delete(v.Id))
-		v.sentCols = 0
-	}
 }
 
 // BuildImagePane makes the Pane of the image tab t, w columns wide and h rows
@@ -230,3 +182,8 @@ func RgbParams(hex string) string {
 	fmt.Sscanf(hex, "#%02x%02x%02x", &r, &g, &b)
 	return fmt.Sprintf("%d;%d;%d", r, g, b)
 }
+
+// MaxImageCells is the largest number of rows or columns an image may span.
+// A UI whose pictures have such a limit (the TUI's terminal graphics) sets it
+// before it draws; until then there is none.
+var MaxImageCells = 1 << 20

@@ -10,9 +10,9 @@ import (
 // scroll and the selection where they go.
 func TestAgentScreenDrawsTwiceTheSame(t *testing.T) {
 	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: "one\ntwo"}, core.LogEntry{Kind: core.LogAgent, Text: "# h\n\ntext"})
-	one := drawAgent(a.AgentScreen(l.agentW, l.bodyH, true), l.agentW, l.bodyH, true)
+	one := drawAgent(a.AgentPanelOf(l.agentW, l.bodyH, true), l.agentW, l.bodyH, true)
 	scroll, sel := a.Ag.Scroll, a.Sg.Sel
-	two := drawAgent(a.AgentScreen(l.agentW, l.bodyH, true), l.agentW, l.bodyH, true)
+	two := drawAgent(a.AgentPanelOf(l.agentW, l.bodyH, true), l.agentW, l.bodyH, true)
 	if a.Ag.Scroll != scroll || a.Sg.Sel != sel {
 		t.Fatal("building the screen changed the state")
 	}

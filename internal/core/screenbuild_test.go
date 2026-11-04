@@ -33,7 +33,7 @@ func TestBuildScreenText(t *testing.T) {
 	if sc.Status.Mode == "" || sc.Status.Position != "1:1" {
 		t.Errorf("status: %+v", sc.Status)
 	}
-	if sc.Cmdline != nil || sc.Overlay == nil || len(sc.Overlay) != 0 || sc.Explorer != nil || sc.Changes != nil || sc.Agent != nil {
+	if sc.Cmdline != nil || sc.Overlay == nil || len(sc.Overlay) != 0 {
 		t.Errorf("other regions: %+v", sc)
 	}
 	if a.ScreenW() != 40 || a.ScreenH() != 11 {

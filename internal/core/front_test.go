@@ -54,6 +54,7 @@ func (f *testFront) TermRun(line string) { f.termRuns = append(f.termRuns, line)
 func (f *testFront) TermPaste(s string)  { f.termPasted = append(f.termPasted, s) }
 func (f *testFront) TermClose()          { f.termClosed = true }
 func (f *testFront) CommandEnded(int)    {}
+func (f *testFront) ImageClosed(uint32)  {}
 func (f *testFront) StartResize()        { f.resize = true; f.push() }
 func (f *testFront) ResizeKey(string)    {}
 func (f *testFront) ResetPanes()         {}
