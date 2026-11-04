@@ -12,7 +12,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
@@ -26,7 +25,7 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 	png.Encode(f, img)
 	f.Close()
 
-	b := buffer.New()
+	b := core.NewBuffer()
 	b.Insert("# t\n\n```mermaid\ngraph TD; A-->B\n```\n")
 	b.Path = "x.md"
 	cfg := &config.Config{Editor: config.Editor{MermaidCommand: "cp " + core.ShellQuote(src) + " {out}"}}
@@ -60,10 +59,10 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 
 func TestMermaidJobRestoredAfterTabSwitch(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
-	a1 := buffer.New()
+	a1 := core.NewBuffer()
 	a1.Insert("```mermaid\nA-->B\n```\n")
 	a1.Path = "a.md"
-	b1 := buffer.New()
+	b1 := core.NewBuffer()
 	b1.Insert("other")
 	b1.Path = "b.md"
 	a := appOf(&core.Core{Cfg: &config.Config{Editor: config.Editor{MermaidCommand: "true {in} {out}"}}, Tabs: []*core.Tab{core.NewTab(a1), core.NewTab(b1)}})
@@ -91,7 +90,7 @@ func TestMermaidJobRestoredAfterTabSwitch(t *testing.T) {
 }
 
 func TestTogglePreviewCyclesToFullWidth(t *testing.T) {
-	b := buffer.New()
+	b := core.NewBuffer()
 	b.Insert("# 見出し\n")
 	b.Path = "x.md"
 	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}})
@@ -122,7 +121,7 @@ func TestTogglePreviewCyclesToFullWidth(t *testing.T) {
 }
 
 func TestFullPreviewBlocksEditing(t *testing.T) {
-	b := buffer.New()
+	b := core.NewBuffer()
 	b.Insert("# 見出し\n")
 	b.Path = "x.md"
 	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}, Helix: true, Mode: core.ModeInsert})
@@ -152,7 +151,7 @@ func TestFullPreviewBlocksEditing(t *testing.T) {
 }
 
 func TestFullPreviewBlocksLeaderPasteAndVscodeKeymap(t *testing.T) {
-	b := buffer.New()
+	b := core.NewBuffer()
 	b.Insert("abc\n")
 	b.Path = "x.md"
 	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}, Helix: true, Pal: &core.Palette{}, Search: &core.SearchPanel{}})
@@ -202,7 +201,7 @@ func TestMarkdownImageInPreview(t *testing.T) {
 	png.Encode(f, image.NewRGBA(image.Rect(0, 0, 40, 20)))
 	f.Close()
 
-	b := buffer.New()
+	b := core.NewBuffer()
 	b.Insert("# t\n\n![図](a.png)\n\n![無い](missing.png)\n\n![外](https://example.com/x.png)\n")
 	b.Path = filepath.Join(dir, "x.md")
 	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}})
@@ -247,7 +246,7 @@ func TestMarkdownImageInPreview(t *testing.T) {
 func TestMarkdownImageReloadedWhenFileChanges(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "out.png")
-	b := buffer.New()
+	b := core.NewBuffer()
 	b.Insert("![図](out.png)\n")
 	b.Path = filepath.Join(dir, "x.md")
 	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}})

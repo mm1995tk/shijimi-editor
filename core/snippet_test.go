@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 )
 
 func TestParseSnippet(t *testing.T) {

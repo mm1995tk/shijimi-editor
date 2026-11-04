@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/core/acp/acptest"
+	"github.com/mm1995tk/shijimi-editor/core/acptest"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
 )
 

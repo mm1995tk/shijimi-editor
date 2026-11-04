@@ -14,7 +14,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/diff"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
 
@@ -215,7 +214,7 @@ func TestChangeBarClickScrolls(t *testing.T) {
 	tb.Buf.Lines[150] = []rune("changed")
 	tb.Buf.Version++
 	a.ApplyChanges(core.LoadChanges(a.Gd.Gen, a.Root, core.BaseHead, nil).(core.ChangesLoadedMsg))
-	a.Gd.ByAbs[file] = &diff.File{NewPath: "a.txt", Status: "modified"}
+	a.Gd.ByAbs[file] = &core.DiffFile{NewPath: "a.txt", Status: "modified"}
 	tb.Dv = nil
 	l := a.layout()
 	g := a.dvGeom(l)
@@ -234,7 +233,7 @@ func TestChangeBarClickScrolls(t *testing.T) {
 }
 
 func TestInlineMarksAreDrawn(t *testing.T) {
-	text := highlightText("abcdef", nil, cDelBg, []diff.Span{{Start: 2, End: 4}}, cDelWordBg, 10, 0)
+	text := highlightText("abcdef", nil, cDelBg, []core.DiffSpan{{Start: 2, End: 4}}, cDelWordBg, 10, 0)
 	if ansi.Strip(text) != "abcdef    " {
 		t.Errorf("text = %q", ansi.Strip(text))
 	}

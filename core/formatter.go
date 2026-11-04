@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/config"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 

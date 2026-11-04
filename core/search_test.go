@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 )
 
 func TestSplitReplaceArgs(t *testing.T) {

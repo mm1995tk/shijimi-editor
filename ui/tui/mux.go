@@ -8,7 +8,6 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
-	"github.com/mm1995tk/shijimi-editor/core/ide"
 	"github.com/mm1995tk/shijimi-editor/ui/internal/term"
 	tuicfg "github.com/mm1995tk/shijimi-editor/ui/tui/config"
 )
@@ -156,7 +155,7 @@ func (a *App) muxError(err error) error {
 // and the shell integration that reports exit codes through shj.
 func (a *App) muxPaneEnv() []string {
 	var env []string
-	for _, k := range []string{ctl.EnvSocket, ide.EnvPort, ide.EnvEnable, ide.EnvForceTerminal} {
+	for _, k := range append([]string{ctl.EnvSocket}, core.IDEEnvKeys()...) {
 		if v := os.Getenv(k); v != "" {
 			env = append(env, k+"="+v)
 		}

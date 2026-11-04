@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
-	"github.com/mm1995tk/shijimi-editor/core/lsp"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
 )
 
 func TestFormatContext(t *testing.T) {

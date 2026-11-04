@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
-	"github.com/mm1995tk/shijimi-editor/core/diff"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )

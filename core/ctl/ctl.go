@@ -1,7 +1,7 @@
 // Package ctl is what the control socket promises its two sides: the messages
 // (newline-delimited JSON, one Request in and one Response out per
 // connection), the names of the environment variables and where the sockets
-// live. The server is core/ctlserver and the client is
+// live. The server is core/internal/ctlserver and the client is
 // ui/cli/ctlclient.
 package ctl
 

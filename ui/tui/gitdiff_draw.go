@@ -9,8 +9,6 @@ import (
 	"github.com/rivo/uniseg"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
-	"github.com/mm1995tk/shijimi-editor/core/diff"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
@@ -30,9 +28,9 @@ func (a *App) dvGeom(l layout) core.DiffGeom {
 func (a *App) cursorScreen(t *core.Tab, l layout) (x, y int) { return a.posScreen(t, l, t.Buf.Cur) }
 
 // posScreen is the screen cell of the character at p in t's buffer.
-func (a *App) posScreen(t *core.Tab, l layout, p buffer.Pos) (x, y int) {
+func (a *App) posScreen(t *core.Tab, l layout, p core.Pos) (x, y int) {
 	b := t.Buf
-	x = l.rightX + core.GutterWidth(b) + buffer.VisualCol(b.Lines[p.Row], p.Col) - b.ScrollCol
+	x = l.rightX + core.GutterWidth(b) + core.VisualCol(b.Lines[p.Row], p.Col) - b.ScrollCol
 	y = l.editY + p.Row - b.ScrollRow
 	if dv := a.DiffOf(t); dv != nil {
 		g := a.dvGeom(l)
@@ -416,6 +414,6 @@ func drawSpans(spans []screen.Span, bg string, words []screen.Cols, wordBg strin
 
 // highlightText draws text with syntax colors on bg, w cells wide (LexSpans
 // drawn by drawSpans). The runes inside spans get markBg instead.
-func highlightText(text string, lex chroma.Lexer, bg string, spans []diff.Span, markBg string, w, skip int) string {
+func highlightText(text string, lex chroma.Lexer, bg string, spans []core.DiffSpan, markBg string, w, skip int) string {
 	return drawSpans(core.LexSpans(text, lex), bg, core.ColsOf(spans), markBg, w, skip)
 }

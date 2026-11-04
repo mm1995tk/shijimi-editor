@@ -1,6 +1,6 @@
 package core
 
-import "github.com/mm1995tk/shijimi-editor/core/buffer"
+import "github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 
 // ptrq.go is what the pointer does to the state, once mouse.go has found out
 // where it is: the wheel and the clicks in the side bar and in the editor, the

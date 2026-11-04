@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
 
@@ -94,7 +93,7 @@ func TestHoverOverlay(t *testing.T) {
 		long += fmt.Sprintf("line %d\n", i)
 	}
 	a.HoverText = long
-	a.HoverAt = &buffer.Pos{Row: 1, Col: 3}
+	a.HoverAt = &core.Pos{Row: 1, Col: 3}
 	ov := a.hoverOverlay(l)
 	if ov.Kind != screen.OverlayHover || ov.Pane != a.CurText().Path() || ov.At == nil || *ov.At != (screen.Pos{Line: 1, Col: 3}) {
 		t.Fatalf("overlay = %+v", ov)
@@ -115,9 +114,9 @@ func TestHoverOverlay(t *testing.T) {
 // while it is open, and drawing must not fall off the end.
 func TestHoverAnchorSurvivesShrinkingFile(t *testing.T) {
 	a := newTestApp(t, "a\nb\nc\nd\nlast line\n")
-	a.HoverText, a.HoverAt = "text", &buffer.Pos{Row: 4, Col: 6}
+	a.HoverText, a.HoverAt = "text", &core.Pos{Row: 4, Col: 6}
 	b := a.CurText().Buf
-	b.Lines, b.Cur = b.Lines[:1], buffer.Pos{}
+	b.Lines, b.Cur = b.Lines[:1], core.Pos{}
 	_ = a.render()
 	if at := a.hoverOverlay(a.layout()).At; at == nil || at.Line != 0 {
 		t.Fatalf("anchor = %v", at)

@@ -12,7 +12,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
@@ -54,14 +53,14 @@ func TestCommentOnLines(t *testing.T) {
 	a, _ := prApp(t)
 	b := a.CurText().Buf
 	// far from the change: GitHub would refuse it
-	b.Cur = buffer.Pos{Row: 0}
+	b.Cur = core.Pos{Row: 0}
 	a.ReviewKey("c")
 	if a.Composer != nil || !a.MsgErr {
 		t.Fatal("comment outside the hunk was accepted")
 	}
 	// lines 9..11 selected (Helix x on 9, then extended)
-	anchor := buffer.Pos{Row: 8}
-	b.Anchor, b.Cur = &anchor, buffer.Pos{Row: 11}
+	anchor := core.Pos{Row: 8}
+	b.Anchor, b.Cur = &anchor, core.Pos{Row: 11}
 	a.ReviewKey("c")
 	if a.Composer == nil {
 		t.Fatalf("no editor: %s", a.Msg)
@@ -84,7 +83,7 @@ func TestCommentOnLines(t *testing.T) {
 		t.Errorf("status: %q", st)
 	}
 	// the marker shows on the last line, and Space v t opens the card
-	b.Anchor, b.Cur = nil, buffer.Pos{Row: 10}
+	b.Anchor, b.Cur = nil, core.Pos{Row: 10}
 	a.ReviewKey("t")
 	if a.Card == nil || a.Card.Thread != th {
 		t.Fatal("card not opened")
@@ -101,7 +100,7 @@ func TestCommentOnLines(t *testing.T) {
 
 func TestSpaceVMenu(t *testing.T) {
 	a, _ := prApp(t)
-	a.CurText().Buf.Cur = buffer.Pos{Row: 9}
+	a.CurText().Buf.Cur = core.Pos{Row: 9}
 	press(a, " ")
 	if !strings.Contains(ansi.Strip(a.render()), "レビュー（PR）") {
 		t.Error("Space menu lacks v")
@@ -349,7 +348,7 @@ func TestCommentOnNewFileInOnePane(t *testing.T) {
 	if !dv.InHunk(0) || !dv.InHunk(1) || dv.InHunk(len(dv.NewIdx)) {
 		t.Error("inHunk of a one-pane file")
 	}
-	tb.Buf.Anchor, tb.Buf.Cur = nil, buffer.Pos{Row: 1}
+	tb.Buf.Anchor, tb.Buf.Cur = nil, core.Pos{Row: 1}
 	a.ReviewKey("c")
 	if a.Composer == nil {
 		t.Fatalf("no editor: %s", a.Msg)

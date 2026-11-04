@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 )
 
 // textAreaRows is how many rows of text a TextArea shows at once.

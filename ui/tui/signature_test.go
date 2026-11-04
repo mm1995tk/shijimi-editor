@@ -7,11 +7,10 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/lsp"
 )
 
 func TestSignatureRender(t *testing.T) {
-	s := &core.SignaturePopup{Help: &lsp.SignatureHelp{Label: "f(a int, b string)", ParamStart: 9, ParamEnd: 17}}
+	s := &core.SignaturePopup{Help: &core.SignatureHelp{Label: "f(a int, b string)", ParamStart: 9, ParamEnd: 17}}
 	got := drawSignature(s.Overlay(), 80)
 	if len(got) != 1 || ansi.Strip(got[0]) != " f(a int, b string) " {
 		t.Errorf("render = %q", got)

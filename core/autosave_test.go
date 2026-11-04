@@ -1,7 +1,7 @@
 package core
 
 import (
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 	"os"
 	"path/filepath"
 	"testing"

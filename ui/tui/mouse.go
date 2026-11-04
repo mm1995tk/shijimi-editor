@@ -6,7 +6,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
 )
 
@@ -332,35 +331,35 @@ func (a *App) passiveMotion(l layout, msg core.Mouse) []core.Effect {
 // mouseBufPos maps a screen cell to the buffer position of the character under
 // it. ok is false outside the text of a plain editor, including past the end
 // of a line.
-func (a *App) mouseBufPos(l layout, x, y int) (buffer.Pos, bool) {
+func (a *App) mouseBufPos(l layout, x, y int) (core.Pos, bool) {
 	t := a.CurText()
 	if t == nil || a.FullPreview(t) || a.DiffFor(t) != nil {
-		return buffer.Pos{}, false
+		return core.Pos{}, false
 	}
 	b := t.Buf
 	gw := core.GutterWidth(b)
 	if y < l.editY || y >= l.editY+l.editH || x < l.rightX+gw || x >= l.rightX+a.editW(t, l) {
-		return buffer.Pos{}, false
+		return core.Pos{}, false
 	}
 	row := b.ScrollRow + y - l.editY
 	if row >= len(b.Lines) {
-		return buffer.Pos{}, false
+		return core.Pos{}, false
 	}
 	line := b.Lines[row]
 	vis := x - l.rightX - gw + b.ScrollCol
-	if vis >= buffer.VisualCol(line, len(line)) {
-		return buffer.Pos{}, false
+	if vis >= core.VisualCol(line, len(line)) {
+		return core.Pos{}, false
 	}
-	return buffer.Pos{Row: row, Col: buffer.ColFromVisual(line, vis)}, true
+	return core.Pos{Row: row, Col: core.ColFromVisual(line, vis)}, true
 }
 
 // mouseWord is mouseBufPos plus the word the character belongs to.
-func (a *App) mouseWord(l layout, pt core.ScreenPt) (buffer.Pos, core.WordSpan, bool) {
+func (a *App) mouseWord(l layout, pt core.ScreenPt) (core.Pos, core.WordSpan, bool) {
 	pos, ok := a.mouseBufPos(l, pt.X, pt.Y)
 	if !ok {
 		return pos, core.WordSpan{}, false
 	}
-	s, e := buffer.WordRange(a.CurText().Buf.Lines[pos.Row], pos.Col)
+	s, e := core.WordRange(a.CurText().Buf.Lines[pos.Row], pos.Col)
 	return pos, core.NewWordSpan(pos.Row, s, e), true
 }
 

@@ -5,7 +5,7 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 )
 
 // HscrollWheel is how many columns one horizontal wheel notch scrolls.

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/core/diff"
+	"github.com/mm1995tk/shijimi-editor/core/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
