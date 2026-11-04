@@ -46,8 +46,20 @@ func (a *App) Exit() {
 // ShowSide shows or hides the sidebar.
 func (a *App) ShowSide(on bool) { a.showSide = on; a.pushLayout() }
 
-// ShowTerm shows or hides the terminal panel.
-func (a *App) ShowTerm(on bool) { a.showTerm = on; a.pushLayout() }
+// ShowTerm shows or hides the terminal panel. Inside a multiplexer it shows the
+// pane and gives it the keys, or hides it (mux.go).
+func (a *App) ShowTerm(on bool) {
+	if a.muxOn() {
+		if on {
+			a.muxResult(a.muxOpen())
+		} else {
+			a.muxResult(a.muxHide())
+		}
+		return
+	}
+	a.showTerm = on
+	a.pushLayout()
+}
 
 // ShowAgent turns the suggestion panel on or off.
 func (a *App) ShowAgent(on bool) { a.showAgent = on; a.pushLayout() }
@@ -64,14 +76,14 @@ func (a *App) pushLayout() {
 	a.Core.SetLayout(core.Layout{
 		SideShown: a.showSide, TermShown: a.showTerm, AgentOpen: a.showAgent,
 		AgentWidthPref: a.agentWPref, ExplorerShare: a.explorerPct,
-		ResizeMode: a.resizeMode,
+		ResizeMode: a.resizeMode, TermInPane: a.muxOn(),
 	})
 }
 
 // TermFocus gives the keys to the terminal panel, or takes them away. The
 // panel is never empty once it has the keys: a shell starts if it has none.
 func (a *App) TermFocus(on bool) {
-	if on {
+	if on && !a.muxOn() {
 		a.termStarted(a.term.focus())
 	}
 }
@@ -80,10 +92,36 @@ func (a *App) TermFocus(on bool) {
 func (a *App) TermKey(k core.Key) { a.term.key(k) }
 
 // TermRun runs line in the terminal panel.
-func (a *App) TermRun(line string) { a.termStarted(a.term.run(line)) }
+func (a *App) TermRun(line string) {
+	if a.muxOn() {
+		a.muxSend(line, true)
+		return
+	}
+	a.termStarted(a.term.run(line))
+}
 
 // TermPaste pastes s into the terminal panel.
-func (a *App) TermPaste(s string) { a.termStarted(a.term.paste(s)) }
+func (a *App) TermPaste(s string) {
+	if a.muxOn() {
+		a.muxSend(s, false)
+		return
+	}
+	a.termStarted(a.term.paste(s))
+}
+
+// TermToggle is the toggle of Ctrl+`, Space t and :sh for the multiplexer pane
+// (the core asks only when Layout.TermInPane is set).
+func (a *App) TermToggle() { a.muxToggle() }
 
 // TermClose closes the shell of the terminal panel.
-func (a *App) TermClose() { a.term.closeAll() }
+func (a *App) TermClose() {
+	a.term.closeAll()
+	a.muxClose()
+}
+
+// hideTermPanel closes the built-in terminal panel (its shell is gone), which
+// is never the multiplexer pane.
+func (a *App) hideTermPanel() {
+	a.showTerm = false
+	a.pushLayout()
+}

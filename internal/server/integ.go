@@ -110,6 +110,7 @@ func (s *Server) ResetPanes()                  {}
 // The GUI shows its terminals with xterm.js on the PTYs of `shj serve` (term.go), so
 // the core has no terminal panel to drive here.
 func (s *Server) TermFocus(bool)   {}
+func (s *Server) TermToggle()      {}
 func (s *Server) TermKey(core.Key) {}
 func (s *Server) TermRun(string)   {}
 func (s *Server) TermPaste(string) {}

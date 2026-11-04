@@ -3,20 +3,12 @@ package core
 import "github.com/mm1995tk/shijimi-editor/internal/buffer"
 
 // FrontEnd is what Core asks of the front end that draws it: which regions
-// are shown, the multiplexer pane, the borders the user drags, and the few questions that need the
+// are shown, the borders the user drags, and the few questions that need the
 // layout. Core holds the front end it is drawn by (set in New); in the program
 // it is internal/tui.App.
 type FrontEnd interface {
 	ReleasesReported() bool
 	SetReleasesReported(on bool)
-	MuxReset()
-	MuxOn() bool
-	MuxOpen() error
-	MuxHide() error
-	MuxToggle() []Effect
-	MuxSend(text string, enter bool) []Effect
-	MuxClose()
-	MuxResult(err error) []Effect
 	ScrollHover(d int)
 	HoverCellWord() (buffer.Pos, WordSpan, bool)
 	SetPalette(t *Theme)

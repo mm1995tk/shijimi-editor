@@ -29,17 +29,9 @@ func newHeadlessCore(sh *Shared, dir string) (*Core, error) {
 	return c, nil
 }
 
-func (h *headless) ReleasesReported() bool        { return false }
-func (h *headless) SetReleasesReported(bool)      {}
-func (h *headless) MuxReset()                     {}
-func (h *headless) MuxOn() bool                   { return false }
-func (h *headless) MuxOpen() error                { return nil }
-func (h *headless) MuxHide() error                { return nil }
-func (h *headless) MuxToggle() []Effect           { return nil }
-func (h *headless) MuxSend(string, bool) []Effect { return nil }
-func (h *headless) MuxClose()                     {}
-func (h *headless) MuxResult(error) []Effect      { return nil }
-func (h *headless) ScrollHover(int)               {}
+func (h *headless) ReleasesReported() bool   { return false }
+func (h *headless) SetReleasesReported(bool) {}
+func (h *headless) ScrollHover(int)          {}
 func (h *headless) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	return buffer.Pos{}, WordSpan{}, false
 }

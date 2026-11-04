@@ -111,3 +111,30 @@ func TestTerminalGoesToPort(t *testing.T) {
 		t.Fatal("quit left the shell open")
 	}
 }
+
+// A UI whose terminal is a pane outside it (Layout.TermInPane) shows, hides and
+// feeds it itself: the core keeps neither the panel nor the terminal focus.
+func TestTerminalInPane(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	f := a.FrontEnd.(*testFront)
+	f.inPane = true
+	f.push()
+
+	a.ToggleTerm()
+	if f.termToggled != 1 || f.term || a.Focus != FocusEditor {
+		t.Fatalf("toggled %d, panel %v, focus %v", f.termToggled, f.term, a.Focus)
+	}
+	a.ExecCommand("sh make")
+	if len(f.termRuns) != 1 || f.termRuns[0] != "make" || f.term || f.termFocused {
+		t.Fatalf("runs %v panel %v focused %v", f.termRuns, f.term, f.termFocused)
+	}
+	a.ExecCommand("sh hide")
+	if len(f.termRuns) != 1 || f.termShows != "hide" {
+		t.Fatalf("hide: runs %v shows %q", f.termRuns, f.termShows)
+	}
+	a.Ctx = &CtxPreview{Text: "ctx"}
+	a.HandleContextKey(Key{Code: KeyEnter})
+	if len(f.termPasted) != 1 || f.termPasted[0] != "ctx" || f.term {
+		t.Fatalf("pasted %v panel %v", f.termPasted, f.term)
+	}
+}

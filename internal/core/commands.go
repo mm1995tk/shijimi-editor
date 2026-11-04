@@ -254,20 +254,16 @@ func (a *Core) ExecCommand(line string) []Effect {
 			}
 		}
 	case "sh", "run", "!":
-		if a.MuxOn() {
-			switch arg {
-			case "":
-				return a.MuxToggle()
-			case "hide":
-				return a.MuxResult(a.MuxHide())
-			}
-			return a.MuxSend(arg, true)
-		}
 		if arg == "" {
 			return a.ToggleTerm()
 		}
-		a.SetTerm(true)
-		a.SetFocus(FocusTerminal)
+		if !a.TermInPane() {
+			a.SetTerm(true)
+			a.SetFocus(FocusTerminal)
+		} else if arg == "hide" {
+			a.port.ShowTerm(false)
+			return nil
+		}
 		a.port.TermRun(arg)
 		return nil
 	case "preview", "md":
@@ -313,7 +309,6 @@ func (a *Core) ExecCommand(line string) []Effect {
 			return nil
 		}
 		a.Cfg = cfg
-		a.MuxReset() // [terminal] multiplexer may have changed
 		i18n.SetLang(a.Cfg.Editor.UILanguage)
 		a.Commands = defaultCommands()
 		a.FindInput.Placeholder = i18n.T("app.find")
