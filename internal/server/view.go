@@ -18,14 +18,14 @@ import (
 )
 
 // Screens は、ワークスペースの core から画面を作るもの（internal/cli が core.Workspaces から渡す）。
-// root は正規化したワークスペースのルート。core が無ければ ok == false。
+// id はワークスペースの id。core が無ければ ok == false。
 type Screens interface {
-	// Screen は root の core を大きさ v に合わせ、画面を作る。Rev は呼ぶ側が付ける。
-	Screen(root string, v screen.View) (sc screen.Screen, ok bool)
+	// Screen は id の core を大きさ v に合わせ、画面を作る。Rev は呼ぶ側が付ける。
+	Screen(id string, v screen.View) (sc screen.Screen, ok bool)
 	// Theme は今のテーマ。
-	Theme(root string) (th Theme, ok bool)
-	// Blob は root の core が画面に出している画像の中身。無ければ ErrNoBlob。
-	Blob(root, id string) (mime string, data []byte, err error)
+	Theme(id string) (th Theme, ok bool)
+	// Blob は wsID の core が画面に出している画像の中身。無ければ ErrNoBlob。
+	Blob(wsID, id string) (mime string, data []byte, err error)
 }
 
 // ErrNoBlob は Screens.Blob が、その id の画像が無いときに返す。
@@ -125,7 +125,7 @@ func (ss *session) viewOf() *viewState {
 // buildScreen はフォーカスしているワークスペースの画面を、購読している領域だけにして作る。
 func (s *Server) buildScreen(vs *viewState) (sc screen.Screen, root string, err error) {
 	src := s.screensOf()
-	root = s.ws.focusRoot()
+	root = s.ws.focusID()
 	if src == nil || root == "" {
 		return sc, "", rpc.Errorf(rpc.CodeNotFound, "no workspace has the focus")
 	}
@@ -371,7 +371,7 @@ func (ss *session) screenGetReq() (any, error, bool) {
 func (ss *session) themeReq() (any, error, bool) {
 	s := ss.srv
 	src := s.screensOf()
-	root := s.ws.focusRoot()
+	root := s.ws.focusID()
 	if src == nil {
 		return nil, rpc.Errorf(rpc.CodeNotFound, "no theme"), true
 	}
@@ -407,7 +407,7 @@ func (ss *session) blobReq(req *rpc.Message) (any, error, bool) {
 	}
 	s := ss.srv
 	src := s.screensOf()
-	root := s.ws.focusRoot()
+	root := s.ws.focusID()
 	if src == nil || root == "" {
 		return nil, rpc.Errorf(rpc.CodeNotFound, "no workspace has the focus"), true
 	}

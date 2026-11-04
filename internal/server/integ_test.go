@@ -119,7 +119,7 @@ func TestClipboardAndURLNotifyGUI(t *testing.T) {
 	}
 	c := rpc.NewConn(nc, rpc.JSON{}, n.handle)
 	t.Cleanup(func() { c.Close() })
-	if err := c.Call(context.Background(), "session.hello", hello(1), nil); err != nil {
+	if err := c.Call(context.Background(), "session.hello", hello(Protocol.Major), nil); err != nil {
 		t.Fatal(err)
 	}
 	srv.WriteClipboard("copied")

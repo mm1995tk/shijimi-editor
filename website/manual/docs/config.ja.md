@@ -31,7 +31,8 @@
 
 - TOML の書き方の間違い。評価できない Nix のファイル（`config.nix` / `languages.nix`）。Nix には行が無いので、行の代わりに項目の名前を出します。
 - 知らない項目。Helix にあっても shijimi-editor が読まない項目（`languages.toml` の `comment-token` など）も含みます。このマニュアルに載っている項目だけを読みます。
-- 型の違い（数を書くところに文字を書いた、など）と、使えない値（`ui-language`、`[terminal]` の `multiplexer`、負の `idle_stop_days`、0 以下の `timeout`）。
+- 型の違い（数を書くところに文字を書いた、など）と、使えない値（`ui-language`、`[terminal]` の `multiplexer`、負の `idle_stop_days`、0 以下の `timeout`、フォルダでない `start_dir`、`save` / `discard` 以外の `on-switch`）。
+- 自動保存を切った（`[editor.auto-save.after-delay] enable = false`）のに `[editor.auto-save] on-switch` が無い。切った行を指して知らせます。
 - プロジェクトの `.shijimi-editor/config.toml` に書いた `[agent]`・`[server]`・`[keys]`。これらはユーザー自身のフォルダからだけ読みます。
 
 以前のバージョンは、これらの間違いを黙って無視していました。更新したあと、今まで起動できたファイルで起動しなくなることがあります。出たメッセージの場所を直してください。
@@ -82,6 +83,11 @@ render = true
 enable = true
 timeout = 1000            # ミリ秒
 
+# 自動保存を切る（enable = false）ときだけ必要: ワークスペースが別のフォルダへ
+# 切り替わるとき、`shj serve` が開いているファイルをどうするか。"save" か "discard"
+# [editor.auto-save]
+# on-switch = "save"
+
 [search]
 exclude = ["*.lock", "dist/**"]
 include = []
@@ -100,6 +106,7 @@ args = []
 
 [server]
 idle_stop_days = 7        # 0 = never stop
+start_dir = "~/work"      # 新しいワークスペースのシェルを始めるフォルダ（既定 ~）
 ```
 
 ## 項目
@@ -116,11 +123,13 @@ idle_stop_days = 7        # 0 = never stop
 | `editor.indent-guides.render` | インデントガイドを描くか（既定 true） | — |
 | `editor.mouse-hover` | マウスを乗せたときにホバーを表示するか | [LSP](lsp.md) |
 | `editor.auto-save.after-delay` | 自動保存 | [ファイルと検索](files.md) |
+| `editor.auto-save.on-switch` | ワークスペースが別のフォルダへ切り替わる（プライマリターミナルで `cd` する）とき、`shj serve` が開いているファイルをどうするか。`save` は保存、`discard` は編集を捨てる。自動保存が有効なあいだは必ず保存するので要らない。**自動保存を切ったときは既定値が無く**、書いていなければ設定の間違いとして起動しない | — |
 | `[[language]]` の `formatter` | `:fmt` で動かす整形コマンド（languages.toml） | [LSP](lsp.md) |
 | `search.exclude` / `search.include` | 全体検索の除外 / 包含 | [ファイルと検索](files.md) |
 | `[keys.normal]` `[keys.insert]` `[keys.select]` | Helix モードのキーの差し替え（`~/.config/shijimi-editor/` だけ） | [編集（Helix モード）](editing-helix.md#キーの差し替え) |
 | `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | 提案パネルが使う ACP エージェント | [AI エージェント連携](agent.md) |
+| `server.start_dir` | 新しいワークスペースのプライマリターミナルが始まるフォルダ（絶対パス、または `~` で始まるパス）。既定は `~`。無いフォルダは設定の間違い。プロジェクトの中なら、ワークスペースのフォルダがそのまま決まる | — |
 | `server.idle_stop_days` | GUI がつながらないまま `shj serve` が動き続ける日数。過ぎると自分で止まる（既定 7、0 で止まらない）。動いているシェルも終わる。未保存の編集は元のファイルの隣に `<ファイル名>.bk`（あれば `.bk.1` …）として書き、元のファイルは書き換えない | — |
 
 ## テーマ

@@ -53,6 +53,7 @@ func runServe(args []string) int {
 	}
 	logger := slog.New(slog.NewTextHandler(logw, nil))
 	var idle time.Duration
+	var startDir string
 	if home, err := os.UserHomeDir(); err == nil {
 		cfg, err := config.Load(home)
 		// The language is the process's: the home config sets it once, and
@@ -67,12 +68,14 @@ func runServe(args []string) int {
 			return 1
 		}
 		idle = time.Duration(cfg.Serve.IdleStopDays) * 24 * time.Hour
+		startDir = cfg.Serve.StartDir
 	}
 	srv, err := server.Listen(server.Options{
 		SocketPath: sock,
 		Shj:        server.Shj{Version: ver, Commit: commit, Channel: chName},
 		Logger:     logger,
 		IdleStop:   idle,
+		StartDir:   startDir,
 	})
 	if err != nil {
 		if errors.Is(err, server.ErrRunning) {
@@ -91,9 +94,9 @@ func runServe(args []string) int {
 	// What a core does on its own (a language server replied, a timer fired) is
 	// sent to the GUI like what it did for an input.
 	cores.SetOnChange(srv.ScreenChanged)
-	srv.SetCores(serveCores{cores})
-	srv.SetScreens(serveCores{cores})
-	srv.SetInputs(serveCores{cores})
+	srv.SetCores(serveCores{cores, logger})
+	srv.SetScreens(serveCores{cores, logger})
+	srv.SetInputs(serveCores{cores, logger})
 	srv.AddBeforeStop(func() { writeBackups(cores, logger) })
 	// Like the TUI, the control socket and the Claude Code connection are best
 	// effort. The server has one of each for all workspaces; requests go to the

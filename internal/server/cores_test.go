@@ -2,9 +2,7 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -13,121 +11,108 @@ import (
 
 // fakeCores is a Cores whose files the test sets.
 type fakeCores struct {
-	mu      sync.Mutex
-	files   map[string][]string // root -> open files
-	opened  []string
-	closed  []string
-	cleared []string
-	openErr error // what Open returns
+	mu       sync.Mutex
+	files    map[string][]string // id -> open files
+	opened   []string            // ids, with the folder: "id=root"
+	saved    []string
+	released []string
+	closed   []string
+	openErr  error    // what Open returns
+	failSave []string // what SaveAll cannot save
 }
 
-func (f *fakeCores) Open(root string) error {
+func (f *fakeCores) Open(id, root string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.opened = append(f.opened, root)
+	f.opened = append(f.opened, id+"="+root)
 	return f.openErr
 }
 
-func (f *fakeCores) Files(root string) []string {
+func (f *fakeCores) Files(id string) []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	return slices.Clone(f.files[root])
+	return slices.Clone(f.files[id])
 }
 
-func (f *fakeCores) Kept() []string {
+func (f *fakeCores) SaveAll(id string) []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	var out []string
-	for r, l := range f.files {
-		if len(l) > 0 {
-			out = append(out, r)
+	f.saved = append(f.saved, id)
+	return slices.Clone(f.failSave)
+}
+
+func (f *fakeCores) Release(id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.released = append(f.released, id)
+	delete(f.files, id)
+}
+
+func (f *fakeCores) Close(id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.closed = append(f.closed, id)
+}
+
+// count is how many times l has s in it.
+func (f *fakeCores) count(l *[]string, s string) int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n := 0
+	for _, x := range *l {
+		if x == s {
+			n++
 		}
 	}
-	return out
+	return n
 }
 
-func (f *fakeCores) CloseFiles(root string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.cleared = append(f.cleared, root)
-	delete(f.files, root)
-}
-
-func (f *fakeCores) Close(root string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.closed = append(f.closed, root)
-}
-
-func (f *fakeCores) seen(l *[]string, root string) bool {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return slices.Contains(*l, root)
-}
-
-// A workspace with files open in its core stays without a shell in it, lists
-// the files relative to its root, gets its core on focus, and goes (with its
-// core) once its files are closed.
-func TestWorkspaceKeptByOpenFiles(t *testing.T) {
-	srv, sock := startFast(t)
+// A workspace lists the files its core has open relative to its folder, and
+// gets its core on focus (on its folder).
+func TestWorkspaceListsFilesAndOpensCoreOnFocus(t *testing.T) {
 	root := normalizePath(t.TempDir())
-	fc := &fakeCores{files: map[string][]string{root: {filepath.Join(root, "pkg", "a.go"), "/elsewhere/b.go"}}}
+	srv, sock := startFastWith(t, func(o *Options) { o.StartDir = root })
+	fc := &fakeCores{}
 	srv.SetCores(fc)
-	c, nt := termClient(t, sock)
+	c, _ := termClient(t, sock)
 	ctx := context.Background()
+	id, primary := createWS(t, c)
+	fc.mu.Lock()
+	fc.files = map[string][]string{id: {root + "/pkg/a.go", "/elsewhere/b.go"}}
+	fc.mu.Unlock()
 
 	var l wsList
-	waitFor(t, "workspace with files", func() bool {
+	waitFor(t, "files", func() bool {
 		l = wsList{}
 		c.Call(ctx, "workspace.list", map[string]any{}, &l)
-		return len(l.Workspaces) == 1
+		return len(l.Workspaces) == 1 && len(l.Workspaces[0].Files) == 2
 	})
 	x := l.Workspaces[0]
-	if x.Root != root || x.Kind != "cwd" || len(x.Terms) != 0 || !slices.Equal(x.Files, []string{"pkg/a.go", "/elsewhere/b.go"}) {
+	if x.Folder == nil || *x.Folder != root || *x.Kind != "cwd" || x.Primary != primary || len(x.Terms) != 0 ||
+		!slices.Equal(x.Files, []string{"pkg/a.go", "/elsewhere/b.go"}) {
 		t.Fatalf("workspace: %+v", x)
 	}
 
-	if err := c.Call(ctx, "workspace.focus", map[string]any{"id": x.ID}, nil); err != nil {
+	var f struct {
+		TermID string `json:"termId"`
+	}
+	if err := c.Call(ctx, "workspace.focus", map[string]any{"id": id}, &f); err != nil {
 		t.Fatal(err)
 	}
-	if !fc.seen(&fc.opened, root) {
-		t.Error("focus did not open the workspace's core")
+	if fc.count(&fc.opened, id+"="+root) != 1 || f.TermID != primary {
+		t.Errorf("focus: opened %v, termId %q", fc.opened, f.TermID)
 	}
-
-	if err := c.Call(ctx, "workspace.close_files", map[string]any{"id": x.ID}, nil); err != nil {
-		t.Fatal(err)
-	}
-	if !fc.seen(&fc.cleared, root) {
-		t.Error("close_files did not reach the core")
-	}
-	waitFor(t, "removed", func() bool {
-		for _, raw := range nt.all("workspace.changed") {
-			var m struct{ Removed []string }
-			if json.Unmarshal(*raw, &m); slices.Contains(m.Removed, x.ID) {
-				return true
-			}
-		}
-		return false
-	})
-	waitFor(t, "core closed", func() bool { return fc.seen(&fc.closed, root) })
 }
 
 // A workspace whose core cannot be made (its configuration has a mistake) does
 // not take the focus, and the reason reaches the client.
 func TestWorkspaceFocusFailsWhenCoreCannotBeMade(t *testing.T) {
-	srv, sock := startFast(t)
 	root := normalizePath(t.TempDir())
-	fc := &fakeCores{files: map[string][]string{root: {filepath.Join(root, "a.go")}}, openErr: errors.New("config.toml:2: unknown key")}
-	srv.SetCores(fc)
+	srv, sock := startFastWith(t, func(o *Options) { o.StartDir = root })
+	srv.SetCores(&fakeCores{openErr: errors.New("config.toml:2: unknown key")})
 	c, _ := termClient(t, sock)
-	ctx := context.Background()
-	var l wsList
-	waitFor(t, "workspace", func() bool {
-		l = wsList{}
-		c.Call(ctx, "workspace.list", map[string]any{}, &l)
-		return len(l.Workspaces) == 1
-	})
-	err := c.Call(ctx, "workspace.focus", map[string]any{"id": l.Workspaces[0].ID}, nil)
+	id, _ := createWS(t, c)
+	err := c.Call(context.Background(), "workspace.focus", map[string]any{"id": id}, nil)
 	if err == nil || !strings.Contains(err.Error(), "config.toml:2: unknown key") {
 		t.Fatalf("err = %v", err)
 	}

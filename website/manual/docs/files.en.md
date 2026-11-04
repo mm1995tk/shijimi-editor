@@ -18,7 +18,7 @@
 | `:w <path>` | Save to another path |
 | `:wa` | Save all |
 
-**Auto save** is enabled by default. It saves when editing pauses for 1 second. Unnamed files are not saved.
+**Auto save** is enabled by default. It saves when editing pauses for 1 second. Unnamed files are not saved. If you turn it off (`[editor.auto-save.after-delay] enable = false`), also write `[editor.auto-save] on-switch = "save"` or `"discard"`: it decides what `shj serve` does with the open files when a workspace switches folders, and there is no default (see [Configuration](config.md)).
 To turn it off, see [Configuration files](config.md).
 
 ## File tree

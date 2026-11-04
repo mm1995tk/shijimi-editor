@@ -172,13 +172,13 @@ func TestWorkspaceRunsEffects(t *testing.T) {
 		}
 	})
 	before := runtime.NumGoroutine()
-	w, _ := ws.Open(t.TempDir())
+	w, _ := ws.Open("k", t.TempDir())
 	select {
 	case <-changed:
 	case <-time.After(10 * time.Second):
 		t.Fatal("the watch timer never came back")
 	}
-	ws.Close(w.Root)
+	ws.Close(w.Key)
 	ran := false
 	w.Apply(func(*Core) []Effect { ran = true; return nil })
 	if ran {

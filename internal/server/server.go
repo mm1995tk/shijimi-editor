@@ -25,7 +25,7 @@ import (
 )
 
 // Protocol はこのサーバーが話すプロトコルの版。major が違うとつながらない。minor は互換。
-var Protocol = ProtocolVersion{Major: 1, Minor: 0}
+var Protocol = ProtocolVersion{Major: 2, Minor: 0}
 
 // ProtocolVersion はプロトコルの版。
 type ProtocolVersion struct {
@@ -48,6 +48,8 @@ type Options struct {
 	// IdleStop は GUI が何もつながらないままこの時間が過ぎたら止まる設定（[server] idle_stop_days）。0 なら止まらない。
 	IdleStop  time.Duration
 	IdleCheck time.Duration // 止まる時刻を調べる間隔。0 なら 1 分
+	// StartDir は新しいワークスペースのプライマリターミナルが始まるフォルダ（[server] start_dir、絶対パス）。"" なら ~。
+	StartDir string
 	// CwdInterval はシェルの cwd を読む間隔。0 なら 1 秒。
 	CwdInterval time.Duration
 	// TreeInterval は tree.watch のフォルダを見る間隔（0 なら 1 秒）、GitInterval は git の印を取り直す間隔（0 なら 3 秒）。

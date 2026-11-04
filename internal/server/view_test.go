@@ -106,9 +106,10 @@ func (n *notes) updates(t *testing.T) []update {
 // focused on it that subscribes to the regions the GUI shows.
 func screenSetup(t *testing.T) (*Server, *rpc.Conn, *notes, *fakeScreens) {
 	t.Helper()
-	srv, sock := startFast(t)
 	root := normalizePath(t.TempDir())
-	srv.SetCores(&fakeCores{files: map[string][]string{root: {filepath.Join(root, "a.txt")}}})
+	srv, sock := startFastWith(t, func(o *Options) { o.StartDir = root })
+	fcs := &fakeCores{}
+	srv.SetCores(fcs)
 	fs := &fakeScreens{
 		sc: screen.Screen{
 			Focus: screen.RegionFiles,
@@ -125,12 +126,10 @@ func screenSetup(t *testing.T) (*Server, *rpc.Conn, *notes, *fakeScreens) {
 	srv.SetScreens(fs)
 	c, nt := termClient(t, sock)
 	ctx := context.Background()
-	id := workspaceID(root)
-	waitFor(t, "workspace", func() bool {
-		var l wsList
-		c.Call(ctx, "workspace.list", map[string]any{}, &l)
-		return len(l.Workspaces) == 1
-	})
+	id, _ := createWS(t, c)
+	fcs.mu.Lock()
+	fcs.files = map[string][]string{id: {filepath.Join(root, "a.txt")}}
+	fcs.mu.Unlock()
 	if err := c.Call(ctx, "workspace.focus", map[string]any{"id": id}, nil); err != nil {
 		t.Fatal(err)
 	}

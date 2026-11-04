@@ -69,10 +69,10 @@ func treeEnv(t *testing.T) (c *rpc.Conn, nt *notes, root, wsid string) {
 	t.Helper()
 	root = normalizePath(t.TempDir())
 	gitInit(t, root)
-	_, sock := startFast(t)
+	_, sock := startFastWith(t, func(o *Options) { o.StartDir = root })
 	c, nt = termClient(t, sock)
-	createTerm(t, c, map[string]any{"cwd": root})
-	return c, nt, root, workspaceID(root)
+	wsid, _ = createWS(t, c)
+	return c, nt, root, wsid
 }
 
 func call(t *testing.T, c *rpc.Conn, method string, p map[string]any, out any) error {

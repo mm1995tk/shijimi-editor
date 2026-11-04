@@ -31,7 +31,8 @@ These are mistakes:
 
 - TOML syntax errors, and Nix files (`config.nix` / `languages.nix`) that do not evaluate (Nix has no lines, so the setting is shown instead).
 - Unknown keys. This includes keys that Helix has but shijimi-editor does not read, such as `comment-token` in `languages.toml`. Only the keys in this manual are read.
-- Values of the wrong type, such as a string where a number goes, and values that are not allowed (`ui-language`, `[terminal]` `multiplexer`, a negative `idle_stop_days`, `timeout` of 0 or less).
+- Values of the wrong type, such as a string where a number goes, and values that are not allowed (`ui-language`, `[terminal]` `multiplexer`, a negative `idle_stop_days`, `timeout` of 0 or less, a `start_dir` that is not a folder, `on-switch` other than `save` / `discard`).
+- Auto save turned off (`[editor.auto-save.after-delay] enable = false`) without `[editor.auto-save] on-switch`. The message points at the line that turned it off.
 - `[agent]`, `[server]` and `[keys]` in a project's `.shijimi-editor/config.toml`, because they are read only from the user's own directory.
 
 Older versions ignored these mistakes in silence. After an update, a file that used to start the editor may stop it; fix what the message points at.
@@ -82,6 +83,11 @@ render = true
 enable = true
 timeout = 1000            # milliseconds
 
+# Needed only when auto save is off (enable = false): what `shj serve` does with
+# the open files when a workspace switches to another folder. "save" or "discard"
+# [editor.auto-save]
+# on-switch = "save"
+
 [search]
 exclude = ["*.lock", "dist/**"]
 include = []
@@ -100,6 +106,7 @@ args = []
 
 [server]
 idle_stop_days = 7        # 0 = never stop
+start_dir = "~/work"      # where a new workspace's shell starts (default ~)
 ```
 
 ## Options
@@ -116,11 +123,13 @@ idle_stop_days = 7        # 0 = never stop
 | `editor.indent-guides.render` | Whether to draw indent guides (default true) | — |
 | `editor.mouse-hover` | Whether to show hover when the mouse rests on a word | [LSP](lsp.md) |
 | `editor.auto-save.after-delay` | Auto save | [Files and search](files.md) |
+| `editor.auto-save.on-switch` | What `shj serve` does with a workspace's open files when the workspace switches to another folder (`cd` in its primary terminal): `save` writes them, `discard` throws the edits away. While auto save is on, the files are always saved and this is not needed. **When auto save is off there is no default**: without it the configuration has a mistake and the editor does not start | — |
 | `formatter` in `[[language]]` | The formatter command that `:fmt` runs (languages.toml) | [LSP](lsp.md) |
 | `search.exclude` / `search.include` | Exclude / include for project-wide search | [Files and search](files.md) |
 | `[keys.normal]` `[keys.insert]` `[keys.select]` | Remap keys in Helix mode (only in `~/.config/shijimi-editor/`) | [Editing (Helix mode)](editing-helix.md#remapping-keys) |
 | `browser.listen-host` | Listen address for port forwarding | [External browser and port forwarding](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | The ACP agent used by the suggestions panel | [AI agent integration](agent.md) |
+| `server.start_dir` | The folder where the primary terminal of a new workspace starts (an absolute path, or one that starts with `~`). Default `~`. A folder that does not exist is a mistake in the configuration. If it is inside a project, the workspace's folder is decided at once | — |
 | `server.idle_stop_days` | Days `shj serve` stays up with no GUI connected before it stops itself (default 7, 0 = never). Running shells end with it; unsaved edits are written next to the file as `<name>.bk` (`.bk.1`, ... if taken) and the file itself is not changed | — |
 
 ## Themes
