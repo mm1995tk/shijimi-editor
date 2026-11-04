@@ -42,9 +42,6 @@ func (a *App) effectCmd(effs ...core.Effect) tea.Cmd {
 				}
 				return nil
 			})
-		case core.WaitTerm:
-			from := e.From
-			cmds = append(cmds, func() tea.Msg { return <-from })
 		case core.WaitAgent:
 			from := e.From
 			cmds = append(cmds, func() tea.Msg { return <-from })
@@ -78,9 +75,11 @@ func (a *App) effectCmd(effs ...core.Effect) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// HandleTermEvent is the shell of the terminal panel printing or ending.
-func (a *App) HandleTermEvent(ev core.Event) []core.Effect {
-	effs := a.term.update(ev)
+// handleTermEvent is the shell of the terminal panel printing or ending. It
+// reads what the shell printed for the core (scanTerm).
+func (a *App) handleTermEvent(ev tea.Msg) {
+	a.later = append(a.later, a.term.update(ev))
+	defer a.scanTerm()
 	// A program in the terminal panel (Claude Code, tmux, …) copies with
 	// OSC 52; pass the text on to the clipboard. Any program there can do
 	// this unasked, so every copy is shown.
@@ -98,28 +97,29 @@ func (a *App) HandleTermEvent(ev core.Event) []core.Effect {
 	if a.term.sh == nil && a.showTerm {
 		a.ShowTerm(false)
 		if a.FocusIs(core.FocusTerminal) {
-			return core.Batch(effs, a.SetFocus(core.FocusEditor))
+			a.SetFocus(core.FocusEditor)
 		}
 	}
-	return effs
 }
 
 // termFailed is no shell starting: say so and close the panel.
-func (a *App) termFailed(err error) []core.Effect {
+func (a *App) termFailed(err error) {
 	a.Fail(err)
 	if a.term.sh == nil && a.showTerm {
 		a.ShowTerm(false)
 		if a.FocusIs(core.FocusTerminal) {
-			return a.SetFocus(core.FocusEditor)
+			a.SetFocus(core.FocusEditor)
 		}
 	}
-	return nil
 }
 
-// termEffects is the result of a terminal call that may fail to start a shell.
-func (a *App) termEffects(effs []core.Effect, err error) []core.Effect {
+// termStarted takes the result of a terminal call that may start a shell: the
+// wait for its output is started by the next effectCmd; a shell that cannot
+// start is shown as a failure.
+func (a *App) termStarted(cmd tea.Cmd, err error) {
 	if err != nil {
-		return core.Batch(effs, a.termFailed(err))
+		a.termFailed(err)
+		return
 	}
-	return effs
+	a.later = append(a.later, cmd)
 }

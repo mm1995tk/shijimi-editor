@@ -22,7 +22,7 @@ func TestTerminalOSC52Copies(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	tab := addTermTab(a)
 	tab.vt.Write([]byte("\x1b]52;c;5pel5pys6Kqe\x07"))
-	a.Update(core.TermOutputMsg{ID: tab.id})
+	a.Update(termOutputMsg{ID: tab.id})
 	if a.Clipboard != "日本語" {
 		t.Fatalf("clipboard = %q, want 日本語", a.Clipboard)
 	}
@@ -36,7 +36,7 @@ func TestTerminalOSC52TooLarge(t *testing.T) {
 	a.Clipboard = "keep"
 	tab := addTermTab(a)
 	tab.vt.Write([]byte("\x1b]52;c;" + strings.Repeat("A", 3<<20) + "\x07"))
-	a.Update(core.TermOutputMsg{ID: tab.id})
+	a.Update(termOutputMsg{ID: tab.id})
 	if a.Clipboard != "keep" || !a.MsgErr {
 		t.Fatalf("clipboard = %q msg = %q (err=%v); want unchanged and an error", a.Clipboard, a.Msg, a.MsgErr)
 	}

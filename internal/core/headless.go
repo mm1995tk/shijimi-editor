@@ -31,13 +31,6 @@ func newHeadlessCore(sh *Shared, dir string) (*Core, error) {
 
 func (h *headless) ReleasesReported() bool        { return false }
 func (h *headless) SetReleasesReported(bool)      {}
-func (h *headless) TermBlur()                     {}
-func (h *headless) TermFocus() []Effect           { return nil }
-func (h *headless) TermCloseAll()                 {}
-func (h *headless) TermKey(Key)                   {}
-func (h *headless) TermRun(string) []Effect       { return nil }
-func (h *headless) TermPaste(string) []Effect     { return nil }
-func (h *headless) TermShell() Shell              { return nil }
 func (h *headless) MuxReset()                     {}
 func (h *headless) MuxOn() bool                   { return false }
 func (h *headless) MuxOpen() error                { return nil }
@@ -46,14 +39,12 @@ func (h *headless) MuxToggle() []Effect           { return nil }
 func (h *headless) MuxSend(string, bool) []Effect { return nil }
 func (h *headless) MuxClose()                     {}
 func (h *headless) MuxResult(error) []Effect      { return nil }
-func (h *headless) CommandEnded(int)              {}
 func (h *headless) ScrollHover(int)               {}
 func (h *headless) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	return buffer.Pos{}, WordSpan{}, false
 }
 
-func (h *headless) SetPalette(*Theme)              {} // the theme is the process's (ActivateTheme); the GUI asks for it with theme.get
-func (h *headless) HandleTermEvent(Event) []Effect { return nil }
+func (h *headless) SetPalette(*Theme) {} // the theme is the process's (ActivateTheme); the GUI asks for it with theme.get
 func (h *headless) HandleMouse(m Mouse) []Effect {
 	if h.core == nil {
 		return nil

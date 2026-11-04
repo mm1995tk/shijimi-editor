@@ -26,7 +26,8 @@ func (a *Core) HandlePaste(msg Paste) []Effect {
 		return a.cmdlineInput(msg)
 	case a.Focus == FocusTerminal:
 		s := strings.ReplaceAll(strings.ReplaceAll(msg.Content, "\r\n", "\r"), "\n", "\r")
-		return a.TermPaste(s)
+		a.port.TermPaste(s)
+		return nil
 	case a.Focus != FocusEditor:
 		return nil
 	}

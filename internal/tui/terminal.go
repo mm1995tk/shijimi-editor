@@ -1,6 +1,7 @@
 package tui
 
 import (
+	tea "charm.land/bubbletea/v2"
 	"errors"
 	"fmt"
 	"math"
@@ -37,7 +38,7 @@ type terminal struct {
 	sh     *termTab
 	cwd    string
 	nextID int
-	ch     chan core.Event
+	ch     chan tea.Msg
 	armed  bool // a WaitTerm is outstanding
 	w, h   int  // size of the body last rendered
 	grab   bool // a mouse press was sent to the program; its drag and release follow
@@ -68,33 +69,32 @@ func (s termSel) ordered() (termPos, termPos) {
 }
 
 func newTerminal(cwd string) *terminal {
-	return &terminal{cwd: cwd, ch: make(chan core.Event, 64), w: 80, h: 24}
+	return &terminal{cwd: cwd, ch: make(chan tea.Msg, 64), w: 80, h: 24}
 }
 
 func (t *terminal) cur() *termTab { return t.sh }
 
 // focus makes sure a shell exists so the panel is never empty.
-func (t *terminal) focus() ([]core.Effect, error) {
+func (t *terminal) focus() (tea.Cmd, error) {
 	if t.sh == nil {
 		return t.start()
 	}
 	return t.wait(), nil
 }
 
-func (t *terminal) blur() {}
-
 // wait asks for the next PTY event to be delivered. Only one is ever
-// outstanding; HandleTermEvent asks again after every event.
-func (t *terminal) wait() []core.Effect {
+// outstanding; handleTermEvent asks again after every event.
+func (t *terminal) wait() tea.Cmd {
 	if t.armed {
 		return nil
 	}
 	t.armed = true
-	return []core.Effect{core.WaitTerm{From: t.ch}}
+	from := t.ch
+	return func() tea.Msg { return <-from }
 }
 
 // start runs a login shell in the current directory on a fresh PTY.
-func (t *terminal) start() ([]core.Effect, error) {
+func (t *terminal) start() (tea.Cmd, error) {
 	sh := term.DefaultShell()
 	args, env := core.ShellIntegration(sh)
 	cols, rows := max(1, t.w), max(1, t.h)
@@ -117,20 +117,20 @@ func (t *terminal) pump(tab *termTab) {
 	err := tab.sess.Pump(func(b []byte) {
 		tab.vt.Write(b)
 		select {
-		case t.ch <- core.TermOutputMsg{ID: tab.id}:
+		case t.ch <- termOutputMsg{ID: tab.id}:
 		default: // a notification is already queued
 		}
 	})
-	t.ch <- core.TermDoneMsg{ID: tab.id, Err: err}
+	t.ch <- termDoneMsg{ID: tab.id, Err: err}
 }
 
 // update takes a PTY event off the channel; the caller asks for the next one.
-func (t *terminal) update(ev core.Event) []core.Effect {
+func (t *terminal) update(ev tea.Msg) tea.Cmd {
 	switch ev := ev.(type) {
-	case core.TermOutputMsg:
+	case termOutputMsg:
 		t.armed = false
 		return t.wait()
-	case core.TermDoneMsg:
+	case termDoneMsg:
 		t.armed = false
 		if t.sh != nil && t.sh.id == ev.ID {
 			t.sh.close()
@@ -152,11 +152,11 @@ func (t *terminal) key(msg core.Key) {
 }
 
 // run types a command line into the shell, as if the user entered it.
-func (t *terminal) run(line string) ([]core.Effect, error) {
-	var effs []core.Effect
+func (t *terminal) run(line string) (tea.Cmd, error) {
+	var cmd tea.Cmd
 	if t.sh == nil {
 		var err error
-		if effs, err = t.start(); err != nil {
+		if cmd, err = t.start(); err != nil {
 			return nil, err
 		}
 	} else if t.sh.vt.Modes().AltScreen {
@@ -168,7 +168,7 @@ func (t *terminal) run(line string) ([]core.Effect, error) {
 		tab.vt.ScrollToBottom()
 		tab.write([]byte(line + "\r"))
 	}
-	return core.Batch(effs, t.wait()), nil
+	return tea.Batch(cmd, t.wait()), nil
 }
 
 // closeAll ends the shell. Closing the PTY master hangs up the session.
@@ -508,11 +508,11 @@ func termKeyBytes(msg core.Key, appCursor bool) []byte {
 
 // paste sends text to the shell without a trailing Enter. Programs that
 // enabled bracketed paste receive it wrapped, so it arrives as one paste.
-func (t *terminal) paste(text string) ([]core.Effect, error) {
-	var effs []core.Effect
+func (t *terminal) paste(text string) (tea.Cmd, error) {
+	var cmd tea.Cmd
 	if t.sh == nil {
 		var err error
-		if effs, err = t.start(); err != nil {
+		if cmd, err = t.start(); err != nil {
 			return nil, err
 		}
 	}
@@ -523,7 +523,7 @@ func (t *terminal) paste(text string) ([]core.Effect, error) {
 		}
 		tab.write([]byte(text))
 	}
-	return core.Batch(effs, t.wait()), nil
+	return tea.Batch(cmd, t.wait()), nil
 }
 
 // mouse sends a mouse event at cell (x, y) of the terminal body to the
@@ -627,16 +627,48 @@ func (t *termTab) close() {
 	}
 }
 
-// The shell as the failure scan of core sees it (core.Shell).
-
-func (t *termTab) ID() int { return t.id }
-
-func (t *termTab) TakeCommandEnds() []int { return t.vt.TakeCommandEnds() }
-
-func (t *termTab) NewLines() []string {
+// newLines returns the lines printed since the last call.
+func (t *termTab) newLines() []string {
 	lines, next := t.vt.LinesSince(t.scanned)
 	t.scanned = next
 	return lines
 }
 
-func (t *termTab) Tail(n int) []string { return t.vt.Tail(n) }
+// termOutputMsg says the terminal panel's shell printed something and
+// termDoneMsg that it ended, with Err when it failed. A shell that cannot be
+// started is an error from start, not a message. The pump of the PTY sends
+// both; wait hands them to Update, which gives them to the terminal
+// (handleTermEvent). They are the TUI's own: the core does not know them.
+type termOutputMsg struct{ ID int }
+
+type termDoneMsg struct {
+	ID  int
+	Err error
+}
+
+// scanTerm tells the core of the failed commands the shell shows: the exit
+// codes it reports (OSC 133;D, see core.ShellIntegration) and the FAIL lines
+// of test runners. A shell that ended takes its failures with it.
+func (a *App) scanTerm() {
+	var alive []int
+	if t := a.term.sh; t != nil {
+		alive = append(alive, t.id)
+		for _, code := range t.vt.TakeCommandEnds() {
+			switch code {
+			case 0:
+				a.ClearFailure(t.id)
+			case 130:
+				// Ctrl+C: the user stopped it on purpose.
+			default:
+				a.AddFailureTab(t.id, 1, code, "", t.vt.Tail(core.FailTail))
+			}
+		}
+		for _, l := range t.newLines() {
+			if core.IsFailLine(l) {
+				a.AddFailureTab(t.id, 1, -1, strings.TrimSpace(l), t.vt.Tail(core.FailTail))
+				break
+			}
+		}
+	}
+	a.KeepFailuresOf(alive...)
+}

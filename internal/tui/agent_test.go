@@ -136,7 +136,7 @@ func TestTerminalFailuresAreSuggested(t *testing.T) {
 	tab := &termTab{id: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
 	a.term.sh = tab
 	tab.vt.Write([]byte("$ make\r\nboom\r\n\x1b]133;D;2\x07$ "))
-	a.ScanTerminals()
+	a.scanTerm()
 	list := a.Suggestions()
 	if len(list) != 1 || list[0].Kind != core.SgFailure || list[0].Detail != "ターミナル 1: 終了コード 2" {
 		t.Fatalf("suggestions = %+v", list)
@@ -146,33 +146,33 @@ func TestTerminalFailuresAreSuggested(t *testing.T) {
 	}
 	// a command that succeeds afterwards clears it
 	tab.vt.Write([]byte("ls\r\n\x1b]133;D;0\x07$ "))
-	a.ScanTerminals()
+	a.scanTerm()
 	if len(a.Suggestions()) != 0 {
 		t.Fatal("success did not clear the failure")
 	}
 	// Ctrl+C is not a failure
 	tab.vt.Write([]byte("\x1b]133;D;130\x07"))
-	a.ScanTerminals()
+	a.scanTerm()
 	if len(a.Suggestions()) != 0 {
 		t.Fatal("an interrupt was suggested")
 	}
 	// without shell integration, a test runner's FAIL line is enough
 	tab.vt.Write([]byte("\r\n--- FAIL: TestX (0.00s)\r\nok\r\n"))
-	a.ScanTerminals()
+	a.scanTerm()
 	if list := a.Suggestions(); len(list) != 1 || !strings.Contains(list[0].Detail, "--- FAIL: TestX") {
 		t.Fatalf("suggestions = %+v", list)
 	}
 	// the same line is not read twice
 	a.ClearFailure(1)
-	a.ScanTerminals()
+	a.scanTerm()
 	if len(a.Suggestions()) != 0 {
 		t.Fatal("an old FAIL line was read again")
 	}
 	// a closed tab takes its failure with it
 	tab.vt.Write([]byte("FAIL\tpkg 0.1s\r\n"))
-	a.ScanTerminals()
+	a.scanTerm()
 	a.term.sh = nil
-	a.ScanTerminals()
+	a.scanTerm()
 	if len(a.Suggestions()) != 0 {
 		t.Fatal("the failure of a closed tab stayed")
 	}
@@ -288,20 +288,20 @@ func TestADismissedFailureStaysHiddenWhileTheTabFails(t *testing.T) {
 	tab := &termTab{id: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
 	a.term.sh = tab
 	tab.vt.Write([]byte("--- FAIL: TestX\r\n"))
-	a.ScanTerminals()
+	a.scanTerm()
 	a.SetFocus(core.FocusAgent)
 	a.HandleKey(textKey("x"))
 	// the exit code of the same command arrives a tick later
 	tab.vt.Write([]byte("\x1b]133;D;1\x07$ "))
-	a.ScanTerminals()
+	a.scanTerm()
 	if len(a.Suggestions()) != 0 {
 		t.Fatalf("suggestions = %+v", a.Suggestions())
 	}
 	// a redrawn line moves the cursor up: reading the FAIL line again keeps the same suggestion
 	tab.vt.Write([]byte("\x1b[A\x1b[A"))
-	a.ScanTerminals()
+	a.scanTerm()
 	tab.vt.Write([]byte("\r\n\r\n"))
-	a.ScanTerminals()
+	a.scanTerm()
 	if len(a.Suggestions()) != 0 || len(a.Sg.Fails) != 1 {
 		t.Fatalf("fails = %+v", a.Sg.Fails)
 	}
@@ -312,9 +312,9 @@ func TestFailLinesAfterClearAreRead(t *testing.T) {
 	tab := &termTab{id: 1, vt: vt.New(vt.Options{Cols: 40, Rows: 5, Scrollback: 100})}
 	a.term.sh = tab
 	tab.vt.Write([]byte("a\r\nb\r\nc\r\n"))
-	a.ScanTerminals()
+	a.scanTerm()
 	tab.vt.Write([]byte("\x1b[H\x1b[2J--- FAIL: TestY\r\n"))
-	a.ScanTerminals()
+	a.scanTerm()
 	if list := a.Suggestions(); len(list) != 1 || !strings.Contains(list[0].Detail, "TestY") {
 		t.Fatalf("suggestions = %+v", list)
 	}

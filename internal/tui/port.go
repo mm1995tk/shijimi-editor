@@ -67,3 +67,23 @@ func (a *App) pushLayout() {
 		ResizeMode: a.resizeMode,
 	})
 }
+
+// TermFocus gives the keys to the terminal panel, or takes them away. The
+// panel is never empty once it has the keys: a shell starts if it has none.
+func (a *App) TermFocus(on bool) {
+	if on {
+		a.termStarted(a.term.focus())
+	}
+}
+
+// TermKey sends k to the terminal panel's shell.
+func (a *App) TermKey(k core.Key) { a.term.key(k) }
+
+// TermRun runs line in the terminal panel.
+func (a *App) TermRun(line string) { a.termStarted(a.term.run(line)) }
+
+// TermPaste pastes s into the terminal panel.
+func (a *App) TermPaste(s string) { a.termStarted(a.term.paste(s)) }
+
+// TermClose closes the shell of the terminal panel.
+func (a *App) TermClose() { a.term.closeAll() }

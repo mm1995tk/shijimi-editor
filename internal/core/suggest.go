@@ -164,10 +164,8 @@ func (a *Core) handleRepoProbed(m RepoProbed) {
 	a.pruneDismissed()
 }
 
-// suggestTick runs on every watch tick: it reads the terminal panel and
-// probes the repository now and then.
+// suggestTick runs on every watch tick: it probes the repository now and then.
 func (a *Core) suggestTick() []Effect {
-	a.ScanTerminals()
 	a.pruneDismissed()
 	a.Sg.ticks++
 	a.Sg.prTicks++
@@ -177,39 +175,23 @@ func (a *Core) suggestTick() []Effect {
 	return nil
 }
 
-// ScanTerminals records failed commands: exit codes the shell reports
-// (OSC 133;D, see ShellIntegration) and FAIL lines of test runners.
-func (a *Core) ScanTerminals() {
-	alive := map[int]bool{}
-	if t := a.TermShell(); t != nil {
-		alive[t.ID()] = true
-		for _, code := range t.TakeCommandEnds() {
-			switch code {
-			case 0:
-				a.ClearFailure(t.ID())
-			case 130:
-				// Ctrl+C: the user stopped it on purpose.
-			default:
-				a.addFailure(t, code, "")
-			}
-		}
-		for _, l := range t.NewLines() {
-			if failLine.MatchString(l) {
-				a.addFailure(t, -1, strings.TrimSpace(l))
-				break
-			}
-		}
-	}
-	a.Sg.Fails = slices.DeleteFunc(a.Sg.Fails, func(f termFailure) bool { return f.tab != MuxFailTab && !alive[f.tab] })
+// IsFailLine reports whether l is a summary line a test runner prints on
+// failure. A UI that reads the terminal of its own uses it to tell the core
+// (AddFailureTab) of failures that shell integration did not report.
+func IsFailLine(l string) bool { return failLine.MatchString(l) }
+
+// KeepFailuresOf forgets the failures of terminals other than tabs, but keeps
+// the multiplexer pane's (MuxFailTab). A UI calls it after its shells ended.
+func (a *Core) KeepFailuresOf(tabs ...int) {
+	a.Sg.Fails = slices.DeleteFunc(a.Sg.Fails, func(f termFailure) bool {
+		return f.tab != MuxFailTab && !slices.Contains(tabs, f.tab)
+	})
 }
 
-// addFailure records a failure for the shell t. A shell still failing keeps its
-// record (and the key a dismissal refers to); only what is shown changes.
-func (a *Core) addFailure(t Shell, code int, line string) {
-	a.AddFailureTab(t.ID(), 1, code, line, t.Tail(FailTail))
-}
-
-// AddFailureTab is addFailure for a terminal that is not a Shell.
+// AddFailureTab records a failure of terminal tab. n is its number on the
+// screen, code its exit code (-1 for a FAIL line, then line is the line) and
+// output the last lines it printed. A terminal still failing keeps its record
+// (and the key a dismissal refers to); only what is shown changes.
 func (a *Core) AddFailureTab(tab, n, code int, line string, output []string) {
 	f := termFailure{tab: tab, n: n, Code: code, line: line, Output: output}
 	for i := range a.Sg.Fails {

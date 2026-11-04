@@ -267,8 +267,9 @@ func (a *Core) ExecCommand(line string) []Effect {
 			return a.ToggleTerm()
 		}
 		a.SetTerm(true)
-		cmd := a.SetFocus(FocusTerminal)
-		return Batch(cmd, a.TermRun(arg))
+		a.SetFocus(FocusTerminal)
+		a.port.TermRun(arg)
+		return nil
 	case "preview", "md":
 		return a.TogglePreview()
 	case "vsplit", "vs", "split", "sp":

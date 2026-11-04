@@ -346,10 +346,7 @@ func (a *Core) SetFocus(f Focus) []Effect {
 		f = FocusEditor
 	}
 	a.Focus = f
-	a.TermBlur()
-	if f == FocusTerminal {
-		return a.TermFocus()
-	}
+	a.port.TermFocus(f == FocusTerminal)
 	return nil
 }
 
@@ -759,7 +756,7 @@ func (a *Core) Quit() []Effect {
 		a.Msg, a.MsgErr = fmt.Sprintf(i18n.T("app.quitunsaved"), d), true
 		return nil
 	}
-	a.TermCloseAll()
+	a.port.TermClose()
 	a.MuxClose()
 	if a.ownShared && a.shared != nil {
 		a.shared.Proxy.StopAll()
@@ -1100,7 +1097,7 @@ func (a *Core) HandleKey(msg Key) []Effect {
 		case "f1":
 			return a.Pal.Show(a.Root, ">")
 		}
-		a.TermKey(msg)
+		a.port.TermKey(msg)
 		return nil
 	}
 

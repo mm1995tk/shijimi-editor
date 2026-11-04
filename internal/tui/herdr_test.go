@@ -156,7 +156,7 @@ func TestHerdrCommandEnd(t *testing.T) {
 	if len(a.Sg.Fails) != 1 || a.Sg.Fails[0].Code != 1 || len(a.Sg.Fails[0].Output) == 0 {
 		t.Fatalf("fails: %+v", a.Sg.Fails)
 	}
-	a.ScanTerminals()
+	a.scanTerm()
 	if len(a.Sg.Fails) != 1 {
 		t.Fatal("scanTerminals dropped the herdr failure")
 	}

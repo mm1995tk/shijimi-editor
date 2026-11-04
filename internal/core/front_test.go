@@ -22,6 +22,9 @@ type testFront struct {
 	exited            bool
 	termKeys          []Key
 	termRuns          []string
+	termPasted        []string
+	termFocused       bool
+	termClosed        bool
 	muxSent           []string
 }
 
@@ -38,18 +41,16 @@ func (f *testFront) ReleasesReported() bool  { return f.releases }
 func (f *testFront) SetReleasesReported(on bool) {
 	f.releases = on
 }
-func (f *testFront) TermBlur()                    {}
-func (f *testFront) TermFocus() []Effect          { return nil }
-func (f *testFront) TermCloseAll()                {}
-func (f *testFront) TermKey(k Key)                { f.termKeys = append(f.termKeys, k) }
-func (f *testFront) TermRun(line string) []Effect { f.termRuns = append(f.termRuns, line); return nil }
-func (f *testFront) TermPaste(string) []Effect    { return nil }
-func (f *testFront) TermShell() Shell             { return nil }
-func (f *testFront) MuxReset()                    {}
-func (f *testFront) MuxOn() bool                  { return false }
-func (f *testFront) MuxOpen() error               { return nil }
-func (f *testFront) MuxHide() error               { return nil }
-func (f *testFront) MuxToggle() []Effect          { return nil }
+func (f *testFront) TermFocus(on bool)   { f.termFocused = on }
+func (f *testFront) TermKey(k Key)       { f.termKeys = append(f.termKeys, k) }
+func (f *testFront) TermRun(line string) { f.termRuns = append(f.termRuns, line) }
+func (f *testFront) TermPaste(s string)  { f.termPasted = append(f.termPasted, s) }
+func (f *testFront) TermClose()          { f.termClosed = true }
+func (f *testFront) MuxReset()           {}
+func (f *testFront) MuxOn() bool         { return false }
+func (f *testFront) MuxOpen() error      { return nil }
+func (f *testFront) MuxHide() error      { return nil }
+func (f *testFront) MuxToggle() []Effect { return nil }
 func (f *testFront) MuxSend(text string, _ bool) []Effect {
 	f.muxSent = append(f.muxSent, text)
 	return nil
@@ -64,9 +65,8 @@ func (f *testFront) ScrollHover(int)          {}
 func (f *testFront) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	return buffer.Pos{}, WordSpan{}, false
 }
-func (f *testFront) SetPalette(t *Theme)            { ActivateTheme(t) }
-func (f *testFront) HandleTermEvent(Event) []Effect { return nil }
-func (f *testFront) HandleMouse(Mouse) []Effect     { return nil }
+func (f *testFront) SetPalette(t *Theme)        { ActivateTheme(t) }
+func (f *testFront) HandleMouse(Mouse) []Effect { return nil }
 func (f *testFront) NewTextArea(initial string) TextArea {
 	return &testArea{text: initial}
 }

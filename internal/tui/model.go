@@ -59,7 +59,16 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.pushSizes()
 	}
 	a.pushLayout()
-	effs := a.Core.Update(a.fromTea(msg))
+	var effs []core.Effect
+	switch msg.(type) {
+	case termOutputMsg, termDoneMsg:
+		effs = a.Core.Apply(func() []core.Effect { a.handleTermEvent(msg); return nil })
+	default:
+		effs = a.Core.Update(a.fromTea(msg))
+	}
+	if _, ok := msg.(core.WatchTick); ok {
+		a.scanTerm()
+	}
 	a.pushLayout()
 	a.pushSizes()
 	return a, a.effectCmd(effs...)

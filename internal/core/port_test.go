@@ -89,3 +89,25 @@ func TestOpenPRURLCopiesOnFail(t *testing.T) {
 		t.Fatalf("plain open copied: clip %q err %v", a.Clipboard, a.MsgErr)
 	}
 }
+
+// The terminal panel is the UI's: the core only says what it wants of it.
+func TestTerminalGoesToPort(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	f := a.FrontEnd.(*testFront)
+	a.SetFocus(FocusTerminal)
+	if !f.termFocused {
+		t.Fatal("the terminal was not given the keys")
+	}
+	a.SetFocus(FocusEditor)
+	if f.termFocused {
+		t.Fatal("the terminal kept the keys")
+	}
+	a.ExecCommand("sh echo hi")
+	if len(f.termRuns) != 1 || f.termRuns[0] != "echo hi" || !f.termFocused {
+		t.Fatalf("runs %v focused %v", f.termRuns, f.termFocused)
+	}
+	a.Quit()
+	if !f.termClosed {
+		t.Fatal("quit left the shell open")
+	}
+}
