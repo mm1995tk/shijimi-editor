@@ -345,3 +345,19 @@
   background: var(--band-hover);
   outline: none;
 }
+.machine-menu-item:disabled {
+  color: var(--sidebar-muted);
+  cursor: default;
+}
+.machine-menu-item:disabled:hover {
+  background: transparent;
+}
+.machine-menu-note {
+  max-width: 240px;
+  margin: 4px 0 2px;
+  padding: 6px 10px 2px;
+  border-top: 1px solid var(--sidebar-border);
+  color: var(--sidebar-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}

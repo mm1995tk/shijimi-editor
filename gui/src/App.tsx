@@ -34,6 +34,7 @@ import {
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
 import { AddMachine } from "./connect/AddMachine.tsx";
+import { ConfigError } from "./connect/ConfigError.tsx";
 import { CloseWorkspaceCard } from "./connect/CloseWorkspaceCard.tsx";
 import { InstallCard } from "./connect/InstallCard.tsx";
 import { Notices, type Notice } from "./connect/Notices.tsx";
@@ -64,10 +65,13 @@ import {
   browserStore,
   labelOf as machineLabelOf,
   loadMachines,
+  mergeMachines,
+  recordToSave,
   removeMachine,
   renameMachine,
   saveMachines,
   type KeyValueStore,
+  type ConfigMachine,
   type Machine,
 } from "./ssh/machines.ts";
 import { Session, type SessionState } from "./ssh/session.ts";
@@ -85,22 +89,64 @@ import {
   type Mode,
 } from "./mode.ts";
 
+/**
+ * 起動したら、先に手元の設定ファイルの [[gui.machines]] を読む。間違いがあれば、場所・行・理由だけを出して、ほかは何もしない
+ * （どこにもつながない）。読めたら本体（Workbench）を出す。
+ */
 export function App(props: {
   api?: ShellApi;
   /** 足したマシンなどの記録の置き場。省くと localStorage */
   store?: KeyValueStore;
 }): JSX.Element {
   const api = props.api ?? tauriShell;
+  const [loaded, setLoaded] = createSignal<
+    { config: ConfigMachine[] } | { error: string } | null
+  >(null);
+  onMount(() => {
+    api.configMachines().then(
+      (config) => setLoaded({ config }),
+      (e) => setLoaded({ error: String(e) }),
+    );
+  });
+  return (
+    <Show when={loaded()}>
+      {(l) => {
+        const v = l();
+        return "error" in v ? (
+          <ConfigError message={v.error} />
+        ) : (
+          <Workbench api={api} store={props.store} config={v.config} />
+        );
+      }}
+    </Show>
+  );
+}
+
+function Workbench(props: {
+  api: ShellApi;
+  store?: KeyValueStore;
+  /** 手元の設定ファイルで決めたマシン */
+  config: ConfigMachine[];
+}): JSX.Element {
+  const api = props.api;
   const store = props.store ?? browserStore();
   // ~/.ssh/config のホスト（マシンを足すときの候補）
   const [hosts, setHosts] = createSignal<string[]>([]);
   // 足したマシン（サイドバーには、これと「このマシン」だけを出す）
-  const [machines, setMachines] = createSignal<Machine[]>(loadMachines(store));
+  // GUI で足したマシンの記録（設定ファイルと重なって出ていないものも含む）
+  let saved = loadMachines(store);
+  // 設定ファイルのマシン（fixed）が先、そのあとに足したマシン
+  const [machines, setMachines] = createSignal<Machine[]>(
+    mergeMachines(props.config, saved),
+  );
   const targets = createMemo(() => [LOCAL, ...machines().map((m) => m.target)]);
   const labelOf = (t: string) => machineLabelOf(machines(), t);
+  const fixedOf = (t: string) =>
+    machines().some((m) => m.target === t && m.fixed);
   function updateMachines(next: Machine[]) {
     setMachines(next);
-    saveMachines(store, next);
+    saved = recordToSave(next, saved, props.config);
+    saveMachines(store, saved);
   }
   const [sessions, setSessions] = createSignal<Record<string, Session>>({});
   const [states, setStates] = createSignal<Record<string, SessionState>>({});
@@ -474,7 +520,15 @@ export function App(props: {
   // 初めて出たマシンには色を割り当てて保存する（つなぐマシンが変わったときだけ計算し直す）
   const colors = createMemo(() => machineColors(store, targets()));
   const groups = createMemo(() =>
-    buildSidebar(targets(), states(), workspaces(), focus(), colors(), labelOf),
+    buildSidebar(
+      targets(),
+      states(),
+      workspaces(),
+      focus(),
+      colors(),
+      labelOf,
+      fixedOf,
+    ),
   );
 
   // フォーカスしているワークスペースのツリーだけを動かし（監視と取り直し）、

@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod askpass;
+mod config;
 mod connection;
 mod install;
 mod locate;
@@ -29,6 +30,12 @@ fn list_ssh_hosts() -> Vec<String> {
         .map(PathBuf::from)
         .map(|h| ssh_config::list_hosts(&h))
         .unwrap_or_default()
+}
+
+/// 手元の設定ファイルの `[[gui.machines]]`。間違いがあれば「ファイル:行: 理由」を返す（画面は起動しない）。
+#[tauri::command]
+fn config_machines() -> Result<Vec<config::ConfigMachine>, String> {
+    config::load_default()
 }
 
 /// shj につなぐ。`target` は ssh のホスト名か `@local`。`id` は画面側が決める（イベントの宛先）。
@@ -118,6 +125,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             list_ssh_hosts,
+            config_machines,
             connect,
             send,
             disconnect,

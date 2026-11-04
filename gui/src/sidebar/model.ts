@@ -46,6 +46,8 @@ export interface MachineGroup {
   label: string;
   /** 名前を変えたり外したりできるか（「このマシン」はできない） */
   removable: boolean;
+  /** 設定ファイル（config.toml の [[gui.machines]]）で決めたマシンか。外せず、名前も変えられない */
+  fixed: boolean;
   /** マシンの色（D4）。見出しと帯の左端の線などに使う */
   color: string;
   health: Health;
@@ -107,6 +109,7 @@ export function band(w: Workspace, focused: boolean, nth = 1): Band {
  * 帯は shj の workspace.list と同じく作った順。
  * colors はつなぎ先 → 色（colors.ts の machineColors）。無いつなぎ先は候補の最初の色にする。
  * labelOf は見出しの文字（省くと machineLabel）。
+ * fixedOf は設定ファイルで決めたマシンか（省くと全部 false）。
  */
 export function buildSidebar(
   targets: string[],
@@ -115,6 +118,7 @@ export function buildSidebar(
   focus: WorkspaceFocus | null,
   colors: Record<string, string> = {},
   labelOf: (target: string) => string = machineLabel,
+  fixedOf: (target: string) => boolean = () => false,
 ): MachineGroup[] {
   return targets.map((target) => {
     const ws = workspaces[target] ?? [];
@@ -129,6 +133,7 @@ export function buildSidebar(
       target,
       label: labelOf(target),
       removable: target !== LOCAL,
+      fixed: fixedOf(target),
       color: colors[target] ?? MACHINE_COLORS[0],
       health: health(states[target]),
       bands: ws.map((w, i) =>

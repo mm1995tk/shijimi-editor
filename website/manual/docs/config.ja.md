@@ -33,7 +33,7 @@
 - 知らない項目。Helix にあっても shijimi-editor が読まない項目（`languages.toml` の `comment-token` など）も含みます。このマニュアルに載っている項目だけを読みます。
 - 型の違い（数を書くところに文字を書いた、など）と、使えない値（`ui-language`、`[terminal]` の `multiplexer`、負の `idle_stop_days`、0 以下の `timeout`、フォルダでない `start_dir`、`save` / `discard` 以外の `on-switch`）。
 - 自動保存を切った（`[editor.auto-save.after-delay] enable = false`）のに `[editor.auto-save] on-switch` が無い。切った行を指して知らせます。
-- プロジェクトの `.shijimi-editor/config.toml` に書いた `[agent]`・`[server]`・`[keys]`。これらはユーザー自身のフォルダからだけ読みます。
+- プロジェクトの `.shijimi-editor/config.toml` に書いた `[agent]`・`[server]`・`[gui]`・`[keys]`。これらはユーザー自身のフォルダからだけ読みます。
 
 以前のバージョンは、これらの間違いを黙って無視していました。更新したあと、今まで起動できたファイルで起動しなくなることがあります。出たメッセージの場所を直してください。
 
@@ -108,6 +108,22 @@ args = []
 idle_stop_days = 7        # 0 = never stop
 start_dir = "~/work"      # 新しいワークスペースのシェルを始めるフォルダ（既定 ~）
 ```
+
+## GUI のマシン
+
+GUI（`shj` ではなく）は、GUI を動かしているマシンの config.toml の `[[gui.machines]]` を読み、サイドバーの「このマシン」のあとに出します。使うマシンが決まっている人が、GUI を入れ直したり別の Mac に入れたりするたびにマシンを足し直さなくて済むようにするものです。
+
+```toml
+[[gui.machines]]
+ssh = "dev-vm"   # ssh の行き先（必須。~/.ssh/config のホスト名など）
+name = "dev"     # サイドバーに出す名前（省くと ssh の行き先）
+```
+
+- GUI は起動したときにファイルを読みます。nightly 版の GUI は、`shj-nightly` と同じく `shijimi-editor-nightly/` を読みます（このページの「nightly 版」）。読むのは `config.toml` だけで、`config.nix` は読みません。
+- ここに書いたマシンは、GUI から外せず、名前も変えられません（右クリックのメニューは押せず、理由が出ます）。変えるには、ファイルを直して GUI を起動し直します。GUI で足したマシンは、今までどおり GUI の中に保存します。
+- GUI で足したマシンの ssh の行き先がファイルのものと同じなら、ファイルのほうを出します。GUI で足したマシンの名前がファイルのマシンと同じあいだは、そのマシンは出しません。
+- ファイルに間違い（TOML の書き方、知らない項目、型の違い、使えない ssh の行き先、同じ ssh の行き先や名前が 2 つ、空の `name` や「このマシン」）があると、GUI は起動しません。ファイルの場所・行・理由だけの画面を出して、ほかは何もしません。直してから GUI を起動し直してください。`shj` は `[gui]` のあるファイルでも起動します。
+- home-manager では `settings` に書きます（[Nix と home-manager](nix.md)）。
 
 ## 項目
 

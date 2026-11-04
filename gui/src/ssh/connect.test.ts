@@ -23,6 +23,7 @@ function fakeApi(onConnect: (h: Handlers, id: string, target: string) => void) {
   };
   const api: ShellApi = {
     listSshHosts: async () => [],
+    configMachines: async () => [],
     connect: async (id, target) => {
       connects.push({ id, target });
       onConnect(h, id, target);

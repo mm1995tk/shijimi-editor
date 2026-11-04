@@ -1,5 +1,7 @@
 // Tauri の殻（src-tauri）とのやりとり。テストで差し替えられるよう、窓口は ShellApi にまとめる。
 
+import type { ConfigMachine } from "./machines.ts";
+
 export interface AskpassRequest {
   requestId: number;
   conn: string;
@@ -39,6 +41,11 @@ export type Unlisten = () => void;
 
 export interface ShellApi {
   listSshHosts(): Promise<string[]>;
+  /**
+   * 手元の設定ファイルの [[gui.machines]]。間違いがあれば「ファイル:行: 理由」の文字列で reject する
+   * （そのときは何もつながずに理由だけを出す）。
+   */
+  configMachines(): Promise<ConfigMachine[]>;
   /** target は ssh のホスト名か LOCAL。id は呼ぶ側が決める（イベントの宛先） */
   connect(id: string, target: string): Promise<void>;
   send(id: string, text: string): Promise<void>;

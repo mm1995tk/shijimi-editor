@@ -284,3 +284,25 @@ describe("buildSidebar の見出し", () => {
     );
   });
 });
+
+describe("buildSidebar の fixed", () => {
+  it("fixedOf が true のマシンだけ fixed になる（省くと全部 false）", () => {
+    const g = buildSidebar(
+      [LOCAL, "dev"],
+      {},
+      {},
+      null,
+      {},
+      undefined,
+      (t) => t === "dev",
+    );
+    assert.deepEqual(
+      g.map((x) => x.fixed),
+      [false, true],
+    );
+    assert.deepEqual(
+      buildSidebar([LOCAL, "dev"], {}, {}, null).map((x) => x.fixed),
+      [false, false],
+    );
+  });
+});

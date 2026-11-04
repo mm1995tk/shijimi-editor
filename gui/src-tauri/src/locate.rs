@@ -167,7 +167,7 @@ fn is_executable(p: &Path) -> bool {
 
 /// GUI の版が nightly（`X.Y.Z-nightly.<日付>.<sha>`）なら、`(X.Y.Z, Some(sha))`。安定版（`X.Y.Z`）なら `(X.Y.Z, None)`。
 /// それ以外の形なら None。
-fn split_version(v: &str) -> Option<(&str, Option<&str>)> {
+pub(crate) fn split_version(v: &str) -> Option<(&str, Option<&str>)> {
     let is_xyz = |s: &str| {
         let parts: Vec<&str> = s.split('.').collect();
         parts.len() == 3

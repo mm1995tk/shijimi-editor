@@ -82,6 +82,7 @@ export function Sidebar(
   // 見出しの右クリックのメニュー（足したマシンだけ）。出している間は、押す・Esc・スクロール・窓の切り替えで閉じる
   const [menu, setMenu] = createSignal<{
     target: string;
+    fixed: boolean;
     x: number;
     y: number;
   } | null>(null);
@@ -89,8 +90,8 @@ export function Sidebar(
   const hasAfter = () =>
     split().after.rest.length > 0 || split().after.groups.length > 0;
   let nav!: HTMLElement;
-  const openMenu = (target: string, x: number, y: number) =>
-    setMenu({ target, x, y });
+  const openMenu = (target: string, x: number, y: number, fixed: boolean) =>
+    setMenu({ target, fixed, x, y });
 
   // 固定されているものに data-stuck を付ける（背景と影をモックに合わせる）。
   // 上に固定するものは、sticky の位置（一覧の上端から top）にいて、親の要素の上端より下にずれていれば
@@ -202,6 +203,7 @@ export function Sidebar(
           <MachineMenu
             x={m().x}
             y={m().y}
+            fixed={m().fixed}
             onRename={() => props.onRename?.(m().target)}
             onRemove={() => props.onRemove?.(m().target)}
             onClose={() => setMenu(null)}
@@ -274,7 +276,7 @@ function Machine(
     group: MachineGroup;
     sticky?: boolean;
     /** 見出しを右クリックした（足したマシンだけ） */
-    onMenu?: (target: string, x: number, y: number) => void;
+    onMenu?: (target: string, x: number, y: number, fixed: boolean) => void;
   },
 ): JSX.Element {
   const g = () => props.group;
@@ -293,7 +295,7 @@ function Machine(
         onContextMenu={(e) => {
           if (!g().removable || !props.onMenu) return;
           e.preventDefault();
-          props.onMenu(g().target, e.clientX, e.clientY);
+          props.onMenu(g().target, e.clientX, e.clientY, g().fixed);
         }}
       >
         <h2 class="machine-name" title={status()?.title || undefined}>
@@ -463,6 +465,8 @@ function BandItem(
 function MachineMenu(props: {
   x: number;
   y: number;
+  /** 設定ファイルで決めたマシン（項目は押せず、理由を出す） */
+  fixed: boolean;
   onRename: () => void;
   onRemove: () => void;
   onClose: () => void;
@@ -479,7 +483,9 @@ function MachineMenu(props: {
         close();
       } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
-        const items = [...el.querySelectorAll<HTMLElement>("[role=menuitem]")];
+        const items = [
+          ...el.querySelectorAll<HTMLElement>("[role=menuitem]:not(:disabled)"),
+        ];
         const i = items.indexOf(document.activeElement as HTMLElement);
         const step = e.key === "ArrowDown" ? 1 : -1;
         items[(i + step + items.length) % items.length]?.focus();
@@ -495,7 +501,7 @@ function MachineMenu(props: {
     const r = el.getBoundingClientRect();
     el.style.left = `${Math.max(0, Math.min(props.x, window.innerWidth - r.width))}px`;
     el.style.top = `${Math.max(0, Math.min(props.y, window.innerHeight - r.height))}px`;
-    el.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+    el.querySelector<HTMLElement>("[role=menuitem]:not(:disabled)")?.focus();
     onCleanup(() => {
       window.removeEventListener("pointerdown", down, true);
       window.removeEventListener("contextmenu", down, true);
@@ -521,6 +527,7 @@ function MachineMenu(props: {
         type="button"
         role="menuitem"
         class="machine-menu-item"
+        disabled={props.fixed}
         onClick={choose(props.onRename)}
       >
         名前を変える
@@ -529,10 +536,17 @@ function MachineMenu(props: {
         type="button"
         role="menuitem"
         class="machine-menu-item"
+        disabled={props.fixed}
         onClick={choose(props.onRemove)}
       >
         外す
       </button>
+      <Show when={props.fixed}>
+        <p class="machine-menu-note">
+          設定ファイル（config.toml の
+          [[gui.machines]]）で決めたマシンです。変えるには設定ファイルを直してください。
+        </p>
+      </Show>
     </div>
   );
 }

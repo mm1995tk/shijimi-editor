@@ -262,3 +262,18 @@
   color: var(--card-text);
   font-size: 13px;
 }
+
+/* 設定ファイルの間違いの画面（ConfigError.tsx）。窓いっぱいに 1 枚のカードだけを出す */
+.config-error {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 100vh;
+  padding: 120px 16px 16px;
+  justify-content: center;
+  align-items: flex-start;
+  background: #0f1114;
+}
+.config-error-card {
+  width: 560px;
+  max-width: 100%;
+}
