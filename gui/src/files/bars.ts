@@ -1,5 +1,5 @@
 // ファイルの欄のタイトル行・状態行・コマンド行（E3）の中身を決める。描くのは FilesView.tsx。
-// 並べ方は TUI（internal/tui/lines_draw.go の drawTitle・drawStatus・drawCmdline と、
+// 並べ方は TUI（ui/tui/lines_draw.go の drawTitle・drawStatus・drawCmdline と、
 // gitdiff_draw.go の drawDiffHeader）に合わせ、見た目はモック「案：フラットな一覧」に合わせる。
 // 文言は shj が組み立てて送るので、ここでは足さない（記号だけを付ける）。
 

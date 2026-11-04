@@ -11,7 +11,7 @@
 # commands shj-nightly and shijimi-nightly, so it installs next to the stable
 # one; the platform packages keep their names and only get the nightly version.
 # Needs go, node and npm. Windows is left out: the build fails there
-# (internal/kitty uses unix.IoctlGetWinsize).
+# (ui/tui/kitty uses unix.IoctlGetWinsize).
 set -euo pipefail
 
 version="${1:?usage: packaging/npm/pack.sh VERSION OUT_DIR}"
@@ -40,9 +40,9 @@ if [ -n "$(git -C "$root" status --porcelain)" ]; then
 fi
 # The same ldflags as flake.nix, plus -s -w to drop the symbol table and DWARF.
 ldflags="-s -w"
-ldflags+=" -X github.com/mm1995tk/shijimi-editor/internal/buildinfo.Version=$base_version"
-ldflags+=" -X github.com/mm1995tk/shijimi-editor/internal/buildinfo.Commit=$commit"
-ldflags+=" -X github.com/mm1995tk/shijimi-editor/internal/buildinfo.Channel=$channel"
+ldflags+=" -X github.com/mm1995tk/shijimi-editor/core/buildinfo.Version=$base_version"
+ldflags+=" -X github.com/mm1995tk/shijimi-editor/core/buildinfo.Commit=$commit"
+ldflags+=" -X github.com/mm1995tk/shijimi-editor/core/buildinfo.Channel=$channel"
 
 # Go's GOOS/GOARCH next to the os/cpu names npm and Node.js use.
 targets=(

@@ -1,0 +1,82 @@
+package tui
+
+import (
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/mm1995tk/shijimi-editor/core"
+)
+
+// model.go is the part of App that talks to bubbletea: what it draws and asks
+// of the terminal each frame, and the two calls bubbletea makes (Init,
+// Update).
+
+// View is bubbletea's view of the app: the frame (after fit brought the state up
+// to date) and the modes it needs of the terminal (alt screen, mouse motion,
+// key releases, where the IME composes).
+func (a *App) View() tea.View {
+	a.fit()
+	frame, caretAt := a.renderFrame()
+	v := tea.NewView(frame)
+	// Image data goes out before the frame whose placeholder cells show it.
+	if g := takeGraphics(); g != "" && a.caret != nil {
+		_ = a.caret.Send([]byte(g))
+	}
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	if a.MouseHover() {
+		// A resting pointer is only noticed if motion without a button is reported.
+		v.MouseMode = tea.MouseModeAllMotion
+	}
+	// askReleases is decided in fit.
+	v.KeyboardEnhancements.ReportEventTypes = a.askReleases
+	// The terminal cursor stays hidden (see package caret), but an IME shows
+	// its composition where it is.
+	v.Cursor = caretAt
+	return v
+}
+
+// Init is bubbletea's first call: the effects that start the app (the watch
+// timer; unless in single-file mode, waiting on the language servers and
+// probing the repository).
+func (a *App) Init() tea.Cmd {
+	if a.SingleFile() {
+		return a.effectCmd(core.WatchTimer())
+	}
+	return a.effectCmd(append([]core.Effect{core.WaitLSP{a.LspEvents()}, core.WatchTimer()}, a.ProbeRepo()...)...)
+}
+
+var _ tea.Model = (*App)(nil)
+
+// Update is bubbletea's call for each message: fromTea turns it into an Input
+// or an Event for Core.Update, whose Effects become one tea.Cmd.
+func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		a.w, a.h = ws.Width, ws.Height
+		a.Core.SetSizes(core.Sizes{ScreenW: a.w, ScreenH: a.h}) // layout() reads the width from the core
+		if a.cellSize != nil {
+			core.UpdateCellSize(a.cellSize())
+		}
+		a.pushSizes()
+	}
+	a.pushLayout()
+	var effs []core.Effect
+	switch msg.(type) {
+	case termOutputMsg, termDoneMsg:
+		effs = a.Core.Apply(func() []core.Effect { a.handleTermEvent(msg); return nil })
+	default:
+		switch in := a.fromTea(msg).(type) {
+		case core.Mouse:
+			// The TUI works out where the pointer is (popups, borders, the terminal)
+			// before the editor gets what is left (App.HandleMouse).
+			effs = a.Core.Apply(func() []core.Effect { return a.HandleMouse(in) })
+		default:
+			effs = a.Core.Update(in)
+		}
+	}
+	if _, ok := msg.(core.WatchTick); ok {
+		a.scanTerm()
+	}
+	a.pushLayout()
+	a.pushSizes()
+	return a, a.effectCmd(effs...)
+}

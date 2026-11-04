@@ -5,7 +5,7 @@
 // Go 側ができたら、ここと突き合わせるテストを足す。
 //
 // `Screen` の中身の細かい部分は画面を作る Issue（D・E）で詰めるので、
-// ここではペインの中身までを型にし、残りは緩く（unknown）持つ。元の形は Go の internal/screen。
+// ここではペインの中身までを型にし、残りは緩く（unknown）持つ。元の形は Go の core/screen。
 
 import type { I18nTable } from "./i18n.ts";
 

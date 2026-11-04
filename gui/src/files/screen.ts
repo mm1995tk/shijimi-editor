@@ -1,6 +1,6 @@
 // screen.update（変わった分だけ）を、手元に持っている Screen に当てる。
 // 送り方は設計書 docs/design/gui-protocol.md の 3 章「画面（Screen）の送り方」と、Go の
-// internal/server/view_diff.go。
+// ui/gui/server/view_diff.go。
 //
 // - 付いている領域だけが変わった。cmdline は閉じたら null。
 // - files.panes には今のペインが全部並ぶ（並びで消えたペインが分かる）。前からあるペインは id と
