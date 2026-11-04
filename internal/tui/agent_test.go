@@ -12,6 +12,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/vt"
 )
 
@@ -45,8 +46,8 @@ func TestAgentReadsTheBufferAndWritesAfterPermission(t *testing.T) {
 	open.Buf.Insert("unsaved ")
 	other := filepath.Join(a.Root, "b.txt")
 	p := newPump(a)
-	p.run(a.effectCmd(a.RunAgent(core.SgLSPErrors, "k", "テスト", func() string {
-		return "READ:" + open.Buf.Path + "\nWRITE:" + other
+	p.run(a.effectCmd(a.RunAgent(core.SgLSPErrors, "k", msg.S("テスト"), func() msg.Msg {
+		return msg.S("READ:" + open.Buf.Path + "\nWRITE:" + other)
 	})...))
 	p.until(t, "the permission request", func() bool { return len(a.Ag.Perms) == 1 })
 	if !a.showAgent {
@@ -77,7 +78,7 @@ func TestAgentDoesNotOverwriteUnsavedEdits(t *testing.T) {
 	open := a.CurText()
 	open.Buf.Insert("unsaved ")
 	p := newPump(a)
-	p.run(a.effectCmd(a.RunAgent(core.SgLSPErrors, "k", "テスト", func() string { return "WRITE:" + open.Buf.Path })...))
+	p.run(a.effectCmd(a.RunAgent(core.SgLSPErrors, "k", msg.S("テスト"), func() msg.Msg { return msg.S("WRITE:" + open.Buf.Path) })...))
 	p.until(t, "the permission request", func() bool { return len(a.Ag.Perms) == 1 })
 	a.AnswerPermission(true)
 	p.until(t, "the end of the turn", func() bool { return a.Ag.Run == nil })
@@ -94,7 +95,7 @@ func TestRejectingPermissionKeepsTheFile(t *testing.T) {
 	fakeAgent(t, a)
 	other := filepath.Join(a.Root, "b.txt")
 	p := newPump(a)
-	p.run(a.effectCmd(a.RunAgent(core.SgLSPErrors, "k", "テスト", func() string { return "WRITE:" + other })...))
+	p.run(a.effectCmd(a.RunAgent(core.SgLSPErrors, "k", msg.S("テスト"), func() msg.Msg { return msg.S("WRITE:" + other) })...))
 	p.until(t, "the permission request", func() bool { return len(a.Ag.Perms) == 1 })
 	a.SetFocus(core.FocusAgent)
 	a.HandleKey(textKey("n"))
@@ -108,7 +109,7 @@ func TestCancelEndsTheAgentTurn(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	fakeAgent(t, a)
 	p := newPump(a)
-	p.run(a.effectCmd(a.RunAgent(core.SgFailure, "k", "テスト", func() string { return "WAIT" })...))
+	p.run(a.effectCmd(a.RunAgent(core.SgFailure, "k", msg.S("テスト"), func() msg.Msg { return msg.S("WAIT") })...))
 	p.until(t, "the agent to start", func() bool { return a.Ag.Client != nil })
 	time.Sleep(50 * time.Millisecond) // the prompt reaches the agent
 	a.SetFocus(core.FocusAgent)
@@ -121,7 +122,7 @@ func TestCancelEndsTheAgentTurn(t *testing.T) {
 		t.Error("a cancelled analysis offered a fix")
 	}
 	// the session stays for the next run
-	p.run(a.effectCmd(a.RunAgent(core.SgFailure, "k", "もう一度", func() string { return "SAY:原因はこれです" })...))
+	p.run(a.effectCmd(a.RunAgent(core.SgFailure, "k", msg.S("もう一度"), func() msg.Msg { return msg.S("SAY:原因はこれです") })...))
 	p.until(t, "the second turn", func() bool { return a.Ag.Run == nil && strings.Contains(logText(a), "原因はこれです") })
 	if !a.Sg.FixOffer {
 		t.Error("the analysis did not offer the fix")
@@ -138,10 +139,10 @@ func TestTerminalFailuresAreSuggested(t *testing.T) {
 	tab.vt.Write([]byte("$ make\r\nboom\r\n\x1b]133;D;2\x07$ "))
 	a.scanTerm()
 	list := a.Suggestions()
-	if len(list) != 1 || list[0].Kind != core.SgFailure || list[0].Detail != "ターミナル 1: 終了コード 2" {
+	if len(list) != 1 || list[0].Kind != core.SgFailure || tr(list[0].Detail) != "ターミナル 1: 終了コード 2" {
 		t.Fatalf("suggestions = %+v", list)
 	}
-	if got := core.FailurePrompt(a.Sg.Fails[0]); !strings.Contains(got, "boom") || !strings.Contains(got, "終了コード 2") {
+	if got := tr(core.FailurePrompt(a.Sg.Fails[0])); !strings.Contains(got, "boom") || !strings.Contains(got, "終了コード 2") {
 		t.Errorf("prompt = %q", got)
 	}
 	// a command that succeeds afterwards clears it
@@ -159,7 +160,7 @@ func TestTerminalFailuresAreSuggested(t *testing.T) {
 	// without shell integration, a test runner's FAIL line is enough
 	tab.vt.Write([]byte("\r\n--- FAIL: TestX (0.00s)\r\nok\r\n"))
 	a.scanTerm()
-	if list := a.Suggestions(); len(list) != 1 || !strings.Contains(list[0].Detail, "--- FAIL: TestX") {
+	if list := a.Suggestions(); len(list) != 1 || !strings.Contains(tr(list[0].Detail), "--- FAIL: TestX") {
 		t.Fatalf("suggestions = %+v", list)
 	}
 	// the same line is not read twice
@@ -246,7 +247,7 @@ func TestAIReviewBecomesUnsentComments(t *testing.T) {
 	reply := "SAY:```json\\n" + `[{"path":"a.txt","line":11,"start_line":10,"body":"範囲"},` +
 		`{"path":"a.txt","line":1,"body":"遠い"},{"path":"nope.txt","line":1,"body":"無い"},{"path":"b.txt","body":"全体"}]` + "\\n```"
 	p := newPump(a)
-	p.run(a.effectCmd(a.RunAgent(core.SgAIReview, "k", "レビュー", func() string { return reply })...))
+	p.run(a.effectCmd(a.RunAgent(core.SgAIReview, "k", msg.S("レビュー"), func() msg.Msg { return msg.S(reply) })...))
 	p.until(t, "the review", func() bool { return a.Ag.Run == nil })
 	got := a.Gd.Rv.Pending
 	if len(got) != 3 {
@@ -261,7 +262,7 @@ func TestAIReviewBecomesUnsentComments(t *testing.T) {
 	if th := got[2]; th.Path != "b.txt" || !th.File {
 		t.Errorf("file = %+v", th)
 	}
-	if !strings.Contains(a.Msg, "3 件") || !strings.Contains(a.Msg, "1 件は") {
+	if !strings.Contains(tr(a.Msg), "3 件") || !strings.Contains(tr(a.Msg), "1 件は") {
 		t.Errorf("msg = %q", a.Msg)
 	}
 }
@@ -271,7 +272,7 @@ func TestOnlyWritingRunsMayWrite(t *testing.T) {
 	fakeAgent(t, a)
 	other := filepath.Join(a.Root, "b.txt")
 	p := newPump(a)
-	p.run(a.effectCmd(a.RunAgent(core.SgFailure, "k", "テスト", func() string { return "WRITE:" + other })...))
+	p.run(a.effectCmd(a.RunAgent(core.SgFailure, "k", msg.S("テスト"), func() msg.Msg { return msg.S("WRITE:" + other) })...))
 	p.until(t, "the permission request", func() bool { return len(a.Ag.Perms) == 1 })
 	a.AnswerPermission(true)
 	p.until(t, "the end of the turn", func() bool { return a.Ag.Run == nil })
@@ -315,7 +316,7 @@ func TestFailLinesAfterClearAreRead(t *testing.T) {
 	a.scanTerm()
 	tab.vt.Write([]byte("\x1b[H\x1b[2J--- FAIL: TestY\r\n"))
 	a.scanTerm()
-	if list := a.Suggestions(); len(list) != 1 || !strings.Contains(list[0].Detail, "TestY") {
+	if list := a.Suggestions(); len(list) != 1 || !strings.Contains(tr(list[0].Detail), "TestY") {
 		t.Fatalf("suggestions = %+v", list)
 	}
 }

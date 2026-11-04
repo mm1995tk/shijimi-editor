@@ -2,14 +2,13 @@ package tui
 
 import (
 	"context"
-	"errors"
 	"time"
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // effectCmd turns Effects into the tea.Cmd that carries them out. An Event
@@ -88,10 +87,10 @@ func (a *App) handleTermEvent(ev tea.Msg) {
 		switch {
 		case !ok:
 		case c.TooLarge:
-			a.Fail(errors.New(i18n.T("app.termcopybig")))
+			a.Fail(msg.Err("app.termcopybig"))
 		default:
 			a.CopyText(c.Text)
-			a.Info(i18n.T("app.termcopied"), utf8.RuneCountInString(c.Text))
+			a.Info("app.termcopied", utf8.RuneCountInString(c.Text))
 		}
 	}
 	if a.term.sh == nil && a.showTerm {

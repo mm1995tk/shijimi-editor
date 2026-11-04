@@ -29,7 +29,7 @@ func TestPortGetsClipboardAndURL(t *testing.T) {
 func TestOpenURLResult(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.Update(OpenURLResult{URL: "https://a.example"})
-	if a.MsgErr || a.Msg == "" {
+	if a.MsgErr || a.Msg.IsZero() {
 		t.Fatalf("opened: msg %q err %v", a.Msg, a.MsgErr)
 	}
 	a.Update(OpenURLResult{URL: "https://a.example", Err: errors.New("boom")})

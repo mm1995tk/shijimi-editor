@@ -31,7 +31,7 @@ func TestHelixKeysRemap(t *testing.T) {
 		Insert: map[string]string{"A-j": "normal_mode"},
 	}
 	a.loadKeymap()
-	if !a.MsgErr || a.Msg == "" {
+	if !a.MsgErr || a.Msg.IsZero() {
 		t.Fatalf("an unknown command should be reported, got %q", a.Msg)
 	}
 	b := a.CurText().Buf

@@ -262,14 +262,14 @@ func TestMarkdownImageReloadedWhenFileChanges(t *testing.T) {
 
 	// written in the document before the file exists
 	load()
-	if a.MdImages[path].Err == "" {
+	if a.MdImages[path].Err.IsZero() {
 		t.Fatal("missing file should be an error")
 	}
 	writePNG(t, path, 40, 20)
 	load()
 	job := a.MdImages[path]
-	if job.Err != "" || job.Img == nil {
-		t.Fatalf("image expected after the file was made: %q", job.Err)
+	if !job.Err.IsZero() || job.Img == nil {
+		t.Fatalf("image expected after the file was made: %q", tr(job.Err))
 	}
 	first := job.Img.RowsFor(30)
 

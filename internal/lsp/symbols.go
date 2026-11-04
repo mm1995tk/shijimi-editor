@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // Symbol is one entry of a document or workspace symbol list. Range is the
@@ -110,10 +110,10 @@ var symbolKinds = [...]string{
 	21: "sym.null", 22: "sym.enummember", 23: "sym.struct", 24: "sym.event", 25: "sym.operator", 26: "sym.typeparam",
 }
 
-// SymbolKindName is the localized name of an LSP SymbolKind.
-func SymbolKindName(kind int) string {
+// SymbolKindName is the name of an LSP SymbolKind, as a message.
+func SymbolKindName(kind int) msg.Msg {
 	if kind > 0 && kind < len(symbolKinds) {
-		return i18n.T(symbolKinds[kind])
+		return msg.T(symbolKinds[kind])
 	}
-	return i18n.T("sym.other")
+	return msg.T("sym.other")
 }

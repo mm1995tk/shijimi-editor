@@ -7,7 +7,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
-	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -294,4 +293,4 @@ func (a *Core) FocusFiles() []Effect {
 
 // Exec is the GUI's command.run: the ":" command line, run as the control
 // socket's exec runs it.
-func (a *Core) Exec(line string) (ctl.Response, []Effect) { return a.ctlExec(line) }
+func (a *Core) Exec(line string) (CtlResponse, []Effect) { return a.ctlExec(line) }

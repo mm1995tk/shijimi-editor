@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -10,8 +11,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // SetIDE attaches the MCP server internal/cli made for the program, so the
@@ -77,7 +78,7 @@ func (a *Core) mentionContext() bool {
 		"lineStart": start,
 		"lineEnd":   end,
 	})
-	a.Info(i18n.T("ide.sent"), a.Rel(sel.FilePath))
+	a.Info("ide.sent", a.Rel(sel.FilePath))
 	return true
 }
 
@@ -109,8 +110,8 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 	ok := func(v any) (IDEReply, []Effect, bool) {
 		return IDEReply{Content: []ide.Content{ide.JSON(v)}}, nil, false
 	}
-	fail := func(format string, args ...any) (IDEReply, []Effect, bool) {
-		return IDEReply{Err: fmt.Errorf(format, args...)}, nil, false
+	fail := func(key string, args ...any) (IDEReply, []Effect, bool) {
+		return IDEReply{Err: errors.New(a.text(msg.T(key, args...)))}, nil, false
 	}
 	var args struct {
 		URI       string `json:"uri"`
@@ -124,7 +125,7 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 	}
 	if len(m.Args) > 0 {
 		if err := json.Unmarshal(m.Args, &args); err != nil {
-			return fail(i18n.T("ide.badargs"), err)
+			return fail("ide.badargs", err)
 		}
 	}
 	switch m.Tool {
@@ -187,14 +188,14 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 		return ok(out)
 	case "openFile":
 		if args.FilePath == "" {
-			return fail("%s", i18n.T("ide.nofilepath"))
+			return fail("ide.nofilepath")
 		}
 		p := a.ideAbs(args.FilePath)
 		if _, err := os.Stat(p); err != nil {
-			return fail(i18n.T("ide.nofile"), p)
+			return fail("ide.nofile", p)
 		}
 		if !a.OpenFile(p) {
-			return fail(i18n.T("ide.cantopen"), p)
+			return fail("ide.cantopen", p)
 		}
 		a.Follow = true
 		if t := a.CurText(); t != nil && args.StartText != "" {
@@ -217,13 +218,13 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 		if t.dirty() {
 			cmd = a.saveTab(t)
 			if a.MsgErr {
-				return fail(i18n.T("ide.cantsave"), a.Msg)
+				return fail("ide.cantsave", a.Msg)
 			}
 		}
 		return IDEReply{Content: []ide.Content{ide.JSON(map[string]any{"success": true, "filePath": p, "saved": true})}}, cmd, false
 	case "openDiff":
 		if args.NewPath == "" || args.OldPath == "" {
-			return fail("%s", i18n.T("ide.needpaths"))
+			return fail("ide.needpaths")
 		}
 		oldPath, newPath := a.ideAbs(args.OldPath), a.ideAbs(args.NewPath)
 		old, _ := os.ReadFile(oldPath)
@@ -244,7 +245,7 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 		// diff is already gone.
 		return IDEReply{Content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
 	}
-	return fail(i18n.T("ide.unknowntool"), m.Tool)
+	return fail("ide.unknowntool", m.Tool)
 }
 
 // IDEHandler adapts the MCP server to a running program: each call is

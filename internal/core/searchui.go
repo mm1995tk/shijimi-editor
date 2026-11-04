@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -9,7 +8,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // searchDebounce is how long the inputs must be idle before a search starts.
@@ -25,13 +24,13 @@ const (
 )
 
 // SearchLabels are the labels of the search window's fields.
-func SearchLabels() [NumFields]string {
-	return [NumFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.include"), i18n.T("search.exclude")}
+func SearchLabels() [NumFields]msg.Msg {
+	return [NumFields]msg.Msg{msg.T("app.find"), msg.T("search.replace"), msg.T("search.include"), msg.T("search.exclude")}
 }
 
 // SearchPlaceholders are the placeholders of the search window's fields.
-func SearchPlaceholders() [NumFields]string {
-	return [NumFields]string{i18n.T("app.find"), i18n.T("search.replace"), i18n.T("search.includeph"), i18n.T("search.excludeph")}
+func SearchPlaceholders() [NumFields]msg.Msg {
+	return [NumFields]msg.Msg{msg.T("app.find"), msg.T("search.replace"), msg.T("search.includeph"), msg.T("search.excludeph")}
 }
 
 // searchView caches the file shown in the View area.
@@ -357,15 +356,15 @@ func (a *Core) searchOpenHit() []Effect {
 func (a *Core) searchReplaceAll() []Effect {
 	s := a.Search
 	if s.Busy {
-		a.Fail(errors.New(i18n.T("search.busy")))
+		a.Fail(msg.Err("search.busy"))
 		return nil
 	}
 	if s.Res.Truncated {
-		a.Fail(fmt.Errorf(i18n.T("search.toomany"), MaxSearchHits))
+		a.Fail(msg.Err("search.toomany", MaxSearchHits))
 		return nil
 	}
 	if n, _ := s.Counts(); n == 0 {
-		a.Fail(errors.New(i18n.T("search.nothingtoreplace")))
+		a.Fail(msg.Err("search.nothingtoreplace"))
 		return nil
 	}
 	var hits []*SearchHit
@@ -384,12 +383,12 @@ func (a *Core) searchReplaceAll() []Effect {
 func (a *Core) searchReplaceOne() []Effect {
 	s := a.Search
 	if s.Busy {
-		a.Fail(errors.New(i18n.T("search.busy")))
+		a.Fail(msg.Err("search.busy"))
 		return nil
 	}
 	h := s.Cur()
 	if h == nil {
-		a.Fail(errors.New(i18n.T("search.nothingtoreplace")))
+		a.Fail(msg.Err("search.nothingtoreplace"))
 		return nil
 	}
 	if h.Skip {
@@ -436,15 +435,15 @@ func (a *Core) replaceHits(hits []*SearchHit) bool {
 		}
 	}
 	if len(failed) > 0 {
-		a.Fail(fmt.Errorf(i18n.T("search.openfail"), strings.Join(failed, ", ")))
+		a.Fail(msg.Err("search.openfail", strings.Join(failed, ", ")))
 		return false
 	}
-	msg := fmt.Sprintf(i18n.T("search.replaced"), done, changed)
+	done2 := msg.T("search.replaced", done, changed)
 	if stale > 0 {
-		a.Msg, a.MsgErr = fmt.Sprintf(i18n.T("search.skipped"), msg, stale), true
+		a.Msg, a.MsgErr = msg.T("search.skipped", done2, stale), true
 		return true
 	}
-	a.Info("%s", msg)
+	a.InfoText(done2)
 	return true
 }
 

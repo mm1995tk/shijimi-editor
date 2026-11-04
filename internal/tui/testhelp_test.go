@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 func logText(a *App) string {
 	var sb strings.Builder
 	for _, e := range a.Ag.Log {
-		sb.WriteString(e.Text)
+		sb.WriteString(tr(e.Text))
 		sb.WriteByte('\n')
 	}
 	return sb.String()

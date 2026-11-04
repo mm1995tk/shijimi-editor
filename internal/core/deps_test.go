@@ -42,3 +42,20 @@ next:
 		}
 	}
 }
+
+// The core and its parts say what they mean as a msg.Msg (a key and values);
+// the UI translates it. So none of them imports internal/i18n, directly:
+// config still reads the language and translates its own error report.
+func TestNoTranslationInCoreAndParts(t *testing.T) {
+	for _, pkg := range []string{".", "../buffer", "../lsp", "../acp", "../proxy", "../screen", "../msg"} {
+		out, err := exec.Command("go", "list", "-f", `{{join .Imports "\n"}}`, pkg).Output()
+		if err != nil {
+			t.Fatalf("go list %s: %v", pkg, err)
+		}
+		for imp := range strings.FieldsSeq(string(out)) {
+			if imp == "github.com/mm1995tk/shijimi-editor/internal/i18n" {
+				t.Errorf("%s imports %s", pkg, imp)
+			}
+		}
+	}
+}

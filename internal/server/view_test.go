@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/rpc"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
@@ -118,7 +120,7 @@ func screenSetup(t *testing.T) (*Server, *rpc.Conn, *notes, *fakeScreens) {
 				Viewport: screen.Viewport{Rows: 4, Cols: 40, Total: 4},
 				Lines:    textLines("one", "two", "three", "four"),
 			}}},
-			Status: screen.Status{Mode: "NOR", Position: "1:1"},
+			Status: screen.Status{Mode: "NOR", Position: msg.S("1:1")},
 		},
 		theme: ThemeOf("dark", screen.Palette{screen.StyleSyntaxKeyword: "#569cd6"}),
 		blobs: map[string][]byte{"file:/x.png": []byte("0123456789")},
@@ -171,7 +173,7 @@ func TestScreenUpdateSendsChangedLines(t *testing.T) {
 
 	fs.set(func(sc *screen.Screen) {
 		sc.Files.Panes[0].Lines[1].Spans[0].Text = "twXo"
-		sc.Status.Position = "2:4"
+		sc.Status.Position = msg.S("2:4")
 	})
 	srv.ScreenChanged()
 	u := waitUpdates(t, nt, 2)[1]
@@ -188,7 +190,7 @@ func TestScreenUpdateSendsChangedLines(t *testing.T) {
 	if !slices.Equal(keys, []string{"ackSeq", "baseRev", "files", "rev", "status"}) {
 		t.Errorf("update has %v", keys)
 	}
-	if u.Status.Position != "2:4" {
+	if i18n.Text(u.Status.Position) != "2:4" {
 		t.Errorf("status: %+v", u.Status)
 	}
 	p = u.Files.Panes[0]
@@ -233,7 +235,7 @@ func TestScreenGetRecovers(t *testing.T) {
 	ctx := context.Background()
 	first := waitUpdates(t, nt, 1)[0]
 	ack(t, c, first.Rev)
-	fs.set(func(sc *screen.Screen) { sc.Status.Msg = "saved" })
+	fs.set(func(sc *screen.Screen) { sc.Status.Msg = msg.S("saved") })
 	srv.ScreenChanged()
 	lost := waitUpdates(t, nt, 2)[1]
 
@@ -243,10 +245,10 @@ func TestScreenGetRecovers(t *testing.T) {
 	if err := c.Call(ctx, "screen.get", map[string]any{}, &sc); err != nil {
 		t.Fatal(err)
 	}
-	if int64(sc.Rev) != lost.Rev || sc.Status.Msg != "saved" || sc.Files == nil || len(sc.Files.Panes[0].Lines) != 4 {
+	if int64(sc.Rev) != lost.Rev || i18n.Text(sc.Status.Msg) != "saved" || sc.Files == nil || len(sc.Files.Panes[0].Lines) != 4 {
 		t.Fatalf("screen.get: rev %d (lost %d) %+v", sc.Rev, lost.Rev, sc.Status)
 	}
-	fs.set(func(sc *screen.Screen) { sc.Status.Msg = "" })
+	fs.set(func(sc *screen.Screen) { sc.Status.Msg = msg.S("") })
 	srv.ScreenChanged()
 	u := waitUpdates(t, nt, 3)[2]
 	if u.BaseRev != int64(sc.Rev) || u.Status == nil || u.Files != nil {
@@ -315,7 +317,7 @@ func TestThemeGetAndChanged(t *testing.T) {
 	fs.mu.Lock()
 	fs.theme = ThemeOf("light", screen.Palette{screen.StyleSyntaxKeyword: "#0000ff"})
 	fs.mu.Unlock()
-	fs.set(func(sc *screen.Screen) { sc.Status.Msg = "theme" })
+	fs.set(func(sc *screen.Screen) { sc.Status.Msg = msg.S("theme") })
 	srv.ScreenChanged()
 	waitFor(t, "theme.changed", func() bool { return len(nt.all("theme.changed")) == 1 })
 	json.Unmarshal(*nt.all("theme.changed")[0], &th)

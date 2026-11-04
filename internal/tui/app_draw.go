@@ -9,6 +9,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -20,7 +21,7 @@ func (a *App) renderTitle(t *core.Tab, w int, focused bool) string {
 
 // findInputCells is the width of the find bar between its label and hint.
 func findInputCells(w int) int {
-	return w - lipgloss.Width(stFindLabel.Render(core.FindLabel())) - lipgloss.Width(stFind.Render(i18n.T("app.findhint")))
+	return w - lipgloss.Width(stFindLabel.Render(tr(core.FindLabel()))) - lipgloss.Width(stFind.Render(i18n.T("app.findhint")))
 }
 
 func (a *App) renderFind(w int) string {
@@ -156,7 +157,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	if a.DiffMode() {
 		branch, pr := a.CompareBase()
 		rows = append([]string{drawCompareBar(branch, pr, a.w)}, rows...)
-		rows = append(rows, drawDiffHelp(a.DiffHelp(), a.w))
+		rows = append(rows, drawDiffHelp(tr(a.DiffHelp()), a.w))
 	}
 
 	// popups anchored at the cursor
@@ -194,10 +195,10 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		rows = a.renderSpaceMenu(rows, l)
 	}
 	if a.MenuOpen("space v") {
-		rows = a.renderMenu(rows, l, i18n.T("app.reviewhint"), core.ReviewItems)
+		rows = a.renderMenu(rows, l, msg.T("app.reviewhint"), core.ReviewItems)
 	}
 	if a.MenuOpen("space w") {
-		rows = a.renderMenu(rows, l, i18n.T("win.hint"), core.WindowItems)
+		rows = a.renderMenu(rows, l, msg.T("win.hint"), core.WindowItems)
 	}
 
 	if a.PaletteOpen() {

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -20,7 +21,7 @@ type ChangesList struct {
 	Top     int // Rows[0] in the whole list
 	Total   int // rows of the whole list; 0: it is loading, failed, or has no changes
 	Loading bool
-	Err     string
+	Err     msg.Msg
 	Rows    []ChangeRow
 }
 
@@ -123,7 +124,7 @@ func (a *Core) AgentPanelOf(w, h int, focused bool) AgentPanel {
 		if r < 0 {
 			continue
 		}
-		p.Items = append(p.Items, AgentOffer{Title: lay.list[r].title, Detail: lay.list[r].Detail, Selected: r == lay.sel})
+		p.Items = append(p.Items, AgentOffer{Title: a.text(lay.list[r].title), Detail: a.text(lay.list[r].Detail), Selected: r == lay.sel})
 	}
 	p.Perms = lay.perms
 	v := s.View

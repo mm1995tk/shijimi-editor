@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 type fakeHerdr struct {
@@ -126,9 +127,9 @@ func TestHerdrCommands(t *testing.T) {
 		t.Fatalf("context must be pasted without Enter: %v", f.calls)
 	}
 	f.fail = "pane zoom"
-	a.Msg = ""
+	a.Msg = msg.Msg{}
 	a.ExecCommand("sh hide")
-	if !a.MsgErr || !strings.Contains(a.Msg, "boom") {
+	if !a.MsgErr || !strings.Contains(tr(a.Msg), "boom") {
 		t.Fatalf("error not shown: %q", a.Msg)
 	}
 }
@@ -228,7 +229,7 @@ func TestMuxAutoNoMultiplexer(t *testing.T) {
 func TestMuxUnsupportedFallsBack(t *testing.T) {
 	a, _ := herdrApp(t)
 	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "tmux"
-	if a.muxOn() || !strings.Contains(a.Msg, "tmux") {
+	if a.muxOn() || !strings.Contains(tr(a.Msg), "tmux") {
 		t.Fatalf("expected the built-in terminal and a message: %q", a.Msg)
 	}
 }
@@ -267,7 +268,7 @@ func TestMuxKindOf(t *testing.T) {
 func TestMuxHerdrWithoutEnv(t *testing.T) {
 	a, _ := herdrApp(t)
 	t.Setenv("HERDR_ENV", "")
-	if a.muxOn() || strings.Contains(a.Msg, "not supported") || !strings.Contains(a.Msg, "herdr") {
+	if a.muxOn() || strings.Contains(tr(a.Msg), "not supported") || !strings.Contains(tr(a.Msg), "herdr") {
 		t.Fatalf("expected the unavailable message: %q", a.Msg)
 	}
 }

@@ -78,7 +78,7 @@ func TestConfigReloadKeepsSettingsOnMistake(t *testing.T) {
 	if a.Cfg != cfg {
 		t.Fatal("the settings changed")
 	}
-	if !a.MsgErr || !strings.Contains(a.Msg, file+":3") || !strings.Contains(a.Msg, "editor.file-icons") {
+	if !a.MsgErr || !strings.Contains(a.text(a.Msg), file+":3") || !strings.Contains(a.text(a.Msg), "editor.file-icons") {
 		t.Fatalf("msg = %q (err %v)", a.Msg, a.MsgErr)
 	}
 }

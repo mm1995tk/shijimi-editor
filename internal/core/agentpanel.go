@@ -1,12 +1,11 @@
 package core
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -109,14 +108,14 @@ func (a *Core) agentCommand(arg string) []Effect {
 		a.cancelAgent()
 	case "stop":
 		if a.Ag.Client == nil {
-			a.InfoText(i18n.T("agent.notrunning"))
+			a.InfoText(msg.T("agent.notrunning"))
 			return nil
 		}
 		a.stopAgent()
-		a.Ag.add(LogEntry{Kind: LogInfo, Text: i18n.T("agent.stoppedok")})
-		a.InfoText(i18n.T("agent.stoppedok"))
+		a.Ag.add(LogEntry{Kind: LogInfo, Text: msg.T("agent.stoppedok")})
+		a.InfoText(msg.T("agent.stoppedok"))
 	default:
-		a.Fail(fmt.Errorf(i18n.T("agent.badarg"), arg))
+		a.Fail(msg.Err("agent.badarg", arg))
 	}
 	return nil
 }
@@ -166,12 +165,12 @@ func (a *Core) agentLayout(w, h int, focused bool) agentLay {
 		lay.head++
 	}
 	if focused {
-		lay.hint = i18n.T("panel.hint.suggest")
+		lay.hint = a.text(msg.T("panel.hint.suggest"))
 		switch {
 		case len(a.Ag.Perms) > 0:
-			lay.hint = i18n.T("panel.hint.perm")
+			lay.hint = a.text(msg.T("panel.hint.perm"))
 		case a.Ag.Run != nil:
-			lay.hint = i18n.T("panel.hint.work")
+			lay.hint = a.text(msg.T("panel.hint.work"))
 		}
 	}
 	lay.body = h - lay.head - BoolInt(lay.hint != "")
@@ -222,12 +221,13 @@ func (a *Core) renderLog(w int) []logRow {
 		}
 	}
 	for _, e := range a.Ag.Log {
+		text := a.text(e.Text)
 		switch e.Kind {
 		case logUser:
 			out = append(out, logSpanRow(w))
-			addWrapped("› "+e.Text, w-1, screen.StylePanelCmd, "")
+			addWrapped("› "+text, w-1, screen.StylePanelCmd, "")
 		case LogAgent:
-			if strings.TrimSpace(e.Text) == "" {
+			if strings.TrimSpace(text) == "" {
 				continue
 			}
 			type cut struct {
@@ -236,7 +236,7 @@ func (a *Core) renderLog(w int) []logRow {
 			}
 			cuts := map[int]cut{} // row of the markdown -> the cut above it
 			exact := map[int][2]int{}
-			doc := RenderMarkdown(e.Text, max(1, w-1), MdOpts{
+			doc := RenderMarkdown(text, max(1, w-1), MdOpts{
 				Wrapped: func(row int, space bool, indent int) { cuts[row] = cut{space, indent} },
 				Exact:   func(row, from, to int) { exact[row] = [2]int{from, to} },
 			})
@@ -257,11 +257,11 @@ func (a *Core) renderLog(w int) []logRow {
 			if mark == "" {
 				mark = "○"
 			}
-			addWrapped(mark+" "+e.Text, w-1, screen.StyleLineNo, "")
+			addWrapped(mark+" "+text, w-1, screen.StyleLineNo, "")
 		case logPlan, LogInfo:
-			addWrapped(strings.TrimRight(e.Text, "\n"), w-1, screen.StyleLineNo, "")
+			addWrapped(strings.TrimRight(text, "\n"), w-1, screen.StyleLineNo, "")
 		case logError:
-			addWrapped(e.Text, w-1, screen.StyleStatusFg, screen.StyleStatusErrBg)
+			addWrapped(text, w-1, screen.StyleStatusFg, screen.StyleStatusErrBg)
 		}
 	}
 	return out

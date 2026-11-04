@@ -37,7 +37,7 @@ func TestHoverBoxShapeAndScroll(t *testing.T) {
 func TestHoverBorderShowsCopyButtonAndHint(t *testing.T) {
 	v := core.NewHoverView(goplsHover, 60, 5)
 	box := drawHover(v.Overlay(0))
-	if top := ansi.Strip(box[0]); !strings.Contains(top, core.HoverCopyLabel()+"─╮") {
+	if top := ansi.Strip(box[0]); !strings.Contains(top, tr(core.HoverCopyLabel())+"─╮") {
 		t.Fatalf("top border: %q", top)
 	}
 	bottom := ansi.Strip(box[len(box)-1])
@@ -54,7 +54,7 @@ func TestHoverCopyKeyAndButton(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.HoverText = goplsHover
 	keys(a, "y")
-	if a.Clipboard != goplsHover || a.HoverText == "" || a.Msg == "" || a.MsgErr {
+	if a.Clipboard != goplsHover || a.HoverText == "" || a.Msg.IsZero() || a.MsgErr {
 		t.Fatalf("key: clipboard=%q hover=%v msg=%q", a.Clipboard, a.HoverText != "", a.Msg)
 	}
 
@@ -65,9 +65,9 @@ func TestHoverCopyKeyAndButton(t *testing.T) {
 		t.Fatal("no hover position")
 	}
 	v := a.hoverView(l)
-	n := ansi.StringWidth(core.HoverCopyLabel())
+	n := ansi.StringWidth(tr(core.HoverCopyLabel()))
 	col := v.Width + 2 - n/2
-	if !v.CopyHit(col, 0) {
+	if !v.CopyHit(col, 0, n) {
 		t.Fatalf("copyHit(%d,0) = false", col)
 	}
 	a.HandleMouse(a.locate(bx+col, by, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
@@ -99,7 +99,7 @@ func TestHoverOverlay(t *testing.T) {
 	if ov.Kind != screen.OverlayHover || ov.Pane != a.CurText().Path() || ov.At == nil || *ov.At != (screen.Pos{Line: 1, Col: 3}) {
 		t.Fatalf("overlay = %+v", ov)
 	}
-	if ov.View == nil || ov.View.Total <= len(ov.Lines) || len(ov.Lines) != ov.View.Rows || ov.Hint != core.HoverHint() {
+	if ov.View == nil || ov.View.Total <= len(ov.Lines) || len(ov.Lines) != ov.View.Rows || tr(ov.Hint) != tr(core.HoverHint()) {
 		t.Fatalf("view = %+v, %d lines, hint %q", ov.View, len(ov.Lines), ov.Hint)
 	}
 	if ov.Lines[0].Band != screen.StyleHoverCodeBg || !ov.Lines[1].Rule || ov.Lines[2].Band != "" {

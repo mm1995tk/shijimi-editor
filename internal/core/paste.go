@@ -3,29 +3,29 @@ package core
 import (
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // HandlePaste sends a bracketed paste to whatever has the keyboard, the same
 // way HandleKey routes keys. Overlays that take no text ignore it.
-func (a *Core) HandlePaste(msg Paste) []Effect {
-	a.Msg = ""
+func (a *Core) HandlePaste(in Paste) []Effect {
+	a.Msg = msg.Msg{}
 	switch {
 	case a.Search.Open:
-		return a.searchInput(msg)
+		return a.searchInput(in)
 	case a.Pal.Open:
-		return a.paletteInput(msg)
+		return a.paletteInput(in)
 	case a.Composer != nil:
-		a.Composer.Ta.InsertString(msg.Content)
+		a.Composer.Ta.InsertString(in.Content)
 		return nil
 	case a.Confirm != nil:
 		return nil
 	case a.props.Len() > 0, a.Ctx != nil, a.InResizeMode():
 		return nil
 	case a.CmdOpen:
-		return a.cmdlineInput(msg)
+		return a.cmdlineInput(in)
 	case a.Focus == FocusTerminal:
-		s := strings.ReplaceAll(strings.ReplaceAll(msg.Content, "\r\n", "\r"), "\n", "\r")
+		s := strings.ReplaceAll(strings.ReplaceAll(in.Content, "\r\n", "\r"), "\n", "\r")
 		a.port.TermPaste(s)
 		return nil
 	case a.Focus != FocusEditor:
@@ -36,16 +36,16 @@ func (a *Core) HandlePaste(msg Paste) []Effect {
 		return nil
 	}
 	if a.FindOpen {
-		return a.findInputUpdate(msg)
+		return a.findInputUpdate(in)
 	}
 	if a.Helix && a.Mode != ModeInsert {
 		return nil
 	}
 	if a.FullPreview(t) {
-		a.InfoText(i18n.T("app.fullpreview"))
+		a.InfoText(msg.T("app.fullpreview"))
 		return nil
 	}
-	s := strings.ReplaceAll(msg.Content, "\r\n", "\n")
+	s := strings.ReplaceAll(in.Content, "\r\n", "\n")
 	s = strings.ReplaceAll(s, "\r", "\n")
 	a.Comp = nil
 	a.Follow = true

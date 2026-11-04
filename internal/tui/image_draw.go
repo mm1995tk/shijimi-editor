@@ -81,7 +81,7 @@ func imageBody(v *core.ImageView, w, h int) []string {
 // line, then the image iv (nil: none) in the terminal (see body).
 func drawImagePane(p screen.Pane, iv *core.ImageView, w, h int) []string {
 	out := make([]string, 0, h)
-	out = append(out, stPanelDim.Render(core.Fit("  "+p.Caption, w)))
+	out = append(out, stPanelDim.Render(core.Fit("  "+tr(p.Caption), w)))
 	if iv == nil {
 		iv = &core.ImageView{} // unreadable or gone: blank
 	}

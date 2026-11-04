@@ -3,6 +3,8 @@ package core
 import (
 	"slices"
 	"unicode"
+
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // lineInput is a one-line text field: the text and the caret in it. It
@@ -16,7 +18,7 @@ import (
 type lineInput struct {
 	// Placeholder is shown, with the caret on its first character, while the
 	// text is empty.
-	Placeholder string
+	Placeholder msg.Msg
 	// limit is the most characters the field holds. 0 means no limit.
 	limit int
 

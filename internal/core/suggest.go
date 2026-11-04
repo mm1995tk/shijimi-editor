@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // Suggestions in the right panel. They come from rules over git, LSP and
@@ -36,8 +36,8 @@ const (
 type offer struct {
 	Kind   suggestKind
 	key    string
-	title  string
-	Detail string
+	title  msg.Msg
+	Detail msg.Msg
 }
 
 // suggestState is what the rules look at, gathered in the background.
@@ -235,34 +235,34 @@ func (a *Core) allSuggestions() []offer {
 	var out []offer
 	r := a.Sg.repo
 	if a.Sg.FixOffer {
-		out = append(out, offer{SgApplyFix, fmt.Sprintf("apply-fix:%d", a.Sg.fixSeq), i18n.T("sg.applyfix"), i18n.T("sg.fixdetail")})
+		out = append(out, offer{SgApplyFix, fmt.Sprintf("apply-fix:%d", a.Sg.fixSeq), msg.T("sg.applyfix"), msg.T("sg.fixdetail")})
 	}
 	if n := len(r.conflicts); n > 0 {
-		out = append(out, offer{sgConflict, "conflict", i18n.T("sg.conflicts"), fmt.Sprintf(i18n.T("sg.files"), n, strings.Join(r.conflicts, ", "))})
+		out = append(out, offer{sgConflict, "conflict", msg.T("sg.conflicts"), msg.T("sg.files", n, strings.Join(r.conflicts, ", "))})
 	}
 	if r.prKnown && len(r.prs) == 0 && r.ahead > 0 && r.base != "" && !isBranchOf(r.base, r.branch) {
-		out = append(out, offer{sgCreatePR, "create-pr:" + r.branch, i18n.T("sg.createpr"), fmt.Sprintf(i18n.T("sg.commits"), r.branch, r.ahead)})
+		out = append(out, offer{sgCreatePR, "create-pr:" + r.branch, msg.T("sg.createpr"), msg.T("sg.commits", r.branch, r.ahead)})
 	}
 	if r.prKnown && len(r.prs) > 0 && !a.PrShown() {
 		p := r.prs[0]
-		out = append(out, offer{sgReviewMode, fmt.Sprintf("review-mode:%s:%d", r.branch, p.Number), i18n.T("sg.reviewmode"), fmt.Sprintf("#%d %s", p.Number, p.Title)})
+		out = append(out, offer{sgReviewMode, fmt.Sprintf("review-mode:%s:%d", r.branch, p.Number), msg.T("sg.reviewmode"), msg.S(fmt.Sprintf("#%d %s", p.Number, p.Title))})
 	}
 	for _, f := range a.Sg.Fails {
-		d := fmt.Sprintf(i18n.T("sg.termexit"), f.n, f.Code)
+		d := msg.T("sg.termexit", f.n, f.Code)
 		if f.Code < 0 {
-			d = fmt.Sprintf(i18n.T("sg.term"), f.n, f.line)
+			d = msg.T("sg.term", f.n, f.line)
 		}
-		out = append(out, offer{SgFailure, fmt.Sprintf("fail:%d", f.seq), i18n.T("sg.investigate"), d})
+		out = append(out, offer{SgFailure, fmt.Sprintf("fail:%d", f.seq), msg.T("sg.investigate"), d})
 	}
 	if paths, byPath := a.lspErrors(); len(paths) > 0 {
 		n := 0
 		for _, p := range paths {
 			n += len(byPath[p])
 		}
-		out = append(out, offer{SgLSPErrors, "lsp-errors", fmt.Sprintf(i18n.T("sg.fixerrors"), n), fmt.Sprintf(i18n.T("sg.files"), len(paths), a.Rel(paths[0]))})
+		out = append(out, offer{SgLSPErrors, "lsp-errors", msg.T("sg.fixerrors", n), msg.T("sg.files", len(paths), a.Rel(paths[0]))})
 	}
 	if a.PrShown() {
-		out = append(out, offer{SgAIReview, fmt.Sprintf("ai-review:%d", a.Gd.Pr.Number), i18n.T("sg.aireview"), fmt.Sprintf("#%d %s", a.Gd.Pr.Number, a.Gd.Pr.Title)})
+		out = append(out, offer{SgAIReview, fmt.Sprintf("ai-review:%d", a.Gd.Pr.Number), msg.T("sg.aireview"), msg.S(fmt.Sprintf("#%d %s", a.Gd.Pr.Number, a.Gd.Pr.Title))})
 	}
 	return out
 }
@@ -330,17 +330,17 @@ func (a *Core) runSuggestion() []Effect {
 		return a.OpenDiff(BasePR)
 	case sgConflict:
 		files := a.Sg.repo.conflicts
-		return a.RunAgent(s.Kind, s.key, s.title, func() string { return conflictPrompt(files) })
+		return a.RunAgent(s.Kind, s.key, s.title, func() msg.Msg { return conflictPrompt(files) })
 	case sgCreatePR:
 		branch, base := a.Sg.repo.branch, a.Sg.repo.base
-		return a.RunAgent(s.Kind, s.key, s.title, func() string { return createPRPrompt(branch, base) })
+		return a.RunAgent(s.Kind, s.key, s.title, func() msg.Msg { return createPRPrompt(branch, base) })
 	case SgLSPErrors:
 		text := a.errorsText()
-		return a.RunAgent(s.Kind, s.key, s.title, func() string { return lspPrompt(text) })
+		return a.RunAgent(s.Kind, s.key, s.title, func() msg.Msg { return lspPrompt(text) })
 	case SgFailure:
 		for _, f := range a.Sg.Fails {
 			if fmt.Sprintf("fail:%d", f.seq) == s.key {
-				cmd := a.RunAgent(s.Kind, s.key, s.title, func() string { return FailurePrompt(f) })
+				cmd := a.RunAgent(s.Kind, s.key, s.title, func() msg.Msg { return FailurePrompt(f) })
 				if a.Ag.Run != nil {
 					a.ClearFailure(f.tab)
 				}
@@ -348,26 +348,26 @@ func (a *Core) runSuggestion() []Effect {
 			}
 		}
 	case SgApplyFix:
-		cmd := a.RunAgent(s.Kind, s.key, s.title, func() string { return applyFixPrompt() })
+		cmd := a.RunAgent(s.Kind, s.key, s.title, func() msg.Msg { return applyFixPrompt() })
 		if a.Ag.Run != nil {
 			a.Sg.FixOffer = false
 		}
 		return cmd
 	case SgAIReview:
 		pr, root, rev := a.Gd.Pr, a.Root, a.Gd.rev
-		return a.RunAgent(s.Kind, s.key, s.title, func() string {
+		return a.RunAgent(s.Kind, s.key, s.title, func() msg.Msg {
 			out, err := run(root, nil, "git", "diff", rev, "--no-color", "--no-ext-diff", "-M")
 			if err != nil {
-				out = []byte(fmt.Sprintf(i18n.T("sg.diffunavailable"), err.Error()))
+				return reviewPrompt(pr, msg.T("sg.diffunavailable", err.Error()))
 			}
-			return reviewPrompt(pr, string(out))
+			return reviewPrompt(pr, msg.S(string(out)))
 		})
 	}
 	return nil
 }
 
 // errorsText lists the LSP errors for the prompt.
-func (a *Core) errorsText() string {
+func (a *Core) errorsText() msg.Msg {
 	const maxErrors = 50
 	paths, byPath := a.lspErrors()
 	var sb strings.Builder
@@ -375,8 +375,7 @@ func (a *Core) errorsText() string {
 	for _, p := range paths {
 		for _, d := range byPath[p] {
 			if n == maxErrors {
-				sb.WriteString(i18n.T("sg.more"))
-				return sb.String()
+				return msg.Cat(sb.String(), msg.T("sg.more"))
 			}
 			n++
 			src := ""
@@ -386,47 +385,46 @@ func (a *Core) errorsText() string {
 			fmt.Fprintf(&sb, "- %s:%d:%d: %s%s\n", a.Rel(p), d.Range.Start.Line+1, d.Range.Start.Character+1, FirstLine(d.Message), src)
 		}
 	}
-	return sb.String()
+	return msg.S(sb.String())
 }
 
 // ---- prompts ----
 
-func conflictPrompt(files []string) string {
-	var sb strings.Builder
-	sb.WriteString(i18n.T("sg.prompt.conflict"))
+func conflictPrompt(files []string) msg.Msg {
+	parts := []any{msg.T("sg.prompt.conflict")}
 	for _, f := range files {
-		fmt.Fprintf(&sb, i18n.T("sg.prompt.conflictfile"), f)
+		parts = append(parts, msg.T("sg.prompt.conflictfile", f))
 	}
-	return sb.String()
+	return msg.Cat(parts...)
 }
 
-func createPRPrompt(branch, base string) string {
-	return fmt.Sprintf(i18n.T("sg.prompt.createpr"), branch, base)
+func createPRPrompt(branch, base string) msg.Msg {
+	return msg.T("sg.prompt.createpr", branch, base)
 }
 
-func lspPrompt(errors string) string {
-	return i18n.T("sg.prompt.lsp") + errors
+func lspPrompt(errors msg.Msg) msg.Msg {
+	return msg.T("sg.prompt.lsp").Add(errors)
 }
 
 // FailurePrompt is the prompt that asks the agent about f.
-func FailurePrompt(f termFailure) string {
-	what := fmt.Sprintf(i18n.T("sg.exitcode"), f.Code)
+func FailurePrompt(f termFailure) msg.Msg {
+	what := msg.T("sg.exitcode", f.Code)
 	if f.Code < 0 {
-		what = i18n.T("sg.testfail") + f.line
+		what = msg.T("sg.testfail").Add(f.line)
 	}
-	return fmt.Sprintf(i18n.T("sg.prompt.fail"), what, strings.Join(f.Output, "\n"))
+	return msg.T("sg.prompt.fail", what, strings.Join(f.Output, "\n"))
 }
 
-func applyFixPrompt() string { return i18n.T("sg.prompt.applyfix") }
+func applyFixPrompt() msg.Msg { return msg.T("sg.prompt.applyfix") }
 
 // maxReviewDiff bounds the diff sent for a review.
 const maxReviewDiff = 200_000
 
-func reviewPrompt(pr *PrInfo, d string) string {
-	if len(d) > maxReviewDiff {
-		d = d[:maxReviewDiff] + i18n.T("sg.difftruncated")
+func reviewPrompt(pr *PrInfo, d msg.Msg) msg.Msg {
+	if s := d.String(); d.Key == "" && len(s) > maxReviewDiff {
+		d = msg.S(s[:maxReviewDiff]).Add(msg.T("sg.difftruncated"))
 	}
-	return fmt.Sprintf(i18n.T("sg.prompt.review1")+"```json"+i18n.T("sg.prompt.review2")+"```diff\n%s\n```\n", pr.Number, pr.Title, d)
+	return msg.Cat(msg.T("sg.prompt.review1", pr.Number, pr.Title), "```json", msg.T("sg.prompt.review2"), "```diff\n", d, "\n```\n")
 }
 
 // ---- AI review results ----
@@ -449,7 +447,7 @@ func parseReview(text string) ([]reviewComment, error) {
 	}
 	var out []reviewComment
 	if err := json.Unmarshal([]byte(src), &out); err != nil {
-		return nil, fmt.Errorf(i18n.T("sg.badjson"), err)
+		return nil, msg.Err("sg.badjson", err)
 	}
 	return out, nil
 }
@@ -461,12 +459,12 @@ func parseReview(text string) ([]reviewComment, error) {
 func (a *Core) placeReview(run *agentRun) []Effect {
 	s := a.Ag
 	if !a.PrShown() || a.Gd.Pr.Number != run.pr {
-		s.add(LogEntry{Kind: logError, Text: i18n.T("sg.prnotshown")})
+		s.add(LogEntry{Kind: logError, Text: msg.T("sg.prnotshown")})
 		return nil
 	}
 	cs, err := parseReview(run.text.String())
 	if err != nil {
-		s.add(LogEntry{Kind: logError, Text: err.Error()})
+		s.add(LogEntry{Kind: logError, Text: msg.Of(err)})
 		a.Fail(err)
 		return nil
 	}
@@ -492,7 +490,7 @@ func (a *Core) placeReview(run *agentRun) []Effect {
 			th.File = true
 		case !inDiff(f, c.Line):
 			th.File = true
-			body = fmt.Sprintf(i18n.T("sg.linebold"), c.Line, body)
+			body = a.text(msg.T("sg.linebold", c.Line, body))
 		default:
 			th.Line = c.Line
 			if c.StartLine > 0 && c.StartLine < c.Line && inDiff(f, c.StartLine) {
@@ -503,12 +501,12 @@ func (a *Core) placeReview(run *agentRun) []Effect {
 		a.Gd.Rv.Pending = append(a.Gd.Rv.Pending, th)
 		placed++
 	}
-	msg := fmt.Sprintf(i18n.T("sg.placed"), placed)
+	done := msg.T("sg.placed", placed)
 	if skipped > 0 {
-		msg += fmt.Sprintf(i18n.T("sg.skippedfiles"), skipped)
+		done = done.Add(msg.T("sg.skippedfiles", skipped))
 	}
-	s.add(LogEntry{Kind: LogInfo, Text: msg})
-	a.Info("%s", msg)
+	s.add(LogEntry{Kind: LogInfo, Text: done})
+	a.InfoText(done)
 	return nil
 }
 

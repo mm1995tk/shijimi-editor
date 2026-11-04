@@ -3,14 +3,13 @@ package core
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 var urlRe = regexp.MustCompile(`https?://[^\s<>"'` + "`" + `]+`)
@@ -33,17 +32,17 @@ var OpenExternal = func(url string) error {
 		cmd := exec.Command(path, url)
 		cmd.Stderr = &stderr
 		if err := cmd.Run(); err != nil {
-			if msg := strings.TrimSpace(stderr.String()); msg != "" {
-				return fmt.Errorf(i18n.T("open.failed"), name, msg)
+			if out := strings.TrimSpace(stderr.String()); out != "" {
+				return msg.Err("open.failed", name, out)
 			}
-			return fmt.Errorf(i18n.T("open.failedv"), name, err)
+			return msg.Err("open.failedv", name, err)
 		}
 		return nil
 	}
 	if len(openers[runtime.GOOS]) == 0 {
-		return fmt.Errorf(i18n.T("open.unsupportedos"), runtime.GOOS)
+		return msg.Err("open.unsupportedos", runtime.GOOS)
 	}
-	return fmt.Errorf(i18n.T("open.noopener"), strings.Join(openers[runtime.GOOS], " / "))
+	return msg.Err("open.noopener", strings.Join(openers[runtime.GOOS], " / "))
 }
 
 // urlAt returns the URL in line that covers column col (a rune index).
@@ -80,19 +79,19 @@ func (a *Core) openURL(arg string) []Effect {
 	if url == "" {
 		t := a.CurText()
 		if t == nil {
-			a.Fail(errors.New(i18n.T("open.needurl")))
+			a.Fail(msg.Err("open.needurl"))
 			return nil
 		}
 		cur := t.Buf.Cur
 		u, ok := urlAt(t.Buf.Lines[cur.Row], cur.Col)
 		if !ok {
-			a.Fail(errors.New(i18n.T("open.nourl")))
+			a.Fail(msg.Err("open.nourl"))
 			return nil
 		}
 		url = u
 	}
 	if !urlFullRe.MatchString(url) {
-		a.Fail(fmt.Errorf(i18n.T("open.badurl"), url))
+		a.Fail(msg.Err("open.badurl", url))
 		return nil
 	}
 	a.port.OpenURL(url)
@@ -108,7 +107,7 @@ var IsRemoteSession = func() bool {
 // copyPRURL copies the URL of the pull request being reviewed.
 func (a *Core) copyPRURL() []Effect {
 	a.CopyText(a.Gd.Pr.URL)
-	a.Info(i18n.T("rv.urlcopied"), a.Gd.Pr.URL)
+	a.Info("rv.urlcopied", a.Gd.Pr.URL)
 	return nil
 }
 
@@ -129,16 +128,16 @@ func (a *Core) handleOpenURLResult(ev OpenURLResult) []Effect {
 	switch {
 	case ev.Err != nil && copyOnFail && errors.Is(ev.Err, ErrRemoteSession):
 		a.CopyText(ev.URL)
-		a.Info(i18n.T("rv.sshcopied"), ev.URL)
+		a.Info("rv.sshcopied", ev.URL)
 	case ev.Err != nil && copyOnFail:
 		a.CopyText(ev.URL)
-		a.Info(i18n.T("rv.openfailedcopied"), ev.URL)
+		a.Info("rv.openfailedcopied", ev.URL)
 	case errors.Is(ev.Err, ErrRemoteSession):
-		a.Fail(errors.New(i18n.T("open.remote")))
+		a.Fail(msg.Err("open.remote"))
 	case ev.Err != nil:
 		a.Fail(ev.Err)
 	default:
-		a.Info(i18n.T("app.opened"), ev.URL)
+		a.Info("app.opened", ev.URL)
 	}
 	return nil
 }

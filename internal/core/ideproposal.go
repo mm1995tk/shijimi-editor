@@ -1,8 +1,6 @@
 package core
 
-import (
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
-)
+import ()
 
 // ProposalView is what the TUI draws of a Proposal: the one the user is asked
 // about, and how far its diff is scrolled.
@@ -29,10 +27,10 @@ func (a *Core) PropView() *ProposalView {
 // writes the file: that is left to Claude Code after FILE_SAVED.
 func (a *Core) resolveProposal(p *Proposal, accept bool) {
 	if accept {
-		a.Info(i18n.T("idep.accepted"), a.Rel(p.NewPath))
+		a.Info("idep.accepted", a.Rel(p.NewPath))
 		a.treeTicks = treeRefreshTicks - 2 // the client writes the file after this reply
 	} else {
-		a.Info(i18n.T("idep.rejected"), a.Rel(p.NewPath))
+		a.Info("idep.rejected", a.Rel(p.NewPath))
 	}
 	a.props.Resolve(p, accept)
 }
@@ -42,7 +40,7 @@ func (a *Core) resolveProposal(p *Proposal, accept bool) {
 // side. The pending request is still answered, but the editor rejected
 // nothing, so the status bar must not say so.
 func (a *Core) closeProposal(p *Proposal) {
-	a.Info(i18n.T("idep.decided"), a.Rel(p.NewPath))
+	a.Info("idep.decided", a.Rel(p.NewPath))
 	a.props.Close(p)
 }
 

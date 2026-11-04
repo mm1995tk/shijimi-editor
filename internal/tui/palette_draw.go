@@ -14,14 +14,14 @@ import (
 // text and the caret.
 func drawPalette(ov screen.Overlay, in *core.InputField, w int) []string {
 	var out []string
-	label := core.PaletteLabel(ov.Title, ov.Field.Prefix)
+	label := core.PaletteLabel(tr(ov.Title), ov.Field.Prefix)
 	out = append(out, stPaletteBox.Render(core.Fit("", w)))
 	out = append(out, stPaletteBox.Render(label)+fitStyled(viewField(in, inputStyleOn(cPaletteBg)), w-ansi.StringWidth(label), stPalette))
 	for i, it := range ov.Items {
 		out = append(out, renderItem(it, w, i == ov.Active))
 	}
-	if ov.Hint != "" {
-		out = append(out, stPaletteDim.Render(core.Fit(ov.Hint, w)))
+	if !ov.Hint.IsZero() {
+		out = append(out, stPaletteDim.Render(core.Fit(tr(ov.Hint), w)))
 	}
 	out = append(out, stPalette.Render(core.Fit("", w)))
 	return out
@@ -39,7 +39,7 @@ func renderItem(it screen.Item, w int, selected bool) string {
 	var sb strings.Builder
 	sb.WriteString(base.Render("  "))
 	used := 2
-	for i, r := range []rune(it.Label) {
+	for i, r := range []rune(tr(it.Label)) {
 		rw := ansi.StringWidth(string(r))
 		if used+rw > w-1 {
 			break
@@ -51,8 +51,8 @@ func renderItem(it screen.Item, w int, selected bool) string {
 		}
 		used += rw
 	}
-	if it.Detail != "" && it.Detail != "." {
-		d := "  " + it.Detail
+	if detail := tr(it.Detail); detail != "" && detail != "." {
+		d := "  " + detail
 		dw := ansi.StringWidth(d)
 		if used+dw < w {
 			st := stPaletteDim

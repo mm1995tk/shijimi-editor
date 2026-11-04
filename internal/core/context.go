@@ -1,12 +1,11 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // CtxPreview is the confirmation box shown before the context is pasted.
@@ -18,14 +17,14 @@ type CtxPreview struct {
 // maxContextLines caps how much of a selection is sent; the rest is elided.
 const maxContextLines = 200
 
-func diagSeverity() map[int]string {
-	return map[int]string{1: i18n.T("diag.error"), 2: i18n.T("diag.warning"), 3: i18n.T("diag.info"), 4: i18n.T("diag.hint")}
+func diagSeverity() map[int]msg.Msg {
+	return map[int]msg.Msg{1: msg.T("diag.error"), 2: msg.T("diag.warning"), 3: msg.T("diag.info"), 4: msg.T("diag.hint")}
 }
 
 // formatContext renders the current selection (or cursor line) as
 // "path:行-行", the selected text in a fence, and the diagnostics that touch
 // those lines. rows are 0-based and inclusive.
-func formatContext(path string, startRow, endRow int, selected string, diags []lsp.Diagnostic) string {
+func (a *Core) formatContext(path string, startRow, endRow int, selected string, diags []lsp.Diagnostic) string {
 	var sb strings.Builder
 	if startRow == endRow {
 		fmt.Fprintf(&sb, "%s:%d", path, startRow+1)
@@ -37,7 +36,7 @@ func formatContext(path string, startRow, endRow int, selected string, diags []l
 		lines := strings.Split(selected, "\n")
 		if len(lines) > maxContextLines {
 			rest := len(lines) - maxContextLines
-			lines = append(lines[:maxContextLines], fmt.Sprintf(i18n.T("ctx.elided"), rest))
+			lines = append(lines[:maxContextLines], a.text(msg.T("ctx.elided", rest)))
 		}
 		sb.WriteString("```\n" + strings.Join(lines, "\n") + "\n```\n")
 	}
@@ -45,9 +44,9 @@ func formatContext(path string, startRow, endRow int, selected string, diags []l
 		if d.Range.End.Line < startRow || d.Range.Start.Line > endRow {
 			continue
 		}
-		name := diagSeverity()[sevRank(d.Severity)]
+		name := a.text(diagSeverity()[sevRank(d.Severity)])
 		if name == "" {
-			name = i18n.T("ctx.diagnostics")
+			name = a.text(msg.T("ctx.diagnostics"))
 		}
 		src := ""
 		if d.Source != "" {
@@ -73,9 +72,9 @@ func (a *Core) currentContext() (string, bool) {
 			endRow-- // a selection ending at a line start does not include that line
 			selected = strings.TrimSuffix(selected, "\n")
 		}
-		return formatContext(path, s.Row, endRow, selected, a.Lsp.diagnostics(b.Path)), true
+		return a.formatContext(path, s.Row, endRow, selected, a.Lsp.diagnostics(b.Path)), true
 	}
-	return formatContext(path, b.Cur.Row, b.Cur.Row, "", a.Lsp.diagnostics(b.Path)), true
+	return a.formatContext(path, b.Cur.Row, b.Cur.Row, "", a.Lsp.diagnostics(b.Path)), true
 }
 
 // SendContext tells a connected IDE-integrated agent about the current
@@ -89,7 +88,7 @@ func (a *Core) SendContext() []Effect {
 	}
 	text, ok := a.currentContext()
 	if !ok {
-		a.Fail(errors.New(i18n.T("ctx.savefirst")))
+		a.Fail(msg.Err("ctx.savefirst"))
 		return nil
 	}
 	a.Ctx = &CtxPreview{Text: text}

@@ -1,9 +1,11 @@
 // Package screen は「画面に何を出すか」のデータ型だけを持つ（設計書 docs/design/gui-protocol.md の 1 章）。
 //
-// 中身（core）が作り、TUI の描画とプロトコルが読む。標準ライブラリ以外に依存しない。
+// 中身（core）が作り、TUI の描画とプロトコルが読む。標準ライブラリと msg（キーと値）以外に依存しない。
 // 色は RGB ではなくテーマ上の名前（Style）で持ち、名前 → 色の対応は Palette が表す。
-// 位置は画面全体の座標ではなく「ペインの中の行と桁」で持つ。文言はローカライズ済み。
+// 位置は画面全体の座標ではなく「ペインの中の行と桁」で持つ。文言はキーと値の msg.Msg で持ち、訳すのは UI（TUI は描くとき、server は送る直前）。
 package screen
+
+import "github.com/mm1995tk/shijimi-editor/internal/msg"
 
 // Region は領域。Screen.Focus（今キーを受ける領域）などに使う。
 type Region string
@@ -58,7 +60,7 @@ type Pane struct {
 	Cursors    []Pos        `json:"cursors,omitempty"`    // 描くカーソルの位置。先頭が主のカーソルで、残りが複数カーソルの追加分
 	Selections []Range      `json:"selections,omitempty"` // Cursors と同じ並び。選択が無いカーソルは Start == End の空の範囲
 	Image      *ImageRef    `json:"image,omitempty"`      // Kind が KindImage のとき。実体は blob.get で取る。読めなかったときは nil
-	Caption    string       `json:"caption,omitempty"`    // Kind が KindImage のとき、画像の説明の行（形式・大きさ・容量。読めなかったときはその理由）
+	Caption    msg.Msg      `json:"caption,omitzero"`     // Kind が KindImage のとき、画像の説明の行（形式・大きさ・容量。読めなかったときはその理由）
 	Diff       *DiffInfo    `json:"diff,omitempty"`       // Kind が KindDiff のとき
 	Preview    *PreviewInfo `json:"preview,omitempty"`    // Kind が KindPreview のとき
 }
@@ -124,10 +126,10 @@ type Title struct {
 	Peer     string `json:"peer,omitempty"` // 差分の相手など
 
 	// 差分の Pane（変更後の側）のタイトル。
-	Added    int    `json:"added,omitempty"`    // 足した行の数
-	Deleted  int    `json:"deleted,omitempty"`  // 消した行の数
-	Note     string `json:"note,omitempty"`     // レビューの注記
-	NoteWarn bool   `json:"noteWarn,omitempty"` // 注記が警告（PR の先頭と作業ツリーが食い違っている）
+	Added    int     `json:"added,omitempty"`    // 足した行の数
+	Deleted  int     `json:"deleted,omitempty"`  // 消した行の数
+	Note     msg.Msg `json:"note,omitzero"`      // レビューの注記
+	NoteWarn bool    `json:"noteWarn,omitempty"` // 注記が警告（PR の先頭と作業ツリーが食い違っている）
 }
 
 // Viewport は見えている範囲。行数と桁数は GUI が送り、スクロールは shj が決める。
@@ -227,36 +229,36 @@ type Diagnostic struct {
 	Cont     bool     `json:"cont,omitempty"` // 前の行から続く診断。下線だけ引き、行末の文言と行番号の横の印には使わない
 }
 
-// Status は状態行。文言はローカライズ済み。左（モード・領域・ブランチ・診断・メッセージ）と
+// Status は状態行。文言はキーと値の msg.Msg で持ち、訳すのは UI（TUI は描くとき、server は送る直前）。左（モード・領域・ブランチ・診断・メッセージ）と
 // 右（位置・字下げ・言語・版）に分かれる。右は Position が空なら（テキスト以外のとき）出さない。
 type Status struct {
 	Mode    string `json:"mode"`              // モードの表示（"NOR" など）。空ならモードの欄を出さない
 	Pending string `json:"pending,omitempty"` // 途中まで押されたキー（"space" など）
 	Style   Style  `json:"style"`             // モードの色（StyleModeNormal など）
 
-	Pane        string `json:"pane,omitempty"`        // キーを受けているエディタ以外の領域の名前
-	Branch      string `json:"branch,omitempty"`      // git のブランチ
-	Errors      int    `json:"errors,omitempty"`      // 診断の数
-	Warnings    int    `json:"warnings,omitempty"`    // 診断の数
-	Suggestions string `json:"suggestions,omitempty"` // エージェントの提案の数（提案の欄が見えていないときだけ）
+	Pane        msg.Msg `json:"pane,omitzero"`        // キーを受けているエディタ以外の領域の名前
+	Branch      string  `json:"branch,omitempty"`     // git のブランチ
+	Errors      int     `json:"errors,omitempty"`     // 診断の数
+	Warnings    int     `json:"warnings,omitempty"`   // 診断の数
+	Suggestions msg.Msg `json:"suggestions,omitzero"` // エージェントの提案の数（提案の欄が見えていないときだけ）
 
-	Msg    string `json:"msg,omitempty"`    // メッセージ（保存の結果、同期の状況など）
-	MsgErr bool   `json:"msgErr,omitempty"` // Msg がエラー
+	Msg    msg.Msg `json:"msg,omitzero"`     // メッセージ（保存の結果、同期の状況など）
+	MsgErr bool    `json:"msgErr,omitempty"` // Msg がエラー
 
-	Cursor   Pos    `json:"cursor"`             // カーソルの位置
-	Position string `json:"position,omitempty"` // 「行:桁」に複数カーソルと選択の文字数を足したもの
-	Indent   string `json:"indent,omitempty"`   // 字下げの種類
-	Language string `json:"language,omitempty"` // 言語と言語サーバーの状態
-	Unsent   string `json:"unsent,omitempty"`   // 未送信のレビューコメントの数
-	Version  string `json:"version,omitempty"`  // shj の版
+	Cursor   Pos     `json:"cursor"`            // カーソルの位置
+	Position msg.Msg `json:"position,omitzero"` // 「行:桁」に複数カーソルと選択の文字数を足したもの
+	Indent   msg.Msg `json:"indent,omitzero"`   // 字下げの種類
+	Language msg.Msg `json:"language,omitzero"` // 言語と言語サーバーの状態
+	Unsent   msg.Msg `json:"unsent,omitzero"`   // 未送信のレビューコメントの数
+	Version  string  `json:"version,omitempty"` // shj の版
 }
 
 // Cmdline は ":" と "/" の入力行。検索バー（Ctrl+F）も同じ形で、ラベルと案内が付く。
 type Cmdline struct {
-	Prefix string `json:"prefix"` // ":" か "/" か "?"（検索バーはラベル）
-	Text   string `json:"text"`
-	Cursor int    `json:"cursor"`         // rune の位置
-	Hint   string `json:"hint,omitempty"` // 検索バーの右の案内
+	Prefix msg.Msg `json:"prefix"` // ":" か "/" か "?"（検索バーはラベル）
+	Text   string  `json:"text"`
+	Cursor int     `json:"cursor"`        // rune の位置
+	Hint   msg.Msg `json:"hint,omitzero"` // 検索バーの右の案内
 }
 
 // OverlayKind は Overlay の種類。
@@ -277,7 +279,7 @@ type Overlay struct {
 	Kind   OverlayKind `json:"kind"`
 	Pane   string      `json:"pane,omitempty"` // 重ねる先の Pane.ID
 	At     *Pos        `json:"at,omitempty"`
-	Title  string      `json:"title,omitempty"`
+	Title  msg.Msg     `json:"title,omitzero"`
 	Lines  []Line      `json:"lines,omitempty"`
 	Items  []Item      `json:"items,omitempty"`
 	Active int         `json:"active"` // Items の選択位置
@@ -288,8 +290,8 @@ type Overlay struct {
 	// ホバーとレビューカードが使う。Lines には見えている行だけが入り、View がその位置を表す
 	// （Top は先頭の行、Rows は窓の高さ、Cols は文字の幅、Total は全体の行数）。
 	View      *Viewport `json:"view,omitempty"`
-	Hint      string    `json:"hint,omitempty"`      // 枠の下の案内（ローカライズ済み）
-	CopyLabel string    `json:"copyLabel,omitempty"` // 枠の上の右端の「コピー」の押すところ（ローカライズ済み）
+	Hint      msg.Msg   `json:"hint,omitzero"`      // 枠の下の案内
+	CopyLabel msg.Msg   `json:"copyLabel,omitzero"` // 枠の上の右端の「コピー」の押すところ
 
 	// レビューカードが使う。Images は Lines の中の画像。Row は Line.No と同じ表示行の番号（Lines のインデックスではない）で、見える範囲に掛かるものだけ入る。Compose は返信・コメントの編集のときだけ。このとき View.Rows はラベルを含むプレビューの高さ（Lines は最大 Rows-1 行）で、Total は使わない。
 	Images  []PreviewImage `json:"images,omitempty"`
@@ -299,25 +301,25 @@ type Overlay struct {
 // Compose はレビューカードの編集（返信・コメント・レビューの本文）の入力欄。Overlay の Lines は、その本文を
 // Markdown として描いたもの（プレビュー）になる。
 type Compose struct {
-	Text         string `json:"text"`
-	Cursor       Pos    `json:"cursor"`                 // 入力欄の中の行と桁（rune）
-	PreviewLabel string `json:"previewLabel,omitempty"` // プレビューの見出し（ローカライズ済み）。置き場所が無いときは空
+	Text         string  `json:"text"`
+	Cursor       Pos     `json:"cursor"`                // 入力欄の中の行と桁（rune）
+	PreviewLabel msg.Msg `json:"previewLabel,omitzero"` // プレビューの見出し。置き場所が無いときは空
 }
 
 // Item は一覧の 1 行（補完の候補、パレットの項目、メニューなど）。
 type Item struct {
-	Label   string `json:"label"`
-	Detail  string `json:"detail,omitempty"`
-	Kind    string `json:"kind,omitempty"`
-	Matched []int  `json:"matched,omitempty"` // Label の中で検索に合った文字の位置（rune、小さい順）
+	Label   msg.Msg `json:"label"`
+	Detail  msg.Msg `json:"detail,omitzero"`
+	Kind    msg.Msg `json:"kind,omitzero"`
+	Matched []int   `json:"matched,omitempty"` // Label の中で検索に合った文字の位置（rune、小さい順）
 }
 
 // Field は Overlay の 1 行の入力欄（パレット）。
 type Field struct {
-	Prefix      string `json:"prefix"` // 見出しの後ろの印。":"（文言を聞く）か ">"（探す・選ぶ）
-	Text        string `json:"text"`
-	Cursor      int    `json:"cursor"`                // rune の位置
-	Placeholder string `json:"placeholder,omitempty"` // Text が空のときに見せる薄い文言（ローカライズ済み）
+	Prefix      string  `json:"prefix"` // 見出しの後ろの印。":"（文言を聞く）か ">"（探す・選ぶ）
+	Text        string  `json:"text"`
+	Cursor      int     `json:"cursor"`               // rune の位置
+	Placeholder msg.Msg `json:"placeholder,omitzero"` // Text が空のときに見せる薄い文言
 }
 
 // Size は領域の大きさ（等幅のマス目で数える）。

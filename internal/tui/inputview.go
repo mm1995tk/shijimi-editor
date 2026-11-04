@@ -31,7 +31,7 @@ func inputStyleOn(bg string) inputStyle {
 // view draws the field in the cells it was given with SetWidth, and one more
 // for the caret at the end. The caret is shown only while the field has focus.
 func viewField(l *core.InputField, st inputStyle) string {
-	if len(l.Runes()) == 0 && l.Placeholder != "" {
+	if len(l.Runes()) == 0 && !l.Placeholder.IsZero() {
 		return placeholderView(l, st)
 	}
 	from, to := l.Window()
@@ -68,7 +68,7 @@ func caretCell(l *core.InputField, st inputStyle, plain lipgloss.Style, s string
 // placeholderView draws the hint of an empty field with the caret on its first
 // character, padded to the field's width plus the caret's cell.
 func placeholderView(l *core.InputField, st inputStyle) string {
-	rs := []rune(l.Placeholder)
+	rs := []rune(tr(l.Placeholder))
 	rest := string(rs[1:])
 	first := string(rs[0])
 	if l.Width > 0 {

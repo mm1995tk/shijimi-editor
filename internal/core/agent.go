@@ -10,7 +10,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/acp"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // The agent behind the suggestion panel, spoken to with the Agent Client
@@ -39,7 +39,7 @@ type agentState struct {
 type agentRun struct {
 	kind    suggestKind
 	key     string
-	build   func() string // builds the prompt; runs off the UI goroutine
+	build   func() msg.Msg // builds the prompt; runs off the UI goroutine
 	text    strings.Builder
 	written []string // files the agent wrote, absolute
 	pr      int      // the pull request an AI review is for
@@ -60,7 +60,7 @@ const (
 // call, the plan or an error.
 type LogEntry struct {
 	Kind   logKind
-	Text   string
+	Text   msg.Msg
 	id     string // tool call id
 	status string // tool call status
 }
@@ -89,7 +89,7 @@ func (s *agentState) wait() []Effect {
 
 func (s *agentState) add(e LogEntry) {
 	if e.Kind == LogAgent && len(s.Log) > 0 && s.Log[len(s.Log)-1].Kind == LogAgent {
-		s.Log[len(s.Log)-1].Text += e.Text
+		s.Log[len(s.Log)-1].Text = s.Log[len(s.Log)-1].Text.Add(e.Text)
 		return
 	}
 	s.Log = append(s.Log, e)
@@ -185,15 +185,15 @@ func (h agentHandler) RequestPermission(ctx context.Context, r acp.PermissionReq
 
 // RunAgent sends a prompt built by build for the suggestion of kind and key,
 // starting the agent first if needed.
-func (a *Core) RunAgent(kind suggestKind, key, title string, build func() string) []Effect {
+func (a *Core) RunAgent(kind suggestKind, key string, title msg.Msg, build func() msg.Msg) []Effect {
 	s := a.Ag
 	if s.Run != nil {
-		a.Fail(errors.New(i18n.T("agent.busy")))
+		a.Fail(msg.Err("agent.busy"))
 		return nil
 	}
 	if a.Cfg.Agent.Command == "" {
 		dir, _ := config.UserDir(a.build().Config)
-		a.Fail(fmt.Errorf(i18n.T("agent.notconfigured"), filepath.Join(dir, "config.toml")))
+		a.Fail(msg.Err("agent.notconfigured", filepath.Join(dir, "config.toml")))
 		return nil
 	}
 	s.Run = &agentRun{kind: kind, key: key, build: build}
@@ -203,7 +203,7 @@ func (a *Core) RunAgent(kind suggestKind, key, title string, build func() string
 	s.Scroll = 0
 	s.add(LogEntry{Kind: logUser, Text: title})
 	if s.Client == nil {
-		s.add(LogEntry{Kind: LogInfo, Text: i18n.T("agent.starting") + a.Cfg.Agent.Command})
+		s.add(LogEntry{Kind: LogInfo, Text: msg.T("agent.starting").Add(a.Cfg.Agent.Command)})
 		return append([]Effect{a.startAgent()}, s.wait()...)
 	}
 	return append([]Effect{a.sendPrompt()}, s.wait()...)
@@ -245,7 +245,7 @@ func (a *Core) sendPrompt() Effect {
 	s := a.Ag
 	c, sid, gen, ch, build := s.Client, s.session, s.gen, s.ch, s.Run.build
 	return RunAgent{Run: func() {
-		stop, err := c.Prompt(context.Background(), sid, acp.Text(build()))
+		stop, err := c.Prompt(context.Background(), sid, acp.Text(a.text(build())))
 		ch <- agentTurnMsg{gen: gen, stop: stop, err: err}
 	}}
 }
@@ -254,14 +254,14 @@ func (a *Core) sendPrompt() Effect {
 func (a *Core) cancelAgent() {
 	s := a.Ag
 	if s.Run == nil || s.Client == nil {
-		a.InfoText(i18n.T("agent.idle"))
+		a.InfoText(msg.T("agent.idle"))
 		return
 	}
 	if err := s.Client.Cancel(s.session); err != nil {
 		a.Fail(err)
 		return
 	}
-	a.InfoText(i18n.T("agent.cancelrequested"))
+	a.InfoText(msg.T("agent.cancelrequested"))
 }
 
 // stopAgent ends the agent process; the next suggestion starts a new one.
@@ -301,8 +301,8 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 			return s.wait(), true
 		}
 		if m.err != nil {
-			s.add(LogEntry{Kind: logError, Text: i18n.T("agent.startfail") + m.err.Error()})
-			a.Fail(fmt.Errorf(i18n.T("agent.startfailw"), m.err))
+			s.add(LogEntry{Kind: logError, Text: msg.T("agent.startfail").Add(m.err)})
+			a.Fail(msg.Err("agent.startfailw", m.err))
 			s.Run = nil
 			return s.wait(), true
 		}
@@ -318,7 +318,7 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 		return s.wait(), true
 	case agentFileMsg:
 		if m.gen != s.gen {
-			m.reply <- agentFileReply{err: errors.New(i18n.T("agent.sessionended"))}
+			m.reply <- agentFileReply{err: errors.New(a.text(msg.T("agent.sessionended")))}
 			return s.wait(), true
 		}
 		if m.read != nil {
@@ -344,7 +344,7 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 		s.Perms = append(s.Perms, m.ask)
 		if !a.AgentOpen() || a.Focus != FocusAgent {
 			a.SetAgent(true)
-			a.InfoText(i18n.T("agent.permask"))
+			a.InfoText(msg.T("agent.permask"))
 		}
 		return s.wait(), true
 	case agentPermCancelMsg:
@@ -364,12 +364,12 @@ func (a *Core) handleAgentEvent(ev Event) ([]Effect, bool) {
 		if m.gen != s.gen {
 			return s.wait(), true
 		}
-		text := i18n.T("acp.exited")
+		text := msg.T("acp.exited")
 		if m.err != nil {
-			text += ": " + m.err.Error()
+			text = text.Add(": ", m.err)
 		}
 		if st := strings.TrimSpace(s.Client.Stderr()); st != "" {
-			text += "\n" + lastLines(st, 5)
+			text = text.Add("\n", lastLines(st, 5))
 		}
 		s.add(LogEntry{Kind: logError, Text: text})
 		s.Client = nil
@@ -396,14 +396,14 @@ func (a *Core) agentUpdate(u acp.Update) {
 		if s.Run != nil {
 			s.Run.text.WriteString(text)
 		}
-		s.add(LogEntry{Kind: LogAgent, Text: text})
+		s.add(LogEntry{Kind: LogAgent, Text: msg.S(text)})
 	case "tool_call":
-		s.add(LogEntry{Kind: logTool, id: u.ToolCallID, Text: u.Title, status: u.Status})
+		s.add(LogEntry{Kind: logTool, id: u.ToolCallID, Text: msg.S(u.Title), status: u.Status})
 	case "tool_call_update":
 		for i := len(s.Log) - 1; i >= 0; i-- {
 			if e := &s.Log[i]; e.Kind == logTool && e.id == u.ToolCallID {
 				if u.Title != "" {
-					e.Text = u.Title
+					e.Text = msg.S(u.Title)
 				}
 				if u.Status != "" {
 					e.status = u.Status
@@ -425,10 +425,10 @@ func (a *Core) agentUpdate(u acp.Update) {
 		}
 		// A plan is sent whole each time; the newest replaces the last one.
 		if n := len(s.Log); n > 0 && s.Log[n-1].Kind == logPlan {
-			s.Log[n-1].Text = sb.String()
+			s.Log[n-1].Text = msg.S(sb.String())
 			return
 		}
-		s.add(LogEntry{Kind: logPlan, Text: sb.String()})
+		s.add(LogEntry{Kind: logPlan, Text: msg.S(sb.String())})
 	}
 }
 
@@ -476,10 +476,10 @@ func (a *Core) agentWrite(r acp.WriteRequest) error {
 	p := a.agentPath(r.Path)
 	if run := a.Ag.Run; run != nil && (run.kind == SgAIReview || run.kind == SgFailure) {
 		// These only read: a pull request or a log could carry instructions.
-		return errors.New(i18n.T("agent.nowrite"))
+		return errors.New(a.text(msg.T("agent.nowrite")))
 	}
 	if t := a.tabFor(p); t != nil && t.dirty() {
-		return fmt.Errorf(i18n.T("agent.unsaved"), a.Rel(p))
+		return errors.New(a.text(msg.T("agent.unsaved", a.Rel(p))))
 	}
 	mode := os.FileMode(0o644)
 	if fi, err := os.Stat(p); err == nil {
@@ -491,7 +491,7 @@ func (a *Core) agentWrite(r acp.WriteRequest) error {
 	if err := os.WriteFile(p, []byte(r.Content), mode); err != nil {
 		return err
 	}
-	a.Ag.add(LogEntry{Kind: LogInfo, Text: "✎ " + a.Rel(p)})
+	a.Ag.add(LogEntry{Kind: LogInfo, Text: msg.Cat("✎ ", a.Rel(p))})
 	if run := a.Ag.Run; run != nil {
 		run.written = append(run.written, p)
 	}
@@ -522,11 +522,11 @@ func (a *Core) AnswerPermission(allow bool) {
 		}
 	}
 	p.reply <- id
-	verb := i18n.T("agent.denied")
+	verb := msg.T("agent.denied")
 	if allow {
-		verb = i18n.T("agent.allowed")
+		verb = msg.T("agent.allowed")
 	}
-	s.add(LogEntry{Kind: LogInfo, Text: verb + ": " + permTitle(p.req)})
+	s.add(LogEntry{Kind: LogInfo, Text: msg.Cat(verb, ": ", permTitle(p.req))})
 }
 
 func permTitle(r acp.PermissionRequest) string {
@@ -546,13 +546,13 @@ func (a *Core) endTurn(m agentTurnMsg) []Effect {
 	}
 	s.Perms = nil
 	if m.err != nil {
-		s.add(LogEntry{Kind: logError, Text: m.err.Error()})
+		s.add(LogEntry{Kind: logError, Text: msg.Of(m.err)})
 		a.Fail(m.err)
 		return nil
 	}
 	if m.stop != "end_turn" {
 		s.add(LogEntry{Kind: LogInfo, Text: stopText(m.stop)})
-		a.Info(i18n.T("agent.prefix"), stopText(m.stop))
+		a.Info("agent.prefix", stopText(m.stop))
 		return nil
 	}
 	if run == nil {
@@ -562,28 +562,28 @@ func (a *Core) endTurn(m agentTurnMsg) []Effect {
 	case SgFailure:
 		a.Sg.FixOffer = true
 		a.Sg.fixSeq++
-		a.InfoText(i18n.T("agent.diagnosed"))
+		a.InfoText(msg.T("agent.diagnosed"))
 		return nil
 	case SgAIReview:
 		return a.placeReview(run)
 	}
-	s.add(LogEntry{Kind: LogInfo, Text: i18n.T("agent.donereview")})
-	a.InfoText(i18n.T("agent.workdone"))
+	s.add(LogEntry{Kind: LogInfo, Text: msg.T("agent.donereview")})
+	a.InfoText(msg.T("agent.workdone"))
 	return a.showAgentChanges()
 }
 
-func stopText(stop string) string {
+func stopText(stop string) msg.Msg {
 	switch stop {
 	case "cancelled":
-		return i18n.T("agent.cancelled")
+		return msg.T("agent.cancelled")
 	case "max_tokens":
-		return i18n.T("agent.maxtokens")
+		return msg.T("agent.maxtokens")
 	case "max_turn_requests":
-		return i18n.T("agent.maxturns")
+		return msg.T("agent.maxturns")
 	case "refusal":
-		return i18n.T("agent.refused")
+		return msg.T("agent.refused")
 	}
-	return fmt.Sprintf(i18n.T("agent.stopped"), stop)
+	return msg.T("agent.stopped", stop)
 }
 
 // showAgentChanges opens diff mode so the agent's edits can be checked.

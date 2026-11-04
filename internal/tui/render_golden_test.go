@@ -14,6 +14,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // These tests pin what render() draws for a few representative states, so that
@@ -123,13 +124,13 @@ func TestRenderGolden(t *testing.T) {
 
 	t.Run("confirm", func(t *testing.T) {
 		a := goldenApp(t)
-		a.Confirm = &core.YesNo{Prompt: "a.txt を閉じますか？ (y/n)"}
+		a.Confirm = &core.YesNo{Prompt: msg.S("a.txt を閉じますか？ (y/n)")}
 		checkGolden(t, "confirm", a)
 	})
 
 	t.Run("palette-commands", func(t *testing.T) {
 		a := goldenApp(t)
-		a.Commands = []core.Command{{Name: "Save", Key: "Ctrl+S"}, {Name: "Save As", Key: "Ctrl+Shift+S"}, {Name: "Quit", Key: "Ctrl+Q"}}
+		a.Commands = []core.Command{{Name: msg.S("Save"), Key: msg.S("Ctrl+S")}, {Name: msg.S("Save As"), Key: msg.S("Ctrl+Shift+S")}, {Name: msg.S("Quit"), Key: msg.S("Ctrl+Q")}}
 		a.Pal.Show(a.Root, ">")
 		keys(a, "s", "a")
 		checkGolden(t, "palette-commands", a)
@@ -143,13 +144,13 @@ func TestRenderGolden(t *testing.T) {
 
 	t.Run("palette-prompt", func(t *testing.T) {
 		a := goldenApp(t)
-		a.Pal.Ask("名前", "abc", func(string) []core.Effect { return nil })
+		a.Pal.Ask(msg.S("名前"), "abc", func(string) []core.Effect { return nil })
 		checkGolden(t, "palette-prompt", a)
 	})
 
 	t.Run("palette-pick", func(t *testing.T) {
 		a := goldenApp(t)
-		a.Pal.Pick("テーマ", []core.PaletteItem{{Label: "dark", Detail: "ダーク"}, {Label: "light"}, {Label: "solar"}}, func(int) []core.Effect { return nil })
+		a.Pal.Pick(msg.S("テーマ"), []core.PaletteItem{{Label: msg.S("dark"), Detail: msg.S("ダーク")}, {Label: msg.S("light")}, {Label: msg.S("solar")}}, func(int) []core.Effect { return nil })
 		keys(a, "l")
 		checkGolden(t, "palette-pick", a)
 	})
@@ -191,7 +192,7 @@ func TestRenderGolden(t *testing.T) {
 	t.Run("status", func(t *testing.T) {
 		a := goldenApp(t)
 		keys(a, "i", "x", "esc", "v", "l")
-		a.Msg = "保存しました"
+		a.Msg = msg.S("保存しました")
 		checkGolden(t, "status", a)
 	})
 
@@ -221,7 +222,7 @@ func (a *App) renderFrameText() string {
 func TestLineStates(t *testing.T) {
 	a := goldenApp(t)
 	keys(a, "i", "x", "esc")
-	a.Msg, a.MsgErr = "失敗", true
+	a.Msg, a.MsgErr = msg.S("失敗"), true
 
 	if ti := a.TitleOf(a.Cur()); ti == nil || ti.Text != "a.txt" || !ti.Dirty {
 		t.Errorf("title = %+v", ti)
@@ -230,14 +231,14 @@ func TestLineStates(t *testing.T) {
 		t.Errorf("pane title = %+v", p.Title)
 	}
 	s := a.StatusOf()
-	if s.Mode != "NOR" || s.Msg != "失敗" || !s.MsgErr || s.Position != "1:2" {
+	if s.Mode != "NOR" || tr(s.Msg) != "失敗" || !s.MsgErr || tr(s.Position) != "1:2" {
 		t.Errorf("status = %+v", s)
 	}
 	if a.CmdlineState() != nil || a.FindState() != nil {
 		t.Error("lines are not open")
 	}
 	keys(a, ":", "w", "q")
-	if c := a.CmdlineState(); c == nil || c.Prefix != ":" || c.Text != "wq" || c.Cursor != 2 {
+	if c := a.CmdlineState(); c == nil || tr(c.Prefix) != ":" || c.Text != "wq" || c.Cursor != 2 {
 		t.Errorf("cmdline = %+v", c)
 	}
 }

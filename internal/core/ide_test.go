@@ -18,10 +18,10 @@ func TestUnifiedDiff(t *testing.T) {
 	var sb strings.Builder
 	for _, l := range got {
 		if l.Kind == '@' {
-			sb.WriteString(l.Text + "\n")
+			sb.WriteString(tt(l.Text) + "\n")
 			continue
 		}
-		sb.WriteString(string(l.Kind) + l.Text + "\n")
+		sb.WriteString(string(l.Kind) + tt(l.Text) + "\n")
 	}
 	want := "@@ -8,7 +8,7 @@\n li\n lj\n lk\n-ll\n+CHANGED\n lm\n ln\n lo\n"
 	if sb.String() != want {
@@ -30,7 +30,7 @@ func TestUnifiedDiff(t *testing.T) {
 	if d := UnifiedDiff("a\n", "a\n"); len(d) != 1 {
 		t.Errorf("no-change diff = %v", d)
 	}
-	if d := UnifiedDiff("", "x\ny\n"); d[0].Text != "@@ -1,0 +1,2 @@" || len(d) != 3 {
+	if d := UnifiedDiff("", "x\ny\n"); tt(d[0].Text) != "@@ -1,0 +1,2 @@" || len(d) != 3 {
 		t.Errorf("new file diff = %v", d)
 	}
 }

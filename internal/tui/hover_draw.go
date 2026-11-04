@@ -47,9 +47,10 @@ func drawHover(ov screen.Overlay) []string {
 	bd := bgfg(cHoverBg, cHoverBorder)
 	iw := width + 2
 	out := make([]string, 0, len(ov.Lines)+2)
+	copyLabel := tr(ov.CopyLabel)
 	top := strings.Repeat("─", iw)
-	if n := ansi.StringWidth(ov.CopyLabel); n+2 <= iw {
-		top = strings.Repeat("─", iw-n-1) + ov.CopyLabel + "─"
+	if n := ansi.StringWidth(copyLabel); n+2 <= iw {
+		top = strings.Repeat("─", iw-n-1) + copyLabel + "─"
 	}
 	out = append(out, bd.Render("╭"+top+"╮"))
 	for _, l := range ov.Lines {
@@ -73,7 +74,7 @@ func drawHover(ov screen.Overlay) []string {
 		out = append(out, bd.Render("│")+pad+renderCells(cells, bg, width)+pad+bd.Render("│"))
 	}
 	ind := ""
-	hint := ov.Hint
+	hint := tr(ov.Hint)
 	if vw.Total > vw.Rows {
 		ind = fmt.Sprintf(" %d/%d ", end, vw.Total)
 		if vw.Top > 0 {

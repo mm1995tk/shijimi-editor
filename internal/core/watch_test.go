@@ -24,7 +24,7 @@ func TestWatchReloadsCleanBuffer(t *testing.T) {
 	if got := tb.Buf.Text(); got != "agent\n" || tb.dirty() {
 		t.Fatalf("not reloaded: %q dirty=%v", got, tb.dirty())
 	}
-	if a.MsgErr || a.Msg == "" {
+	if a.MsgErr || a.Msg.IsZero() {
 		t.Fatalf("no info message: %q", a.Msg)
 	}
 }

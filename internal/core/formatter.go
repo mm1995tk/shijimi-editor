@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // formatterTimeout bounds one run of an external formatter.
@@ -47,16 +46,16 @@ func (a *Core) runFormatter(t *Tab, f *config.Formatter, save bool) []Effect {
 		cmd.Stdout, cmd.Stderr = &stdout, &stderr
 		cmd.WaitDelay = time.Second
 		err := cmd.Run()
-		msg := FormatterDoneMsg{tab: t, in: in, save: save}
+		res := FormatterDoneMsg{tab: t, in: in, save: save}
 		switch {
 		case errors.Is(ctx.Err(), context.DeadlineExceeded):
-			msg.Err = fmt.Errorf(i18n.T("fmt.timeout"), cmdName, int(formatterTimeout.Seconds()))
+			res.Err = msg.Err("fmt.timeout", cmdName, int(formatterTimeout.Seconds()))
 		case err != nil:
-			msg.Err = errors.New(firstNonEmptyLine(stderr.String(), err.Error()))
+			res.Err = errors.New(firstNonEmptyLine(stderr.String(), err.Error()))
 		default:
-			msg.out = stdout.String()
+			res.out = stdout.String()
 		}
-		return msg
+		return res
 	})
 }
 
@@ -72,23 +71,23 @@ func firstNonEmptyLine(s, def string) string {
 
 // handleFormatterDone replaces only the lines the formatter changed, as one
 // undo step, so the cursor and scroll stay where they were.
-func (a *Core) handleFormatterDone(msg FormatterDoneMsg) []Effect {
-	if msg.Err != nil {
-		a.Fail(msg.Err)
+func (a *Core) handleFormatterDone(res FormatterDoneMsg) []Effect {
+	if res.Err != nil {
+		a.Fail(res.Err)
 		return nil
 	}
-	b := msg.tab.Buf
-	if b.Text() != msg.in {
-		a.Fail(errors.New(i18n.T("fmt.stale")))
+	b := res.tab.Buf
+	if b.Text() != res.in {
+		a.Fail(msg.Err("fmt.stale"))
 		return nil
 	}
-	if edit, ok := lineDiffEdit(b, msg.out); ok {
+	if edit, ok := lineDiffEdit(b, res.out); ok {
 		b.ApplyEdits([]buffer.Edit{edit})
 	}
-	if msg.save {
-		return a.saveTab(msg.tab)
+	if res.save {
+		return a.saveTab(res.tab)
 	}
-	a.InfoText(i18n.T("app.formatted"))
+	a.InfoText(msg.T("app.formatted"))
 	return nil
 }
 

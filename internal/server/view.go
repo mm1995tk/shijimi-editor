@@ -134,6 +134,7 @@ func (s *Server) buildScreen(vs *viewState) (sc screen.Screen, root string, err 
 		return sc, "", rpc.Errorf(rpc.CodeNotFound, "the focused workspace has no core")
 	}
 	keepRegions(&sc, vs.regions)
+	wireOverlays(&sc)
 	sc.AckSeq = vs.ackSeq
 	return sc, root, nil
 }

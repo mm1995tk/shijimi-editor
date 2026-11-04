@@ -3,7 +3,7 @@ package core
 import (
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -67,17 +67,17 @@ func wrapCells(lines [][]HoverCell, w int, code bool) []hoverLine {
 }
 
 // HoverCopyLabel is the click target drawn on the top border's right end.
-func HoverCopyLabel() string { return i18n.T("hover.copybtn") }
+func HoverCopyLabel() msg.Msg { return msg.T("hover.copybtn") }
 
 // HoverHint is the hint under the hover popup.
-func HoverHint() string         { return i18n.T("hover.hint") }
-func hoverHintCopyOnly() string { return i18n.T("hover.hintcopy") }
+func HoverHint() msg.Msg         { return msg.T("hover.hint") }
+func hoverHintCopyOnly() msg.Msg { return msg.T("hover.hintcopy") }
 
 // CopyHit reports whether the cell (col, row), relative to the box's top-left
 // corner, is on the [Copy] button.
-func (v HoverView) CopyHit(col, row int) bool {
+func (v HoverView) CopyHit(col, row, labelW int) bool {
 	iw := v.Width + 2
-	n := ansi.StringWidth(HoverCopyLabel())
+	n := labelW
 	if row != 0 || n+2 > iw {
 		return false
 	}

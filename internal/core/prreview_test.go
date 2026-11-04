@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -90,8 +91,8 @@ func TestCommentRefusedOnStaleOrUnsavedFile(t *testing.T) {
 	a.CurText().Buf.Cur = buffer.Pos{Row: 9}
 	a.Gd.stale = map[string]bool{"a.txt": true}
 	a.ReviewKey("c")
-	if a.Composer != nil || a.Msg != "このファイルは手元で変更があるため、行にコメントできません" {
-		t.Errorf("stale: composer=%v msg=%q", a.Composer != nil, a.Msg)
+	if a.Composer != nil || tt(a.Msg) != "このファイルは手元で変更があるため、行にコメントできません" {
+		t.Errorf("stale: composer=%v msg=%q", a.Composer != nil, tt(a.Msg))
 	}
 	a.ReviewKey("C")
 	if a.Composer != nil {
@@ -143,7 +144,7 @@ func TestCardKeys(t *testing.T) {
 	}
 	a.Card = &PrCard{Thread: th, Path: "a.txt"}
 	a.HandleKey(textKey("r"))
-	if a.Composer == nil || !strings.HasPrefix(a.Composer.Title, "返信") {
+	if a.Composer == nil || !strings.HasPrefix(tt(a.Composer.Title), "返信") {
 		t.Fatal("r did not open a reply")
 	}
 	a.HandleKey(Key{Code: KeyEsc})
@@ -173,7 +174,7 @@ func TestSyncText(t *testing.T) {
 		{PrSync{Known: true, Ahead: 3}, "push していないコミットが 3 個あります"},
 		{PrSync{Known: true, Ahead: 1, Behind: 1}, "ローカルと PR が分岐しています"},
 	} {
-		if got := c.s.text(); got != c.want {
+		if got := tt(c.s.text()); got != c.want {
 			t.Errorf("%+v: %q", c.s, got)
 		}
 	}
@@ -183,7 +184,7 @@ func TestReviewSentDropsSentComments(t *testing.T) {
 	a, _ := prApp(t)
 	t1, t2 := &PrThread{Pending: true}, &PrThread{Pending: true}
 	a.Gd.Rv.Pending = []*PrThread{t1, t2}
-	a.handleReviewSent(reviewSentMsg{num: 7, done: "ok", sent: []*PrThread{t1}})
+	a.handleReviewSent(reviewSentMsg{num: 7, done: msg.S("ok"), sent: []*PrThread{t1}})
 	if len(a.Gd.Rv.Pending) != 1 || a.Gd.Rv.Pending[0] != t2 {
 		t.Errorf("pending = %v", a.Gd.Rv.Pending)
 	}
@@ -362,7 +363,7 @@ func TestSubmitReviewBuildsAndCleansUp(t *testing.T) {
 	q = stubGH(t, func(req map[string]any) string {
 		return `{"data":{"node":{"reviews":{"nodes":[{"viewerDidAuthor":true}]}}}}`
 	})
-	if err := submitReview("", pr, "APPROVE", "", nil); err == nil || !strings.Contains(err.Error(), "下書きのレビュー") {
+	if err := submitReview("", pr, "APPROVE", "", nil); err == nil || !strings.Contains(tt(msg.Of(err)), "下書きのレビュー") {
 		t.Errorf("err = %v", err)
 	}
 	if len(*q) != 1 {
@@ -432,7 +433,7 @@ func TestCardOverlay(t *testing.T) {
 	if a.Card.scroll != ov.View.Top {
 		t.Errorf("FitCard clamped the scroll to %d, want %d", a.Card.scroll, ov.View.Top)
 	}
-	if ov.Hint != a.cardHint(a.Card) {
+	if tt(ov.Hint) != tt(a.cardHint(a.Card)) {
 		t.Errorf("hint = %q", ov.Hint)
 	}
 	if ov.Pane != a.CurText().Path() || ov.At == nil || ov.At.Line != 10 {

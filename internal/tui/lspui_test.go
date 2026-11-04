@@ -17,7 +17,7 @@ func TestCompletionOverlay(t *testing.T) {
 	tb := &core.Tab{Buf: buffer.New()}
 	c := &core.CompletionPopup{Tab: tb, All: items, Items: items, Sel: 12}
 	ov := c.Overlay(20)
-	if ov.Kind != screen.OverlayCompletion || ov.At == nil || len(ov.Items) != 10 || ov.Active != 9 || ov.Items[ov.Active].Label != "m" || ov.Items[0].Kind != "func" {
+	if ov.Kind != screen.OverlayCompletion || ov.At == nil || len(ov.Items) != 10 || ov.Active != 9 || tr(ov.Items[ov.Active].Label) != "m" || tr(ov.Items[0].Kind) != "func" {
 		t.Errorf("overlay = %+v", ov)
 	}
 	if got := len(drawCompletion(ov)); got != 10 {

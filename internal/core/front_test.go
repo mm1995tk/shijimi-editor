@@ -4,6 +4,9 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // testFront is the front end a Core is tested with: a screen of a given size
@@ -45,18 +48,20 @@ func (f *testFront) ShowTerm(on bool) {
 func (f *testFront) ShowAgent(on bool)       { f.agent = on; f.push() }
 func (f *testFront) DragBorder(ResizeTarget) {}
 
-func (f *testFront) TermFocus(on bool)   { f.termFocused = on }
-func (f *testFront) TermKey(k Key)       { f.termKeys = append(f.termKeys, k) }
-func (f *testFront) TermToggle()         { f.termToggled++ }
-func (f *testFront) TermRun(line string) { f.termRuns = append(f.termRuns, line) }
-func (f *testFront) TermPaste(s string)  { f.termPasted = append(f.termPasted, s) }
-func (f *testFront) TermClose()          { f.termClosed = true }
-func (f *testFront) CommandEnded(int)    {}
-func (f *testFront) ImageClosed(uint32)  {}
-func (f *testFront) StartResize()        { f.resize = true; f.push() }
-func (f *testFront) ResizeKey(string)    {}
-func (f *testFront) ResetPanes()         {}
-func (f *testFront) SetPalette(t *Theme) { ActivateTheme(t) }
+func (f *testFront) TermFocus(on bool)       { f.termFocused = on }
+func (f *testFront) TermKey(k Key)           { f.termKeys = append(f.termKeys, k) }
+func (f *testFront) TermToggle()             { f.termToggled++ }
+func (f *testFront) TermRun(line string)     { f.termRuns = append(f.termRuns, line) }
+func (f *testFront) TermPaste(s string)      { f.termPasted = append(f.termPasted, s) }
+func (f *testFront) TermClose()              { f.termClosed = true }
+func (f *testFront) CommandEnded(int)        {}
+func (f *testFront) ImageClosed(uint32)      {}
+func (f *testFront) StartResize()            { f.resize = true; f.push() }
+func (f *testFront) ResizeKey(string)        {}
+func (f *testFront) ResetPanes()             {}
+func (f *testFront) SetPalette(t *Theme)     { ActivateTheme(t) }
+func (f *testFront) Text(m msg.Msg) string   { return i18n.Text(m) }
+func (f *testFront) SetLanguage(code string) { i18n.SetLang(code) }
 
 // sideW is the sidebar's width and rightW the editor area's.
 func (f *testFront) sideW() int {

@@ -49,22 +49,22 @@ func drawStatus(s screen.Status, ov *screen.Overlay, w int) string {
 	if s.Branch != "" {
 		leftParts = append(leftParts, "⎇ "+s.Branch)
 	}
-	if s.Pane != "" {
-		leftParts = append(leftParts, s.Pane)
+	if !s.Pane.IsZero() {
+		leftParts = append(leftParts, tr(s.Pane))
 	}
 	if s.Errors+s.Warnings > 0 {
 		leftParts = append(leftParts, fmt.Sprintf("● %d  ▲ %d", s.Errors, s.Warnings))
 	}
-	if s.Suggestions != "" {
-		leftParts = append(leftParts, s.Suggestions)
+	if !s.Suggestions.IsZero() {
+		leftParts = append(leftParts, tr(s.Suggestions))
 	}
 	left := " " + strings.Join(leftParts, "  ")
 	right := ""
-	if s.Position != "" {
-		right = fmt.Sprintf("%s   %s   %s   ", s.Position, s.Indent, s.Language)
+	if !s.Position.IsZero() {
+		right = fmt.Sprintf("%s   %s   %s   ", tr(s.Position), tr(s.Indent), tr(s.Language))
 	}
-	if s.Unsent != "" {
-		right = s.Unsent + right
+	if !s.Unsent.IsZero() {
+		right = tr(s.Unsent) + right
 	}
 	right += s.Version + " "
 	st := stStatus
@@ -74,12 +74,12 @@ func drawStatus(s screen.Status, ov *screen.Overlay, w int) string {
 		if len(ov.Items) > 0 {
 			right = "" // the question must not be cut off
 		}
-		left += "   " + ov.Lines[0].Spans[0].Text
-	case s.Msg != "":
+		left += "   " + tr(ov.Title)
+	case !s.Msg.IsZero():
 		if s.MsgErr {
 			st = stStatusError
 		}
-		left += "   " + s.Msg
+		left += "   " + tr(s.Msg)
 	}
 	lw := w - prefixW - ansi.StringWidth(right)
 	return prefix + st.Render(core.Fit(left, lw)+right)
@@ -100,14 +100,14 @@ func modeStyleOf(st screen.Style) lipgloss.Style {
 // the widget draws it (its scrolling and cursor), which stays until the
 // widget is replaced by our own type (P4).
 func drawCmdline(c screen.Cmdline, input string, w int) string {
-	return stPanel.Render(c.Prefix) + fitStyled(input, w-1, stPanel)
+	return stPanel.Render(tr(c.Prefix)) + fitStyled(input, w-1, stPanel)
 }
 
 // drawFind draws the find bar of width w, with the text field as the widget
 // draws it (see drawCmdline).
 func drawFind(c screen.Cmdline, input string, w int) string {
-	label := stFindLabel.Render(c.Prefix)
-	hint := stFind.Render(c.Hint)
+	label := stFindLabel.Render(tr(c.Prefix))
+	hint := stFind.Render(tr(c.Hint))
 	iw := findInputCells(w)
 	return label + fitStyled(input, iw, stFind) + hint
 }

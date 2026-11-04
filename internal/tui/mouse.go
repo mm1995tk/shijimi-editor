@@ -7,7 +7,6 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 )
 
@@ -37,7 +36,7 @@ func (a *App) termMouse(l layout, msg core.Mouse) (cmd []core.Effect, ok bool) {
 			t.dragTo(x, y)
 			if s := t.endSelect(); s != "" {
 				a.CopyText(s)
-				a.Info(i18n.T("app.termcopied"), utf8.RuneCountInString(s))
+				a.Info("app.termcopied", utf8.RuneCountInString(s))
 			}
 		default:
 			t.sel.dragging = false // the release was lost
@@ -134,7 +133,7 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 	}
 	if a.Hovering() && msg.Button == core.MouseLeft {
 		// The button copies on press; the matching release must not close the hover.
-		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).CopyHit(x-bx, y-by) {
+		if bx, by, ok := a.hoverPos(l); ok && a.hoverView(l).CopyHit(x-bx, y-by, ansi.StringWidth(tr(core.HoverCopyLabel()))) {
 			if msg.Action == core.MousePress {
 				a.CopyHover()
 			}

@@ -30,7 +30,7 @@ func TestBuildScreenText(t *testing.T) {
 	if p.Kind != screen.KindText || p.Viewport.Rows != 10 || len(p.Lines) != 3 || p.Lines[1].Spans[0].Text != "two" {
 		t.Errorf("pane: %+v", p)
 	}
-	if sc.Status.Mode == "" || sc.Status.Position != "1:1" {
+	if sc.Status.Mode == "" || tt(sc.Status.Position) != "1:1" {
 		t.Errorf("status: %+v", sc.Status)
 	}
 	if sc.Cmdline != nil || sc.Overlay == nil || len(sc.Overlay) != 0 {
@@ -42,7 +42,7 @@ func TestBuildScreenText(t *testing.T) {
 
 	keys(a, ":")
 	sc = a.BuildScreen(view(40, 10))
-	if sc.Focus != screen.RegionCmdline || sc.Cmdline == nil || sc.Cmdline.Prefix != ":" {
+	if sc.Focus != screen.RegionCmdline || sc.Cmdline == nil || tt(sc.Cmdline.Prefix) != ":" {
 		t.Errorf("command line: %v %+v", sc.Focus, sc.Cmdline)
 	}
 }

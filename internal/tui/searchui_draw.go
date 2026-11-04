@@ -97,7 +97,7 @@ func fieldBox(s *core.SearchPanel, i, w int) [3]string {
 	if i == s.Field {
 		bd = bgfg(cPaletteBg, core.CurTheme.Strong).Bold(true)
 	}
-	title := " " + core.SearchLabels()[i] + " "
+	title := " " + tr(core.SearchLabels()[i]) + " "
 	// The width of the input is set in fit.
 	body := viewField(&s.In[i], inputStyleOn(cPaletteBg))
 	if s.In[i].Value() == "" {
@@ -198,7 +198,7 @@ func viewRows(s *core.SearchPanel, rel func(string) string, w, h int) []string {
 // searchPlaceholder draws the hint of an empty field with the cursor on its
 // first character, in the panel's colours.
 func searchPlaceholder(s *core.SearchPanel, i int) string {
-	rs := []rune(core.SearchPlaceholders()[i])
+	rs := []rune(tr(core.SearchPlaceholders()[i]))
 	first := stPaletteDim.Render(string(rs[0]))
 	if s.In[i].Focused() {
 		first = bgfg(core.CurTheme.Cursor, core.CurTheme.CursorFg).Render(string(rs[0]))

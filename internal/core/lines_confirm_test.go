@@ -3,6 +3,7 @@ package core
 import (
 	"testing"
 
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -11,21 +12,21 @@ func TestConfirmOverlay(t *testing.T) {
 	if a.ConfirmOverlay() != nil {
 		t.Fatal("no confirmation asked")
 	}
-	a.Confirm = &YesNo{Prompt: "close a.txt? (y/n)"}
+	a.Confirm = &YesNo{Prompt: msg.S("close a.txt? (y/n)")}
 	ov := a.ConfirmOverlay()
-	if ov == nil || ov.Kind != screen.OverlayConfirm || ov.Pane != "" || ov.At != nil || len(ov.Items) != 2 || ov.Lines[0].Spans[0].Text != "close a.txt? (y/n)" {
+	if ov == nil || ov.Kind != screen.OverlayConfirm || ov.Pane != "" || ov.At != nil || len(ov.Items) != 2 || tt(ov.Title) != "close a.txt? (y/n)" {
 		t.Fatalf("overlay = %+v", ov)
 	}
-	if a.StatusOf().Msg != "" {
+	if !a.StatusOf().Msg.IsZero() {
 		t.Error("the question is not a message")
 	}
 	a.Confirm = nil
-	a.confirmQuit, a.Msg = true, "unsaved"
+	a.confirmQuit, a.Msg = true, msg.S("unsaved")
 	ov = a.ConfirmOverlay()
-	if ov == nil || len(ov.Items) != 0 || ov.Lines[0].Spans[0].Text != "unsaved" {
+	if ov == nil || len(ov.Items) != 0 || tt(ov.Title) != "unsaved" {
 		t.Fatalf("overlay = %+v", ov)
 	}
-	if a.StatusOf().Msg != "" {
+	if !a.StatusOf().Msg.IsZero() {
 		t.Error("the confirmation is not also a message")
 	}
 }

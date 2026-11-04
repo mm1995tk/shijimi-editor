@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // External commands (git, gh) and the GitHub pull request data they return.
@@ -116,18 +116,18 @@ type PrSync struct {
 }
 
 // text is the status line note for the state, or "" when they agree.
-func (s PrSync) text() string {
+func (s PrSync) text() msg.Msg {
 	switch {
 	case !s.Known:
-		return ""
+		return msg.Msg{}
 	case s.Ahead > 0 && s.Behind > 0:
-		return i18n.T("gh.diverged")
+		return msg.T("gh.diverged")
 	case s.Behind > 0:
-		return i18n.T("gh.prupdated")
+		return msg.T("gh.prupdated")
 	case s.Ahead > 0:
-		return fmt.Sprintf(i18n.T("gh.unpushed"), s.Ahead)
+		return msg.T("gh.unpushed", s.Ahead)
 	}
-	return ""
+	return msg.Msg{}
 }
 
 // fetchPR brings the pull request's head commit and its base branch into the
@@ -402,7 +402,7 @@ func submitReview(root string, pr *PrInfo, event, body string, threads []*PrThre
 	}
 	for _, r := range drafts.Node.Reviews.Nodes {
 		if r.ViewerDidAuthor {
-			return fmt.Errorf(i18n.T("gh.pendingdraft"), pr.URL)
+			return msg.Err("gh.pendingdraft", pr.URL)
 		}
 	}
 	var created struct {
@@ -477,7 +477,7 @@ func untrackedFile(abs, rel string) *diff.File {
 	}
 	text := strings.TrimSuffix(string(data), "\n")
 	lines := strings.Split(text, "\n")
-	h := diff.Hunk{Header: fmt.Sprintf(i18n.T("gh.untracked"), len(lines))}
+	h := diff.Hunk{Header: fmt.Sprintf("@@ -0,0 +1,%d @@", len(lines))}
 	for i, l := range lines {
 		h.Lines = append(h.Lines, diff.Line{Kind: diff.Add, Text: l, NewNo: i + 1})
 	}

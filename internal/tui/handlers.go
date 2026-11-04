@@ -5,9 +5,10 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // ControlHandler adapts the control socket to a running program.
 func ControlHandler(p *tea.Program) ctl.Handler {
-	return core.ControlHandler(func(m any) { p.Send(m) })
+	return core.ControlHandler(func(m any) { p.Send(m) }, i18n.Text)
 }

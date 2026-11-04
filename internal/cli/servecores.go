@@ -6,7 +6,6 @@ import (
 	"log/slog"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
-	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 	"github.com/mm1995tk/shijimi-editor/internal/server"
@@ -24,7 +23,7 @@ var _ server.Cores = serveCores{}
 func (s serveCores) Open(id, root string) error {
 	_, err := s.ws.Open(id, root)
 	if err != nil {
-		return fmt.Errorf(i18n.T("serve.workspaceconfig"), root, err)
+		return fmt.Errorf(i18n.T("serve.workspaceconfig"), root, i18n.ErrText(err))
 	}
 	return nil
 }
@@ -229,7 +228,7 @@ func (s serveCores) Command(id, line string) (ok bool, message string) {
 	if w == nil {
 		return false, "no core for " + id
 	}
-	var resp ctl.Response
+	var resp core.CtlResponse
 	w.Apply(func(c *core.Core) []core.Effect {
 		return c.Apply(func() []core.Effect {
 			r, effs := c.Exec(line)
@@ -238,9 +237,9 @@ func (s serveCores) Command(id, line string) (ok bool, message string) {
 		})
 	})
 	if !resp.OK {
-		return false, resp.Error
+		return false, i18n.Text(resp.Error)
 	}
-	return true, resp.Message
+	return true, i18n.Text(resp.Message)
 }
 
 // OpenFile is file.open, in the workspace's core (made if it has none).
@@ -253,7 +252,7 @@ func (s serveCores) OpenFile(id, root, path string, at *screen.Pos, pane string)
 		return c.Apply(func() []core.Effect {
 			effs, ok := c.OpenAt(path, at, pane)
 			if !ok {
-				err = errors.New(c.Msg)
+				err = errors.New(i18n.Text(c.Msg))
 			}
 			return effs
 		})

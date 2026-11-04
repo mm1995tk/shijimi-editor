@@ -5,6 +5,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // The App is the TUI's core.Port: the core calls these directly, in the same
@@ -134,3 +136,13 @@ func (a *App) hideTermPanel() {
 // theme_apply.go, rewrites the palette variables and the styles built from
 // them). Core keeps which theme is chosen; how it looks is the UI's.
 func (a *App) SetPalette(t *core.Theme) { applyTheme(t) }
+
+// Text is m in the language the terminal shows. The TUI translates where it
+// draws; the core asks it for text only where it has to lay words out.
+func (a *App) Text(m msg.Msg) string { return i18n.Text(m) }
+
+// SetLanguage selects the language the tables translate with.
+func (a *App) SetLanguage(code string) { i18n.SetLang(code) }
+
+// tr is m in the selected language, for the drawing code.
+func tr(m msg.Msg) string { return i18n.Text(m) }

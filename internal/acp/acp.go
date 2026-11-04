@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // ProtocolVersion is the ACP major version this client speaks.
@@ -204,11 +204,11 @@ type Client struct {
 // Start launches the agent. Call Initialize before anything else.
 func Start(o Options, h Handler) (*Client, error) {
 	if o.Command == "" {
-		return nil, errors.New(i18n.T("acp.nocommand"))
+		return nil, msg.Err("acp.nocommand")
 	}
 	path, err := exec.LookPath(o.Command)
 	if err != nil {
-		return nil, fmt.Errorf(i18n.T("acp.notfound"), o.Command)
+		return nil, msg.Err("acp.notfound", o.Command)
 	}
 	cmd := exec.Command(path, o.Args...)
 	cmd.Dir = o.Dir
@@ -366,11 +366,10 @@ func (c *Client) call(ctx context.Context, method string, params, out any) error
 }
 
 func (c *Client) exitError() error {
-	msg := i18n.T("acp.exited")
 	if s := strings.TrimSpace(c.Stderr()); s != "" {
-		msg += ": " + lastLine(s)
+		return msg.ErrOf(msg.Cat(msg.T("acp.exited"), ": ", lastLine(s)))
 	}
-	return errors.New(msg)
+	return msg.Err("acp.exited")
 }
 
 func lastLine(s string) string {
@@ -428,7 +427,7 @@ func (c *Client) readLoop(r io.Reader) {
 	}
 	c.err = c.cmd.Wait()
 	if serr != nil {
-		c.err = fmt.Errorf(i18n.T("acp.readfail"), serr)
+		c.err = msg.Err("acp.readfail", serr)
 	}
 	close(c.dead)
 }

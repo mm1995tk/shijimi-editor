@@ -216,7 +216,7 @@ func TestHelixMatchTextObjects(t *testing.T) {
 	}
 	// not found keeps the selection and reports it
 	keys(a, "m", "i", "[")
-	if got := b.SelectedText(); got != "bar" || a.Msg == "" {
+	if got := b.SelectedText(); got != "bar" || a.Msg.IsZero() {
 		t.Fatalf("mi[ = %q msg %q", got, a.Msg)
 	}
 }

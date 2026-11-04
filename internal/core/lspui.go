@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -13,8 +12,8 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -61,7 +60,7 @@ func (m *lspManager) clientsFor(t *Tab) ([]*lsp.Client, []error) {
 		s := m.cfg.Servers[name]
 		if s == nil {
 			m.failed[key] = true
-			errs = append(errs, fmt.Errorf(i18n.T("lspui.noconfig"), name))
+			errs = append(errs, msg.Err("lspui.noconfig", name))
 			continue
 		}
 		c, err := lsp.Start(s, root, m.events)
@@ -182,7 +181,7 @@ type HoverMsg struct {
 	Mouse *MouseHover // set when the pointer, not the cursor, asked for it
 }
 type locationsMsg struct {
-	title string
+	title msg.Msg
 	locs  []lsp.Location
 }
 
@@ -212,12 +211,12 @@ func (a *Core) lspRequest(capability string, f func(ctx context.Context, c *lsp.
 		return nil
 	}
 	if t.Lang == nil {
-		a.Fail(errors.New(i18n.T("lspui.noserver")))
+		a.Fail(msg.Err("lspui.noserver"))
 		return nil
 	}
 	c := a.Lsp.client(t, capability)
 	if c == nil {
-		a.Fail(fmt.Errorf(i18n.T("lspui.unsupported"), capability))
+		a.Fail(msg.Err("lspui.unsupported", capability))
 		return nil
 	}
 	a.SyncLSP()
@@ -247,9 +246,9 @@ func (a *Core) gotoDefinition() []Effect {
 			if err != nil {
 				return lspErrMsg{err}
 			}
-			return locationsMsg{i18n.T("lspui.references"), withoutLocation(refs, t.Buf.Path, pos)}
+			return locationsMsg{msg.T("lspui.references"), withoutLocation(refs, t.Buf.Path, pos)}
 		}
-		return locationsMsg{i18n.T("lspui.definition"), locs}
+		return locationsMsg{msg.T("lspui.definition"), locs}
 	})
 }
 
@@ -283,7 +282,7 @@ func (a *Core) references() []Effect {
 		if err != nil {
 			return lspErrMsg{err}
 		}
-		return locationsMsg{i18n.T("lspui.references"), locs}
+		return locationsMsg{msg.T("lspui.references"), locs}
 	})
 }
 
@@ -315,7 +314,7 @@ func (a *Core) rename() []Effect {
 	for line := t.Buf.Lines[s.Row]; e.Col < len(line) && isIdent(line[e.Col]); e.Col++ {
 	}
 	old := t.Buf.TextRange(s, e)
-	return a.Pal.Ask(i18n.T("app.newname"), old, func(v string) []Effect {
+	return a.Pal.Ask(msg.T("app.newname"), old, func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
@@ -411,7 +410,7 @@ func codeActionRange(b *buffer.Buffer, all []lsp.Diagnostic) (lsp.Range, []lsp.D
 
 func (a *Core) showCodeActions(m codeActionsMsg) []Effect {
 	if len(m.actions) == 0 {
-		a.InfoText(i18n.T("lspui.noactions"))
+		a.InfoText(msg.T("lspui.noactions"))
 		return nil
 	}
 	actions := slices.Clone(m.actions)
@@ -428,9 +427,9 @@ func (a *Core) showCodeActions(m codeActionsMsg) []Effect {
 	sort.SliceStable(actions, func(i, j int) bool { return rank(actions[i]) < rank(actions[j]) })
 	items := make([]PaletteItem, len(actions))
 	for i, act := range actions {
-		items[i] = PaletteItem{Label: act.Title, Detail: act.Kind}
+		items[i] = PaletteItem{Label: msg.S(act.Title), Detail: msg.S(act.Kind)}
 	}
-	return a.Pal.Pick(i18n.T("lspui.codeactions"), items, func(i int) []Effect {
+	return a.Pal.Pick(msg.T("lspui.codeactions"), items, func(i int) []Effect {
 		act := actions[i]
 		return a.lspReq(func(ctx context.Context) Event {
 			r, err := m.client.ResolveCodeAction(ctx, act)
@@ -451,7 +450,7 @@ func (a *Core) runCodeAction(m codeActionResolvedMsg) []Effect {
 	cmd := m.action.Command
 	if cmd == nil {
 		if len(m.action.Edit) == 0 {
-			a.InfoText(i18n.T("lspui.noedit"))
+			a.InfoText(msg.T("lspui.noedit"))
 		}
 		return nil
 	}
@@ -476,12 +475,12 @@ func (a *Core) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
 		files++
 		n += len(edits)
 	}
-	a.Info(i18n.T("lspui.applied"), files, n)
+	a.Info("lspui.applied", files, n)
 }
 
 func (a *Core) showLocations(m locationsMsg) []Effect {
 	if len(m.locs) == 0 {
-		a.Fail(fmt.Errorf(i18n.T("lspui.notfound"), m.title))
+		a.Fail(msg.Err("lspui.notfound", m.title))
 		return nil
 	}
 	jump := a.jumpTo
@@ -491,7 +490,7 @@ func (a *Core) showLocations(m locationsMsg) []Effect {
 	items := make([]PaletteItem, len(m.locs))
 	for i, l := range m.locs {
 		p := lsp.Path(l.URI)
-		items[i] = PaletteItem{Label: fmt.Sprintf("%s:%d", a.Rel(p), l.Range.Start.Line+1), Detail: strings.TrimSpace(lineAt(a, p, l.Range.Start.Line))}
+		items[i] = PaletteItem{Label: msg.S(fmt.Sprintf("%s:%d", a.Rel(p), l.Range.Start.Line+1)), Detail: msg.S(strings.TrimSpace(lineAt(a, p, l.Range.Start.Line)))}
 	}
 	return a.Pal.Pick(m.title, items, func(i int) []Effect { return jump(m.locs[i]) })
 }
@@ -531,16 +530,16 @@ func (a *Core) diagnosticPicker() []Effect {
 		}
 	}
 	if len(all) == 0 {
-		a.InfoText(i18n.T("lspui.nodiag"))
+		a.InfoText(msg.T("lspui.nodiag"))
 		return nil
 	}
 	items := make([]PaletteItem, len(all))
-	sevName := map[int]string{1: i18n.T("diag.error"), 2: i18n.T("diag.warning"), 3: i18n.T("diag.info"), 4: i18n.T("diag.hint")}
+	sevName := diagSeverity()
 	for i, e := range all {
-		items[i] = PaletteItem{Label: fmt.Sprintf("%s:%d %s", a.Rel(e.path), e.d.Range.Start.Line+1, FirstLine(e.d.Message)), Detail: sevName[sevRank(e.d.Severity)]}
+		items[i] = PaletteItem{Label: msg.S(fmt.Sprintf("%s:%d %s", a.Rel(e.path), e.d.Range.Start.Line+1, FirstLine(e.d.Message))), Detail: sevName[sevRank(e.d.Severity)]}
 	}
-	return a.Pal.Pick(i18n.T("ctx.diagnostics"), items, func(i int) []Effect {
-		return a.showLocations(locationsMsg{i18n.T("ctx.diagnostics"), []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}})
+	return a.Pal.Pick(msg.T("ctx.diagnostics"), items, func(i int) []Effect {
+		return a.showLocations(locationsMsg{msg.T("ctx.diagnostics"), []lsp.Location{{URI: lsp.URI(all[i].path), Range: all[i].d.Range}}})
 	})
 }
 
@@ -552,7 +551,7 @@ func (a *Core) gotoDiagnostic(dir int) {
 	}
 	ds := a.Lsp.diagnostics(t.Buf.Path)
 	if len(ds) == 0 {
-		a.InfoText(i18n.T("lspui.nodiagfile"))
+		a.InfoText(msg.T("lspui.nodiagfile"))
 		return
 	}
 	cur := t.Buf.Cur
@@ -584,7 +583,7 @@ func (a *Core) gotoDiagnostic(dir int) {
 	t.Buf.Anchor = nil
 	t.Buf.SetCursor(p.Row, buffer.VisualCol(t.Buf.Lines[p.Row], p.Col), false)
 	a.Follow = true
-	a.Info("%s", FirstLine(target.Message))
+	a.InfoText(msg.S(FirstLine(target.Message)))
 }
 
 // ---- completion popup ----
@@ -703,7 +702,7 @@ func (c *CompletionPopup) Overlay(maxH int) screen.Overlay {
 		Active: c.Sel - start,
 	}
 	for _, it := range c.Items[start : start+n] {
-		ov.Items = append(ov.Items, screen.Item{Label: it.Label, Detail: it.Detail, Kind: completionKinds[it.Kind]})
+		ov.Items = append(ov.Items, screen.Item{Label: msg.S(it.Label), Detail: msg.S(it.Detail), Kind: msg.S(completionKinds[it.Kind])})
 	}
 	return ov
 }
@@ -745,69 +744,69 @@ func (a *Core) jumpTo(l lsp.Location) []Effect {
 // handleLSPReply takes the Events a language server's reply becomes. ok is
 // false for an Event that is not one of them.
 func (a *Core) handleLSPReply(ev Event) (effs []Effect, ok bool) {
-	switch msg := ev.(type) {
+	switch in := ev.(type) {
 	case HoverMsg:
-		a.showHover(msg)
+		a.showHover(in)
 	case locationsMsg:
-		return a.showLocations(msg), true
+		return a.showLocations(in), true
 	case CompletionMsg:
 		t := a.CurText()
-		if t == nil || t != msg.Tab || a.Mode != ModeInsert && a.Helix || len(msg.Items) == 0 {
+		if t == nil || t != in.Tab || a.Mode != ModeInsert && a.Helix || len(in.Items) == 0 {
 			return nil, true
 		}
-		a.Comp = &CompletionPopup{Tab: t, start: msg.Start, All: msg.Items}
+		a.Comp = &CompletionPopup{Tab: t, start: in.Start, All: in.Items}
 		a.Comp.filter()
 		if len(a.Comp.Items) == 0 {
 			a.Comp = nil
 		}
 	case signatureMsg:
-		a.showSignature(msg)
+		a.showSignature(in)
 	case workspaceEditMsg:
-		a.applyWorkspaceEdit(msg.edit)
+		a.applyWorkspaceEdit(in.edit)
 	case symbolsMsg:
-		return a.showSymbols(msg), true
+		return a.showSymbols(in), true
 	case symbolQueryMsg:
-		return a.runSymbolQuery(msg), true
+		return a.runSymbolQuery(in), true
 	case workspaceSymbolsMsg:
-		a.showWorkspaceSymbols(msg)
+		a.showWorkspaceSymbols(in)
 	case codeActionsMsg:
-		return a.showCodeActions(msg), true
+		return a.showCodeActions(in), true
 	case codeActionResolvedMsg:
-		return a.runCodeAction(msg), true
+		return a.runCodeAction(in), true
 	case formatMsg:
-		if len(msg.edits) > 0 {
-			msg.tab.Buf.ApplyEdits(toEdits(msg.tab.Buf, msg.edits))
+		if len(in.edits) > 0 {
+			in.tab.Buf.ApplyEdits(toEdits(in.tab.Buf, in.edits))
 		}
-		if msg.save {
-			return a.saveTab(msg.tab), true
+		if in.save {
+			return a.saveTab(in.tab), true
 		}
-		a.InfoText(i18n.T("app.formatted"))
+		a.InfoText(msg.T("app.formatted"))
 	case lspErrMsg:
-		a.Fail(msg.err)
+		a.Fail(in.err)
 	case SemanticMsg:
-		msg.h.Sem.Apply(msg)
+		in.h.Sem.Apply(in)
 	default:
 		return nil, false
 	}
 	return nil, true
 }
 
-func (a *Core) showHover(msg HoverMsg) {
+func (a *Core) showHover(in HoverMsg) {
 	if t := a.CurText(); a.FullPreview(t) {
 		return // the popup would be anchored to the hidden buffer
 	}
-	if m := msg.Mouse; m != nil {
-		if m.Seq != a.HoverSeq || m.Tab != a.Cur() || strings.TrimSpace(msg.Text) == "" {
+	if m := in.Mouse; m != nil {
+		if m.Seq != a.HoverSeq || m.Tab != a.Cur() || strings.TrimSpace(in.Text) == "" {
 			return
 		}
-		a.HoverText, a.HoverScroll = msg.Text, 0
+		a.HoverText, a.HoverScroll = in.Text, 0
 		a.HoverAt, a.HoverWord = &m.pos, m.word
 		return
 	}
-	if strings.TrimSpace(msg.Text) == "" {
-		a.InfoText(i18n.T("app.nohover"))
+	if strings.TrimSpace(in.Text) == "" {
+		a.InfoText(msg.T("app.nohover"))
 	} else {
-		a.HoverText = msg.Text
+		a.HoverText = in.Text
 		a.HoverScroll = 0
 		a.HoverAt = nil
 	}

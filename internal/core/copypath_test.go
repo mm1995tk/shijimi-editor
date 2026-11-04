@@ -15,7 +15,7 @@ func TestCopyPathActiveTab(t *testing.T) {
 	if want := filepath.Join(a.Root, "a.txt"); a.Clipboard != want {
 		t.Fatalf("absolute: clipboard=%q want %q", a.Clipboard, want)
 	}
-	if a.Msg == "" {
+	if a.Msg.IsZero() {
 		t.Fatal("copied path is not shown")
 	}
 }

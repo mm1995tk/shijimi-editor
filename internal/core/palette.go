@@ -8,7 +8,7 @@ import (
 
 	"github.com/sahilm/fuzzy"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -19,8 +19,8 @@ const (
 
 // PaletteItem is a row of the palette.
 type PaletteItem struct {
-	Label   string
-	Detail  string
+	Label   msg.Msg
+	Detail  msg.Msg
 	matched []int // byte offsets into label
 	index   int
 }
@@ -35,12 +35,12 @@ type Palette struct {
 	files []string
 
 	// prompt mode
-	prompt   string
+	prompt   msg.Msg
 	onSubmit func(value string) []Effect
 
 	// pick mode
 	picking   bool
-	pickTitle string
+	pickTitle msg.Msg
 	pickAll   []PaletteItem
 	OnPick    func(index int) []Effect
 
@@ -48,10 +48,13 @@ type Palette struct {
 	// liveSeq numbers the edits so that late answers can be told apart.
 	live    bool
 	liveSeq int
+
+	// tr turns a message into text, for the places that match or measure words.
+	tr func(msg.Msg) string
 }
 
 func newPalette() *Palette {
-	return &Palette{Input: NewInputField(4096)}
+	return &Palette{Input: NewInputField(4096), tr: msg.Msg.String}
 }
 
 func indexFiles(root string) []string {
@@ -82,10 +85,10 @@ func (p *Palette) Show(root, initial string) []Effect {
 	p.Open = true
 	p.picking = false
 	p.live = false
-	p.prompt = ""
+	p.prompt = msg.Msg{}
 	p.onSubmit = nil
 	p.files = indexFiles(root)
-	p.Input.Placeholder = i18n.T("palette.placeholder")
+	p.Input.Placeholder = msg.T("palette.placeholder")
 	p.Input.SetValue(initial)
 	p.Input.CursorEnd()
 	p.Sel = 0
@@ -94,14 +97,14 @@ func (p *Palette) Show(root, initial string) []Effect {
 }
 
 // Ask opens the palette as a single-line prompt.
-func (p *Palette) Ask(prompt, initial string, onSubmit func(string) []Effect) []Effect {
+func (p *Palette) Ask(prompt msg.Msg, initial string, onSubmit func(string) []Effect) []Effect {
 	p.Open = true
 	p.picking = false
 	p.live = false
 	p.prompt = prompt
 	p.onSubmit = onSubmit
 	p.items = nil
-	p.Input.Placeholder = ""
+	p.Input.Placeholder = msg.Msg{}
 	p.Input.SetValue(initial)
 	p.Input.CursorEnd()
 	p.Sel = 0
@@ -129,20 +132,20 @@ func (p *Palette) filter(cmds []Command) {
 		}
 		labels := make([]string, len(p.pickAll))
 		for i, it := range p.pickAll {
-			labels[i] = it.Label
+			labels[i] = p.tr(it.Label)
 		}
 		for _, m := range fuzzy.Find(q, labels) {
 			it := p.pickAll[m.Index]
 			it.matched = m.MatchedIndexes
 			p.items = append(p.items, it)
 		}
-	case p.prompt != "":
+	case !p.prompt.IsZero():
 		return
 	case strings.HasPrefix(v, ">"):
 		q := strings.TrimSpace(v[1:])
 		names := make([]string, len(cmds))
 		for i, c := range cmds {
-			names[i] = c.Name
+			names[i] = p.tr(c.Name)
 		}
 		if q == "" {
 			for i, c := range cmds {
@@ -150,14 +153,14 @@ func (p *Palette) filter(cmds []Command) {
 			}
 		} else {
 			for _, m := range fuzzy.Find(q, names) {
-				p.items = append(p.items, PaletteItem{Label: m.Str, Detail: cmds[m.Index].Key, matched: m.MatchedIndexes, index: m.Index})
+				p.items = append(p.items, PaletteItem{Label: cmds[m.Index].Name, Detail: cmds[m.Index].Key, matched: m.MatchedIndexes, index: m.Index})
 			}
 		}
 	case strings.HasPrefix(v, ":"):
 		n, err := strconv.Atoi(strings.TrimSpace(v[1:]))
-		label := i18n.T("palette.needline")
+		label := msg.T("palette.needline")
 		if err == nil {
-			label = strconv.Itoa(n) + i18n.T("palette.gotoline")
+			label = msg.Cat(strconv.Itoa(n), msg.T("palette.gotoline"))
 		}
 		p.items = append(p.items, PaletteItem{Label: label, index: -1})
 	default:
@@ -167,14 +170,14 @@ func (p *Palette) filter(cmds []Command) {
 				if i >= 200 {
 					break
 				}
-				p.items = append(p.items, PaletteItem{Label: filepath.Base(f), Detail: filepath.Dir(f), index: i})
+				p.items = append(p.items, PaletteItem{Label: msg.S(filepath.Base(f)), Detail: msg.S(filepath.Dir(f)), index: i})
 			}
 		} else {
 			for i, m := range fuzzy.Find(q, p.files) {
 				if i >= 200 {
 					break
 				}
-				p.items = append(p.items, PaletteItem{Label: m.Str, matched: m.MatchedIndexes, index: m.Index})
+				p.items = append(p.items, PaletteItem{Label: msg.S(m.Str), matched: m.MatchedIndexes, index: m.Index})
 			}
 		}
 	}
@@ -183,14 +186,14 @@ func (p *Palette) filter(cmds []Command) {
 
 // head is the palette's heading and the mark after it: a prompt asks with
 // ":", the rest search or pick with ">".
-func (p *Palette) head() (title, prefix string) {
+func (p *Palette) head() (title msg.Msg, prefix string) {
 	switch {
-	case p.prompt != "":
+	case !p.prompt.IsZero():
 		return p.prompt, ":"
 	case p.picking:
 		return p.pickTitle, ">"
 	}
-	return "", ">"
+	return msg.Msg{}, ">"
 }
 
 // PaletteLabel is what precedes the input on the palette's first row.
@@ -205,7 +208,10 @@ func PaletteLabel(title, prefix string) string {
 }
 
 // label is what precedes the input on the palette's first row.
-func (p *Palette) label() string { return PaletteLabel(p.head()) }
+func (p *Palette) label() string {
+	title, prefix := p.head()
+	return PaletteLabel(p.tr(title), prefix)
+}
 
 // Overlay is the palette as a screen.Overlay: the input field and the rows in
 // view (MaxPaletteItems at most, scrolled so that the selected one shows) with
@@ -231,20 +237,20 @@ func (p *Palette) Overlay() screen.Overlay {
 	ov.Active = p.Sel - start
 	for i := start; i < len(p.items) && i < start+MaxPaletteItems; i++ {
 		it := p.items[i]
-		item := screen.Item{Label: it.Label, Detail: it.Detail, Matched: runeIndexes(it.Label, it.matched)}
+		item := screen.Item{Label: it.Label, Detail: it.Detail, Matched: runeIndexes(p.tr(it.Label), it.matched)}
 		ov.Items = append(ov.Items, item)
 	}
-	if p.prompt == "" && len(p.items) == 0 {
-		ov.Hint = i18n.T("palette.nomatch")
+	if p.prompt.IsZero() && len(p.items) == 0 {
+		ov.Hint = msg.T("palette.nomatch")
 	}
 	return ov
 }
 
 // Pick opens the palette as a fuzzy list; onPick receives the index into items.
-func (p *Palette) Pick(title string, items []PaletteItem, onPick func(int) []Effect) []Effect {
+func (p *Palette) Pick(title msg.Msg, items []PaletteItem, onPick func(int) []Effect) []Effect {
 	p.Open = true
 	p.picking = true
-	p.prompt = ""
+	p.prompt = msg.Msg{}
 	p.pickTitle = title
 	p.live = false
 	for i := range items {
@@ -252,7 +258,7 @@ func (p *Palette) Pick(title string, items []PaletteItem, onPick func(int) []Eff
 	}
 	p.pickAll = items
 	p.OnPick = onPick
-	p.Input.Placeholder = i18n.T("palette.filter")
+	p.Input.Placeholder = msg.T("palette.filter")
 	p.Input.SetValue("")
 	p.Sel = 0
 	p.Input.Focus()
@@ -262,11 +268,11 @@ func (p *Palette) Pick(title string, items []PaletteItem, onPick func(int) []Eff
 // pickLive is pick for a list the language server filters: the list is not
 // fuzzy-filtered here. The caller asks the server after each edit of the
 // input (queryLater) and puts the answer in with setPickItems.
-func (p *Palette) pickLive(title string, onPick func(int) []Effect) []Effect {
+func (p *Palette) pickLive(title msg.Msg, onPick func(int) []Effect) []Effect {
 	cmd := p.Pick(title, nil, onPick)
 	p.live = true
 	p.liveSeq++
-	p.Input.Placeholder = i18n.T("palette.typename")
+	p.Input.Placeholder = msg.T("palette.typename")
 	return cmd
 }
 

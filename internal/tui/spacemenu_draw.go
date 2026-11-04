@@ -6,17 +6,18 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // renderSpaceMenu draws the popup over the bottom-right corner of the editor
 // area while a leader key is waiting for its follow-up.
 func (a *App) renderSpaceMenu(rows []string, l layout) []string {
-	return a.renderMenu(rows, l, " Space", a.SpaceMenuItems())
+	return a.renderMenu(rows, l, msg.S(" Space"), a.SpaceMenuItems())
 }
 
 // renderMenu draws a menu of leader key items titled title.
-func (a *App) renderMenu(rows []string, l layout, title string, items []core.SpaceItem) []string {
+func (a *App) renderMenu(rows []string, l layout, title msg.Msg, items []core.SpaceItem) []string {
 	box := drawMenu(core.MenuOverlay(title, items), l.rightW)
 	if box == nil {
 		return rows
@@ -40,14 +41,14 @@ func drawMenu(ov screen.Overlay, maxW int) []string {
 	per := (len(items) + cols - 1) / cols
 	cellW := 0
 	for _, it := range items {
-		cellW = max(cellW, 2+ansi.StringWidth(it.Label))
+		cellW = max(cellW, 2+ansi.StringWidth(tr(it.Label)))
 	}
 	w := min(cols*cellW+(cols-1)*2+2, maxW)
 	if w < 8 {
 		return nil
 	}
 	inner := w - 2
-	box := []string{stPaletteBox.Render(core.Fit(ov.Title, w))}
+	box := []string{stPaletteBox.Render(core.Fit(tr(ov.Title), w))}
 	for r := range per {
 		var sb strings.Builder
 		sb.WriteString(stPalette.Render(" "))
@@ -62,10 +63,10 @@ func drawMenu(ov screen.Overlay, maxW int) []string {
 				used += 2
 			}
 			it := items[i]
-			sb.WriteString(stPaletteHi.Render(it.Detail))
-			sb.WriteString(stPalette.Render(" " + it.Label))
-			used += 2 + ansi.StringWidth(it.Label)
-			if pad := cellW - 2 - ansi.StringWidth(it.Label); pad > 0 && c < cols-1 {
+			sb.WriteString(stPaletteHi.Render(tr(it.Detail)))
+			sb.WriteString(stPalette.Render(" " + tr(it.Label)))
+			used += 2 + ansi.StringWidth(tr(it.Label))
+			if pad := cellW - 2 - ansi.StringWidth(tr(it.Label)); pad > 0 && c < cols-1 {
 				sb.WriteString(stPalette.Render(strings.Repeat(" ", pad)))
 				used += pad
 			}

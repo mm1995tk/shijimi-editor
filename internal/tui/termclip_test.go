@@ -26,7 +26,7 @@ func TestTerminalOSC52Copies(t *testing.T) {
 	if a.Clipboard != "日本語" {
 		t.Fatalf("clipboard = %q, want 日本語", a.Clipboard)
 	}
-	if a.MsgErr || !strings.Contains(a.Msg, "3 文字") {
+	if a.MsgErr || !strings.Contains(tr(a.Msg), "3 文字") {
 		t.Fatalf("msg = %q (err=%v), want a notice with 3 文字", a.Msg, a.MsgErr)
 	}
 }
@@ -57,7 +57,7 @@ func TestTerminalDragSelectCopies(t *testing.T) {
 	if want := "world\n日本"; a.Clipboard != want {
 		t.Fatalf("clipboard = %q, want %q", a.Clipboard, want)
 	}
-	if a.Focus != core.FocusTerminal || !strings.Contains(a.Msg, "8 文字") {
+	if a.Focus != core.FocusTerminal || !strings.Contains(tr(a.Msg), "8 文字") {
 		t.Fatalf("focus = %v msg = %q", a.Focus, a.Msg)
 	}
 	if !a.term.sel.on {

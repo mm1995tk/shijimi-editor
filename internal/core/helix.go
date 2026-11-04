@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // EditMode is the Helix mode: normal, insert or select.
@@ -66,24 +66,24 @@ func fullPreviewEditorKey(msg Key) bool {
 }
 
 // HandleHelixKey implements Helix-style modal editing for text tabs.
-func (a *Core) HandleHelixKey(msg Key) []Effect {
+func (a *Core) HandleHelixKey(in Key) []Effect {
 	t := a.Cur()
 	if t == nil || t.Kind != TabText {
 		return nil
 	}
 	if a.FullPreview(t) {
 		a.Mode = ModeNormal // e.g. after switching back to this tab from insert mode
-		if !a.fullPreviewKey(msg.String()) {
+		if !a.fullPreviewKey(in.String()) {
 			a.Pending, a.count = "", 0
-			a.InfoText(i18n.T("app.fullpreview"))
+			a.InfoText(msg.T("app.fullpreview"))
 			return nil
 		}
 	}
 	if a.Mode == ModeInsert {
-		return a.handleInsertKey(msg)
+		return a.handleInsertKey(in)
 	}
 	b := t.Buf
-	key := msg.String()
+	key := in.String()
 	a.Follow = a.Pending != "" || key != "z" // the z prefix alone must not pull the view back to the cursor
 	ext := a.Mode == ModeSelect
 
@@ -93,10 +93,10 @@ func (a *Core) HandleHelixKey(msg Key) []Effect {
 		a.Pending = ""
 		if b.HasExtra() && (strings.Contains("ftFTr", p) || p == "g" && strings.Contains("hls", key) || p == "m i" || p == "m a") {
 			var cmd []Effect
-			b.ForEachCursor(func() { cmd = a.helixPending(p, key, msg) })
+			b.ForEachCursor(func() { cmd = a.helixPending(p, key, in) })
 			return cmd
 		}
-		return a.helixPending(p, key, msg)
+		return a.helixPending(p, key, in)
 	}
 
 	// counts
@@ -131,7 +131,7 @@ func (a *Core) HandleHelixKey(msg Key) []Effect {
 		return nil
 	case "s":
 		if _, _, ok := b.Selection(); !ok && !b.HasExtra() {
-			a.InfoText(i18n.T("helix.selectfirst"))
+			a.InfoText(msg.T("helix.selectfirst"))
 			return nil
 		}
 		return a.openCmdline("s")
@@ -147,7 +147,7 @@ func (a *Core) HandleHelixKey(msg Key) []Effect {
 		if key == "ctrl+u" || key == "ctrl+alt+u" {
 			dir = -1
 		}
-		return a.halfPage(b, dir, ext, msg)
+		return a.halfPage(b, dir, ext, in)
 	}
 
 	return a.helixNormalKey(b, key, ext, count, hadCount)
@@ -180,7 +180,7 @@ func (a *Core) helixNormalKey(b *buffer.Buffer, key string, ext bool, count int,
 		if s := b.SelectedText(); s != "" && !strings.Contains(s, "\n") {
 			a.pushJump()
 			a.lastSearch = s
-			a.Info(i18n.T("helix.search"), s)
+			a.Info("helix.search", s)
 		}
 
 	// --- prefixes ---
@@ -271,7 +271,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 		}
 	case "m i", "m a":
 		if single && !b.SelectTextObject(r, p == "m a") {
-			a.Info(i18n.T("helix.notfoundc"), r)
+			a.Info("helix.notfoundc", r)
 		}
 	case "]":
 		switch key {
@@ -289,7 +289,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 				b.Anchor = nil
 			}
 			if !b.FindChar(r, p == "f" || p == "t", p == "t" || p == "T", true) {
-				a.Info(i18n.T("helix.notfoundc"), r)
+				a.Info("helix.notfoundc", r)
 			}
 		}
 	case "r":
@@ -361,7 +361,7 @@ func (a *Core) SpaceMode(key string) []Effect {
 		if t := a.Cur(); t != nil && t.Kind == TabText {
 			s, e := t.Buf.SelectionOrChar()
 			a.CopyText(t.Buf.TextRange(s, e))
-			a.InfoText(i18n.T("helix.copied"))
+			a.InfoText(msg.T("helix.copied"))
 		}
 	case "p", "P":
 		if t := a.Cur(); t != nil && t.Kind == TabText {
@@ -541,7 +541,7 @@ func (a *Core) searchNext(backward bool) {
 	}
 	p, ok := b.Find(a.lastSearch, from, backward)
 	if !ok {
-		a.Fail(errString(i18n.T("app.notfound") + a.lastSearch))
+		a.Fail(msg.ErrOf(msg.T("app.notfound").Add(a.lastSearch)))
 		return
 	}
 	if a.Mode == ModeSelect && b.Anchor != nil {
@@ -564,9 +564,9 @@ func (a *Core) BufferPicker() []Effect {
 		if t.dirty() {
 			label += " ●"
 		}
-		items[i] = PaletteItem{Label: label, Detail: a.Rel(t.Path())}
+		items[i] = PaletteItem{Label: msg.S(label), Detail: msg.S(a.Rel(t.Path()))}
 	}
-	return a.Pal.Pick(i18n.T("helix.buffers"), items, func(i int) []Effect {
+	return a.Pal.Pick(msg.T("helix.buffers"), items, func(i int) []Effect {
 		a.pushJump()
 		a.showInPane(i)
 		return a.SetFocus(FocusEditor)
@@ -598,7 +598,7 @@ func (a *Core) selectMatches(pattern string) {
 	}
 	a.Mode = ModeNormal
 	a.Follow = true
-	a.Info(i18n.T("helix.cursors"), len(t.Buf.Extra())+1)
+	a.Info("helix.cursors", len(t.Buf.Extra())+1)
 }
 
 // cursorCell is where a cursor is drawn: Helix draws it on the last

@@ -111,11 +111,11 @@ func (a *App) resolveMux() {
 		switch b := m.makeBackend(kind); {
 		case b == nil:
 			if explicit {
-				a.InfoText(fmt.Sprintf(i18n.T("mux.unsupported"), want))
+				a.Info("mux.unsupported", want)
 			}
 		case !muxUsable(kind):
 			if explicit {
-				a.InfoText(fmt.Sprintf(i18n.T("mux.unavailable"), want))
+				a.Info("mux.unavailable", want)
 			}
 		default:
 			m.b = b
