@@ -20,12 +20,13 @@ jobs:
   update:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
 
       - uses: DeterminateSystems/nix-installer-action@v23
 
-      - name: flake.lock を更新する
-        run: nix flake update
+      # nixpkgs だけを上げる。ほかの input は Dependabot が 7 日待ってから上げる（.github/dependabot.yml）
+      - name: flake.lock の nixpkgs を更新する
+        run: nix flake update nixpkgs
 
       - name: nix fmt で整形する
         run: nix fmt
