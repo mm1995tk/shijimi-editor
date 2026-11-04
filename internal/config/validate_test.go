@@ -33,7 +33,7 @@ func setup(t *testing.T) (root, userDir string, write func(name, content string)
 
 func problems(t *testing.T, root string) []Problem {
 	t.Helper()
-	_, err := Load(root)
+	_, err := Load(root, Options{})
 	if err == nil {
 		t.Fatal("Load returned no error")
 	}
@@ -122,7 +122,7 @@ func TestWrongValues(t *testing.T) {
 		"keys not string": "[keys.normal.g]\na = \"no_op\"\n",
 	} {
 		write("config.toml", c)
-		if _, err := Load(root); err == nil {
+		if _, err := Load(root, Options{}); err == nil {
 			t.Errorf("%s: no error", name)
 		}
 	}
@@ -292,7 +292,7 @@ language-servers = [{ name = "my-gopls", except-features = ["format"] }]
 [language.indent]
 unit = "  "
 `)
-	if _, err := Load(root); err != nil {
+	if _, err := Load(root, Options{}); err != nil {
 		t.Fatal(err)
 	}
 	_ = userDir
@@ -300,7 +300,7 @@ unit = "  "
 
 func TestValidConfigHasNoError(t *testing.T) {
 	root, _, _ := setup(t)
-	if _, err := Load(root); err != nil {
+	if _, err := Load(root, Options{}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -311,7 +311,7 @@ func TestMessageIsInOneLanguage(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLang(i18n.Default) })
 	root, _, write := setup(t)
 	write("config.toml", "ui-language = \"ja\"\n[editor]\nfile-icons = \"yes\"\n")
-	c, err := Load(root)
+	c, err := Load(root, Options{})
 	if err == nil {
 		t.Fatal("no error")
 	}
@@ -330,7 +330,7 @@ func TestLanguageNameIsRequired(t *testing.T) {
 	root, _, write := setup(t)
 	for _, c := range []string{"[[language]]\nfile-types = [\"x\"]\n", "[[language]]\nname = \"\"\n"} {
 		write("languages.toml", c)
-		if _, err := Load(root); err == nil {
+		if _, err := Load(root, Options{}); err == nil {
 			t.Errorf("no error for %q", c)
 		}
 	}

@@ -1,30 +1,28 @@
-package core
+package buildinfo
 
 import (
 	"regexp"
 	"runtime/debug"
 	"strconv"
 	"strings"
-
-	"github.com/mm1995tk/shijimi-editor/internal/channel"
 )
 
 // Version and Commit are set at build time with
-// -ldflags "-X github.com/mm1995tk/shijimi-editor/internal/core.Version=... -X github.com/mm1995tk/shijimi-editor/internal/core.Commit=...".
-// The channel (stable or nightly) is channel.Channel, set the same way.
+// -ldflags "-X github.com/mm1995tk/shijimi-editor/internal/buildinfo.Version=... -X github.com/mm1995tk/shijimi-editor/internal/buildinfo.Commit=...".
+// The channel (stable or nightly) is Channel, set the same way.
 var Version, Commit = "", ""
 
-// VersionLabel is the build's version as shown on the status line, such as
+// Label is the build's version as shown on the status line, such as
 // "v0.1 (be64521)", or "v0.1-nightly (be64521)" on the nightly channel.
 // Values missing from ldflags come from the build info: the module version
 // recorded by go install and the commit recorded by go build.
-func VersionLabel() string {
-	return formatVersion(BuildVersion())
+func Label() string {
+	return formatVersion(Resolve())
 }
 
-// BuildVersion is the version and commit of this build before they are
+// Resolve is the version and commit of this build before they are
 // formatted for the status line. Either may be empty.
-func BuildVersion() (version, commit string) {
+func Resolve() (version, commit string) {
 	v, c := Version, Commit
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		if v == "" && bi.Main.Version != "(devel)" {
@@ -54,7 +52,7 @@ func buildSetting(bi *debug.BuildInfo, key string) string {
 var pseudoVersion = regexp.MustCompile(`(-0\.|\.0\.|-)\d{14}-([0-9a-f]{12})$`)
 
 func formatVersion(v, commit string) string {
-	return formatChannelVersion(v, commit, channel.Channel)
+	return formatChannelVersion(v, commit, Channel)
 }
 
 // formatChannelVersion is formatVersion for the given channel. A channel

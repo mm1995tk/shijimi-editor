@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/mm1995tk/shijimi-editor/internal/channel"
 )
 
 func TestProjectLanguages(t *testing.T) {
@@ -246,7 +244,7 @@ environment = { A = "1" }
 `), 0o644)
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[agent]\ncommand = \"evil\"\n"), 0o644)
-	c, err := Load(root)
+	c, err := Load(root, Options{})
 	if err == nil {
 		t.Fatal("a project's [agent] must be an error")
 	}
@@ -290,7 +288,7 @@ func TestUILanguageOption(t *testing.T) {
 		t.Fatalf("ui-language = %q, want ja", got)
 	}
 	write("ui-language = \"fr\"\n")
-	if c, err := Load(root); err == nil || c.Editor.UILanguage != "en" {
+	if c, err := Load(root, Options{}); err == nil || c.Editor.UILanguage != "en" {
 		t.Fatalf("an unsupported language is an error, got %q, %v", c.Editor.UILanguage, err)
 	}
 }
@@ -327,7 +325,7 @@ func TestUserOnlySectionsInProjectAreErrors(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("[keys.normal]\nl = \":sh evil\"\n"), 0o644)
-	c, err := Load(root)
+	c, err := Load(root, Options{})
 	if err == nil {
 		t.Fatal("a project's [keys] must be an error")
 	}
@@ -397,7 +395,10 @@ func TestMergeConfigNested(t *testing.T) {
 	}
 }
 
+var nightly = Options{DirSuffix: "-nightly", Experimental: true}
+
 func TestNightlyReadsItsOwnUserDir(t *testing.T) {
+	o := Options{}
 	root := t.TempDir()
 	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)
@@ -406,8 +407,8 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("theme = \"stable\"\n[agent]\ncommand = \"a\"\n"), 0o644)
 
 	// A nightly build without its own directory reads the stable one, [agent] included.
-	channel.SetForTest(t, channel.Nightly)
-	c := load(root)
+	o = nightly
+	c := loadWith(root, o)
 	if c.Editor.Theme != "stable" || c.Agent.Command != "a" {
 		t.Fatalf("nightly without its own dir must read shijimi-editor: %+v %+v", c.Editor, c.Agent)
 	}
@@ -418,7 +419,7 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 	// Once shijimi-editor-nightly exists, the stable directory is not read at all.
 	os.MkdirAll(filepath.Join(cfg, "shijimi-editor-nightly"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor-nightly", "config.toml"), []byte("[agent]\ncommand = \"b\"\n"), 0o644)
-	c = load(root)
+	c = loadWith(root, o)
 	if c.Editor.Theme != "" || c.Agent.Command != "b" {
 		t.Fatalf("nightly must read only shijimi-editor-nightly: %+v %+v", c.Editor, c.Agent)
 	}
@@ -427,34 +428,35 @@ func TestNightlyReadsItsOwnUserDir(t *testing.T) {
 	}
 
 	// The stable build never looks at the nightly directory.
-	channel.SetForTest(t, "")
-	c = load(root)
+	o = Options{}
+	c = loadWith(root, o)
 	if c.Editor.Theme != "stable" || c.Agent.Command != "a" || c.Experimental.Default {
 		t.Fatalf("stable must read shijimi-editor: %+v %+v %+v", c.Editor, c.Agent, c.Experimental)
 	}
 }
 
 func TestExperimentalMultiplexer(t *testing.T) {
+	o := Options{}
 	root := t.TempDir()
 	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	t.Setenv("HOME", t.TempDir())
-	if load(root).Experimental.Multiplexer {
+	if loadWith(root, o).Experimental.Multiplexer {
 		t.Fatal("herdr must default to false on the stable channel")
 	}
-	channel.SetForTest(t, channel.Nightly)
-	if !load(root).Experimental.Multiplexer {
+	o = nightly
+	if !loadWith(root, o).Experimental.Multiplexer {
 		t.Fatal("herdr must default to true on the nightly channel")
 	}
 	os.MkdirAll(filepath.Join(cfg, "shijimi-editor-nightly"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor-nightly", "config.toml"), []byte("[experimental]\nherdr = false\n"), 0o644)
-	if load(root).Experimental.Multiplexer {
+	if loadWith(root, o).Experimental.Multiplexer {
 		t.Fatal("herdr = false must win over the nightly default")
 	}
-	channel.SetForTest(t, "")
+	o = Options{}
 	os.MkdirAll(filepath.Join(cfg, "shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("[experimental]\nherdr = true\n"), 0o644)
-	if !load(root).Experimental.Multiplexer {
+	if !loadWith(root, o).Experimental.Multiplexer {
 		t.Fatal("herdr = true must win over the stable default")
 	}
 }
@@ -484,7 +486,7 @@ func TestMultiplexerKeys(t *testing.T) {
 		t.Fatalf("none: %q", c.Terminal.Multiplexer)
 	}
 	os.WriteFile(filepath.Join(dir, "config.toml"), []byte("[terminal]\nmultiplexer = \"screen\"\n"), 0o644)
-	if _, err := Load(root); err == nil {
+	if _, err := Load(root, Options{}); err == nil {
 		t.Fatal("an unknown multiplexer must be an error")
 	}
 }
@@ -498,7 +500,7 @@ func TestServeIdleStopDays(t *testing.T) {
 	os.MkdirAll(dir, 0o755)
 	write := func(s string) (*Config, error) {
 		os.WriteFile(filepath.Join(dir, "config.toml"), []byte(s), 0o644)
-		return Load(root)
+		return Load(root, Options{})
 	}
 	if c, err := write(""); err != nil || c.Serve.IdleStopDays != 7 {
 		t.Fatalf("default: %d, %v", c.Serve.IdleStopDays, err)
@@ -517,9 +519,11 @@ func TestServeIdleStopDays(t *testing.T) {
 	}
 }
 
-// load is Load for a configuration that must be valid.
-func load(root string) *Config {
-	c, err := Load(root)
+// load is Load for a configuration that must be valid, with no Options.
+func load(root string) *Config { return loadWith(root, Options{}) }
+
+func loadWith(root string, o Options) *Config {
+	c, err := Load(root, o)
 	if err != nil {
 		panic(err)
 	}

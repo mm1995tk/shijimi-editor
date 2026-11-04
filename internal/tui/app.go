@@ -41,10 +41,10 @@ type App struct {
 
 // New creates the app rooted at dir, optionally opening file. A mistake in a
 // configuration file is the error (a *config.Error), and there is no app.
-func New(dir, file string) (*App, error) {
+func New(dir, file string, b core.Build) (*App, error) {
 	abs, _ := filepath.Abs(dir)
 	a := &App{term: newTerminal(abs), showSide: true}
-	c, err := core.New(a, dir, file)
+	c, err := core.New(a, dir, file, b)
 	if err != nil {
 		return nil, err
 	}
@@ -56,10 +56,10 @@ func New(dir, file string) (*App, error) {
 // file tree, language server, terminal, diff mode or agent panel, and the app
 // ends when the file is closed. A file that does not exist opens as an empty
 // buffer, which creates the file when saved. It is meant for $EDITOR.
-func NewSingle(file string) (*App, error) {
+func NewSingle(file string, b core.Build) (*App, error) {
 	abs, _ := filepath.Abs(file)
 	a := &App{term: newTerminal(filepath.Dir(abs))}
-	c, err := core.NewSingle(a, file)
+	c, err := core.NewSingle(a, file, b)
 	if err != nil {
 		return nil, err
 	}

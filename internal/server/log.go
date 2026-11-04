@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/mm1995tk/shijimi-editor/internal/channel"
+	"github.com/mm1995tk/shijimi-editor/internal/buildinfo"
 )
 
 // DefaultMaxLog はログファイルの大きさの上限（10 MiB）。
@@ -24,7 +24,7 @@ func LogPath() (string, error) {
 		}
 		base = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(base, "shijimi-editor"+channel.Suffix(), "serve.log"), nil
+	return filepath.Join(base, "shijimi-editor"+buildinfo.Suffix(), "serve.log"), nil
 }
 
 // logFile は上限を超えたら先頭を捨てる追記専用のログファイル。

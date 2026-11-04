@@ -1,14 +1,18 @@
-// Package channel tells which release channel this binary was built for.
-// The stable shj and the nightly shj-nightly are the same program; the
-// channel only changes the names that keep the two apart when both are
-// installed: the user's configuration directory, the socket directory, the
-// version label and the defaults of the [experimental] settings.
-package channel
+// Package buildinfo is what the build says about this binary: its version,
+// its commit and its release channel, all set with ldflags. The stable shj and
+// the nightly shj-nightly are the same program; the channel only changes the
+// names that keep the two apart when both are installed: the user's
+// configuration directory, the socket directory, the version label and the
+// defaults of the [experimental] settings.
+//
+// Only the UI side reads this package. The core and the configuration do not
+// import it; the UI passes them the values they need.
+package buildinfo
 
 import "testing"
 
 // Channel is set at build time with
-// -ldflags "-X github.com/mm1995tk/shijimi-editor/internal/channel.Channel=nightly".
+// -ldflags "-X github.com/mm1995tk/shijimi-editor/internal/buildinfo.Channel=nightly".
 // Empty means the stable channel.
 var Channel = ""
 

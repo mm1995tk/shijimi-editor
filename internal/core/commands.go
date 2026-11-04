@@ -300,7 +300,7 @@ func (a *Core) ExecCommand(line string) []Effect {
 		}
 		a.InfoText(i18n.T("cmd.lsprestarted"))
 	case "config-reload":
-		cfg, err := config.Load(a.Root)
+		cfg, err := config.Load(a.Root, a.build().Config)
 		if err != nil {
 			// Unlike at startup the editor is running: keep the settings it has
 			// and say what is wrong.

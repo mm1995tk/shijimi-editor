@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/internal/channel"
+	"github.com/mm1995tk/shijimi-editor/internal/buildinfo"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
@@ -75,7 +75,7 @@ func socketDir(create bool) (string, error) {
 	if base == "" {
 		base = os.TempDir()
 	}
-	dir := filepath.Join(base, fmt.Sprintf("shijimi%s-%d", channel.Suffix(), os.Getuid()))
+	dir := filepath.Join(base, fmt.Sprintf("shijimi%s-%d", buildinfo.Suffix(), os.Getuid()))
 	if !create {
 		return dir, nil
 	}

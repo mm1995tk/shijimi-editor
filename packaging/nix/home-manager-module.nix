@@ -10,7 +10,7 @@ let
   cfg = config.programs.shijimi-editor;
   toml = pkgs.formats.toml { };
   # The nightly package is shj-nightly and reads its config from shijimi-editor-nightly/,
-  # so the directory follows the package's main program (see internal/channel).
+  # so the directory follows the package's main program (see internal/buildinfo).
   bin = cfg.package.meta.mainProgram or "shj";
   configDir = "shijimi-editor${lib.removePrefix "shj" bin}";
 in

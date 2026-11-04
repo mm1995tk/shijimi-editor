@@ -1,4 +1,4 @@
-package core
+package buildinfo
 
 import "testing"
 

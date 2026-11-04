@@ -28,7 +28,7 @@ func badProject(t *testing.T) (dir, file string) {
 
 func TestNewFailsOnConfigMistake(t *testing.T) {
 	dir, file := badProject(t)
-	c, err := New(&testFront{}, dir, "")
+	c, err := New(&testFront{}, dir, "", Build{})
 	var ce *config.Error
 	if c != nil || !errors.As(err, &ce) || len(ce.Problems) != 1 {
 		t.Fatalf("core = %v, err = %v", c, err)
@@ -47,7 +47,7 @@ func TestNewSingleFailsOnConfigMistake(t *testing.T) {
 
 func TestWorkspaceOpenFailsOnConfigMistake(t *testing.T) {
 	dir, _ := badProject(t)
-	ws := NewWorkspaces(NewShared(), nil)
+	ws := NewWorkspaces(NewShared(Build{}), nil)
 	defer ws.CloseAll()
 	if w, err := ws.Open(dir); err == nil || w != nil {
 		t.Fatalf("w = %v, err = %v", w, err)

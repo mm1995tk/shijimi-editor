@@ -10,6 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/mm1995tk/shijimi-editor/internal/buildinfo"
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
@@ -27,7 +28,7 @@ func Main() {
 	if len(os.Args) > 1 {
 		arg := os.Args[1]
 		if arg == "-v" || arg == "--version" {
-			fmt.Println("shijimi " + core.VersionLabel())
+			fmt.Println("shijimi " + buildinfo.Label())
 			return
 		}
 		if arg == "-h" || arg == "--help" {
@@ -69,12 +70,12 @@ func Main() {
 	var app *tui.App
 	if single {
 		var err error
-		if app, err = tui.NewSingle(file); err != nil {
+		if app, err = tui.NewSingle(file, coreBuild()); err != nil {
 			failConfig(err)
 		}
 	} else {
 		var err error
-		if app, err = tui.New(dir, file); err != nil {
+		if app, err = tui.New(dir, file, coreBuild()); err != nil {
 			failConfig(err)
 		}
 	}
@@ -121,7 +122,7 @@ func Main() {
 // here: the commands that run the editor report it, and the others work
 // without settings.
 func setLangFromConfig(dir string) {
-	cfg, _ := config.Load(dir)
+	cfg, _ := config.Load(dir, configOptions())
 	i18n.SetLang(cfg.Editor.UILanguage)
 }
 
