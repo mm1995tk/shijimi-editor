@@ -12,13 +12,16 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buildinfo"
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
+	"github.com/mm1995tk/shijimi-editor/internal/cli/ctlclient"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/ctlserver"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/kitty"
 	"github.com/mm1995tk/shijimi-editor/internal/tui"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 )
 
 // Main runs shijimi with the command-line arguments in os.Args.
@@ -55,9 +58,9 @@ func Main() {
 			setLangFromConfig(dir)
 			os.Exit(runServe(os.Args[2:]))
 		}
-		if ctl.IsSubcommand(arg) {
+		if ctlclient.IsSubcommand(arg) {
 			setLangFromConfig(dir)
-			os.Exit(ctl.Run(os.Args[1:],
+			os.Exit(ctlclient.Run(os.Args[1:],
 				func(s string) { fmt.Println(s) },
 				func(s string) { fmt.Fprintln(os.Stderr, s) }))
 		}
@@ -101,7 +104,7 @@ func Main() {
 	}
 	// The socket is best-effort: the editor still works without it.
 	if path, err := ctl.SocketPath(); err == nil && !single {
-		if srv, err := ctl.Listen(path, tui.ControlHandler(p)); err == nil {
+		if srv, err := ctlserver.Listen(path, tui.ControlHandler(p)); err == nil {
 			closeSock = srv.Close
 			os.Setenv(ctl.EnvSocket, path)
 		}
@@ -123,7 +126,7 @@ func Main() {
 // without settings.
 func setLangFromConfig(dir string) {
 	cfg, _ := config.Load(dir, configOptions())
-	i18n.SetLang(cfg.Editor.UILanguage)
+	i18n.SetLang(uicfg.Of(cfg).UILanguage)
 }
 
 // failConfig reports why the editor could not start and exits. A mistake in a

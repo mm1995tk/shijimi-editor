@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	tuicfg "github.com/mm1995tk/shijimi-editor/internal/ui/tui/config"
 	"strings"
 	"testing"
 
@@ -56,7 +57,7 @@ func cmuxApp(t *testing.T) (*App, *fakeCmux) {
 	t.Helper()
 	t.Setenv("SHELL", "/bin/zsh")
 	a := newTestApp(t, "hello")
-	a.Cfg.Experimental.Multiplexer = true
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = true
 	f := &fakeCmux{}
 	a.mux.newBackend = func(kind string) muxBackend {
 		if kind == "cmux" {
@@ -64,7 +65,7 @@ func cmuxApp(t *testing.T) (*App, *fakeCmux) {
 		}
 		return nil
 	}
-	a.Cfg.Terminal.Multiplexer = "cmux"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "cmux"
 	return a, f
 }
 
@@ -185,7 +186,7 @@ func TestCmuxOnlyOnMacInCmux(t *testing.T) {
 	if !a.muxOn() {
 		t.Fatal("cmux must be used on macOS inside cmux")
 	}
-	a.Cfg.Experimental.Multiplexer = false
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = false
 	if a.muxOn() {
 		t.Fatal("cmux must be off when the setting is off")
 	}
@@ -215,7 +216,7 @@ func TestCmuxCommandEnd(t *testing.T) {
 func TestCmuxAutoFollowsParents(t *testing.T) {
 	cmuxEnv(t)
 	a, _ := cmuxApp(t)
-	a.Cfg.Terminal.Multiplexer = "auto"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "cmux", "launchd")
 	if !a.muxOn() || a.mux.b.name() != "cmux" {
 		t.Fatalf("cmux parent not used: %v", a.mux.b)

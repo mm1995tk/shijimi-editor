@@ -19,6 +19,8 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/server"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
+	guicfg "github.com/mm1995tk/shijimi-editor/internal/ui/gui/config"
 )
 
 // runServe is "shj serve": the headless server that GUI clients talk to over
@@ -59,7 +61,7 @@ func runServe(args []string) int {
 		// The language is the process's: the home config sets it once, and
 		// the workspaces' cores leave it alone (core.NewIn). It is set before the
 		// mistakes are reported so that they are in the user's language.
-		i18n.SetLang(cfg.Editor.UILanguage)
+		i18n.SetLang(uicfg.Of(cfg).UILanguage)
 		if err != nil {
 			// serve does not start with settings it cannot read as written. attach
 			// passes this on to the GUI.
@@ -67,8 +69,8 @@ func runServe(args []string) int {
 			fmt.Fprintln(os.Stderr, configErrorText(err))
 			return 1
 		}
-		idle = time.Duration(cfg.Serve.IdleStopDays) * 24 * time.Hour
-		startDir = cfg.Serve.StartDir
+		idle = time.Duration(guicfg.Of(cfg).IdleStopDays) * 24 * time.Hour
+		startDir = guicfg.Of(cfg).StartDir
 	}
 	statePath, err := server.StatePath()
 	if err != nil {

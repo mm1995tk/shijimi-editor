@@ -9,6 +9,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/msg"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 )
 
 // Command is an entry of the command palette: its name, its key and what it
@@ -308,14 +309,14 @@ func (a *Core) ExecCommand(line string) []Effect {
 			return nil
 		}
 		a.Cfg = cfg
-		a.port.SetLanguage(a.Cfg.Editor.UILanguage)
+		a.port.SetLanguage(uicfg.Of(a.Cfg).UILanguage)
 		a.Commands = defaultCommands()
 		a.FindInput.Placeholder = msg.T("app.find")
 		a.Lsp.cfg = a.Cfg
-		a.Explorer.Icons = a.Cfg.Editor.FileIcons
+		a.Explorer.Icons = uicfg.Of(a.Cfg).FileIcons
 		a.Helix = a.Cfg.Editor.Keymap != "vscode"
 		// No theme (or an unknown one) falls back to the default theme, as at startup.
-		if name := a.Cfg.Editor.Theme; name == "" || !a.setTheme(name) {
+		if name := uicfg.Of(a.Cfg).Theme; name == "" || !a.setTheme(name) {
 			a.setTheme(DefaultTheme.Name)
 			if name != "" {
 				a.Fail(msg.Err("cmd.unknowntheme.default", name))

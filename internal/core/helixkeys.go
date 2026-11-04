@@ -267,19 +267,19 @@ func buildHelixKeymap(k config.Keys) (km helixKeymap, warnings []msg.Msg) {
 			val := src[key]
 			norm, ok := normalizeHelixKey(key)
 			if !ok {
-				warnings = append(warnings, msg.T("keys.badkey", msg.T(section), key))
+				warnings = append(warnings, msg.T("keys.badkey", section, key))
 				continue
 			}
 			switch {
 			case strings.HasPrefix(val, ":"):
 				if strings.TrimSpace(val[1:]) == "" {
-					warnings = append(warnings, msg.T("keys.unknowncmd", msg.T(section), key, val))
+					warnings = append(warnings, msg.T("keys.unknowncmd", section, key, val))
 					continue
 				}
 				dst[norm] = binding{ex: strings.TrimSpace(val[1:])}
 			default:
 				if _, ok := helixCommands[val]; !ok {
-					warnings = append(warnings, msg.T("keys.unknowncmd", msg.T(section), key, val))
+					warnings = append(warnings, msg.T("keys.unknowncmd", section, key, val))
 					continue
 				}
 				dst[norm] = binding{name: val}

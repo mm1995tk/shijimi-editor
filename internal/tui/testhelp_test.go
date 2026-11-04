@@ -1,6 +1,8 @@
 package tui
 
 import (
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
+	tuicfg "github.com/mm1995tk/shijimi-editor/internal/ui/tui/config"
 	"image"
 	"image/png"
 	"os"
@@ -283,9 +285,17 @@ func appOf(c *core.Core) *App {
 
 // mustNew is New for a configuration that must be valid.
 func mustNew(dir, file string) *App {
-	a, err := New(dir, file, core.Build{Version: "dev"})
+	a, err := New(dir, file, testBuild())
 	if err != nil {
 		panic(err)
 	}
 	return a
+}
+
+// testBuild is the Build of the TUI: it reads the settings the UIs share and its own.
+func testBuild() core.Build {
+	return core.Build{
+		Version: "dev",
+		Config:  config.Options{Sections: []config.Section{uicfg.Section, tuicfg.Section(false)}},
+	}
 }

@@ -145,6 +145,13 @@ func TestSourceUsesTablesOnly(t *testing.T) {
 					return true
 				}
 				key, _ := strconv.Unquote(lit.Value)
+				if sel.Sel.Name != "T" || id0(sel) != "i18n" {
+					for _, tbl := range []map[string]string{en, ja} {
+						if strings.Contains(tbl[key], "%w") {
+							t.Errorf("%s: key %q has %%w, which Sprintf does not know; use %%s", fset.Position(n.Pos()), key)
+						}
+					}
+				}
 				if _, ok := en[key]; !ok {
 					t.Errorf("%s: unknown i18n key %q", fset.Position(n.Pos()), key)
 				}
@@ -205,4 +212,12 @@ func TestMsgTextFillsArgs(t *testing.T) {
 	if got := Text(msg.S("plain").Add(" ", msg.T("test.args", "z", 4))); got != "plain z has 4" {
 		t.Errorf("Add = %q", got)
 	}
+}
+
+func id0(sel *ast.SelectorExpr) string {
+	id, _ := sel.X.(*ast.Ident)
+	if id == nil {
+		return ""
+	}
+	return id.Name
 }

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 	"os"
 	"path/filepath"
 	"strings"
@@ -278,7 +279,7 @@ func markerCell(a *App, row int) (x, y int) {
 
 func TestPointerCardTakesNoKeys(t *testing.T) {
 	a, _ := prApp(t)
-	a.Cfg.Editor.MouseHover = true
+	uicfg.Of(a.Cfg).MouseHover = true
 	th := &core.PrThread{ID: "T", Path: "a.txt", Line: 10, Side: "RIGHT", Comments: []core.PrComment{{Author: "r", Body: "x"}}}
 	a.Gd.Rv.Threads = []*core.PrThread{th}
 	x, y := markerCell(a, 9)
@@ -301,7 +302,7 @@ func TestPointerCardTakesNoKeys(t *testing.T) {
 		t.Error("card stayed after the pointer left")
 	}
 	// without mouse hover, resting opens nothing
-	a.Cfg.Editor.MouseHover = false
+	uicfg.Of(a.Cfg).MouseHover = false
 	a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MouseMotion, Button: core.MouseNone}))
 	if a.Card != nil {
 		t.Error("card opened with mouse hover off")

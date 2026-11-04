@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"github.com/mm1995tk/shijimi-editor/internal/config"
+	tuicfg "github.com/mm1995tk/shijimi-editor/internal/ui/tui/config"
 	"os"
 	"strings"
 	"testing"
@@ -48,7 +50,7 @@ func herdrApp(t *testing.T) (*App, *fakeHerdr) {
 	t.Helper()
 	t.Setenv("HERDR_ENV", "1")
 	a := newTestApp(t, "hello")
-	a.Cfg.Experimental.Multiplexer = true
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = true
 	f := &fakeHerdr{}
 	a.mux.newBackend = func(kind string) muxBackend {
 		if kind == "herdr" {
@@ -56,7 +58,7 @@ func herdrApp(t *testing.T) (*App, *fakeHerdr) {
 		}
 		return nil
 	}
-	a.Cfg.Terminal.Multiplexer = "herdr"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "herdr"
 	return a, f
 }
 
@@ -134,11 +136,11 @@ func TestHerdrCommands(t *testing.T) {
 
 func TestHerdrOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := herdrApp(t)
-	a.Cfg.Experimental.Multiplexer = false
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = false
 	if a.muxOn() {
 		t.Fatal("herdr must be off when the setting is off")
 	}
-	a.Cfg.Experimental.Multiplexer = true
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = true
 	t.Setenv("HERDR_ENV", "")
 	if a.muxOn() {
 		t.Fatal("herdr must be off outside herdr")
@@ -184,7 +186,7 @@ func TestHerdrShellIntegration(t *testing.T) {
 
 func TestMuxNoneKeepsBuiltinTerminal(t *testing.T) {
 	a, f := herdrApp(t)
-	a.Cfg.Terminal.Multiplexer = "none"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "none"
 	if a.muxOn() {
 		t.Fatal("none must use the built-in terminal even inside herdr")
 	}
@@ -197,7 +199,7 @@ func TestMuxNoneKeepsBuiltinTerminal(t *testing.T) {
 
 func TestMuxAutoFollowsParents(t *testing.T) {
 	a, _ := herdrApp(t)
-	a.Cfg.Terminal.Multiplexer = "auto"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "herdr", "systemd")
 	if !a.muxOn() || a.mux.b.name() != "herdr" {
 		t.Fatalf("herdr parent not used: %v", a.mux.b)
@@ -208,7 +210,7 @@ func TestMuxAutoInnerWins(t *testing.T) {
 	// herdr -> tmux -> zsh -> shj: tmux is inner (here it is not usable: TMUX is unset), so herdr must not be used.
 	t.Setenv("TMUX", "")
 	a, f := herdrApp(t)
-	a.Cfg.Terminal.Multiplexer = "auto"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "tmux: server", "herdr", "systemd")
 	if a.muxOn() || len(f.calls) != 0 {
 		t.Fatal("the inner tmux must win over herdr")
@@ -217,7 +219,7 @@ func TestMuxAutoInnerWins(t *testing.T) {
 
 func TestMuxAutoNoMultiplexer(t *testing.T) {
 	a, _ := herdrApp(t)
-	a.Cfg.Terminal.Multiplexer = "auto"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "alacritty", "init")
 	if a.muxOn() {
 		t.Fatal("no multiplexer among the parents")
@@ -226,7 +228,7 @@ func TestMuxAutoNoMultiplexer(t *testing.T) {
 
 func TestMuxUnsupportedFallsBack(t *testing.T) {
 	a, _ := herdrApp(t)
-	a.Cfg.Terminal.Multiplexer = "tmux"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "tmux"
 	if a.muxOn() || !strings.Contains(tr(a.Msg), "tmux") {
 		t.Fatalf("expected the built-in terminal and a message: %q", a.Msg)
 	}
@@ -277,9 +279,10 @@ func TestMuxConfigReload(t *testing.T) {
 		t.Fatal("herdr expected")
 	}
 	a.mux.id, a.mux.visible = "w1-p2", true
-	cfg := *a.Cfg // :config-reload puts a new configuration in place
-	cfg.Terminal.Multiplexer = "none"
-	a.Cfg = &cfg
+	// :config-reload puts a new configuration in place
+	cfg := &config.Config{}
+	cfg.SetValue(tuicfg.Name, &tuicfg.Settings{Terminal: tuicfg.Terminal{Multiplexer: "none"}, Experimental: tuicfg.Of(a.Cfg).Experimental})
+	a.Cfg = cfg
 	if a.muxOn() {
 		t.Fatal("none must take effect after a reload")
 	}

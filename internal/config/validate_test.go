@@ -46,7 +46,7 @@ func problems(t *testing.T, root string) []Problem {
 
 func TestSyntaxErrorHasFileAndLine(t *testing.T) {
 	root, _, write := setup(t)
-	path := write("config.toml", "theme = \"x\"\n\n[editor\nfile-icons = true\n")
+	path := write("config.toml", "keymap = \"x\"\n\n[editor\nwatch-files = true\n")
 	if !strings.Contains(path, "config.toml") {
 		t.Fatal(path)
 	}
@@ -61,7 +61,7 @@ func TestSyntaxErrorHasFileAndLine(t *testing.T) {
 
 func TestUnknownKey(t *testing.T) {
 	root, _, write := setup(t)
-	path := write("config.toml", "theme = \"x\"\n\n[editor]\nfile-icons = true\nline-numbers = \"relative\"\n\n[editr]\na = 1\n")
+	path := write("config.toml", "keymap = \"x\"\n\n[editor]\nwatch-files = true\nline-numbers = \"relative\"\n\n[editr]\na = 1\n")
 	ps := problems(t, root)
 	if len(ps) != 2 {
 		t.Fatalf("problems = %+v", ps)
@@ -78,7 +78,7 @@ func TestWrongType(t *testing.T) {
 	root, _, write := setup(t)
 	write("config.toml", `
 [editor]
-file-icons = "yes"
+watch-files = "yes"
 
 [editor.auto-save.after-delay]
 enable = true
@@ -92,7 +92,7 @@ exclude = ["a", 2]
 		line int
 		key  string
 	}{
-		{3, "editor.file-icons"},
+		{3, "editor.watch-files"},
 		{7, "editor.auto-save.after-delay.timeout"},
 		{10, "search.exclude[1]"},
 	}
@@ -114,11 +114,7 @@ exclude = ["a", 2]
 func TestWrongValues(t *testing.T) {
 	root, _, write := setup(t)
 	for name, c := range map[string]string{
-		"ui-language":     "ui-language = \"fr\"\n",
-		"multiplexer":     "[terminal]\nmultiplexer = \"screen\"\n",
-		"negative days":   "[server]\nidle_stop_days = -1\n",
 		"zero timeout":    "[editor.auto-save.after-delay]\ntimeout = 0\n",
-		"float days":      "[server]\nidle_stop_days = 1.5\n",
 		"keys not string": "[keys.normal.g]\na = \"no_op\"\n",
 	} {
 		write("config.toml", c)
@@ -130,7 +126,7 @@ func TestWrongValues(t *testing.T) {
 
 func TestEveryProblemIsListed(t *testing.T) {
 	root, _, write := setup(t)
-	write("config.toml", "theme = 1\nbogus = 2\n")
+	write("config.toml", "keymap = 1\nbogus = 2\n")
 	write("languages.toml", "[[language]]\nname = 3\n")
 	ps := problems(t, root)
 	if len(ps) != 3 {
@@ -186,7 +182,7 @@ func TestProjectFileIsChecked(t *testing.T) {
 	root, _, _ := setup(t)
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	p := filepath.Join(root, ".shijimi-editor", "config.toml")
-	os.WriteFile(p, []byte("[editor]\nmouse-hover = 1\n"), 0o644)
+	os.WriteFile(p, []byte("[editor]\nwatch-files = 1\n"), 0o644)
 	ps := problems(t, root)
 	if len(ps) != 1 || ps[0].File != p || ps[0].Line != 2 {
 		t.Fatalf("problems = %+v", ps)
@@ -198,7 +194,7 @@ func TestNixMistakes(t *testing.T) {
 		t.Skip("nix not available")
 	}
 	root, _, write := setup(t)
-	path := write("config.nix", `{ editor.file-icons = "yes"; nope = 1; }`)
+	path := write("config.nix", `{ editor.watch-files = "yes"; nope = 1; }`)
 	ps := problems(t, root)
 	if len(ps) != 2 || ps[0].File != path || ps[0].Line != 0 {
 		t.Fatalf("problems = %+v", ps)
@@ -223,81 +219,6 @@ func TestNixWithoutNixIsAnError(t *testing.T) {
 	}
 }
 
-// The examples the manual and the README show must keep loading.
-func TestDocumentedExamplesLoad(t *testing.T) {
-	root, userDir, write := setup(t)
-	write("config.toml", `
-theme = "github_dark"
-keymap = "helix"
-ui-language = "en"
-
-[editor]
-line-number = "relative"
-file-icons = true
-mermaid-command = "mmdc -q -i {in} -o {out} -b transparent -s 2"
-watch-files = true
-mouse-hover = true
-
-[editor.indent-guides]
-render = true
-
-[editor.auto-save.after-delay]
-enable = true
-timeout = 1000
-
-[search]
-exclude = ["*.lock", "dist/**"]
-include = []
-
-[browser]
-listen-host = "127.0.0.1"
-
-[terminal]
-multiplexer = "auto"
-
-[experimental]
-multiplexer = true
-herdr = true
-
-[agent]
-command = "claude-agent-acp"
-args = []
-environment = { A = "1" }
-
-[server]
-idle_stop_days = 7
-
-[keys.normal]
-"C-s" = ":write"
-`)
-	write("languages.toml", `
-[language-server.my-gopls]
-command = "gopls"
-args = ["serve"]
-config = { gofumpt = true }
-environment = { GOFLAGS = "-tags=integration" }
-
-[[language]]
-name = "go"
-language-servers = ["my-gopls"]
-roots = ["go.mod"]
-indent = { tab-width = 4, unit = "\t" }
-formatter = { command = "gofumpt", args = ["--path", "%{buffer_name}"] }
-
-[[language]]
-name = "mylang"
-file-types = ["ml2", { glob = "*.special" }]
-language-servers = [{ name = "my-gopls", except-features = ["format"] }]
-
-[language.indent]
-unit = "  "
-`)
-	if _, err := Load(root, Options{}); err != nil {
-		t.Fatal(err)
-	}
-	_ = userDir
-}
-
 func TestValidConfigHasNoError(t *testing.T) {
 	root, _, _ := setup(t)
 	if _, err := Load(root, Options{}); err != nil {
@@ -310,12 +231,13 @@ func TestValidConfigHasNoError(t *testing.T) {
 func TestMessageIsInOneLanguage(t *testing.T) {
 	t.Cleanup(func() { i18n.SetLang(i18n.Default) })
 	root, _, write := setup(t)
-	write("config.toml", "ui-language = \"ja\"\n[editor]\nfile-icons = \"yes\"\n")
+	write("config.toml", "[editor]\nwatch-files = \"yes\"\n")
 	c, err := Load(root, Options{})
 	if err == nil {
 		t.Fatal("no error")
 	}
-	i18n.SetLang(c.Editor.UILanguage)
+	_ = c
+	i18n.SetLang(i18n.Japanese)
 	got := err.Error()
 	if !strings.Contains(got, "true か false で書いてください（今は 文字列 です）") {
 		t.Fatalf("message = %q", got)
@@ -332,27 +254,6 @@ func TestLanguageNameIsRequired(t *testing.T) {
 		write("languages.toml", c)
 		if _, err := Load(root, Options{}); err == nil {
 			t.Errorf("no error for %q", c)
-		}
-	}
-}
-
-// The GUI reads [[gui.machines]]; shj must start with a file that has it, and
-// still reports a mistake in it.
-func TestGUIMachines(t *testing.T) {
-	root, _, write := setup(t)
-	write("config.toml", "[[gui.machines]]\nssh = \"dev-vm\"\nname = \"dev\"\n\n[[gui.machines]]\nssh = \"build\"\n")
-	if _, err := Load(root, Options{}); err != nil {
-		t.Fatal(err)
-	}
-	for name, c := range map[string]string{
-		"missing ssh":    "[[gui.machines]]\nname = \"dev\"\n",
-		"unknown key":    "[[gui.machines]]\nssh = \"a\"\nhost = \"b\"\n",
-		"wrong type":     "[[gui.machines]]\nssh = 1\n",
-		"unknown in gui": "[gui]\ncolor = 1\n",
-	} {
-		write("config.toml", c)
-		if _, err := Load(root, Options{}); err == nil {
-			t.Errorf("%s: no error", name)
 		}
 	}
 }

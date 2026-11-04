@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mm1995tk/shijimi-editor/internal/cli/ctlclient"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/rpc"
@@ -45,14 +46,14 @@ func TestControlReachesFocusedWorkspace(t *testing.T) {
 	t.Setenv(ctl.EnvSocket, sock)
 
 	// No workspace has the focus yet.
-	if resp, err := ctl.Call(ctl.Request{Cmd: "diff"}); err != nil || resp.OK || resp.Error == "" {
+	if resp, err := ctlclient.Call(ctl.Request{Cmd: "diff"}); err != nil || resp.OK || resp.Error == "" {
 		t.Fatalf("no focus: %+v %v", resp, err)
 	}
 
 	a := &fakeWS{name: "a", reqs: make(chan ctl.Request, 1)}
 	b := &fakeWS{name: "b", reqs: make(chan ctl.Request, 1)}
 	srv.SetFocus(a)
-	resp, err := ctl.Call(ctl.Request{Cmd: "diff", Path: "/x"})
+	resp, err := ctlclient.Call(ctl.Request{Cmd: "diff", Path: "/x"})
 	if err != nil || !resp.OK || resp.Message != "a" {
 		t.Fatalf("a: %+v %v", resp, err)
 	}
@@ -60,7 +61,7 @@ func TestControlReachesFocusedWorkspace(t *testing.T) {
 		t.Fatalf("a got %+v", r)
 	}
 	srv.SetFocus(b)
-	resp, err = ctl.Call(ctl.Request{Cmd: "exec", Line: "theme"})
+	resp, err = ctlclient.Call(ctl.Request{Cmd: "exec", Line: "theme"})
 	if err != nil || resp.Message != "b" {
 		t.Fatalf("b: %+v %v", resp, err)
 	}

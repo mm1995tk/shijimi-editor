@@ -124,3 +124,14 @@ type CtlResponse struct {
 func (r CtlResponse) Wire(text func(msg.Msg) string) ctl.Response {
 	return ctl.Response{OK: r.OK, Error: text(r.Error), Message: text(r.Message)}
 }
+
+// ControlHandler adapts the control socket to a running front end: each
+// request is sent to the front end's Update loop (through send) as a
+// CtlRequest and the reply is awaited; text turns its messages into the UI's language.
+func ControlHandler(send func(any), text func(msg.Msg) string) ctl.Handler {
+	return func(req ctl.Request) ctl.Response {
+		reply := make(chan CtlResponse, 1)
+		send(CtlRequest{Req: req, Reply: reply})
+		return (<-reply).Wire(text)
+	}
+}

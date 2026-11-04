@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	tuicfg "github.com/mm1995tk/shijimi-editor/internal/ui/tui/config"
 	"strings"
 	"testing"
 
@@ -77,7 +78,7 @@ func tmuxApp(t *testing.T) (*App, *fakeTmux) {
 	t.Helper()
 	t.Setenv("TMUX", "/tmp/tmux-1000/default,1,0")
 	a := newTestApp(t, "hello")
-	a.Cfg.Experimental.Multiplexer = true
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = true
 	f := &fakeTmux{}
 	a.mux.newBackend = func(kind string) muxBackend {
 		if kind == "tmux" {
@@ -85,7 +86,7 @@ func tmuxApp(t *testing.T) (*App, *fakeTmux) {
 		}
 		return nil
 	}
-	a.Cfg.Terminal.Multiplexer = "tmux"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "tmux"
 	return a, f
 }
 
@@ -180,13 +181,13 @@ func TestTmuxSplitEnv(t *testing.T) {
 
 func TestTmuxOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := tmuxApp(t)
-	a.Cfg.Experimental.Multiplexer = false
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = false
 	if a.muxOn() {
 		t.Fatal("tmux must be off when the setting is off")
 	}
 	a.resolveMux()
 	t.Setenv("TMUX", "")
-	a.Cfg.Experimental.Multiplexer = true
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = true
 	a.resolveMux()
 	if a.muxOn() {
 		t.Fatal("tmux must be off outside tmux")
@@ -217,7 +218,7 @@ func TestTmuxCommandEnd(t *testing.T) {
 
 func TestTmuxAutoFollowsParents(t *testing.T) {
 	a, _ := tmuxApp(t)
-	a.Cfg.Terminal.Multiplexer = "auto"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "tmux: server", "systemd")
 	if !a.muxOn() || a.mux.b.name() != "tmux" {
 		t.Fatalf("tmux parent not used: %v", a.mux.b)

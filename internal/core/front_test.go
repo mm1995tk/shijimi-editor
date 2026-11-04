@@ -1,6 +1,8 @@
 package core
 
 import (
+	"github.com/mm1995tk/shijimi-editor/internal/config"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -119,7 +121,7 @@ func (f *testFront) editRows() int {
 func newTestCore(t testing.TB, dir, file string, w, h int) (*Core, *testFront) {
 	t.Helper()
 	f := &testFront{w: w, h: h, side: true}
-	c, _ := New(f, dir, file, Build{})
+	c, _ := New(f, dir, file, testBuild())
 	f.c = c
 	f.push()
 	return c, f
@@ -132,7 +134,7 @@ type App = Core
 // until a test sets one (resized).
 func newApp(dir, file string) *Core {
 	f := &testFront{side: true}
-	c, _ := New(f, dir, file, Build{})
+	c, _ := New(f, dir, file, testBuild())
 	f.c = c
 	f.push()
 	return c
@@ -141,9 +143,14 @@ func newApp(dir, file string) *Core {
 // newSingleCore is NewSingle's Core.
 func newSingleCore(file string) (*Core, error) {
 	f := &testFront{}
-	c, err := NewSingle(f, file, Build{})
+	c, err := NewSingle(f, file, testBuild())
 	if c != nil {
 		f.c = c
 	}
 	return c, err
+}
+
+// testBuild is the Build of a UI that reads the settings the TUI and the GUI share.
+func testBuild() Build {
+	return Build{Config: config.Options{Sections: []config.Section{uicfg.Section}}}
 }

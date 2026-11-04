@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +29,7 @@ func badProject(t *testing.T) (dir, file string) {
 
 func TestNewFailsOnConfigMistake(t *testing.T) {
 	dir, file := badProject(t)
-	c, err := New(&testFront{}, dir, "", Build{})
+	c, err := New(&testFront{}, dir, "", testBuild())
 	var ce *config.Error
 	if c != nil || !errors.As(err, &ce) || len(ce.Problems) != 1 {
 		t.Fatalf("core = %v, err = %v", c, err)
@@ -47,7 +48,7 @@ func TestNewSingleFailsOnConfigMistake(t *testing.T) {
 
 func TestWorkspaceOpenFailsOnConfigMistake(t *testing.T) {
 	dir, _ := badProject(t)
-	ws := NewWorkspaces(NewShared(Build{}))
+	ws := NewWorkspaces(NewShared(testBuild()))
 	defer ws.CloseAll()
 	if w, err := ws.Open(dir, dir); err == nil || w != nil {
 		t.Fatalf("w = %v, err = %v", w, err)
@@ -68,7 +69,7 @@ func TestConfigReloadKeepsSettingsOnMistake(t *testing.T) {
 	file := filepath.Join(dir, ".shijimi-editor", "config.toml")
 	os.WriteFile(file, []byte("[editor]\nline-number = \"relative\"\n"), 0o644)
 	a := newApp(dir, "")
-	if a.Cfg.Editor.LineNumber != "relative" {
+	if uicfg.Of(a.Cfg).LineNumber != "relative" {
 		t.Fatal("setup")
 	}
 	os.WriteFile(file, []byte("[editor]\nline-number = \"absolute\"\nfile-icons = 3\n"), 0o644)
