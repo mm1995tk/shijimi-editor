@@ -24,6 +24,7 @@ type Workspaces struct {
 	front func() FrontEnd
 
 	mu       sync.Mutex
+	big      sync.Mutex            // held by whoever touches any core: see Workspace
 	cores    map[string]*Workspace // key -> its core
 	onChange func()                // SetOnChange
 }
@@ -34,9 +35,13 @@ type Workspaces struct {
 // does: the work runs on goroutines of its own and its Events come back
 // through Update.
 type Workspace struct {
-	Key      string // the workspace's key
-	Root     string // the workspace's folder, an absolute path
-	mu       sync.Mutex
+	Key  string // the workspace's key
+	Root string // the workspace's folder, an absolute path
+	// mu is the one lock of all the workspaces of a Workspaces, not one of its
+	// own: two cores that have the same file open edit the same text (buffer.Doc),
+	// so they cannot run at once. The work a core does inside it is short; what
+	// takes time runs on goroutines of its own (Effects).
+	mu       *sync.Mutex
 	core     *Core
 	closed   bool          // Close stopped the core; late Events are dropped
 	done     chan struct{} // closed by Close: the goroutines that wait on the core's channels stop
@@ -181,7 +186,7 @@ func (ws *Workspaces) Open(key, root string) (*Workspace, error) {
 		return nil, err
 	}
 	ws.mu.Lock()
-	w := &Workspace{Key: key, Root: root, core: c, onChange: ws.onChange, done: make(chan struct{})}
+	w := &Workspace{Key: key, Root: root, mu: &ws.big, core: c, onChange: ws.onChange, done: make(chan struct{})}
 	if got := ws.cores[key]; got != nil {
 		// someone made it meanwhile; theirs stays
 		ws.mu.Unlock()

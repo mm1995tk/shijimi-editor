@@ -285,6 +285,11 @@ func singleBlockedCommand(name string) bool {
 
 // Close stops language servers; call after the program exits.
 func (a *Core) Close() {
+	for _, t := range a.Tabs {
+		if t.Kind == TabText {
+			t.Buf.Release()
+		}
+	}
 	a.Lsp.stopAll()
 	if a.Ag.Client != nil {
 		a.stopAgent()
@@ -387,7 +392,7 @@ func (a *Core) OpenFile(path string) bool {
 			return false
 		}
 	}
-	b, err := buffer.Open(abs)
+	b, err := a.shared.buffers().Open(abs)
 	if err != nil {
 		a.Fail(err)
 		return false
@@ -676,6 +681,9 @@ func (a *Core) dropTab(i int) {
 	if t.Img != nil {
 		t.Img.Close()
 	}
+	if t.Kind == TabText {
+		t.Buf.Release()
+	}
 	a.Tabs = append(a.Tabs[:i], a.Tabs[i+1:]...)
 }
 
@@ -887,6 +895,7 @@ func (a *Core) handleAutoSave(m AutoSaveDue) []Effect {
 // split, last tab, LSP, selection) and returns the Effects of the message and
 // the ones every round owes (auto-save, preview, lexing).
 func (a *Core) Update(msg any) []Effect {
+	a.settleViews()
 	return a.round(a.handle(msg))
 }
 
@@ -894,6 +903,7 @@ func (a *Core) Update(msg any) []Effect {
 // (the GUI's file.open and command.run), and the round's bookkeeping follows
 // as after any message.
 func (a *Core) Apply(fn func() []Effect) []Effect {
+	a.settleViews()
 	return a.round(fn())
 }
 

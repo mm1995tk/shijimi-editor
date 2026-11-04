@@ -40,10 +40,6 @@ const (
 	editDeleting
 )
 
-// Buffer holds the contents of one open file.
-//
-// Invariant: a line's rune slice is never mutated in place once stored in
-// Lines, so snapshots only need to copy the outer slice.
 // lineSelection records the Anchor/Cur pair SelectLine produced, and the
 // content version it was made at.
 type lineSelection struct {
@@ -51,10 +47,14 @@ type lineSelection struct {
 	ver         int
 }
 
+// Buffer is one view of a file: the cursor, the selection and the scroll
+// position are its own, and the text is the Doc's, shared with the other views
+// of the file (Pool.Open).
+//
+// Invariant: a line's rune slice is never mutated in place once stored in
+// Lines, so snapshots only need to copy the outer slice.
 type Buffer struct {
-	Path  string
-	Lines [][]rune
-	Dirty bool
+	*Doc
 
 	Cur    Pos
 	Anchor *Pos // selection anchor; nil when nothing is selected
@@ -65,6 +65,25 @@ type Buffer struct {
 
 	ScrollRow, ScrollCol int
 
+	wantVis int // remembered screen column for vertical movement
+	seen    int // the Doc's Version this view's cursors were last made to fit
+
+	multi // secondary cursors (see multi.go)
+
+	marks []*Mark // positions that follow edits (see marks.go)
+}
+
+// Doc is the contents of one open file, shared by the views (Buffer) of it:
+// the text, its undo history and its state against the disk. A Buffer is one
+// view: the cursor, the selection and the scroll position are its own. The
+// Doc's fields are reached through the Buffer (b.Lines, b.Dirty, ...).
+// Whoever uses a Doc does it one at a time: the cores that share one run under
+// one lock (core.Workspaces).
+type Doc struct {
+	Path  string
+	Lines [][]rune
+	Dirty bool
+
 	// Version increments on every content change (used by highlight caches).
 	Version int
 
@@ -72,19 +91,95 @@ type Buffer struct {
 	indentUnit string
 	crlf       bool
 	stamp      diskStamp // file state at the last Open/Save/Reload
-	wantVis    int       // remembered screen column for vertical movement
 
 	undo, redo []snapshot
 	lastEdit   editKind
 
-	multi // secondary cursors (see multi.go)
-
-	marks []*Mark // positions that follow edits (see marks.go)
+	views []*Buffer // every view of this Doc
+	pool  *Pool     // the Pool it is kept in, or nil
+	key   string    // its key in pool
 }
 
 // New returns an empty, unnamed buffer.
 func New() *Buffer {
-	return &Buffer{Lines: [][]rune{{}}}
+	d := &Doc{Lines: [][]rune{{}}}
+	return d.NewView()
+}
+
+// NewView is a new view of d, with its cursor at the start and its own scroll
+// position.
+func (d *Doc) NewView() *Buffer {
+	b := &Buffer{Doc: d, seen: d.Version}
+	d.views = append(d.views, b)
+	return b
+}
+
+// Release ends this view. The Doc goes away with its last view, and the edits
+// it holds with it: whoever closes the last view of an unsaved file has asked
+// for that. A view must not be used after it.
+func (b *Buffer) Release() {
+	d := b.Doc
+	if d.pool != nil {
+		d.pool.mu.Lock()
+		defer d.pool.mu.Unlock()
+	}
+	d.views = slices.DeleteFunc(d.views, func(v *Buffer) bool { return v == b })
+	if len(d.views) == 0 && d.pool != nil && d.pool.docs[d.key] == d {
+		delete(d.pool.docs, d.key)
+	}
+}
+
+// Views is how many views the Doc has: more than one when several cores have
+// the file open.
+func (b *Buffer) Views() int { return len(b.views) }
+
+// Settle makes the cursors of this view fit the text after another view
+// replaced it in a way that does not tell where they went (undo, a reload).
+func (b *Buffer) Settle() {
+	if b.seen == b.Version {
+		return
+	}
+	b.seen = b.Version
+	fit := func(p Pos) Pos {
+		p.Row = clampInt(p.Row, 0, len(b.Lines)-1)
+		p.Col = clampInt(p.Col, 0, len(b.Lines[p.Row]))
+		return p
+	}
+	if b.Anchor != nil {
+		a := fit(*b.Anchor)
+		b.Anchor = &a
+	}
+	for i := range b.extra {
+		b.extra[i].Cur = fit(b.extra[i].Cur)
+		b.extra[i].Anchor = fit(b.extra[i].Anchor)
+	}
+	for _, m := range b.marks {
+		m.Pos = fit(m.Pos)
+	}
+	b.ScrollRow = clampInt(b.ScrollRow, 0, len(b.Lines)-1)
+	b.clamp()
+}
+
+// shiftPeers moves the cursors and marks of the other views of the Doc as the
+// edit f describes.
+func (b *Buffer) shiftPeers(f func(Pos) Pos) {
+	for _, v := range b.views {
+		if v == b {
+			continue
+		}
+		v.Cur = f(v.Cur)
+		if v.Anchor != nil {
+			a := f(*v.Anchor)
+			v.Anchor = &a
+		}
+		for i := range v.extra {
+			v.extra[i].Cur = f(v.extra[i].Cur)
+			v.extra[i].Anchor = f(v.extra[i].Anchor)
+		}
+		for _, m := range v.marks {
+			m.Pos = f(m.Pos)
+		}
+	}
 }
 
 // diskStamp identifies a file's on-disk state well enough to notice that
@@ -420,6 +515,7 @@ func (b *Buffer) insertRaw(text []rune) {
 		f := func(p Pos) Pos { return shiftInsert(p, start, b.Cur) }
 		b.shiftOthers(f)
 		b.shiftMarks(f, func(p Pos) bool { return p == start })
+		b.shiftPeers(f)
 	}()
 	parts := splitLines(text)
 	line := b.Lines[b.Cur.Row]
@@ -669,6 +765,7 @@ func (b *Buffer) deleteSelection() {
 func (b *Buffer) deleteRange(s, e Pos) {
 	b.shiftOthers(func(p Pos) Pos { return shiftDelete(p, s, e) })
 	b.shiftMarks(func(p Pos) Pos { return shiftDelete(p, s, e) }, func(Pos) bool { return false })
+	b.shiftPeers(func(p Pos) Pos { return shiftDelete(p, s, e) })
 	merged := concat(b.Lines[s.Row][:s.Col], b.Lines[e.Row][e.Col:])
 	lines := make([][]rune, 0, len(b.Lines)-(e.Row-s.Row))
 	lines = append(lines, b.Lines[:s.Row]...)
