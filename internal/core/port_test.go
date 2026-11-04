@@ -70,7 +70,7 @@ func TestOpenPRURLCopiesOnFail(t *testing.T) {
 	for name, err := range map[string]error{"remote": ErrRemoteSession, "other": errors.New("boom")} {
 		a := newTestApp(t, "x\n")
 		f := a.FrontEnd.(*testFront)
-		a.Gd.Pr.URL = url
+		a.Gd.Pr = &PrInfo{URL: url}
 		a.openPRURL()
 		if len(f.urls) != 1 || f.urls[0] != url {
 			t.Fatalf("%s: urls %v", name, f.urls)
@@ -81,7 +81,7 @@ func TestOpenPRURLCopiesOnFail(t *testing.T) {
 		}
 	}
 	a := newTestApp(t, "x\n")
-	a.Gd.Pr.URL = url
+	a.Gd.Pr = &PrInfo{URL: url}
 	a.openPRURL()
 	a.ExecCommand("open-url " + url)
 	a.Update(OpenURLResult{URL: url, Err: errors.New("boom")})
