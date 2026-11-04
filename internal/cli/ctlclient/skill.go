@@ -1,4 +1,4 @@
-package ctl
+package ctlclient
 
 import (
 	_ "embed"
