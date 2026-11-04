@@ -5,6 +5,7 @@ package i18n
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 	"sync/atomic"
 
@@ -112,11 +113,7 @@ func argText(a any) string {
 // i18n.get and translates a Msg itself.
 func Table() map[string]string {
 	t := make(map[string]string, len(en))
-	for k, v := range en {
-		t[k] = v
-	}
-	for k, v := range current.Load().table {
-		t[k] = v
-	}
+	maps.Copy(t, en)
+	maps.Copy(t, current.Load().table)
 	return t
 }
