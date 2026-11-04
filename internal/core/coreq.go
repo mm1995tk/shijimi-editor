@@ -72,7 +72,7 @@ func (a *Core) OpenCard() *PrCard { return a.Card }
 func (a *Core) OpenComposer() *composer { return a.Composer }
 
 // ComposerArea is the text area of the comment editor (a copy to draw).
-func (a *Core) ComposerArea() TextArea { return a.Composer.Ta }
+func (a *Core) ComposerArea() *TextArea { return a.Composer.Ta }
 
 // LineThreads are the review threads on line (1-based) of the file p.
 func (a *Core) LineThreads(p string, line int) []*PrThread { return a.Gd.Rv.LineThreads(p, line) }

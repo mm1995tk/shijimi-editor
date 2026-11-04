@@ -162,13 +162,13 @@ func (a *Core) guiPaneAt(id string) (p placedPane, ok bool) {
 	return p, false
 }
 
-// paneMouse is a GUI's pointer on a pane (Mouse.Pane): Row and Col count
+// HandleMouse is a UI's pointer on a pane (Mouse.Pane): Row and Col count
 // from the pane's text. A press on the other pane of a split moves the focus
 // there first, as in the TUI. A left press puts the cursor on the character
 // under it (the core maps the cell to the rune: wide characters take two
 // cells) and a drag selects; the wheel scrolls. Clicks in a diff, an image or
 // a preview only move the focus.
-func (a *Core) paneMouse(m Mouse) []Effect {
+func (a *Core) HandleMouse(m Mouse) []Effect {
 	if a.SearchOpen() {
 		return nil
 	}

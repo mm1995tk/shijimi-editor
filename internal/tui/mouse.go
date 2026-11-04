@@ -325,8 +325,8 @@ func (a *App) passiveMotion(l layout, msg core.Mouse) []core.Effect {
 	if a.RestedOn(pt) {
 		return nil
 	}
-	_, word, ok := a.mouseWord(l, pt)
-	return a.PointerRests(word, ok, a.Hovering() && a.inHoverBox(l, pt))
+	pos, word, ok := a.mouseWord(l, pt)
+	return a.PointerRests(pos, word, ok, a.Hovering() && a.inHoverBox(l, pt))
 }
 
 // mouseBufPos maps a screen cell to the buffer position of the character under
@@ -392,9 +392,4 @@ func (a *App) searchMouse(msg core.Mouse) []core.Effect {
 		a.SearchClick(x, y)
 	}
 	return nil
-}
-
-// HoverCellWord is mouseWord for the cell the pointer last rested on.
-func (a *App) HoverCellWord() (buffer.Pos, core.WordSpan, bool) {
-	return a.mouseWord(a.layout(), a.HoverCellPos())
 }

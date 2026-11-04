@@ -1,10 +1,7 @@
 package core
 
 import (
-	"strings"
 	"testing"
-
-	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
 // testFront is the front end a Core is tested with: a screen of a given size
@@ -60,15 +57,7 @@ func (f *testFront) CommandEnded(int)    {}
 func (f *testFront) StartResize()        { f.resize = true; f.push() }
 func (f *testFront) ResizeKey(string)    {}
 func (f *testFront) ResetPanes()         {}
-func (f *testFront) ScrollHover(int)     {}
-func (f *testFront) HoverCellWord() (buffer.Pos, WordSpan, bool) {
-	return buffer.Pos{}, WordSpan{}, false
-}
-func (f *testFront) SetPalette(t *Theme)        { ActivateTheme(t) }
-func (f *testFront) HandleMouse(Mouse) []Effect { return nil }
-func (f *testFront) NewTextArea(initial string) TextArea {
-	return &testArea{text: initial}
-}
+func (f *testFront) SetPalette(t *Theme) { ActivateTheme(t) }
 
 // sideW is the sidebar's width and rightW the editor area's.
 func (f *testFront) sideW() int {
@@ -122,26 +111,6 @@ func (f *testFront) editRows() int {
 		panelH = Clamp((f.h-1)*2/5, 6, max(6, f.h-8))
 	}
 	return max(0, top+f.c.BodyH()-editY-panelH)
-}
-
-// testArea is a TextArea that holds its text and nothing else.
-type testArea struct{ text string }
-
-func (a *testArea) Value() string                   { return a.text }
-func (a *testArea) SetValue(s string)               { a.text = s }
-func (a *testArea) InsertString(s string)           { a.text += s }
-func (a *testArea) Line() int                       { return strings.Count(a.text, "\n") }
-func (a *testArea) Column() int                     { return len([]rune(a.text[strings.LastIndex(a.text, "\n")+1:])) }
-func (a *testArea) SetWidth(int)                    {}
-func (a *testArea) View() string                    { return a.text }
-func (a *testArea) CursorCell() (x, y int, ok bool) { return a.Column(), a.Line(), true }
-func (a *testArea) Update(in Input) {
-	switch in := in.(type) {
-	case Paste:
-		a.text += in.Content
-	case Key:
-		a.text += in.Text
-	}
 }
 
 // newTestCore is a Core rooted at dir, drawn by a testFront of w x h cells.

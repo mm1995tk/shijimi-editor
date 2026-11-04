@@ -97,7 +97,9 @@ type Core struct {
 	HoverAt     *buffer.Pos // the character a mouse-triggered popup hangs from (a place in the file, not on the screen); nil = at the cursor
 	HoverWord   WordSpan    // word the pointer's pending or open hover belongs to
 	HoverCell   ScreenPt    // last cell the pointer rested on without a button
-	HoverSeq    int         // bumped on every input; stale dwell timers and replies are dropped
+	hoverPos    buffer.Pos  // the character under that cell (hoverPosOK: there is one)
+	hoverPosOK  bool
+	HoverSeq    int // bumped on every input; stale dwell timers and replies are dropped
 	Ctx         *CtxPreview
 
 	// Claude Code IDE integration (see ide.go)
