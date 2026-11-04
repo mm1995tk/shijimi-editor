@@ -111,3 +111,14 @@ func (a *Core) ctlExec(line string) (ctl.Response, []Effect) {
 	}
 	return ctl.Response{OK: true, Message: a.Msg}, cmd
 }
+
+// ControlHandler adapts the control socket to a running front end: each
+// request is sent to the front end's Update loop (through send) as a
+// CtlRequest and the reply is awaited.
+func ControlHandler(send func(any)) ctl.Handler {
+	return func(req ctl.Request) ctl.Response {
+		reply := make(chan ctl.Response, 1)
+		send(CtlRequest{Req: req, Reply: reply})
+		return <-reply
+	}
+}
