@@ -81,6 +81,8 @@ func TestRunExec(t *testing.T) {
 	}
 }
 
+// isolate points the socket directory at a fresh place and clears the
+// variables that FindSocket reads, so that an editor running around the tests
 // is not found.
 func isolate(t *testing.T) string {
 	t.Helper()

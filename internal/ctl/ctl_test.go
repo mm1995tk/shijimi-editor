@@ -30,6 +30,3 @@ func TestSocketPathIsSeparatePerChannel(t *testing.T) {
 		t.Fatalf("stable dir = %s", base)
 	}
 }
-
-// isolate points the socket directory at a fresh place and clears the
-// variables that FindSocket reads, so that an editor running around the tests
