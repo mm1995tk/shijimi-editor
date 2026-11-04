@@ -50,6 +50,8 @@ type Options struct {
 	IdleCheck time.Duration // 止まる時刻を調べる間隔。0 なら 1 分
 	// StartDir は新しいワークスペースのプライマリターミナルが始まるフォルダ（[server] start_dir、絶対パス）。"" なら ~。
 	StartDir string
+	// StatePath はワークスペースの一覧を保存するファイル。"" なら保存も復元もしない。
+	StatePath string
 	// CwdInterval はシェルの cwd を読む間隔。0 なら 1 秒。
 	CwdInterval time.Duration
 	// TreeInterval は tree.watch のフォルダを見る間隔（0 なら 1 秒）、GitInterval は git の印を取り直す間隔（0 なら 3 秒）。
@@ -141,6 +143,7 @@ func (s *Server) Serve(ctx context.Context) error {
 	s.log.Info("serving", "socket", s.opts.SocketPath, "serverId", s.serverID, "pid", os.Getpid())
 	idleDone := make(chan struct{})
 	defer close(idleDone)
+	s.ws.restore()
 	go s.watchIdle(idleDone)
 	go s.ws.watch(idleDone)
 	go s.tree.watch(idleDone)

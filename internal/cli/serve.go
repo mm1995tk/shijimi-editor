@@ -70,7 +70,12 @@ func runServe(args []string) int {
 		idle = time.Duration(cfg.Serve.IdleStopDays) * 24 * time.Hour
 		startDir = cfg.Serve.StartDir
 	}
+	statePath, err := server.StatePath()
+	if err != nil {
+		logger.Warn("workspaces file", "err", err) // 一覧を保存も復元もしない
+	}
 	srv, err := server.Listen(server.Options{
+		StatePath:  statePath,
 		SocketPath: sock,
 		Shj:        server.Shj{Version: ver, Commit: commit, Channel: chName},
 		Logger:     logger,
