@@ -45,7 +45,7 @@ func (f *fakeInputs) Command(_, line string) (bool, string) {
 	}
 	return true, "ran " + line
 }
-func (f *fakeInputs) OpenFile(_, path string, _ *screen.Pos, _ string) error {
+func (f *fakeInputs) OpenFile(_, _, path string, _ *screen.Pos, _ string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.opened = append(f.opened, path)
@@ -159,13 +159,13 @@ func TestCommandRun(t *testing.T) {
 func TestFileOpen(t *testing.T) {
 	c, _, in, ws := inputSetup(t)
 	ctx := context.Background()
-	if err := os.WriteFile(filepath.Join(ws.Root, "a.txt"), []byte("x\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(*ws.Folder, "a.txt"), []byte("x\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	os.Mkdir(filepath.Join(ws.Root, "dir"), 0o755)
+	os.Mkdir(filepath.Join(*ws.Folder, "dir"), 0o755)
 	outside := t.TempDir()
 	os.WriteFile(filepath.Join(outside, "s.txt"), []byte("s\n"), 0o644)
-	if err := os.Symlink(filepath.Join(outside, "s.txt"), filepath.Join(ws.Root, "link.txt")); err != nil {
+	if err := os.Symlink(filepath.Join(outside, "s.txt"), filepath.Join(*ws.Folder, "link.txt")); err != nil {
 		t.Fatal(err)
 	}
 	open := func(path string) error {
@@ -191,7 +191,7 @@ func TestFileOpen(t *testing.T) {
 	}
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	if len(in.opened) != 1 || in.opened[0] != filepath.Join(ws.Root, "a.txt") {
+	if len(in.opened) != 1 || in.opened[0] != filepath.Join(*ws.Folder, "a.txt") {
 		t.Errorf("opened %v", in.opened)
 	}
 }

@@ -70,6 +70,11 @@ type Editor struct {
 	// it is enabled by default with a 1 second timeout.
 	AutoSave      bool
 	AutoSaveDelay time.Duration
+	// OnSwitch is [editor.auto-save] on-switch: what a workspace does with its
+	// open files when `shj serve` switches it to another folder, "save" or
+	// "discard". Auto-save being off, it has no default: Load reports a missing
+	// one as a mistake. It is "" while auto-save is on and the key is absent.
+	OnSwitch string
 
 	// WatchFiles reloads open files that another process (an AI agent, git)
 	// changed on disk. Default true.
@@ -152,6 +157,9 @@ type Serve struct {
 	// IdleStopDays is how many days `shj serve` waits with no GUI connected
 	// before it stops. 0 means it never stops.
 	IdleStopDays int
+	// StartDir is the folder a new workspace's shell starts in, as an absolute
+	// path (a leading ~ is expanded). "" means the home directory.
+	StartDir string
 }
 
 // Multiplexers are the values of [terminal] multiplexer.
@@ -220,6 +228,8 @@ func Load(root string) (*Config, error) {
 		{"languages.toml", languagesSchema, readTOML, false},
 		{"languages.nix", languagesSchema, readNix, false},
 	}
+	// autoSaveOff is the file that last turned auto-save off.
+	var autoSaveOff string
 	var dirs []configDir
 	if d, ok := userConfigDir(); ok {
 		dirs = append(dirs, configDir{userDir(d), true})
@@ -234,6 +244,11 @@ func Load(root string) (*Config, error) {
 				continue
 			}
 			if f.config {
+				if autoSaveEnable(raw) == triFalse {
+					autoSaveOff = path
+				} else if autoSaveEnable(raw) == triTrue {
+					autoSaveOff = ""
+				}
 				c.mergeConfigRaw(raw, dir.user)
 				c.Sources = append(c.Sources, path)
 			} else {
@@ -241,10 +256,39 @@ func Load(root string) (*Config, error) {
 			}
 		}
 	}
+	if p, ok := c.checkOnSwitch(autoSaveOff); ok {
+		probs = append(probs, p)
+	}
 	if len(probs) > 0 {
 		return c, &Error{Problems: probs}
 	}
 	return c, nil
+}
+
+// checkOnSwitch reports the missing on-switch: with auto-save off, `shj serve`
+// has no answer to what a workspace does with the open files when it switches
+// folders, and it does not choose one (it would lose the edits or write files
+// the user did not mean to). off is the file that turned auto-save off.
+func (c *Config) checkOnSwitch(off string) (Problem, bool) {
+	if c.Editor.AutoSave || c.Editor.OnSwitch != "" {
+		return Problem{}, false
+	}
+	p := Problem{File: off, Key: "editor.auto-save.on-switch", code: "config.err.onswitch"}
+	p.Line = lineOf(off, []string{"editor", "auto-save", "after-delay", "enable"})
+	return p, true
+}
+
+// lineOf is the line of the key at path in a TOML file; 0 when unknown (a Nix
+// file has no lines).
+func lineOf(file string, path []string) int {
+	if filepath.Ext(file) != ".toml" {
+		return 0
+	}
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return 0
+	}
+	return indexLines(string(data)).find(path)
 }
 
 // mergeConfigRaw applies a decoded config.toml / config.nix. user is whether
@@ -445,6 +489,11 @@ func (c *Config) mergeTerminalRaw(raw map[string]any) {
 
 func (c *Config) mergeServeRaw(raw map[string]any) {
 	if t, ok := raw["server"].(map[string]any); ok {
+		if v, ok := t["start_dir"].(string); ok {
+			if dir, ok := ExpandStartDir(v); ok {
+				c.Serve.StartDir = dir
+			}
+		}
 		switch v := t["idle_stop_days"].(type) {
 		case int64:
 			if v >= 0 {
@@ -546,6 +595,9 @@ func (c *Config) mergeEditorRaw(raw map[string]any) {
 		c.Editor.Keymap = v
 	}
 	if as, ok := ed["auto-save"].(map[string]any); ok {
+		if v, ok := as["on-switch"].(string); ok && (v == "save" || v == "discard") {
+			c.Editor.OnSwitch = v
+		}
 		if ad, ok := as["after-delay"].(map[string]any); ok {
 			if v, ok := ad["enable"].(bool); ok {
 				c.Editor.AutoSave = v
@@ -917,3 +969,42 @@ name = "json"
 file-types = ["json", "jsonc"]
 language-servers = ["vscode-json-language-server"]
 `
+
+type tri int
+
+const (
+	triUnset tri = iota
+	triTrue
+	triFalse
+)
+
+// autoSaveEnable is what a decoded config says for [editor.auto-save.after-delay] enable.
+func autoSaveEnable(raw map[string]any) tri {
+	ed, _ := raw["editor"].(map[string]any)
+	as, _ := ed["auto-save"].(map[string]any)
+	ad, _ := as["after-delay"].(map[string]any)
+	switch v, _ := ad["enable"].(bool); {
+	case ad["enable"] == nil:
+		return triUnset
+	case v:
+		return triTrue
+	}
+	return triFalse
+}
+
+// ExpandStartDir turns a [server] start_dir into an absolute path: ~ and ~/x
+// are the home directory. ok is false when it is neither that nor an absolute
+// path.
+func ExpandStartDir(v string) (dir string, ok bool) {
+	switch {
+	case v == "~" || strings.HasPrefix(v, "~/"):
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", false
+		}
+		return filepath.Join(home, v[1:]), true
+	case filepath.IsAbs(v):
+		return filepath.Clean(v), true
+	}
+	return "", false
+}

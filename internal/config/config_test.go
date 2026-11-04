@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -128,13 +129,82 @@ func TestAutoSave(t *testing.T) {
 	}
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte(`
+[editor.auto-save]
+on-switch = "discard"
+
 [editor.auto-save.after-delay]
 enable = false
 timeout = 2500
 `), 0o644)
 	c = load(root)
-	if c.Editor.AutoSave || c.Editor.AutoSaveDelay != 2500*time.Millisecond {
+	if c.Editor.AutoSave || c.Editor.AutoSaveDelay != 2500*time.Millisecond || c.Editor.OnSwitch != "discard" {
 		t.Fatalf("override = %+v", c.Editor)
+	}
+}
+
+// With auto-save off there is no default for what a workspace does with its
+// files when it switches folders: Load reports the missing on-switch, at the
+// line that turned auto-save off.
+func TestOnSwitchRequiredWithoutAutoSave(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	path := filepath.Join(root, ".shijimi-editor", "config.toml")
+	os.WriteFile(path, []byte("[editor.auto-save.after-delay]\nenable = false\n"), 0o644)
+	_, err := Load(root)
+	var ce *Error
+	if !errors.As(err, &ce) || len(ce.Problems) != 1 {
+		t.Fatalf("err = %v", err)
+	}
+	p := ce.Problems[0]
+	if p.File != path || p.Line != 2 || p.Key != "editor.auto-save.on-switch" {
+		t.Errorf("problem = %+v", p)
+	}
+	// Auto-save on needs no answer.
+	os.WriteFile(path, []byte("[editor.auto-save.after-delay]\nenable = true\n"), 0o644)
+	if _, err := Load(root); err != nil {
+		t.Errorf("auto-save on: %v", err)
+	}
+	// A value that is neither is a mistake of its own.
+	os.WriteFile(path, []byte("[editor.auto-save]\non-switch = \"maybe\"\n"), 0o644)
+	if _, err := Load(root); err == nil {
+		t.Error("on-switch = maybe was accepted")
+	}
+}
+
+func TestServeStartDir(t *testing.T) {
+	home := t.TempDir()
+	cfgHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfgHome)
+	t.Setenv("HOME", home)
+	dir := filepath.Join(home, "work")
+	os.Mkdir(dir, 0o755)
+	userDir, _ := UserDir()
+	os.MkdirAll(userDir, 0o755)
+	write := func(v string) {
+		os.WriteFile(filepath.Join(userDir, "config.toml"), []byte("[server]\nstart_dir = "+v+"\n"), 0o644)
+	}
+	write(`"~/work"`)
+	c, err := Load(t.TempDir())
+	if err != nil || c.Serve.StartDir != dir {
+		t.Fatalf("start_dir = %q, %v", c.Serve.StartDir, err)
+	}
+	if c, err := Load(t.TempDir()); err != nil || c.Serve.StartDir == "" {
+		t.Fatal(err)
+	}
+	// A folder that is not there is a mistake in the file.
+	write(`"~/missing"`)
+	if _, err := Load(t.TempDir()); err == nil {
+		t.Error("a start_dir that does not exist was accepted")
+	}
+	write(`"relative/dir"`)
+	if _, err := Load(t.TempDir()); err == nil {
+		t.Error("a relative start_dir was accepted")
+	}
+	os.Remove(filepath.Join(userDir, "config.toml"))
+	if c, err := Load(t.TempDir()); err != nil || c.Serve.StartDir != "" {
+		t.Errorf("default start_dir = %q, %v", c.Serve.StartDir, err)
 	}
 }
 

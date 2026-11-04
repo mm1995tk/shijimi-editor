@@ -14,6 +14,13 @@ import (
 
 func start(t *testing.T) (*Server, string) {
 	t.Helper()
+	return startWith(t, nil)
+}
+
+// startWith は start に、Options を変える関数を足したもの。
+func startWith(t *testing.T, mod func(*Options)) (*Server, string) {
+	t.Helper()
+	t.Setenv("SHELL", "/bin/sh") // workspace.create のプライマリターミナルのシェル
 	// Unix ソケットのパスは短くないと作れない。
 	dir, err := os.MkdirTemp("", "shjsrv")
 	if err != nil {
@@ -21,7 +28,11 @@ func start(t *testing.T) (*Server, string) {
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
 	sock := filepath.Join(dir, "serve.rpc")
-	srv, err := Listen(Options{SocketPath: sock, Shj: Shj{Version: "v1", Commit: "abc", Channel: "stable"}})
+	opts := Options{SocketPath: sock, Shj: Shj{Version: "v1", Commit: "abc", Channel: "stable"}}
+	if mod != nil {
+		mod(&opts)
+	}
+	srv, err := Listen(opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +73,7 @@ func TestHelloInfoBye(t *testing.T) {
 	}
 
 	var h HelloResult
-	if err := c.Call(ctx, "session.hello", hello(1), &h); err != nil {
+	if err := c.Call(ctx, "session.hello", hello(Protocol.Major), &h); err != nil {
 		t.Fatal(err)
 	}
 	if h.Protocol != Protocol || h.Encoding != "json" || h.ServerID != srv.ServerID() || h.Shj.Version != "v1" {
@@ -98,14 +109,14 @@ func TestHelloInfoBye(t *testing.T) {
 func TestIncompatibleProtocol(t *testing.T) {
 	_, sock := start(t)
 	c := dial(t, sock)
-	err := c.Call(context.Background(), "session.hello", hello(2), nil)
+	err := c.Call(context.Background(), "session.hello", hello(Protocol.Major+1), nil)
 	e, ok := err.(*rpc.Error)
 	if !ok || e.Code != rpc.CodeIncompatibleProtocol {
 		t.Fatalf("got %v", err)
 	}
 	// 新しい minor は互換。
-	p := hello(1)
-	p["protocol"] = map[string]int{"major": 1, "minor": 99}
+	p := hello(Protocol.Major)
+	p["protocol"] = map[string]int{"major": Protocol.Major, "minor": 99}
 	if err := c.Call(context.Background(), "session.hello", p, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +125,7 @@ func TestIncompatibleProtocol(t *testing.T) {
 func TestStateSurvivesDisconnect(t *testing.T) {
 	srv, sock := start(t)
 	c := dial(t, sock)
-	if err := c.Call(context.Background(), "session.hello", hello(1), nil); err != nil {
+	if err := c.Call(context.Background(), "session.hello", hello(Protocol.Major), nil); err != nil {
 		t.Fatal(err)
 	}
 	if srv.lastClientAt() == nil {
@@ -140,7 +151,7 @@ func TestStateSurvivesDisconnect(t *testing.T) {
 	// サーバーは生きていて、つなぎ直せる。
 	c2 := dial(t, sock)
 	var h HelloResult
-	if err := c2.Call(context.Background(), "session.hello", hello(1), &h); err != nil || h.ServerID != srv.ServerID() {
+	if err := c2.Call(context.Background(), "session.hello", hello(Protocol.Major), &h); err != nil || h.ServerID != srv.ServerID() {
 		t.Fatalf("reconnect: %v %+v", err, h)
 	}
 }
@@ -230,7 +241,7 @@ func TestSupersede(t *testing.T) {
 	})
 	defer first.Close()
 	var h1 HelloResult
-	if err := first.Call(ctx, "session.hello", hello(1), &h1); err != nil {
+	if err := first.Call(ctx, "session.hello", hello(Protocol.Major), &h1); err != nil {
 		t.Fatal(err)
 	}
 	if h1.Supersedes != nil {
@@ -238,7 +249,7 @@ func TestSupersede(t *testing.T) {
 	}
 
 	second := dial(t, sock)
-	p := hello(1)
+	p := hello(Protocol.Major)
 	p["client"] = map[string]string{"name": "second", "version": "1", "kind": "native"}
 	var h2 HelloResult
 	if err := second.Call(ctx, "session.hello", p, &h2); err != nil {
@@ -280,7 +291,7 @@ func TestNotOwnerAfterSupersede(t *testing.T) {
 	srv, sock := start(t)
 	ctx := context.Background()
 	first := dial(t, sock)
-	if err := first.Call(ctx, "session.hello", hello(1), nil); err != nil {
+	if err := first.Call(ctx, "session.hello", hello(Protocol.Major), nil); err != nil {
 		t.Fatal(err)
 	}
 	// 閉じ損ねた 1 台目を作るため、引き継ぎの印だけを先に付ける。
@@ -289,7 +300,7 @@ func TestNotOwnerAfterSupersede(t *testing.T) {
 	old.superseded = true
 	srv.mu.Unlock()
 	for _, m := range []string{"session.ping", "server.info", "session.hello"} {
-		err := first.Call(ctx, m, hello(1), nil)
+		err := first.Call(ctx, m, hello(Protocol.Major), nil)
 		if e, ok := err.(*rpc.Error); !ok || e.Code != rpc.CodeNotOwner {
 			t.Errorf("%s: %v", m, err)
 		}

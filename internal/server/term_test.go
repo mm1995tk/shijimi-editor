@@ -80,7 +80,7 @@ func termClient(t *testing.T, sock string) (*rpc.Conn, *notes) {
 	}
 	cn := rpc.NewConn(c, rpc.JSON{}, nt.handle)
 	t.Cleanup(func() { cn.Close() })
-	if err := cn.Call(context.Background(), "session.hello", hello(1), nil); err != nil {
+	if err := cn.Call(context.Background(), "session.hello", hello(Protocol.Major), nil); err != nil {
 		t.Fatal(err)
 	}
 	return cn, nt
@@ -99,10 +99,30 @@ func waitFor(t *testing.T, what string, f func() bool) {
 
 func b64(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
 
+// createWS は workspace.create を送り、ワークスペースとそのプライマリターミナルの id を返す。
+func createWS(t *testing.T, c *rpc.Conn) (id, primary string) {
+	t.Helper()
+	var r struct {
+		ID     string `json:"id"`
+		TermID string `json:"termId"`
+	}
+	if err := c.Call(context.Background(), "workspace.create", map[string]any{}, &r); err != nil {
+		t.Fatal(err)
+	}
+	if r.ID == "" || r.TermID == "" {
+		t.Fatalf("workspace.create: %+v", r)
+	}
+	return r.ID, r.TermID
+}
+
+// createTerm は分割したターミナルを足して id を返す。extra に workspaceId が無ければ、ワークスペースも作る。
 func createTerm(t *testing.T, c *rpc.Conn, extra map[string]any) string {
 	t.Helper()
-	p := map[string]any{"cwd": t.TempDir(), "cols": 80, "rows": 24, "shell": "/bin/sh"}
+	p := map[string]any{"cols": 80, "rows": 24, "shell": "/bin/sh"}
 	maps.Copy(p, extra)
+	if _, ok := p["workspaceId"]; !ok {
+		p["workspaceId"], _ = createWS(t, c)
+	}
 	var r struct {
 		TermID string `json:"termId"`
 		PID    int    `json:"pid"`
@@ -153,10 +173,10 @@ func TestTermInputOutputExitTitle(t *testing.T) {
 	if err := c.Call(ctx, "term.list", struct{}{}, &l); err != nil {
 		t.Fatal(err)
 	}
-	if len(l.Terms) != 1 || l.Terms[0].TermID != id || l.Terms[0].Alive || l.Terms[0].Title != "mytitle" || l.Terms[0].Cols != 80 {
+	if len(l.Terms) != 2 || l.Terms[1].TermID != id || l.Terms[1].Alive || l.Terms[1].Title != "mytitle" || l.Terms[1].Cols != 80 {
 		t.Errorf("list: %+v", l)
 	}
-	if srv.terms.count() != 1 {
+	if srv.terms.count() != 2 { // プライマリターミナルと分割したターミナル
 		t.Errorf("count")
 	}
 	if err := c.Call(ctx, "term.close", map[string]any{"termId": id}, nil); err != nil {
@@ -177,13 +197,13 @@ func TestTermErrors(t *testing.T) {
 		t.Errorf("before hello: %v", err)
 	}
 	c, _ = termClient(t, sock)
-	err = c.Call(ctx, "term.create", map[string]any{"cols": 0, "rows": 1}, nil)
+	err = c.Call(ctx, "term.create", map[string]any{"workspaceId": "w1", "cols": 0, "rows": 1}, nil)
 	if e, ok := err.(*rpc.Error); !ok || e.Code != rpc.CodeInvalidParams {
 		t.Errorf("bad size: %v", err)
 	}
-	err = c.Call(ctx, "term.create", map[string]any{"cols": 1, "rows": 1, "cwd": "/no/such/dir"}, nil)
-	if e, ok := err.(*rpc.Error); !ok || e.Code != rpc.CodeInvalidParams {
-		t.Errorf("bad cwd: %v", err)
+	err = c.Call(ctx, "term.create", map[string]any{"workspaceId": "nope", "cols": 1, "rows": 1}, nil)
+	if e, ok := err.(*rpc.Error); !ok || e.Code != rpc.CodeNotFound {
+		t.Errorf("unknown workspace: %v", err)
 	}
 	err = c.Call(ctx, "term.attach", map[string]any{"termId": "t99"}, nil)
 	if e, ok := err.(*rpc.Error); !ok || e.Code != rpc.CodeNotFound {
@@ -348,4 +368,70 @@ func TestTermResumesAfterOverflow(t *testing.T) {
 		}
 		return bytes.Contains(out, []byte("FIN\r\n")) || bytes.HasSuffix(out, []byte("FIN"))
 	})
+}
+
+// 分割したターミナルは 5 個まで（プライマリと合わせて 6 個）。
+func TestTermSplitLimit(t *testing.T) {
+	_, sock := start(t)
+	c, _ := termClient(t, sock)
+	id, _ := createWS(t, c)
+	for range maxSplitTerms {
+		createTerm(t, c, map[string]any{"workspaceId": id})
+	}
+	err := c.Call(context.Background(), "term.create", map[string]any{"workspaceId": id, "cols": 80, "rows": 24, "shell": "/bin/sh"}, nil)
+	if e, ok := err.(*rpc.Error); !ok || e.Code != rpc.CodeBusy {
+		t.Errorf("6th split terminal: %v", err)
+	}
+	// ほかのワークスペースの数には入らない。
+	createTerm(t, c, nil)
+}
+
+// プライマリターミナルは term.close で閉じられない。終わったら term.restart で新しいシェルが始まり、
+// termId はそのまま。分割したターミナルに term.restart は送れない。動いているシェルにも送れない。
+func TestTermPrimaryCloseAndRestart(t *testing.T) {
+	_, sock := start(t)
+	c, nt := termClient(t, sock)
+	ctx := context.Background()
+	id, primary := createWS(t, c)
+	split := createTerm(t, c, map[string]any{"workspaceId": id})
+
+	if err := c.Call(ctx, "term.close", map[string]any{"termId": primary}, nil); !isCode(err, rpc.CodeDenied) {
+		t.Errorf("close primary: %v", err)
+	}
+	if err := c.Call(ctx, "term.restart", map[string]any{"termId": split}, nil); !isCode(err, rpc.CodeDenied) {
+		t.Errorf("restart split: %v", err)
+	}
+	if err := c.Call(ctx, "term.restart", map[string]any{"termId": primary}, nil); !isCode(err, rpc.CodeBusy) {
+		t.Errorf("restart a running shell: %v", err)
+	}
+
+	c.Call(ctx, "term.input", map[string]any{"termId": primary, "data": b64("exit\n")}, nil)
+	waitFor(t, "exit", func() bool { return nt.find("term.exit") != nil })
+	// シェルが終わってもワークスペースは残る。
+	var l wsList
+	if err := c.Call(ctx, "workspace.list", map[string]any{}, &l); err != nil || len(l.Workspaces) != 1 || l.Workspaces[0].Primary != primary {
+		t.Fatalf("list: %+v %v", l, err)
+	}
+	var r struct {
+		PID int    `json:"pid"`
+		Cwd string `json:"cwd"`
+	}
+	if err := c.Call(ctx, "term.restart", map[string]any{"termId": primary}, &r); err != nil || r.PID == 0 {
+		t.Fatalf("restart: %+v %v", r, err)
+	}
+	c.Call(ctx, "term.input", map[string]any{"termId": primary, "data": b64("printf again-ok; exit 4\n")}, nil)
+	waitFor(t, "second exit", func() bool {
+		n := 0
+		for _, raw := range nt.all("term.exit") {
+			var e struct{ Code int }
+			json.Unmarshal(*raw, &e)
+			if e.Code == 4 {
+				n++
+			}
+		}
+		return n == 1
+	})
+	if out, _ := nt.output(t, primary); !bytes.Contains(out, []byte("again-ok")) {
+		t.Errorf("output after restart: %q", out)
+	}
 }

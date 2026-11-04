@@ -53,6 +53,7 @@ func runServe(args []string) int {
 	}
 	logger := slog.New(slog.NewTextHandler(logw, nil))
 	var idle time.Duration
+	var startDir string
 	if home, err := os.UserHomeDir(); err == nil {
 		cfg, err := config.Load(home)
 		// The language is the process's: the home config sets it once, and
@@ -67,12 +68,14 @@ func runServe(args []string) int {
 			return 1
 		}
 		idle = time.Duration(cfg.Serve.IdleStopDays) * 24 * time.Hour
+		startDir = cfg.Serve.StartDir
 	}
 	srv, err := server.Listen(server.Options{
 		SocketPath: sock,
 		Shj:        server.Shj{Version: ver, Commit: commit, Channel: chName},
 		Logger:     logger,
 		IdleStop:   idle,
+		StartDir:   startDir,
 	})
 	if err != nil {
 		if errors.Is(err, server.ErrRunning) {

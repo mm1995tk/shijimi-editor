@@ -18,53 +18,51 @@ type serveCores struct{ ws *core.Workspaces }
 
 var _ server.Cores = serveCores{}
 
-func (s serveCores) Open(root string) error {
-	_, err := s.ws.Open(root)
+func (s serveCores) Open(id, root string) error {
+	_, err := s.ws.Open(id, root)
 	if err != nil {
 		return fmt.Errorf(i18n.T("serve.workspaceconfig"), root, err)
 	}
 	return nil
 }
 
-func (s serveCores) Files(root string) []string {
+func (s serveCores) Files(id string) []string {
 	var out []string
-	if w := s.ws.Lookup(root); w != nil {
+	if w := s.ws.Lookup(id); w != nil {
 		w.Do(func(c *core.Core) { out = c.OpenPaths() })
 	}
 	return out
 }
 
-func (s serveCores) Kept() []string {
-	var out []string
-	for _, w := range s.ws.List() {
-		w.Do(func(c *core.Core) {
-			if c.HasOpenFiles() {
-				out = append(out, w.Root)
-			}
-		})
+func (s serveCores) SaveAll(id string) (failed []string) {
+	if w := s.ws.Lookup(id); w != nil {
+		w.Do(func(c *core.Core) { failed = c.SaveFiles() })
 	}
-	return out
+	return failed
 }
 
-func (s serveCores) CloseFiles(root string) {
-	if w := s.ws.Lookup(root); w != nil {
-		w.Do(func(c *core.Core) { c.CloseFiles() })
-	}
-}
-
-// Close stops root's core unless a file was opened in it since the server
-// decided the workspace was gone: the core would take its edits with it.
-func (s serveCores) Close(root string) {
-	w := s.ws.Lookup(root)
+// Release saves the files (or throws the edits away, as the configuration says
+// when auto-save is off) and stops the core. An edit that cannot be saved goes
+// next to its file as <name>.bk like the ones of a server that stops, so that
+// switching folders never loses it silently.
+func (s serveCores) Release(id string) {
+	w := s.ws.Lookup(id)
 	if w == nil {
 		return
 	}
-	open := false
-	w.Do(func(c *core.Core) { open = c.HasOpenFiles() })
-	if !open {
-		s.ws.Close(root)
-	}
+	w.Do(func(c *core.Core) {
+		if !c.SavesOnSwitch() {
+			return
+		}
+		if failed := c.SaveFiles(); len(failed) > 0 {
+			written, err := c.WriteBackups(server.WriteBackup)
+			slog.Warn("could not save on switching folders", "workspace", id, "files", failed, "backups", written, "err", err)
+		}
+	})
+	s.ws.Close(id)
 }
+
+func (s serveCores) Close(id string) { s.ws.Close(id) }
 
 // writeBackups writes the unsaved edits of every workspace next to their files
 // (<name>.bk) before the server stops for being idle or for server.shutdown.
@@ -80,9 +78,9 @@ func writeBackups(ws *core.Workspaces, log *slog.Logger) {
 
 var _ server.Screens = serveCores{}
 
-// Screen builds the screen of root's core at the regions' sizes v.
-func (s serveCores) Screen(root string, v screen.View) (sc screen.Screen, ok bool) {
-	w := s.ws.Lookup(root)
+// Screen builds the screen of the workspace's core at the regions' sizes v.
+func (s serveCores) Screen(id string, v screen.View) (sc screen.Screen, ok bool) {
+	w := s.ws.Lookup(id)
 	if w == nil {
 		return sc, false
 	}
@@ -90,12 +88,12 @@ func (s serveCores) Screen(root string, v screen.View) (sc screen.Screen, ok boo
 	return sc, true
 }
 
-// Theme is the process's theme. It is read inside root's core when there is
+// Theme is the process's theme. It is read inside the workspace's core when there is
 // one, as a theme is switched from inside a core.
-func (s serveCores) Theme(root string) (server.Theme, bool) {
+func (s serveCores) Theme(id string) (server.Theme, bool) {
 	var th server.Theme
 	read := func() { th = server.ThemeOf(core.CurTheme.Name, core.CurTheme.Palette()) }
-	if w := s.ws.Lookup(root); w != nil {
+	if w := s.ws.Lookup(id); w != nil {
 		w.Do(func(*core.Core) { read() })
 	} else {
 		read()
@@ -103,9 +101,9 @@ func (s serveCores) Theme(root string) (server.Theme, bool) {
 	return th, true
 }
 
-// Blob is the image a pane of root's core shows.
-func (s serveCores) Blob(root, id string) (mime string, data []byte, err error) {
-	w := s.ws.Lookup(root)
+// Blob is the image a pane of the workspace's core shows.
+func (s serveCores) Blob(wsID, id string) (mime string, data []byte, err error) {
+	w := s.ws.Lookup(wsID)
 	if w == nil {
 		return "", nil, server.ErrNoBlob
 	}
@@ -118,9 +116,9 @@ func (s serveCores) Blob(root, id string) (mime string, data []byte, err error) 
 
 var _ server.Inputs = serveCores{}
 
-// update hands in to root's core, if it has one.
-func (s serveCores) update(root string, in core.Input) {
-	if w := s.ws.Lookup(root); w != nil {
+// update hands in to the workspace's core, if it has one.
+func (s serveCores) update(id string, in core.Input) {
+	if w := s.ws.Lookup(id); w != nil {
 		w.Update(in)
 	}
 }
@@ -128,7 +126,7 @@ func (s serveCores) update(root string, in core.Input) {
 // Key is input.key. A release is not an input of its own: the core of `shj
 // serve` asks for no releases (ReleasesReported), as a terminal that does not
 // report them.
-func (s serveCores) Key(root string, in server.KeyInput) {
+func (s serveCores) Key(id string, in server.KeyInput) {
 	if in.Phase == "release" {
 		return
 	}
@@ -137,24 +135,24 @@ func (s serveCores) Key(root string, in server.KeyInput) {
 		return
 	}
 	k.Repeat, k.Seq = in.Phase == "repeat", in.Seq
-	s.update(root, k)
+	s.update(id, k)
 }
 
 // Composition is input.composition: the caret sits at the end of the range
 // the input method marks.
-func (s serveCores) Composition(root string, in server.CompositionInput) {
+func (s serveCores) Composition(id string, in server.CompositionInput) {
 	c := core.Composition{Text: in.Text, Phase: core.CompositionUpdate, Seq: in.Seq}
 	if in.Cursor == nil {
 		c.Phase = core.CompositionEnd
 	} else {
 		c.Cursor = in.Cursor[1]
 	}
-	s.update(root, c)
+	s.update(id, c)
 }
 
 // Mouse is input.mouse. A wheel turn of dy rows (dx columns) is that many
 // steps of one row (one column).
-func (s serveCores) Mouse(root string, in server.MouseInput) {
+func (s serveCores) Mouse(id string, in server.MouseInput) {
 	mod := core.ModOf(in.Mods)
 	m := core.Mouse{
 		Region: core.RegionEditor,
@@ -175,7 +173,7 @@ func (s serveCores) Mouse(root string, in server.MouseInput) {
 			}
 			for range n {
 				m.Button = b
-				s.update(root, m)
+				s.update(id, m)
 			}
 		}
 		m.Action = core.MousePress
@@ -203,30 +201,30 @@ func (s serveCores) Mouse(root string, in server.MouseInput) {
 			m.Button = core.MouseOther
 		}
 	}
-	s.update(root, m)
+	s.update(id, m)
 }
 
 // Paste is input.paste.
-func (s serveCores) Paste(root string, in server.PasteInput) {
-	s.update(root, core.Paste{Content: in.Text, Seq: in.Seq})
+func (s serveCores) Paste(id string, in server.PasteInput) {
+	s.update(id, core.Paste{Content: in.Text, Seq: in.Seq})
 }
 
 // Focus is input.focus. Only the files region is the core's: the GUI keeps
 // the focus of its other parts (the tree, the terminals) itself.
-func (s serveCores) Focus(root string, in server.FocusInput) {
+func (s serveCores) Focus(id string, in server.FocusInput) {
 	if in.Region != screen.RegionFiles {
 		return
 	}
-	if w := s.ws.Lookup(root); w != nil {
+	if w := s.ws.Lookup(id); w != nil {
 		w.Apply(func(c *core.Core) []core.Effect { return c.Apply(c.FocusFiles) })
 	}
 }
 
 // Command is command.run.
-func (s serveCores) Command(root, line string) (ok bool, message string) {
-	w := s.ws.Lookup(root)
+func (s serveCores) Command(id, line string) (ok bool, message string) {
+	w := s.ws.Lookup(id)
 	if w == nil {
-		return false, "no core for " + root
+		return false, "no core for " + id
 	}
 	var resp ctl.Response
 	w.Apply(func(c *core.Core) []core.Effect {
@@ -242,9 +240,9 @@ func (s serveCores) Command(root, line string) (ok bool, message string) {
 	return true, resp.Message
 }
 
-// OpenFile is file.open, in root's core (made if it has none).
-func (s serveCores) OpenFile(root, path string, at *screen.Pos, pane string) error {
-	w, err := s.ws.Open(root)
+// OpenFile is file.open, in the workspace's core (made if it has none).
+func (s serveCores) OpenFile(id, root, path string, at *screen.Pos, pane string) error {
+	w, err := s.ws.Open(id, root)
 	if err != nil {
 		return err
 	}
