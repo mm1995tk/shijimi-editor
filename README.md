@@ -333,7 +333,7 @@ How you open it decides what you compare with (the base). Pressing the same key 
 
 ## Development
 
-Use the Nix devShell (Go, gopls, gomod2nix, git, Node.js, Rust, and on Linux the WebView libraries for the GUI). With direnv, `.envrc` enters it automatically. Every command runs from the root of the repository: `go.mod`, `package.json` (the GUI's web UI) and `Cargo.toml` (a workspace with the GUI's Tauri shell, `gui/src-tauri`) are all there.
+Use the Nix devShell (Go, gopls, gomod2nix, git, Node.js, Rust, and on Linux the WebView libraries for the GUI). With direnv, `.envrc` enters it automatically. Every command runs from the root of the repository: `go.mod`, `package.json` (the GUI's web UI) and `Cargo.toml` (a workspace with the GUI's Tauri shell, `ui/gui/app/src-tauri`) are all there.
 
 ```sh
 nix develop            # or: direnv allow

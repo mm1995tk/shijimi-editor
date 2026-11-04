@@ -7,5 +7,5 @@ tmp
 /_site
 /node_modules
 /target
-/gui/dist
-/gui/src-tauri/gen
+/ui/gui/app/dist
+/ui/gui/app/src-tauri/gen

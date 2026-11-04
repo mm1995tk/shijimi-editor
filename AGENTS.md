@@ -17,7 +17,7 @@ nix fmt              # must leave no changes (nixfmt / gofmt / taplo / rustfmt /
 nix flake check      # what CI runs: formatting, go test ./..., the GUI build (cargo test) and npm test
 ```
 
-Run every command from the root of the repository. `go.mod`, `package.json` (the GUI's web UI, sources in `gui/`) and `Cargo.toml` (a workspace whose member is the GUI's Tauri shell, `gui/src-tauri`) are all there. Do not `cd` into `gui/`.
+Run every command from the root of the repository. `go.mod`, `package.json` (the GUI's web UI, sources in `ui/gui/app/`) and `Cargo.toml` (a workspace whose member is the GUI's Tauri shell, `ui/gui/app/src-tauri`) are all there. Do not `cd` into `ui/gui/app/`.
 
 ## Rules that CI or tests enforce
 
