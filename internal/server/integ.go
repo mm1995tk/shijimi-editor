@@ -7,6 +7,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
+	"github.com/mm1995tk/shijimi-editor/internal/ctlserver"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
 
@@ -43,7 +44,7 @@ func (s *Server) focused() Workspace {
 // StartControl opens the control socket at path (see ctl.SocketPath). Requests
 // go to the focused workspace.
 func (s *Server) StartControl(path string) error {
-	cs, err := ctl.Listen(path, func(req ctl.Request) ctl.Response {
+	cs, err := ctlserver.Listen(path, func(req ctl.Request) ctl.Response {
 		w := s.focused()
 		if w == nil {
 			return ctl.Response{Error: errNoWorkspace.Error()}
