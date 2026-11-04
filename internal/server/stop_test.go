@@ -63,7 +63,7 @@ func TestIdleStop(t *testing.T) {
 	srv.AddBeforeStop(func() { hooks++ })
 
 	c := dial(t, sock)
-	if err := c.Call(context.Background(), "session.hello", hello(1), nil); err != nil {
+	if err := c.Call(context.Background(), "session.hello", hello(Protocol.Major), nil); err != nil {
 		t.Fatal(err)
 	}
 	var info InfoResult
@@ -113,7 +113,7 @@ func TestShutdown(t *testing.T) {
 	if err := c.Call(ctx, "server.shutdown", struct{}{}, nil); err == nil || err.(*rpc.Error).Code != rpc.CodeInvalidRequest {
 		t.Fatalf("before hello: %v", err)
 	}
-	if err := c.Call(ctx, "session.hello", hello(1), nil); err != nil {
+	if err := c.Call(ctx, "session.hello", hello(Protocol.Major), nil); err != nil {
 		t.Fatal(err)
 	}
 	createTerm(t, c, nil)
@@ -128,7 +128,7 @@ func TestShutdown(t *testing.T) {
 	if err := c.Call(ctx, "server.shutdown", map[string]any{"force": true}, &r); err != nil {
 		t.Fatal(err)
 	}
-	if r.Terminals != 1 {
+	if r.Terminals != 2 { // プライマリターミナルと分割したターミナル
 		t.Fatalf("terminals: %d", r.Terminals)
 	}
 	waitDone(t, done, true)
@@ -138,7 +138,7 @@ func TestShutdownWithoutTerminals(t *testing.T) {
 	clk := &fakeClock{t: time.Unix(1_000_000, 0)}
 	_, sock, done := startIdle(t, 0, clk)
 	c := dial(t, sock)
-	if err := c.Call(context.Background(), "session.hello", hello(1), nil); err != nil {
+	if err := c.Call(context.Background(), "session.hello", hello(Protocol.Major), nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := c.Call(context.Background(), "server.shutdown", struct{}{}, nil); err != nil {

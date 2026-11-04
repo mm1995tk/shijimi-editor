@@ -5,24 +5,30 @@ import (
 	"strings"
 )
 
-// Cores is the editing state of the workspaces: a core per workspace root
-// (internal/core.Workspaces, handed over by internal/cli). The server decides
-// which workspaces there are; the cores keep the files each one has open, also
-// while another workspace has the focus (docs/design/gui-protocol.md, 3 章
-// 「ワークスペース」). Roots are normalized paths, as in wsInfo.Root.
+// Cores is the editing state of the workspaces: a core per workspace, named by
+// the workspace id (internal/core.Workspaces, handed over by internal/cli). The
+// server decides which workspaces there are and which folder each one has; the
+// cores keep the files each one has open, also while another workspace has the
+// focus (docs/design/gui-protocol.md, 3 章「ワークスペース」). Two workspaces on
+// the same folder have a core each.
 type Cores interface {
-	// Open makes sure root has a core. workspace.focus calls it. It fails when
-	// the workspace's configuration files have mistakes: there is no core then.
-	Open(root string) error
-	// Files is the absolute paths of the files open in root's core.
-	Files(root string) []string
-	// Kept is the roots whose cores have any file open, named or not. Their
-	// workspaces stay while no shell is in them.
-	Kept() []string
-	// CloseFiles closes root's files that have no unsaved edits.
-	CloseFiles(root string)
-	// Close stops root's core when its workspace is gone.
-	Close(root string)
+	// Open makes sure the workspace id has a core on the folder root.
+	// workspace.focus calls it. It fails when the workspace's configuration
+	// files have mistakes: there is no core then.
+	Open(id, root string) error
+	// Files is the absolute paths of the files open in id's core.
+	Files(id string) []string
+	// SaveAll saves every file of id's core that has unsaved edits and returns
+	// the paths it could not save. The files stay open.
+	SaveAll(id string) (failed []string)
+	// Release is what a workspace does with its files when its folder switches:
+	// it saves them at once or throws the edits away, as the configuration says
+	// ([editor.auto-save] on-switch while auto-save is off), closes them and
+	// stops the core. Open makes a core on the new folder.
+	Release(id string)
+	// Close stops id's core, with whatever is open in it, when the workspace is
+	// closed (its files were saved by then).
+	Close(id string)
 }
 
 // SetCores sets where the workspaces' files live. Without it the workspaces

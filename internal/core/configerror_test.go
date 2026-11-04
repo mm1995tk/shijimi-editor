@@ -49,7 +49,7 @@ func TestWorkspaceOpenFailsOnConfigMistake(t *testing.T) {
 	dir, _ := badProject(t)
 	ws := NewWorkspaces(NewShared(Build{}), nil)
 	defer ws.CloseAll()
-	if w, err := ws.Open(dir); err == nil || w != nil {
+	if w, err := ws.Open(dir, dir); err == nil || w != nil {
 		t.Fatalf("w = %v, err = %v", w, err)
 	}
 	if ws.Lookup(dir) != nil {

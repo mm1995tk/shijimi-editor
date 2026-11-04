@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"maps"
 	"net"
 	"os"
@@ -78,6 +79,7 @@ type serveEnv struct {
 	cores *core.Workspaces
 	root  string
 	sock  string
+	id    string // the workspace
 }
 
 func newServeEnv(t *testing.T) *serveEnv {
@@ -92,7 +94,8 @@ func newServeEnv(t *testing.T) *serveEnv {
 	}
 	t.Cleanup(func() { os.RemoveAll(sockDir) })
 	sock := filepath.Join(sockDir, "serve.rpc")
-	srv, err := server.Listen(server.Options{SocketPath: sock, CwdInterval: 20 * time.Millisecond})
+	t.Setenv("SHELL", "/bin/sh")
+	srv, err := server.Listen(server.Options{SocketPath: sock, CwdInterval: 20 * time.Millisecond, StartDir: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,13 +103,39 @@ func newServeEnv(t *testing.T) *serveEnv {
 	cores := core.NewWorkspaces(shared, nil)
 	t.Cleanup(func() { cores.CloseAll(); shared.Close() })
 	cores.SetOnChange(srv.ScreenChanged)
-	srv.SetCores(serveCores{cores})
-	srv.SetScreens(serveCores{cores})
-	srv.SetInputs(serveCores{cores})
+	srv.SetCores(serveCores{cores, slog.Default()})
+	srv.SetScreens(serveCores{cores, slog.Default()})
+	srv.SetInputs(serveCores{cores, slog.Default()})
 	done := make(chan struct{})
 	go func() { srv.Serve(context.Background()); close(done) }()
 	t.Cleanup(func() { srv.Close(); <-done })
-	return &serveEnv{srv: srv, cores: cores, root: root, sock: sock}
+	e := &serveEnv{srv: srv, cores: cores, root: root, sock: sock}
+	// The workspace the GUI will focus: its folder is root, where a new workspace starts.
+	nc, err := net.Dial("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := rpc.NewConn(nc, rpc.JSON{}, (&notes{}).handle)
+	defer c.Close()
+	ctx := context.Background()
+	if err := c.Call(ctx, "session.hello", serveHello(), nil); err != nil {
+		t.Fatal(err)
+	}
+	var r struct {
+		ID string `json:"id"`
+	}
+	if err := c.Call(ctx, "workspace.create", map[string]any{}, &r); err != nil {
+		t.Fatal(err)
+	}
+	e.id = r.ID
+	return e
+}
+
+func serveHello() map[string]any {
+	return map[string]any{
+		"protocol": map[string]int{"major": 2},
+		"client":   map[string]string{"name": "test", "version": "0", "kind": "web"},
+	}
 }
 
 // connect is a GUI that focused the workspace (whose core must be open) and
@@ -122,27 +151,10 @@ func (e *serveEnv) connect(t *testing.T) (c *rpc.Conn, nt *notes, id string, fir
 	c = rpc.NewConn(nc, rpc.JSON{}, nt.handle)
 	t.Cleanup(func() { c.Close() })
 	ctx := context.Background()
-	hello := map[string]any{
-		"protocol": map[string]int{"major": 1},
-		"client":   map[string]string{"name": "test", "version": "0", "kind": "web"},
-	}
-	if err := c.Call(ctx, "session.hello", hello, nil); err != nil {
+	if err := c.Call(ctx, "session.hello", serveHello(), nil); err != nil {
 		t.Fatal(err)
 	}
-	var l struct {
-		Workspaces []struct {
-			ID string `json:"id"`
-		} `json:"workspaces"`
-	}
-	deadline := time.Now().Add(10 * time.Second)
-	for len(l.Workspaces) == 0 {
-		if time.Now().After(deadline) {
-			t.Fatal("no workspace")
-		}
-		time.Sleep(10 * time.Millisecond)
-		c.Call(ctx, "workspace.list", map[string]any{}, &l)
-	}
-	id = l.Workspaces[0].ID
+	id = e.id
 	if err := c.Call(ctx, "workspace.focus", map[string]any{"id": id}, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +203,7 @@ func TestServeTypingSendsChangedLine(t *testing.T) {
 	if err := os.WriteFile(path, []byte("one\ntwo\nthree\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	w, _ := e.cores.Open(e.root)
+	w, _ := e.cores.Open(e.id, e.root)
 	key := func(c *core.Core, s string) {
 		if s == "esc" {
 			c.Update(core.Key{Code: core.KeyEscape})
@@ -246,12 +258,6 @@ func TestServeInputKeyAndFileOpen(t *testing.T) {
 	if err := os.WriteFile(path, []byte("one\ntwo\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// A workspace stays while its core has a file open (no shell is in it here).
-	other := filepath.Join(e.root, "b.txt")
-	if err := os.WriteFile(other, []byte("b\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	mustOpen(e.cores, e.root).Do(func(c *core.Core) { c.OpenFile(other) })
 	c, nt, id, _ := e.connect(t)
 	ctx := context.Background()
 	seen := 1
@@ -308,13 +314,4 @@ func TestServeInputKeyAndFileOpen(t *testing.T) {
 	if _, st := key(5, "ArrowUp", ""); st == nil || st.Position != "1:2" {
 		t.Errorf("status after ArrowUp: %+v", st)
 	}
-}
-
-// mustOpen is ws.Open for a configuration that must be valid.
-func mustOpen(ws *core.Workspaces, root string) *core.Workspace {
-	w, err := ws.Open(root)
-	if err != nil {
-		panic(err)
-	}
-	return w
 }

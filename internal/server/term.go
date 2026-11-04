@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 	"unicode/utf8"
+	"unsafe"
 
 	"github.com/creack/pty"
 
@@ -94,9 +95,8 @@ type terminal struct {
 
 	mu         sync.Mutex
 	cwd        string // シェルの今の cwd（workspace.go が更新）
-	wsID       string // 属するワークスペース。無ければ ""
-	wsRoot     string
-	wsKind     string
+	wsID       string // 属するワークスペース（作るときに決まり、cwd が変わっても変わらない）
+	primary    bool   // ワークスペースのプライマリターミナル
 	cols, rows int
 	title      string
 	alive      bool
@@ -138,57 +138,75 @@ func (t *terminal) ringAppend(b []byte) {
 func (t *terminal) info() map[string]any {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	var wid any
-	if t.wsID != "" {
-		wid = t.wsID
-	}
 	return map[string]any{
-		"termId": t.id, "pid": t.pid, "cwd": t.cwd, "workspaceId": wid,
+		"termId": t.id, "pid": t.pid, "cwd": t.cwd, "workspaceId": t.wsID, "primary": t.primary,
 		"title": t.title, "cols": t.cols, "rows": t.rows, "alive": t.alive,
 	}
 }
 
-func (t *terminal) hangup() {
-	// SIGHUP を無視するシェルで shutdown が止まらないように、少し待って SIGKILL。
-	if t.cmd.Process != nil {
-		p := t.cmd.Process
-		time.AfterFunc(3*time.Second, func() { _ = p.Kill() })
-	}
-	if t.cmd.Process != nil {
-		_ = t.cmd.Process.Signal(syscall.SIGHUP)
-	}
-	// ptmx を閉じても SIGHUP が届く。シェルが SIGHUP を無視しても pump は read の失敗で終わる。
-	t.ptmx.Close()
+// proc は今のシェルの PTY とプロセス。term.restart で入れ替わる。
+func (t *terminal) proc() (*os.File, *exec.Cmd) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.ptmx, t.cmd
 }
 
-func (m *termManager) create(p termCreateParams) (any, error) {
-	if p.Cols <= 0 || p.Rows <= 0 || p.Cols > maxTermDim || p.Rows > maxTermDim {
-		return nil, rpc.Errorf(rpc.CodeInvalidParams, "cols and rows must be 1..%d", maxTermDim)
+func (t *terminal) hangup() {
+	ptmx, cmd := t.proc()
+	// SIGHUP を無視するシェルで shutdown が止まらないように、少し待って SIGKILL。
+	if cmd.Process != nil {
+		p := cmd.Process
+		time.AfterFunc(3*time.Second, func() { _ = p.Kill() })
 	}
-	cwd := p.Cwd
-	if cwd == "" {
-		cwd = m.srv.ws.focusRoot()
+	if cmd.Process != nil {
+		_ = cmd.Process.Signal(syscall.SIGHUP)
 	}
-	if cwd == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			home = "/"
-		}
-		cwd = home
+	// ptmx を閉じても SIGHUP が届く。シェルが SIGHUP を無視しても pump は read の失敗で終わる。
+	ptmx.Close()
+}
+
+// busy は、シェルのほかにプログラムが前面で動いているか。PTY の前面のプロセスグループが、
+// シェルのもの（シェルは自分の pid のグループを作る）と違えば動いている。
+func (t *terminal) busy() bool {
+	t.mu.Lock()
+	alive, pid, ptmx := t.alive, t.pid, t.ptmx
+	t.mu.Unlock()
+	if !alive {
+		return false
 	}
-	if fi, err := os.Stat(cwd); err != nil || !fi.IsDir() {
-		return nil, rpc.Errorf(rpc.CodeInvalidParams, "cwd is not a directory: %s", cwd)
+	rc, err := ptmx.SyscallConn()
+	if err != nil {
+		return false
 	}
-	sh := p.Shell
+	var pgrp int32
+	var errno syscall.Errno
+	// Fd() は PTY を blocking にして読みを止められなくするので使わない。
+	if err := rc.Control(func(fd uintptr) {
+		_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(syscall.TIOCGPGRP), uintptr(unsafe.Pointer(&pgrp)))
+	}); err != nil || errno != 0 {
+		return false
+	}
+	return pgrp != 0 && int(pgrp) != pid
+}
+
+// termStart は新しいターミナルの始め方。
+type termStart struct {
+	cols, rows int
+	dir        string // 始めるフォルダ
+	shell      string
+	env        []string
+	wsID       string
+	primary    bool
+}
+
+// start はシェルを始めてターミナルを足す。ワークスペースの一覧は作り直さない（呼ぶ側がする）。
+func (m *termManager) start(a termStart) (*terminal, error) {
+	if fi, err := os.Stat(a.dir); err != nil || !fi.IsDir() {
+		return nil, rpc.Errorf(rpc.CodeInvalidParams, "cwd is not a directory: %s", a.dir)
+	}
+	sh := a.shell
 	if sh == "" {
 		sh = term.DefaultShell()
-	}
-	var env []string
-	for k, v := range p.Env {
-		if k == "" || strings.ContainsAny(k, "=\x00") {
-			return nil, rpc.Errorf(rpc.CodeInvalidParams, "invalid env name: %q", k)
-		}
-		env = append(env, k+"="+v)
 	}
 	m.mu.Lock()
 	if m.closed {
@@ -196,7 +214,7 @@ func (m *termManager) create(p termCreateParams) (any, error) {
 		return nil, rpc.Errorf(rpc.CodeBusy, "server is shutting down")
 	}
 	// PTY の起動は internal/term と同じ（TUI のターミナルも使う）。読み出しと流量制御はここで持つ。
-	sess, err := term.Start(term.Options{Shell: sh, Dir: cwd, Env: env, Cols: p.Cols, Rows: p.Rows})
+	sess, err := term.Start(term.Options{Shell: sh, Dir: a.dir, Env: a.env, Cols: a.cols, Rows: a.rows})
 	if err != nil {
 		m.mu.Unlock()
 		return nil, rpc.Errorf(rpc.CodeInternalError, "start shell: %v", err)
@@ -205,17 +223,124 @@ func (m *termManager) create(p termCreateParams) (any, error) {
 	m.next++
 	t := &terminal{
 		mgr: m, id: fmt.Sprintf("t%d", m.next), pid: sess.Pid(),
-		ptmx: ptmx, cmd: cmd, cols: p.Cols, rows: p.Rows, alive: true,
-		ring: make([]byte, ringSize),
+		ptmx: ptmx, cmd: cmd, cols: a.cols, rows: a.rows, alive: true,
+		ring: make([]byte, ringSize), wsID: a.wsID, primary: a.primary,
 	}
-	t.cwd = normalizePath(cwd) // 以後 cwd の変化を見るので、読み取った値（実パス）に合わせる
-	t.wsID, t.wsRoot, t.wsKind = m.srv.ws.resolve(cwd)
+	t.cwd = normalizePath(a.dir) // 以後 cwd の変化を見るので、読み取った値（実パス）に合わせる
 	m.terms[t.id] = t
-	m.wg.Go(t.pump)
+	m.wg.Go(func() { t.pump(ptmx, cmd) })
 	m.mu.Unlock()
-	m.srv.ws.recompute()
-	m.srv.log.Info("term created", "termId", t.id, "pid", t.pid, "shell", sh, "cwd", cwd)
+	m.srv.log.Info("term created", "termId", t.id, "pid", t.pid, "shell", sh, "cwd", a.dir, "workspace", a.wsID, "primary", a.primary)
+	return t, nil
+}
+
+// create は term.create。分割したターミナルを足す。
+func (m *termManager) create(p termCreateParams) (any, error) {
+	if p.Cols <= 0 || p.Rows <= 0 || p.Cols > maxTermDim || p.Rows > maxTermDim {
+		return nil, rpc.Errorf(rpc.CodeInvalidParams, "cols and rows must be 1..%d", maxTermDim)
+	}
+	var env []string
+	for k, v := range p.Env {
+		if k == "" || strings.ContainsAny(k, "=\x00") {
+			return nil, rpc.Errorf(rpc.CodeInvalidParams, "invalid env name: %q", k)
+		}
+		env = append(env, k+"="+v)
+	}
+	dir, ok := m.srv.ws.folderOf(p.WorkspaceID)
+	if !ok {
+		return nil, rpc.Errorf(rpc.CodeNotFound, "no such workspace: %s", p.WorkspaceID)
+	}
+	// 上限の数え方と作るのを、recompute と同じロックで 1 つずつにする（同時に作って 6 個を超えない）。
+	m.srv.ws.recomputeMu.Lock()
+	defer m.srv.ws.recomputeMu.Unlock()
+	if m.countSplit(p.WorkspaceID) >= maxSplitTerms {
+		return nil, rpc.Errorf(rpc.CodeBusy, "the workspace already has %d terminals", maxSplitTerms+1)
+	}
+	t, err := m.start(termStart{cols: p.Cols, rows: p.Rows, dir: dir, shell: p.Shell, env: env, wsID: p.WorkspaceID})
+	if err != nil {
+		return nil, err
+	}
+	m.srv.ws.recomputeLocked()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return map[string]any{"termId": t.id, "pid": t.pid, "cwd": t.cwd}, nil
+}
+
+// countSplit はワークスペースの分割したターミナルの数。
+func (m *termManager) countSplit(wsID string) int {
+	n := 0
+	for _, t := range m.all() {
+		t.mu.Lock()
+		if t.wsID == wsID && !t.primary {
+			n++
+		}
+		t.mu.Unlock()
+	}
+	return n
+}
+
+// closeWorkspace はワークスペースのターミナル（プライマリと分割）を全部終わらせて忘れる。
+func (m *termManager) closeWorkspace(wsID string) {
+	m.mu.Lock()
+	var mine []*terminal
+	for id, t := range m.terms {
+		t.mu.Lock()
+		own := t.wsID == wsID
+		t.mu.Unlock()
+		if own {
+			mine = append(mine, t)
+			delete(m.terms, id)
+		}
+	}
+	m.mu.Unlock()
+	for _, t := range mine {
+		t.hangup()
+		t.mu.Lock()
+		t.alive = false
+		t.mu.Unlock()
+	}
+}
+
+// restart は終わったプライマリターミナルに新しいシェルを始める（termId はそのまま）。
+func (m *termManager) restart(t *terminal) (any, error) {
+	t.mu.Lock()
+	primary, alive, wsID, cols, rows := t.primary, t.alive, t.wsID, t.cols, t.rows
+	t.mu.Unlock()
+	if !primary {
+		return nil, rpc.Errorf(rpc.CodeDenied, "only a primary terminal can be restarted: %s", t.id)
+	}
+	if alive {
+		return nil, rpc.Errorf(rpc.CodeBusy, "the shell is still running: %s", t.id)
+	}
+	dir, ok := m.srv.ws.folderOf(wsID)
+	if !ok {
+		return nil, rpc.Errorf(rpc.CodeNotFound, "no such workspace: %s", wsID)
+	}
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		// フォルダが無くなっていたら、start_dir（それも無ければ ~）で始める。
+		dir = m.srv.ws.startDir()
+	}
+	m.mu.Lock()
+	if m.closed || m.terms[t.id] != t {
+		m.mu.Unlock()
+		return nil, rpc.Errorf(rpc.CodeNotFound, "no such terminal: %s", t.id)
+	}
+	sess, err := term.Start(term.Options{Shell: term.DefaultShell(), Dir: dir, Cols: cols, Rows: rows})
+	if err != nil {
+		m.mu.Unlock()
+		return nil, rpc.Errorf(rpc.CodeInternalError, "start shell: %v", err)
+	}
+	ptmx, cmd := sess.File(), sess.Cmd()
+	t.mu.Lock()
+	t.ptmx, t.cmd, t.pid, t.alive = ptmx, cmd, sess.Pid(), true
+	t.cwd = normalizePath(dir)
+	t.osc = oscScan{}
+	cwd, pid := t.cwd, t.pid
+	t.mu.Unlock()
+	m.wg.Go(func() { t.pump(ptmx, cmd) })
+	m.mu.Unlock()
+	m.srv.log.Info("term restarted", "termId", t.id, "pid", pid, "cwd", dir)
+	return map[string]any{"pid": pid, "cwd": cwd}, nil
 }
 
 func (m *termManager) get(id string) (*terminal, error) {
@@ -229,10 +354,10 @@ func (m *termManager) get(id string) (*terminal, error) {
 }
 
 // pump は PTY を読み続けてリングバッファに溜め、送れるなら送る。止まった GUI には送らないが読むのはやめない。
-func (t *terminal) pump() {
+func (t *terminal) pump(ptmx *os.File, cmd *exec.Cmd) {
 	buf := make([]byte, chunkSize)
 	for {
-		n, err := t.ptmx.Read(buf)
+		n, err := ptmx.Read(buf)
 		if n > 0 {
 			t.mu.Lock()
 			t.ringAppend(buf[:n])
@@ -250,14 +375,14 @@ func (t *terminal) pump() {
 			break
 		}
 	}
-	_ = t.cmd.Wait()
-	t.ptmx.Close()
+	_ = cmd.Wait()
+	ptmx.Close()
 	exit := map[string]any{"termId": t.id}
-	if ws, ok := t.cmd.ProcessState.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+	if ws, ok := cmd.ProcessState.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
 		exit["code"] = 128 + int(ws.Signal())
 		exit["signal"] = ws.Signal().String()
 	} else {
-		exit["code"] = t.cmd.ProcessState.ExitCode()
+		exit["code"] = cmd.ProcessState.ExitCode()
 	}
 	t.mu.Lock()
 	t.alive = false
@@ -326,11 +451,11 @@ func (t *terminal) attach(from *int64) (any, error) {
 }
 
 type termCreateParams struct {
-	Cwd   string            `json:"cwd"`
-	Cols  int               `json:"cols"`
-	Rows  int               `json:"rows"`
-	Shell string            `json:"shell"`
-	Env   map[string]string `json:"env"`
+	WorkspaceID string            `json:"workspaceId"`
+	Cols        int               `json:"cols"`
+	Rows        int               `json:"rows"`
+	Shell       string            `json:"shell"`
+	Env         map[string]string `json:"env"`
 }
 
 // notifyOwner は今の GUI に通知を送る。送れたら true。
@@ -348,7 +473,7 @@ func (s *Server) notifyOwner(method string, params any) bool {
 func (ss *session) termRequest(req *rpc.Message) (res any, err error, handled bool) {
 	m := ss.srv.terms
 	switch req.Method {
-	case "term.create", "term.list", "term.attach", "term.close", "term.resize", "term.input":
+	case "term.create", "term.list", "term.attach", "term.close", "term.restart", "term.resize", "term.input":
 	default:
 		return nil, nil, false
 	}
@@ -395,7 +520,16 @@ func (ss *session) termRequest(req *rpc.Message) (res any, err error, handled bo
 	case "term.attach":
 		res, err = t.attach(p.FromSeq)
 		return res, err, true
+	case "term.restart":
+		res, err = m.restart(t)
+		return res, err, true
 	case "term.close":
+		t.mu.Lock()
+		primary := t.primary
+		t.mu.Unlock()
+		if primary {
+			return nil, rpc.Errorf(rpc.CodeDenied, "a primary terminal is closed with its workspace (workspace.close): %s", t.id), true
+		}
 		m.mu.Lock()
 		delete(m.terms, t.id)
 		m.mu.Unlock()
@@ -409,7 +543,8 @@ func (ss *session) termRequest(req *rpc.Message) (res any, err error, handled bo
 		if p.Cols <= 0 || p.Rows <= 0 || p.Cols > maxTermDim || p.Rows > maxTermDim {
 			return nil, rpc.Errorf(rpc.CodeInvalidParams, "cols and rows must be 1..%d", maxTermDim), true
 		}
-		if err := pty.Setsize(t.ptmx, &pty.Winsize{Rows: uint16(p.Rows), Cols: uint16(p.Cols)}); err != nil {
+		ptmx, _ := t.proc()
+		if err := pty.Setsize(ptmx, &pty.Winsize{Rows: uint16(p.Rows), Cols: uint16(p.Cols)}); err != nil {
 			return nil, rpc.Errorf(rpc.CodeNotFound, "terminal has exited: %s", t.id), true
 		}
 		t.mu.Lock()
@@ -421,8 +556,8 @@ func (ss *session) termRequest(req *rpc.Message) (res any, err error, handled bo
 		if err != nil {
 			return nil, rpc.Errorf(rpc.CodeInvalidParams, "data is not base64: %v", err), true
 		}
-		ss.srv.ws.touch(t)
-		if _, err := t.ptmx.Write(b); err != nil {
+		ptmx, _ := t.proc()
+		if _, err := ptmx.Write(b); err != nil {
 			return nil, rpc.Errorf(rpc.CodeNotFound, "terminal has exited: %s", t.id), true
 		}
 		return struct{}{}, nil, true

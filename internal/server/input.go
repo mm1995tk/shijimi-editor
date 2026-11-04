@@ -19,18 +19,18 @@ import (
 )
 
 // Inputs は GUI の入力をワークスペースの core に届けるもの（internal/cli が core.Workspaces から渡す）。
-// root は正規化したワークスペースのルート。core が無ければ何もしない。
+// id はワークスペースの id。core が無ければ何もしない。
 type Inputs interface {
-	Key(root string, in KeyInput)
-	Composition(root string, in CompositionInput)
-	Mouse(root string, in MouseInput)
-	Paste(root string, in PasteInput)
-	Focus(root string, in FocusInput)
+	Key(id string, in KeyInput)
+	Composition(id string, in CompositionInput)
+	Mouse(id string, in MouseInput)
+	Paste(id string, in PasteInput)
+	Focus(id string, in FocusInput)
 	// Command は ":" コマンドを実行する（制御用ソケットの exec と同じ）。
-	Command(root, line string) (ok bool, message string)
-	// OpenFile は root の core で path（絶対パス）を開き、at が nil でなければカーソルをそこに置く。
+	Command(id, line string) (ok bool, message string)
+	// OpenFile は id のワークスペースの core（フォルダ root）で path（絶対パス）を開き、at が nil でなければカーソルをそこに置く。
 	// core が無ければ作る。開けなければ理由を返す。
-	OpenFile(root, path string, at *screen.Pos, pane string) error
+	OpenFile(id, root, path string, at *screen.Pos, pane string) error
 }
 
 // KeyInput は input.key のパラメータ。
@@ -175,7 +175,7 @@ func (ss *session) inputRequest(req *rpc.Message) (res any, err error, handled b
 	if req.Method == "file.open" {
 		return ss.fileOpenReq(in, req)
 	}
-	root := s.ws.focusRoot()
+	root := s.ws.focusID()
 	if root == "" {
 		return nil, rpc.Errorf(rpc.CodeNotFound, "no workspace has the focus"), true
 	}
@@ -263,12 +263,12 @@ func (ss *session) fileOpenReq(in Inputs, req *rpc.Message) (any, error, bool) {
 		w.recomputeMu.Unlock()
 		return nil, err, true
 	}
-	err = in.OpenFile(root, full, at, p.Pane)
+	err = in.OpenFile(p.WorkspaceID, root, full, at, p.Pane)
 	w.recomputeMu.Unlock()
 	if err != nil {
 		return nil, rpc.Errorf(rpc.CodeInternalError, "open %s: %v", rel, err), true
 	}
-	// 開いたファイルがあるワークスペースは、シェルがいなくても残る。
+	// 開いたファイルの一覧を workspace.changed に載せる。
 	w.recompute()
 	return map[string]any{"rev": ss.applied(p.Seq)}, nil, true
 }

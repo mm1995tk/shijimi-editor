@@ -11,17 +11,20 @@ import (
 	"time"
 )
 
-// Workspaces is the cores of `shj serve`: one per workspace root, on one
-// Shared (docs/design/gui-protocol.md, 3 章「ワークスペース」). A core keeps
-// its files when another workspace takes the focus, and lives until the
-// workspace is closed. The TUI does not use it: it has its one core.
+// Workspaces is the cores of `shj serve`: one per workspace, on one Shared
+// (docs/design/gui-protocol.md, 3 章「ワークスペース」). A workspace is named by
+// a key (the server's workspace id), not by its folder: two workspaces may
+// point at the same folder and each has a core of its own. A core keeps its
+// files when another workspace takes the focus, and lives until the workspace
+// is closed or switches to another folder. The TUI does not use it: it has its
+// one core.
 type Workspaces struct {
 	shared *Shared
 	// front makes the front end of a new core. nil makes a headless.
 	front func() FrontEnd
 
 	mu       sync.Mutex
-	cores    map[string]*Workspace // root -> its core
+	cores    map[string]*Workspace // key -> its core
 	onChange func()                // SetOnChange
 }
 
@@ -31,7 +34,8 @@ type Workspaces struct {
 // does: the work runs on goroutines of its own and its Events come back
 // through Update.
 type Workspace struct {
-	Root     string // the workspace root, an absolute path
+	Key      string // the workspace's key
+	Root     string // the workspace's folder, an absolute path
 	mu       sync.Mutex
 	core     *Core
 	closed   bool          // Close stopped the core; late Events are dropped
@@ -154,14 +158,14 @@ func cleanRoot(root string) string {
 	return filepath.Clean(root)
 }
 
-// Open is the workspace at root, made with a new core if it has none. A new
-// core starts as the TUI's does: it waits on its language servers and watches
-// its files on disk. A mistake in the workspace's configuration files (a
-// *config.Error) is returned and no core is made; the next Open reads the
-// files again.
-func (ws *Workspaces) Open(root string) (*Workspace, error) {
+// Open is the workspace key, made with a new core on the folder root if it has
+// none. A new core starts as the TUI's does: it waits on its language servers
+// and watches its files on disk. A mistake in the workspace's configuration
+// files (a *config.Error) is returned and no core is made; the next Open reads
+// the files again.
+func (ws *Workspaces) Open(key, root string) (*Workspace, error) {
 	root = cleanRoot(root)
-	if w := ws.Lookup(root); w != nil {
+	if w := ws.Lookup(key); w != nil {
 		return w, nil
 	}
 	// Making a core reads the config and runs git, so it is done without the
@@ -177,27 +181,27 @@ func (ws *Workspaces) Open(root string) (*Workspace, error) {
 		return nil, err
 	}
 	ws.mu.Lock()
-	w := &Workspace{Root: root, core: c, onChange: ws.onChange, done: make(chan struct{})}
-	if got := ws.cores[root]; got != nil {
+	w := &Workspace{Key: key, Root: root, core: c, onChange: ws.onChange, done: make(chan struct{})}
+	if got := ws.cores[key]; got != nil {
 		// someone made it meanwhile; theirs stays
 		ws.mu.Unlock()
 		w.core.Close()
 		return got, nil
 	}
-	ws.cores[root] = w
+	ws.cores[key] = w
 	ws.mu.Unlock()
 	w.run([]Effect{WaitLSP{c.LspEvents()}, WatchTimer()})
 	return w, nil
 }
 
-// Lookup is the workspace at root, or nil if it has no core.
-func (ws *Workspaces) Lookup(root string) *Workspace {
+// Lookup is the workspace key, or nil if it has no core.
+func (ws *Workspaces) Lookup(key string) *Workspace {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	return ws.cores[cleanRoot(root)]
+	return ws.cores[key]
 }
 
-// List is the workspaces that have a core, by root.
+// List is the workspaces that have a core, by key.
 func (ws *Workspaces) List() []*Workspace {
 	ws.mu.Lock()
 	out := make([]*Workspace, 0, len(ws.cores))
@@ -205,18 +209,17 @@ func (ws *Workspaces) List() []*Workspace {
 		out = append(out, w)
 	}
 	ws.mu.Unlock()
-	slices.SortFunc(out, func(a, b *Workspace) int { return cmp.Compare(a.Root, b.Root) })
+	slices.SortFunc(out, func(a, b *Workspace) int { return cmp.Compare(a.Key, b.Key) })
 	return out
 }
 
-// Close stops the core at root (its language servers, its agent) and forgets
-// it. Unsaved edits are dropped: the caller closes a workspace only when it
-// has no open files.
-func (ws *Workspaces) Close(root string) {
-	root = cleanRoot(root)
+// Close stops the core of key (its language servers, its agent) and forgets
+// it. Unsaved edits are dropped: the caller saves them first, or means to
+// throw them away.
+func (ws *Workspaces) Close(key string) {
 	ws.mu.Lock()
-	w := ws.cores[root]
-	delete(ws.cores, root)
+	w := ws.cores[key]
+	delete(ws.cores, key)
 	ws.mu.Unlock()
 	if w != nil {
 		w.Do(func(c *Core) {
@@ -230,7 +233,7 @@ func (ws *Workspaces) Close(root string) {
 // CloseAll stops every core. The Shared stays open.
 func (ws *Workspaces) CloseAll() {
 	for _, w := range ws.List() {
-		ws.Close(w.Root)
+		ws.Close(w.Key)
 	}
 }
 
@@ -263,44 +266,27 @@ func (a *Core) OpenPaths() []string {
 	return out
 }
 
-// HasOpenFiles reports whether the core has any file open, named or not.
-func (a *Core) HasOpenFiles() bool { return len(a.Tabs) > 0 }
+// SavesOnSwitch reports whether the files are saved when the workspace
+// switches to another folder: they are while auto-save is on, and otherwise as
+// [editor.auto-save] on-switch says (config.Load insists it is written).
+func (a *Core) SavesOnSwitch() bool {
+	return a.Cfg.Editor.AutoSave || a.Cfg.Editor.OnSwitch != "discard"
+}
 
-// CloseFiles closes the files that have no unsaved edits and keeps the others
-// open, so that closing never loses an edit. It returns how many it kept.
-func (a *Core) CloseFiles() int {
-	cur := a.Cur()
-	for i, v := range slices.Backward(a.Tabs) {
-		if !v.dirty() {
-			a.dropTab(i)
+// SaveFiles saves every file with unsaved edits now, and returns the paths it
+// could not save: the file changed on disk meanwhile (it is never overwritten
+// silently), or writing failed. The files stay open. It only writes the files: it is used just before the core is closed,
+// so it tells no language server and rereads no git marks.
+func (a *Core) SaveFiles() (failed []string) {
+	for _, t := range a.Tabs {
+		if !t.dirty() || t.Buf.Path == "" {
+			continue
+		}
+		if t.Buf.DiskChanged() || t.Buf.Save() != nil {
+			failed = append(failed, t.Buf.Path)
 		}
 	}
-	curKept := slices.Contains(a.Tabs, cur)
-	otherKept := a.Other != nil && slices.Contains(a.Tabs, a.Other)
-	if a.Split && (!curKept || !otherKept) {
-		// one pane lost its file: the file left fills the area
-		if !curKept && otherKept {
-			cur, curKept = a.Other, true
-		}
-		a.Split, a.Pane, a.Other, a.otherPrev = false, 0, nil, nil
-	}
-	if !slices.Contains(a.Tabs, a.PrevTab) {
-		a.PrevTab = nil
-	}
-	if curKept {
-		a.Active = a.tabIndex(cur)
-	} else {
-		a.Active = min(a.Active, len(a.Tabs)-1)
-	}
-	if len(a.Tabs) == 0 {
-		a.Active = 0
-		a.Comp = nil
-		a.Mode = ModeNormal
-		if a.Focus == FocusEditor {
-			a.Focus = FocusExplorer
-		}
-	}
-	return len(a.Tabs)
+	return failed
 }
 
 // WriteBackups writes each file with unsaved edits through write, which puts

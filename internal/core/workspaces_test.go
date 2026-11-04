@@ -128,8 +128,32 @@ func TestWorkspacesWriteBackups(t *testing.T) {
 	}
 }
 
-// CloseFiles closes what has no unsaved edits and keeps the rest.
-func TestCloseFilesKeepsUnsaved(t *testing.T) {
+// Two workspaces can point at the same folder: each has a core of its own,
+// named by its key.
+func TestWorkspacesSameFolder(t *testing.T) {
+	r := t.TempDir()
+	ws := NewWorkspaces(NewShared(Build{}), nil)
+	defer ws.CloseAll()
+	a, err := ws.Open("a", r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ws.Open("b", r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a == b || a.Root != b.Root || ws.Lookup("a") != a || ws.Lookup("b") != b {
+		t.Fatal("two workspaces on one folder share a core or are not both there")
+	}
+	ws.Close("a")
+	if ws.Lookup("a") != nil || ws.Lookup("b") != b {
+		t.Error("closing one touched the other")
+	}
+}
+
+// SaveFiles saves the files with edits and keeps them open; a file that
+// changed on disk meanwhile is reported, not overwritten.
+func TestSaveFiles(t *testing.T) {
 	r := t.TempDir()
 	p1 := writeFile(t, r, "a.txt", "one\n")
 	p2 := writeFile(t, r, "b.txt", "two\n")
@@ -137,54 +161,24 @@ func TestCloseFilesKeepsUnsaved(t *testing.T) {
 	defer ws.CloseAll()
 	openWS(ws, r).Do(func(c *Core) {
 		c.OpenFile(p1)
-		c.OpenFile(p2)
+		c.CurText().Buf.Lines[0] = []rune("ONE")
 		c.CurText().Buf.Dirty = true
-		if kept := c.CloseFiles(); kept != 1 {
-			t.Fatalf("kept %d files, want 1", kept)
+		c.OpenFile(p2)
+		if failed := c.SaveFiles(); len(failed) != 0 {
+			t.Fatalf("failed = %v", failed)
 		}
-		if !slices.Equal(c.OpenPaths(), []string{p2}) || c.Cur() == nil {
-			t.Errorf("open files = %v, want [%s] shown", c.OpenPaths(), p2)
+		if b, _ := os.ReadFile(p1); string(b) != "ONE\n" {
+			t.Errorf("a.txt = %q, want it saved", b)
 		}
-		c.CurText().Buf.Dirty = false
-		c.CloseFiles()
-		if c.HasOpenFiles() || c.Cur() != nil {
-			t.Errorf("files left open: %v", c.OpenPaths())
-		}
-	})
-}
-
-// The file shown stays shown when files before it are closed.
-func TestCloseFilesKeepsShownFile(t *testing.T) {
-	r := t.TempDir()
-	var ps []string
-	for _, n := range []string{"a", "b", "c", "d"} {
-		ps = append(ps, writeFile(t, r, n+".txt", n+"\n"))
-	}
-	ws := NewWorkspaces(NewShared(Build{}), nil)
-	defer ws.CloseAll()
-	openWS(ws, r).Do(func(c *Core) {
-		for _, p := range ps {
-			c.OpenFile(p)
-		}
-		if len(c.Tabs) != 4 {
-			t.Fatalf("open files = %v", c.OpenPaths())
-		}
-		c.Tabs[1].Buf.Dirty = true // b
-		c.Tabs[3].Buf.Dirty = true // d
-		c.Active = 1
-		c.CloseFiles()
-		if !slices.Equal(c.OpenPaths(), []string{ps[1], ps[3]}) {
-			t.Fatalf("open files = %v", c.OpenPaths())
-		}
-		if got := c.Cur().Path(); got != ps[1] {
-			t.Errorf("shown %s, want %s", got, ps[1])
+		if len(c.OpenPaths()) != 2 {
+			t.Errorf("open files = %v, want both still open", c.OpenPaths())
 		}
 	})
 }
 
 // openWS is ws.Open for a configuration that must be valid.
 func openWS(ws *Workspaces, root string) *Workspace {
-	w, err := ws.Open(root)
+	w, err := ws.Open(root, root)
 	if err != nil {
 		panic(err)
 	}

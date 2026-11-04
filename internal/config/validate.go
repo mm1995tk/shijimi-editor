@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -139,6 +140,7 @@ var configSchema = map[string]field{
 		"theme":           fString,
 		"indent-guides":   table(map[string]field{"render": fBool}),
 		"auto-save": table(map[string]field{
+			"on-switch": {kind: kString, check: checkOnSwitch},
 			"after-delay": table(map[string]field{
 				"enable":  fBool,
 				"timeout": {kind: kInt, check: checkPositive},
@@ -160,6 +162,7 @@ var configSchema = map[string]field{
 	}},
 	"server": {kind: kTable, userOnly: true, sub: map[string]field{
 		"idle_stop_days": {kind: kInt, check: checkNonNegative},
+		"start_dir":      {kind: kString, check: checkStartDir},
 	}},
 	"keys": {kind: kTable, userOnly: true, sub: map[string]field{
 		"normal": {kind: kStringMap},
@@ -214,6 +217,25 @@ func checkMultiplexer(v any) (string, []any) {
 	s, _ := v.(string)
 	if !slices.Contains(Multiplexers, strings.ToLower(strings.TrimSpace(s))) {
 		return "config.err.oneof", []any{strings.Join(Multiplexers, ", ")}
+	}
+	return "", nil
+}
+
+func checkOnSwitch(v any) (string, []any) {
+	if s, _ := v.(string); s != "save" && s != "discard" {
+		return "config.err.oneof", []any{"save, discard"}
+	}
+	return "", nil
+}
+
+func checkStartDir(v any) (string, []any) {
+	s, _ := v.(string)
+	dir, ok := ExpandStartDir(s)
+	if !ok {
+		return "config.err.abspath", nil
+	}
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		return "config.err.notdir", []any{dir}
 	}
 	return "", nil
 }
