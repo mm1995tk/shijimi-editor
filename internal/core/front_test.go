@@ -30,9 +30,9 @@ func (f *testFront) WriteClipboard(s string) { f.clip = s }
 func (f *testFront) OpenURL(u string)        { f.urls = append(f.urls, u) }
 func (f *testFront) Exit()                   { f.exited = true }
 
-func (f *testFront) ShowSide(on bool)        { f.side = on }
-func (f *testFront) ShowTerm(on bool)        { f.term = on }
-func (f *testFront) ShowAgent(on bool)       { f.agent = on }
+func (f *testFront) ShowSide(on bool)        { f.side = on; f.push() }
+func (f *testFront) ShowTerm(on bool)        { f.term = on; f.push() }
+func (f *testFront) ShowAgent(on bool)       { f.agent = on; f.push() }
 func (f *testFront) DragBorder(ResizeTarget) {}
 func (f *testFront) ReleasesReported() bool  { return f.releases }
 func (f *testFront) SetReleasesReported(on bool) {
@@ -57,7 +57,7 @@ func (f *testFront) MuxSend(text string, _ bool) []Effect {
 func (f *testFront) MuxClose()                {}
 func (f *testFront) MuxResult(error) []Effect { return nil }
 func (f *testFront) CommandEnded(int)         {}
-func (f *testFront) StartResize()             { f.resize = true }
+func (f *testFront) StartResize()             { f.resize = true; f.push() }
 func (f *testFront) ResizeKey(string)         {}
 func (f *testFront) ResetPanes()              {}
 func (f *testFront) ScrollHover(int)          {}
@@ -91,9 +91,13 @@ func (f *testFront) sizes() Sizes {
 	return Sizes{ScreenW: f.w, ScreenH: f.h, EditRows: f.editRows(), EditorCols: f.rightW(), TextCols: f.rightW()}
 }
 
-// push hands the core the sizes now, once there is a screen.
+// push hands the core the layout and, once there is a screen, the sizes now.
 func (f *testFront) push() {
-	if f.c != nil && f.w > 0 {
+	if f.c == nil {
+		return
+	}
+	f.c.SetLayout(Layout{SideShown: f.side, TermShown: f.term, AgentOpen: f.agent, ResizeMode: f.resize})
+	if f.w > 0 {
 		f.c.SetSizes(f.sizes())
 	}
 }
