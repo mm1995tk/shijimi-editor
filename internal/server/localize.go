@@ -1,33 +1,55 @@
 package server
 
 import (
+	"reflect"
+
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/msg"
-	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // The core and screen.Screen hold every message as a msg.Msg (an i18n key and
-// its values); the language is the UI's to apply. The GUI protocol still carries
-// the text in the language `shj serve` runs in, so the server translates a Msg
-// as it writes the JSON. The next change sends the Msg itself, with the tables.
-func init() { msg.Marshal = i18n.Text }
+// its values). The GUI protocol carries the Msg itself (see msg.Msg.MarshalJSON)
+// and the GUI translates it with the table from i18n.get; only the TUI and the
+// few places where the core needs words (Text) translate here.
 
 // Text is core.Port's: m in the language of this process.
 func (s *Server) Text(m msg.Msg) string { return i18n.Text(m) }
 
 // SetLanguage is core.Port's: the config of a core picked a language, and the
-// process translates with it.
-func (s *Server) SetLanguage(code string) { i18n.SetLang(code) }
+// process translates with it. A GUI that has the table is sent the new one.
+func (s *Server) SetLanguage(code string) {
+	i18n.SetLang(code)
+	s.ScreenChanged()
+}
 
-// wireOverlays puts the overlays in the form the protocol has always had. The
-// core gives a confirmation's question as the Title of the overlay; the wire
-// format carries it as the one line of the overlay.
-func wireOverlays(sc *screen.Screen) {
-	for i := range sc.Overlay {
-		ov := &sc.Overlay[i]
-		if ov.Kind == screen.OverlayConfirm && !ov.Title.IsZero() {
-			ov.Lines = []screen.Line{{Spans: []screen.Span{{Text: i18n.Text(ov.Title)}}}}
-			ov.Title = msg.Msg{}
-		}
+// I18n is the result of i18n.get and the body of i18n.changed: the language and
+// every string in it (English fills what the language lacks).
+type I18n struct {
+	Lang     string            `json:"lang"`
+	Messages map[string]string `json:"messages"`
+}
+
+func currentI18n() I18n { return I18n{Lang: i18n.Lang(), Messages: i18n.Table()} }
+
+func (ss *session) i18nReq() (any, error, bool) {
+	t := currentI18n()
+	s := ss.srv
+	s.screenMu.Lock()
+	ss.viewOf().i18n = &t
+	s.screenMu.Unlock()
+	return t, nil, true
+}
+
+// pushI18n sends i18n.changed when the language differs from what the GUI was
+// given. It goes before the screen, as theme.changed does.
+func (s *Server) pushI18n(ss *session, vs *viewState) {
+	if vs.i18n == nil {
+		return
 	}
+	t := currentI18n()
+	if reflect.DeepEqual(t, *vs.i18n) {
+		return
+	}
+	vs.i18n = &t
+	_ = ss.conn.Notify("i18n.changed", t)
 }

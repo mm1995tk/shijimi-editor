@@ -134,7 +134,7 @@ func newServeEnv(t *testing.T) *serveEnv {
 
 func serveHello() map[string]any {
 	return map[string]any{
-		"protocol": map[string]int{"major": 2},
+		"protocol": map[string]int{"major": server.Protocol.Major},
 		"client":   map[string]string{"name": "test", "version": "0", "kind": "web"},
 	}
 }

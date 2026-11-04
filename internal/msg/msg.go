@@ -12,6 +12,7 @@ package msg
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -59,26 +60,97 @@ func (m Msg) String() string {
 	return sb.String()
 }
 
-// Marshal turns a Msg into the text the JSON protocol carries. The process that
-// serves the protocol sets it (to i18n.Text), because the wire format is still
-// localized text. Without it a Msg is written as its String form.
-var Marshal func(Msg) string
-
-// MarshalJSON writes m as a string.
-func (m Msg) MarshalJSON() ([]byte, error) {
-	if Marshal != nil {
-		return json.Marshal(Marshal(m))
-	}
-	return json.Marshal(m.String())
+// wire is the JSON form of a Msg that is not plain text: the key and the
+// values, for the UI to translate. Key is absent for a concatenation.
+type wire struct {
+	Key  string `json:"key,omitempty"`
+	Args []any  `json:"args"`
 }
 
-// UnmarshalJSON reads a string as untranslated text.
+// MarshalJSON writes m for the GUI protocol. Text with no key (S, or a Cat of
+// strings) is a JSON string. Anything else is {"key", "args"}: the GUI
+// translates it with the table it got from i18n.get. An arg that is a Msg or an
+// error becomes a nested object (or a string, when it is plain text); numbers,
+// booleans and strings stay as they are; any other value is its fmt.Sprint text.
+func (m Msg) MarshalJSON() ([]byte, error) {
+	if s, ok := m.plain(); ok {
+		return json.Marshal(s)
+	}
+	w := wire{Key: m.Key, Args: make([]any, len(m.Args))}
+	for i, a := range m.Args {
+		w.Args[i] = wireArg(a)
+	}
+	return json.Marshal(w)
+}
+
+// plain is the text of m when it has no key and only string args.
+func (m Msg) plain() (string, bool) {
+	if m.Key != "" {
+		return "", false
+	}
+	var sb strings.Builder
+	for _, a := range m.Args {
+		s, ok := a.(string)
+		if !ok {
+			return "", false
+		}
+		sb.WriteString(s)
+	}
+	return sb.String(), true
+}
+
+func wireArg(a any) any {
+	switch v := a.(type) {
+	case Msg:
+		return v
+	case *Error:
+		return v.Msg
+	case error:
+		return v.Error()
+	case fmt.Stringer:
+		return v.String()
+	case string, bool:
+		return v
+	}
+	switch reflect.ValueOf(a).Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return a
+	}
+	return fmt.Sprint(a)
+}
+
+// UnmarshalJSON reads what MarshalJSON writes. A string is untranslated text.
 func (m *Msg) UnmarshalJSON(b []byte) error {
 	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
+	if json.Unmarshal(b, &s) == nil {
+		*m = S(s)
+		return nil
+	}
+	var w struct {
+		Key  string            `json:"key"`
+		Args []json.RawMessage `json:"args"`
+	}
+	if err := json.Unmarshal(b, &w); err != nil {
 		return err
 	}
-	*m = S(s)
+	out := Msg{Key: w.Key, Args: make([]any, len(w.Args))}
+	for i, raw := range w.Args {
+		var v any
+		if err := json.Unmarshal(raw, &v); err != nil {
+			return err
+		}
+		if _, ok := v.(map[string]any); ok {
+			var sub Msg
+			if err := json.Unmarshal(raw, &sub); err != nil {
+				return err
+			}
+			v = sub
+		}
+		out.Args[i] = v
+	}
+	*m = out
 	return nil
 }
 

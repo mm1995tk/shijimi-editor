@@ -73,6 +73,7 @@ type viewState struct {
 	ackSeq   uint64         // 反映した入力の seq の最大（input.go）
 	sentAck  uint64         // GUI に送った ackSeq
 	theme    *Theme         // 最後に GUI に渡したテーマ。theme.get の前は nil で、theme.changed を送らない
+	i18n     *I18n          // 最後に GUI に渡した翻訳の表。i18n.get の前は nil で、i18n.changed を送らない
 	blob     struct {       // 分けて取るときに作り直さないよう、最後に取った画像を覚える
 		id, mime string
 		data     []byte
@@ -134,7 +135,6 @@ func (s *Server) buildScreen(vs *viewState) (sc screen.Screen, root string, err 
 		return sc, "", rpc.Errorf(rpc.CodeNotFound, "the focused workspace has no core")
 	}
 	keepRegions(&sc, vs.regions)
-	wireOverlays(&sc)
 	sc.AckSeq = vs.ackSeq
 	return sc, root, nil
 }
@@ -179,6 +179,7 @@ func (s *Server) pushScreen() {
 	if err != nil {
 		return
 	}
+	s.pushI18n(ss, vs)
 	s.pushTheme(ss, vs, root)
 	prev := vs.last
 	if root != vs.lastRoot {
@@ -242,7 +243,7 @@ func (ss *session) viewNotify(req *rpc.Message) {
 // viewRequest は view.* / screen.get / theme.get / blob.get。扱わないメソッドは handled == false。
 func (ss *session) viewRequest(req *rpc.Message) (res any, err error, handled bool) {
 	switch req.Method {
-	case "view.subscribe", "view.resize", "screen.get", "theme.get", "blob.get":
+	case "view.subscribe", "view.resize", "screen.get", "theme.get", "i18n.get", "blob.get":
 	default:
 		return nil, nil, false
 	}
@@ -258,6 +259,8 @@ func (ss *session) viewRequest(req *rpc.Message) (res any, err error, handled bo
 		return ss.screenGetReq()
 	case "theme.get":
 		return ss.themeReq()
+	case "i18n.get":
+		return ss.i18nReq()
 	}
 	return ss.blobReq(req)
 }

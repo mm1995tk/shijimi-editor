@@ -210,7 +210,7 @@ describe("overlayBox", () => {
     const ov: Overlay = {
       kind: "confirm",
       active: 0,
-      lines: [{ no: 0, spans: [{ text: "捨てますか (y/n)" }] }],
+      title: "捨てますか (y/n)",
       items: [{ label: "y" }, { label: "n" }],
     };
     assert.equal(overlayBox(ov, files, area), undefined);

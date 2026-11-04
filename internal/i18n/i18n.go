@@ -5,6 +5,7 @@ package i18n
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 	"sync/atomic"
 
@@ -105,4 +106,14 @@ func argText(a any) string {
 		return s
 	}
 	return fmt.Sprint(argValue(a))
+}
+
+// Table is every string of the selected language, with the English strings
+// under the ones it lacks (the same fallback as T). The GUI gets it with
+// i18n.get and translates a Msg itself.
+func Table() map[string]string {
+	t := make(map[string]string, len(en))
+	maps.Copy(t, en)
+	maps.Copy(t, current.Load().table)
+	return t
 }
