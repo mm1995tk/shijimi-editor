@@ -85,6 +85,17 @@ export class WorkspaceTrees {
     if (this.active !== null) void this.refresh(this.active);
   }
 
+  /**
+   * ワークスペースのフォルダが切り替わった（プライマリターミナルで cd した）。開閉・取った中身・git の印を捨てて、
+   * 今のワークスペースなら新しいフォルダのツリーを取り直す。まだ知らないワークスペースなら何もしない。
+   */
+  reset(id: WorkspaceId): void {
+    if (!this.states.has(id)) return;
+    this.states.set(id, emptyTree());
+    this.onChange();
+    if (id === this.active) void this.refresh(id);
+  }
+
   /** 一覧から消えたワークスペースを忘れる。 */
   retain(ids: WorkspaceId[]): void {
     const keep = new Set(ids);

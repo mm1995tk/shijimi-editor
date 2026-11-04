@@ -11,11 +11,14 @@
 // どのマシンにも送る（どのマシンにフォーカスを移しても、同じ大きさの欄に描くため）。
 // 欄で受けたキー・IME・マウス・貼り付けは、フォーカスしているマシンの shj に送る。shj でコピーしたら
 // OS のクリップボードに入れる（E2）。
-// 帯を押してフォーカスを移すと、右下のターミナルもそのワークスペースのシェルに切り替える（F2）。
+// マシンの見出しの [+] でフォルダ未定のワークスペースを作り（フォルダはプライマリターミナルで cd すると決まる）、帯の [×] で閉じる
+// （プログラムが動いていれば、先に確認の窓を出す）。ターミナルはワークスペースごとにあり、帯を押してフォーカスを移すと、
+// 右下のターミナルもそのワークスペースのものに切り替わる（F2）。
 // Ctrl+Shift+` でファイルの欄とターミナルのカードを入れ替える（IDE モードとターミナルモード。F3。mode.ts）。
 // IDE モードでファイルを開いていない（ワークスペースが無いときも）あいだは、右の列を全部ターミナルにする（mode.ts）。
-// ターミナルモードでは、マシンのターミナルを数に応じて自動で並べる。Ctrl+Shift+T で増やし、`exit` で閉じて
-// 並び直し、Ctrl+Shift+矢印で隣へ移る（F4。terminal/group.ts・terminal/grid.ts）。
+// ターミナルモードでは、フォーカスしているワークスペースのターミナル（先頭がプライマリ）を数に応じて自動で並べる。
+// Ctrl+Shift+T で増やし、分割したターミナルの `exit` で閉じて並び直し、Ctrl+Shift+矢印で隣へ移る（F4。terminal/group.ts・
+// terminal/grid.ts）。プライマリターミナルは `exit` しても閉じず、Enter で作り直す。
 // 新しい版があれば右下に知らせ、押されたら入れ替えて起動し直す（C8。update/UpdateBar.tsx）。
 // 窓と知らせは、どれもモック Connect.dc.html のカードの決まりで描く（connect/card.css）。
 import {
@@ -31,6 +34,7 @@ import {
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
 import { AddMachine } from "./connect/AddMachine.tsx";
+import { CloseWorkspaceCard } from "./connect/CloseWorkspaceCard.tsx";
 import { InstallCard } from "./connect/InstallCard.tsx";
 import { Notices, type Notice } from "./connect/Notices.tsx";
 import { RenameMachine } from "./connect/RenameMachine.tsx";
@@ -43,6 +47,7 @@ import {
   type FilesSize,
   type SendInput,
 } from "./files/FilesView.tsx";
+import { ErrorCode, RpcError } from "./rpc/message.ts";
 import type { Screen, Theme, Workspace, WorkspaceId } from "./rpc/protocol.ts";
 import {
   adoptFocus,
@@ -70,7 +75,7 @@ import { tauriShell } from "./ssh/tauri.ts";
 import { currentFile, openErrorText, rows as treeRows } from "./tree/model.ts";
 import { WorkspaceTrees } from "./tree/trees.ts";
 import { directionKey, isNewTermKey } from "./terminal/grid.ts";
-import { TermGroup } from "./terminal/group.ts";
+import { TermGroup, TermGroups } from "./terminal/group.ts";
 import { TerminalGrid } from "./terminal/TerminalGrid.tsx";
 import {
   hasOpenFile,
@@ -114,37 +119,22 @@ export function App(props: {
   let switching = false;
   let openSeq = 0;
   const offStates = new Map<string, () => void>();
-  // マシンごとのターミナル（F1・F4）。フォーカスしているマシン（無ければ最初につながったマシン）のものを出す。
-  // ワークスペースはシェルの cwd から決まるので、フォーカスが無くても出す。並びが変わったら termVersion を進める
-  const termGroups = new Map<string, TermGroup>();
+  /** つないで最初の一覧を見たマシン（空なら自動でワークスペースを作る。作るのは 1 回だけ） */
+  const started = new Set<string>();
+  // マシンごと・ワークスペースごとのターミナル（F1・F4）。フォーカスしているワークスペースのものを出す。
+  // 並びが変わったら termVersion を進める（TermGroup は signal ではない）
+  const termGroups = new Map<string, TermGroups>();
   const [termVersion, setTermVersion] = createSignal(0);
-  const termTarget = createMemo(
-    () =>
-      focus()?.target ??
-      targets().find((t) => states()[t]?.kind === "connected"),
-  );
-  const termGroup = createMemo(() => {
-    const t = termTarget();
-    return t !== undefined && sessions()[t] ? termGroups.get(t) : undefined;
-  });
-  // 並びと今使っている欄（TermGroup は signal ではないので、termVersion で描き直す）
-  const termList = () => {
+  const termTarget = () => focus()?.target;
+  const termGroup = (): TermGroup | undefined => {
     void termVersion();
-    return termGroup()?.list ?? [];
+    const f = focus();
+    return f && sessions()[f.target]
+      ? termGroups.get(f.target)?.get(f.id)
+      : undefined;
   };
-  const termActive = () => {
-    void termVersion();
-    return termGroup()?.active;
-  };
-  // 出すマシンが変わったら、前のマシンのものを外し、出すマシンのシェルを拾う
-  createEffect<TermGroup | undefined>((prev) => {
-    const g = termGroup();
-    if (g !== prev) {
-      prev?.hide();
-      g?.show();
-    }
-    return g;
-  });
+  const termList = () => termGroup()?.list ?? [];
+  const termActive = () => termGroup()?.active;
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
   const [treeVersion, setTreeVersion] = createSignal(0);
@@ -164,9 +154,11 @@ export function App(props: {
   const [mode, setMode] = createSignal<Mode>("ide");
   let mainEl: HTMLDivElement | undefined;
   // ファイルの欄に描く画面（フォーカスしているマシンのもの。フォーカスが無ければ null）
+  // フォルダ未定のワークスペースには、ファイルの欄に出すものが無い（shj の画面は前のワークスペースのままかもしれない）
   const filesScreen = () => {
     const f = focus();
-    return f ? (screens()[f.target] ?? null) : null;
+    if (!f || folderOf(f.target, f.id) === null) return null;
+    return screens()[f.target] ?? null;
   };
   // ファイルを開いているか。開いていなければ、IDE モードでもファイルの欄を出さず右の列を全部ターミナルにする（mode.ts）
   const fileOpen = createMemo(() => hasOpenFile(filesScreen()?.files));
@@ -272,7 +264,7 @@ export function App(props: {
       onError: (m) => console.warn(`[${target}] ${m}`),
     });
     trees.set(target, tr);
-    const group = new TermGroup(
+    const group = new TermGroups(
       s,
       () => setTermVersion((v) => v + 1),
       (m) => console.warn(`[${target}] ${m}`),
@@ -294,8 +286,20 @@ export function App(props: {
     const offGit = s.onGitChanged((n) => tr.handleGitChanged(n));
     const offWs = s.onWorkspaces((ws) => {
       tr.retain(ws.map((w) => w.id));
+      // プライマリターミナルで cd してフォルダが切り替わったワークスペースは、ツリーを捨てて取り直す
+      for (const w of ws) {
+        const before = workspaces()[target]?.find((x) => x.id === w.id);
+        if (before && before.folder !== w.folder) tr.reset(w.id);
+      }
+      group.sync(ws);
       setWorkspaces((m) => ({ ...m, [target]: ws }));
       setFocus((f) => keepFocus(f, workspaces(), shjFocuses()));
+      // つないで最初に分かった一覧が空なら、ワークスペースを 1 つ作る（何も無い画面から始めない）。
+      // 閉じて空になったときは作らない
+      if (!started.has(target) && s.state.kind === "connected") {
+        started.add(target);
+        if (ws.length === 0) void createWorkspace(target);
+      }
     });
     const offFocus = s.onFocus((id) =>
       setFocus((f) =>
@@ -333,7 +337,8 @@ export function App(props: {
     offStates.get(target)?.(); // close() の closed を一覧に書き戻させない
     offStates.delete(target);
     trees.delete(target);
-    termGroups.delete(target); // シェルは止めない（次につないだら term.list で見つけてつなぐ）
+    termGroups.delete(target); // シェルは止めない（ワークスペースは shj に残る）
+    started.delete(target);
     blobStores.get(target)?.clear();
     blobStores.delete(target);
     setSessions(({ [target]: _, ...rest }) => rest);
@@ -357,9 +362,17 @@ export function App(props: {
     if (f) sessions()[f.target]?.input(method, params);
   };
 
-  /** ワークスペースのルート（分からなければ undefined）。 */
+  /** ワークスペースのフォルダ。フォルダ未定なら null、ワークスペースが分からなければ undefined。 */
+  function folderOf(
+    target: string,
+    id: WorkspaceId,
+  ): string | null | undefined {
+    return workspaces()[target]?.find((w) => w.id === id)?.folder;
+  }
+
+  /** ワークスペースのフォルダ（未定・分からなければ undefined）。 */
   function rootOf(target: string, id: WorkspaceId): string | undefined {
-    return workspaces()[target]?.find((w) => w.id === id)?.root;
+    return folderOf(target, id) ?? undefined;
   }
 
   /** 帯を押した。shj に workspace.focus を送り、受け付けられたら GUI のフォーカスも移す。 */
@@ -370,12 +383,10 @@ export function App(props: {
     setFocusError(null);
     switching = true;
     try {
-      const termId = await s.focusWorkspace(id);
+      await s.focusWorkspace(id);
       if (seq !== focusSeq) return;
       switching = false;
-      // 右下のターミナルも、そのワークスペースで最後に使ったシェルにする（無ければルートで作る）（F2）
-      const root = rootOf(target, id);
-      if (root !== undefined) termGroups.get(target)?.switchTo(termId, root);
+      // 右下のターミナルは、そのワークスペースのものに切り替わる（F2。termGroup が focus から決める）
       setFocus({ target, id });
     } catch (e) {
       if (seq !== focusSeq) return;
@@ -387,6 +398,79 @@ export function App(props: {
     }
   }
 
+  /**
+   * 見出しの [+]。フォルダ未定のワークスペースを作ってフォーカスし、プライマリターミナルにキーを向ける。
+   * フォルダは、そのターミナルで cd すると決まる。
+   */
+  async function createWorkspace(target: string) {
+    const s = sessions()[target];
+    if (!s) return;
+    setFocusError(null);
+    try {
+      const { id } = await s.createWorkspace();
+      await focusWorkspace(target, id);
+      if (focus()?.id === id) focusTerminal();
+    } catch (e) {
+      setFocusError({
+        title: `${labelOf(target)} にワークスペースを作れませんでした`,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  // 閉じる前に確認している（プログラムが動いている）ワークスペース
+  const [confirmClose, setConfirmClose] = createSignal<{
+    target: string;
+    id: WorkspaceId;
+    name: string;
+  } | null>(null);
+
+  /**
+   * 帯の [×]。shj が開いているファイルを保存して閉じ、ターミナルを全部終わらせる。プログラムが動いていれば
+   * 断られるので、確認の窓を出す（force は窓で「終わらせて閉じる」を押したとき）。保存できないファイルがあれば
+   * 何も閉じずに、そのファイルを知らせる。フォーカスしているワークスペースを閉じたら、隣のワークスペースに移る。
+   */
+  async function closeWorkspace(
+    target: string,
+    id: WorkspaceId,
+    force = false,
+  ) {
+    const s = sessions()[target];
+    if (!s) return;
+    const list = workspaces()[target] ?? [];
+    const i = list.findIndex((w) => w.id === id);
+    const next = list[i + 1] ?? list[i - 1];
+    const wasFocused = focus()?.target === target && focus()?.id === id;
+    const name =
+      groups()
+        .find((g) => g.target === target)
+        ?.bands.find((b) => b.id === id)?.title ?? "";
+    setFocusError(null);
+    try {
+      await s.closeWorkspace(id, force);
+    } catch (e) {
+      const d =
+        e instanceof RpcError && e.code === ErrorCode.Busy
+          ? (e.data as { reason?: string; paths?: string[] } | undefined)
+          : undefined;
+      if (d?.reason === "running" && !force) {
+        setConfirmClose({ target, id, name });
+        return;
+      }
+      setFocusError({
+        title: `${name || "ワークスペース"} を閉じられませんでした`,
+        error:
+          d?.reason === "unsaved" && d.paths?.length
+            ? `保存できないファイルがあります。\n${d.paths.join("\n")}`
+            : e instanceof Error
+              ? e.message
+              : String(e),
+      });
+      return;
+    }
+    if (wasFocused && next) void focusWorkspace(target, next.id);
+  }
+
   // 初めて出たマシンには色を割り当てて保存する（つなぐマシンが変わったときだけ計算し直す）
   const colors = createMemo(() => machineColors(store, targets()));
   const groups = createMemo(() =>
@@ -395,8 +479,17 @@ export function App(props: {
 
   // フォーカスしているワークスペースのツリーだけを動かし（監視と取り直し）、
   // 前にそのワークスペースで覚えたスクロールの位置に戻す（D2）
+  // フォルダ未定のワークスペースにはツリーが無いので、監視も取り直しもしない
+  const treeFocus = createMemo(
+    () => {
+      const f = focus();
+      return f && folderOf(f.target, f.id) !== null ? f : null;
+    },
+    null,
+    { equals: (a, b) => a?.target === b?.target && a?.id === b?.id },
+  );
   createEffect(() => {
-    const f = focus();
+    const f = treeFocus();
     Object.keys(sessions()); // つないだマシンが増えたら、その WorkspaceTrees にも伝える
     untrack(() => {
       let restore: number | undefined;
@@ -480,24 +573,28 @@ export function App(props: {
 
   /** 今使っているターミナルの欄にキーを向ける。 */
   function focusTerminal() {
-    // 足した欄の xterm.js が開くのを待つ
-    queueMicrotask(() =>
+    // 足した欄の xterm.js が開くのを待つ（作ったばかりのワークスペースは、欄が描かれるまでもう少しかかる）
+    const focus = () =>
       mainEl
         ?.querySelector<HTMLElement>(
           ":scope > .terminal .terminal-cell[data-active] textarea",
         )
-        ?.focus({ preventScroll: true }),
-    );
+        ?.focus({ preventScroll: true });
+    queueMicrotask(() => {
+      focus();
+      if (!mainEl?.contains(document.activeElement))
+        requestAnimationFrame(() => requestAnimationFrame(focus));
+    });
   }
 
-  /** 新しいターミナルを作って並べ、キーを向ける（Ctrl+Shift+T。F4）。フォーカスしているワークスペースのルートで開く。 */
+  /** 分割したターミナルを足して並べ、キーを向ける（Ctrl+Shift+T。F4）。フォーカスしているワークスペースに属する。 */
   function newTerminal() {
-    const g = termGroup();
-    if (!g) return;
-    const f = focus();
-    const root = f ? rootOf(f.target, f.id) : undefined;
-    // 無ければ shj に任せる（フォーカスしているワークスペースのルート、それも無ければ ~）
-    if (g.add(root)) focusTerminal();
+    // フォルダは shj が決める（ワークスペースのフォルダ。未定なら start_dir）
+    void termGroup()
+      ?.add()
+      .then((added) => {
+        if (added) focusTerminal();
+      });
   }
 
   /** 「足す」を押した。ssh でつなぎ（shj が無ければ確認して送り）、つながったら保存する（下の effect）。 */
@@ -670,6 +767,8 @@ export function App(props: {
         }
         onRetry={retry}
         onDisconnect={(t) => void disconnect(t)}
+        onCreate={(t) => void createWorkspace(t)}
+        onClose={(t, id) => void closeWorkspace(t, id)}
         onAddMachine={() => {
           setAddError(undefined);
           setAdding(true);
@@ -721,6 +820,18 @@ export function App(props: {
             }
             onYes={() => void sessions()[t()]?.install()}
             onNo={() => sessions()[t()]?.declineInstall()}
+          />
+        )}
+      </Show>
+      <Show when={confirmClose()}>
+        {(c) => (
+          <CloseWorkspaceCard
+            name={c().name}
+            onYes={() => {
+              setConfirmClose(null);
+              void closeWorkspace(c().target, c().id, true);
+            }}
+            onNo={() => setConfirmClose(null)}
           />
         )}
       </Show>

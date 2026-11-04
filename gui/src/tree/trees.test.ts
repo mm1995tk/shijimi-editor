@@ -200,6 +200,37 @@ describe("WorkspaceTrees", () => {
     assert.deepEqual(rows(t.get("w")!)[0].mark, { kind: "file", letter: "M" });
   });
 
+  it("フォルダが切り替わったら開閉を捨てて、今のワークスペースなら取り直す", async () => {
+    const f = fakeShj({ "": [dir("src")], src: [file("b")] });
+    const t = new WorkspaceTrees({ request: f.request, onChange: () => {} });
+    t.activate("w");
+    await settle();
+    t.toggle("w", "src");
+    await settle();
+    f.sent.length = 0;
+    t.reset("w");
+    assert.deepEqual(rows(t.get("w")!), [], "いったん空にする");
+    await settle();
+    assert.deepEqual(
+      f.sent.map((x) => x.method),
+      ["tree.watch", "tree.list", "git.status"],
+    );
+    assert.deepEqual(f.sent[0].params, { workspaceId: "w", paths: [""] });
+    assert.deepEqual(
+      rows(t.get("w")!).map((r) => r.path),
+      ["src"],
+    );
+
+    // フォーカスしていないワークスペースは、フォーカスしたときに取る
+    t.activate("v");
+    await settle();
+    f.sent.length = 0;
+    t.reset("w");
+    await settle();
+    assert.deepEqual(f.sent, []);
+    t.reset("nobody"); // 知らないワークスペースは何もしない
+  });
+
   it("一覧から消えたワークスペースは忘れる", async () => {
     const f = fakeShj({ "": [] });
     const t = new WorkspaceTrees({ request: f.request, onChange: () => {} });

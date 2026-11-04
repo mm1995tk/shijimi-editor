@@ -3,6 +3,8 @@
 // スクロールしても、上にフォーカスしているマシンの見出し → 帯 → 親フォルダを、下にそれより後ろの帯を固定する（D3）。
 // マシンごとの色（D4）は section の --machine-color に入れ、見出しと帯の左端の線とアイコンに使う。
 // 見出しには接続の状態（丸と、その下の短い 1 行。言葉は connect/status.ts）と、今すぐつなぐ・つなぎ直す・切るボタンを出す。
+// つながっているマシンの見出しの右には [+] を置き、押すと onCreate を呼ぶ（フォルダ未定のワークスペースができる）。
+// 帯の右の [×] は、押すと onClose を呼ぶ（ワークスペースを閉じる。確認は App が窓で出す）。
 // 一覧の一番下には「+ マシンを足す」を置き、押すと onAddMachine を呼ぶ（窓は connect/AddMachine.tsx）。
 // 足したマシンの見出しを右クリックすると「名前を変える」「外す」のメニューを出す（onRename・onRemove）。
 // 組み立ては model.ts、色の決め方は colors.ts、見た目は sidebar.css。
@@ -45,6 +47,10 @@ interface Handlers {
   onRetry?: (target: string) => void;
   /** 見出しのそばの「切る」 */
   onDisconnect?: (target: string) => void;
+  /** 見出しの [+]（ワークスペースを作る）。省くと出さない */
+  onCreate?: (target: string) => void;
+  /** 帯の [×]（ワークスペースを閉じる）。省くと出さない */
+  onClose?: (target: string, id: WorkspaceId) => void;
   /** ツリーのファイルの行を押した */
   onOpen?: (target: string, id: WorkspaceId, path: string) => void;
   /** ファイルの欄で開いているファイル（ツリーで強調する行の path）。無ければ undefined */
@@ -247,6 +253,12 @@ function handlers(props: Handlers): Handlers {
     get onDisconnect() {
       return props.onDisconnect;
     },
+    get onCreate() {
+      return props.onCreate;
+    },
+    get onClose() {
+      return props.onClose;
+    },
     get onOpen() {
       return props.onOpen;
     },
@@ -314,6 +326,19 @@ function Machine(
             );
           }}
         </Show>
+        <Show when={props.onCreate && g().health === "up"}>
+          <button
+            type="button"
+            class="machine-action"
+            aria-label={`${g().label} にワークスペースを作る`}
+            title={`${g().label} にワークスペースを作る`}
+            onClick={() => props.onCreate?.(g().target)}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        </Show>
         <Show when={props.onDisconnect}>
           <button
             type="button"
@@ -369,31 +394,53 @@ function BandItem(
   const b = () => props.band;
   return (
     <li>
-      <button
+      {/* 帯は行にして、中の 2 つのボタン（フォーカスを移す・閉じる）を並べる（ボタンの中にボタンは置けない） */}
+      <div
         class="band"
         aria-current={b().focused ? "true" : undefined}
         data-sticky={b().focused ? "top" : undefined}
-        title={b().root}
-        onClick={() => props.onFocus(props.target, b().id)}
+        title={b().root || undefined}
       >
-        <svg
-          class="band-icon"
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          aria-hidden="true"
+        <button
+          type="button"
+          class="band-main"
+          onClick={() => props.onFocus(props.target, b().id)}
         >
-          <path d="M8 2l6 3-6 3-6-3z" />
-          <path d="M2 8l6 3 6-3" />
-          <path d="M2 11l6 3 6-3" />
-        </svg>
-        <span class="band-title" classList={{ path: b().path }}>
-          {b().title}
-        </span>
-        <Show when={b().detail}>
-          <span class="band-detail">{b().detail}</span>
+          <svg
+            class="band-icon"
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+          >
+            <path d="M8 2l6 3-6 3-6-3z" />
+            <path d="M2 8l6 3 6-3" />
+            <path d="M2 11l6 3 6-3" />
+          </svg>
+          <span
+            class="band-title"
+            classList={{ path: b().path, unset: b().unset }}
+          >
+            {b().title}
+          </span>
+          <Show when={b().detail}>
+            <span class="band-detail">{b().detail}</span>
+          </Show>
+        </button>
+        <Show when={props.onClose}>
+          <button
+            type="button"
+            class="band-close"
+            aria-label={`${b().title} を閉じる`}
+            title="ワークスペースを閉じる"
+            onClick={() => props.onClose?.(props.target, b().id)}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
         </Show>
-      </button>
+      </div>
       <Show when={b().focused && props.treeOf?.(props.target, b().id)}>
         {(rows) => (
           <TreeView

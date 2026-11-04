@@ -7,7 +7,6 @@ import {
   decodeBase64,
   encodeBase64,
   EXITED_NOTICE,
-  RECREATED_NOTICE,
   TermLink,
   type TermPort,
   type TermSink,
@@ -17,17 +16,17 @@ const enc = new TextEncoder();
 const dec = new TextDecoder();
 const b64 = (s: string) => encodeBase64(enc.encode(s));
 
-/** 返事を手で返す偽の shj。 */
+/** 返事を手で返す偽の shj。term.list は alive に出したターミナルを返す。 */
 function fakePort(opts: { terms?: TermInfo[] } = {}) {
   const calls: { method: string; params: any }[] = [];
   const acks: { termId: string; seq: number }[] = [];
   const handlers: Record<string, (params: any) => unknown> = {
-    "term.list": () => ({ terms: opts.terms ?? [] }),
-    "term.create": () => ({ termId: "t1", pid: 1, cwd: "/w" }),
+    "term.list": () => ({ terms: opts.terms ?? [alive("t1")] }),
     "term.attach": () => ({ seq: 0, replay: "", cols: 80, rows: 24 }),
     "term.input": () => ({}),
     "term.resize": () => ({}),
     "term.close": () => ({}),
+    "term.restart": () => ({ pid: 2, cwd: "/w" }),
   };
   const port: TermPort = {
     async request(method, params) {
@@ -76,7 +75,8 @@ function alive(termId: string, isAlive = true): TermInfo {
     termId,
     pid: 1,
     cwd: "/w",
-    workspaceId: null,
+    workspaceId: "w1",
+    primary: false,
     title: "",
     cols: 80,
     rows: 24,
@@ -96,8 +96,13 @@ function output(termId: string, seq: number, s: string) {
   };
 }
 
+const exitOf = (termId: string) => ({
+  method: "term.exit" as const,
+  params: { termId, code: 0 },
+});
+
 describe("TermLink", () => {
-  it("作ったら 0 から取り直し、出力を書いて、書き終えた分を ack する", async () => {
+  it("つないだら 0 から取り直し、出力を書いて、書き終えた分を ack する", async () => {
     const f = fakePort();
     f.handlers["term.attach"] = () => ({
       seq: 2,
@@ -106,16 +111,14 @@ describe("TermLink", () => {
       rows: 24,
     });
     const s = fakeSink();
-    const link = new TermLink(f.port);
-    link.resize(100, 30);
+    const link = new TermLink(f.port, "t1");
     link.bind(s.sink);
     await tick();
     assert.deepEqual(
       f.calls.map((c) => c.method),
-      ["term.list", "term.create", "term.attach"],
+      ["term.attach", "term.list"],
     );
-    assert.deepEqual(f.calls[1]!.params, { cols: 100, rows: 30 });
-    assert.deepEqual(f.calls[2]!.params, { termId: "t1", fromSeq: 0 });
+    assert.deepEqual(f.calls[0]!.params, { termId: "t1", fromSeq: 0 });
     assert.equal(s.text(), "$ ");
 
     link.handle(output("t1", 7, "hello"));
@@ -134,7 +137,7 @@ describe("TermLink", () => {
       rows: 24,
     });
     const s = fakeSink();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t1");
     link.bind(s.sink);
     await tick();
     link.handle(output("t1", 3, "abc")); // 全部取り直し済み
@@ -146,7 +149,7 @@ describe("TermLink", () => {
   it("seq が飛んだら、続きから term.attach で取り直す。その返事を待つ間の出力は捨てる", async () => {
     const f = fakePort();
     const s = fakeSink();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t1");
     link.bind(s.sink);
     await tick();
     link.handle(output("t1", 3, "abc"));
@@ -168,57 +171,42 @@ describe("TermLink", () => {
     assert.equal(s.text(), "abc[rest]ok");
   });
 
-  it("動いているターミナルがあれば、作らずにつないで大きさを合わせる", async () => {
-    const f = fakePort({
-      terms: [
-        {
-          termId: "t3",
-          pid: 3,
-          cwd: "/w",
-          workspaceId: null,
-          title: "",
-          cols: 80,
-          rows: 24,
-          alive: true,
-        },
-      ],
-    });
+  it("つないだターミナルの大きさが画面と違えば合わせる", async () => {
+    const f = fakePort({ terms: [{ ...alive("t3"), cols: 50 }] });
     const s = fakeSink();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t3");
     link.resize(120, 40);
     link.bind(s.sink);
     await tick();
     assert.deepEqual(
       f.calls.map((c) => c.method),
-      ["term.list", "term.attach", "term.resize"],
+      ["term.resize", "term.attach", "term.list", "term.resize"],
     );
-    assert.deepEqual(f.calls[2]!.params, { termId: "t3", cols: 120, rows: 40 });
+    assert.deepEqual(f.calls[3]!.params, { termId: "t3", cols: 120, rows: 40 });
   });
 
   it("キー入力を base64 にして送り、大きさが変わったら term.resize を送る", async () => {
     const f = fakePort();
-    const link = new TermLink(f.port);
-    link.input(enc.encode("x")); // まだターミナルが無い
+    const link = new TermLink(f.port, "t1");
     link.bind(fakeSink().sink);
     await tick();
     link.input(enc.encode("ls\r"));
     link.resize(90, 20);
     link.resize(90, 20);
     await tick();
-    assert.deepEqual(f.calls.slice(3), [
+    assert.deepEqual(f.calls.slice(2), [
       { method: "term.input", params: { termId: "t1", data: b64("ls\r") } },
       { method: "term.resize", params: { termId: "t1", cols: 90, rows: 20 } },
     ]);
   });
 
-  it("つなぎ直したら続きから取り直し、ターミナルが無ければ新しく作る", async () => {
+  it("つなぎ直したら続きから取り直す", async () => {
     const f = fakePort();
     const s = fakeSink();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t1");
     link.bind(s.sink);
     await tick();
     link.handle(output("t1", 2, "ab"));
-    f.handlers["term.list"] = () => ({ terms: [alive("t1")] });
     f.calls.length = 0;
     link.reconnected();
     await tick();
@@ -226,32 +214,14 @@ describe("TermLink", () => {
       { method: "term.attach", params: { termId: "t1", fromSeq: 2 } },
       { method: "term.list", params: {} },
     ]);
-
-    // shj が作り直された
-    f.handlers["term.list"] = () => ({ terms: [] });
-    f.calls.length = 0;
-    f.handlers["term.attach"] = (p) =>
-      p.termId === "t1"
-        ? new RpcError({
-            code: ErrorCode.NotFound,
-            message: "no such terminal",
-          })
-        : { seq: 0, replay: "", cols: 80, rows: 24 };
-    f.handlers["term.create"] = () => ({ termId: "t2", pid: 2, cwd: "/w" });
-    link.reconnected();
-    await tick();
-    assert.deepEqual(
-      f.calls.map((c) => c.method),
-      ["term.attach", "term.list", "term.create", "term.attach"],
-    );
-    assert.equal(link.id, "t2");
-    assert.ok(s.text().endsWith(RECREATED_NOTICE));
   });
 
-  it("シェルが終わったら残りを取ってから知らせ、Enter で新しいシェルを開く", async () => {
+  it("分割したターミナルのシェルが終わったら、残りを取ってから onExit で知らせる（知らせは書かない）", async () => {
     const f = fakePort();
     const s = fakeSink();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t1");
+    let exits = 0;
+    link.onExit = () => exits++;
     link.bind(s.sink);
     await tick();
     f.handlers["term.attach"] = () => ({
@@ -260,33 +230,95 @@ describe("TermLink", () => {
       cols: 80,
       rows: 24,
     });
-    link.handle({ method: "term.exit", params: { termId: "t1", code: 0 } });
+    link.handle(exitOf("t1"));
+    await tick();
+    assert.equal(s.text(), "exit\n");
+    assert.equal(exits, 1);
+    // 分割したターミナルは Enter で作り直さない
+    f.calls.length = 0;
+    link.input(enc.encode("\r"));
+    await tick();
+    assert.deepEqual(f.calls, []);
+  });
+
+  it("プライマリターミナルのシェルが終わっても欄を閉じず、知らせを出して Enter で term.restart する", async () => {
+    const f = fakePort();
+    const s = fakeSink();
+    const link = new TermLink(f.port, "t1", undefined, { primary: true });
+    let exits = 0;
+    link.onExit = () => exits++;
+    link.bind(s.sink);
+    await tick();
+    f.handlers["term.attach"] = () => ({
+      seq: 5,
+      replay: b64("exit\n"),
+      cols: 80,
+      rows: 24,
+    });
+    link.handle(exitOf("t1"));
     await tick();
     assert.equal(s.text(), "exit\n" + EXITED_NOTICE);
+    assert.equal(exits, 0, "欄を閉じさせない");
 
     f.calls.length = 0;
     link.input(enc.encode("a")); // Enter 以外は何もしない
-    f.handlers["term.create"] = () => ({ termId: "t2", pid: 2, cwd: "/w" });
+    await tick();
+    assert.deepEqual(f.calls, []);
+
     f.handlers["term.attach"] = () => ({
-      seq: 0,
-      replay: "",
+      seq: 8,
+      replay: b64("new\n"),
       cols: 80,
       rows: 24,
     });
     link.input(enc.encode("\r"));
+    link.input(enc.encode("\r")); // 続けて押しても 1 回だけ
     await tick();
-    assert.deepEqual(
-      f.calls.map((c) => c.method),
-      ["term.close", "term.create", "term.attach"],
+    assert.deepEqual(f.calls, [
+      { method: "term.restart", params: { termId: "t1" } },
+      { method: "term.attach", params: { termId: "t1", fromSeq: 5 } },
+    ]);
+    assert.equal(link.id, "t1");
+    assert.equal(link.hasExited, false);
+    assert.equal(s.text(), "exit\n" + EXITED_NOTICE + "new\n");
+
+    // 作り直したシェルの入力は、また送る
+    link.input(enc.encode("ls"));
+    await tick();
+    assert.equal(
+      (f.calls as { method: string }[]).at(-1)!.method,
+      "term.input",
     );
-    assert.equal(link.id, "t2");
-    assert.equal(s.text(), "");
+  });
+
+  it("term.restart が断られたら知らせ、また Enter で試せる", async () => {
+    const f = fakePort();
+    const errors: string[] = [];
+    const link = new TermLink(f.port, "t1", (m) => errors.push(m), {
+      primary: true,
+    });
+    link.bind(fakeSink().sink);
+    await tick();
+    link.handle(exitOf("t1"));
+    await tick();
+    f.handlers["term.restart"] = () =>
+      new RpcError({ code: ErrorCode.Busy, message: "still running" });
+    link.input(enc.encode("\r"));
+    await tick();
+    assert.equal(errors.length, 1);
+    assert.match(errors[0]!, /term\.restart/);
+    assert.equal(link.hasExited, true);
+    f.calls.length = 0;
+    f.handlers["term.restart"] = () => ({ pid: 3, cwd: "/w" });
+    link.input(enc.encode("\r"));
+    await tick();
+    assert.equal(f.calls[0]!.method, "term.restart");
   });
 
   it("外したら出力を書かず ack もしない。また付けたら全部取り直す", async () => {
     const f = fakePort();
     const s = fakeSink();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t1");
     link.bind(s.sink);
     await tick();
     link.handle(output("t1", 2, "ab"));
@@ -296,7 +328,6 @@ describe("TermLink", () => {
     assert.deepEqual(f.acks, []);
 
     const s2 = fakeSink();
-    f.handlers["term.list"] = () => ({ terms: [alive("t1")] });
     f.calls.length = 0;
     link.bind(s2.sink);
     await tick();
@@ -309,7 +340,7 @@ describe("TermLink", () => {
   it("取り直した分を画面が書き終える前に欠けが続いても、取り直しは書き終えてから 1 回だけ", async () => {
     const f = fakePort();
     const s = fakeSink();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t1");
     link.bind(s.sink);
     await tick();
     s.flush();
@@ -337,7 +368,7 @@ describe("TermLink", () => {
 
   it("取り直しの返事を待つ間のキー入力も送る", async () => {
     const f = fakePort();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t1");
     link.bind(fakeSink().sink);
     await tick();
     let answer!: () => void;
@@ -355,13 +386,13 @@ describe("TermLink", () => {
     answer();
   });
 
-  it("外している間に終わったシェルは、付け直したときに知らせて Enter で作り直せる", async () => {
+  it("外している間に終わったシェルは、付け直したときに知らせて Enter で作り直せる（プライマリ）", async () => {
     const f = fakePort();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t1", undefined, { primary: true });
     link.bind(fakeSink().sink);
     await tick();
     link.unbind();
-    link.handle({ method: "term.exit", params: { termId: "t1", code: 0 } }); // 外しているので届かない
+    link.handle(exitOf("t1")); // 外しているので届かない
     f.handlers["term.list"] = () => ({ terms: [alive("t1", false)] });
     const s = fakeSink();
     link.bind(s.sink);
@@ -369,19 +400,15 @@ describe("TermLink", () => {
     assert.ok(s.text().endsWith(EXITED_NOTICE));
     assert.equal(s.text().split(EXITED_NOTICE).length - 1, 1); // 1 回だけ
     f.calls.length = 0;
-    f.handlers["term.create"] = () => ({ termId: "t2", pid: 2, cwd: "/w" });
     link.input(enc.encode("\r"));
     await tick();
-    assert.deepEqual(
-      f.calls.map((c) => c.method),
-      ["term.close", "term.create", "term.attach"],
-    );
+    assert.equal(f.calls[0]!.method, "term.restart");
   });
 
-  it("term.input が not_found なら、シェルが終わったものとして知らせる", async () => {
+  it("term.input が not_found なら、シェルが終わったものとして扱う", async () => {
     const f = fakePort();
     const s = fakeSink();
-    const link = new TermLink(f.port);
+    const link = new TermLink(f.port, "t1", undefined, { primary: true });
     link.bind(s.sink);
     await tick();
     f.handlers["term.input"] = () =>
@@ -393,102 +420,19 @@ describe("TermLink", () => {
     await tick();
     assert.ok(s.text().endsWith(EXITED_NOTICE));
   });
-  it("ワークスペースを移したら、そのワークスペースのターミナルに切り替えて取り直し、大きさを合わせる", async () => {
-    const f = fakePort({ terms: [alive("t1"), { ...alive("t2"), cols: 50 }] });
-    const s = fakeSink();
-    const link = new TermLink(f.port);
-    link.resize(100, 30);
-    link.bind(s.sink);
-    await tick();
-    link.handle(output("t1", 3, "one"));
-    f.handlers["term.attach"] = (p) => ({
-      seq: 3,
-      replay: b64(p.termId === "t2" ? "two" : ""),
-      cols: 50,
-      rows: 24,
-    });
-    f.calls.length = 0;
-    link.switchTo("t2", "/b");
-    await tick();
-    assert.equal(link.id, "t2");
-    assert.equal(s.text(), "two", "前のターミナルの中身を消してから描く");
-    assert.deepEqual(f.calls[0], {
-      method: "term.attach",
-      params: { termId: "t2", fromSeq: 0 },
-    });
-    assert.ok(
-      f.calls.some(
-        (c) =>
-          c.method === "term.resize" &&
-          c.params.termId === "t2" &&
-          c.params.cols === 100,
-      ),
-    );
-    link.handle(output("t1", 6, "xxx")); // 前のターミナルの出力は書かない
-    assert.equal(s.text(), "two");
-    assert.ok(
-      !f.calls.some((c) => c.method === "term.close"),
-      "前のシェルは止めない",
-    );
 
-    // 同じターミナルなら何もしない
-    f.calls.length = 0;
-    link.switchTo("t2", "/b");
+  it("shj にターミナルが無ければ（shj が作り直された）、分割したターミナルは欄を閉じさせる", async () => {
+    const f = fakePort();
+    const link = new TermLink(f.port, "t1");
+    let exits = 0;
+    link.onExit = () => exits++;
+    link.bind(fakeSink().sink);
     await tick();
-    assert.deepEqual(f.calls, []);
-  });
-
-  it("ワークスペースにターミナルが無ければ、ほかのシェルを拾わずにルートで作る", async () => {
-    const f = fakePort({ terms: [alive("t1")] });
-    f.handlers["term.create"] = () => ({ termId: "t9", pid: 2, cwd: "/b" });
-    const s = fakeSink();
-    const link = new TermLink(f.port);
-    link.bind(s.sink);
+    f.handlers["term.attach"] = () =>
+      new RpcError({ code: ErrorCode.NotFound, message: "no such terminal" });
+    link.reconnected();
     await tick();
-    assert.equal(link.id, "t1");
-    f.calls.length = 0;
-    link.switchTo(undefined, "/b");
-    await tick();
-    assert.equal(link.id, "t9");
-    assert.deepEqual(
-      f.calls.map((c) => c.method),
-      ["term.create", "term.attach"],
-    );
-    assert.equal(f.calls[0]!.params.cwd, "/b");
-  });
-
-  it("外している間に移したら覚えておき、付けたときにそのターミナルを描く", async () => {
-    const f = fakePort({ terms: [alive("t1"), alive("t2")] });
-    const s = fakeSink();
-    const link = new TermLink(f.port);
-    link.switchTo("t2", "/b");
-    await tick();
-    assert.deepEqual(f.calls, [], "外している間は何も送らない");
-    link.bind(s.sink);
-    await tick();
-    assert.equal(link.id, "t2");
-    assert.deepEqual(f.calls[0], {
-      method: "term.attach",
-      params: { termId: "t2", fromSeq: 0 },
-    });
-  });
-
-  it("移したあとにシェルが終わったら、Enter でそのワークスペースのルートに作り直す", async () => {
-    const f = fakePort({ terms: [alive("t2")] });
-    f.handlers["term.create"] = () => ({ termId: "t3", pid: 3, cwd: "/b" });
-    const s = fakeSink();
-    const link = new TermLink(f.port);
-    link.switchTo("t2", "/b");
-    link.bind(s.sink);
-    await tick();
-    link.handle({ method: "term.exit", params: { termId: "t2", code: 0 } });
-    await tick();
-    f.calls.length = 0;
-    link.input(enc.encode("\r"));
-    await tick();
-    const create = f.calls.find((c) => c.method === "term.create");
-    assert.equal(create?.params.cwd, "/b");
-    assert.equal(link.id, "t3");
+    assert.equal(exits, 1);
   });
 });
 

@@ -93,6 +93,7 @@ export type TermMethod =
   | "term.list"
   | "term.attach"
   | "term.close"
+  | "term.restart"
   | "term.resize"
   | "term.input";
 /** Session.request で送れる要求（画像の実体。E6）。 */
@@ -281,6 +282,30 @@ export class Session {
     this.setFocus(id);
     void this.fetchScreen(conn, gen, true);
     return r.termId;
+  }
+
+  /**
+   * workspace.create を送る。フォルダ未定のワークスペースとそのプライマリターミナルができる。
+   * つながっていないとき・shj が断ったときは投げる。
+   */
+  async createWorkspace(): Promise<{ id: WorkspaceId; termId: TermId }> {
+    const conn = this.conn;
+    if (!conn) throw new Error(`${this.target} につながっていません`);
+    return conn.client.request("workspace.create", {});
+  }
+
+  /**
+   * workspace.close を送る。開いているファイルは shj が保存して閉じ、ターミナルを全部終わらせる。
+   * プログラムが動いていれば busy（data.reason が "running"）で断られるので、force で送り直せる。
+   * 保存できないファイルがあれば busy（data.reason が "unsaved"、data.paths がそのファイル）で、force でも閉じない。
+   */
+  async closeWorkspace(id: WorkspaceId, force = false): Promise<void> {
+    const conn = this.conn;
+    if (!conn) throw new Error(`${this.target} につながっていません`);
+    await conn.client.request(
+      "workspace.close",
+      force ? { id, force } : { id },
+    );
   }
 
   /**
