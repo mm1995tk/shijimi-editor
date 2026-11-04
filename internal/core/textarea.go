@@ -57,10 +57,15 @@ func (t *TextArea) InsertString(s string) {
 		switch {
 		case r == '\n':
 			t.newline()
-		case r == '\t' || !unicode.IsControl(r):
+		case r == '\t': // a tab has no width of its own in a row: spaces
+			for range buffer.TabWidth {
+				t.insertRune(' ')
+			}
+		case !unicode.IsControl(r):
 			t.insertRune(r)
 		}
 	}
+	t.want = -1
 	t.fix()
 }
 

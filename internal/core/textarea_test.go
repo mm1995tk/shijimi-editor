@@ -3,6 +3,8 @@ package core
 import (
 	"strings"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 )
 
 func TestTextAreaEdits(t *testing.T) {
@@ -46,5 +48,16 @@ func TestTextAreaWrapsAndScrolls(t *testing.T) {
 	}
 	if ta.Rows()[textAreaRows-1] != "end" {
 		t.Fatalf("rows %q", ta.Rows())
+	}
+}
+
+func TestTextAreaTabsBecomeSpaces(t *testing.T) {
+	ta := NewTextArea("")
+	ta.Update(Paste{Content: "\tfoo()"})
+	if got := ta.Rows()[0]; got != strings.Repeat(" ", buffer.TabWidth)+"foo()" {
+		t.Fatalf("row %q", got)
+	}
+	if x, _, _ := ta.CursorCell(); x != buffer.TabWidth+5 {
+		t.Fatalf("x %d", x)
 	}
 }
