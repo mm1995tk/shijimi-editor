@@ -24,7 +24,7 @@ type Workspaces struct {
 	front func() FrontEnd
 
 	mu       sync.Mutex
-	big      sync.Mutex            // held by whoever touches any core: see Workspace
+	coresMu  sync.Mutex            // held by whoever touches any core: see Workspace
 	cores    map[string]*Workspace // key -> its core
 	onChange func()                // SetOnChange
 }
@@ -186,7 +186,7 @@ func (ws *Workspaces) Open(key, root string) (*Workspace, error) {
 		return nil, err
 	}
 	ws.mu.Lock()
-	w := &Workspace{Key: key, Root: root, mu: &ws.big, core: c, onChange: ws.onChange, done: make(chan struct{})}
+	w := &Workspace{Key: key, Root: root, mu: &ws.coresMu, core: c, onChange: ws.onChange, done: make(chan struct{})}
 	if got := ws.cores[key]; got != nil {
 		// someone made it meanwhile; theirs stays
 		ws.mu.Unlock()

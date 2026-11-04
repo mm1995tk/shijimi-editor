@@ -61,3 +61,20 @@ func (p *Pool) Len() int {
 	defer p.mu.Unlock()
 	return len(p.docs)
 }
+
+// SetPath renames the file this view's Doc is of (save as, a rename in the
+// file tree), and the Pool follows: the file is then found under its new
+// name, not the old one.
+func (b *Buffer) SetPath(path string) {
+	d := b.Doc
+	if d.pool != nil {
+		d.pool.mu.Lock()
+		defer d.pool.mu.Unlock()
+		if d.pool.docs[d.key] == d {
+			delete(d.pool.docs, d.key)
+		}
+		d.key = fileKey(path)
+		d.pool.docs[d.key] = d
+	}
+	d.Path = path
+}

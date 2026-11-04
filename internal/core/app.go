@@ -506,7 +506,7 @@ func (a *Core) saveTo(t *Tab, v string) []Effect {
 		v = filepath.Join(a.Root, v)
 	}
 	isNew := t.Buf.Path != v
-	t.Buf.Path = v
+	t.Buf.SetPath(v)
 	t.Hl = NewHighlighter(v)
 	cmd := a.saveTab(t)
 	if isNew {
@@ -603,10 +603,10 @@ func (a *Core) renameFile() []Effect {
 		for _, t := range a.Tabs {
 			switch {
 			case t.Kind == TabText && t.Buf.Path == old:
-				t.Buf.Path = v
+				t.Buf.SetPath(v)
 				t.Hl = NewHighlighter(v)
 			case t.Kind == TabText && strings.HasPrefix(t.Buf.Path, old+string(filepath.Separator)):
-				t.Buf.Path = v + t.Buf.Path[len(old):]
+				t.Buf.SetPath(v + t.Buf.Path[len(old):])
 			case t.Kind == TabImage && t.Img.Path == old:
 				t.Img.Path = v
 			}

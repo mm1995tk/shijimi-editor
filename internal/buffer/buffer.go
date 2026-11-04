@@ -157,12 +157,18 @@ func (b *Buffer) Settle() {
 		m.Pos = fit(m.Pos)
 	}
 	b.ScrollRow = clampInt(b.ScrollRow, 0, len(b.Lines)-1)
-	b.clamp()
+	if old := b.Cur; true {
+		b.Cur.Row = clampInt(b.Cur.Row, 0, len(b.Lines)-1)
+		b.Cur.Col = clampInt(b.Cur.Col, 0, len(b.Lines[b.Cur.Row]))
+		if b.Cur != old {
+			b.syncWant()
+		}
+	}
 }
 
 // shiftPeers moves the cursors and marks of the other views of the Doc as the
 // edit f describes.
-func (b *Buffer) shiftPeers(f func(Pos) Pos) {
+func (b *Buffer) shiftPeers(f func(Pos) Pos, atStart func(Pos) bool) {
 	for _, v := range b.views {
 		if v == b {
 			continue
@@ -176,9 +182,7 @@ func (b *Buffer) shiftPeers(f func(Pos) Pos) {
 			v.extra[i].Cur = f(v.extra[i].Cur)
 			v.extra[i].Anchor = f(v.extra[i].Anchor)
 		}
-		for _, m := range v.marks {
-			m.Pos = f(m.Pos)
-		}
+		v.shiftMarks(f, atStart)
 	}
 }
 
@@ -515,7 +519,7 @@ func (b *Buffer) insertRaw(text []rune) {
 		f := func(p Pos) Pos { return shiftInsert(p, start, b.Cur) }
 		b.shiftOthers(f)
 		b.shiftMarks(f, func(p Pos) bool { return p == start })
-		b.shiftPeers(f)
+		b.shiftPeers(f, func(p Pos) bool { return p == start })
 	}()
 	parts := splitLines(text)
 	line := b.Lines[b.Cur.Row]
@@ -765,7 +769,7 @@ func (b *Buffer) deleteSelection() {
 func (b *Buffer) deleteRange(s, e Pos) {
 	b.shiftOthers(func(p Pos) Pos { return shiftDelete(p, s, e) })
 	b.shiftMarks(func(p Pos) Pos { return shiftDelete(p, s, e) }, func(Pos) bool { return false })
-	b.shiftPeers(func(p Pos) Pos { return shiftDelete(p, s, e) })
+	b.shiftPeers(func(p Pos) Pos { return shiftDelete(p, s, e) }, func(Pos) bool { return false })
 	merged := concat(b.Lines[s.Row][:s.Col], b.Lines[e.Row][e.Col:])
 	lines := make([][]rune, 0, len(b.Lines)-(e.Row-s.Row))
 	lines = append(lines, b.Lines[:s.Row]...)

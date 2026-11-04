@@ -54,3 +54,28 @@ func TestPoolSharesText(t *testing.T) {
 		t.Error("the text stayed after its last view")
 	}
 }
+
+func TestPoolFollowsRename(t *testing.T) {
+	dir := t.TempDir()
+	p, q := filepath.Join(dir, "a.txt"), filepath.Join(dir, "b.txt")
+	if err := os.WriteFile(p, []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	pool := NewPool()
+	a, _ := pool.Open(p)
+	if err := os.Rename(p, q); err != nil {
+		t.Fatal(err)
+	}
+	a.SetPath(q)
+	b, err := pool.Open(q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Doc != b.Doc {
+		t.Error("the renamed file opened as a second text")
+	}
+	c, _ := pool.Open(p)
+	if c.Doc == a.Doc {
+		t.Error("the old name still finds the renamed file")
+	}
+}

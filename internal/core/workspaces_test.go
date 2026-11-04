@@ -205,13 +205,11 @@ func TestWorkspacesShareBuffer(t *testing.T) {
 	}
 
 	wa.Do(func(c *Core) {
-
 		if !c.OpenFile(p) {
 			t.Fatal(c.Msg)
 		}
 	})
 	wb.Do(func(c *Core) {
-
 		if !c.OpenFile(p) {
 			t.Fatal(c.Msg)
 		}
