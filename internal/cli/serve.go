@@ -94,7 +94,7 @@ func runServe(args []string) int {
 	// when its workspace takes the focus and kept while it has files open.
 	shared := core.NewShared(coreBuild())
 	defer shared.Close()
-	cores := core.NewWorkspaces(shared, nil)
+	cores := core.NewWorkspaces(shared)
 	cores.SetPort(srv)
 	defer cores.CloseAll()
 	// What a core does on its own (a language server replied, a timer fired) is

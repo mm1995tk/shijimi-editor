@@ -14,7 +14,7 @@ import (
 // App is the root Bubble Tea model: a core.Core and what draws it to a
 // terminal. It holds only what a terminal has (the size of the screen, which
 // regions are shown, the pane sizes the user dragged to, the terminal under
-// the editor); the Core is the front end's FrontEnd.
+// the editor); the Core is drawn by it and calls it as its Port.
 type App struct {
 	*core.Core
 
@@ -36,7 +36,6 @@ type App struct {
 	agentWPref  int         // panel width picked by the user (0 = automatic)
 	capture     core.Region // the region a held pointer button is captured by (see locate)
 	lastClick   click       // the previous left press (see clicks in inputtea.go)
-	keyReleases bool        // the terminal reports key releases
 	askReleases bool        // key releases were asked for in the last View
 	quitting    bool        // tea.Quit was returned (see exit)
 	later       []tea.Cmd   // work the core asked for through the Port, started by the next effectCmd
@@ -51,7 +50,6 @@ func New(dir, file string, b core.Build) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.SetPort(a)
 	a.Core = c
 	a.pushLayout()
 	return a, nil
@@ -68,7 +66,6 @@ func NewSingle(file string, b core.Build) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	c.SetPort(a)
 	a.Core = c
 	a.pushLayout()
 	return a, nil

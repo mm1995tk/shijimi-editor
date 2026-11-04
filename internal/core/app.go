@@ -34,9 +34,8 @@ type span struct{ x0, x1 int }
 // keeps what only a terminal has: which regions are
 // shown, the terminal panel and the pane sizes the user picked.
 type Core struct {
-	FrontEnd        // what draws it (internal/tui.App)
-	sizes    Sizes  // the sizes the UI last gave (SetSizes)
-	layout   Layout // the regions the UI last said it shows (SetLayout)
+	sizes  Sizes  // the sizes the UI last gave (SetSizes)
+	layout Layout // the regions the UI last said it shows (SetLayout)
 
 	Root           string
 	GitTop         string
@@ -45,7 +44,8 @@ type Core struct {
 	lastIns        *insertRecord // what "." repeats
 	recIns         *insertRecord // the insert being recorded, until Esc
 	replaying      bool          // "." is running; do not record
-	port           Port          // the UI's side of what the core cannot do itself (SetPort)
+	port           Port          // the UI's side of what the core cannot do itself (New)
+	releases       bool          // the terminal reports key releases (the ReleasesReported input)
 	copyOnOpenFail string        // the URL openPRURL asked to open: copy it if that fails
 	Lsp            *lspManager
 	Focus          Focus
@@ -141,14 +141,14 @@ type Core struct {
 	PreviewGen int
 }
 
-// New creates the core rooted at dir, optionally opening file. fe is the front
-// end it is drawn by. The core has the process-wide parts (Shared) to itself,
+// New creates the core rooted at dir, optionally opening file. p is the Port of the
+// UI it is drawn by (nil: one that does nothing). The core has the process-wide parts (Shared) to itself,
 // as in the TUI: Close closes them too.
 //
 // A mistake in a configuration file is an *config.Error and no core: shijimi
 // does not start with settings it cannot read as written.
-func New(fe FrontEnd, dir, file string, b Build) (*Core, error) {
-	a, err := newCore(NewShared(b), fe, dir, file, true)
+func New(p Port, dir, file string, b Build) (*Core, error) {
+	a, err := newCore(NewShared(b), p, dir, file, true)
 	if err != nil {
 		return nil, err
 	}
@@ -160,11 +160,11 @@ func New(fe FrontEnd, dir, file string, b Build) (*Core, error) {
 // other cores may share; Close leaves them open. `shj serve` makes a core per
 // workspace this way (Workspaces). The UI language is the process's, so NewIn
 // leaves it as it is (New sets it from the root's config).
-func NewIn(sh *Shared, fe FrontEnd, dir, file string) (*Core, error) {
-	return newCore(sh, fe, dir, file, false)
+func NewIn(sh *Shared, p Port, dir, file string) (*Core, error) {
+	return newCore(sh, p, dir, file, false)
 }
 
-func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) (*Core, error) {
+func newCore(sh *Shared, p Port, dir, file string, setLang bool) (*Core, error) {
 	abs, _ := filepath.Abs(dir)
 	cfg, err := config.Load(abs, sh.Build.Config)
 	if setLang {
@@ -175,7 +175,6 @@ func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) (*Core, er
 		return nil, err
 	}
 	a := &Core{
-		FrontEnd: fe,
 		Root:     abs,
 		Cfg:      cfg,
 		Lsp:      newLSPManager(cfg, abs),
@@ -187,11 +186,11 @@ func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) (*Core, er
 		Helix:    cfg.Editor.Keymap != "vscode",
 		Gd:       gitDiff{Split: true},
 		Ag:       newAgentState(),
-		port:     nopPort{},
+		port:     portOrNop(p),
 	}
 	a.Explorer.Icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
-		a.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
+		a.port.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
 	}
 	a.FindInput = NewInputField(0)
 	a.FindInput.Placeholder = i18n.T("app.find")
@@ -214,7 +213,7 @@ func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) (*Core, er
 // file tree, language server, terminal, diff mode or agent panel, and the app
 // ends when the file is closed. A file that does not exist opens as an empty
 // buffer, which creates the file when saved. It is meant for $EDITOR.
-func NewSingle(fe FrontEnd, file string, b Build) (*Core, error) {
+func NewSingle(p Port, file string, b Build) (*Core, error) {
 	abs, _ := filepath.Abs(file)
 	dir := filepath.Dir(abs)
 	cfg, err := config.Load(dir, b.Config)
@@ -223,7 +222,6 @@ func NewSingle(fe FrontEnd, file string, b Build) (*Core, error) {
 		return nil, err
 	}
 	a := &Core{
-		FrontEnd:  fe,
 		Root:      dir,
 		Cfg:       cfg,
 		Lsp:       newLSPManager(cfg, dir),
@@ -237,10 +235,10 @@ func NewSingle(fe FrontEnd, file string, b Build) (*Core, error) {
 		Gd:        gitDiff{Split: true},
 		Ag:        newAgentState(),
 		single:    true,
-		port:      nopPort{},
+		port:      portOrNop(p),
 	}
 	if cfg.Editor.Theme != "" {
-		a.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
+		a.port.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
 	}
 	a.FindInput = NewInputField(0)
 	a.FindInput.Placeholder = i18n.T("app.find")
@@ -919,7 +917,7 @@ func (a *Core) handle(msg any) []Effect {
 	case Event:
 		return a.HandleEvent(msg)
 	case ReleasesReported:
-		a.SetReleasesReported(msg.On)
+		a.releases = msg.On
 	case KeyReleased:
 		a.holdScrollRelease(msg.Key)
 		a.lineFlipRelease(msg.Key)

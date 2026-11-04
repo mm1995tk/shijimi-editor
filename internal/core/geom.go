@@ -1,15 +1,5 @@
 package core
 
-// FrontEnd is what Core asks of the front end that draws it: which regions
-// are shown, the borders the user drags, and the few questions that need the
-// layout. Core holds the front end it is drawn by (set in New); in the program
-// it is internal/tui.App.
-type FrontEnd interface {
-	ReleasesReported() bool
-	SetReleasesReported(on bool)
-	SetPalette(t *Theme)
-}
-
 // MinSideSectionH is the least height of a section of the diff mode sidebar:
 // a header and two rows.
 const MinSideSectionH = 3

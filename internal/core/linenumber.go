@@ -10,7 +10,7 @@ package core
 const lineFlipKey = '\\'
 
 func (a *Core) flipLineNumbers() {
-	if !a.ReleasesReported() {
+	if !a.releases {
 		a.LineFlip = !a.LineFlip
 		return
 	}
@@ -20,7 +20,7 @@ func (a *Core) flipLineNumbers() {
 // lineFlipOtherKey ends the flip when a key other than \ is pressed while
 // the terminal reports key releases.
 func (a *Core) lineFlipOtherKey(msg Key) {
-	if a.ReleasesReported() && msg.Code != lineFlipKey {
+	if a.releases && msg.Code != lineFlipKey {
 		a.LineFlip = false
 	}
 }

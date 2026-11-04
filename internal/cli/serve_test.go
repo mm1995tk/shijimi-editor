@@ -100,7 +100,7 @@ func newServeEnv(t *testing.T) *serveEnv {
 		t.Fatal(err)
 	}
 	shared := core.NewShared(core.Build{})
-	cores := core.NewWorkspaces(shared, nil)
+	cores := core.NewWorkspaces(shared)
 	t.Cleanup(func() { cores.CloseAll(); shared.Close() })
 	cores.SetOnChange(srv.ScreenChanged)
 	srv.SetCores(serveCores{cores, slog.Default()})

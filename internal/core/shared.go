@@ -11,7 +11,7 @@ import (
 // Shared and a core per workspace on it (Workspaces).
 //
 // The theme and the UI language are process-wide too, but they are set where
-// they always were: the theme by the front end (FrontEnd.SetPalette) and the
+// they always were: the theme by the UI (Port.SetPalette) and the
 // language by i18n.SetLang when a core reads its config.
 type Shared struct {
 	Buffers *buffer.Pool   // the open files, so that a file open in several cores is one text

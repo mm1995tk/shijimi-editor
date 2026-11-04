@@ -219,7 +219,7 @@ func ThemeOrDefault(name string) *Theme {
 
 // ActivateTheme makes t the theme core reads: the current Theme, the token
 // colors of the syntax highlighter built from it, and a new generation so the
-// caches built from the old one are dropped. The front end calls it from its
+// caches built from the old one are dropped. The UI calls it from its
 // own applyTheme (SetPalette), which also rebuilds what it draws with.
 func ActivateTheme(t *Theme) {
 	CurTheme = t

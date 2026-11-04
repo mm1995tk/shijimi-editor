@@ -56,7 +56,7 @@ func headlessCore(t *testing.T, text string) (*Core, string) {
 	dir := t.TempDir()
 	p := writeFile(t, dir, "a.txt", text)
 	sh := NewShared(Build{})
-	c, _ := newHeadlessCore(sh, dir)
+	c, _ := newHeadlessCore(sh, nil, dir)
 	t.Cleanup(func() { c.Close(); sh.Close() })
 	if !c.OpenFile(p) {
 		t.Fatalf("open: %s", c.Msg)
@@ -162,7 +162,7 @@ func TestOpenAt(t *testing.T) {
 func TestWorkspaceRunsEffects(t *testing.T) {
 	sh := NewShared(Build{})
 	defer sh.Close()
-	ws := NewWorkspaces(sh, nil)
+	ws := NewWorkspaces(sh)
 	defer ws.CloseAll()
 	changed := make(chan struct{}, 1)
 	ws.SetOnChange(func() {

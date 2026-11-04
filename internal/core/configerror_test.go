@@ -47,7 +47,7 @@ func TestNewSingleFailsOnConfigMistake(t *testing.T) {
 
 func TestWorkspaceOpenFailsOnConfigMistake(t *testing.T) {
 	dir, _ := badProject(t)
-	ws := NewWorkspaces(NewShared(Build{}), nil)
+	ws := NewWorkspaces(NewShared(Build{}))
 	defer ws.CloseAll()
 	if w, err := ws.Open(dir, dir); err == nil || w != nil {
 		t.Fatalf("w = %v, err = %v", w, err)
