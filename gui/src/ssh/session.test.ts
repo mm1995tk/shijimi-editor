@@ -56,7 +56,7 @@ function fakeShell(opts: {
       switch (msg.method) {
         case "session.hello":
           reply({
-            protocol: { major: 1, minor: 0 },
+            protocol: { major: 2, minor: 0 },
             encoding: "json",
             shj: { version: "1", commit: "x", channel: "stable" },
             serverId: serverOf.get(id),

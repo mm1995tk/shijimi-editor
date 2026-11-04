@@ -20,16 +20,21 @@ export interface WorkspaceFocus {
 /** 見出しの横の丸。つながっている・つなぎ直している・それ以外。 */
 export type Health = "up" | "pending" | "down";
 
+/** フォルダが決まっていないワークスペースの帯の名前。 */
+export const UNSET_TITLE = "（フォルダ未定）";
+
 /** ワークスペース 1 つ分の帯に出すもの。 */
 export interface Band {
   id: WorkspaceId;
-  /** 帯の名前。目印（.git / .shijimi-editor/）が無いワークスペースはルートのパス */
+  /** 帯の名前。目印（.git / .shijimi-editor/）が無いワークスペースはフォルダのパス。フォルダ未定なら UNSET_TITLE */
   title: string;
   /** title がパスなら true（等幅で出す） */
   path: boolean;
-  /** 右に小さく出すもの（ブランチ、「git なし」） */
+  /** フォルダ未定か */
+  unset: boolean;
+  /** 右に小さく出すもの（ブランチ、「git なし」、同じフォルダの 2 つ目からの番号） */
   detail: string;
-  /** ツールチップに出すルートのパス */
+  /** ツールチップに出すフォルダのパス（未定なら ""） */
   root: string;
   focused: boolean;
 }
@@ -65,31 +70,41 @@ export function health(s: SessionState | undefined): Health {
   }
 }
 
-/** ワークスペース 1 つを帯にする。 */
-export function band(w: Workspace, focused: boolean): Band {
-  if (w.kind === "cwd") {
+/**
+ * ワークスペース 1 つを帯にする。nth は、同じマシンで同じフォルダを指す何番目のワークスペースか（1 から）。
+ * 同じフォルダのワークスペースは名前が同じになるので、2 つ目からは番号を付けて見分ける。
+ */
+export function band(w: Workspace, focused: boolean, nth = 1): Band {
+  const num = nth > 1 ? `#${nth}` : "";
+  if (w.folder === null) {
     return {
       id: w.id,
-      title: w.root,
-      path: true,
-      detail: "git なし",
-      root: w.root,
+      title: UNSET_TITLE,
+      path: false,
+      unset: true,
+      detail: "",
+      root: "",
       focused,
     };
   }
+  const detail = (w.kind === "cwd" ? ["git なし"] : [w.branch ?? ""])
+    .concat(num)
+    .filter(Boolean)
+    .join(" ");
   return {
     id: w.id,
-    title: w.name || w.root,
-    path: !w.name,
-    detail: w.branch ?? "",
-    root: w.root,
+    title: w.kind === "cwd" ? w.folder : w.name || w.folder,
+    path: w.kind === "cwd" || !w.name,
+    unset: false,
+    detail,
+    root: w.folder,
     focused,
   };
 }
 
 /**
  * 一覧を組み立てる。targets はつないだ（つなごうとしている）つなぎ先で、この順に並べる。
- * 帯は shj の workspace.list と同じくルートのパスの順（増えても並びが飛ばないように）。
+ * 帯は shj の workspace.list と同じく作った順。
  * colors はつなぎ先 → 色（colors.ts の machineColors）。無いつなぎ先は候補の最初の色にする。
  * labelOf は見出しの文字（省くと machineLabel）。
  */
@@ -102,17 +117,22 @@ export function buildSidebar(
   labelOf: (target: string) => string = machineLabel,
 ): MachineGroup[] {
   return targets.map((target) => {
-    const ws = [...(workspaces[target] ?? [])].sort((a, b) =>
-      a.root < b.root ? -1 : a.root > b.root ? 1 : 0,
-    );
+    const ws = workspaces[target] ?? [];
+    const seen = new Map<string, number>();
+    const nth = ws.map((w) => {
+      if (w.folder === null) return 1;
+      const n = (seen.get(w.folder) ?? 0) + 1;
+      seen.set(w.folder, n);
+      return n;
+    });
     return {
       target,
       label: labelOf(target),
       removable: target !== LOCAL,
       color: colors[target] ?? MACHINE_COLORS[0],
       health: health(states[target]),
-      bands: ws.map((w) =>
-        band(w, focus?.target === target && focus.id === w.id),
+      bands: ws.map((w, i) =>
+        band(w, focus?.target === target && focus.id === w.id, nth[i]),
       ),
     };
   });

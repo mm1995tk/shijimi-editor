@@ -11,17 +11,25 @@ import {
   health,
   keepFocus,
   splitAtFocus,
+  UNSET_TITLE,
 } from "./model.ts";
 
+/** root はフォルダ（省くか null ならフォルダ未定）。 */
 const ws = (
-  w: Partial<Workspace> & { id: string; root: string },
-): Workspace => ({
-  kind: "git",
-  name: w.root.split("/").at(-1) ?? "",
-  terms: [],
-  files: [],
-  ...w,
-});
+  w: Partial<Workspace> & { id: string; root?: string | null },
+): Workspace => {
+  const { root, ...rest } = w;
+  const folder = root ?? null;
+  return {
+    folder,
+    kind: folder === null ? null : "git",
+    name: folder === null ? null : (folder.split("/").at(-1) ?? ""),
+    primary: `p-${w.id}`,
+    terms: [],
+    files: [],
+    ...rest,
+  };
+};
 
 describe("band", () => {
   it("git のワークスペースは名前とブランチ", () => {
@@ -46,6 +54,40 @@ describe("band", () => {
     assert.equal(b.focused, true);
   });
 
+  it("フォルダ未定のワークスペースは「（フォルダ未定）」", () => {
+    const b = band(ws({ id: "u" }), false);
+    assert.equal(b.title, UNSET_TITLE);
+    assert.equal(b.unset, true);
+    assert.equal(b.path, false);
+    assert.equal(b.detail, "");
+    assert.equal(b.root, "");
+  });
+
+  it("同じフォルダの 2 つ目からは番号を付けて見分ける", () => {
+    const g = buildSidebar(
+      ["a"],
+      {},
+      {
+        a: [
+          ws({ id: "1", root: "/src/app", branch: "main" }),
+          ws({ id: "2", root: "/src/app", branch: "main" }),
+          ws({ id: "3" }),
+          ws({ id: "4", root: "/src/app", branch: "main" }),
+        ],
+      },
+      null,
+    )[0];
+    assert.deepEqual(
+      g.bands.map((b) => [b.title, b.detail]),
+      [
+        ["app", "main"],
+        ["app", "main #2"],
+        [UNSET_TITLE, ""],
+        ["app", "main #3"],
+      ],
+    );
+  });
+
   it("ブランチが無ければ右は空", () => {
     const b = band(ws({ id: "s", root: "/x/notes", kind: "shijimi" }), false);
     assert.equal(b.detail, "");
@@ -65,7 +107,7 @@ describe("health", () => {
 });
 
 describe("buildSidebar", () => {
-  it("つなぎ先の順に見出しを並べ、帯はルートの順、フォーカス中の帯に印を付ける", () => {
+  it("つなぎ先の順に見出しを並べ、帯は作った順、フォーカス中の帯に印を付ける", () => {
     const groups = buildSidebar(
       [LOCAL, "dev-vm"],
       { "dev-vm": { kind: "connected", hello: {} as never } },
@@ -88,8 +130,8 @@ describe("buildSidebar", () => {
     assert.deepEqual(
       groups[1].bands.map((b) => [b.id, b.focused]),
       [
-        ["s", false],
         ["p", true],
+        ["s", false],
       ],
     );
   });

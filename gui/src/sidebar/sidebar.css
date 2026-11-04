@@ -190,14 +190,59 @@
   color: var(--sidebar-text);
   font: inherit;
   text-align: left;
-  cursor: pointer;
 }
 .band:hover {
   background: var(--band-hover);
 }
-.band:focus-visible {
+/* 帯の中のフォーカスを移すボタン。帯の幅いっぱいに広げる */
+.band-main {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.band-main:focus-visible,
+.band-close:focus-visible {
   outline: 1px solid var(--machine-color);
   outline-offset: -1px;
+}
+/* 帯の右の [×]。押す前に目に入りすぎないよう、帯に乗せたとき・キーが向いたとき・フォーカス中の帯だけ出す */
+.band-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--sidebar-muted);
+  cursor: pointer;
+  opacity: 0;
+}
+.band-close svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.band:hover .band-close,
+.band:focus-within .band-close,
+.band[aria-current="true"] .band-close {
+  opacity: 1;
+}
+.band-close:hover {
+  background: var(--band-hover);
+  color: var(--sidebar-text);
 }
 /* フォーカス中の帯は、マシンの色を薄く敷いて太字にする */
 .band[aria-current="true"] {
@@ -251,6 +296,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.band-title.unset {
+  color: var(--sidebar-muted);
+  font-style: italic;
 }
 .band-title.path {
   font-family: "JetBrains Mono", ui-monospace, monospace;

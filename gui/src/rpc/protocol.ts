@@ -413,10 +413,16 @@ export interface InputMouseParams {
 
 export interface Workspace {
   id: WorkspaceId;
-  root: string;
-  kind: "git" | "shijimi" | "cwd";
-  name: string;
+  /** プライマリターミナルの cwd から決まったフォルダ。未定のあいだ null */
+  folder: string | null;
+  /** folder が未定のあいだ null */
+  kind: "git" | "shijimi" | "cwd" | null;
+  /** folder が未定のあいだ null */
+  name: string | null;
   branch?: string;
+  /** プライマリターミナル（ワークスペースを閉じるまで残る） */
+  primary: TermId;
+  /** 分割したターミナル（0〜5 個） */
   terms: TermId[];
   files: string[];
 }
@@ -441,7 +447,8 @@ export interface TermInfo {
   termId: TermId;
   pid: number;
   cwd: string;
-  workspaceId: WorkspaceId | null;
+  workspaceId: WorkspaceId;
+  primary: boolean;
   title: string;
   cols: number;
   rows: number;
@@ -519,7 +526,7 @@ export interface Requests {
 
   "term.create": {
     params: {
-      cwd?: string;
+      workspaceId: WorkspaceId;
       cols: number;
       rows: number;
       shell?: string;
@@ -533,6 +540,10 @@ export interface Requests {
     result: { seq: number; replay: string; cols: number; rows: number };
   };
   "term.close": { params: { termId: TermId }; result: Record<string, never> };
+  "term.restart": {
+    params: { termId: TermId };
+    result: { pid: number; cwd: string };
+  };
   "term.resize": {
     params: { termId: TermId; cols: number; rows: number };
     result: Record<string, never>;
@@ -550,8 +561,12 @@ export interface Requests {
     params: { id: WorkspaceId };
     result: { rev: number; termId?: TermId };
   };
-  "workspace.close_files": {
-    params: { id: WorkspaceId };
+  "workspace.create": {
+    params: Record<string, never>;
+    result: { id: WorkspaceId; termId: TermId };
+  };
+  "workspace.close": {
+    params: { id: WorkspaceId; force?: boolean };
     result: Record<string, never>;
   };
 
@@ -598,7 +613,6 @@ export interface Notifications {
   "term.output": { termId: TermId; seq: number; data: string };
   "term.exit": { termId: TermId; code: number; signal?: string };
   "term.title": { termId: TermId; title: string };
-  "term.cwd": { termId: TermId; cwd: string; workspaceId: WorkspaceId | null };
   "workspace.changed": {
     added?: Workspace[];
     removed?: WorkspaceId[];
