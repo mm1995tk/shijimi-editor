@@ -15,8 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/acp/acptest"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/acptest"
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
 )
@@ -196,7 +195,7 @@ func writePNG(t *testing.T, path string, w, h int) {
 }
 
 func paneTab(src string) *core.Tab {
-	b := buffer.New()
+	b := core.NewBuffer()
 	b.Lines = nil
 	for l := range strings.SplitSeq(src, "\n") {
 		b.Lines = append(b.Lines, []rune(l))

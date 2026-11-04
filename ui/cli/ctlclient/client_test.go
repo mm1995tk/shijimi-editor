@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
-	"github.com/mm1995tk/shijimi-editor/core/ctlserver"
 )
 
 func TestIsSubcommand(t *testing.T) {
@@ -55,7 +55,7 @@ func TestRunExec(t *testing.T) {
 	defer os.RemoveAll(dir)
 	sock := filepath.Join(dir, "s.sock")
 	var got string
-	srv, err := ctlserver.Listen(sock, func(r ctl.Request) ctl.Response {
+	srv, err := core.ListenCtl(sock, func(r ctl.Request) ctl.Response {
 		got = r.Cmd + "|" + r.Line
 		if r.Line == ":bad" {
 			return ctl.Response{Error: "no"}
@@ -97,9 +97,9 @@ func isolate(t *testing.T) string {
 	return dir
 }
 
-func listen(t *testing.T, path string) *ctlserver.Server {
+func listen(t *testing.T, path string) *core.CtlServer {
 	t.Helper()
-	srv, err := ctlserver.Listen(path, func(ctl.Request) ctl.Response { return ctl.Response{OK: true} })
+	srv, err := core.ListenCtl(path, func(ctl.Request) ctl.Response { return ctl.Response{OK: true} })
 	if err != nil {
 		t.Fatal(err)
 	}

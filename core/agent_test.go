@@ -9,10 +9,10 @@ import (
 
 	"github.com/creack/pty"
 
-	"github.com/mm1995tk/shijimi-editor/core/acp/acptest"
+	"github.com/mm1995tk/shijimi-editor/core/acptest"
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
-	"github.com/mm1995tk/shijimi-editor/core/lsp"
+	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 

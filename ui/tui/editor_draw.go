@@ -8,7 +8,6 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
@@ -133,7 +132,7 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 	}
 	var matchCols []int
 	if len(q) > 0 {
-		matchCols = buffer.MatchCols(line, q)
+		matchCols = core.MatchCols(line, q)
 	}
 	inMatch := func(col int) bool {
 		for _, m := range matchCols {
@@ -215,7 +214,7 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 		rw := 1
 		if col < len(line) {
 			r = line[col]
-			rw = buffer.RuneWidth(r, vis)
+			rw = core.RuneWidth(r, vis)
 		} else if !cursorHere && !inSel(col) {
 			break
 		}

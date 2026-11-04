@@ -116,8 +116,8 @@ VS Code 拡張や claudecode.nvim と同じプロトコルで、shijimi を Clau
 
 ### 作り
 
-- `core/acp`：ACP のクライアント。エージェントを子プロセスで起動し、標準入出力で 1 行 1 メッセージの JSON-RPC 2.0 を話します。`initialize` → `session/new` → `session/prompt`、`session/cancel` を送り、`session/update`・`fs/read_text_file`・`fs/write_text_file`・`session/request_permission` を受けます。`session/new` が認証を求めたら（-32000）、最初の `authMethods` で `authenticate` を 1 回だけ試します。
-- `core/acp/acptest`：テスト用の台本どおりに動くエージェント。テストのバイナリを、環境変数を付けてエージェントとして起動します。
+- `core/internal/acp`：ACP のクライアント。エージェントを子プロセスで起動し、標準入出力で 1 行 1 メッセージの JSON-RPC 2.0 を話します。`initialize` → `session/new` → `session/prompt`、`session/cancel` を送り、`session/update`・`fs/read_text_file`・`fs/write_text_file`・`session/request_permission` を受けます。`session/new` が認証を求めたら（-32000）、最初の `authMethods` で `authenticate` を 1 回だけ試します。
+- `core/acptest`：テスト用の台本どおりに動くエージェント。テストのバイナリを、環境変数を付けてエージェントとして起動します。
 - `core/suggest.go`：提案のルール。`core/agent.go`：ACP とエディタのつなぎ。`core/agentpanel.go`：右パネル（描くのは `ui/tui/agentpanel_draw.go`）。`core/shellint.go`：zsh のシェル統合。
 
 ### 決めうちした点

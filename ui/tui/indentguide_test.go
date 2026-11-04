@@ -7,11 +7,10 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 )
 
 func guideRows(src string, on bool) []string {
-	b := buffer.New()
+	b := core.NewBuffer()
 	b.Lines = nil
 	for l := range strings.SplitSeq(src, "\n") {
 		b.Lines = append(b.Lines, []rune(l))

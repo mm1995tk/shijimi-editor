@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
-	"github.com/mm1995tk/shijimi-editor/core/lsp"
+	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
 )
 
 // Event is something that happened outside the input: a timer firing, later a

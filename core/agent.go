@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/core/acp"
 	"github.com/mm1995tk/shijimi-editor/core/config"
+	"github.com/mm1995tk/shijimi-editor/core/internal/acp"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 

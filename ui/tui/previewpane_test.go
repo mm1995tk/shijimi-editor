@@ -10,14 +10,13 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
 
 func previewApp(t *testing.T, dir, src string) *App {
 	t.Helper()
-	b := buffer.New()
+	b := core.NewBuffer()
 	b.Insert(src)
 	b.Path = filepath.Join(dir, "x.md")
 	a := appOf(&core.Core{Cfg: &config.Config{}, Tabs: []*core.Tab{core.NewTab(b)}})

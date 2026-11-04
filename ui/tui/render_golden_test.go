@@ -11,9 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
-	"github.com/mm1995tk/shijimi-editor/core/lsp"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
@@ -103,8 +101,8 @@ func TestRenderGolden(t *testing.T) {
 		keys(a, "G", "o", "f", "m")
 		cur := a.CurText()
 		// completing from the start of the word "fm" just typed
-		start := buffer.Pos{Row: cur.Buf.Cur.Row, Col: cur.Buf.Cur.Col - len("fm")}
-		a.Update(core.CompletionMsg{Tab: cur, Start: start, Items: []lsp.CompletionItem{
+		start := core.Pos{Row: cur.Buf.Cur.Row, Col: cur.Buf.Cur.Col - len("fm")}
+		a.Update(core.CompletionMsg{Tab: cur, Start: start, Items: []core.CompletionItem{
 			{Label: "fmt", Detail: "package", Kind: 9},
 			{Label: "fmt.Println", Detail: "func(a ...any)", Kind: 3},
 			{Label: "fmt.Sprintf", Detail: "func(format string, a ...any) string", Kind: 3},

@@ -11,7 +11,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/lsp"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 	"github.com/mm1995tk/shijimi-editor/ui/tui/vt"
 )
@@ -181,7 +180,7 @@ func TestTerminalFailuresAreSuggested(t *testing.T) {
 
 func TestPanelOpensBesideTheEditor(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	a.Lsp.Diags[a.CurText().Buf.Path] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}}}
+	a.Lsp.Diags[a.CurText().Buf.Path] = map[string][]core.Diagnostic{"s": {{Severity: 1, Message: "bad"}}}
 	// closed at startup, even on a wide screen
 	a.Update(tea.WindowSizeMsg{Width: 200, Height: 30})
 	if l := a.layout(); l.agentW != 0 {
@@ -221,7 +220,7 @@ func TestPanelMouse(t *testing.T) {
 	a.showAgent = true
 	a.pushLayout()
 	p := a.CurText().Buf.Path
-	a.Lsp.Diags[p] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}}}
+	a.Lsp.Diags[p] = map[string][]core.Diagnostic{"s": {{Severity: 1, Message: "bad"}}}
 	a.Sg.FixOffer = true
 	l := a.layout()
 	// row 0 is the title, rows 1-2 the first suggestion, rows 3-4 the second

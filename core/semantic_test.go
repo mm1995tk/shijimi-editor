@@ -3,8 +3,8 @@ package core
 import (
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
-	"github.com/mm1995tk/shijimi-editor/core/lsp"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
 )
 
 // Token positions are UTF-16; the roles are per rune.

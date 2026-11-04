@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 )
 
 func TestSendContextPreview(t *testing.T) {
@@ -25,7 +24,7 @@ func TestSendContextPreview(t *testing.T) {
 		t.Errorf("esc did not close preview")
 	}
 	b := a.CurText().Buf
-	b.SelectRange(buffer.Pos{Row: 0, Col: 1}, buffer.Pos{Row: 1, Col: 2})
+	b.SelectRange(core.Pos{Row: 0, Col: 1}, core.Pos{Row: 1, Col: 2})
 	a.SendContext()
 	if a.Ctx == nil || !strings.HasPrefix(a.Ctx.Text, "a.txt:1-2\n```\nne\ntw\n```") {
 		t.Errorf("selection ctx = %+v", a.Ctx)

@@ -13,7 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/mm1995tk/shijimi-editor/core/ide"
+	"github.com/mm1995tk/shijimi-editor/core/internal/ide"
 )
 
 // ideCall runs a tool and returns the first text block; pending replies are

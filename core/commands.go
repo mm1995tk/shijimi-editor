@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/config"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
 )

@@ -3,7 +3,7 @@ package core
 import (
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/core/lsp"
+	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
 )
 
 // The core answers an Event with Effects and never touches bubbletea.

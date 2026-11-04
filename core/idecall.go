@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/core/ide"
+	"github.com/mm1995tk/shijimi-editor/core/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 

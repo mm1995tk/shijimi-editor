@@ -3,7 +3,7 @@ package core
 import (
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 )
 
 // Ctrl+D / Ctrl+U move half a page. A jump makes it easy to lose the line one

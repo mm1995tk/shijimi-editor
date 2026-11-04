@@ -6,16 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
-	"github.com/mm1995tk/shijimi-editor/core/ctlserver"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
-	"github.com/mm1995tk/shijimi-editor/core/ide"
 	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
 	"github.com/mm1995tk/shijimi-editor/ui/cli"
 	"github.com/mm1995tk/shijimi-editor/ui/cli/ctlclient"
@@ -83,17 +80,15 @@ func Main() {
 	closeIDE := func() {}
 	// Single-file mode starts neither the IDE integration nor the control socket.
 	if abs, err := filepath.Abs(dir); err == nil && !single {
-		if srv, err := ide.Start(abs, core.IDETools(), core.IDEHandler(func(m any) { p.Send(m) })); err == nil {
+		if srv, err := core.StartIDE(abs, core.IDEHandler(func(m any) { p.Send(m) })); err == nil {
 			closeIDE = srv.Close
 			app.SetIDE(srv)
-			os.Setenv(ide.EnvPort, strconv.Itoa(srv.Port()))
-			os.Setenv(ide.EnvEnable, "true")
-			os.Setenv(ide.EnvForceTerminal, "true")
+			core.SetIDEEnv(srv.Port())
 		}
 	}
 	// The socket is best-effort: the editor still works without it.
 	if path, err := ctl.SocketPath(); err == nil && !single {
-		if srv, err := ctlserver.Listen(path, tui.ControlHandler(p)); err == nil {
+		if srv, err := core.ListenCtl(path, tui.ControlHandler(p)); err == nil {
 			closeSock = srv.Close
 			os.Setenv(ctl.EnvSocket, path)
 		}

@@ -6,15 +6,15 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
-	"github.com/mm1995tk/shijimi-editor/core/diff"
-	"github.com/mm1995tk/shijimi-editor/core/ide"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/diff"
+	"github.com/mm1995tk/shijimi-editor/core/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
 // The part of the Claude Code connection that is the editor's content: the
 // tools offered, the selection reported, and the changes waiting for the
-// user's decision. The server (ide.Server, core/ide) is not here: cmd
+// user's decision. The server (ide.Server, core/internal/ide) is not here: cmd
 // makes one for the whole program and hands it to the front end, which
 // delivers its calls as IDECall Events. See docs/design/gui-protocol.md.
 

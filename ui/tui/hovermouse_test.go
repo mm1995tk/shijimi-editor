@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
 )
 
 func move(a *App, x, y int) tea.Cmd {
@@ -57,7 +56,7 @@ func TestMouseHoverPopupStaysOnPointerAndCloses(t *testing.T) {
 	x, y := l.rightX+gw+2, l.editY
 	move(a, x, y)
 	a.HoverText, a.HoverScroll = "text", 0
-	a.HoverAt = &buffer.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
+	a.HoverAt = &core.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
 	a.HoverWord = core.WordSpan{0, 0, 5}
 	move(a, x, y+1) // onto the popup below the word
 	if a.HoverText == "" {
@@ -107,7 +106,7 @@ func TestMouseHoverWheelOutsidePopupScrollsBuffer(t *testing.T) {
 	l := a.layout()
 	b := a.CurText().Buf
 	x, y := l.rightX+core.GutterWidth(b)+2, l.editY
-	a.HoverText, a.HoverAt = "text", &buffer.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
+	a.HoverText, a.HoverAt = "text", &core.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
 	a.HoverWord = core.WordSpan{0, 0, 5}
 	wheelDown(a, x, y) // on the word, outside the popup below it
 	if a.HoverText != "" || a.HoverAt != nil {
@@ -127,7 +126,7 @@ func TestMouseHoverWheelOnPopupScrollsPopup(t *testing.T) {
 	for i := range 40 {
 		long += "line " + string(rune('a'+i%26)) + "\n\n"
 	}
-	a.HoverText, a.HoverAt = long, &buffer.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
+	a.HoverText, a.HoverAt = long, &core.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
 	wheelDown(a, x, y+1) // on the popup
 	if a.HoverText == "" || a.HoverScroll == 0 {
 		t.Fatalf("wheel on the popup should scroll it: text=%v scroll=%d", a.HoverText != "", a.HoverScroll)
@@ -151,7 +150,7 @@ func TestMouseHoverStaysAcrossWordAndClosesOutside(t *testing.T) {
 	if cmd := move(a, x+2, y); cmd != nil || a.HoverSeq != seq {
 		t.Fatal("moving inside the same word must not restart the timer")
 	}
-	a.HoverText, a.HoverAt = "text", &buffer.Pos{Row: y - l.editY, Col: x + 2 - l.rightX - core.GutterWidth(a.CurText().Buf)}
+	a.HoverText, a.HoverAt = "text", &core.Pos{Row: y - l.editY, Col: x + 2 - l.rightX - core.GutterWidth(a.CurText().Buf)}
 	move(a, x+3, y) // "hello" is columns 0-4; still inside
 	if a.HoverText == "" {
 		t.Fatal("popup closed while moving within the word")
@@ -180,7 +179,7 @@ func TestMouseHoverNeedsEditorFocus(t *testing.T) {
 func TestMouseHoverPopupDoesNotTakeKeys(t *testing.T) {
 	a := newTestApp(t, "hello world\n")
 	a.Focus = core.FocusEditor
-	a.HoverText, a.HoverAt = "text", &buffer.Pos{Col: 2}
+	a.HoverText, a.HoverAt = "text", &core.Pos{Col: 2}
 	a.HoverScroll = 0
 	a.HandleKey(textKey(string('y')))
 	if a.HoverText != "" || a.HoverAt != nil {
@@ -207,7 +206,7 @@ func TestMouseHoverKeptAfterWheelOnPopup(t *testing.T) {
 	for range 40 {
 		long += "line\n\n"
 	}
-	a.HoverText, a.HoverAt = long, &buffer.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
+	a.HoverText, a.HoverAt = long, &core.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
 	a.HoverWord = core.WordSpan{0, 0, 5}
 	a.HoverCell = core.ScreenPt{x, y}
 	wheelDown(a, x, y+1) // on the popup
@@ -261,7 +260,7 @@ func TestMouseHoverClosedByKeyInCommandLine(t *testing.T) {
 	a := newTestApp(t, "hello world\n")
 	a.Focus = core.FocusEditor
 	a.CmdOpen = true
-	a.HoverText, a.HoverAt = "text", &buffer.Pos{Col: 2}
+	a.HoverText, a.HoverAt = "text", &core.Pos{Col: 2}
 	a.HandleKey(textKey(string('w')))
 	if a.HoverText != "" || a.HoverAt != nil {
 		t.Fatal("the pointer popup should close on a key typed in the command line")

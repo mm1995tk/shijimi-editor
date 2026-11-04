@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/acp/acptest"
+	"github.com/mm1995tk/shijimi-editor/core/acptest"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 	"github.com/mm1995tk/shijimi-editor/ui/gui/rpc"

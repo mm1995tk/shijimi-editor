@@ -5,8 +5,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/core/buffer"
-	"github.com/mm1995tk/shijimi-editor/core/lsp"
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
 )
 
 // semanticState holds the last semantic tokens of a buffer, drawn over the

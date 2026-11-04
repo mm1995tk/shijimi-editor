@@ -127,7 +127,7 @@ func TestSourceUsesTablesOnly(t *testing.T) {
 		slash := filepath.ToSlash(p)
 		isTable := strings.HasSuffix(slash, "core/i18n/ja.go") || strings.HasSuffix(slash, "core/i18n/en.go")
 		// The fake agent used by tests answers in Japanese on purpose.
-		isFake := strings.Contains(slash, "core/acp/acptest/")
+		isFake := strings.Contains(slash, "core/acptest/")
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch n := n.(type) {
 			case *ast.CallExpr:
