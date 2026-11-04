@@ -23,6 +23,7 @@ nix flake check        # every check CI runs: formatting, go test, the GUI build
 Everything runs from the root of the repository. For the GUI, `npm ci`, `npm test`, `npm run tauri dev` (outside the devShell: `nix run .#gui-dev`) and `cargo test` also run there.
 
 - Run `scripts/tidy.sh` before you push (outside the devShell: `nix run .#tidy`). CI runs it and fails if it changes anything (it also updates `gomod2nix.toml` after you change `go.mod`).
+- When you add or change a `uses:` in `.github/workflows/`, run `gh actions-lock` ([install it](https://github.com/github/gh-actions-lock) with `gh extension install github/gh-actions-lock`) and commit `.github/workflows/actions.lock`. CI checks it with `gh actions-lock --verify`. Dependabot updates actions and the `flake.lock` inputs other than nixpkgs once a week, and regenerates the lockfile in the same pull request.
 - User-visible strings go in both [`internal/i18n/en.go`](internal/i18n/en.go) and [`internal/i18n/ja.go`](internal/i18n/ja.go). A test checks that the keys match.
 - The manual has an English page (`name.en.md`) and a Japanese page (`name.ja.md`). When you change one, change the other too. If you cannot write one of the languages, say so in the pull request.
 

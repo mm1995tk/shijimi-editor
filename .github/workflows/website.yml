@@ -23,7 +23,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - name: Check that the Japanese and English pages are in sync
@@ -32,7 +32,7 @@ jobs:
       - name: Check the page pairs and their structure
         if: github.event_name != 'pull_request' || contains(github.event.pull_request.title, '[skip-i18n-check]')
         run: website/manual/check-translations.sh
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: "3.12"
       - run: pip install -r website/manual/requirements.txt
@@ -40,7 +40,7 @@ jobs:
       - run: mkdocs build --strict --config-file website/manual/mkdocs.yml --site-dir ../../_site/manual
       - name: Copy the home page
         run: cp -r website/home/index.html website/home/style.css website/home/ja website/home/images _site/
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@v5.0.0
         if: github.event_name != 'pull_request'
         with:
           path: _site
@@ -57,4 +57,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v5.0.1
