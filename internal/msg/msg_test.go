@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 )
 
 func TestZeroAndLiteral(t *testing.T) {
@@ -40,18 +41,28 @@ func TestErrorWrapsItsErrorArgs(t *testing.T) {
 	}
 }
 
-func TestJSONIsTheTranslatedText(t *testing.T) {
-	t.Cleanup(func() { Marshal = nil })
-	Marshal = func(m Msg) string { return "[" + m.Key + "]" }
+func TestJSONForTheGUI(t *testing.T) {
 	b, err := json.Marshal(struct {
 		A Msg `json:"a"`
 		B Msg `json:"b,omitzero"`
-	}{A: T("k")})
-	if err != nil || string(b) != `{"a":"[k]"}` {
-		t.Errorf("json = %s, %v", b, err)
+		C Msg `json:"c"`
+		D Msg `json:"d"`
+	}{
+		A: T("k", 3, "x", T("inner"), Err("e", 1), errors.New("boom"), time.Second),
+		C: S("plain"),
+		D: Cat("n=", T("k")),
+	})
+	want := `{"a":{"key":"k","args":[3,"x",{"key":"inner","args":[]},{"key":"e","args":[1]},"boom","1s"]},"c":"plain","d":{"args":["n=",{"key":"k","args":[]}]}}`
+	if err != nil || string(b) != want {
+		t.Errorf("json = %s, %v\nwant %s", b, err, want)
 	}
 	var m Msg
 	if err := json.Unmarshal([]byte(`"hi"`), &m); err != nil || m.String() != "hi" {
 		t.Errorf("unmarshal = %+v, %v", m, err)
+	}
+	var back struct{ A Msg }
+	if err := json.Unmarshal([]byte(`{"A":{"key":"k","args":["x",{"key":"i","args":[]}]}}`), &back); err != nil ||
+		back.A.Key != "k" || back.A.Args[0] != "x" || back.A.Args[1].(Msg).Key != "i" {
+		t.Errorf("unmarshal object = %+v, %v", back, err)
 	}
 }

@@ -7,6 +7,8 @@
 // `Screen` の中身の細かい部分は画面を作る Issue（D・E）で詰めるので、
 // ここではペインの中身までを型にし、残りは緩く（unknown）持つ。元の形は Go の internal/screen。
 
+import type { I18nTable } from "./i18n.ts";
+
 export type WorkspaceId = string;
 export type TermId = string;
 
@@ -489,6 +491,7 @@ export interface Requests {
   };
   "screen.get": { params: Record<string, never>; result: Screen };
   "theme.get": { params: Record<string, never>; result: Theme };
+  "i18n.get": { params: Record<string, never>; result: I18nTable };
   "blob.get": {
     params: { id: string; offset?: number; length?: number };
     result: { mime: string; size: number; data: string; eof: boolean };
@@ -607,6 +610,7 @@ export interface Notifications {
   "session.superseded": { by: { client: ClientInfo; connectedAt: string } };
   "screen.update": ScreenUpdate;
   "theme.changed": Theme;
+  "i18n.changed": I18nTable;
   "clipboard.write": { text: string };
   "url.open": { url: string };
   notify: { level: string; text: string };

@@ -106,3 +106,17 @@ func argText(a any) string {
 	}
 	return fmt.Sprint(argValue(a))
 }
+
+// Table is every string of the selected language, with the English strings
+// under the ones it lacks (the same fallback as T). The GUI gets it with
+// i18n.get and translates a Msg itself.
+func Table() map[string]string {
+	t := make(map[string]string, len(en))
+	for k, v := range en {
+		t[k] = v
+	}
+	for k, v := range current.Load().table {
+		t[k] = v
+	}
+	return t
+}

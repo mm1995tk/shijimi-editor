@@ -2,7 +2,7 @@
 // Unix ソケットで JSON-RPC を話す。設計は docs/design/gui-protocol.md の 3 章。
 //
 // 今あるメソッドは session.* / server.info / term.*（term.go）/ workspace.*（workspace.go）/ tree.*・git.status（tree.go、treewatch.go、gitstat.go）/
-// view.*・screen.*・theme.get・blob.get（view.go、view_diff.go）/ input.*・command.run・file.open（input.go）。
+// view.*・screen.*・theme.get・i18n.get・blob.get（view.go、view_diff.go）/ input.*・command.run・file.open（input.go）。
 package server
 
 import (
@@ -25,7 +25,7 @@ import (
 )
 
 // Protocol はこのサーバーが話すプロトコルの版。major が違うとつながらない。minor は互換。
-var Protocol = ProtocolVersion{Major: 2, Minor: 0}
+var Protocol = ProtocolVersion{Major: 3, Minor: 0}
 
 // ProtocolVersion はプロトコルの版。
 type ProtocolVersion struct {

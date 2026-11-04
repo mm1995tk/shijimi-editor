@@ -111,7 +111,7 @@ func (a *Core) StatusOf() screen.Status {
 }
 
 // ConfirmOverlay is the confirmation now asked, as a screen.Overlay, or nil.
-// The question is its Title (a message; the wire format carries it as a line). A y/n question (confirm) has the two answers as Items; "press again to
+// The question is its Title (a message). A y/n question (confirm) has the two answers as Items; "press again to
 // discard" (confirmQuit, confirmClose) has none, as the same key answers it.
 // It has no place in a pane. It changes nothing. Drawing it is drawStatus's work.
 func (a *Core) ConfirmOverlay() *screen.Overlay {

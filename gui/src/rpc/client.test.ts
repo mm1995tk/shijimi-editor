@@ -299,7 +299,7 @@ describe("始まりの目印", () => {
   it("目印が来ないまま閉じたら、要求は失敗する", async () => {
     const { c } = setup({ waitForMarker: true });
     const p = c.request("session.hello", {
-      protocol: { major: 2, minor: 0 },
+      protocol: { major: 3, minor: 0 },
       client: { name: "t", version: "0", kind: "web" },
       encoding: ["json"],
     });

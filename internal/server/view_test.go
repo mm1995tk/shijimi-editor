@@ -357,3 +357,43 @@ func TestBlobGet(t *testing.T) {
 		t.Errorf("unknown blob: %v", err)
 	}
 }
+
+// i18n.get gives the table of the language; a message goes to the GUI as its
+// key and values, and a change of language comes as i18n.changed.
+func TestI18nGetAndMsgOnTheWire(t *testing.T) {
+	t.Cleanup(func() { i18n.SetLang(i18n.Default) })
+	srv, c, nt, fs := screenSetup(t)
+	ctx := context.Background()
+	first := waitUpdates(t, nt, 1)[0]
+	ack(t, c, first.Rev)
+	var tb I18n
+	if err := c.Call(ctx, "i18n.get", map[string]any{}, &tb); err != nil {
+		t.Fatal(err)
+	}
+	if tb.Lang != "en" || tb.Messages["acp.notfound"] != "%s not found" {
+		t.Fatalf("i18n.get: %s %q", tb.Lang, tb.Messages["acp.notfound"])
+	}
+	fs.set(func(sc *screen.Screen) { sc.Status.Msg = msg.T("acp.notfound", "claude") })
+	srv.ScreenChanged()
+	waitUpdates(t, nt, 2)
+	var raw struct {
+		Status struct {
+			Msg struct {
+				Key  string `json:"key"`
+				Args []any  `json:"args"`
+			} `json:"msg"`
+		} `json:"status"`
+	}
+	json.Unmarshal(*nt.all("screen.update")[1], &raw)
+	if raw.Status.Msg.Key != "acp.notfound" || len(raw.Status.Msg.Args) != 1 || raw.Status.Msg.Args[0] != "claude" {
+		t.Errorf("status.msg: %+v", raw.Status.Msg)
+	}
+	ack(t, c, waitUpdates(t, nt, 2)[1].Rev)
+
+	srv.SetLanguage("ja")
+	waitFor(t, "i18n.changed", func() bool { return len(nt.all("i18n.changed")) == 1 })
+	json.Unmarshal(*nt.all("i18n.changed")[0], &tb)
+	if tb.Lang != "ja" || tb.Messages["acp.notfound"] == "%s not found" {
+		t.Errorf("i18n.changed: %s %q", tb.Lang, tb.Messages["acp.notfound"])
+	}
+}

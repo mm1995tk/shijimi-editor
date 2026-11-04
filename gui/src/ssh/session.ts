@@ -13,6 +13,7 @@
 
 import { applyUpdate } from "../files/screen.ts";
 import type { Client } from "../rpc/client.ts";
+import { translate } from "../rpc/i18n.ts";
 import { ErrorCode, RpcError } from "../rpc/message.ts";
 import type {
   HelloResult,
@@ -168,6 +169,8 @@ export class Session {
     (n: Notifications["git.changed"]) => void
   >();
   private readonly termHandlers = new Set<(e: TermEvent) => void>();
+  /** 翻訳の表（i18n.get と i18n.changed で知る）。画面の文言はこれで訳してから持つ */
+  private messages: Record<string, string> = {};
   /** テーマ（theme.get と theme.changed で知る） */
   private _theme: Theme | null = null;
   private readonly themeHandlers = new Set<(t: Theme) => void>();
@@ -563,6 +566,12 @@ export class Session {
         conn.client.close("superseded by another GUI");
       }),
       conn.client.on("screen.update", (u) => this.handleUpdate(conn, gen, u)),
+      conn.client.on("i18n.changed", (t) => {
+        if (gen !== this.generation || this.conn !== conn) return;
+        // 言語が変わった。持っている画面は前の言語で訳してあるので、取り直す
+        this.messages = t.messages;
+        void this.fetchScreen(conn, gen, true);
+      }),
       conn.client.on("theme.changed", (t) => {
         if (gen !== this.generation || this.conn !== conn) return;
         this.setTheme(t);
@@ -619,7 +628,7 @@ export class Session {
     void this.fetchFocus(conn, gen);
     // 購読と大きさは接続ごと（shj は GUI ごとに覚える）なので、つなぐたびに送る。返事は待たない
     // （購読すると shj が全部を screen.update で送ってくる。版が合わなければ screen.get で取り直す）
-    this.subscribe(conn, gen);
+    await this.subscribe(conn, gen);
 
     if (replaced) {
       // shj が作り直された。古い画面は捨て、ワークスペースの一覧から取り直す
@@ -629,7 +638,15 @@ export class Session {
     }
   }
 
-  private subscribe(conn: Connection, gen: number): void {
+  /** 翻訳の表を先に受け取る（購読すると届く画面の文言を訳すのに要る）。ほかの返事は待たない。 */
+  private async subscribe(conn: Connection, gen: number): Promise<void> {
+    try {
+      const t = await conn.client.request("i18n.get", {});
+      if (gen !== this.generation || this.conn !== conn) return;
+      this.messages = t.messages;
+    } catch (e) {
+      this.discard("i18n.get", e);
+    }
     conn.client
       .request("view.subscribe", { regions: SUBSCRIBED_REGIONS })
       .catch((e) => this.discard("view.subscribe", e));
@@ -673,8 +690,9 @@ export class Session {
     for (const h of [...this.workspaceHandlers]) h(this._workspaces);
   }
 
-  private handleUpdate(conn: Connection, gen: number, u: ScreenUpdate): void {
+  private handleUpdate(conn: Connection, gen: number, raw: ScreenUpdate): void {
     if (gen !== this.generation || this.conn !== conn) return;
+    const u = translate(raw, this.messages);
     if (this.fetching) {
       // 取り直した画面に入っているかもしれない。返事が来てから決める（fetchScreen）
       this.queued.push(u);
@@ -716,8 +734,9 @@ export class Session {
     this.queued = [];
     let ok = false;
     try {
-      const screen = await conn.client.request("screen.get", {});
+      const raw = await conn.client.request("screen.get", {});
       if (gen !== this.generation || this.conn !== conn) return;
+      const screen = translate(raw, this.messages);
       this._screen = screen;
       this.rev = screen.rev;
       ok = true;

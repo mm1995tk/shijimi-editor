@@ -111,7 +111,7 @@ export function lineText(line: Line | undefined): string {
 
 /** 確認の問いの文言。 */
 export function confirmText(ov: Overlay): string {
-  return lineText(ov.lines?.[0]);
+  return ov.title ?? "";
 }
 
 /** 文字列の幅（マス目）。 */

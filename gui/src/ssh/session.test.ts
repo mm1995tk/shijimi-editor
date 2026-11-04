@@ -57,7 +57,7 @@ function fakeShell(opts: {
       switch (msg.method) {
         case "session.hello":
           reply({
-            protocol: { major: 2, minor: 0 },
+            protocol: { major: 3, minor: 0 },
             encoding: "json",
             shj: { version: "1", commit: "x", channel: "stable" },
             serverId: serverOf.get(id),
@@ -76,6 +76,9 @@ function fakeShell(opts: {
         case "view.subscribe":
         case "view.resize":
           reply({});
+          break;
+        case "i18n.get":
+          reply({ lang: "en", messages: { "a.b": "B %s" } });
           break;
         case "theme.get":
           reply({ name: "dark", tokens: { "editor.bg": { fg: "#000000" } } });
@@ -250,6 +253,8 @@ describe("Session", () => {
     const s = new Session(f.api, "h", fast);
     s.start();
     await waitFor(s, (st) => st.kind === "connected");
+    // 翻訳の表を受け取ってから screen.get が出る。最初の screen.get が出るのを待つ
+    await new Promise((r) => setTimeout(r, 10));
     f.drop(connectedId(f));
     await waitFor(s, (st) => st.kind === "reconnecting");
     await waitFor(s, (st) => st.kind === "connected");

@@ -221,3 +221,19 @@ func id0(sel *ast.SelectorExpr) string {
 	}
 	return id.Name
 }
+
+// Table is the selected language over English, so the GUI is never blank where
+// a language lacks a string.
+func TestTableFallsBackToEnglish(t *testing.T) {
+	t.Cleanup(func() { SetLang(Default) })
+	SetLang(Japanese)
+	tb := Table()
+	if len(tb) < len(en) || tb["acp.notfound"] != ja["acp.notfound"] {
+		t.Errorf("table: %d keys, %q", len(tb), tb["acp.notfound"])
+	}
+	delete(ja, "acp.notfound")
+	defer func() { ja["acp.notfound"] = tb["acp.notfound"] }()
+	if got := Table()["acp.notfound"]; got != en["acp.notfound"] {
+		t.Errorf("fallback = %q", got)
+	}
+}
