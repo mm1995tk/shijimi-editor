@@ -75,6 +75,7 @@ var urlFullRe = regexp.MustCompile(`^https?://\S+$`)
 
 // openURL opens arg, or the URL under the cursor when arg is empty.
 func (a *Core) openURL(arg string) []Effect {
+	a.copyOnOpenFail = ""
 	url := strings.TrimSpace(arg)
 	if url == "" {
 		t := a.CurText()

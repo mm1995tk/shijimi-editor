@@ -62,3 +62,30 @@ func runOf(t *testing.T, effs []Effect) Event {
 	t.Fatalf("no Run in %#v", effs)
 	return nil
 }
+
+// The pull request's URL is copied when it could not be opened; a plain
+// :open-url that fails afterwards is an error.
+func TestOpenPRURLCopiesOnFail(t *testing.T) {
+	const url = "https://github.com/o/r/pull/7"
+	for name, err := range map[string]error{"remote": ErrRemoteSession, "other": errors.New("boom")} {
+		a := newTestApp(t, "x\n")
+		f := a.FrontEnd.(*testFront)
+		a.Gd.Pr.URL = url
+		a.openPRURL()
+		if len(f.urls) != 1 || f.urls[0] != url {
+			t.Fatalf("%s: urls %v", name, f.urls)
+		}
+		a.Update(OpenURLResult{URL: url, Err: err})
+		if a.Clipboard != url || a.MsgErr {
+			t.Fatalf("%s: clip %q err %v msg %q", name, a.Clipboard, a.MsgErr, a.Msg)
+		}
+	}
+	a := newTestApp(t, "x\n")
+	a.Gd.Pr.URL = url
+	a.openPRURL()
+	a.ExecCommand("open-url " + url)
+	a.Update(OpenURLResult{URL: url, Err: errors.New("boom")})
+	if a.Clipboard != "" || !a.MsgErr {
+		t.Fatalf("plain open copied: clip %q err %v", a.Clipboard, a.MsgErr)
+	}
+}

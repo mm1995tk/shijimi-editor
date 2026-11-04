@@ -68,7 +68,7 @@ Port のメソッドの条件は 2 つ。
 
 TUI 専用のものは core に置かず、`internal/tui` に出す。`internal/vt` のターミナルのパネル、マルチプレクサのペイン、OSC 52、境目のドラッグ、レイアウトの状態がそうである。P12 のエクスプローラ・変更一覧・エージェントのパネルも、TUI はツリーと git のデータから自分で描く（GUI がツリーの API から描くのと同じ）。
 
-単体編集モード（`single`）は core のモードのままにする。1 ファイルを閉じたときの終了は、core から UI への呼び出し（例 `Quit()`）にし、TUI はプロセスを終え、GUI のアダプターは通知に直す。
+単体編集モード（`single`）は core のモードのままにする。1 ファイルを閉じたときの終了は、core から UI への呼び出し（例 `Exit()`）にし、TUI はプロセスを終え、GUI のアダプターは通知に直す。
 
 Port は `internal/core/port.go` の `core.Port` で、`WriteClipboard`・`OpenURL`・`Exit` を持つ。TUI（`tui.App`）と `shj serve` の `server.Server` が満たし、`core.Host` は無い。`OpenURL` の結果は `core.OpenURLResult` の Event で返る。残りは `internal/core/frontend.go` の `FrontEnd`（TUI の都合まで含む）で、`internal/core/headless.go` が空の実装で埋めている。これは Port に向かう途中の形で、上の条件に合わせて直すのは別の Issue で行う（直したらこの段落は消す）。この節は、その Issue が従う向きを決める。
 
