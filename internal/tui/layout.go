@@ -4,8 +4,8 @@ import "github.com/mm1995tk/shijimi-editor/internal/core"
 
 // layout.go is where the screen is laid out in terminal cells: how wide each
 // pane is and where it starts. It belongs to the TUI. The state that decides
-// what is shown (core) never takes a layout; it asks the few questions below
-// (EditRows, TextCols, ...), which answer in rows and columns of a region.
+// what is shown (core) never takes a layout; it reads the few sizes it is given
+// (core.Sizes), which are rows and columns of a region.
 // Mouse positions arrive as a region plus a row and column in it (see Mouse),
 // and only the TUI turns those into screen cells.
 
@@ -62,22 +62,27 @@ func (a *App) layout() layout {
 	return l
 }
 
-// EditRows is the number of text rows the editor shows.
-func (a *App) EditRows() int { return a.layout().editH }
+// sizes is the screen and pane sizes the core reads (core.Sizes), worked out from
+// the layout now.
+func (a *App) sizes() core.Sizes {
+	l := a.layout()
+	s := core.Sizes{
+		ScreenW: a.w, ScreenH: a.h,
+		EditRows:         l.editH,
+		EditorCols:       l.fullW,
+		TextCols:         l.rightW,
+		DiffBaseCols:     a.dvGeom(l).LeftW,
+		SuggestionsShown: l.agentW > 0,
+	}
+	if t := a.Cur(); t != nil {
+		s.TextCols = a.editW(t, l)
+	}
+	return s
+}
 
-// TextCols is the width of the pane of t, its line numbers included,
-// from which a sideways scroll subtracts GutterWidth.
-func (a *App) TextCols(t *core.Tab) int { return a.editW(t, a.layout()) }
-
-// DiffBaseCols is the width of the base side of a split diff.
-func (a *App) DiffBaseCols() int { return a.dvGeom(a.layout()).LeftW }
-
-// EditorCols is the width of the editor area, which a split divides.
-func (a *App) EditorCols() int { return a.layout().fullW }
-
-// SuggestionsShown reports whether the suggestion panel is open, in which case
-// the status line leaves the suggestion count to it.
-func (a *App) SuggestionsShown() bool { return a.layout().agentW > 0 }
+// pushSizes hands the core the sizes the layout has now. It runs after every
+// message, which may have moved a border or opened a panel.
+func (a *App) pushSizes() { a.Core.SetSizes(a.sizes()) }
 
 // inEditorText reports whether the pointer is over the text of the current text
 // tab, where the sideways wheel scrolls it.

@@ -4,24 +4,9 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
-// frontend.go is App's side of core.FrontEnd: how big the screen is, which
+// frontend.go is App's side of core.FrontEnd: which
 // regions are shown, what the user dragged the borders to, the terminal under
 // the editor. The fields behind them are App's; Core asks through these calls.
-
-// ScreenW is the width of the screen in cells.
-func (a *App) ScreenW() int { return a.w }
-
-// ScreenH is the height of the screen in cells.
-func (a *App) ScreenH() int { return a.h }
-
-// SetScreen takes the size of the screen, and the cell size in pixels where
-// the terminal says it.
-func (a *App) SetScreen(w, h int) {
-	a.w, a.h = w, h
-	if a.cellSize != nil {
-		core.UpdateCellSize(a.cellSize())
-	}
-}
 
 // SideShown reports whether the user has the sidebar on screen.
 func (a *App) SideShown() bool { return a.showSide }

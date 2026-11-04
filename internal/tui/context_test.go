@@ -16,6 +16,7 @@ func TestSendContextPreview(t *testing.T) {
 	os.WriteFile(f, []byte("one\ntwo\nthree\n"), 0o644)
 	a := mustNew(dir, f)
 	a.w, a.h = 100, 30
+	a.pushSizes()
 	if a.SendContext(); a.Ctx == nil || !strings.HasPrefix(a.Ctx.Text, "a.txt:1\n") {
 		t.Fatalf("ctx = %+v", a.Ctx)
 	}

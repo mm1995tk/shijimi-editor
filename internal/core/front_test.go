@@ -30,13 +30,11 @@ func (f *testFront) WriteClipboard(s string) { f.clip = s }
 func (f *testFront) OpenURL(u string)        { f.urls = append(f.urls, u) }
 func (f *testFront) Exit()                   { f.exited = true }
 
-func (f *testFront) ScreenW() int            { return f.w }
-func (f *testFront) ScreenH() int            { return f.h }
 func (f *testFront) SideShown() bool         { return f.side }
 func (f *testFront) TermShown() bool         { return f.term }
 func (f *testFront) AgentOpen() bool         { return f.agent }
-func (f *testFront) SetSide(on bool)         { f.side = on }
-func (f *testFront) SetTerm(on bool)         { f.term = on }
+func (f *testFront) SetSide(on bool)         { f.side = on; f.push() }
+func (f *testFront) SetTerm(on bool)         { f.term = on; f.push() }
 func (f *testFront) SetAgent(on bool)        { f.agent = on }
 func (f *testFront) AgentWidthPref() int     { return 0 }
 func (f *testFront) ExplorerShare() int      { return 0 }
@@ -71,9 +69,7 @@ func (f *testFront) ScrollHover(int)                 {}
 func (f *testFront) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	return buffer.Pos{}, WordSpan{}, false
 }
-func (f *testFront) SuggestionsShown() bool         { return false }
 func (f *testFront) ResetPanes()                    {}
-func (f *testFront) SetScreen(w, h int)             { f.w, f.h = w, h }
 func (f *testFront) SetPalette(t *Theme)            { ActivateTheme(t) }
 func (f *testFront) HandleTermEvent(Event) []Effect { return nil }
 func (f *testFront) HandleMouse(Mouse) []Effect     { return nil }
@@ -96,7 +92,26 @@ func (f *testFront) rightW() int {
 	return f.w
 }
 
-func (f *testFront) EditRows() int {
+// sizes is what the UI would hand the core: the sizes of the plain layout.
+func (f *testFront) sizes() Sizes {
+	return Sizes{ScreenW: f.w, ScreenH: f.h, EditRows: f.editRows(), EditorCols: f.rightW(), TextCols: f.rightW()}
+}
+
+// push hands the core the sizes now, once there is a screen.
+func (f *testFront) push() {
+	if f.c != nil && f.w > 0 {
+		f.c.SetSizes(f.sizes())
+	}
+}
+
+// resized is a window of w x h cells: the core is told the sizes as an Input.
+func resized(a *Core, w, h int) {
+	f := a.FrontEnd.(*testFront)
+	f.w, f.h = w, h
+	a.Update(f.sizes())
+}
+
+func (f *testFront) editRows() int {
 	top, editY := 0, 1
 	if f.c.DiffMode() {
 		top = 1
@@ -111,10 +126,6 @@ func (f *testFront) EditRows() int {
 	}
 	return max(0, top+f.c.BodyH()-editY-panelH)
 }
-
-func (f *testFront) TextCols(*Tab) int { return f.rightW() }
-func (f *testFront) DiffBaseCols() int { return 0 }
-func (f *testFront) EditorCols() int   { return f.rightW() }
 
 // testArea is a TextArea that holds its text and nothing else.
 type testArea struct{ text string }
@@ -143,6 +154,7 @@ func newTestCore(t testing.TB, dir, file string, w, h int) (*Core, *testFront) {
 	c, _ := New(f, dir, file, Build{})
 	c.SetPort(f)
 	f.c = c
+	f.push()
 	return c, f
 }
 
@@ -150,12 +162,13 @@ func newTestCore(t testing.TB, dir, file string, w, h int) (*Core, *testFront) {
 type App = Core
 
 // newApp is a Core rooted at dir, as New makes it, on a screen of no size
-// until a test sets one (SetScreen).
+// until a test sets one (resized).
 func newApp(dir, file string) *Core {
 	f := &testFront{side: true}
 	c, _ := New(f, dir, file, Build{})
 	c.SetPort(f)
 	f.c = c
+	f.push()
 	return c
 }
 

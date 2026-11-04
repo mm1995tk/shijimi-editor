@@ -11,7 +11,7 @@ import (
 // This file is the only place bubbletea's input types are read or built. fromTea
 // turns the messages Update gets (tea.KeyPressMsg, tea.PasteMsg, tea.MouseMsg,
 // tea.KeyReleaseMsg, tea.KeyboardEnhancementsMsg, tea.WindowSizeMsg) into Input
-// or the Resized, KeyReleased and ReleasesReported notices. It also turns an Input back into a tea.Msg for
+// or the KeyReleased and ReleasesReported notices. It also turns an Input back into a tea.Msg for
 // the bubbles widget that still takes one (the review composer's textarea; P10h
 // removes it).
 
@@ -222,8 +222,6 @@ func (a *App) hitTest(l layout, x, y int) (core.Region, int, int) {
 // messages) passes through as it is.
 func (a *App) fromTea(msg tea.Msg) any {
 	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		return core.Resized{W: msg.Width, H: msg.Height}
 	case tea.KeyboardEnhancementsMsg:
 		return core.ReleasesReported{On: msg.SupportsEventTypes()}
 	case tea.KeyReleaseMsg:

@@ -14,6 +14,7 @@ import (
 func resizeApp(t *testing.T) *App {
 	a := mustNew(t.TempDir(), "")
 	a.w, a.h = 120, 40
+	a.pushSizes()
 	return a
 }
 
@@ -75,6 +76,7 @@ func TestResizeClamp(t *testing.T) {
 	}
 	// shrinking the window pulls the stored size back into range
 	a.w, a.h = 40, 12
+	a.pushSizes()
 	l = a.layout()
 	if l.rightW < 10 || l.editH < 0 {
 		t.Fatalf("small window: %+v", l)

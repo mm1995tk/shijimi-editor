@@ -50,7 +50,7 @@ func prApp(t *testing.T) (*App, string) {
 	gitIn(t, dir, "add", ".")
 	gitIn(t, dir, "commit", "-q", "-m", "change")
 	a := newApp(dir, file)
-	a.Update(Resized{W: 120, H: 40})
+	resized(a, 120, 40)
 	pr := &PrInfo{ID: "PR_1", Number: 7, Title: "t", State: "OPEN", BaseRefName: "main", HeadRefName: "feature", HeadRefOid: gitOut(t, dir, "rev-parse", "HEAD")}
 	a.ShowDiff(BasePR, pr)
 	a.ApplyChanges(LoadChanges(a.Gd.Gen, a.Root, BasePR, pr).(ChangesLoadedMsg))

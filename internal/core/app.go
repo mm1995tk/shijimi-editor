@@ -31,10 +31,11 @@ type span struct{ x0, x1 int }
 
 // Core is the state that decides what is shown: the files, the cursor, the
 // keys' state, the language servers. The terminal front end (internal/tui.App)
-// keeps what only a terminal has: the size of the screen, which regions are
+// keeps what only a terminal has: which regions are
 // shown, the terminal panel and the pane sizes the user picked.
 type Core struct {
-	FrontEnd // what draws it (internal/tui.App)
+	FrontEnd       // what draws it (internal/tui.App)
+	sizes    Sizes // the sizes the UI last gave (SetSizes)
 
 	Root           string
 	GitTop         string
@@ -886,7 +887,7 @@ func (a *Core) handleAutoSave(m AutoSaveDue) []Effect {
 	return a.saveTab(t)
 }
 
-// Update takes an Input or an Event (or one of the front end's notices: Resized,
+// Update takes an Input or an Event (or one of the front end's notices:
 // KeyReleased, ReleasesReported), brings the state up to date (transients,
 // split, last tab, LSP, selection) and returns the Effects of the message and
 // the ones every round owes (auto-save, preview, lexing).
@@ -918,9 +919,6 @@ func (a *Core) handle(msg any) []Effect {
 	switch msg := msg.(type) {
 	case Event:
 		return a.HandleEvent(msg)
-	case Resized:
-		a.SetScreen(msg.W, msg.H)
-		a.Follow = true
 	case ReleasesReported:
 		a.SetReleasesReported(msg.On)
 	case KeyReleased:
@@ -960,6 +958,8 @@ func (a *Core) handleInput(in Input) []Effect {
 		a.HoverSeq++
 		a.HoverWord = WordSpan{}
 		return a.HandlePaste(msg)
+	case Sizes:
+		a.SetSizes(msg)
 	case Composition:
 		// A composition is only shown (underlined at the cursor, see
 		// splicePreedit); it never edits the buffer. A GUI sends the committed text

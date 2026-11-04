@@ -29,8 +29,6 @@ func newHeadlessCore(sh *Shared, dir string) (*Core, error) {
 	return c, nil
 }
 
-func (h *headless) ScreenW() int                  { return h.W }
-func (h *headless) ScreenH() int                  { return h.H }
 func (h *headless) SideShown() bool               { return false }
 func (h *headless) TermShown() bool               { return false }
 func (h *headless) AgentOpen() bool               { return false }
@@ -68,14 +66,7 @@ func (h *headless) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	return buffer.Pos{}, WordSpan{}, false
 }
 
-// EditRows leaves out the status line.
-func (h *headless) EditRows() int                  { return max(0, h.H-1) }
-func (h *headless) TextCols(*Tab) int              { return h.W }
-func (h *headless) DiffBaseCols() int              { return 0 }
-func (h *headless) SuggestionsShown() bool         { return false }
-func (h *headless) EditorCols() int                { return h.W }
 func (h *headless) ResetPanes()                    {}
-func (h *headless) SetScreen(w, ht int)            { h.W, h.H = w, ht }
 func (h *headless) SetPalette(*Theme)              {} // the theme is the process's (ActivateTheme); the GUI asks for it with theme.get
 func (h *headless) HandleTermEvent(Event) []Effect { return nil }
 func (h *headless) HandleMouse(m Mouse) []Effect {
