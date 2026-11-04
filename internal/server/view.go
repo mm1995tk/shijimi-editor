@@ -152,7 +152,6 @@ func keepRegions(sc *screen.Screen, regions map[screen.Region]bool) {
 	if !regions[screen.RegionOverlay] {
 		sc.Overlay = nil
 	}
-	sc.Explorer, sc.Changes, sc.Agent = nil, nil, nil
 }
 
 // pushScreen は今の GUI に、前に送った画面からの差を screen.update で送る。返事を待っている更新があれば、

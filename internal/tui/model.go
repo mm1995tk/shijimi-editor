@@ -18,7 +18,7 @@ func (a *App) View() tea.View {
 	frame, caretAt := a.renderFrame()
 	v := tea.NewView(frame)
 	// Image data goes out before the frame whose placeholder cells show it.
-	if g := core.TakeGraphics(); g != "" && a.caret != nil {
+	if g := takeGraphics(); g != "" && a.caret != nil {
 		_ = a.caret.Send([]byte(g))
 	}
 	v.AltScreen = true

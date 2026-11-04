@@ -123,7 +123,7 @@ func TestMarkRowKeepsColors(t *testing.T) {
 
 // renderAgent draws the panel from the state fit left, the way View does.
 func (a *App) renderAgent(w, h int, focused bool) []string {
-	return drawAgent(a.AgentScreen(w, h, focused), w, h, focused)
+	return drawAgent(a.AgentPanelOf(w, h, focused), w, h, focused)
 }
 
 func TestAgentSelectionDropsQuoteBars(t *testing.T) {

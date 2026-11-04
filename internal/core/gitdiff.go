@@ -9,7 +9,6 @@ import (
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
@@ -923,29 +922,6 @@ func (a *Core) ExplorerH() int {
 	return a.BodyH()
 }
 
-func statusLetter(f *diff.File) (string, screen.Style) {
-	switch f.Status {
-	case "added":
-		return "A", screen.StyleDiffAddSign
-	case "deleted":
-		return "D", screen.StyleDiffDelSign
-	case "renamed":
-		return "R", screen.StyleGitRenamed
-	case "binary":
-		return "B", screen.StyleLineNo
-	}
-	return "M", screen.StyleDirty
-}
-
-// baseChip is the short name of the base: DIFF for HEAD, PR for a pull
-// request's base.
-func (a *Core) baseChip() string {
-	if a.Gd.Base == BasePR {
-		return "PR"
-	}
-	return "DIFF"
-}
-
 // FitChanges scrolls the list so that the selected row is in view, in a list
 // whose body is body rows high. It is the part of drawing the list that
 // changes state, so it runs before drawing (fit).
@@ -961,62 +937,6 @@ func (a *Core) FitChanges(body int) {
 		}
 	}
 	g.scroll = Clamp(g.scroll, 0, max(0, len(vis)-body))
-}
-
-// ChangesScreen is the list of changed files as a screen.Changes, w columns
-// wide and h rows high with the title, scrolled as FitChanges left it. It
-// changes nothing.
-func (a *Core) ChangesScreen(w, h int) screen.Changes {
-	g := &a.Gd
-	title := fmt.Sprintf(" CHANGES (%d)", len(g.Files))
-	pr := a.PrShown()
-	if pr {
-		n := g.Rv.viewedCount(g.Files)
-		if long := title + fmt.Sprintf("  viewed %d/%d", n, len(g.Files)); ansi.StringWidth(long+a.baseChip()+" ") <= w {
-			title = long
-		} else {
-			title += fmt.Sprintf(" ✓%d/%d", n, len(g.Files))
-		}
-	}
-	vis := g.vis()
-	ch := screen.Changes{Title: title, Chip: a.baseChip() + " ", Top: g.scroll, Total: len(vis)}
-	if len(g.Rows) == 0 {
-		switch {
-		case g.Loading:
-			ch.Empty = i18n.T("gd.loading")
-		case g.err != "":
-			ch.Empty = i18n.T("gd.error") + g.err
-		default:
-			ch.Empty = i18n.T("gd.nochanges")
-		}
-	}
-	for i := range max(0, h-1) {
-		idx := g.scroll + i
-		if idx >= len(vis) {
-			break
-		}
-		row := g.Rows[vis[idx]]
-		r := screen.ChangesRow{Depth: row.depth, Name: row.name}
-		if row.file < 0 {
-			r.Dir, r.Closed = true, g.closed[row.path]
-			r.Selected = g.selDir == row.path
-			ch.Rows = append(ch.Rows, r)
-			continue
-		}
-		f := g.Files[row.file]
-		r.Selected = row.file == g.Sel && g.selDir == ""
-		r.Letter, r.LetterStyle = statusLetter(f)
-		r.Added, r.Deleted = f.Added, f.Deleted
-		if pr {
-			r.Viewed = g.Rv.Viewed[f.Path()]
-			if a.IsStale(f.Path()) {
-				r.Name += " ✎"
-			}
-			r.Threads = len(g.Rv.threadsIn(f.Path()))
-		}
-		ch.Rows = append(ch.Rows, r)
-	}
-	return ch
 }
 
 // ---- header and help lines ----

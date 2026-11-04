@@ -140,14 +140,14 @@ func (a *Core) suggestRows(list []offer, limit int) []int {
 // and what fits the scroll to it (fitAgent) both read it.
 type agentLay struct {
 	list     []offer
-	sel      int    // the selected suggestion, clamped to list
-	rows     []int  // suggestRows of list
-	head     int    // rows above the card: the title, the suggestions, the status
-	hint     string // the line at the foot, only while the panel has the keys
-	body     int    // rows between head and the hint
-	cardRows int    // rows of the permission cards that fit in body
-	logRows  int    // rows left for the log
-	perms    []screen.AgentPerm
+	sel      int        // the selected suggestion, clamped to list
+	rows     []int      // suggestRows of list
+	head     int        // rows above the card: the title, the suggestions, the status
+	hint     string     // the line at the foot, only while the panel has the keys
+	body     int        // rows between head and the hint
+	cardRows int        // rows of the permission cards that fit in body
+	logRows  int        // rows left for the log
+	perms    [][]string // the lines of each permission card
 }
 
 // agentLayout lays the panel out. It changes nothing.
@@ -178,55 +178,12 @@ func (a *Core) agentLayout(w, h int, focused bool) agentLay {
 	cards := 0
 	for _, p := range a.Ag.Perms {
 		lines := wrapPlain(permTitle(p.req), w-2)
-		lay.perms = append(lay.perms, screen.AgentPerm{Title: i18n.T("panel.permtitle"), Lines: lines, Keys: i18n.T("panel.permkeys")})
+		lay.perms = append(lay.perms, lines)
 		cards += 2 + len(lines)
 	}
 	lay.cardRows = min(cards, max(0, lay.body))
 	lay.logRows = lay.body - lay.cardRows
 	return lay
-}
-
-// AgentScreen is the panel as a screen.Agent, w columns wide and h rows
-// high. The log is the part of it that fitAgent put in view. It changes
-// nothing.
-func (a *Core) AgentScreen(w, h int, focused bool) screen.Agent {
-	lay := a.agentLayout(w, h, focused)
-	ag := screen.Agent{
-		Title: fmt.Sprintf(i18n.T("panel.suggestions"), len(lay.list)),
-		Hint:  lay.hint,
-		Perms: lay.perms,
-	}
-	if len(lay.list) == 0 {
-		ag.Empty = i18n.T("panel.nosuggestions")
-	}
-	for _, r := range lay.rows {
-		if r < 0 {
-			continue
-		}
-		ag.Items = append(ag.Items, screen.AgentItem{Title: lay.list[r].title, Detail: lay.list[r].Detail, Selected: r == lay.sel})
-	}
-	// The agent starts only when a suggestion runs, so its status line stays
-	// hidden until then; a log left by an agent that stopped keeps the rule.
-	if s := a.Ag; s.Run != nil || s.Client != nil {
-		status := i18n.T("panel.idle")
-		if s.Run != nil {
-			status = i18n.T("panel.working")
-		}
-		name := s.name
-		if name == "" {
-			name = i18n.T("panel.agent")
-		}
-		ag.Rule, ag.Status = true, " "+name+": "+status
-	} else if len(s.Log) > 0 {
-		ag.Rule = true
-	}
-	v := a.Ag.View
-	for i := v.Start; i < v.Start+v.n && i < len(v.Rows); i++ {
-		r := screen.AgentRow{Line: v.Rows[i].line}
-		r.SelFrom, r.SelTo = a.Ag.Sel.rowCols(i, v.Rows[i].Plain, w)
-		ag.Log = append(ag.Log, r)
-	}
-	return ag
 }
 
 // BoolInt is 1 for true and 0 for false.

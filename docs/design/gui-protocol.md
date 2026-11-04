@@ -66,7 +66,7 @@ Port のメソッドの条件は 2 つ。
 | TUI | core の関数を直接呼ぶ（同じプロセス） | Port を満たす TUI が直接受ける |
 | GUI | アダプターが JSON-RPC（`input.*` など）を受けて core の関数を呼ぶ | アダプターが Port を満たし、呼び出しを JSON-RPC の通知に直して GUI へ送る |
 
-TUI 専用のものは core に置かず、`internal/tui` に出す。`internal/vt` のターミナルのパネル、マルチプレクサのペイン、OSC 52、境目のドラッグ、レイアウトの状態がそうである。P12 のエクスプローラ・変更一覧・エージェントのパネルも、TUI はツリーと git のデータから自分で描く（GUI がツリーの API から描くのと同じ）。
+TUI 専用のものは core に置かず、`internal/tui` に出す。`internal/vt` のターミナルのパネル、マルチプレクサのペイン、OSC 52、境目のドラッグ、レイアウトの状態がそうである。P12 のエクスプローラ・変更一覧・エージェントのパネルも、TUI はツリーと git のデータから自分で描く（GUI がツリーの API から描くのと同じ）。端末の画像（Kitty のグラフィックス）も TUI の都合で、core は `internal/kitty` を知らない（画像の大きさの上限は TUI が `core.MaxImageCells` に入れ、画像を端末へ送る・消すのは TUI が `core.ImageClosed` を受けて行う）。
 
 単体編集モード（`single`）は core のモードのままにする。1 ファイルを閉じたときの終了は、core から UI への呼び出し（例 `Exit()`）にし、TUI はプロセスを終え、GUI のアダプターは通知に直す。
 
@@ -92,10 +92,6 @@ type Screen struct {
     Status  Status      // 状態行（モード、メッセージ、ブランチ、診断の数 …）
     Cmdline *Cmdline    // ":" と "/" の入力行。無ければ nil
     Overlay []Overlay   // 補完・ホバー・シグネチャ・確認・パレット・メニュー・レビューカード
-    // TUI だけが使う領域。GUI は購読しない
-    Explorer *Explorer
-    Changes  *Changes
-    Agent    *Agent
 }
 
 type Files struct {
@@ -148,7 +144,7 @@ type Line struct {
 | `lsp` | 中身 | `lspManager`。サーバーの返事は `core` のイベントとして受ける |
 | `w`, `h` | TUI | GUI は領域ごとの大きさを `view.resize` で送る。`core` は領域ごとの行数と桁数だけ知る |
 | `focus` | 中身 | 「キーを受ける領域」は `core` が持つ（`Screen.Focus`）。GUI で押した領域は入力に付けて送る |
-| `explorer`, `treeTicks` | 中身 | TUI のツリーの選択・開閉は中身（`Screen.Explorer`）。GUI のツリーは `tree.*` で別に取り、開閉は GUI が持つ |
+| `explorer`, `treeTicks` | 中身 | TUI のツリーの選択・開閉は中身（`core.Explorer`。TUI がそこから自分で描く）。GUI のツリーは `tree.*` で別に取り、開閉は GUI が持つ |
 | `term`, `hd` | どちらでもない | ターミナルはサーバーのターミナル管理（PTY）が持つ。PTY の起動・読み書き・サイズ変更は `internal/term`（`tea`・lipgloss・`vt` を使わない）に出し、TUI は `term.Session` の出力を `vt` に流して描くだけ（`tui.terminal`）。`shj serve` のターミナル管理（`server.termManager`）も起動は `term.Start` を使い、リングバッファと `term.ack` の流量制御は `server` に残す。`hd`（herdr のペイン）と tmux・zellij・cmux のペイン（`mux*.go`）は TUI だけで使う（`core` は知らない） |
 | `proxy` | どちらでもない | ポート転送の管理はサーバー側に 1 つ |
 | `pal` | 中身 | コマンドパレットの状態（`Overlay` に出す） |
@@ -239,7 +235,7 @@ P13-09（#385）で `Core` を `internal/core` に移し、分割を終えた。
 | P11a | 差分モードを `Pane.Kind=="diff"` として `Screen` で作る | P8 |
 | P11b | Markdown プレビューを `Pane.Kind=="preview"` として `Screen` で作る | P8 |
 | P11c | 画像を `Pane.Kind=="image"` として `Screen` で作る（`imageView` を中身と TUI の描画に分ける） | P8 |
-| P12 | エクスプローラ・変更一覧・エージェントのパネルを `Screen` で作る（TUI だけが使う） | P8 |
+| P12 | エクスプローラ・変更一覧・エージェントのパネルを TUI が自分で描く（`Screen` に入れない。core は `core.Explorer`・`Core.ChangesOf`・`Core.AgentPanelOf` でデータだけを渡す） | P8 |
 | P13 | `core` パッケージへ移す。`App` は `core` を持って、`Input` ↔ `tea` と `Screen` ↔ 描画をつなぐだけの薄い bubbletea の Model になる。`internal/ui` を `internal/tui` に改名する | P7a〜P7e、P9、P10a〜P10h、P11a〜P11c、P12 |
 | P14 | `core` が複数のワークスペースを持てるようにする（ワークスペースごとに `core` を 1 つ。TUI は今までどおり 1 つだけ作る） | P13 |
 
