@@ -185,17 +185,5 @@ func RgbParams(hex string) string {
 
 // MaxImageCells is the largest number of rows or columns an image may span.
 // A UI whose pictures have such a limit (the TUI's terminal graphics) sets it
-// before it draws; the default is the TUI's.
-var MaxImageCells = 297
-
-// ImageClosed is called with the Id of an image that is not shown any more,
-// so that a UI frees what it holds for it (the TUI's terminal graphics). nil
-// when the UI holds nothing.
-var ImageClosed func(id uint32)
-
-// Close says the image is not shown any more.
-func (v *ImageView) Close() {
-	if ImageClosed != nil {
-		ImageClosed(v.Id)
-	}
-}
+// before it draws; until then there is none.
+var MaxImageCells = 1 << 20

@@ -66,9 +66,9 @@ func drawExplorer(e *core.Explorer, activePath string, w, h int, focused bool) [
 				chevron = "▾ "
 			}
 			if e.Icons {
-				chevron = " " // codicon chevron-right
+				chevron = "\ueab6 " // codicon chevron-right
 				if n.expanded {
-					chevron = " " // codicon chevron-down
+					chevron = "\ueab4 " // codicon chevron-down
 				}
 			}
 		}

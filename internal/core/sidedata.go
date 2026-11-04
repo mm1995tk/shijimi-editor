@@ -1,7 +1,6 @@
 package core
 
 import (
-	"github.com/mm1995tk/shijimi-editor/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -19,10 +18,9 @@ type ChangesList struct {
 	Viewed  int  // PR: files marked as viewed
 	Base    string
 	Top     int // Rows[0] in the whole list
-	Total   int // rows of the whole list
+	Total   int // rows of the whole list; 0: it is loading, failed, or has no changes
 	Loading bool
 	Err     string
-	Empty   bool // there is no row at all: it is loading, failed, or has no changes
 	Rows    []ChangeRow
 }
 
@@ -34,7 +32,7 @@ type ChangeRow struct {
 	Closed   bool // Dir: its files are hidden
 	Selected bool
 
-	Status  string // a file: "added", "deleted", "renamed", "binary" or "modified"
+	Status  string // a file: the Status of its diff.File ("added", "deleted", "renamed", "binary", ...)
 	Added   int
 	Deleted int
 	Viewed  bool // PR: the file is marked as viewed
@@ -47,7 +45,7 @@ func (a *Core) ChangesOf(h int) ChangesList {
 	g := &a.Gd
 	pr := a.PrShown()
 	vis := g.vis()
-	l := ChangesList{Files: len(g.Files), PR: pr, Top: g.scroll, Total: len(vis), Loading: g.Loading, Err: g.err, Empty: len(g.Rows) == 0}
+	l := ChangesList{Files: len(g.Files), PR: pr, Top: g.scroll, Total: len(vis), Loading: g.Loading, Err: g.err}
 	if g.Base == BasePR {
 		l.Base = "PR"
 	} else {
@@ -71,7 +69,7 @@ func (a *Core) ChangesOf(h int) ChangesList {
 		}
 		f := g.Files[row.file]
 		r.Selected = row.file == g.Sel && g.selDir == ""
-		r.Status = fileStatus(f)
+		r.Status = f.Status
 		r.Added, r.Deleted = f.Added, f.Deleted
 		if pr {
 			r.Viewed = g.Rv.Viewed[f.Path()]
@@ -81,14 +79,6 @@ func (a *Core) ChangesOf(h int) ChangesList {
 		l.Rows = append(l.Rows, r)
 	}
 	return l
-}
-
-func fileStatus(f *diff.File) string {
-	switch f.Status {
-	case "added", "deleted", "renamed", "binary":
-		return f.Status
-	}
-	return "modified"
 }
 
 // AgentPanel is what the agent panel shows, w columns wide and h rows high.

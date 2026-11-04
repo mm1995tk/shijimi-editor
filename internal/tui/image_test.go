@@ -43,7 +43,7 @@ func TestImageViewSendsOncePerSize(t *testing.T) {
 	if g := takeGraphics(); g != "" {
 		t.Errorf("same size sent again")
 	}
-	v.Close()
+	a.ImageClosed(v.Id)
 	if g := takeGraphics(); g != "\x1b_Ga=d,d=I,i=7,q=2\x1b\\" {
 		t.Errorf("close = %q", g)
 	}

@@ -19,7 +19,6 @@ import (
 
 func init() {
 	core.MaxImageCells = kitty.MaxCells
-	core.ImageClosed = freeImage
 }
 
 // sentImage is the placement of an image the terminal holds.
@@ -62,8 +61,8 @@ func sendPixels(v *core.ImageView, pw, ph, cols, rows int) {
 	sent[v.Id] = want
 }
 
-// freeImage frees in the terminal the image id, which is not shown any more.
-func freeImage(id uint32) {
+// ImageClosed (core.Port) frees in the terminal the image id, which is not shown any more.
+func (a *App) ImageClosed(id uint32) {
 	if _, ok := sent[id]; ok {
 		graphics = append(graphics, kitty.Delete(id))
 		delete(sent, id)

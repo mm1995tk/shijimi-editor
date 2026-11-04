@@ -131,7 +131,7 @@ func drawChanges(l core.ChangesList, w, h int, focused, lit bool) []string {
 	for i := range max(0, h-1) {
 		if i >= len(l.Rows) {
 			msg := ""
-			if i == 0 && l.Empty {
+			if i == 0 && l.Total == 0 {
 				switch {
 				case l.Loading:
 					msg = i18n.T("gd.loading")

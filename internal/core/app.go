@@ -682,7 +682,7 @@ func (a *Core) dropTab(i int) {
 		a.detachLSP(t)
 	}
 	if t.Img != nil {
-		t.Img.Close()
+		a.port.ImageClosed(t.Img.Id)
 	}
 	if t.Kind == TabText {
 		t.Buf.Release()
