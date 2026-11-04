@@ -276,8 +276,9 @@ func TestMuxConfigReload(t *testing.T) {
 		t.Fatal("herdr expected")
 	}
 	a.mux.id, a.mux.visible = "w1-p2", true
-	a.Cfg.Terminal.Multiplexer = "none"
-	a.mux.resolved = false // what :config-reload does
+	cfg := *a.Cfg // :config-reload puts a new configuration in place
+	cfg.Terminal.Multiplexer = "none"
+	a.Cfg = &cfg
 	if a.muxOn() {
 		t.Fatal("none must take effect after a reload")
 	}

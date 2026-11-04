@@ -111,7 +111,11 @@ func (a *App) TermPaste(s string) {
 
 // TermToggle is the toggle of Ctrl+`, Space t and :sh for the multiplexer pane
 // (the core asks only when Layout.TermInPane is set).
-func (a *App) TermToggle() { a.muxToggle() }
+func (a *App) TermToggle() {
+	if a.muxOn() {
+		a.muxToggle()
+	}
+}
 
 // TermClose closes the shell of the terminal panel.
 func (a *App) TermClose() {

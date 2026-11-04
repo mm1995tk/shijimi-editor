@@ -129,6 +129,9 @@ func (a *App) resolveMux() {
 }
 
 // muxOn reports whether the terminal commands should use a multiplexer pane.
+// It looks for the multiplexer again when the configuration was replaced
+// (:config-reload), which closes the pane of one that is no longer used; the
+// layout (pushLayout) asks it after every message.
 func (a *App) muxOn() bool {
 	if a.SingleFile() || a.Settings() == nil || !a.Settings().Experimental.Multiplexer {
 		return false
