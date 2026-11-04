@@ -2,8 +2,6 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -125,22 +123,15 @@ func table(sub map[string]field) field { return field{kind: kTable, sub: sub} }
 
 // configSchema is every setting of config.toml / config.nix.
 var configSchema = map[string]field{
-	"theme":       fString,
-	"keymap":      fString,
-	"ui-language": {kind: kString, check: checkUILanguage},
+	"keymap": fString,
 	"search": table(map[string]field{
 		"exclude": fStrings,
 		"include": fStrings,
 	}),
 	"editor": table(map[string]field{
-		"line-number":     fString,
-		"file-icons":      fBool,
 		"mermaid-command": fString,
 		"watch-files":     fBool,
-		"mouse-hover":     fBool,
 		"keymap":          fString,
-		"theme":           fString,
-		"indent-guides":   table(map[string]field{"render": fBool}),
 		"auto-save": table(map[string]field{
 			"on-switch": {kind: kString, check: checkOnSwitch},
 			"after-delay": table(map[string]field{
@@ -150,29 +141,10 @@ var configSchema = map[string]field{
 		}),
 	}),
 	"browser": table(map[string]field{"listen-host": fString}),
-	"experimental": table(map[string]field{
-		"herdr":       fBool,
-		"multiplexer": fBool,
-	}),
-	"terminal": table(map[string]field{
-		"multiplexer": {kind: kString, check: checkMultiplexer},
-	}),
 	"agent": {kind: kTable, userOnly: true, sub: map[string]field{
 		"command":     fString,
 		"args":        fStrings,
 		"environment": {kind: kStringMap},
-	}},
-	"server": {kind: kTable, userOnly: true, sub: map[string]field{
-		"idle_stop_days": {kind: kInt, check: checkNonNegative},
-		"start_dir":      {kind: kString, check: checkStartDir},
-	}},
-	// [[gui.machines]] is read by the GUI, not by shj. It is listed so shj starts
-	// with a config.toml that has it; the GUI reports its own mistakes.
-	"gui": {kind: kTable, userOnly: true, sub: map[string]field{
-		"machines": {kind: kTables, required: []string{"ssh"}, sub: map[string]field{
-			"ssh":  fString,
-			"name": fString,
-		}},
 	}},
 	"keys": {kind: kTable, userOnly: true, sub: map[string]field{
 		"normal": {kind: kStringMap},
@@ -216,36 +188,9 @@ var languagesSchema = map[string]field{
 	}},
 }
 
-func checkUILanguage(v any) (string, []any) {
-	if s, _ := v.(string); !i18n.Valid(s) {
-		return "config.err.oneof", []any{i18n.English + ", " + i18n.Japanese}
-	}
-	return "", nil
-}
-
-func checkMultiplexer(v any) (string, []any) {
-	s, _ := v.(string)
-	if !slices.Contains(Multiplexers, strings.ToLower(strings.TrimSpace(s))) {
-		return "config.err.oneof", []any{strings.Join(Multiplexers, ", ")}
-	}
-	return "", nil
-}
-
 func checkOnSwitch(v any) (string, []any) {
 	if s, _ := v.(string); s != "save" && s != "discard" {
 		return "config.err.oneof", []any{"save, discard"}
-	}
-	return "", nil
-}
-
-func checkStartDir(v any) (string, []any) {
-	s, _ := v.(string)
-	dir, ok := ExpandStartDir(s)
-	if !ok {
-		return "config.err.abspath", nil
-	}
-	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-		return "config.err.notdir", []any{dir}
 	}
 	return "", nil
 }

@@ -4,6 +4,9 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buildinfo"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
+	guicfg "github.com/mm1995tk/shijimi-editor/internal/ui/gui/config"
+	tuicfg "github.com/mm1995tk/shijimi-editor/internal/ui/tui/config"
 )
 
 // coreBuild is what the core is told about this build: the user's
@@ -17,10 +20,12 @@ func coreBuild() core.Build {
 	}
 }
 
-// configOptions is what the configuration is told about this build.
+// configOptions is what the configuration is told about this build: the
+// directory, and the settings of the UIs (the one `shj` runs is one of them,
+// and `shj serve` another; all are accepted in every file).
 func configOptions() config.Options {
 	return config.Options{
-		DirSuffix:    buildinfo.Suffix(),
-		Experimental: buildinfo.IsNightly(),
+		DirSuffix: buildinfo.Suffix(),
+		Sections:  []config.Section{uicfg.Section, tuicfg.Section(buildinfo.IsNightly()), guicfg.Section},
 	}
 }

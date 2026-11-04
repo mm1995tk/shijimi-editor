@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 )
 
 // hoverDelay is how long the pointer must rest on a word before its hover shows.
@@ -26,7 +27,7 @@ type MouseHover struct {
 }
 
 // MouseHover reports whether resting the pointer on a word shows its hover.
-func (a *Core) MouseHover() bool { return a.Cfg.Editor.MouseHover }
+func (a *Core) MouseHover() bool { return uicfg.Of(a.Cfg).MouseHover }
 
 // HoverBlocked reports whether something that owns the keys is open (palette,
 // project search, context menu, command line, resize mode, agent proposal), so

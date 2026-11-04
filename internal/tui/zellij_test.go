@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	tuicfg "github.com/mm1995tk/shijimi-editor/internal/ui/tui/config"
 	"strings"
 	"testing"
 
@@ -61,7 +62,7 @@ func zellijApp(t *testing.T) (*App, *fakeZellij) {
 	t.Setenv("ZELLIJ", "0")
 	t.Setenv("SHELL", "/bin/zsh")
 	a := newTestApp(t, "hello")
-	a.Cfg.Experimental.Multiplexer = true
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = true
 	f := &fakeZellij{}
 	a.mux.newBackend = func(kind string) muxBackend {
 		if kind == "zellij" {
@@ -69,7 +70,7 @@ func zellijApp(t *testing.T) (*App, *fakeZellij) {
 		}
 		return nil
 	}
-	a.Cfg.Terminal.Multiplexer = "zellij"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "zellij"
 	return a, f
 }
 
@@ -171,13 +172,13 @@ func TestZellijBadReply(t *testing.T) {
 
 func TestZellijOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := zellijApp(t)
-	a.Cfg.Experimental.Multiplexer = false
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = false
 	if a.muxOn() {
 		t.Fatal("zellij must be off when the setting is off")
 	}
 	a.resolveMux()
 	t.Setenv("ZELLIJ", "")
-	a.Cfg.Experimental.Multiplexer = true
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = true
 	a.resolveMux()
 	if a.muxOn() {
 		t.Fatal("zellij must be off outside zellij")
@@ -209,7 +210,7 @@ func TestZellijCommandEnd(t *testing.T) {
 
 func TestZellijAutoFollowsParents(t *testing.T) {
 	a, _ := zellijApp(t)
-	a.Cfg.Terminal.Multiplexer = "auto"
+	tuicfg.Of(a.Cfg).Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "zellij", "systemd")
 	if !a.muxOn() || a.mux.b.name() != "zellij" {
 		t.Fatalf("zellij parent not used: %v", a.mux.b)

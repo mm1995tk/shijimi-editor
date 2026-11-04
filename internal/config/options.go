@@ -9,7 +9,8 @@ type Options struct {
 	// directory with a suffix does not exist, `shijimi-editor` is read instead
 	// (see userDir).
 	DirSuffix string
-	// Experimental is the default of the [experimental] settings that are not
-	// written in a file.
-	Experimental bool
+	// Sections are the settings the UI reads from the same files: the keys the
+	// core does not know (see Section). A key no section or the core reads is a
+	// mistake.
+	Sections []Section
 }
