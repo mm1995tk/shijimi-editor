@@ -74,6 +74,19 @@ type Editor struct {
 	// preview. {in} and {out} are replaced by file paths; run through `sh -c`.
 	// Empty disables diagram rendering (the source is shown instead).
 	MermaidCommand string
+
+	// LineNumber is "absolute" (default) or "relative".
+	LineNumber string
+	// FileIcons shows Nerd Font icons in the file tree. Default true.
+	FileIcons bool
+	// MouseHover shows the LSP hover when the pointer rests on a word in the
+	// editor. Default true.
+	MouseHover bool
+	// IndentGuides draws a faint vertical line at each indent level in the
+	// editor ([editor.indent-guides] render). Default true.
+	IndentGuides bool
+	// Theme is the theme name; "" is the default theme.
+	Theme string
 }
 
 // Search holds default globs for project-wide search (`:grep`).
@@ -142,7 +155,7 @@ const nixEvalTimeout = 15 * time.Second
 func Load(root string, o Options) (*Config, error) {
 	c := &Config{
 		Browser:   Browser{ListenHost: "127.0.0.1"},
-		Editor:    Editor{Keymap: "helix", AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
+		Editor:    Editor{Keymap: "helix", AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, LineNumber: "absolute", FileIcons: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
 		Languages: map[string]*Language{},
 		Servers:   map[string]*Server{},
 	}
@@ -470,7 +483,27 @@ func (c *Config) mergeEditorRaw(raw map[string]any) {
 			c.Search.Include = stringList(v)
 		}
 	}
+	if v, ok := raw["theme"].(string); ok {
+		c.Editor.Theme = v
+	}
 	ed, _ := raw["editor"].(map[string]any)
+	if v, ok := ed["line-number"].(string); ok {
+		c.Editor.LineNumber = v
+	}
+	if v, ok := ed["file-icons"].(bool); ok {
+		c.Editor.FileIcons = v
+	}
+	if v, ok := ed["mouse-hover"].(bool); ok {
+		c.Editor.MouseHover = v
+	}
+	if ig, ok := ed["indent-guides"].(map[string]any); ok {
+		if v, ok := ig["render"].(bool); ok {
+			c.Editor.IndentGuides = v
+		}
+	}
+	if v, ok := ed["theme"].(string); ok {
+		c.Editor.Theme = v
+	}
 	if v, ok := ed["mermaid-command"].(string); ok {
 		c.Editor.MermaidCommand = v
 	}

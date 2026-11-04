@@ -11,16 +11,14 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/core/acptest"
 	"github.com/mm1995tk/shijimi-editor/core/config"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
 func TestMain(m *testing.M) {
 	acptest.Main()
-	// The assertions read the Japanese strings, so the tests run with
-	// ui-language = "ja" in an otherwise empty config directory (which also
-	// keeps the developer's own config out of the tests).
+	// The tests run in an otherwise empty config directory, which keeps the
+	// developer's own config out of them.
 	cfgDir, err := os.MkdirTemp("", "shijimi-ui-test")
 	if err != nil {
 		panic(err)
@@ -28,12 +26,9 @@ func TestMain(m *testing.M) {
 	if err := os.MkdirAll(filepath.Join(cfgDir, "shijimi-editor"), 0o755); err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(filepath.Join(cfgDir, "shijimi-editor", "config.toml"), []byte("ui-language = \"ja\"\n"), 0o644); err != nil {
-		panic(err)
-	}
+
 	os.Setenv("XDG_CONFIG_HOME", cfgDir)
 	os.Setenv("HOME", cfgDir)
-	i18n.SetLang(i18n.Japanese)
 	code := m.Run()
 	os.RemoveAll(cfgDir)
 	os.Exit(code)
@@ -51,7 +46,7 @@ func logText(a *App) string {
 func TestAgentNeedsACommand(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.Cfg.Agent = config.Agent{}
-	if effs := a.RunAgent(sgConflict, "k", msg.S("t"), func() msg.Msg { return msg.Msg{} }); effs != nil || !a.MsgErr || !strings.Contains(a.text(a.Msg), "[agent]") {
+	if effs := a.RunAgent(sgConflict, "k", msg.S("t"), func() msg.Msg { return msg.Msg{} }); effs != nil || !a.MsgErr || !strings.Contains(a.text(a.Msg), "agent.notconfigured") {
 		t.Errorf("msg = %q", a.Msg)
 	}
 	if a.Ag.Run != nil {
@@ -64,7 +59,7 @@ func TestLSPErrorSuggestionCanBeDismissed(t *testing.T) {
 	p := a.CurText().Buf.Path
 	a.Lsp.Diags[p] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}, {Severity: 1, Message: "worse"}, {Severity: 2, Message: "meh"}}}
 	list := a.Suggestions()
-	if len(list) != 1 || a.text(list[0].title) != "エラー 2 件を直しますか" {
+	if len(list) != 1 || a.text(list[0].title) != "sg.fixerrors(2)" {
 		t.Fatalf("suggestions = %+v", list)
 	}
 	if got := a.text(a.errorsText()); !strings.Contains(got, "a.txt:1:1: bad\n") || strings.Contains(got, "meh") {
@@ -105,7 +100,7 @@ func TestParseReview(t *testing.T) {
 
 func TestReviewPromptCarriesTheDiff(t *testing.T) {
 	got := tt(reviewPrompt(&PrInfo{Number: 7, Title: "t"}, msg.S("+added")))
-	if !strings.Contains(got, "#7") || !strings.Contains(got, "```diff\n+added\n```") || !strings.Contains(got, "GitHub には投稿しないでください") {
+	if !strings.Contains(got, "sg.prompt.review1(7, t)") || !strings.Contains(got, "```diff\n+added\n```") || !strings.Contains(got, "sg.prompt.review2()") {
 		t.Errorf("prompt = %q", got)
 	}
 }
@@ -138,7 +133,7 @@ func TestRepoProbeFindsConflictsAndMissingPR(t *testing.T) {
 	for _, s := range a.Suggestions() {
 		titles = append(titles, a.text(s.title))
 	}
-	if strings.Join(titles, "|") != "衝突を解消しますか|PR を作りますか" {
+	if strings.Join(titles, "|") != "sg.conflicts()|sg.createpr()" {
 		t.Errorf("titles = %q", titles)
 	}
 	a.Sg.repo.prs = []prSummary{{Number: 3, Title: "x"}}

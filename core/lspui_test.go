@@ -88,10 +88,10 @@ func TestCodeActionRange(t *testing.T) {
 
 func TestSymbolDetail(t *testing.T) {
 	s := lsp.Symbol{Name: "Start", Kind: 6, Container: "Server", Range: lsp.Range{Start: lsp.Position{Line: 11}}}
-	if got := tt(symbolDetail(s, "")); got != "メソッド  Server  12行目" {
+	if got := tt(symbolDetail(s, "")); got != "sym.method()  Server  symui.line(12)" {
 		t.Errorf("file: %q", got)
 	}
-	if got := tt(symbolDetail(s, "a/b.go")); got != "メソッド  Server  a/b.go:12" {
+	if got := tt(symbolDetail(s, "a/b.go")); got != "sym.method()  Server  a/b.go:12" {
 		t.Errorf("project: %q", got)
 	}
 }

@@ -11,8 +11,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // These tests pin what render() draws for a few representative states, so that

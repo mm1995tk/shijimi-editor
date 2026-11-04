@@ -16,7 +16,7 @@ func TestFormatContext(t *testing.T) {
 		{Range: lsp.Range{Start: lsp.Position{Line: 9}, End: lsp.Position{Line: 9}}, Severity: 2, Message: "far"},
 	}
 	got := newTestApp(t, "x\n").formatContext("a.go", 1, 2, "x := 1\ny", diags)
-	want := "a.go:2-3\n```\nx := 1\ny\n```\na.go:2: [エラー] bad (gopls)\n"
+	want := "a.go:2-3\n```\nx := 1\ny\n```\na.go:2: [diag.error()] bad (gopls)\n"
 	if got != want {
 		t.Errorf("got %q want %q", got, want)
 	}
@@ -24,7 +24,7 @@ func TestFormatContext(t *testing.T) {
 		t.Errorf("cursor only: %q", got)
 	}
 	long := strings.Repeat("l\n", 300)
-	if got := newTestApp(t, "x\n").formatContext("a.go", 0, 299, long, nil); !strings.Contains(got, "残り 101 行を省略") {
+	if got := newTestApp(t, "x\n").formatContext("a.go", 0, 299, long, nil); !strings.Contains(got, "ctx.elided(101)") {
 		t.Errorf("not truncated: %q", got[len(got)-60:])
 	}
 }

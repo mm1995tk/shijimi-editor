@@ -4,19 +4,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/mm1995tk/shijimi-editor/core/buildinfo"
 )
 
 func TestSocketPathIsSeparatePerChannel(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	buildinfo.SetForTest(t, "")
-	stable, err := SocketPath()
+	stable, err := SocketPath("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	buildinfo.SetForTest(t, buildinfo.Nightly)
-	nightly, err := SocketPath()
+	nightly, err := SocketPath("-nightly")
 	if err != nil {
 		t.Fatal(err)
 	}

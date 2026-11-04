@@ -91,7 +91,7 @@ func TestEnglishHasNoJapanese(t *testing.T) {
 func goFiles(t *testing.T) []string {
 	t.Helper()
 	var files []string
-	err := filepath.WalkDir("../..", func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir("../../..", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -125,7 +125,7 @@ func TestSourceUsesTablesOnly(t *testing.T) {
 			t.Fatal(err)
 		}
 		slash := filepath.ToSlash(p)
-		isTable := strings.HasSuffix(slash, "core/i18n/ja.go") || strings.HasSuffix(slash, "core/i18n/en.go")
+		isTable := strings.HasSuffix(slash, "ui/internal/i18n/ja.go") || strings.HasSuffix(slash, "ui/internal/i18n/en.go")
 		// The fake agent used by tests answers in Japanese on purpose.
 		isFake := strings.Contains(slash, "core/acptest/")
 		ast.Inspect(f, func(n ast.Node) bool {

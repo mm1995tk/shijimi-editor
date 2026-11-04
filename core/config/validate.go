@@ -6,13 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
 // Problem is one mistake in a configuration file: where it is and why it is
-// wrong. The text is made when Error is called, in the UI language of that
-// moment, so that a caller can set the language from the settings that did
-// read before it reports the problems.
+// wrong. The reason is a msg.Msg: the UI turns it into text, in the language
+// it has selected by then (which it takes from the settings that did read).
 type Problem struct {
 	File string // path of the file
 	Line int    // line in File; 0 when unknown (Nix has no lines)
@@ -23,64 +22,69 @@ type Problem struct {
 }
 
 // typeKey is the i18n key of a type's name. It stays a key in Problem.args and
-// is translated in Reason, like the reason itself, so that a message is in one
-// language: the one set after Load has read the settings.
+// becomes a Msg in Reason, like the reason itself, so that a message is in one
+// language: the one the UI selects after Load has read the settings.
 type typeKey string
 
 // Reason is the problem without its place.
-func (p Problem) Reason() string {
-	if len(p.args) == 0 {
-		return i18n.T(p.code)
-	}
+func (p Problem) Reason() msg.Msg {
 	args := make([]any, len(p.args))
 	for i, a := range p.args {
 		if k, ok := a.(typeKey); ok {
-			a = i18n.T(string(k))
+			a = msg.T(string(k))
 		}
 		args[i] = a
 	}
-	return fmt.Sprintf(i18n.T(p.code), args...)
+	return msg.T(p.code, args...)
 }
 
-// Error is "file:line: key: reason" (the line and the key are left out when
+// Msg is "file:line: key: reason" (the line and the key are left out when
 // unknown).
-func (p Problem) Error() string {
-	var b strings.Builder
-	b.WriteString(p.File)
+func (p Problem) Msg() msg.Msg {
+	parts := []any{p.File}
 	if p.Line > 0 {
-		fmt.Fprintf(&b, ":%d", p.Line)
+		parts = append(parts, fmt.Sprintf(":%d", p.Line))
 	}
-	b.WriteString(": ")
+	parts = append(parts, ": ")
 	if p.Key != "" {
-		b.WriteString(p.Key)
-		b.WriteString(": ")
+		parts = append(parts, p.Key, ": ")
 	}
-	b.WriteString(p.Reason())
-	return b.String()
+	return msg.Cat(append(parts, p.Reason())...)
 }
+
+// Error is Msg for logs and tests: the key of the reason, not text in a
+// language. A UI turns Msg into text.
+func (p Problem) Error() string { return p.Msg().String() }
 
 // Error is what Load returns when a configuration file has mistakes: all of
-// them, one per line in Error.
+// them, one per line in Msg.
 type Error struct {
 	Problems []Problem
 }
 
-func (e *Error) Error() string {
-	lines := make([]string, len(e.Problems))
+// Msg lists the problems, one per line.
+func (e *Error) Msg() msg.Msg {
+	var parts []any
 	for i, p := range e.Problems {
-		lines[i] = p.Error()
+		if i > 0 {
+			parts = append(parts, "\n")
+		}
+		parts = append(parts, p.Msg())
 	}
-	return strings.Join(lines, "\n")
+	return msg.Cat(parts...)
 }
+
+// Error is Msg for logs and tests. A UI turns Msg into text.
+func (e *Error) Error() string { return e.Msg().String() }
 
 // Summary is the first problem and how many more there are, on one line, for
 // the status line.
-func (e *Error) Summary() string {
-	s := e.Problems[0].Error()
+func (e *Error) Summary() msg.Msg {
+	m := e.Problems[0].Msg()
 	if n := len(e.Problems) - 1; n > 0 {
-		s += fmt.Sprintf(i18n.T("config.err.more"), n)
+		m = msg.Cat(m, msg.T("config.err.more", n))
 	}
-	return s
+	return m
 }
 
 type kind int
@@ -124,6 +128,7 @@ func table(sub map[string]field) field { return field{kind: kTable, sub: sub} }
 // configSchema is every setting of config.toml / config.nix.
 var configSchema = map[string]field{
 	"keymap": fString,
+	"theme":  fString,
 	"search": table(map[string]field{
 		"exclude": fStrings,
 		"include": fStrings,
@@ -132,6 +137,11 @@ var configSchema = map[string]field{
 		"mermaid-command": fString,
 		"watch-files":     fBool,
 		"keymap":          fString,
+		"line-number":     fString,
+		"file-icons":      fBool,
+		"mouse-hover":     fBool,
+		"theme":           fString,
+		"indent-guides":   table(map[string]field{"render": fBool}),
 		"auto-save": table(map[string]field{
 			"on-switch": {kind: kString, check: checkOnSwitch},
 			"after-delay": table(map[string]field{

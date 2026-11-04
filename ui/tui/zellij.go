@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/ui/internal/term"
 )
 

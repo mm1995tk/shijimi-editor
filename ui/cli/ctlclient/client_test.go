@@ -8,6 +8,8 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 func TestIsSubcommand(t *testing.T) {
@@ -61,7 +63,7 @@ func TestRunExec(t *testing.T) {
 			return ctl.Response{Error: "no"}
 		}
 		return ctl.Response{OK: true, Message: "done"}
-	})
+	}, i18n.Text)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +92,7 @@ func isolate(t *testing.T) string {
 	for _, k := range []string{ctl.EnvSocket, ctl.EnvHerdr, ctl.EnvHerdrWorkspace, ctl.EnvHerdrPane} {
 		t.Setenv(k, "")
 	}
-	dir, err := ctl.SocketDir(true)
+	dir, err := ctl.SocketDir(buildinfo.Suffix(), true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +101,7 @@ func isolate(t *testing.T) string {
 
 func listen(t *testing.T, path string) *core.CtlServer {
 	t.Helper()
-	srv, err := core.ListenCtl(path, func(ctl.Request) ctl.Response { return ctl.Response{OK: true} })
+	srv, err := core.ListenCtl(path, func(ctl.Request) ctl.Response { return ctl.Response{OK: true} }, i18n.Text)
 	if err != nil {
 		t.Fatal(err)
 	}

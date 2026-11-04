@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
 // setup makes a user directory and a project directory and returns a function
@@ -226,25 +226,19 @@ func TestValidConfigHasNoError(t *testing.T) {
 	}
 }
 
-// The whole message is in the language that is set when it is printed, the
-// type names too, not in the language of the moment Load ran.
-func TestMessageIsInOneLanguage(t *testing.T) {
-	t.Cleanup(func() { i18n.SetLang(i18n.Default) })
+// The reason is data, type names included: the UI translates all of it in the
+// language it has selected, not in the language of the moment Load ran.
+func TestReasonIsAMsg(t *testing.T) {
 	root, _, write := setup(t)
 	write("config.toml", "[editor]\nwatch-files = \"yes\"\n")
-	c, err := Load(root, Options{})
-	if err == nil {
-		t.Fatal("no error")
+	_, err := Load(root, Options{})
+	ce, ok := err.(*Error)
+	if !ok || len(ce.Problems) != 1 {
+		t.Fatalf("err = %v", err)
 	}
-	_ = c
-	i18n.SetLang(i18n.Japanese)
-	got := err.Error()
-	if !strings.Contains(got, "true か false で書いてください（今は 文字列 です）") {
-		t.Fatalf("message = %q", got)
-	}
-	i18n.SetLang(i18n.English)
-	if got := err.Error(); !strings.Contains(got, "must be true or false, but it is a string") {
-		t.Fatalf("message = %q", got)
+	want := msg.T("config.err.type", msg.T("config.type.bool"), msg.T("config.type.string"))
+	if got := ce.Problems[0].Reason(); got.String() != want.String() {
+		t.Fatalf("reason = %v, want %v", got, want)
 	}
 }
 

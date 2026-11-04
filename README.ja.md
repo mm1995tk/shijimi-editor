@@ -347,7 +347,7 @@ scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
 
 push の前に `scripts/tidy.sh` を実行してください（devShell の外では `nix run .#tidy` で同じことができます）。CI も同じスクリプトを動かし、差分が出たら失敗します。`go.mod` を変えたときの `gomod2nix.toml` の更新も、このスクリプトがします。
 
-画面に出る文字列は、言語ごとの表 [`core/i18n/en.go`](core/i18n/en.go) と [`core/i18n/ja.go`](core/i18n/ja.go) にまとめています。コードは `i18n.T("キー")` で取り出し、画面の文字を直接は書きません。文字列を足すときは両方の表に同じキーを足してください（そろっているかはテストで確かめます）。
+画面に出る文字列は、言語ごとの表 [`ui/internal/i18n/en.go`](ui/internal/i18n/en.go) と [`ui/internal/i18n/ja.go`](ui/internal/i18n/ja.go) にまとめています。コードは `i18n.T("キー")` で取り出し、画面の文字を直接は書きません。文字列を足すときは両方の表に同じキーを足してください（そろっているかはテストで確かめます）。
 
 ### 全文検索・置換
 

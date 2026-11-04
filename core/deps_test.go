@@ -43,17 +43,23 @@ next:
 }
 
 // The core and its parts say what they mean as a msg.Msg (a key and values);
-// the UI translates it. So none of them imports core/i18n, directly:
-// config still reads the language and translates its own error report.
-func TestNoTranslationInCoreAndParts(t *testing.T) {
-	for _, pkg := range []string{".", "./internal/buffer", "./internal/lsp", "./internal/acp", "./internal/proxy", "./screen", "./msg"} {
-		out, err := exec.Command("go", "list", "-f", `{{join .Imports "\n"}}`, pkg).Output()
-		if err != nil {
-			t.Fatalf("go list %s: %v", pkg, err)
+// the UI translates it. So nothing under core/ imports a UI package (ui/, which
+// holds the translation tables, the build information and the settings only
+// the UIs read), and its tests do not either: they look at the keys and values
+// of a message, not at words in a language.
+func TestCoreAndPartsImportNoUI(t *testing.T) {
+	out, err := exec.Command("go", "list", "-test", "-f", `{{.ImportPath}} {{join .Imports " "}} {{join .TestImports " "}} {{join .XTestImports " "}}`, "./...").Output()
+	if err != nil {
+		t.Fatalf("go list: %v", err)
+	}
+	for line := range strings.SplitSeq(string(out), "\n") {
+		f := strings.Fields(line)
+		if len(f) == 0 {
+			continue
 		}
-		for imp := range strings.FieldsSeq(string(out)) {
-			if imp == "github.com/mm1995tk/shijimi-editor/core/i18n" {
-				t.Errorf("%s imports %s", pkg, imp)
+		for _, imp := range f[1:] {
+			if strings.HasPrefix(imp, "github.com/mm1995tk/shijimi-editor/ui/") {
+				t.Errorf("%s imports %s", f[0], imp)
 			}
 		}
 	}

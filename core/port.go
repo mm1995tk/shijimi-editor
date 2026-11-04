@@ -1,6 +1,9 @@
 package core
 
-import "github.com/mm1995tk/shijimi-editor/core/msg"
+import (
+	"github.com/mm1995tk/shijimi-editor/core/config"
+	"github.com/mm1995tk/shijimi-editor/core/msg"
+)
 
 // Port is the one interface the core knows its UI by (docs/design/gui-protocol.md,
 // 「core が知る相手は Port だけ」). The TUI and the adapter of `shj serve` meet it.
@@ -64,35 +67,37 @@ type Port interface {
 	// lay text out or match it (wrapping, the palette's search), which needs the
 	// words themselves.
 	Text(m msg.Msg) string
-	// SetLanguage says the config picked the UI language code ("en", "ja").
-	// The UI applies it to the tables it translates with.
-	SetLanguage(code string)
+	// ConfigRead says the core read its configuration: at start (also when it
+	// had mistakes, so that they are reported in the user's language) and at
+	// :config-reload. The UI takes its own settings from cfg, such as the UI
+	// language, and applies them.
+	ConfigRead(cfg *config.Config)
 }
 
 // nopPort is the Port of a core whose UI has not set one: it does nothing.
 type nopPort struct{}
 
-func (nopPort) WriteClipboard(string)   {}
-func (nopPort) OpenURL(string)          {}
-func (nopPort) Exit()                   {}
-func (nopPort) ShowSide(bool)           {}
-func (nopPort) ShowTerm(bool)           {}
-func (nopPort) ShowAgent(bool)          {}
-func (nopPort) DragBorder(ResizeTarget) {}
-func (nopPort) StartResize()            {}
-func (nopPort) ResizeKey(string)        {}
-func (nopPort) ResetPanes()             {}
-func (nopPort) TermFocus(bool)          {}
-func (nopPort) TermToggle()             {}
-func (nopPort) TermKey(Key)             {}
-func (nopPort) TermRun(string)          {}
-func (nopPort) TermPaste(string)        {}
-func (nopPort) TermClose()              {}
-func (nopPort) CommandEnded(int)        {}
-func (nopPort) ImageClosed(uint32)      {}
-func (nopPort) SetPalette(*Theme)       {}
-func (nopPort) Text(m msg.Msg) string   { return m.String() }
-func (nopPort) SetLanguage(string)      {}
+func (nopPort) WriteClipboard(string)     {}
+func (nopPort) OpenURL(string)            {}
+func (nopPort) Exit()                     {}
+func (nopPort) ShowSide(bool)             {}
+func (nopPort) ShowTerm(bool)             {}
+func (nopPort) ShowAgent(bool)            {}
+func (nopPort) DragBorder(ResizeTarget)   {}
+func (nopPort) StartResize()              {}
+func (nopPort) ResizeKey(string)          {}
+func (nopPort) ResetPanes()               {}
+func (nopPort) TermFocus(bool)            {}
+func (nopPort) TermToggle()               {}
+func (nopPort) TermKey(Key)               {}
+func (nopPort) TermRun(string)            {}
+func (nopPort) TermPaste(string)          {}
+func (nopPort) TermClose()                {}
+func (nopPort) CommandEnded(int)          {}
+func (nopPort) ImageClosed(uint32)        {}
+func (nopPort) SetPalette(*Theme)         {}
+func (nopPort) Text(m msg.Msg) string     { return m.String() }
+func (nopPort) ConfigRead(*config.Config) {}
 
 // portOrNop is p, or a Port that does nothing when p is nil.
 func portOrNop(p Port) Port {

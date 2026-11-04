@@ -91,7 +91,7 @@ func TestCommentRefusedOnStaleOrUnsavedFile(t *testing.T) {
 	a.CurText().Buf.Cur = buffer.Pos{Row: 9}
 	a.Gd.stale = map[string]bool{"a.txt": true}
 	a.ReviewKey("c")
-	if a.Composer != nil || tt(a.Msg) != "このファイルは手元で変更があるため、行にコメントできません" {
+	if a.Composer != nil || tt(a.Msg) != "rv.localchanged()" {
 		t.Errorf("stale: composer=%v msg=%q", a.Composer != nil, tt(a.Msg))
 	}
 	a.ReviewKey("C")
@@ -144,7 +144,7 @@ func TestCardKeys(t *testing.T) {
 	}
 	a.Card = &PrCard{Thread: th, Path: "a.txt"}
 	a.HandleKey(textKey("r"))
-	if a.Composer == nil || !strings.HasPrefix(tt(a.Composer.Title), "返信") {
+	if a.Composer == nil || !strings.HasPrefix(tt(a.Composer.Title), "rv.replylabel") {
 		t.Fatal("r did not open a reply")
 	}
 	a.HandleKey(Key{Code: KeyEsc})
@@ -170,9 +170,9 @@ func TestSyncText(t *testing.T) {
 	}{
 		{PrSync{}, ""},
 		{PrSync{Known: true}, ""},
-		{PrSync{Known: true, Behind: 2}, "PR が更新されました。r で pull します"},
-		{PrSync{Known: true, Ahead: 3}, "push していないコミットが 3 個あります"},
-		{PrSync{Known: true, Ahead: 1, Behind: 1}, "ローカルと PR が分岐しています"},
+		{PrSync{Known: true, Behind: 2}, "gh.prupdated()"},
+		{PrSync{Known: true, Ahead: 3}, "gh.unpushed(3)"},
+		{PrSync{Known: true, Ahead: 1, Behind: 1}, "gh.diverged()"},
 	} {
 		if got := tt(c.s.text()); got != c.want {
 			t.Errorf("%+v: %q", c.s, got)
@@ -363,7 +363,7 @@ func TestSubmitReviewBuildsAndCleansUp(t *testing.T) {
 	q = stubGH(t, func(req map[string]any) string {
 		return `{"data":{"node":{"reviews":{"nodes":[{"viewerDidAuthor":true}]}}}}`
 	})
-	if err := submitReview("", pr, "APPROVE", "", nil); err == nil || !strings.Contains(tt(msg.Of(err)), "下書きのレビュー") {
+	if err := submitReview("", pr, "APPROVE", "", nil); err == nil || !strings.Contains(tt(msg.Of(err)), "gh.pendingdraft") {
 		t.Errorf("err = %v", err)
 	}
 	if len(*q) != 1 {

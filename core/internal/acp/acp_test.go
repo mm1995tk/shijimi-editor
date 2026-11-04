@@ -9,13 +9,12 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/core/acptest"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
 func TestMain(m *testing.M) {
 	acptest.Main()
-	// The assertions below read the Japanese strings.
-	i18n.SetLang(i18n.Japanese)
+
 	os.Exit(m.Run())
 }
 
@@ -170,7 +169,7 @@ func TestTooLongLineEndsTheAgent(t *testing.T) {
 		t.Fatalf("err = %v, ctx = %v", err, ctx.Err())
 	}
 	<-c.Done()
-	if c.Err() == nil || !strings.Contains(i18n.ErrText(c.Err()), "読めません") {
+	if c.Err() == nil || msg.Of(c.Err()).Key != "acp.readfail" {
 		t.Errorf("Err = %v", c.Err())
 	}
 }

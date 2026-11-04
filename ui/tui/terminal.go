@@ -13,7 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/ui/internal/term"
 	"github.com/mm1995tk/shijimi-editor/ui/tui/vt"
 )

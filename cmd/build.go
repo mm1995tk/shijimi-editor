@@ -2,9 +2,8 @@ package cmd
 
 import (
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/buildinfo"
 	"github.com/mm1995tk/shijimi-editor/core/config"
-	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
+	"github.com/mm1995tk/shijimi-editor/ui/cli"
 	guicfg "github.com/mm1995tk/shijimi-editor/ui/gui/config"
 	tuicfg "github.com/mm1995tk/shijimi-editor/ui/tui/config"
 )
@@ -16,7 +15,7 @@ import (
 func coreBuild() core.Build {
 	return core.Build{
 		Config:  configOptions(),
-		Version: buildinfo.Label(),
+		Version: cli.Label(),
 	}
 }
 
@@ -25,7 +24,7 @@ func coreBuild() core.Build {
 // and `shj serve` another; all are accepted in every file).
 func configOptions() config.Options {
 	return config.Options{
-		DirSuffix: buildinfo.Suffix(),
-		Sections:  []config.Section{uicfg.Section, tuicfg.Section(buildinfo.IsNightly()), guicfg.Section},
+		DirSuffix: cli.Suffix(),
+		Sections:  []config.Section{cli.Section, tuicfg.Section(cli.IsNightly()), guicfg.Section},
 	}
 }
