@@ -256,7 +256,7 @@ func Load(root string) (*Config, error) {
 			}
 		}
 	}
-	if p, ok := c.checkOnSwitch(autoSaveOff); ok {
+	if p, ok := c.missingOnSwitch(autoSaveOff); ok {
 		probs = append(probs, p)
 	}
 	if len(probs) > 0 {
@@ -265,11 +265,11 @@ func Load(root string) (*Config, error) {
 	return c, nil
 }
 
-// checkOnSwitch reports the missing on-switch: with auto-save off, `shj serve`
+// missingOnSwitch reports the missing on-switch: with auto-save off, `shj serve`
 // has no answer to what a workspace does with the open files when it switches
 // folders, and it does not choose one (it would lose the edits or write files
 // the user did not mean to). off is the file that turned auto-save off.
-func (c *Config) checkOnSwitch(off string) (Problem, bool) {
+func (c *Config) missingOnSwitch(off string) (Problem, bool) {
 	if c.Editor.AutoSave || c.Editor.OnSwitch != "" {
 		return Problem{}, false
 	}

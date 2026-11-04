@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"maps"
 	"net"
 	"os"
@@ -102,9 +103,9 @@ func newServeEnv(t *testing.T) *serveEnv {
 	cores := core.NewWorkspaces(shared, nil)
 	t.Cleanup(func() { cores.CloseAll(); shared.Close() })
 	cores.SetOnChange(srv.ScreenChanged)
-	srv.SetCores(serveCores{cores})
-	srv.SetScreens(serveCores{cores})
-	srv.SetInputs(serveCores{cores})
+	srv.SetCores(serveCores{cores, slog.Default()})
+	srv.SetScreens(serveCores{cores, slog.Default()})
+	srv.SetInputs(serveCores{cores, slog.Default()})
 	done := make(chan struct{})
 	go func() { srv.Serve(context.Background()); close(done) }()
 	t.Cleanup(func() { srv.Close(); <-done })

@@ -14,7 +14,10 @@ import (
 
 // serveCores hands the workspaces' cores (core.Workspaces) to the server
 // (server.Cores), which knows nothing of core.
-type serveCores struct{ ws *core.Workspaces }
+type serveCores struct {
+	ws  *core.Workspaces
+	log *slog.Logger // serve.log
+}
 
 var _ server.Cores = serveCores{}
 
@@ -56,7 +59,7 @@ func (s serveCores) Release(id string) {
 		}
 		if failed := c.SaveFiles(); len(failed) > 0 {
 			written, err := c.WriteBackups(server.WriteBackup)
-			slog.Warn("could not save on switching folders", "workspace", id, "files", failed, "backups", written, "err", err)
+			s.log.Warn("could not save on switching folders", "workspace", id, "files", failed, "backups", written, "err", err)
 		}
 	})
 	s.ws.Close(id)

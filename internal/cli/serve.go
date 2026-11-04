@@ -94,9 +94,9 @@ func runServe(args []string) int {
 	// What a core does on its own (a language server replied, a timer fired) is
 	// sent to the GUI like what it did for an input.
 	cores.SetOnChange(srv.ScreenChanged)
-	srv.SetCores(serveCores{cores})
-	srv.SetScreens(serveCores{cores})
-	srv.SetInputs(serveCores{cores})
+	srv.SetCores(serveCores{cores, logger})
+	srv.SetScreens(serveCores{cores, logger})
+	srv.SetInputs(serveCores{cores, logger})
 	srv.AddBeforeStop(func() { writeBackups(cores, logger) })
 	// Like the TUI, the control socket and the Claude Code connection are best
 	// effort. The server has one of each for all workspaces; requests go to the

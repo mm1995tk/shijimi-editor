@@ -28,7 +28,7 @@ type Inputs interface {
 	Focus(id string, in FocusInput)
 	// Command は ":" コマンドを実行する（制御用ソケットの exec と同じ）。
 	Command(id, line string) (ok bool, message string)
-	// OpenFile は root の core で path（絶対パス）を開き、at が nil でなければカーソルをそこに置く。
+	// OpenFile は id のワークスペースの core（フォルダ root）で path（絶対パス）を開き、at が nil でなければカーソルをそこに置く。
 	// core が無ければ作る。開けなければ理由を返す。
 	OpenFile(id, root, path string, at *screen.Pos, pane string) error
 }
@@ -268,7 +268,7 @@ func (ss *session) fileOpenReq(in Inputs, req *rpc.Message) (any, error, bool) {
 	if err != nil {
 		return nil, rpc.Errorf(rpc.CodeInternalError, "open %s: %v", rel, err), true
 	}
-	// 開いたファイルがあるワークスペースは、シェルがいなくても残る。
+	// 開いたファイルの一覧を workspace.changed に載せる。
 	w.recompute()
 	return map[string]any{"rev": ss.applied(p.Seq)}, nil, true
 }

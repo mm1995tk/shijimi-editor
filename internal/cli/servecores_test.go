@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -62,7 +63,7 @@ func TestReleaseSavesOrDiscards(t *testing.T) {
 			ws := core.NewWorkspaces(core.NewShared(), nil)
 			defer ws.CloseAll()
 			path := editedFile(t, ws, "w1", root)
-			serveCores{ws}.Release("w1")
+			serveCores{ws, slog.Default()}.Release("w1")
 			if b, _ := os.ReadFile(path); string(b) != c.want {
 				t.Errorf("a.txt = %q, want %q", b, c.want)
 			}
@@ -79,13 +80,13 @@ func TestSaveAllKeepsFilesOpen(t *testing.T) {
 	ws := core.NewWorkspaces(core.NewShared(), nil)
 	defer ws.CloseAll()
 	path := editedFile(t, ws, "w1", root)
-	if failed := (serveCores{ws}).SaveAll("w1"); len(failed) != 0 {
+	if failed := (serveCores{ws, slog.Default()}).SaveAll("w1"); len(failed) != 0 {
 		t.Fatalf("failed: %v", failed)
 	}
 	if b, _ := os.ReadFile(path); string(b) != "ONE\n" {
 		t.Errorf("a.txt = %q", b)
 	}
-	if got := (serveCores{ws}).Files("w1"); len(got) != 1 {
+	if got := (serveCores{ws, slog.Default()}).Files("w1"); len(got) != 1 {
 		t.Errorf("files = %v", got)
 	}
 }

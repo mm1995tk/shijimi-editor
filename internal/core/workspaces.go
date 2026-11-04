@@ -275,7 +275,8 @@ func (a *Core) SavesOnSwitch() bool {
 
 // SaveFiles saves every file with unsaved edits now, and returns the paths it
 // could not save: the file changed on disk meanwhile (it is never overwritten
-// silently), or writing failed. The files stay open.
+// silently), or writing failed. The files stay open. It only writes the files: it is used just before the core is closed,
+// so it tells no language server and rereads no git marks.
 func (a *Core) SaveFiles() (failed []string) {
 	for _, t := range a.Tabs {
 		if !t.dirty() || t.Buf.Path == "" {
