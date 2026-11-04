@@ -12,11 +12,12 @@ import "github.com/mm1995tk/shijimi-editor/internal/proxy"
 // language by i18n.SetLang when a core reads its config.
 type Shared struct {
 	Proxy *proxy.Manager // the port forwards (:browser), for every core
+	Build Build          // what the UI says about the build, for every core
 }
 
-// NewShared makes the process-wide parts.
-func NewShared() *Shared {
-	return &Shared{Proxy: proxy.NewManager()}
+// NewShared makes the process-wide parts, with the build the UI runs in.
+func NewShared(b Build) *Shared {
+	return &Shared{Proxy: proxy.NewManager(), Build: b}
 }
 
 // Close stops what the process holds for all its cores: the port forwards and
@@ -24,4 +25,13 @@ func NewShared() *Shared {
 func (s *Shared) Close() {
 	s.Proxy.StopAll()
 	RemoveShellIntegration()
+}
+
+// build is the build the UI said it runs in. A core made without Shared has
+// none.
+func (a *Core) build() Build {
+	if a.shared == nil {
+		return Build{}
+	}
+	return a.shared.Build
 }

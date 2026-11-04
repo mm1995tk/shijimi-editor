@@ -142,8 +142,8 @@ type Core struct {
 //
 // A mistake in a configuration file is an *config.Error and no core: shijimi
 // does not start with settings it cannot read as written.
-func New(fe FrontEnd, dir, file string) (*Core, error) {
-	a, err := newCore(NewShared(), fe, dir, file, true)
+func New(fe FrontEnd, dir, file string, b Build) (*Core, error) {
+	a, err := newCore(NewShared(b), fe, dir, file, true)
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,7 @@ func NewIn(sh *Shared, fe FrontEnd, dir, file string) (*Core, error) {
 
 func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) (*Core, error) {
 	abs, _ := filepath.Abs(dir)
-	cfg, err := config.Load(abs)
+	cfg, err := config.Load(abs, sh.Build.Config)
 	if setLang {
 		// also with a mistake: the settings that did read give the language of the report
 		i18n.SetLang(cfg.Editor.UILanguage)
@@ -208,10 +208,10 @@ func newCore(sh *Shared, fe FrontEnd, dir, file string, setLang bool) (*Core, er
 // file tree, language server, terminal, diff mode or agent panel, and the app
 // ends when the file is closed. A file that does not exist opens as an empty
 // buffer, which creates the file when saved. It is meant for $EDITOR.
-func NewSingle(fe FrontEnd, file string) (*Core, error) {
+func NewSingle(fe FrontEnd, file string, b Build) (*Core, error) {
 	abs, _ := filepath.Abs(file)
 	dir := filepath.Dir(abs)
-	cfg, err := config.Load(dir)
+	cfg, err := config.Load(dir, b.Config)
 	i18n.SetLang(cfg.Editor.UILanguage)
 	if err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func NewSingle(fe FrontEnd, file string) (*Core, error) {
 		Cfg:       cfg,
 		Lsp:       newLSPManager(cfg, dir),
 		Explorer:  &Explorer{root: &Node{Name: filepath.Base(dir), Path: dir, isDir: true, expanded: true, depth: -1}}, // not loaded: no tree is shown
-		shared:    NewShared(),
+		shared:    NewShared(b),
 		ownShared: true,
 		Pal:       newPalette(),
 		Search:    newSearchPanel(cfg.Search),

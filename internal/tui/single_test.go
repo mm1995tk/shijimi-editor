@@ -18,7 +18,7 @@ func newSingleApp(t *testing.T, name, content string) (*App, string) {
 			t.Fatal(err)
 		}
 	}
-	a, err := NewSingle(p)
+	a, err := NewSingle(p, core.Build{Version: "dev"})
 	if err != nil {
 		t.Fatal(err)
 	}

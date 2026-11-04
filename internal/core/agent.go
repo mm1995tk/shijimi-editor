@@ -192,7 +192,7 @@ func (a *Core) RunAgent(kind suggestKind, key, title string, build func() string
 		return nil
 	}
 	if a.Cfg.Agent.Command == "" {
-		dir, _ := config.UserDir()
+		dir, _ := config.UserDir(a.build().Config)
 		a.Fail(fmt.Errorf(i18n.T("agent.notconfigured"), filepath.Join(dir, "config.toml")))
 		return nil
 	}
@@ -214,7 +214,7 @@ func (a *Core) startAgent() Effect {
 	s := a.Ag
 	s.gen++
 	gen, ch, root := s.gen, s.ch, a.Root
-	o := acp.Options{Command: a.Cfg.Agent.Command, Args: a.Cfg.Agent.Args, Env: a.Cfg.Agent.Env, Dir: root, Version: VersionLabel()}
+	o := acp.Options{Command: a.Cfg.Agent.Command, Args: a.Cfg.Agent.Args, Env: a.Cfg.Agent.Env, Dir: root, Version: a.build().Version}
 	return RunAgent{Run: func() {
 		c, err := acp.Start(o, agentHandler{ch: ch, gen: gen})
 		if err != nil {

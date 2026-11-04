@@ -98,7 +98,7 @@ func (a *Core) StatusOf() screen.Status {
 	if n := len(a.Gd.Rv.Pending); n > 0 && a.PrShown() {
 		s.Unsent = fmt.Sprintf(i18n.T("app.pendingcomments"), n)
 	}
-	s.Version = VersionLabel()
+	s.Version = a.build().Version
 	switch {
 	case a.ConfirmOverlay() != nil:
 		// the confirmation is an Overlay, drawn over the status line

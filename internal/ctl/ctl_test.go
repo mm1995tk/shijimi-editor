@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/internal/channel"
+	"github.com/mm1995tk/shijimi-editor/internal/buildinfo"
 )
 
 func TestIsSubcommand(t *testing.T) {
@@ -114,12 +114,12 @@ func TestRunExec(t *testing.T) {
 
 func TestSocketPathIsSeparatePerChannel(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	channel.SetForTest(t, "")
+	buildinfo.SetForTest(t, "")
 	stable, err := SocketPath()
 	if err != nil {
 		t.Fatal(err)
 	}
-	channel.SetForTest(t, channel.Nightly)
+	buildinfo.SetForTest(t, buildinfo.Nightly)
 	nightly, err := SocketPath()
 	if err != nil {
 		t.Fatal(err)

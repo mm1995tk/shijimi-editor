@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/internal/channel"
+	"github.com/mm1995tk/shijimi-editor/internal/buildinfo"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
@@ -46,16 +46,16 @@ func runServe(args []string) int {
 	} else {
 		fmt.Fprintln(os.Stderr, err)
 	}
-	ver, commit := core.BuildVersion()
+	ver, commit := buildinfo.Resolve()
 	chName := "stable"
-	if channel.IsNightly() {
-		chName = channel.Nightly
+	if buildinfo.IsNightly() {
+		chName = buildinfo.Nightly
 	}
 	logger := slog.New(slog.NewTextHandler(logw, nil))
 	var idle time.Duration
 	var startDir string
 	if home, err := os.UserHomeDir(); err == nil {
-		cfg, err := config.Load(home)
+		cfg, err := config.Load(home, configOptions())
 		// The language is the process's: the home config sets it once, and
 		// the workspaces' cores leave it alone (core.NewIn). It is set before the
 		// mistakes are reported so that they are in the user's language.
@@ -87,7 +87,7 @@ func runServe(args []string) int {
 	}
 	// A core per workspace, on one set of process-wide parts. A core is made
 	// when its workspace takes the focus and kept while it has files open.
-	shared := core.NewShared()
+	shared := core.NewShared(coreBuild())
 	defer shared.Close()
 	cores := core.NewWorkspaces(shared, nil)
 	defer cores.CloseAll()

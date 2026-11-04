@@ -134,7 +134,7 @@ func (a *testArea) Update(in Input) {
 func newTestCore(t testing.TB, dir, file string, w, h int) (*Core, *testFront) {
 	t.Helper()
 	f := &testFront{w: w, h: h, side: true}
-	c, _ := New(f, dir, file)
+	c, _ := New(f, dir, file, Build{})
 	f.c = c
 	return c, f
 }
@@ -146,7 +146,7 @@ type App = Core
 // until a test sets one (SetScreen).
 func newApp(dir, file string) *Core {
 	f := &testFront{side: true}
-	c, _ := New(f, dir, file)
+	c, _ := New(f, dir, file, Build{})
 	f.c = c
 	return c
 }
@@ -154,7 +154,7 @@ func newApp(dir, file string) *Core {
 // newSingleCore is NewSingle's Core.
 func newSingleCore(file string) (*Core, error) {
 	f := &testFront{}
-	c, err := NewSingle(f, file)
+	c, err := NewSingle(f, file, Build{})
 	if c != nil {
 		f.c = c
 	}

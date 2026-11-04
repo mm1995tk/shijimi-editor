@@ -283,7 +283,7 @@ func appOf(c *core.Core) *App {
 
 // mustNew is New for a configuration that must be valid.
 func mustNew(dir, file string) *App {
-	a, err := New(dir, file)
+	a, err := New(dir, file, core.Build{Version: "dev"})
 	if err != nil {
 		panic(err)
 	}

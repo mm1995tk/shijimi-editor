@@ -99,7 +99,7 @@ func newServeEnv(t *testing.T) *serveEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	shared := core.NewShared()
+	shared := core.NewShared(core.Build{})
 	cores := core.NewWorkspaces(shared, nil)
 	t.Cleanup(func() { cores.CloseAll(); shared.Close() })
 	cores.SetOnChange(srv.ScreenChanged)
