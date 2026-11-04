@@ -96,7 +96,7 @@ func (a *App) HandleTermEvent(ev core.Event) []core.Effect {
 		}
 	}
 	if a.term.sh == nil && a.showTerm {
-		a.showTerm = false
+		a.ShowTerm(false)
 		if a.FocusIs(core.FocusTerminal) {
 			return core.Batch(effs, a.SetFocus(core.FocusEditor))
 		}
@@ -108,7 +108,7 @@ func (a *App) HandleTermEvent(ev core.Event) []core.Effect {
 func (a *App) termFailed(err error) []core.Effect {
 	a.Fail(err)
 	if a.term.sh == nil && a.showTerm {
-		a.showTerm = false
+		a.ShowTerm(false)
 		if a.FocusIs(core.FocusTerminal) {
 			return a.SetFocus(core.FocusEditor)
 		}

@@ -238,7 +238,7 @@ func TestMouseHoverOverKeyboardPopupAsksNothing(t *testing.T) {
 func TestMouseHoverBlockedByKeyOwners(t *testing.T) {
 	for name, set := range map[string]func(*App){
 		"cmdline": func(a *App) { a.CmdOpen = true },
-		"resize":  func(a *App) { a.resizeMode = true },
+		"resize":  func(a *App) { a.resizeMode = true; a.pushLayout() },
 		"palette": func(a *App) { a.Pal.Open = true },
 	} {
 		a := newTestApp(t, "hello world\n")

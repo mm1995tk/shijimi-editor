@@ -218,6 +218,7 @@ func TestPanelMouse(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.Update(tea.WindowSizeMsg{Width: 200, Height: 30})
 	a.showAgent = true
+	a.pushLayout()
 	p := a.CurText().Buf.Path
 	a.Lsp.Diags[p] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}}}
 	a.Sg.FixOffer = true

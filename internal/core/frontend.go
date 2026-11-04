@@ -7,16 +7,6 @@ import "github.com/mm1995tk/shijimi-editor/internal/buffer"
 // layout. Core holds the front end it is drawn by (set in New); in the program
 // it is internal/tui.App.
 type FrontEnd interface {
-	SideShown() bool
-	TermShown() bool
-	AgentOpen() bool
-	SetSide(on bool)
-	SetTerm(on bool)
-	SetAgent(on bool)
-	AgentWidthPref() int
-	ExplorerShare() int
-	InResizeMode() bool
-	DragBorder(r ResizeTarget)
 	ReleasesReported() bool
 	SetReleasesReported(on bool)
 	TermBlur()
@@ -35,11 +25,8 @@ type FrontEnd interface {
 	MuxClose()
 	MuxResult(err error) []Effect
 	CommandEnded(code int)
-	StartResize() []Effect
-	HandleResizeKey(key string) []Effect
 	ScrollHover(d int)
 	HoverCellWord() (buffer.Pos, WordSpan, bool)
-	ResetPanes()
 	SetPalette(t *Theme)
 	// HandleTermEvent takes the terminal panel's TermOutputMsg and TermDoneMsg.
 	HandleTermEvent(ev Event) []Effect
@@ -47,19 +34,6 @@ type FrontEnd interface {
 	// NewTextArea is a focused multi-line input holding initial.
 	NewTextArea(initial string) TextArea
 }
-
-// ResizeTarget is a border the user drags or moves with the keys.
-type ResizeTarget int
-
-const (
-	ResizeNone ResizeTarget = iota
-	ResizeSide
-	ResizeTerm
-	ResizePreview
-	ResizeAgent
-	ResizeDiff
-	ResizeExplorer
-)
 
 // MinSideSectionH is the least height of a section of the diff mode sidebar:
 // a header and two rows.

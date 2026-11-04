@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 )
@@ -95,3 +96,13 @@ func (s *Server) OpenURL(url string) {
 // Exit is core.Port's: a core of the server never quits, because closing the
 // GUI leaves the server running. It does nothing.
 func (s *Server) Exit() {}
+
+// The regions and borders are the GUI's own (it lays them out and tells the
+// core what it shows), so the server has nothing to do for these Port calls.
+func (s *Server) ShowSide(bool)                {}
+func (s *Server) ShowTerm(bool)                {}
+func (s *Server) ShowAgent(bool)               {}
+func (s *Server) DragBorder(core.ResizeTarget) {}
+func (s *Server) StartResize()                 {}
+func (s *Server) ResizeKey(string)             {}
+func (s *Server) ResetPanes()                  {}
