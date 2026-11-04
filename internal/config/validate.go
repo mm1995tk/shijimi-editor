@@ -105,6 +105,8 @@ type field struct {
 	kind kind
 	sub  map[string]field
 	alts []field // kItems: each item must match one of these
+	// required lists the keys every table of a kTables must have (non-empty).
+	required []string
 	// userOnly settings are read only from the user's own directory.
 	userOnly bool
 	// check returns the reason code (and arguments) when a value of the right
@@ -164,6 +166,14 @@ var configSchema = map[string]field{
 		"idle_stop_days": {kind: kInt, check: checkNonNegative},
 		"start_dir":      {kind: kString, check: checkStartDir},
 	}},
+	// [[gui.machines]] is read by the GUI, not by shj. It is listed so shj starts
+	// with a config.toml that has it; the GUI reports its own mistakes.
+	"gui": {kind: kTable, userOnly: true, sub: map[string]field{
+		"machines": {kind: kTables, required: []string{"ssh"}, sub: map[string]field{
+			"ssh":  fString,
+			"name": fString,
+		}},
+	}},
 	"keys": {kind: kTable, userOnly: true, sub: map[string]field{
 		"normal": {kind: kStringMap},
 		"insert": {kind: kStringMap},
@@ -179,7 +189,7 @@ var languagesSchema = map[string]field{
 		"environment": {kind: kStringMap},
 		"config":      {kind: kAny},
 	}},
-	"language": {kind: kTables, sub: map[string]field{
+	"language": {kind: kTables, required: []string{"name"}, sub: map[string]field{
 		"name":        fString,
 		"language-id": fString,
 		"file-types": {kind: kItems, alts: []field{
@@ -399,8 +409,10 @@ func (v *validator) value(x any, f field, path []string) {
 				v.add(p, "config.err.type", typeKey("config.type.table"), describe(e))
 				continue
 			}
-			if name, has := m["name"]; !has || name == "" {
-				v.add(p, "config.err.required", "name")
+			for _, k := range f.required {
+				if val, has := m[k]; !has || val == "" {
+					v.add(p, "config.err.required", k)
+				}
 			}
 			v.table(m, f.sub, p)
 		}

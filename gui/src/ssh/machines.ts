@@ -13,6 +13,10 @@ export interface KeyValueStore {
   setItem(key: string, value: string): void;
 }
 
+/** 設定ファイルで決めたマシンを変えようとしたときの理由。 */
+export const FIXED_REASON =
+  "設定ファイル（config.toml の [[gui.machines]]）で決めたマシンです。変えるには設定ファイルを直してください";
+
 /** 「このマシン」の表示名。 */
 export const LOCAL_LABEL = "このマシン";
 
@@ -22,6 +26,8 @@ export interface Machine {
   target: string;
   /** 付けた名前。無ければ target を出す */
   name?: string;
+  /** 設定ファイルで決めたマシン。外せず、名前も変えられない（保存もしない） */
+  fixed?: boolean;
 }
 
 /** localStorage のキー。値は Machine の JSON 配列。 */
@@ -137,6 +143,8 @@ export function renameMachine(
   target: string,
   name: string,
 ): { machines: Machine[] } | { error: string } {
+  if (list.some((m) => m.target === target && m.fixed))
+    return { error: FIXED_REASON };
   const n = cleanName(name);
   if (n !== undefined && nameTaken(list, n, target))
     return { error: `名前 ${n} はほかのマシンで使っています` };
@@ -153,7 +161,7 @@ export function renameMachine(
 
 /** マシンを外す。 */
 export function removeMachine(list: Machine[], target: string): Machine[] {
-  return list.filter((m) => m.target !== target);
+  return list.filter((m) => m.target !== target || m.fixed);
 }
 
 /** サイドバーに出す名前。付けた名前、無ければ ssh の行き先。「このマシン」はそのまま。 */
@@ -185,4 +193,49 @@ export function filterCandidates(
   const q = query.trim().toLowerCase();
   if (q === "") return candidates;
   return candidates.filter((c) => c.toLowerCase().includes(q));
+}
+
+/** 設定ファイルに書いたマシン 1 台（Tauri の側が読んで渡す。config.rs の ConfigMachine と同じ形）。 */
+export interface ConfigMachine {
+  ssh: string;
+  name?: string | null;
+}
+
+/**
+ * サイドバーに出すマシンの一覧。設定ファイルのマシン（fixed）が先で、そのあとに GUI で足したマシン。
+ * GUI で足したマシンのうち、設定ファイルと同じ ssh の行き先のものは、設定ファイルのほうを出す。
+ * 名前が設定ファイルのマシンと重なる足したマシンは、表示の取り違えを避けるため出さない（記録は消さない）。
+ */
+export function mergeMachines(
+  config: ConfigMachine[],
+  saved: Machine[],
+): Machine[] {
+  const fixed: Machine[] = config.map((c) =>
+    c.name
+      ? { target: c.ssh, name: c.name, fixed: true }
+      : { target: c.ssh, fixed: true },
+  );
+  const names = new Set(fixed.map((m) => m.name ?? m.target));
+  const rest = saved.filter(
+    (m) =>
+      !fixed.some((f) => f.target === m.target) &&
+      !names.has(m.name ?? m.target),
+  );
+  return [...fixed, ...rest];
+}
+
+/**
+ * localStorage に書く記録。設定ファイルのマシンは書かない（設定ファイルが持つ）。
+ * 設定ファイルと重なって出ていない足したマシンの記録は、設定ファイルから消したときに戻るよう残す。
+ */
+export function recordToSave(
+  next: Machine[],
+  saved: Machine[],
+  config: ConfigMachine[],
+): Machine[] {
+  const shown = mergeMachines(config, saved);
+  const hidden = saved.filter(
+    (m) => !shown.some((s) => s.target === m.target && !s.fixed),
+  );
+  return [...next.filter((m) => !m.fixed), ...hidden];
 }

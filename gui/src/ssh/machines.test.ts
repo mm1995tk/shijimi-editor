@@ -8,6 +8,8 @@ import {
   labelOf,
   LEGACY_KEY,
   loadMachines,
+  mergeMachines,
+  recordToSave,
   MACHINES_KEY,
   removeMachine,
   renameMachine,
@@ -126,4 +128,57 @@ test("外す・表示名", () => {
   assert.equal(labelOf(list, "dev"), "開発");
   assert.equal(labelOf(list, "db"), "db");
   assert.equal(labelOf(list, "unknown"), "unknown");
+});
+const config = [{ ssh: "dev-vm", name: "dev" }, { ssh: "build" }];
+
+test("設定ファイルのマシンが先で、足したマシンが後。同じ行き先は設定ファイルのほう", () => {
+  const saved = [{ target: "dev-vm", name: "古い名前" }, { target: "other" }];
+  assert.deepEqual(mergeMachines(config, saved), [
+    { target: "dev-vm", name: "dev", fixed: true },
+    { target: "build", fixed: true },
+    { target: "other" },
+  ]);
+});
+
+test("名前が設定ファイルのマシンと重なる足したマシンは出さない", () => {
+  const saved = [
+    { target: "x", name: "dev" },
+    { target: "build2", name: "build" },
+  ];
+  assert.deepEqual(
+    mergeMachines(config, saved).map((m) => m.target),
+    ["dev-vm", "build"],
+  );
+});
+
+test("外せず、名前も変えられない", () => {
+  const list = mergeMachines(config, [{ target: "other" }]);
+  assert.deepEqual(removeMachine(list, "dev-vm"), list);
+  assert.deepEqual(
+    removeMachine(list, "other").map((m) => m.target),
+    ["dev-vm", "build"],
+  );
+  assert.ok("error" in renameMachine(list, "dev-vm", "新しい"));
+  assert.ok("machines" in renameMachine(list, "other", "新しい"));
+});
+
+test("足すときは、設定ファイルの行き先も名前も重ねられない", () => {
+  const list = mergeMachines(config, []);
+  assert.ok("error" in addMachine(list, "dev-vm"));
+  assert.ok("error" in addMachine(list, "z", "dev"));
+  assert.ok("machines" in addMachine(list, "z", "zed"));
+});
+
+test("保存するのは足したマシンだけ。重なって出ていない記録は残し、外したものは残さない", () => {
+  const saved = [
+    { target: "dev-vm", name: "古い名前" },
+    { target: "other" },
+    { target: "gone" },
+  ];
+  // gone を外した
+  const next = mergeMachines(config, saved).filter((m) => m.target !== "gone");
+  assert.deepEqual(recordToSave(next, saved, config), [
+    { target: "other" },
+    { target: "dev-vm", name: "古い名前" },
+  ]);
 });

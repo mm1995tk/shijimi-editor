@@ -335,3 +335,24 @@ func TestLanguageNameIsRequired(t *testing.T) {
 		}
 	}
 }
+
+// The GUI reads [[gui.machines]]; shj must start with a file that has it, and
+// still reports a mistake in it.
+func TestGUIMachines(t *testing.T) {
+	root, _, write := setup(t)
+	write("config.toml", "[[gui.machines]]\nssh = \"dev-vm\"\nname = \"dev\"\n\n[[gui.machines]]\nssh = \"build\"\n")
+	if _, err := Load(root, Options{}); err != nil {
+		t.Fatal(err)
+	}
+	for name, c := range map[string]string{
+		"missing ssh":    "[[gui.machines]]\nname = \"dev\"\n",
+		"unknown key":    "[[gui.machines]]\nssh = \"a\"\nhost = \"b\"\n",
+		"wrong type":     "[[gui.machines]]\nssh = 1\n",
+		"unknown in gui": "[gui]\ncolor = 1\n",
+	} {
+		write("config.toml", c)
+		if _, err := Load(root, Options{}); err == nil {
+			t.Errorf("%s: no error", name)
+		}
+	}
+}

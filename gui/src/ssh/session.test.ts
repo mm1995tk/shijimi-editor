@@ -34,6 +34,7 @@ function fakeShell(opts: {
     lines.forEach((f) => f({ id, line: JSON.stringify(obj) }));
   const api: ShellApi = {
     listSshHosts: async () => [],
+    configMachines: async () => [],
     connect: async (id) => {
       const sid = opts.serverIds[Math.min(n, opts.serverIds.length - 1)];
       n++;
