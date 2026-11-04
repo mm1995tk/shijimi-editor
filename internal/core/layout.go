@@ -16,6 +16,11 @@ type Layout struct {
 	ExplorerShare int
 	// ResizeMode is whether the keys move the borders.
 	ResizeMode bool
+	// TermInPane is whether the terminal is not a panel of the UI but a pane
+	// of something outside it (a terminal multiplexer). The core then leaves
+	// showing, focusing and hiding it to the UI: it says TermToggle, ShowTerm,
+	// TermRun and TermPaste, and keeps neither TermShown nor the terminal focus.
+	TermInPane bool
 }
 
 func (Layout) input() {}
@@ -41,6 +46,9 @@ func (a *Core) SideShown() bool { return a.layout.SideShown }
 
 // TermShown reports whether the terminal panel is on screen.
 func (a *Core) TermShown() bool { return a.layout.TermShown }
+
+// TermInPane reports whether the UI's terminal is a pane outside the UI.
+func (a *Core) TermInPane() bool { return a.layout.TermInPane }
 
 // AgentOpen reports whether the suggestion panel is on. (AgentShown is
 // another question: whether the panel fits beside the editor.)

@@ -170,22 +170,22 @@ func TestCmuxOnlyOnMacInCmux(t *testing.T) {
 	defer func() { cmuxGOOS = old }()
 	cmuxGOOS = "linux"
 	a.resolveMux()
-	if a.MuxOn() {
+	if a.muxOn() {
 		t.Fatal("cmux must not be used on Linux")
 	}
 	cmuxGOOS = "darwin"
 	t.Setenv(envCmuxSurface, "")
 	a.resolveMux()
-	if a.MuxOn() {
+	if a.muxOn() {
 		t.Fatal("cmux must not be used outside cmux")
 	}
 	t.Setenv(envCmuxSurface, "S1")
 	a.resolveMux()
-	if !a.MuxOn() {
+	if !a.muxOn() {
 		t.Fatal("cmux must be used on macOS inside cmux")
 	}
 	a.Cfg.Experimental.Multiplexer = false
-	if a.MuxOn() {
+	if a.muxOn() {
 		t.Fatal("cmux must be off when the setting is off")
 	}
 	if len(f.calls) != 0 {
@@ -216,7 +216,7 @@ func TestCmuxAutoFollowsParents(t *testing.T) {
 	a, _ := cmuxApp(t)
 	a.Cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "cmux", "launchd")
-	if !a.MuxOn() || a.mux.b.name() != "cmux" {
+	if !a.muxOn() || a.mux.b.name() != "cmux" {
 		t.Fatalf("cmux parent not used: %v", a.mux.b)
 	}
 }

@@ -25,7 +25,9 @@ type testFront struct {
 	termPasted        []string
 	termFocused       bool
 	termClosed        bool
-	muxSent           []string
+	termToggled       int
+	inPane            bool   // the terminal is a pane outside the UI (Layout.TermInPane)
+	termShows         string // what ShowTerm was last told while inPane
 }
 
 // testFront is also the Port, recording what the core asks of the UI.
@@ -33,8 +35,15 @@ func (f *testFront) WriteClipboard(s string) { f.clip = s }
 func (f *testFront) OpenURL(u string)        { f.urls = append(f.urls, u) }
 func (f *testFront) Exit()                   { f.exited = true }
 
-func (f *testFront) ShowSide(on bool)        { f.side = on; f.push() }
-func (f *testFront) ShowTerm(on bool)        { f.term = on; f.push() }
+func (f *testFront) ShowSide(on bool) { f.side = on; f.push() }
+func (f *testFront) ShowTerm(on bool) {
+	if f.inPane {
+		f.termShows = map[bool]string{true: "show", false: "hide"}[on]
+		return
+	}
+	f.term = on
+	f.push()
+}
 func (f *testFront) ShowAgent(on bool)       { f.agent = on; f.push() }
 func (f *testFront) DragBorder(ResizeTarget) {}
 func (f *testFront) ReleasesReported() bool  { return f.releases }
@@ -43,25 +52,15 @@ func (f *testFront) SetReleasesReported(on bool) {
 }
 func (f *testFront) TermFocus(on bool)   { f.termFocused = on }
 func (f *testFront) TermKey(k Key)       { f.termKeys = append(f.termKeys, k) }
+func (f *testFront) TermToggle()         { f.termToggled++ }
 func (f *testFront) TermRun(line string) { f.termRuns = append(f.termRuns, line) }
 func (f *testFront) TermPaste(s string)  { f.termPasted = append(f.termPasted, s) }
 func (f *testFront) TermClose()          { f.termClosed = true }
-func (f *testFront) MuxReset()           {}
-func (f *testFront) MuxOn() bool         { return false }
-func (f *testFront) MuxOpen() error      { return nil }
-func (f *testFront) MuxHide() error      { return nil }
-func (f *testFront) MuxToggle() []Effect { return nil }
-func (f *testFront) MuxSend(text string, _ bool) []Effect {
-	f.muxSent = append(f.muxSent, text)
-	return nil
-}
-func (f *testFront) MuxClose()                {}
-func (f *testFront) MuxResult(error) []Effect { return nil }
-func (f *testFront) CommandEnded(int)         {}
-func (f *testFront) StartResize()             { f.resize = true; f.push() }
-func (f *testFront) ResizeKey(string)         {}
-func (f *testFront) ResetPanes()              {}
-func (f *testFront) ScrollHover(int)          {}
+func (f *testFront) CommandEnded(int)    {}
+func (f *testFront) StartResize()        { f.resize = true; f.push() }
+func (f *testFront) ResizeKey(string)    {}
+func (f *testFront) ResetPanes()         {}
+func (f *testFront) ScrollHover(int)     {}
 func (f *testFront) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	return buffer.Pos{}, WordSpan{}, false
 }
@@ -96,7 +95,7 @@ func (f *testFront) push() {
 	if f.c == nil {
 		return
 	}
-	f.c.SetLayout(Layout{SideShown: f.side, TermShown: f.term, AgentOpen: f.agent, ResizeMode: f.resize})
+	f.c.SetLayout(Layout{SideShown: f.side, TermShown: f.term, AgentOpen: f.agent, ResizeMode: f.resize, TermInPane: f.inPane})
 	if f.w > 0 {
 		f.c.SetSizes(f.sizes())
 	}

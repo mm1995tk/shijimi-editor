@@ -299,7 +299,6 @@ func (a *Core) Close() {
 	if a.Ag.Client != nil {
 		a.stopAgent()
 	}
-	a.MuxClose()
 	if a.ownShared && a.shared != nil {
 		a.shared.Close()
 	}
@@ -728,8 +727,9 @@ func (a *Core) ToggleTerm() []Effect {
 	if a.single {
 		return nil
 	}
-	if a.MuxOn() {
-		return a.MuxToggle()
+	if a.TermInPane() {
+		a.port.TermToggle()
+		return nil
 	}
 	if a.TermShown() && a.Focus == FocusTerminal {
 		a.SetTerm(false)
@@ -757,7 +757,6 @@ func (a *Core) Quit() []Effect {
 		return nil
 	}
 	a.port.TermClose()
-	a.MuxClose()
 	if a.ownShared && a.shared != nil {
 		a.shared.Proxy.StopAll()
 	}
@@ -1126,8 +1125,9 @@ func (a *Core) HandleKey(msg Key) []Effect {
 	case "ctrl+j", "ctrl+space":
 		// Ctrl+Space is completion wherever the editor accepts typing: VS Code
 		// mode, or Helix insert mode.
-		if key == "ctrl+j" && a.MuxOn() {
-			return a.MuxResult(a.MuxOpen())
+		if key == "ctrl+j" && a.TermInPane() {
+			a.port.ShowTerm(true)
+			return nil
 		}
 		typing := a.typing()
 		if key == "ctrl+j" || !typing {

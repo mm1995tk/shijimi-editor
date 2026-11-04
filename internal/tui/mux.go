@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/ctl"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
@@ -48,7 +49,8 @@ type muxBackend interface {
 type muxPane struct {
 	b        muxBackend // nil until resolved, and when the built-in terminal is used
 	resolved bool
-	id       string // "" until a pane has been created
+	cfg      *config.Config // the configuration it was resolved for; a reload makes a new one
+	id       string         // "" until a pane has been created
 	visible  bool
 
 	// Tests replace these.
@@ -95,7 +97,7 @@ func muxUsable(kind string) bool {
 // :config-reload. A pane of a multiplexer that is no longer used is closed.
 func (a *App) resolveMux() {
 	m := &a.mux
-	m.resolved = true
+	m.resolved, m.cfg = true, a.Settings()
 	old := m.b
 	m.b = nil
 	want := a.Settings().Terminal.Multiplexer
@@ -126,12 +128,15 @@ func (a *App) resolveMux() {
 	}
 }
 
-// MuxOn reports whether the terminal commands should use a multiplexer pane.
-func (a *App) MuxOn() bool {
+// muxOn reports whether the terminal commands should use a multiplexer pane.
+// It looks for the multiplexer again when the configuration was replaced
+// (:config-reload), which closes the pane of one that is no longer used; the
+// layout (pushLayout) asks it after every message.
+func (a *App) muxOn() bool {
 	if a.SingleFile() || a.Settings() == nil || !a.Settings().Experimental.Multiplexer {
 		return false
 	}
-	if !a.mux.resolved {
+	if !a.mux.resolved || a.mux.cfg != a.Settings() {
 		a.resolveMux()
 	}
 	return a.mux.b != nil
@@ -172,9 +177,9 @@ func (a *App) muxCreate() error {
 	return nil
 }
 
-// MuxOpen shows the pane and moves focus to it, creating it the first time
+// muxOpen shows the pane and moves focus to it, creating it the first time
 // and again after it has ended.
-func (a *App) MuxOpen() error {
+func (a *App) muxOpen() error {
 	m := &a.mux
 	if m.id == "" || !m.b.alive(m.id) {
 		m.id, m.visible = "", false
@@ -187,8 +192,8 @@ func (a *App) MuxOpen() error {
 	return nil
 }
 
-// MuxHide hides the multiplexer pane.
-func (a *App) MuxHide() error {
+// muxHide hides the multiplexer pane.
+func (a *App) muxHide() error {
 	if err := a.mux.b.hide(); err != nil {
 		return err
 	}
@@ -196,27 +201,28 @@ func (a *App) MuxHide() error {
 	return nil
 }
 
-// MuxToggle is the toggle of Ctrl+`, Space t and :sh.
-func (a *App) MuxToggle() []core.Effect {
+// muxToggle is the toggle of Ctrl+`, Space t and :sh.
+func (a *App) muxToggle() {
 	var err error
 	if a.mux.visible && a.mux.id != "" && a.mux.b.alive(a.mux.id) {
-		err = a.MuxHide()
+		err = a.muxHide()
 	} else {
-		err = a.MuxOpen()
+		err = a.muxOpen()
 	}
-	return a.MuxResult(err)
+	a.muxResult(err)
 }
 
-// MuxSend opens the pane and sends text to it.
-func (a *App) MuxSend(text string, enter bool) []core.Effect {
-	if err := a.MuxOpen(); err != nil {
-		return a.MuxResult(err)
+// muxSend opens the pane and sends text to it.
+func (a *App) muxSend(text string, enter bool) {
+	if err := a.muxOpen(); err != nil {
+		a.muxResult(err)
+		return
 	}
-	return a.MuxResult(a.mux.b.send(a.mux.id, text, enter))
+	a.muxResult(a.mux.b.send(a.mux.id, text, enter))
 }
 
-// MuxClose closes the pane that this editor created, if it is still there.
-func (a *App) MuxClose() {
+// muxClose closes the pane that this editor created, if it is still there.
+func (a *App) muxClose() {
 	m := &a.mux
 	if m.b != nil && m.id != "" && m.b.alive(m.id) {
 		m.b.close(m.id)
@@ -224,12 +230,11 @@ func (a *App) MuxClose() {
 	m.id, m.visible = "", false
 }
 
-// MuxResult reports err from a multiplexer call on the status line.
-func (a *App) MuxResult(err error) []core.Effect {
+// muxResult reports err from a multiplexer call on the status line.
+func (a *App) muxResult(err error) {
 	if err != nil {
 		a.Fail(a.muxError(err))
 	}
-	return nil
 }
 
 // CommandEnded handles the exit code that the shell in the multiplexer pane
