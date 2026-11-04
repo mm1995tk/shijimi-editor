@@ -117,3 +117,7 @@ func (s *Server) TermPaste(string)   {}
 func (s *Server) TermClose()         {}
 func (s *Server) CommandEnded(int)   {}
 func (s *Server) ImageClosed(uint32) {}
+
+// SetPalette is core.Port's: the GUI draws with its own colors and asks for the
+// theme with theme.get, so there is nothing to apply. It does nothing.
+func (s *Server) SetPalette(*core.Theme) {}

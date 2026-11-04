@@ -12,7 +12,6 @@ type testFront struct {
 	c                 *Core
 	w, h              int
 	side, term, agent bool
-	releases          bool
 	resize            bool
 	clip              string
 	urls              []string
@@ -43,10 +42,7 @@ func (f *testFront) ShowTerm(on bool) {
 }
 func (f *testFront) ShowAgent(on bool)       { f.agent = on; f.push() }
 func (f *testFront) DragBorder(ResizeTarget) {}
-func (f *testFront) ReleasesReported() bool  { return f.releases }
-func (f *testFront) SetReleasesReported(on bool) {
-	f.releases = on
-}
+
 func (f *testFront) TermFocus(on bool)   { f.termFocused = on }
 func (f *testFront) TermKey(k Key)       { f.termKeys = append(f.termKeys, k) }
 func (f *testFront) TermToggle()         { f.termToggled++ }
@@ -93,7 +89,7 @@ func (f *testFront) push() {
 
 // resized is a window of w x h cells: the core is told the sizes as an Input.
 func resized(a *Core, w, h int) {
-	f := a.FrontEnd.(*testFront)
+	f := a.port.(*testFront)
 	f.w, f.h = w, h
 	a.Update(f.sizes())
 }
@@ -119,7 +115,6 @@ func newTestCore(t testing.TB, dir, file string, w, h int) (*Core, *testFront) {
 	t.Helper()
 	f := &testFront{w: w, h: h, side: true}
 	c, _ := New(f, dir, file, Build{})
-	c.SetPort(f)
 	f.c = c
 	f.push()
 	return c, f
@@ -133,7 +128,6 @@ type App = Core
 func newApp(dir, file string) *Core {
 	f := &testFront{side: true}
 	c, _ := New(f, dir, file, Build{})
-	c.SetPort(f)
 	f.c = c
 	f.push()
 	return c
@@ -144,7 +138,6 @@ func newSingleCore(file string) (*Core, error) {
 	f := &testFront{}
 	c, err := NewSingle(f, file, Build{})
 	if c != nil {
-		c.SetPort(f)
 		f.c = c
 	}
 	return c, err

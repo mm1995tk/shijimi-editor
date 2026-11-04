@@ -8,7 +8,7 @@ func (a *Core) setTheme(name string) bool {
 	if !ok {
 		return false
 	}
-	a.SetPalette(t)
+	a.port.SetPalette(t)
 	return true
 }
 

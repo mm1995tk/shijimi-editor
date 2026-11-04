@@ -60,7 +60,7 @@ func TestReleaseSavesOrDiscards(t *testing.T) {
 			if c.config != "" {
 				writeProjectConfig(t, root, c.config)
 			}
-			ws := core.NewWorkspaces(core.NewShared(core.Build{}), nil)
+			ws := core.NewWorkspaces(core.NewShared(core.Build{}))
 			defer ws.CloseAll()
 			path := editedFile(t, ws, "w1", root)
 			serveCores{ws, slog.Default()}.Release("w1")
@@ -77,7 +77,7 @@ func TestReleaseSavesOrDiscards(t *testing.T) {
 // SaveAll keeps the core and its files.
 func TestSaveAllKeepsFilesOpen(t *testing.T) {
 	root, _ := filepath.EvalSymlinks(t.TempDir())
-	ws := core.NewWorkspaces(core.NewShared(core.Build{}), nil)
+	ws := core.NewWorkspaces(core.NewShared(core.Build{}))
 	defer ws.CloseAll()
 	path := editedFile(t, ws, "w1", root)
 	if failed := (serveCores{ws, slog.Default()}).SaveAll("w1"); len(failed) != 0 {

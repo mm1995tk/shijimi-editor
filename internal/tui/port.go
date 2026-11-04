@@ -129,3 +129,8 @@ func (a *App) hideTermPanel() {
 	a.showTerm = false
 	a.pushLayout()
 }
+
+// SetPalette makes t the colors the terminal draws with (applyTheme, in
+// theme_apply.go, rewrites the palette variables and the styles built from
+// them). Core keeps which theme is chosen; how it looks is the UI's.
+func (a *App) SetPalette(t *core.Theme) { applyTheme(t) }

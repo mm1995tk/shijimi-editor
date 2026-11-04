@@ -277,7 +277,6 @@ func splitApp(t *testing.T) (*App, []string) {
 // returns.
 func appOf(c *core.Core) *App {
 	a := &App{Core: c}
-	c.FrontEnd = a
 	c.SetPort(a)
 	return a
 }

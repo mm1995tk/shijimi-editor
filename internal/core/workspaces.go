@@ -20,8 +20,6 @@ import (
 // one core.
 type Workspaces struct {
 	shared *Shared
-	// front makes the front end of a new core. nil makes a headless.
-	front func() FrontEnd
 
 	mu       sync.Mutex
 	coresMu  sync.Mutex            // held by whoever touches any core: see Workspace
@@ -140,10 +138,9 @@ func (w *Workspace) run(effs []Effect) {
 	}
 }
 
-// NewWorkspaces makes the cores' registry on sh. front makes the front end of
-// each new core; nil gives each a headless.
-func NewWorkspaces(sh *Shared, front func() FrontEnd) *Workspaces {
-	return &Workspaces{shared: sh, front: front, cores: map[string]*Workspace{}}
+// NewWorkspaces makes the cores' registry on sh.
+func NewWorkspaces(sh *Shared) *Workspaces {
+	return &Workspaces{shared: sh, cores: map[string]*Workspace{}}
 }
 
 // SetPort sets the Port of the cores made after: the UI they clipboard and open
@@ -185,18 +182,9 @@ func (ws *Workspaces) Open(key, root string) (*Workspace, error) {
 	ws.mu.Lock()
 	port := ws.port
 	ws.mu.Unlock()
-	var c *Core
-	var err error
-	if ws.front != nil {
-		c, err = NewIn(ws.shared, ws.front(), root, "")
-	} else {
-		c, err = newHeadlessCore(ws.shared, root)
-	}
+	c, err := newHeadlessCore(ws.shared, port, root)
 	if err != nil {
 		return nil, err
-	}
-	if port != nil {
-		c.SetPort(port)
 	}
 	ws.mu.Lock()
 	w := &Workspace{Key: key, Root: root, mu: &ws.coresMu, core: c, onChange: ws.onChange, done: make(chan struct{})}
@@ -330,4 +318,18 @@ func (a *Core) WriteBackups(write func(path string, data []byte) (string, error)
 		written = append(written, name)
 	}
 	return written, errors.Join(errs...)
+}
+
+// newHeadlessCore is a core rooted at dir for a workspace of `shj serve`, on the
+// Port p (nil: one that does nothing). Nothing draws it yet, so it has only the
+// editor on its screen, 80 x 24 cells until the GUI sends a size (view.resize).
+// The GUI picks the theme itself (theme.get); until then the core keeps its
+// state as it would behind any screen.
+func newHeadlessCore(sh *Shared, p Port, dir string) (*Core, error) {
+	c, err := NewIn(sh, p, dir, "")
+	if err != nil {
+		return nil, err
+	}
+	c.SetSizes(Sizes{ScreenW: 80, ScreenH: 24, EditRows: 23, EditorCols: 80, TextCols: 80})
+	return c, nil
 }

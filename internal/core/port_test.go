@@ -8,7 +8,7 @@ import (
 // The core hands a copy and a URL to its Port; it does not touch this machine.
 func TestPortGetsClipboardAndURL(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	f := a.FrontEnd.(*testFront)
+	f := a.port.(*testFront)
 	old := OpenExternal
 	OpenExternal = func(u string) error { t.Fatalf("opened %q in the core", u); return nil }
 	defer func() { OpenExternal = old }()
@@ -45,7 +45,7 @@ func TestOpenURLResult(t *testing.T) {
 // Quit goes to the Port, with no Effect.
 func TestExitGoesToPort(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	f := a.FrontEnd.(*testFront)
+	f := a.port.(*testFront)
 	if effs := a.Quit(); len(effs) != 0 || !f.exited {
 		t.Fatalf("effects %#v exited %v", effs, f.exited)
 	}
@@ -69,7 +69,7 @@ func TestOpenPRURLCopiesOnFail(t *testing.T) {
 	const url = "https://github.com/o/r/pull/7"
 	for name, err := range map[string]error{"remote": ErrRemoteSession, "other": errors.New("boom")} {
 		a := newTestApp(t, "x\n")
-		f := a.FrontEnd.(*testFront)
+		f := a.port.(*testFront)
 		a.Gd.Pr = &PrInfo{URL: url}
 		a.openPRURL()
 		if len(f.urls) != 1 || f.urls[0] != url {
@@ -93,7 +93,7 @@ func TestOpenPRURLCopiesOnFail(t *testing.T) {
 // The terminal panel is the UI's: the core only says what it wants of it.
 func TestTerminalGoesToPort(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	f := a.FrontEnd.(*testFront)
+	f := a.port.(*testFront)
 	a.SetFocus(FocusTerminal)
 	if !f.termFocused {
 		t.Fatal("the terminal was not given the keys")
@@ -116,7 +116,7 @@ func TestTerminalGoesToPort(t *testing.T) {
 // feeds it itself: the core keeps neither the panel nor the terminal focus.
 func TestTerminalInPane(t *testing.T) {
 	a := newTestApp(t, "x\n")
-	f := a.FrontEnd.(*testFront)
+	f := a.port.(*testFront)
 	f.inPane = true
 	f.push()
 

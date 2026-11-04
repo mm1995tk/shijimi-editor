@@ -50,6 +50,10 @@ type Port interface {
 	// in its own terminal it tells the core with AddFailureTab, ClearFailure
 	// and KeepFailuresOf.
 	CommandEnded(code int)
+	// SetPalette makes t the colors the UI draws with (the user picked a theme,
+	// or the config names one). The core keeps which theme is chosen. A GUI
+	// draws with its own and asks for the theme with theme.get.
+	SetPalette(t *Theme)
 	// ImageClosed says the image Id is not shown any more, so that a UI frees
 	// what it holds for it (the TUI's terminal graphics).
 	ImageClosed(id uint32)
@@ -76,12 +80,16 @@ func (nopPort) TermPaste(string)        {}
 func (nopPort) TermClose()              {}
 func (nopPort) CommandEnded(int)        {}
 func (nopPort) ImageClosed(uint32)      {}
+func (nopPort) SetPalette(*Theme)       {}
 
-// SetPort sets the Port. The TUI sets itself (internal/tui.New); a core of
-// `shj serve` gets the server's (Workspaces.SetPort).
-func (a *Core) SetPort(p Port) {
+// portOrNop is p, or a Port that does nothing when p is nil.
+func portOrNop(p Port) Port {
 	if p == nil {
-		p = nopPort{}
+		return nopPort{}
 	}
-	a.port = p
+	return p
 }
+
+// SetPort sets the Port of a core made by hand (New takes it already). A nil
+// Port is one that does nothing.
+func (a *Core) SetPort(p Port) { a.port = portOrNop(p) }
