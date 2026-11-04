@@ -18,6 +18,7 @@ import (
 // before it draws it (the scroll that follows the cursor, the widths of the
 // inputs), and makes what is on screen. Rev and AckSeq are left for the caller.
 func (a *Core) BuildScreen(v screen.View) screen.Screen {
+	a.settleViews()
 	cols, rows := max(1, v.Files.Cols), max(1, v.Files.Rows)
 	a.fitScreenSize(cols, rows)
 	slots := a.screenSlots(cols)

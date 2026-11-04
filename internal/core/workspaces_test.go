@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // writeFile makes dir/name holding text.
@@ -183,4 +185,97 @@ func openWS(ws *Workspaces, root string) *Workspace {
 		panic(err)
 	}
 	return w
+}
+
+// Two workspaces on one folder that open the same file share its text: what
+// one types is in the other before it is saved, the cursors are each one's
+// own, and closing the file in one leaves it open in the other.
+func TestWorkspacesShareBuffer(t *testing.T) {
+	root := t.TempDir()
+	p := writeFile(t, root, "a.txt", "one\ntwo\nthree\n")
+	ws := NewWorkspaces(NewShared(Build{}), nil)
+	defer ws.CloseAll()
+	wa, err := ws.Open("a", root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wb, err := ws.Open("b", root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wa.Do(func(c *Core) {
+		if !c.OpenFile(p) {
+			t.Fatal(c.Msg)
+		}
+	})
+	wb.Do(func(c *Core) {
+		if !c.OpenFile(p) {
+			t.Fatal(c.Msg)
+		}
+		c.Focus = FocusEditor
+		keys(c, "j", "j") // B's cursor is on "three"
+	})
+	wa.Do(func(c *Core) {
+		c.Focus = FocusEditor
+		keys(c, "i", "X", "esc")
+	})
+
+	wb.Do(func(c *Core) {
+		b := c.CurText().Buf
+		if got := b.Text(); got != "Xone\ntwo\nthree\n" {
+			t.Errorf("workspace B = %q, want A's edit before any save", got)
+		}
+		if b.Cur.Row != 2 {
+			t.Errorf("B's cursor row = %d, want 2: A's typing moved it", b.Cur.Row)
+		}
+		c.BuildScreen(screen.DefaultView)
+	})
+	wa.Do(func(c *Core) {
+		if row := c.CurText().Buf.Cur.Row; row != 0 {
+			t.Errorf("A's cursor row = %d, want 0", row)
+		}
+	})
+	if b, _ := os.ReadFile(p); string(b) != "one\ntwo\nthree\n" {
+		t.Errorf("the file was written without a save: %q", b)
+	}
+
+	// A line added above B's cursor moves it along with its text.
+	wa.Do(func(c *Core) { keys(c, "o", "new", "esc") })
+	wb.Do(func(c *Core) {
+		b := c.CurText().Buf
+		c.settleViews()
+		if b.Cur.Row != 3 || string(b.Lines[b.Cur.Row]) != "three" {
+			t.Errorf("B's cursor = %+v on %q, want to stay on three", b.Cur, b.Lines[min(b.Cur.Row, len(b.Lines)-1)])
+		}
+	})
+
+	// Saving in one clears the other's unsaved mark.
+	wa.Do(func(c *Core) {
+		if failed := c.SaveFiles(); len(failed) > 0 {
+			t.Fatal(failed)
+		}
+	})
+	wb.Do(func(c *Core) {
+		if c.CurText().Buf.Dirty {
+			t.Error("B still sees the text as unsaved after A saved it")
+		}
+	})
+
+	// Closing it in A leaves it open in B, with the edits.
+	wa.Do(func(c *Core) { c.CloseTab(true) })
+	wb.Do(func(c *Core) {
+		if len(c.Tabs) != 1 || c.CurText().Buf.Views() != 1 {
+			t.Fatalf("B has %d tabs after A closed the file", len(c.Tabs))
+		}
+		keys(c, "i", "Y", "esc")
+		if got := c.CurText().Buf.Lines[3]; string(got) != "Ythree" {
+			t.Errorf("B could not go on editing: %q", got)
+		}
+	})
+	// Closing the workspace drops its view, and the last one frees the text.
+	ws.Close("b")
+	if ws.shared.Buffers.Len() != 0 {
+		t.Errorf("%d files are still held after every workspace closed", ws.shared.Buffers.Len())
+	}
 }
