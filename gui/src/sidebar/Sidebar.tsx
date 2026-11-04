@@ -3,9 +3,18 @@
 // スクロールしても、上にフォーカスしているマシンの見出し → 帯 → 親フォルダを、下にそれより後ろの帯を固定する（D3）。
 // マシンごとの色（D4）は section の --machine-color に入れ、見出しと帯の左端の線とアイコンに使う。
 // 見出しには接続の状態（丸と、その下の短い 1 行。言葉は connect/status.ts）と、今すぐつなぐ・つなぎ直す・切るボタンを出す。
-// 一覧の一番下には「ホストを開く」を置き、押すと onOpenHost を呼ぶ（窓は connect/HostPicker.tsx）。
+// 一覧の一番下には「+ マシンを足す」を置き、押すと onAddMachine を呼ぶ（窓は connect/AddMachine.tsx）。
+// 足したマシンの見出しを右クリックすると「名前を変える」「外す」のメニューを出す（onRename・onRemove）。
 // 組み立ては model.ts、色の決め方は colors.ts、見た目は sidebar.css。
-import { createMemo, For, onCleanup, onMount, Show, type JSX } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+  type JSX,
+} from "solid-js";
 
 import type { MachineStatus } from "../connect/status.ts";
 import type { WorkspaceId } from "../rpc/protocol.ts";
@@ -56,14 +65,26 @@ export function Sidebar(
     groups: MachineGroup[];
     /** 一覧の要素（スクロールの位置を覚えて戻すのに使う） */
     ref?: (el: HTMLElement) => void;
-    /** 一番下の「ホストを開く」 */
-    onOpenHost?: () => void;
+    /** 一番下の「+ マシンを足す」 */
+    onAddMachine?: () => void;
+    /** 見出しのメニューの「名前を変える」 */
+    onRename?: (target: string) => void;
+    /** 見出しのメニューの「外す」 */
+    onRemove?: (target: string) => void;
   },
 ): JSX.Element {
+  // 見出しの右クリックのメニュー（足したマシンだけ）。出している間は、押す・Esc・スクロール・窓の切り替えで閉じる
+  const [menu, setMenu] = createSignal<{
+    target: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const split = createMemo(() => splitAtFocus(props.groups));
   const hasAfter = () =>
     split().after.rest.length > 0 || split().after.groups.length > 0;
   let nav!: HTMLElement;
+  const openMenu = (target: string, x: number, y: number) =>
+    setMenu({ target, x, y });
 
   // 固定されているものに data-stuck を付ける（背景と影をモックに合わせる）。
   // 上に固定するものは、sticky の位置（一覧の上端から top）にいて、親の要素の上端より下にずれていれば
@@ -127,10 +148,17 @@ export function Sidebar(
         }}
       >
         <For each={split().before}>
-          {(g) => <Machine group={g} {...handlers(props)} />}
+          {(g) => <Machine group={g} onMenu={openMenu} {...handlers(props)} />}
         </For>
         <Show when={split().focused}>
-          {(g) => <Machine group={g()} sticky {...handlers(props)} />}
+          {(g) => (
+            <Machine
+              group={g()}
+              sticky
+              onMenu={openMenu}
+              {...handlers(props)}
+            />
+          )}
         </Show>
         <Show when={hasAfter()}>
           <div class="sidebar-after" data-sticky="bottom">
@@ -156,16 +184,29 @@ export function Sidebar(
               </section>
             </Show>
             <For each={split().after.groups}>
-              {(g) => <Machine group={g} {...handlers(props)} />}
+              {(g) => (
+                <Machine group={g} onMenu={openMenu} {...handlers(props)} />
+              )}
             </For>
           </div>
         </Show>
       </nav>
+      <Show when={menu()}>
+        {(m) => (
+          <MachineMenu
+            x={m().x}
+            y={m().y}
+            onRename={() => props.onRename?.(m().target)}
+            onRemove={() => props.onRemove?.(m().target)}
+            onClose={() => setMenu(null)}
+          />
+        )}
+      </Show>
       <div class="sidebar-foot">
         <button
           type="button"
-          class="open-host"
-          onClick={() => props.onOpenHost?.()}
+          class="add-machine"
+          onClick={() => props.onAddMachine?.()}
         >
           <svg
             width="16"
@@ -178,7 +219,7 @@ export function Sidebar(
           >
             <path d="M12 5v14M5 12h14" />
           </svg>
-          ホストを開く
+          マシンを足す
         </button>
       </div>
     </div>
@@ -217,7 +258,12 @@ function handlers(props: Handlers): Handlers {
 
 /** マシン 1 台分。sticky なら見出しを上に固定する（フォーカスしているマシン）。 */
 function Machine(
-  props: Handlers & { group: MachineGroup; sticky?: boolean },
+  props: Handlers & {
+    group: MachineGroup;
+    sticky?: boolean;
+    /** 見出しを右クリックした（足したマシンだけ） */
+    onMenu?: (target: string, x: number, y: number) => void;
+  },
 ): JSX.Element {
   const g = () => props.group;
   const status = () => props.statusOf?.(g().target);
@@ -232,6 +278,11 @@ function Machine(
       <div
         class="machine-heading"
         data-sticky={props.sticky ? "top" : undefined}
+        onContextMenu={(e) => {
+          if (!g().removable || !props.onMenu) return;
+          e.preventDefault();
+          props.onMenu(g().target, e.clientX, e.clientY);
+        }}
       >
         <h2 class="machine-name" title={status()?.title || undefined}>
           {g().label}
@@ -355,5 +406,82 @@ function BandItem(
         )}
       </Show>
     </li>
+  );
+}
+
+/**
+ * 見出しの右クリックのメニュー。開いたら最初の項目にキーを向ける。
+ * 項目を選ぶ・メニューの外を押す・Esc・スクロール・窓が見えなくなる、のどれかで閉じる。
+ */
+function MachineMenu(props: {
+  x: number;
+  y: number;
+  onRename: () => void;
+  onRemove: () => void;
+  onClose: () => void;
+}): JSX.Element {
+  let el!: HTMLDivElement;
+  onMount(() => {
+    const close = () => props.onClose();
+    const down = (e: Event) => {
+      if (!el.contains(e.target as Node)) close();
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        close();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const items = [...el.querySelectorAll<HTMLElement>("[role=menuitem]")];
+        const i = items.indexOf(document.activeElement as HTMLElement);
+        const step = e.key === "ArrowDown" ? 1 : -1;
+        items[(i + step + items.length) % items.length]?.focus();
+      }
+    };
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("contextmenu", down, true);
+    window.addEventListener("keydown", key);
+    window.addEventListener("blur", close);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    el.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+    onCleanup(() => {
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("contextmenu", down, true);
+      window.removeEventListener("keydown", key);
+      window.removeEventListener("blur", close);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    });
+  });
+  const choose = (run: () => void) => () => {
+    props.onClose();
+    run();
+  };
+  return (
+    <div
+      class="machine-menu"
+      role="menu"
+      aria-label="マシン"
+      ref={el}
+      style={{ left: `${props.x}px`, top: `${props.y}px` }}
+    >
+      <button
+        type="button"
+        role="menuitem"
+        class="machine-menu-item"
+        onClick={choose(props.onRename)}
+      >
+        名前を変える
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        class="machine-menu-item"
+        onClick={choose(props.onRemove)}
+      >
+        外す
+      </button>
+    </div>
   );
 }

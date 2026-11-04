@@ -1,6 +1,7 @@
-// 接続の画面（C3〜C7）。起動時は、前回ワークスペースがあったマシンにだけ自動でつなぐ（C5）。
-// 左の一覧の一番下の「ホストを開く」で窓を出し、つなぐ先（このマシンと ~/.ssh/config のホスト）を選んで
-// shj につなぐ（connect/HostPicker.tsx）。ssh の質問（パスワードなど）と shj を入れるかの確認は窓に出す。
+// 接続の画面（C3〜C7）。サイドバーに出るのは「このマシン」と、足したマシンだけ。起動時は、そのどれにも自動でつなぐ（C5）。
+// 左の一覧の一番下の「+ マシンを足す」で窓を出し、ssh の行き先（~/.ssh/config のホストの候補か、打ったもの）を入れて
+// shj につなぎ、つながったらマシンを保存して見出しを出す（connect/AddMachine.tsx。保存は ssh/machines.ts）。
+// 足したマシンの見出しを右クリックすると、名前を変える・外す（外しても、そのマシンの shj serve は止めない）。ssh の質問（パスワードなど）と shj を入れるかの確認は窓に出す。
 // 切れたら Session が自動でつなぎ直し、左の一覧の見出しに接続の状態を出す（丸・1 行・ボタン）。
 // つながらない・別の GUI に引き継がれた（C7）ときは右下に知らせ、ボタンでつなぎ直せるようにする（connect/Notices.tsx）。
 // 左にはつないだマシンごとの見出しとワークスペースの帯を出し、帯を押すとフォーカスを移す（D1）。
@@ -29,9 +30,10 @@ import {
 } from "solid-js";
 
 import { AskpassDialog } from "./AskpassDialog.tsx";
-import { HostPicker } from "./connect/HostPicker.tsx";
+import { AddMachine } from "./connect/AddMachine.tsx";
 import { InstallCard } from "./connect/InstallCard.tsx";
 import { Notices, type Notice } from "./connect/Notices.tsx";
+import { RenameMachine } from "./connect/RenameMachine.tsx";
 import { describeClient, statusLine } from "./connect/status.ts";
 import { UpdateBar } from "./update/UpdateBar.tsx";
 import { BlobStore } from "./files/blob.ts";
@@ -46,7 +48,6 @@ import {
   adoptFocus,
   buildSidebar,
   keepFocus,
-  machineLabel,
   type WorkspaceFocus,
 } from "./sidebar/model.ts";
 import { machineColors } from "./sidebar/colors.ts";
@@ -54,12 +55,16 @@ import { Sidebar } from "./sidebar/Sidebar.tsx";
 import "./app.css";
 import { LOCAL, type AskpassRequest, type ShellApi } from "./ssh/api.ts";
 import {
-  autoConnectTargets,
+  addMachine,
   browserStore,
-  loadLastTargets,
-  recordWorkspaces,
+  labelOf as machineName,
+  loadMachines,
+  removeMachine,
+  renameMachine,
+  saveMachines,
   type KeyValueStore,
-} from "./ssh/last.ts";
+  type Machine,
+} from "./ssh/machines.ts";
 import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
 import { currentFile, openErrorText, rows as treeRows } from "./tree/model.ts";
@@ -77,12 +82,21 @@ import {
 
 export function App(props: {
   api?: ShellApi;
-  /** 前回の記録の置き場。省くと localStorage */
+  /** 足したマシンなどの記録の置き場。省くと localStorage */
   store?: KeyValueStore;
 }): JSX.Element {
   const api = props.api ?? tauriShell;
   const store = props.store ?? browserStore();
+  // ~/.ssh/config のホスト（マシンを足すときの候補）
   const [hosts, setHosts] = createSignal<string[]>([]);
+  // 足したマシン（サイドバーには、これと「このマシン」だけを出す）
+  const [machines, setMachines] = createSignal<Machine[]>(loadMachines(store));
+  const targets = createMemo(() => [LOCAL, ...machines().map((m) => m.target)]);
+  const labelOf = (t: string) => machineName(machines(), t);
+  function updateMachines(next: Machine[]) {
+    setMachines(next);
+    saveMachines(store, next);
+  }
   const [sessions, setSessions] = createSignal<Record<string, Session>>({});
   const [states, setStates] = createSignal<Record<string, SessionState>>({});
   const [workspaces, setWorkspaces] = createSignal<Record<string, Workspace[]>>(
@@ -107,7 +121,7 @@ export function App(props: {
   const termTarget = createMemo(
     () =>
       focus()?.target ??
-      [LOCAL, ...hosts()].find((t) => states()[t]?.kind === "connected"),
+      targets().find((t) => states()[t]?.kind === "connected"),
   );
   const termGroup = createMemo(() => {
     const t = termTarget();
@@ -175,8 +189,13 @@ export function App(props: {
     return open;
   }, false);
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
-  // ホストを開く窓を出しているか
-  const [picking, setPicking] = createSignal(false);
+  // マシンを足す窓を出しているか。足すためにつないでいる最中のマシン、足せなかった理由
+  const [adding, setAdding] = createSignal(false);
+  const [addPending, setAddPending] = createSignal<Machine | null>(null);
+  const [addError, setAddError] = createSignal<string | undefined>();
+  // 名前を変える窓を出しているマシン、変えられなかった理由
+  const [renaming, setRenaming] = createSignal<string | null>(null);
+  const [renameError, setRenameError] = createSignal<string | undefined>();
   // 右下の知らせのうち、閉じたもの（状態が変われば、また出す）
   const [dismissed, setDismissed] = createSignal<ReadonlySet<SessionState>>(
     new Set(),
@@ -226,13 +245,8 @@ export function App(props: {
         setAsks((a) => a.filter((x) => x.requestId !== id)),
       ),
     );
-    // 質問の窓口を用意してから、前回ワークスペースがあったマシンにだけつなぐ
-    for (const t of autoConnectTargets(loadLastTargets(store), [
-      LOCAL,
-      ...found,
-    ])) {
-      connect(t);
-    }
+    // 質問の窓口を用意してから、「このマシン」と足したマシンにつなぐ
+    for (const t of targets()) connect(t);
   });
 
   /** マシンごとの shj のフォーカス（GUI のフォーカスが外れたときの代わりの候補）。 */
@@ -280,7 +294,6 @@ export function App(props: {
     const offGit = s.onGitChanged((n) => tr.handleGitChanged(n));
     const offWs = s.onWorkspaces((ws) => {
       tr.retain(ws.map((w) => w.id));
-      recordWorkspaces(store, target, ws.length);
       setWorkspaces((m) => ({ ...m, [target]: ws }));
       setFocus((f) => keepFocus(f, workspaces(), shjFocuses()));
     });
@@ -368,24 +381,16 @@ export function App(props: {
       if (seq !== focusSeq) return;
       switching = false;
       setFocusError({
-        title: `${machineLabel(target)} のワークスペースに移れませんでした`,
+        title: `${labelOf(target)} のワークスペースに移れませんでした`,
         error: e instanceof Error ? e.message : String(e),
       });
     }
   }
 
   // 初めて出たマシンには色を割り当てて保存する（つなぐマシンが変わったときだけ計算し直す）
-  const colors = createMemo(() =>
-    machineColors(store, Object.keys(sessions())),
-  );
+  const colors = createMemo(() => machineColors(store, targets()));
   const groups = createMemo(() =>
-    buildSidebar(
-      Object.keys(sessions()),
-      states(),
-      workspaces(),
-      focus(),
-      colors(),
-    ),
+    buildSidebar(targets(), states(), workspaces(), focus(), colors(), labelOf),
   );
 
   // フォーカスしているワークスペースのツリーだけを動かし（監視と取り直し）、
@@ -495,10 +500,74 @@ export function App(props: {
     if (g.add(root)) focusTerminal();
   }
 
+  /** 「足す」を押した。ssh でつなぎ（shj が無ければ確認して送り）、つながったら保存する（下の effect）。 */
+  function submitAdd(target: string, name: string) {
+    const r = addMachine(machines(), target, name);
+    if ("error" in r) {
+      setAddError(r.error);
+      return;
+    }
+    const m = r.machines[r.machines.length - 1];
+    setAddError(undefined);
+    setAddPending(m);
+    connect(m.target);
+  }
+
+  // 足すためにつないだマシンの結果を待つ。つながったら保存して窓を閉じ、つなげなければ理由を窓に出して保存しない
+  createEffect(() => {
+    const p = addPending();
+    if (!p) return;
+    const st = states()[p.target];
+    if (!st) return;
+    untrack(() => {
+      if (st.kind === "connected") {
+        const r = addMachine(machines(), p.target, p.name);
+        if ("machines" in r) updateMachines(r.machines);
+        setAddPending(null);
+        setAdding(false);
+      } else if (st.kind === "failed" || st.kind === "superseded") {
+        setAddError(
+          st.kind === "failed"
+            ? ` につなげませんでした\n`
+            : ` は別の GUI が使っています`,
+        );
+        setAddPending(null);
+        void disconnect(p.target);
+      }
+    });
+  });
+
+  /** 「キャンセル」と Esc。つないでいる最中ならつなぐのをやめる（保存しない）。 */
+  function cancelAdd() {
+    const p = addPending();
+    setAddPending(null);
+    setAdding(false);
+    if (p) void disconnect(p.target);
+  }
+
+  function submitRename(target: string, name: string) {
+    const r = renameMachine(machines(), target, name);
+    if ("error" in r) {
+      setRenameError(r.error);
+      return;
+    }
+    updateMachines(r.machines);
+    setRenaming(null);
+  }
+
+  /** 見出しのメニューの「外す」。記録から外し、GUI の接続を切る（そのマシンの shj serve は止めない）。 */
+  function removeFromSidebar(target: string) {
+    updateMachines(removeMachine(machines(), target));
+    void disconnect(target);
+  }
+
   /** 見出しのそばのボタン。待ち時間中なら今すぐ、使い切った・引き継がれたあとならつなぎ直す。 */
   function retry(target: string) {
     const s = sessions()[target];
-    if (!s) return;
+    if (!s) {
+      connect(target); // 切った・つながなかったマシン
+      return;
+    }
     const st = s.state;
     if (st.kind === "failed" || st.kind === "superseded") connect(target);
     else if (
@@ -510,7 +579,7 @@ export function App(props: {
 
   // shj を入れるかを聞くマシン（一度に 1 台。答えたら次のマシン）
   const installing = createMemo(() =>
-    [LOCAL, ...hosts(), ...Object.keys(states())].find(
+    [...targets(), ...Object.keys(states())].find(
       (t) => states()[t]?.kind === "needs-install",
     ),
   );
@@ -539,6 +608,8 @@ export function App(props: {
       out.push(focusNotice.notice);
     }
     for (const [t, st] of Object.entries(states())) {
+      // 足している最中のマシンの失敗は、窓に出す
+      if (!targets().includes(t)) continue;
       if (dismissed().has(st)) continue;
       if (!noticeOf.has(st)) noticeOf.set(st, makeNotice(t, st));
       const n = noticeOf.get(st);
@@ -549,7 +620,7 @@ export function App(props: {
 
   /** マシン 1 台の状態の知らせ。知らせることが無ければ null。 */
   function makeNotice(t: string, st: SessionState): Notice | null {
-    const label = machineLabel(t);
+    const label = labelOf(t);
     const close = {
       label: "閉じる",
       run: () => setDismissed((d) => new Set(d).add(st)),
@@ -592,10 +663,22 @@ export function App(props: {
         onFocus={(t, id) => void focusWorkspace(t, id)}
         treeOf={treeOf}
         onToggle={(t, id, p) => trees.get(t)?.toggle(id, p)}
-        statusOf={(t) => statusLine(states()[t], now())}
+        statusOf={(t) =>
+          sessions()[t]
+            ? statusLine(states()[t], now())
+            : { text: "つながっていません", title: "", retry: "again" }
+        }
         onRetry={retry}
         onDisconnect={(t) => void disconnect(t)}
-        onOpenHost={() => setPicking(true)}
+        onAddMachine={() => {
+          setAddError(undefined);
+          setAdding(true);
+        }}
+        onRename={(t) => {
+          setRenameError(undefined);
+          setRenaming(t);
+        }}
+        onRemove={removeFromSidebar}
         onOpen={openFile}
         currentOf={currentOf}
         ref={(el) => {
@@ -632,7 +715,7 @@ export function App(props: {
       <Show when={installing()}>
         {(t) => (
           <InstallCard
-            target={machineLabel(t())}
+            target={labelOf(t())}
             state={
               states()[t()] as Extract<SessionState, { kind: "needs-install" }>
             }
@@ -641,13 +724,26 @@ export function App(props: {
           />
         )}
       </Show>
-      <Show when={picking()}>
-        <HostPicker
-          targets={[LOCAL, ...hosts()]}
-          stateOf={(t) => states()[t]}
-          onConnect={connect}
-          onClose={() => setPicking(false)}
+      <Show when={adding()}>
+        <AddMachine
+          candidates={hosts().filter((h) => !targets().includes(h))}
+          busy={addPending() !== null}
+          state={addPending() ? states()[addPending()!.target] : undefined}
+          error={addError()}
+          onSubmit={submitAdd}
+          onCancel={cancelAdd}
         />
+      </Show>
+      <Show when={renaming()}>
+        {(t) => (
+          <RenameMachine
+            current={labelOf(t())}
+            target={t()}
+            error={renameError()}
+            onSubmit={(name) => submitRename(t(), name)}
+            onCancel={() => setRenaming(null)}
+          />
+        )}
       </Show>
       <AskpassDialog ask={asks()[0]} onReply={reply} />
       <Notices notices={notices()}>
