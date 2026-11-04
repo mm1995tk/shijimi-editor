@@ -38,7 +38,7 @@ func gitDiffApp(t *testing.T) (*App, string) {
 	os.WriteFile(file, []byte("a\nc\nd\nx\ne\n"), 0o644)
 	os.WriteFile(filepath.Join(dir, "new.txt"), []byte("n1\nn2\n"), 0o644)
 	a := newApp(dir, file)
-	a.Update(Resized{W: 100, H: 30})
+	resized(a, 100, 30)
 	a.Gd.On = true
 	a.Gd.Base = BaseHead
 	a.ApplyChanges(LoadChanges(a.Gd.Gen, a.Root, BaseHead, nil).(ChangesLoadedMsg))
@@ -193,7 +193,7 @@ func TestFullPreviewDoesNotBlockEditingInGitDiff(t *testing.T) {
 	gitIn(t, dir, "commit", "-q", "-m", "init")
 	os.WriteFile(file, []byte("a\nc\n"), 0o644)
 	a := newApp(dir, file)
-	a.Update(Resized{W: 100, H: 30})
+	resized(a, 100, 30)
 	a.Gd.On = true
 	a.Gd.Base = BaseHead
 	a.ApplyChanges(LoadChanges(a.Gd.Gen, a.Root, BaseHead, nil).(ChangesLoadedMsg))

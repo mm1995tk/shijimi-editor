@@ -46,7 +46,7 @@ func newTestApp(t *testing.T, content string) *App {
 	os.WriteFile(p, []byte(content), 0o644)
 	a := newApp(dir, p)
 	a.Helix = true
-	a.Update(Resized{W: 100, H: 30})
+	resized(a, 100, 30)
 	return a
 }
 

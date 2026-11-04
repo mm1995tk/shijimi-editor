@@ -3,20 +3,19 @@ package core
 import "github.com/mm1995tk/shijimi-editor/internal/buffer"
 
 // headless is the front end of a core nothing draws yet: a workspace of `shj
-// serve` before a GUI looks at it. It has a screen of W x H cells with only the
-// editor on it, no terminal panel and no multiplexer. The GUI will tell the
+// serve` before a GUI looks at it. It has only the editor on its screen, no
+// terminal panel and no multiplexer; until the GUI sends a size the screen is
+// 80 x 24 cells (newHeadlessCore). The GUI will tell the
 // sizes of its regions (view.resize) and pick the theme (theme.get); until
 // then the core keeps its state as it would behind any screen.
 type headless struct {
-	// the screen in cells
-	W, H int
 	// core is the core it fronts (newHeadlessCore). The pointer is worked out
 	// in the core, from the panes the GUI was sent (paneMouse).
 	core *Core
 }
 
-// newHeadless is a headless front end of 80 x 24 cells.
-func newHeadless() *headless { return &headless{W: 80, H: 24} }
+// newHeadless is a headless front end.
+func newHeadless() *headless { return &headless{} }
 
 // newHeadlessCore is a core rooted at dir on a headless front end.
 func newHeadlessCore(sh *Shared, dir string) (*Core, error) {
@@ -26,11 +25,10 @@ func newHeadlessCore(sh *Shared, dir string) (*Core, error) {
 		return nil, err
 	}
 	h.core = c
+	c.SetSizes(Sizes{ScreenW: 80, ScreenH: 24, EditRows: 23, EditorCols: 80, TextCols: 80})
 	return c, nil
 }
 
-func (h *headless) ScreenW() int                  { return h.W }
-func (h *headless) ScreenH() int                  { return h.H }
 func (h *headless) SideShown() bool               { return false }
 func (h *headless) TermShown() bool               { return false }
 func (h *headless) AgentOpen() bool               { return false }
@@ -68,14 +66,7 @@ func (h *headless) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	return buffer.Pos{}, WordSpan{}, false
 }
 
-// EditRows leaves out the status line.
-func (h *headless) EditRows() int                  { return max(0, h.H-1) }
-func (h *headless) TextCols(*Tab) int              { return h.W }
-func (h *headless) DiffBaseCols() int              { return 0 }
-func (h *headless) SuggestionsShown() bool         { return false }
-func (h *headless) EditorCols() int                { return h.W }
 func (h *headless) ResetPanes()                    {}
-func (h *headless) SetScreen(w, ht int)            { h.W, h.H = w, ht }
 func (h *headless) SetPalette(*Theme)              {} // the theme is the process's (ActivateTheme); the GUI asks for it with theme.get
 func (h *headless) HandleTermEvent(Event) []Effect { return nil }
 func (h *headless) HandleMouse(m Mouse) []Effect {

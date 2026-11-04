@@ -50,5 +50,15 @@ var _ tea.Model = (*App)(nil)
 // Update is bubbletea's call for each message: fromTea turns it into an Input
 // or an Event for Core.Update, whose Effects become one tea.Cmd.
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	return a, a.effectCmd(a.Core.Update(a.fromTea(msg))...)
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		a.w, a.h = ws.Width, ws.Height
+		a.Core.SetSizes(core.Sizes{ScreenW: a.w, ScreenH: a.h}) // layout() reads the width from the core
+		if a.cellSize != nil {
+			core.UpdateCellSize(a.cellSize())
+		}
+		a.pushSizes()
+	}
+	effs := a.Core.Update(a.fromTea(msg))
+	a.pushSizes()
+	return a, a.effectCmd(effs...)
 }

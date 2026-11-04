@@ -23,6 +23,7 @@ func newSingleApp(t *testing.T, name, content string) (*App, string) {
 		t.Fatal(err)
 	}
 	a.w, a.h = 100, 30
+	a.pushSizes()
 	return a, p
 }
 

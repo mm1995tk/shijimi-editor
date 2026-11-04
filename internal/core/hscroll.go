@@ -15,7 +15,7 @@ const HscrollWheel = 6
 // It stops at the left edge and where the end of the longest line shows.
 func (a *Core) ScrollCols(t *Tab, d int) {
 	b := t.Buf
-	textW := max(1, a.TextCols(t)-GutterWidth(b))
+	textW := max(1, a.TextCols()-GutterWidth(b))
 	widest := 0
 	for _, ln := range b.Lines {
 		widest = max(widest, buffer.VisualCol(ln, len(ln)))
@@ -35,6 +35,6 @@ func (a *Core) ScrollCols(t *Tab, d int) {
 // scrollHalfScreen scrolls dir (-1 left, 1 right) by half the text width,
 // the sideways counterpart of Ctrl+U / Ctrl+D.
 func (a *Core) scrollHalfScreen(t *Tab, dir int) {
-	textW := max(1, a.TextCols(t)-GutterWidth(t.Buf))
+	textW := max(1, a.TextCols()-GutterWidth(t.Buf))
 	a.ScrollCols(t, dir*max(1, textW/2))
 }
