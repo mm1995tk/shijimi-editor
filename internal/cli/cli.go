@@ -91,7 +91,7 @@ func Main() {
 	closeIDE := func() {}
 	// Single-file mode starts neither the IDE integration nor the control socket.
 	if abs, err := filepath.Abs(dir); err == nil && !single {
-		if srv, err := ide.Start(abs, core.IDETools(), tui.IDEHandler(p)); err == nil {
+		if srv, err := ide.Start(abs, core.IDETools(), core.IDEHandler(func(m any) { p.Send(m) })); err == nil {
 			closeIDE = srv.Close
 			app.SetIDE(srv)
 			os.Setenv(ide.EnvPort, strconv.Itoa(srv.Port()))

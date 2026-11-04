@@ -42,3 +42,28 @@ func (a *App) Exit() {
 	a.quitting = true
 	a.later = append(a.later, tea.Quit)
 }
+
+// ShowSide shows or hides the sidebar.
+func (a *App) ShowSide(on bool) { a.showSide = on; a.pushLayout() }
+
+// ShowTerm shows or hides the terminal panel.
+func (a *App) ShowTerm(on bool) { a.showTerm = on; a.pushLayout() }
+
+// ShowAgent turns the suggestion panel on or off.
+func (a *App) ShowAgent(on bool) { a.showAgent = on; a.pushLayout() }
+
+// DragBorder starts a drag of the border r with the pointer.
+func (a *App) DragBorder(r core.ResizeTarget) { a.resizing = r }
+
+// pushLayout hands the core the regions shown and the shares dragged to now
+// (core.Layout). It runs whenever one changes, and after every message.
+func (a *App) pushLayout() {
+	if a.Core == nil {
+		return
+	}
+	a.Core.SetLayout(core.Layout{
+		SideShown: a.showSide, TermShown: a.showTerm, AgentOpen: a.showAgent,
+		AgentWidthPref: a.agentWPref, ExplorerShare: a.explorerPct,
+		ResizeMode: a.resizeMode,
+	})
+}

@@ -53,6 +53,7 @@ func New(dir, file string, b core.Build) (*App, error) {
 	}
 	c.SetPort(a)
 	a.Core = c
+	a.pushLayout()
 	return a, nil
 }
 
@@ -69,6 +70,7 @@ func NewSingle(file string, b core.Build) (*App, error) {
 	}
 	c.SetPort(a)
 	a.Core = c
+	a.pushLayout()
 	return a, nil
 }
 

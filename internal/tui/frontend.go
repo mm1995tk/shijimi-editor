@@ -4,42 +4,8 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
 
-// frontend.go is App's side of core.FrontEnd: which
-// regions are shown, what the user dragged the borders to, the terminal under
-// the editor. The fields behind them are App's; Core asks through these calls.
-
-// SideShown reports whether the user has the sidebar on screen.
-func (a *App) SideShown() bool { return a.showSide }
-
-// TermShown reports whether the terminal panel is on screen.
-func (a *App) TermShown() bool { return a.showTerm }
-
-// AgentOpen reports whether the suggestion panel is on. (Core.AgentShown is
-// another question: whether the panel fits beside the editor.)
-func (a *App) AgentOpen() bool { return a.showAgent }
-
-// SetSide shows or hides the sidebar.
-func (a *App) SetSide(on bool) { a.showSide = on }
-
-// SetTerm shows or hides the terminal panel.
-func (a *App) SetTerm(on bool) { a.showTerm = on }
-
-// SetAgent turns the suggestion panel on or off.
-func (a *App) SetAgent(on bool) { a.showAgent = on }
-
-// AgentWidthPref is the width of the suggestion panel the user dragged to
-// (0 = automatic).
-func (a *App) AgentWidthPref() int { return a.agentWPref }
-
-// ExplorerShare is the file tree's share of the diff mode sidebar in percent
-// (0 = automatic).
-func (a *App) ExplorerShare() int { return a.explorerPct }
-
-// InResizeMode reports whether the keys move the borders.
-func (a *App) InResizeMode() bool { return a.resizeMode }
-
-// DragBorder starts a drag of the border r with the pointer.
-func (a *App) DragBorder(r core.ResizeTarget) { a.resizing = r }
+// frontend.go is App's side of core.FrontEnd: the terminal under the editor.
+// The fields behind them are App's; Core asks through these calls.
 
 // ReleasesReported reports whether the terminal sends key releases.
 func (a *App) ReleasesReported() bool { return a.keyReleases }

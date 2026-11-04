@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -244,4 +245,23 @@ func (a *Core) ideCall(m IDECall) (res IDEReply, cmd []Effect, pending bool) {
 		return IDEReply{Content: []ide.Content{ide.Text("TAB_CLOSED")}}, nil, false
 	}
 	return fail(i18n.T("ide.unknowntool"), m.Tool)
+}
+
+// IDEHandler adapts the MCP server to a running program: each call is
+// delivered to the core as an IDECall through send (the program's own way of
+// handing it a message: tea.Program.Send for the TUI) and the reply is
+// awaited. Most calls are answered at once; OpenDiff is answered when the user
+// decides. IDE integration does not depend on the UI, so it lives here.
+func IDEHandler(send func(msg any)) ide.Handler {
+	return func(ctx context.Context, tool string, args json.RawMessage) ([]ide.Content, error) {
+		reply := make(chan IDEReply, 1)
+		send(IDECall{Tool: tool, Args: args, Reply: reply})
+		select {
+		case r := <-reply:
+			return r.Content, r.Err
+		case <-ctx.Done():
+			send(IDECancel{Reply: reply})
+			return nil, ctx.Err()
+		}
+	}
 }

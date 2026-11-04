@@ -34,8 +34,9 @@ type span struct{ x0, x1 int }
 // keeps what only a terminal has: which regions are
 // shown, the terminal panel and the pane sizes the user picked.
 type Core struct {
-	FrontEnd       // what draws it (internal/tui.App)
-	sizes    Sizes // the sizes the UI last gave (SetSizes)
+	FrontEnd        // what draws it (internal/tui.App)
+	sizes    Sizes  // the sizes the UI last gave (SetSizes)
+	layout   Layout // the regions the UI last said it shows (SetLayout)
 
 	Root           string
 	GitTop         string
@@ -960,6 +961,8 @@ func (a *Core) handleInput(in Input) []Effect {
 		return a.HandlePaste(msg)
 	case Sizes:
 		a.SetSizes(msg)
+	case Layout:
+		a.SetLayout(msg)
 	case Composition:
 		// A composition is only shown (underlined at the cursor, see
 		// splicePreedit); it never edits the buffer. A GUI sends the committed text
@@ -1048,7 +1051,8 @@ func (a *Core) HandleKey(msg Key) []Effect {
 		return a.handleCmdlineKey(msg)
 	}
 	if a.InResizeMode() {
-		return a.HandleResizeKey(key)
+		a.port.ResizeKey(key)
+		return nil
 	}
 	if a.Card != nil {
 		if cmd, handled := a.handleCardKey(msg); handled {

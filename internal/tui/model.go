@@ -58,7 +58,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		a.pushSizes()
 	}
+	a.pushLayout()
 	effs := a.Core.Update(a.fromTea(msg))
+	a.pushLayout()
 	a.pushSizes()
 	return a, a.effectCmd(effs...)
 }

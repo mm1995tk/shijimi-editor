@@ -48,6 +48,7 @@ func TestHitTestRegions(t *testing.T) {
 	a := newTestApp(t, "hello\n")
 	a.showTerm = true
 	a.showAgent = true
+	a.pushLayout()
 	l := a.layout()
 	for _, c := range []struct {
 		name     string

@@ -29,16 +29,6 @@ func newHeadlessCore(sh *Shared, dir string) (*Core, error) {
 	return c, nil
 }
 
-func (h *headless) SideShown() bool               { return false }
-func (h *headless) TermShown() bool               { return false }
-func (h *headless) AgentOpen() bool               { return false }
-func (h *headless) SetSide(bool)                  {}
-func (h *headless) SetTerm(bool)                  {}
-func (h *headless) SetAgent(bool)                 {}
-func (h *headless) AgentWidthPref() int           { return 0 }
-func (h *headless) ExplorerShare() int            { return 0 }
-func (h *headless) InResizeMode() bool            { return false }
-func (h *headless) DragBorder(ResizeTarget)       {}
 func (h *headless) ReleasesReported() bool        { return false }
 func (h *headless) SetReleasesReported(bool)      {}
 func (h *headless) TermBlur()                     {}
@@ -57,16 +47,11 @@ func (h *headless) MuxSend(string, bool) []Effect { return nil }
 func (h *headless) MuxClose()                     {}
 func (h *headless) MuxResult(error) []Effect      { return nil }
 func (h *headless) CommandEnded(int)              {}
-func (h *headless) StartResize() []Effect         { return nil }
-func (h *headless) HandleResizeKey(string) []Effect {
-	return nil
-}
-func (h *headless) ScrollHover(int) {}
+func (h *headless) ScrollHover(int)               {}
 func (h *headless) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	return buffer.Pos{}, WordSpan{}, false
 }
 
-func (h *headless) ResetPanes()                    {}
 func (h *headless) SetPalette(*Theme)              {} // the theme is the process's (ActivateTheme); the GUI asks for it with theme.get
 func (h *headless) HandleTermEvent(Event) []Effect { return nil }
 func (h *headless) HandleMouse(m Mouse) []Effect {

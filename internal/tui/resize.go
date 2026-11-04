@@ -79,16 +79,17 @@ func (a *App) resizePreviewBy(deltaPct int) {
 // ResetPanes puts the borders back where they start.
 func (a *App) ResetPanes() {
 	a.sideWPref, a.panelHPref, a.previewPct, a.agentWPref, a.diffLeftPct, a.explorerPct = 0, 0, 0, 0, 0, 0
+	a.pushLayout()
 	a.FollowCursor()
 }
 
 // StartResize starts moving the borders with the keys.
-func (a *App) StartResize() []core.Effect {
+func (a *App) StartResize() {
 	a.CloseCompletion()
 	a.CloseHover()
 	a.resizeMode = true
+	a.pushLayout()
 	a.InfoText(i18n.T("resize.hint"))
-	return nil
 }
 
 // editorBorder is the border inside the editor area of t: the │ of a split
@@ -170,7 +171,9 @@ func (a *App) moveBorder(l layout, target core.ResizeTarget, d int) {
 		a.ResizeTerm(-d)
 	case core.ResizeAgent:
 		a.agentWPref = a.AgentWidth() - d
+		a.pushLayout()
 		a.agentWPref = a.AgentWidth()
+		a.pushLayout()
 		a.FollowCursor()
 	case core.ResizeDiff:
 		if avail := l.rightW - 2; avail > 0 {
@@ -185,13 +188,15 @@ func (a *App) moveBorder(l layout, target core.ResizeTarget, d int) {
 	case core.ResizeExplorer:
 		if body := a.BodyH(); body > 0 {
 			a.explorerPct = core.Clamp(pctToward(a.ExplorerH()+d, body, d), 1, 99)
+			a.pushLayout()
 		}
 	}
 }
 
-// HandleResizeKey runs while resize mode is on; every key either resizes or
-// leaves the mode.
-func (a *App) HandleResizeKey(key string) []core.Effect {
+// ResizeKey runs while resize mode is on; every key either resizes or leaves
+// the mode.
+func (a *App) ResizeKey(key string) {
+	defer a.pushLayout()
 	l := a.layout()
 	switch key {
 	case "left", "h":
@@ -211,10 +216,9 @@ func (a *App) HandleResizeKey(key string) []core.Effect {
 	case "esc", "enter", "q", "alt+r":
 		a.resizeMode = false
 		a.ClearMsg()
-		return nil
+		return
 	}
 	a.InfoText(i18n.T("resize.hint"))
-	return nil
 }
 
 // resizeHit returns the border under (x, y), if any.
@@ -252,10 +256,13 @@ func (a *App) dragResize(l layout, x, y int) {
 		a.panelHPref = a.panelHeight()
 	case core.ResizeAgent:
 		a.agentWPref = a.w - x - 1
+		a.pushLayout()
 		a.agentWPref = a.AgentWidth()
+		a.pushLayout()
 	case core.ResizeExplorer:
 		if body := a.BodyH(); body > 0 {
 			a.explorerPct = core.Clamp(((y-l.top)*100+body-1)/body, 1, 99)
+			a.pushLayout()
 		}
 	case core.ResizeDiff:
 		if avail := l.rightW - 2; avail > 0 {

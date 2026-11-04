@@ -274,6 +274,7 @@ func TestResizeKeysEditorBorders(t *testing.T) {
 
 	// the suggestions panel: its left edge
 	a.showAgent = true
+	a.pushLayout()
 	agent := a.layout().agentW
 	if agent == 0 {
 		t.Fatal("panel not shown")
