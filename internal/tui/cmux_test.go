@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // fakeCmux plays the cmux app: it records the calls and keeps the surfaces.
@@ -127,9 +128,9 @@ func TestCmuxCommands(t *testing.T) {
 		t.Fatalf("context must be pasted without Enter: %v", f.calls)
 	}
 	f.fail = "focus-panel"
-	a.Msg = ""
+	a.Msg = msg.Msg{}
 	a.ExecCommand("sh hide")
-	if !a.MsgErr || !strings.Contains(a.Msg, "boom") {
+	if !a.MsgErr || !strings.Contains(tr(a.Msg), "boom") {
 		t.Fatalf("error not shown: %q", a.Msg)
 	}
 }

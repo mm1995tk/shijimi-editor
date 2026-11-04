@@ -8,8 +8,8 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // The part of the Claude Code connection that is the editor's content: the
@@ -184,7 +184,7 @@ const diffContext = 3
 // PropLine is a line of a proposal's diff.
 type PropLine struct {
 	Kind byte // ' ', '+', '-' or '@'
-	Text string
+	Text msg.Msg
 }
 
 // Proposal is a change the agent asked to apply with OpenDiff. Accepting
@@ -230,26 +230,26 @@ func UnifiedDiff(oldText, newText string) []PropLine {
 		oEnd := min(len(old), last.OldEnd+diffContext)
 		nStart := first.NewStart - (first.OldStart - oStart)
 		nEnd := last.NewEnd + (oEnd - last.OldEnd)
-		out = append(out, PropLine{'@', fmt.Sprintf("@@ -%d,%d +%d,%d @@", oStart+1, oEnd-oStart, nStart+1, nEnd-nStart)})
+		out = append(out, PropLine{'@', msg.S(fmt.Sprintf("@@ -%d,%d +%d,%d @@", oStart+1, oEnd-oStart, nStart+1, nEnd-nStart))})
 		o := oStart
 		for _, b := range blocks[i : j+1] {
 			for ; o < b.OldStart; o++ {
-				out = append(out, PropLine{' ', old[o]})
+				out = append(out, PropLine{' ', msg.S(old[o])})
 			}
 			for ; o < b.OldEnd; o++ {
-				out = append(out, PropLine{'-', old[o]})
+				out = append(out, PropLine{'-', msg.S(old[o])})
 			}
 			for n := b.NewStart; n < b.NewEnd; n++ {
-				out = append(out, PropLine{'+', cur[n]})
+				out = append(out, PropLine{'+', msg.S(cur[n])})
 			}
 		}
 		for ; o < oEnd; o++ {
-			out = append(out, PropLine{' ', old[o]})
+			out = append(out, PropLine{' ', msg.S(old[o])})
 		}
 		i = j + 1
 	}
 	if len(out) == 0 {
-		out = append(out, PropLine{' ', i18n.T("idep.nochange")})
+		out = append(out, PropLine{' ', msg.T("idep.nochange")})
 	}
 	return out
 }

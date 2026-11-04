@@ -3,7 +3,13 @@
 // is chosen once, from `ui-language` in config.toml, with SetLang.
 package i18n
 
-import "sync/atomic"
+import (
+	"fmt"
+	"strings"
+	"sync/atomic"
+
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
+)
 
 // Supported language codes.
 const (
@@ -52,4 +58,51 @@ func T(key string) string {
 		return s
 	}
 	return key
+}
+
+// Text turns m into text in the selected language: the string for m.Key with
+// its Args filled in. An arg that is a Msg or an error is translated first. A Msg
+// with no key is its Args joined.
+func Text(m msg.Msg) string {
+	if m.Key == "" {
+		var sb strings.Builder
+		for _, a := range m.Args {
+			sb.WriteString(argText(a))
+		}
+		return sb.String()
+	}
+	args := make([]any, len(m.Args))
+	for i, a := range m.Args {
+		args[i] = argValue(a)
+	}
+	return fmt.Sprintf(T(m.Key), args...)
+}
+
+// ErrText is the text of err: Text for an error made by msg, and its own text
+// otherwise.
+func ErrText(err error) string {
+	if err == nil {
+		return ""
+	}
+	if e, ok := err.(*msg.Error); ok {
+		return Text(e.Msg)
+	}
+	return err.Error()
+}
+
+func argValue(a any) any {
+	switch v := a.(type) {
+	case msg.Msg:
+		return Text(v)
+	case error:
+		return ErrText(v)
+	}
+	return a
+}
+
+func argText(a any) string {
+	if s, ok := a.(string); ok {
+		return s
+	}
+	return fmt.Sprint(argValue(a))
 }

@@ -149,7 +149,7 @@ func TestIDECloseAndCancel(t *testing.T) {
 	if r := <-c1; r.Content[0].Text != "DIFF_REJECTED" {
 		t.Errorf("closed tab reply = %+v", r)
 	}
-	if strings.Contains(a.Msg, "却下しました") || !strings.Contains(a.Msg, "差分を閉じました") {
+	if strings.Contains(a.text(a.Msg), "却下しました") || !strings.Contains(a.text(a.Msg), "差分を閉じました") {
 		t.Errorf("close_tab status = %q", a.Msg)
 	}
 	a.cancelProposal(c3)

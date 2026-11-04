@@ -13,6 +13,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -109,7 +110,7 @@ func TestSpaceVMenu(t *testing.T) {
 		t.Fatalf("pending=%q", a.Pending)
 	}
 	press(a, "C")
-	if a.Composer == nil || !strings.Contains(a.Composer.Title, "ファイルへのコメント: a.txt") {
+	if a.Composer == nil || !strings.Contains(tr(a.Composer.Title), "ファイルへのコメント: a.txt") {
 		t.Fatal("Space v C did not open the editor")
 	}
 	a.Composer.Ta.SetValue("全体")
@@ -121,7 +122,7 @@ func TestSpaceVMenu(t *testing.T) {
 	a.OpenDiff(core.BaseHead)
 	press(a, " ")
 	press(a, "v")
-	if a.Pending != "" || !strings.Contains(a.Msg, "PR の base と比べているとき") {
+	if a.Pending != "" || !strings.Contains(tr(a.Msg), "PR の base と比べているとき") {
 		t.Errorf("pending=%q msg=%q", a.Pending, a.Msg)
 	}
 }
@@ -216,19 +217,19 @@ func TestSyncWith(t *testing.T) {
 	// r with only the pull request ahead pulls; otherwise it reloads
 	a.Gd.Rv.Sync = core.PrSync{Known: true, Behind: 1}
 	a.ReloadPR()
-	if !strings.Contains(a.Msg, "git pull") {
+	if !strings.Contains(tr(a.Msg), "git pull") {
 		t.Errorf("r: %q", a.Msg)
 	}
 	a.Gd.Rv.Sync = core.PrSync{Known: true, Ahead: 1, Behind: 1}
 	a.ReloadPR()
-	if strings.Contains(a.Msg, "git pull") {
+	if strings.Contains(tr(a.Msg), "git pull") {
 		t.Error("r pulled a diverged branch")
 	}
 }
 
 func TestComposerNewlineAndPreview(t *testing.T) {
 	a, _ := prApp(t)
-	a.Compose("t", "", nil, func(string) []core.Effect { return nil })
+	a.Compose(msg.S("t"), "", nil, func(string) []core.Effect { return nil })
 	a.Composer.Ta.InsertString("# 見出し")
 	a.HandleComposerKey(core.Key{Code: KeyEnter, Mod: core.ModShift})
 	a.Composer.Ta.InsertString("本文")
@@ -319,7 +320,7 @@ func TestPendingCommentsSurviveHeadBase(t *testing.T) {
 	// another pull request asks first
 	other := &core.PrInfo{Number: 8, HeadRefName: "feature", BaseRefName: "main"}
 	a.HandlePRFound(core.PrFoundMsg{Seq: a.Gd.PrSeq, Num: 8, Pr: other})
-	if a.Confirm == nil || !strings.Contains(a.Confirm.Prompt, "PR #7 の未送信コメントが 1 件あります") {
+	if a.Confirm == nil || !strings.Contains(tr(a.Confirm.Prompt), "PR #7 の未送信コメントが 1 件あります") {
 		t.Fatal("no question before dropping comments")
 	}
 	press(a, "n")
@@ -367,19 +368,19 @@ func TestCommentOnNewFileInOnePane(t *testing.T) {
 
 func TestComposerOverlay(t *testing.T) {
 	a, _ := prApp(t)
-	a.Compose("title", "", []string{"x"}, func(string) []core.Effect { return nil })
+	a.Compose(msg.S("title"), "", []string{"x"}, func(string) []core.Effect { return nil })
 	a.Composer.Ta.SetValue("# 見出し\n本文")
 	ov := a.ComposerOverlay(30, 5)
-	if ov.Kind != screen.OverlayReviewCard || ov.Title != "title" || ov.Compose == nil || ov.Compose.Text != "# 見出し\n本文" {
+	if ov.Kind != screen.OverlayReviewCard || tr(ov.Title) != "title" || ov.Compose == nil || ov.Compose.Text != "# 見出し\n本文" {
 		t.Fatalf("overlay = %+v", ov)
 	}
-	if ov.Compose.Cursor != (screen.Pos{Line: 1, Col: 2}) || ov.Compose.PreviewLabel == "" || len(ov.Lines) == 0 || len(ov.Lines) > 4 {
+	if ov.Compose.Cursor != (screen.Pos{Line: 1, Col: 2}) || ov.Compose.PreviewLabel.IsZero() || len(ov.Lines) == 0 || len(ov.Lines) > 4 {
 		t.Errorf("compose = %+v, %d preview rows", *ov.Compose, len(ov.Lines))
 	}
-	if ov.Hint != i18n.T("rv.hint.inputsugg") {
+	if tr(ov.Hint) != i18n.T("rv.hint.inputsugg") {
 		t.Errorf("hint = %q", ov.Hint)
 	}
-	if ov = a.ComposerOverlay(30, 0); ov.Compose.PreviewLabel != "" || len(ov.Lines) != 0 {
+	if ov = a.ComposerOverlay(30, 0); !ov.Compose.PreviewLabel.IsZero() || len(ov.Lines) != 0 {
 		t.Errorf("no room for a preview: %+v", ov)
 	}
 }
@@ -414,12 +415,12 @@ func TestReviewPRURLCommands(t *testing.T) {
 	core.OpenExternal = func(u string) error { opened = u; return openErr }
 	remote := false
 	core.IsRemoteSession = func() bool { return remote }
-	reset := func() { opened, a.Clipboard, a.Msg, a.MsgErr = "", "", "", false }
+	reset := func() { opened, a.Clipboard, a.Msg, a.MsgErr = "", "", msg.Msg{}, false }
 	const url = "https://github.com/o/r/pull/7"
 
 	reset()
 	runCmd(a, cmdOf(a, a.ReviewKey("y")))
-	if a.Clipboard != url || a.MsgErr || !strings.Contains(a.Msg, url) {
+	if a.Clipboard != url || a.MsgErr || !strings.Contains(tr(a.Msg), url) {
 		t.Fatalf("copy: clip %q msg %q", a.Clipboard, a.Msg)
 	}
 	reset()
@@ -430,14 +431,14 @@ func TestReviewPRURLCommands(t *testing.T) {
 	reset()
 	remote = true
 	runCmd(a, cmdOf(a, a.ReviewKey("o")))
-	if opened != "" || a.Clipboard != url || a.MsgErr || !strings.Contains(a.Msg, "SSH") {
+	if opened != "" || a.Clipboard != url || a.MsgErr || !strings.Contains(tr(a.Msg), "SSH") {
 		t.Fatalf("ssh: opened %q clip %q msg %q", opened, a.Clipboard, a.Msg)
 	}
 	remote = false
 	reset()
 	openErr = fmt.Errorf("boom")
 	runCmd(a, cmdOf(a, a.ReviewKey("o")))
-	if a.Clipboard != url || a.MsgErr || strings.Contains(a.Msg, "boom") {
+	if a.Clipboard != url || a.MsgErr || strings.Contains(tr(a.Msg), "boom") {
 		t.Fatalf("fallback: clip %q msg %q err %v", a.Clipboard, a.Msg, a.MsgErr)
 	}
 	// Not comparing with a PR base: palette commands only say so.
@@ -445,7 +446,7 @@ func TestReviewPRURLCommands(t *testing.T) {
 	a.Gd.Base = core.BaseHead
 	runCmd(a, cmdOf(a, a.ReviewCommand("y")))
 	runCmd(a, cmdOf(a, a.ReviewCommand("o")))
-	if opened != "" || a.Clipboard != "" || a.Msg != i18n.T("rv.needpr") {
+	if opened != "" || a.Clipboard != "" || tr(a.Msg) != i18n.T("rv.needpr") {
 		t.Fatalf("needpr: opened %q clip %q msg %q", opened, a.Clipboard, a.Msg)
 	}
 }

@@ -3,7 +3,7 @@ package core
 import (
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // gitDiffRefreshTicks is how many watch ticks pass between refreshes of the
@@ -76,9 +76,9 @@ func (a *Core) checkDiskChanges() (reloaded bool) {
 	}
 	switch {
 	case len(conflicts) > 0:
-		a.Msg, a.MsgErr = i18n.T("watch.changed1")+a.Rel(conflicts[0].Buf.Path)+i18n.T("watch.changed2"), true
+		a.Msg, a.MsgErr = msg.Cat(msg.T("watch.changed1"), a.Rel(conflicts[0].Buf.Path), msg.T("watch.changed2")), true
 	case len(reloadedTabs) > 0:
-		a.Info(i18n.T("watch.reflected"), a.Rel(reloadedTabs[0].Buf.Path))
+		a.Info("watch.reflected", a.Rel(reloadedTabs[0].Buf.Path))
 	}
 	return len(reloadedTabs) > 0
 }

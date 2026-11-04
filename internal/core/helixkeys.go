@@ -10,7 +10,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // helixCtx is what a Helix command sees when it runs.
@@ -184,7 +184,7 @@ func init() {
 	def("yank", true, func(a *Core, c *helixCtx) []Effect {
 		s, e := c.b.SelectionOrChar()
 		a.Clipboard = c.b.TextRange(s, e)
-		a.Info(i18n.T("helix.yanked"), len([]rune(a.Clipboard)))
+		a.Info("helix.yanked", len([]rune(a.Clipboard)))
 		return nil
 	}, "y")
 	def("paste_after", true, func(a *Core, c *helixCtx) []Effect { a.paste(c.b, a.Clipboard, true); return nil }, "p")
@@ -252,7 +252,7 @@ type helixKeymap struct {
 // buildHelixKeymap merges config.toml's [keys.*] over the defaults. An
 // unknown command name or an unreadable key is reported in warnings and
 // skipped, so the key keeps its default.
-func buildHelixKeymap(k config.Keys) (km helixKeymap, warnings []string) {
+func buildHelixKeymap(k config.Keys) (km helixKeymap, warnings []msg.Msg) {
 	km.normal = map[string]binding{}
 	for key, name := range helixDefaultKeys {
 		km.normal[key] = binding{name: name}
@@ -267,19 +267,19 @@ func buildHelixKeymap(k config.Keys) (km helixKeymap, warnings []string) {
 			val := src[key]
 			norm, ok := normalizeHelixKey(key)
 			if !ok {
-				warnings = append(warnings, fmt.Sprintf(i18n.T("keys.badkey"), section, key))
+				warnings = append(warnings, msg.T("keys.badkey", msg.T(section), key))
 				continue
 			}
 			switch {
 			case strings.HasPrefix(val, ":"):
 				if strings.TrimSpace(val[1:]) == "" {
-					warnings = append(warnings, fmt.Sprintf(i18n.T("keys.unknowncmd"), section, key, val))
+					warnings = append(warnings, msg.T("keys.unknowncmd", msg.T(section), key, val))
 					continue
 				}
 				dst[norm] = binding{ex: strings.TrimSpace(val[1:])}
 			default:
 				if _, ok := helixCommands[val]; !ok {
-					warnings = append(warnings, fmt.Sprintf(i18n.T("keys.unknowncmd"), section, key, val))
+					warnings = append(warnings, msg.T("keys.unknowncmd", msg.T(section), key, val))
 					continue
 				}
 				dst[norm] = binding{name: val}
@@ -298,16 +298,16 @@ func buildHelixKeymap(k config.Keys) (km helixKeymap, warnings []string) {
 // loadKeymap builds the keymap from the configuration and reports problems
 // in the status line.
 func (a *Core) loadKeymap() {
-	var w []string
+	var w []msg.Msg
 	a.keymap, w = buildHelixKeymap(a.Cfg.Keys)
 	if len(w) == 0 {
 		return
 	}
-	msg := w[0]
+	m := w[0]
 	if len(w) > 1 {
-		msg += fmt.Sprintf(i18n.T("keys.more"), len(w)-1)
+		m = m.Add(msg.T("keys.more", len(w)-1))
 	}
-	a.Fail(errString(msg))
+	a.Fail(msg.ErrOf(m))
 }
 
 // runBinding runs the command or ":" command a key is bound to.

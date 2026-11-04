@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -29,7 +29,7 @@ const mermaidDelay = 300 * time.Millisecond
 // or the result.
 type previewJob struct {
 	done bool
-	Err  string
+	Err  msg.Msg
 	Img  *ImageView
 
 	// stamp is the size and modification time of an image file when it was
@@ -134,7 +134,7 @@ const (
 func (a *Core) TogglePreview() []Effect {
 	t := a.CurText()
 	if t == nil || !isMarkdown(t.Buf.Path) {
-		a.Fail(errors.New(i18n.T("preview.needmd")))
+		a.Fail(msg.Err("preview.needmd"))
 		return nil
 	}
 	t.Preview = (t.Preview + 1) % (PreviewFull + 1)
@@ -174,7 +174,7 @@ func (a *Core) SyncPreview() []Effect {
 			continue
 		}
 		if strings.TrimSpace(a.Cfg.Editor.MermaidCommand) == "" {
-			job.done, job.Err = true, i18n.T("preview.nomermaid")
+			job.done, job.Err = true, msg.T("preview.nomermaid")
 			continue
 		}
 		code := code
@@ -232,12 +232,12 @@ func (a *Core) HandleMermaidDone(m MermaidDoneMsg) {
 	job.done = true
 	a.PreviewGen++
 	if m.Err != nil {
-		job.Err = m.Err.Error()
+		job.Err = msg.Of(m.Err)
 		return
 	}
 	job.Img = NewImageView(m.png)
 	if job.Img.Err != nil {
-		job.Err = job.Img.Err.Error()
+		job.Err = msg.Of(job.Img.Err)
 		job.Img = nil
 	}
 }
@@ -299,14 +299,14 @@ func (a *Core) HandleMDImageDone(m MdImageDoneMsg) {
 	if job.Img != nil {
 		a.port.ImageClosed(job.Img.Id)
 	}
-	job.done, job.Img, job.Err = true, nil, ""
+	job.done, job.Img, job.Err = true, nil, msg.Msg{}
 	a.PreviewGen++
 	if err := m.Img.Err; err != nil {
 		// the path is shown already; keep only the reason
 		if pe, ok := errors.AsType[*fs.PathError](err); ok {
 			err = pe.Err
 		}
-		job.Err = err.Error()
+		job.Err = msg.Of(err)
 		return
 	}
 	job.Img = m.Img
@@ -324,7 +324,7 @@ func (a *Core) mdImageLines(mdPath string) func(alt, src string, w int) *MdMedia
 		label := func() []screen.Line {
 			return []screen.Line{MdRow(fitSpans(mdSpans(inlineCells("🖼 "+alt, mdStyle{fg: screen.StyleMdImage})), w)...)}
 		}
-		return jobLines(a.MdImages[path], BlobFile+path, w, i18n.T("preview.loadingimage"), src+": ", label)
+		return jobLines(a.text, a.MdImages[path], BlobFile+path, w, msg.T("preview.loadingimage"), src+": ", label)
 	}
 }
 
@@ -355,19 +355,19 @@ func (a *Core) PreviewImage(blob string) *ImageView {
 // they are empty rows the image fills, named by blob. Until then, or when it
 // failed, they are above (the source, or the image's alt text) with a line
 // that says it is loading or what went wrong.
-func jobLines(job *previewJob, blob string, w int, loading, errPrefix string, above func() []screen.Line) *MdMedia {
-	note := func(text string, err bool) *MdMedia {
+func jobLines(tr func(msg.Msg) string, job *previewJob, blob string, w int, loading msg.Msg, errPrefix string, above func() []screen.Line) *MdMedia {
+	note := func(text msg.Msg, err bool) *MdMedia {
 		st := screen.StyleLineNo
 		if err {
 			st = screen.StyleError
 		}
-		return &MdMedia{Lines: append(above(), MdRow(screen.Span{Text: Fit(" "+text, w), Style: st}))}
+		return &MdMedia{Lines: append(above(), MdRow(screen.Span{Text: Fit(" "+tr(text), w), Style: st}))}
 	}
 	switch {
 	case job == nil || !job.done:
 		return note(loading, false)
-	case job.Err != "" || job.Img == nil:
-		return note(errPrefix+job.Err, true)
+	case !job.Err.IsZero() || job.Img == nil:
+		return note(msg.Cat(errPrefix, job.Err), true)
 	}
 	b := job.Img.Img.Bounds()
 	rows := make([]screen.Line, Clamp(job.Img.RowsFor(w), 3, 28))
@@ -384,7 +384,7 @@ func ShellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''
 func (a *Core) MermaidLines(code string, w int) *MdMedia {
 	source := func() []screen.Line { return mdCodeBlock(strings.Split(code, "\n"), "mermaid", w) }
 	key := a.MermaidKey(code)
-	return jobLines(a.Mermaid[key], blobMermaid+key, w, i18n.T("preview.rendering"), "mermaid: ", source)
+	return jobLines(a.text, a.Mermaid[key], blobMermaid+key, w, msg.T("preview.rendering"), "mermaid: ", source)
 }
 
 // previewFresh reports whether t's cached preview (prevCache) is the document

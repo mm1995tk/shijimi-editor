@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // agentSelApp opens the panel with a log and returns the layout.
@@ -22,7 +23,7 @@ func agentSelApp(t *testing.T, log ...core.LogEntry) (*App, layout) {
 func agentRowY(a *App, l layout, i int) int { return l.top + a.Ag.View.Y0 + (i - a.Ag.View.Start) }
 
 func TestAgentDragSelectCopies(t *testing.T) {
-	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: "hello world\n日本語です"})
+	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: msg.S("hello world\n日本語です")})
 	y := agentRowY(a, l, 0)
 	// the log starts with one column of indent
 	a.HandleMouse(a.locate(l.agentX+7, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
@@ -31,7 +32,7 @@ func TestAgentDragSelectCopies(t *testing.T) {
 	if want := "world\n日本"; a.Clipboard != want {
 		t.Fatalf("clipboard = %q, want %q", a.Clipboard, want)
 	}
-	if !strings.Contains(a.Msg, "8 文字") || !a.Ag.Sel.On {
+	if !strings.Contains(tr(a.Msg), "8 文字") || !a.Ag.Sel.On {
 		t.Fatalf("msg = %q sel = %+v", a.Msg, a.Ag.Sel)
 	}
 	drawn := strings.Join(a.renderAgent(l.agentW, l.bodyH, true), "\n")
@@ -50,8 +51,8 @@ func TestAgentDragSelectCopies(t *testing.T) {
 func TestAgentSelectionJoinsWrappedRows(t *testing.T) {
 	long := strings.Repeat("word ", 20) + "https://example.com/" + strings.Repeat("x", 80)
 	a, l := agentSelApp(t,
-		core.LogEntry{Kind: core.LogAgent, Text: long},
-		core.LogEntry{Kind: core.LogInfo, Text: long})
+		core.LogEntry{Kind: core.LogAgent, Text: msg.S(long)},
+		core.LogEntry{Kind: core.LogInfo, Text: msg.S(long)})
 	n := len(a.Ag.View.Rows)
 	if n < 6 {
 		t.Fatalf("only %d rows", n)
@@ -70,7 +71,7 @@ func TestAgentSelectionJoinsWrappedRows(t *testing.T) {
 }
 
 func TestAgentSelectionOutsidePanel(t *testing.T) {
-	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: "abc\ndef"})
+	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: msg.S("abc\ndef")})
 	y := agentRowY(a, l, 0)
 	a.HandleMouse(a.locate(l.agentX+1, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
 	// dragged far left of the panel and below it
@@ -82,7 +83,7 @@ func TestAgentSelectionOutsidePanel(t *testing.T) {
 }
 
 func TestAgentClickDoesNotCopy(t *testing.T) {
-	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: "hello"})
+	a, l := agentSelApp(t, core.LogEntry{Kind: core.LogInfo, Text: msg.S("hello")})
 	a.Focus = core.FocusEditor
 	a.Clipboard = "keep"
 	y := agentRowY(a, l, 0)
@@ -96,7 +97,7 @@ func TestAgentClickDoesNotCopy(t *testing.T) {
 func TestAgentSelectionStaysOnTextWhenScrolled(t *testing.T) {
 	var log []core.LogEntry
 	for i := range 60 {
-		log = append(log, core.LogEntry{Kind: core.LogInfo, Text: strings.Repeat("a", i%9+1)})
+		log = append(log, core.LogEntry{Kind: core.LogInfo, Text: msg.S(strings.Repeat("a", i%9+1))})
 	}
 	a, l := agentSelApp(t, log...)
 	y := agentRowY(a, l, a.Ag.View.Start+2)
@@ -128,7 +129,7 @@ func (a *App) renderAgent(w, h int, focused bool) []string {
 
 func TestAgentSelectionDropsQuoteBars(t *testing.T) {
 	long := "quoted text that is long enough to wrap around the panel more than once so we see the bar"
-	a, _ := agentSelApp(t, core.LogEntry{Kind: core.LogAgent, Text: "> " + long})
+	a, _ := agentSelApp(t, core.LogEntry{Kind: core.LogAgent, Text: msg.S("> " + long)})
 	rows, w := a.Ag.View.Rows, a.Ag.View.W
 	if len(rows) < 3 {
 		t.Fatalf("only %d rows", len(rows))
@@ -141,7 +142,7 @@ func TestAgentSelectionDropsQuoteBars(t *testing.T) {
 
 func TestAgentSelectionKeepsSpacesOfWrappedCode(t *testing.T) {
 	code := "x := 1" + strings.Repeat(" ", 37) + "// note\twith\ta tab and 日本語 that goes on and on past the edge"
-	a, _ := agentSelApp(t, core.LogEntry{Kind: core.LogAgent, Text: "```go\n" + code + "\n```"})
+	a, _ := agentSelApp(t, core.LogEntry{Kind: core.LogAgent, Text: msg.S("```go\n" + code + "\n```")})
 	rows, w := a.Ag.View.Rows, a.Ag.View.W
 	if len(rows) < 5 {
 		t.Fatalf("code not wrapped: %d rows", len(rows))

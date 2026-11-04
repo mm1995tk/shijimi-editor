@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 func TestHoverText(t *testing.T) {
@@ -83,7 +85,7 @@ func TestParseDocumentSymbolsFlat(t *testing.T) {
 func TestParseWorkspaceSymbols(t *testing.T) {
 	// A WorkspaceSymbol's location may carry only the uri.
 	got := parseSymbolInformation(json.RawMessage(`[{"name":"X","kind":5,"location":{"uri":"file:///x.go"}}]`), "")
-	if len(got) != 1 || got[0].URI != "file:///x.go" || SymbolKindName(got[0].Kind) != "クラス" {
+	if len(got) != 1 || got[0].URI != "file:///x.go" || i18n.Text(SymbolKindName(got[0].Kind)) != "クラス" {
 		t.Errorf("got %+v", got)
 	}
 }

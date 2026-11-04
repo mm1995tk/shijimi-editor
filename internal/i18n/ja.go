@@ -243,7 +243,6 @@ var ja = map[string]string{
 	"gh.pendingdraft":          "GitHub に送信していない下書きのレビューがあります。%s で送信するか破棄してから、もう一度送ってください",
 	"gh.prupdated":             "PR が更新されました。r で pull します",
 	"gh.unpushed":              "push していないコミットが %d 個あります",
-	"gh.untracked":             "@@ -0,0 +1,%d @@ (未追跡ファイル)",
 	"keys.badkey":              "[%s] のキー名が正しくありません: %q（無視します）",
 	"keys.more":                "（ほか %d 件）",
 	"keys.unknowncmd":          "[%s] %q = %q は知らないコマンドです（そのキーは既定のまま動かします）",

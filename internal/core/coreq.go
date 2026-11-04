@@ -5,6 +5,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // coreq.go is what the front end's pointer, layout, terminal and multiplexer
@@ -42,7 +43,7 @@ func (a *Core) Settings() *config.Config { return a.Cfg }
 func (a *Core) RootDir() string { return a.Root }
 
 // ClearMsg clears the message on the status line.
-func (a *Core) ClearMsg() { a.Msg = "" }
+func (a *Core) ClearMsg() { a.Msg = msg.Msg{} }
 
 // CloseCompletion closes the completion popup.
 func (a *Core) CloseCompletion() { a.Comp = nil }
@@ -63,7 +64,9 @@ func (a *Core) PaletteCaretCols() int {
 
 // FindCaretCols is how far into the find bar (its label, then the query) the
 // cursor is, in cells.
-func (a *Core) FindCaretCols() int { return ansi.StringWidth(FindLabel()) + a.FindInput.Caret() }
+func (a *Core) FindCaretCols() int {
+	return ansi.StringWidth(a.text(FindLabel())) + a.FindInput.Caret()
+}
 
 // OpenCard is the review thread shown like a hover, or nil.
 func (a *Core) OpenCard() *PrCard { return a.Card }

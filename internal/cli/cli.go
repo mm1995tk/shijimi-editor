@@ -139,5 +139,5 @@ func configErrorText(err error) string {
 	if ce, ok := errors.AsType[*config.Error](err); ok {
 		return fmt.Sprintf(i18n.T("config.err.head"), len(ce.Problems)) + "\n" + ce.Error()
 	}
-	return err.Error()
+	return i18n.ErrText(err)
 }

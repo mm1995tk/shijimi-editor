@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,9 +10,9 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/config"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // Focus is the part of the screen that takes the keys.
@@ -113,7 +112,7 @@ type Core struct {
 	Sg suggestState
 
 	Clipboard    string
-	Msg          string
+	Msg          msg.Msg
 	MsgErr       bool
 	confirmQuit  bool
 	confirmClose bool
@@ -169,7 +168,7 @@ func newCore(sh *Shared, p Port, dir, file string, setLang bool) (*Core, error) 
 	cfg, err := config.Load(abs, sh.Build.Config)
 	if setLang {
 		// also with a mistake: the settings that did read give the language of the report
-		i18n.SetLang(cfg.Editor.UILanguage)
+		p.SetLanguage(cfg.Editor.UILanguage)
 	}
 	if err != nil {
 		return nil, err
@@ -188,12 +187,13 @@ func newCore(sh *Shared, p Port, dir, file string, setLang bool) (*Core, error) 
 		Ag:       newAgentState(),
 		port:     portOrNop(p),
 	}
+	a.Pal.tr = a.text
 	a.Explorer.Icons = cfg.Editor.FileIcons
 	if cfg.Editor.Theme != "" {
 		a.port.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
 	}
 	a.FindInput = NewInputField(0)
-	a.FindInput.Placeholder = i18n.T("app.find")
+	a.FindInput.Placeholder = msg.T("app.find")
 	a.cmdInput = NewInputField(0)
 	a.Commands = defaultCommands()
 	if out, err := run(abs, nil, "git", "rev-parse", "--abbrev-ref", "HEAD"); err == nil {
@@ -217,7 +217,7 @@ func NewSingle(p Port, file string, b Build) (*Core, error) {
 	abs, _ := filepath.Abs(file)
 	dir := filepath.Dir(abs)
 	cfg, err := config.Load(dir, b.Config)
-	i18n.SetLang(cfg.Editor.UILanguage)
+	p.SetLanguage(cfg.Editor.UILanguage)
 	if err != nil {
 		return nil, err
 	}
@@ -237,20 +237,21 @@ func NewSingle(p Port, file string, b Build) (*Core, error) {
 		single:    true,
 		port:      portOrNop(p),
 	}
+	a.Pal.tr = a.text
 	if cfg.Editor.Theme != "" {
 		a.port.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
 	}
 	a.FindInput = NewInputField(0)
-	a.FindInput.Placeholder = i18n.T("app.find")
+	a.FindInput.Placeholder = msg.T("app.find")
 	a.cmdInput = NewInputField(0)
 	// The command palette is not reachable in this mode; with no commands, it
 	// cannot open the views single-file mode leaves out even if it were.
 	if !a.OpenFile(abs) {
-		msg := i18n.T("app.cantopen")
-		if a.Msg != "" {
-			msg = a.Msg
+		m := msg.T("app.cantopen")
+		if !a.Msg.IsZero() {
+			m = a.Msg
 		}
-		return nil, errors.New(msg)
+		return nil, msg.ErrOf(m)
 	}
 	a.loadKeymap()
 	return a, nil
@@ -330,13 +331,13 @@ func (a *Core) withBuf(f func(b *buffer.Buffer)) {
 }
 
 // Info shows a message on the status line.
-func (a *Core) Info(format string, args ...any) {
-	a.Msg, a.MsgErr = fmt.Sprintf(format, args...), false
+func (a *Core) Info(key string, args ...any) {
+	a.Msg, a.MsgErr = msg.T(key, args...), false
 }
 
 // Fail shows err on the status line as an error.
 func (a *Core) Fail(err error) {
-	a.Msg, a.MsgErr = err.Error(), true
+	a.Msg, a.MsgErr = msg.Of(err), true
 }
 
 // SetFocus moves the keys to f (always the editor in single-file mode).
@@ -389,7 +390,7 @@ func (a *Core) OpenFile(path string) bool {
 			return true
 		}
 		if st.Size() > 10<<20 {
-			a.Fail(fmt.Errorf(i18n.T("app.toolarge"), a.Rel(abs)))
+			a.Fail(msg.Err("app.toolarge", a.Rel(abs)))
 			return false
 		}
 	}
@@ -465,7 +466,7 @@ func (a *Core) saveTab(t *Tab) []Effect {
 		c.DidSave(t.Buf.Path)
 	}
 	a.Explorer.loadGitStatus()
-	a.Info(i18n.T("app.saved"), a.Rel(t.Buf.Path))
+	a.Info("app.saved", a.Rel(t.Buf.Path))
 	return a.afterSave()
 }
 
@@ -480,7 +481,7 @@ func (a *Core) saveAll() []Effect {
 			n++
 		}
 	}
-	a.Info(i18n.T("app.savedmany"), n)
+	a.Info("app.savedmany", n)
 	return nil
 }
 
@@ -493,7 +494,7 @@ func (a *Core) saveAs() []Effect {
 	if t.Buf.Path != "" {
 		initial = t.Buf.Path
 	}
-	return a.Pal.Ask(i18n.T("app.saveas"), initial, func(v string) []Effect {
+	return a.Pal.Ask(msg.T("app.saveas"), initial, func(v string) []Effect {
 		return a.saveTo(t, v)
 	})
 }
@@ -528,7 +529,7 @@ func (a *Core) newFile() []Effect {
 }
 
 func (a *Core) newFileIn(dir string) []Effect {
-	return a.Pal.Ask(i18n.T("app.newfile"), dir+string(filepath.Separator), func(v string) []Effect {
+	return a.Pal.Ask(msg.T("app.newfile"), dir+string(filepath.Separator), func(v string) []Effect {
 		return a.createFile(v)
 	})
 }
@@ -561,7 +562,7 @@ func (a *Core) createFile(v string) []Effect {
 }
 
 func (a *Core) newFolder() []Effect {
-	return a.Pal.Ask(i18n.T("app.newfolder"), a.Explorer.targetDir()+string(filepath.Separator), func(v string) []Effect {
+	return a.Pal.Ask(msg.T("app.newfolder"), a.Explorer.targetDir()+string(filepath.Separator), func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" {
 			return nil
@@ -585,7 +586,7 @@ func (a *Core) renameFile() []Effect {
 		return nil
 	}
 	old := n.Path
-	return a.Pal.Ask(i18n.T("app.newname"), old, func(v string) []Effect {
+	return a.Pal.Ask(msg.T("app.newname"), old, func(v string) []Effect {
 		v = strings.TrimSpace(v)
 		if v == "" || v == old {
 			return nil
@@ -594,7 +595,7 @@ func (a *Core) renameFile() []Effect {
 			v = filepath.Join(filepath.Dir(old), v)
 		}
 		if _, err := os.Stat(v); err == nil {
-			a.Fail(fmt.Errorf(i18n.T("app.exists"), a.Rel(v)))
+			a.Fail(msg.Err("app.exists", a.Rel(v)))
 			return nil
 		}
 		if err := os.Rename(old, v); err != nil {
@@ -614,7 +615,7 @@ func (a *Core) renameFile() []Effect {
 		}
 		a.Explorer.Refresh()
 		a.Explorer.Reveal(v)
-		a.Info(i18n.T("app.renamed"), a.Rel(v))
+		a.Info("app.renamed", a.Rel(v))
 		return nil
 	})
 }
@@ -625,7 +626,7 @@ func (a *Core) deleteFile() []Effect {
 		return nil
 	}
 	target := n.Path
-	return a.Pal.Ask(fmt.Sprintf(i18n.T("app.confirmdelete"), a.Rel(target)), "", func(v string) []Effect {
+	return a.Pal.Ask(msg.T("app.confirmdelete", a.Rel(target)), "", func(v string) []Effect {
 		if strings.TrimSpace(strings.ToLower(v)) != "y" {
 			return nil
 		}
@@ -634,7 +635,7 @@ func (a *Core) deleteFile() []Effect {
 			return nil
 		}
 		a.Explorer.Refresh()
-		a.Info(i18n.T("app.deleted"), a.Rel(target))
+		a.Info("app.deleted", a.Rel(target))
 		return nil
 	})
 }
@@ -648,7 +649,7 @@ func (a *Core) CloseTab(force bool) []Effect {
 	}
 	if !force && t.dirty() && !a.confirmClose {
 		a.confirmClose = true
-		a.Msg, a.MsgErr = i18n.T("app.closeunsaved"), true
+		a.Msg, a.MsgErr = msg.T("app.closeunsaved"), true
 		return nil
 	}
 	a.confirmClose = false
@@ -692,7 +693,7 @@ func (a *Core) dropTab(i int) {
 func (a *Core) SwitchLast() {
 	i := slices.Index(a.Tabs, a.PrevTab)
 	if a.PrevTab == nil || i < 0 || i == a.Active {
-		a.InfoText(i18n.T("app.nolast"))
+		a.InfoText(msg.T("app.nolast"))
 		return
 	}
 	a.pushJump()
@@ -753,7 +754,7 @@ func (a *Core) dirtyCount() int {
 func (a *Core) Quit() []Effect {
 	if d := a.dirtyCount(); d > 0 && !a.confirmQuit {
 		a.confirmQuit = true
-		a.Msg, a.MsgErr = fmt.Sprintf(i18n.T("app.quitunsaved"), d), true
+		a.Msg, a.MsgErr = msg.T("app.quitunsaved", d), true
 		return nil
 	}
 	a.port.TermClose()
@@ -799,10 +800,10 @@ func (a *Core) findNext(from buffer.Pos, backward bool) {
 	}
 	p, ok := t.Buf.Find(q, from, backward)
 	if !ok {
-		a.Msg, a.MsgErr = i18n.T("app.notfound")+q, true
+		a.Msg, a.MsgErr = msg.T("app.notfound").Add(q), true
 		return
 	}
-	a.Msg = ""
+	a.Msg = msg.Msg{}
 	t.Buf.SelectRange(p, buffer.Pos{Row: p.Row, Col: p.Col + len([]rune(q))})
 	a.Follow = true
 }
@@ -833,7 +834,7 @@ func (a *Core) activePath() string {
 // shows what was copied.
 func (a *Core) copyPath(p string, abs bool) {
 	if p == "" {
-		a.Fail(errors.New(i18n.T("app.nopathfile")))
+		a.Fail(msg.Err("app.nopathfile"))
 		return
 	}
 	if abs {
@@ -844,7 +845,7 @@ func (a *Core) copyPath(p string, abs bool) {
 		p = a.Rel(p)
 	}
 	a.CopyText(p)
-	a.Info(i18n.T("app.pathcopied"), p)
+	a.Info("app.pathcopied", p)
 }
 
 func (a *Core) pasteText() string {
@@ -977,7 +978,7 @@ func (a *Core) handleLSPEvent(e lsp.Event) []Effect {
 	case e.Err != nil:
 		a.Fail(e.Err)
 	case e.Message != "":
-		a.Info("[%s] %s", e.Server, FirstLine(e.Message))
+		a.InfoText(msg.S(fmt.Sprintf("[%s] %s", e.Server, FirstLine(e.Message))))
 	case e.Edit != nil:
 		if len(e.Edit) > 0 {
 			a.applyWorkspaceEdit(e.Edit)
@@ -1004,9 +1005,9 @@ func (a *Core) handleLSPEvent(e lsp.Event) []Effect {
 // pointer's popups, the signature help) and hands the key to whatever takes
 // it: an open overlay, the command line, the resize mode, or the focused
 // region.
-func (a *Core) HandleKey(msg Key) []Effect {
-	key := msg.String()
-	a.Msg = ""
+func (a *Core) HandleKey(in Key) []Effect {
+	key := in.String()
+	a.Msg = msg.Msg{}
 	if a.sig != nil && (key == "esc" || !a.sigVisible()) {
 		a.closeSignature()
 	}
@@ -1026,32 +1027,32 @@ func (a *Core) HandleKey(msg Key) []Effect {
 	}
 
 	if a.Search.Open {
-		return a.HandleSearchKey(msg)
+		return a.HandleSearchKey(in)
 	}
 	if a.Pal.Open {
-		return a.handlePaletteKey(msg)
+		return a.handlePaletteKey(in)
 	}
 	if a.Composer != nil {
-		return a.HandleComposerKey(msg)
+		return a.HandleComposerKey(in)
 	}
 	if a.Confirm != nil {
 		return a.handleConfirmKey(key)
 	}
 	if a.props.Len() > 0 {
-		return a.handleProposalKey(msg)
+		return a.handleProposalKey(in)
 	}
 	if a.Ctx != nil {
-		return a.HandleContextKey(msg)
+		return a.HandleContextKey(in)
 	}
 	if a.CmdOpen {
-		return a.handleCmdlineKey(msg)
+		return a.handleCmdlineKey(in)
 	}
 	if a.InResizeMode() {
 		a.port.ResizeKey(key)
 		return nil
 	}
 	if a.Card != nil {
-		if cmd, handled := a.handleCardKey(msg); handled {
+		if cmd, handled := a.handleCardKey(in); handled {
 			return cmd
 		}
 	}
@@ -1070,12 +1071,12 @@ func (a *Core) HandleKey(msg Key) []Effect {
 		}
 	}
 	if a.Comp != nil {
-		if cmd, handled := a.handleCompletionKey(msg); handled {
+		if cmd, handled := a.handleCompletionKey(in); handled {
 			return cmd
 		}
 	}
 	if a.snip != nil {
-		if cmd, handled := a.handleSnippetKey(msg); handled {
+		if cmd, handled := a.handleSnippetKey(in); handled {
 			return cmd
 		}
 	}
@@ -1096,7 +1097,7 @@ func (a *Core) HandleKey(msg Key) []Effect {
 		case "f1":
 			return a.Pal.Show(a.Root, ">")
 		}
-		a.port.TermKey(msg)
+		a.port.TermKey(in)
 		return nil
 	}
 
@@ -1168,11 +1169,11 @@ func (a *Core) HandleKey(msg Key) []Effect {
 
 	switch a.Focus {
 	case FocusExplorer:
-		return a.HandleExplorerKey(msg)
+		return a.HandleExplorerKey(in)
 	case FocusChanges:
-		return a.handleChangesKey(msg)
+		return a.handleChangesKey(in)
 	case FocusAgent:
-		return a.handleAgentKey(msg)
+		return a.handleAgentKey(in)
 	}
 	t := a.Cur()
 	if t == nil {
@@ -1213,16 +1214,16 @@ func (a *Core) HandleKey(msg Key) []Effect {
 		return nil
 	}
 	if a.FindOpen {
-		return a.handleFindKey(msg)
+		return a.handleFindKey(in)
 	}
 	if a.Helix {
-		return a.HandleHelixKey(msg)
+		return a.HandleHelixKey(in)
 	}
-	if t := a.CurText(); a.FullPreview(t) && !fullPreviewEditorKey(msg) {
-		a.InfoText(i18n.T("app.fullpreview"))
+	if t := a.CurText(); a.FullPreview(t) && !fullPreviewEditorKey(in) {
+		a.InfoText(msg.T("app.fullpreview"))
 		return nil
 	}
-	return a.handleEditorKey(msg)
+	return a.handleEditorKey(in)
 }
 
 func (a *Core) handleCompletionKey(msg Key) ([]Effect, bool) {
@@ -1289,7 +1290,7 @@ func (a *Core) submitPalette() []Effect {
 		}
 		return nil
 	}
-	if p.prompt != "" {
+	if !p.prompt.IsZero() {
 		if p.onSubmit != nil {
 			return p.onSubmit(v)
 		}
@@ -1315,9 +1316,9 @@ func (a *Core) submitPalette() []Effect {
 }
 
 // HandleExplorerKey handles a key press while the file tree has the focus.
-func (a *Core) HandleExplorerKey(msg Key) []Effect {
+func (a *Core) HandleExplorerKey(in Key) []Effect {
 	e := a.Explorer
-	key := msg.String()
+	key := in.String()
 	if a.Pending == "space v" {
 		a.Pending = ""
 		return a.ReviewKey(key)
@@ -1375,7 +1376,7 @@ func (a *Core) HandleExplorerKey(msg Key) []Effect {
 		}
 	case "R":
 		e.Refresh()
-		a.InfoText(i18n.T("app.treerefreshed"))
+		a.InfoText(msg.T("app.treerefreshed"))
 	case "space":
 		a.Pending = " "
 	case ":":
@@ -1459,7 +1460,7 @@ func multiEditable(msg Key) bool {
 	return false
 }
 
-func (a *Core) editorKey(t *Tab, msg Key) []Effect {
+func (a *Core) editorKey(t *Tab, in Key) []Effect {
 	if t == nil {
 		return nil
 	}
@@ -1467,7 +1468,7 @@ func (a *Core) editorKey(t *Tab, msg Key) []Effect {
 	a.Follow = true
 	page := a.PageSize()
 
-	switch msg.String() {
+	switch in.String() {
 	case "esc":
 		b.ClearSelection()
 		b.ClearExtra()
@@ -1555,7 +1556,7 @@ func (a *Core) editorKey(t *Tab, msg Key) []Effect {
 		} else {
 			a.CopyText(string(b.Lines[b.Cur.Row]) + "\n")
 		}
-		a.InfoText(i18n.T("app.copied"))
+		a.InfoText(msg.T("app.copied"))
 	case "ctrl+x":
 		if s := b.SelectedText(); s != "" {
 			a.CopyText(s)
@@ -1583,7 +1584,7 @@ func (a *Core) editorKey(t *Tab, msg Key) []Effect {
 		b.Insert(" ")
 		a.Comp = nil
 	default:
-		if s := Typed(msg); s != "" {
+		if s := Typed(in); s != "" {
 			if rs := []rune(s); len(rs) == 1 {
 				b.TypeRune(rs[0])
 			} else {
@@ -1697,12 +1698,12 @@ func (a *Core) EditorOpts(t *Tab, focused bool) EditorOpts {
 }
 
 // FindLabel is the label of the find bar.
-func FindLabel() string { return i18n.T("app.findlabel") }
+func FindLabel() msg.Msg { return msg.T("app.findlabel") }
 
 // CopyHover copies the hover markdown source to the clipboard.
 func (a *Core) CopyHover() {
 	a.CopyText(a.HoverText)
-	a.InfoText(i18n.T("app.hovercopied"))
+	a.InfoText(msg.T("app.hovercopied"))
 }
 
 // hoverScrollKey maps a key to a hover scroll amount (0 = not a scroll key).
@@ -1720,7 +1721,15 @@ func hoverScrollKey(key string) int {
 // has the keyboard.
 func (a *Core) overlayOpen() bool { return a.Pal.Open || a.Search.Open }
 
-// InfoText shows an already-formatted message in the status line.
-func (a *Core) InfoText(s string) {
+// InfoText shows a message that is already built (a Msg, or msg.S for text that
+// is not translated) in the status line.
+func (a *Core) InfoText(s msg.Msg) {
 	a.Msg, a.MsgErr = s, false
 }
+
+// text is m in the UI's language. The core uses it only where it has to lay out
+// or match words (see Port.Text).
+func (a *Core) text(m msg.Msg) string { return a.port.Text(m) }
+
+// errText is the text of err in the UI's language.
+func (a *Core) errText(err error) string { return a.port.Text(msg.Of(err)) }

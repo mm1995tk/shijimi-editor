@@ -84,7 +84,7 @@ func (a *App) fitComposer(l layout) {
 	}
 	_, iw := composerWidth(l)
 	a.OpenComposer().Ta.SetWidth(iw)
-	if _, _, ov := a.composerParts(l); ov.Compose != nil && ov.Compose.PreviewLabel != "" {
+	if _, _, ov := a.composerParts(l); ov.Compose != nil && !ov.Compose.PreviewLabel.IsZero() {
 		a.sendMdImages(ov.Images, ov.View.Cols)
 	}
 }
@@ -158,8 +158,8 @@ func (a *App) drawCard(ov screen.Overlay) []string {
 		ind = fmt.Sprintf(" %d/%d ", end, vw.Total)
 	}
 	bottom := strings.Repeat("─", iw)
-	if hw, in := ansi.StringWidth(ov.Hint), ansi.StringWidth(ind); hw+in+2 <= iw {
-		bottom = "─" + ov.Hint + strings.Repeat("─", iw-hw-in-1) + ind
+	if hw, in := ansi.StringWidth(tr(ov.Hint)), ansi.StringWidth(ind); hw+in+2 <= iw {
+		bottom = "─" + tr(ov.Hint) + strings.Repeat("─", iw-hw-in-1) + ind
 	}
 	return append(out, bd.Render("╰"+bottom+"╯"))
 }
@@ -175,15 +175,15 @@ func (a *App) drawComposer(ov screen.Overlay, input []string) []string {
 	line := func(s string) string {
 		return bd.Render("│") + in.Render(" ") + fitStyled(s, iw, in) + in.Render(" ") + bd.Render("│")
 	}
-	title := " " + ov.Title + " "
+	title := " " + tr(ov.Title) + " "
 	top := "╭─" + ansi.Truncate(title, w-4, "…")
 	top += strings.Repeat("─", max(0, w-1-ansi.StringWidth(top))) + "╮"
 	rows := []string{bd.Render(top)}
 	for _, l := range input {
 		rows = append(rows, line(l))
 	}
-	rows = append(rows, bd.Render("├"+core.Fit(ov.Hint, w-2)+"┤"))
-	if label := ov.Compose.PreviewLabel; label != "" {
+	rows = append(rows, bd.Render("├"+core.Fit(tr(ov.Hint), w-2)+"┤"))
+	if label := tr(ov.Compose.PreviewLabel); label != "" {
 		prev := append([]string{stPanelDim.Render(core.Fit(label, iw))}, a.drawMdRows(ov.Lines, 0, ov.Images, iw)...)
 		for _, p := range prev {
 			rows = append(rows, bd.Render("│")+stEmpty.Render(" ")+fitStyled(p, iw, stEmpty)+stEmpty.Render(" ")+bd.Render("│"))

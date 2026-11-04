@@ -11,7 +11,7 @@ import (
 func drawCompletion(ov screen.Overlay) []string {
 	w := 20
 	for _, it := range ov.Items {
-		w = max(w, ansi.StringWidth(it.Label)+10)
+		w = max(w, ansi.StringWidth(tr(it.Label))+10)
 	}
 	w = min(w, 60)
 	out := make([]string, 0, len(ov.Items))
@@ -20,8 +20,8 @@ func drawCompletion(ov screen.Overlay) []string {
 		if i == ov.Active {
 			st, dim = stPaletteSel, bgfg(cListSel, core.CurTheme.SubSel)
 		}
-		label := core.Fit(" "+it.Label, w-9)
-		out = append(out, st.Render(label)+dim.Render(core.Fit(" "+it.Kind, 9)))
+		label := core.Fit(" "+tr(it.Label), w-9)
+		out = append(out, st.Render(label)+dim.Render(core.Fit(" "+tr(it.Kind), 9)))
 	}
 	return out
 }

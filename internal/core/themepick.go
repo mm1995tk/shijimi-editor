@@ -1,6 +1,6 @@
 package core
 
-import "github.com/mm1995tk/shijimi-editor/internal/i18n"
+import "github.com/mm1995tk/shijimi-editor/internal/msg"
 
 // setTheme switches the active theme by name.
 func (a *Core) setTheme(name string) bool {
@@ -15,16 +15,17 @@ func (a *Core) setTheme(name string) bool {
 // themePicker opens a list of the built-in themes.
 func (a *Core) themePicker() []Effect {
 	items := make([]PaletteItem, 0, len(Themes))
-	for _, n := range themeNames() {
-		d := ""
+	names := themeNames()
+	for _, n := range names {
+		var d msg.Msg
 		if n == CurTheme.Name {
-			d = i18n.T("theme.current")
+			d = msg.T("theme.current")
 		}
-		items = append(items, PaletteItem{Label: n, Detail: d})
+		items = append(items, PaletteItem{Label: msg.S(n), Detail: d})
 	}
-	return a.Pal.Pick(i18n.T("theme.title"), items, func(i int) []Effect {
-		a.setTheme(items[i].Label)
-		a.Info(i18n.T("cmd.themeis"), CurTheme.Name)
+	return a.Pal.Pick(msg.T("theme.title"), items, func(i int) []Effect {
+		a.setTheme(names[i])
+		a.Info("cmd.themeis", CurTheme.Name)
 		return nil
 	})
 }

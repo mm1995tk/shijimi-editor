@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // The editor area can be split into two panes side by side (never more, and
@@ -38,18 +38,18 @@ func (a *Core) SplitOpen() []Effect {
 	case a.single:
 		return nil
 	case a.Split:
-		a.InfoText(i18n.T("win.already"))
+		a.InfoText(msg.T("win.already"))
 		return nil
 	case a.Gd.On:
-		a.InfoText(i18n.T("win.nodiff"))
+		a.InfoText(msg.T("win.nodiff"))
 		return nil
 	case a.EditorCols() < MinSplitW:
-		a.InfoText(i18n.T("win.narrow"))
+		a.InfoText(msg.T("win.narrow"))
 		return nil
 	}
 	cur := a.Cur()
 	if cur == nil {
-		a.InfoText(i18n.T("win.nofile"))
+		a.InfoText(msg.T("win.nofile"))
 		return nil
 	}
 	cur.Transient = false
@@ -75,9 +75,9 @@ func (a *Core) SplitOpen() []Effect {
 func (a *Core) FocusPane(side int) []Effect {
 	if !a.SplitWanted() {
 		if a.Split {
-			a.InfoText(i18n.T("win.nodiff"))
+			a.InfoText(msg.T("win.nodiff"))
 		} else {
-			a.InfoText(i18n.T("win.nosplit"))
+			a.InfoText(msg.T("win.nosplit"))
 		}
 		return nil
 	}
@@ -108,7 +108,7 @@ func (a *Core) swapPanes() {
 // the other file stays open, only not shown.
 func (a *Core) closeSplit(keepFocused bool) {
 	if !a.Split {
-		a.InfoText(i18n.T("win.nosplit"))
+		a.InfoText(msg.T("win.nosplit"))
 		return
 	}
 	if !keepFocused && a.Other != nil {

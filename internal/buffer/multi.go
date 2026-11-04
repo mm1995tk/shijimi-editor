@@ -1,12 +1,11 @@
 package buffer
 
 import (
-	"errors"
 	"regexp"
 	"sort"
 	"unicode/utf8"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // Range is one cursor with its optional selection anchor.
@@ -226,7 +225,7 @@ func (b *Buffer) shiftRows(r Range, dir int) (Range, bool) {
 	return nr, true
 }
 
-func errNoMatch() error { return errors.New(i18n.T("buffer.nomatch")) }
+func errNoMatch() error { return msg.Err("buffer.nomatch") }
 
 // SelectMatches replaces every selection (or the character under a cursor
 // that has none) with a cursor for each non-empty match of re inside it.

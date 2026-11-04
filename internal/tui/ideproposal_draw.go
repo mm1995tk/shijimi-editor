@@ -19,9 +19,9 @@ func renderProposalBox(p *core.ProposalView, a *App, w, maxH int) []string {
 	}
 	out := []string{stPaletteBox.Render(core.Fit(title, w))}
 	for _, l := range p.Lines[p.Scroll:min(len(p.Lines), p.Scroll+body)] {
-		text := core.Fit(" "+string(l.Kind)+" "+strings.ReplaceAll(l.Text, "\t", "    "), w)
+		text := core.Fit(" "+string(l.Kind)+" "+strings.ReplaceAll(tr(l.Text), "\t", "    "), w)
 		if l.Kind == '@' {
-			text = core.Fit(" "+l.Text, w)
+			text = core.Fit(" "+tr(l.Text), w)
 		}
 		switch l.Kind {
 		case '+':

@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // maxJumps caps the jump list.
@@ -72,9 +72,9 @@ func (a *Core) jumpMove(dir int) []Effect {
 		i += dir
 		if i < 0 || i >= len(a.jumps) {
 			if dir < 0 {
-				a.InfoText(i18n.T("jump.noback"))
+				a.InfoText(msg.T("jump.noback"))
 			} else {
-				a.InfoText(i18n.T("jump.noforward"))
+				a.InfoText(msg.T("jump.noforward"))
 			}
 			return nil
 		}

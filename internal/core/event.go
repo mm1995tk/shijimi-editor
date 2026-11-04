@@ -43,7 +43,7 @@ type HoverDwell struct{ Seq int }
 // for the answer, which the core hands back as a ReplyCtl Effect.
 type CtlRequest struct {
 	Req   ctl.Request
-	Reply chan<- ctl.Response
+	Reply chan<- CtlResponse
 }
 
 func (CtlRequest) isEvent() {}
@@ -112,8 +112,8 @@ type WaitLSP struct{ From <-chan lsp.Event }
 // ReplyCtl hands the answer to a CtlRequest back to the control socket. The
 // channel is buffered, so carrying it out never blocks.
 type ReplyCtl struct {
-	To   chan<- ctl.Response
-	Resp ctl.Response
+	To   chan<- CtlResponse
+	Resp CtlResponse
 }
 
 // IDECall is a tool call from Claude Code over the IDE connection. The caller

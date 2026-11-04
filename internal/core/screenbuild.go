@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -279,11 +279,11 @@ func (a *Core) screenOverlays(v screen.View) []screen.Overlay {
 	}
 	switch {
 	case a.MenuOpen(" "):
-		out = append(out, MenuOverlay(" Space", a.SpaceMenuItems()))
+		out = append(out, MenuOverlay(msg.S(" Space"), a.SpaceMenuItems()))
 	case a.MenuOpen("space v"):
-		out = append(out, MenuOverlay(i18n.T("app.reviewhint"), ReviewItems))
+		out = append(out, MenuOverlay(msg.T("app.reviewhint"), ReviewItems))
 	case a.MenuOpen("space w"):
-		out = append(out, MenuOverlay(i18n.T("win.hint"), WindowItems))
+		out = append(out, MenuOverlay(msg.T("win.hint"), WindowItems))
 	}
 	if a.PaletteOpen() {
 		out = append(out, a.PaletteOverlay())

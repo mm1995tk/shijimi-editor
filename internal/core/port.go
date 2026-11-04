@@ -1,5 +1,7 @@
 package core
 
+import "github.com/mm1995tk/shijimi-editor/internal/msg"
+
 // Port is the one interface the core knows its UI by (docs/design/gui-protocol.md,
 // 「core が知る相手は Port だけ」). The TUI and the adapter of `shj serve` meet it.
 // Its methods mean the same in every UI and return nothing: the core goes on
@@ -57,6 +59,14 @@ type Port interface {
 	// ImageClosed says the image Id is not shown any more, so that a UI frees
 	// what it holds for it (the TUI's terminal graphics).
 	ImageClosed(id uint32)
+	// Text returns m in the language the UI shows. The core builds every message
+	// as a msg.Msg and leaves it to the UI to translate; it asks only where it has to
+	// lay text out or match it (wrapping, the palette's search), which needs the
+	// words themselves.
+	Text(m msg.Msg) string
+	// SetLanguage says the config picked the UI language code ("en", "ja").
+	// The UI applies it to the tables it translates with.
+	SetLanguage(code string)
 }
 
 // nopPort is the Port of a core whose UI has not set one: it does nothing.
@@ -81,6 +91,8 @@ func (nopPort) TermClose()              {}
 func (nopPort) CommandEnded(int)        {}
 func (nopPort) ImageClosed(uint32)      {}
 func (nopPort) SetPalette(*Theme)       {}
+func (nopPort) Text(m msg.Msg) string   { return m.String() }
+func (nopPort) SetLanguage(string)      {}
 
 // portOrNop is p, or a Port that does nothing when p is nil.
 func portOrNop(p Port) Port {

@@ -12,7 +12,7 @@ import (
 //
 // The theme and the UI language are process-wide too, but they are set where
 // they always were: the theme by the UI (Port.SetPalette) and the
-// language by i18n.SetLang when a core reads its config.
+// language by Port.SetLanguage when a core reads its config.
 type Shared struct {
 	Buffers *buffer.Pool   // the open files, so that a file open in several cores is one text
 	Proxy   *proxy.Manager // the port forwards (:browser), for every core

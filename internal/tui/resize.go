@@ -2,7 +2,6 @@ package tui
 
 import (
 	"github.com/mm1995tk/shijimi-editor/internal/core"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Pane resizing. The sizes the user picked are kept on the App, so they
@@ -89,7 +88,7 @@ func (a *App) StartResize() {
 	a.CloseHover()
 	a.resizeMode = true
 	a.pushLayout()
-	a.InfoText(i18n.T("resize.hint"))
+	a.Info("resize.hint")
 }
 
 // editorBorder is the border inside the editor area of t: the │ of a split
@@ -218,7 +217,7 @@ func (a *App) ResizeKey(key string) {
 		a.ClearMsg()
 		return
 	}
-	a.InfoText(i18n.T("resize.hint"))
+	a.Info("resize.hint")
 }
 
 // resizeHit returns the border under (x, y), if any.

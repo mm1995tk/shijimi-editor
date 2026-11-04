@@ -2,12 +2,11 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // symbolQueryDelay is how long the input rests before workspace/symbol is
@@ -47,30 +46,30 @@ func (a *Core) documentSymbols() []Effect {
 
 func (a *Core) showSymbols(m symbolsMsg) []Effect {
 	if len(m.syms) == 0 {
-		a.InfoText(i18n.T("symui.none"))
+		a.InfoText(msg.T("symui.none"))
 		return nil
 	}
 	items := make([]PaletteItem, len(m.syms))
 	for i, s := range m.syms {
-		items[i] = PaletteItem{Label: s.Name, Detail: symbolDetail(s, "")}
+		items[i] = PaletteItem{Label: msg.S(s.Name), Detail: symbolDetail(s, "")}
 	}
-	return a.Pal.Pick(i18n.T("symui.title"), items, func(i int) []Effect {
+	return a.Pal.Pick(msg.T("symui.title"), items, func(i int) []Effect {
 		return a.jumpTo(lsp.Location{URI: m.syms[i].URI, Range: m.syms[i].Range})
 	})
 }
 
 // symbolDetail is the dim text after a symbol's name: its kind, the symbol it
 // is inside, and where it is (the file too, when file is not empty).
-func symbolDetail(s lsp.Symbol, file string) string {
+func symbolDetail(s lsp.Symbol, file string) msg.Msg {
 	d := lsp.SymbolKindName(s.Kind)
 	if s.Container != "" {
-		d += "  " + s.Container
+		d = d.Add("  ", s.Container)
 	}
 	line := fmt.Sprintf("%d", s.Range.Start.Line+1)
 	if file != "" {
-		return d + "  " + file + ":" + line
+		return d.Add("  ", file, ":", line)
 	}
-	return d + "  " + fmt.Sprintf(i18n.T("symui.line"), line)
+	return d.Add("  ", msg.T("symui.line", line))
 }
 
 // workspaceSymbols opens a picker over the project's symbols. The language
@@ -81,18 +80,18 @@ func (a *Core) workspaceSymbols() []Effect {
 		return nil
 	}
 	if t.Lang == nil {
-		a.Fail(errors.New(i18n.T("lspui.noserver")))
+		a.Fail(msg.Err("lspui.noserver"))
 		return nil
 	}
 	c := a.Lsp.client(t, "workspaceSymbolProvider")
 	if c == nil {
-		a.Fail(errors.New(i18n.T("symui.wsunsupported")))
+		a.Fail(msg.Err("symui.wsunsupported"))
 		return nil
 	}
 	a.SyncLSP()
 	a.wsSyms = nil
 	a.wsClient = c
-	return a.Pal.pickLive(i18n.T("space.wsymbols"), func(i int) []Effect {
+	return a.Pal.pickLive(msg.T("space.wsymbols"), func(i int) []Effect {
 		if i >= len(a.wsSyms) {
 			return nil
 		}
@@ -126,7 +125,7 @@ func (a *Core) showWorkspaceSymbols(m workspaceSymbolsMsg) {
 	a.wsSyms = m.syms
 	items := make([]PaletteItem, len(m.syms))
 	for i, s := range m.syms {
-		items[i] = PaletteItem{Label: s.Name, Detail: symbolDetail(s, a.Rel(lsp.Path(s.URI)))}
+		items[i] = PaletteItem{Label: msg.S(s.Name), Detail: symbolDetail(s, a.Rel(lsp.Path(s.URI)))}
 	}
 	p.setPickItems(items)
 }

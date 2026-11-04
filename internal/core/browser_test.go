@@ -26,7 +26,7 @@ func TestBrowserForwardListStop(t *testing.T) {
 		t.Fatalf("default listen = %s", f.Listen)
 	}
 	a.browser("list")
-	if !strings.Contains(a.Msg, target) {
+	if !strings.Contains(a.text(a.Msg), target) {
 		t.Fatalf("list msg = %q", a.Msg)
 	}
 	a.browser("stop " + strconv.Itoa(f.Port))

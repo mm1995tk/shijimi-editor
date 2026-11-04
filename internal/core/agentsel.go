@@ -7,7 +7,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/rivo/uniseg"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -211,7 +210,7 @@ func (a *Core) AgentDrag(msg Mouse) ([]Effect, bool) {
 		s.Dragging = false
 		if txt := s.Text(a.Ag.View.Rows, a.Ag.View.W); txt != "" {
 			a.CopyText(txt)
-			a.Info(i18n.T("agentsel.copied"), utf8.RuneCountInString(txt))
+			a.Info("agentsel.copied", utf8.RuneCountInString(txt))
 		}
 	}
 	return nil, true

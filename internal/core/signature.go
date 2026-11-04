@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -64,7 +64,7 @@ func (a *Core) showSignature(m signatureMsg) {
 	if m.help == nil {
 		a.sig = nil
 		if m.manual {
-			a.InfoText(i18n.T("sig.none"))
+			a.InfoText(msg.T("sig.none"))
 		}
 		return
 	}

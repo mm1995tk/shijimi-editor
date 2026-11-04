@@ -243,7 +243,6 @@ var en = map[string]string{
 	"gh.pendingdraft":          "There is a draft review not yet sent to GitHub. Submit it with %s or discard it, then try again",
 	"gh.prupdated":             "The PR was updated. Press r to pull",
 	"gh.unpushed":              "There are %d unpushed commits",
-	"gh.untracked":             "@@ -0,0 +1,%d @@ (untracked file)",
 	"keys.badkey":              "Invalid key name in [%s]: %q (ignored)",
 	"keys.more":                " (and %d more)",
 	"keys.unknowncmd":          "Unknown command in [%s] %q = %q (the key keeps its default)",

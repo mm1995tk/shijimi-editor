@@ -8,6 +8,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 // New picks the UI language from ui-language, and English without it.
@@ -51,7 +52,7 @@ func TestTableDrivenLabelsResolve(t *testing.T) {
 		}
 	}
 	for kind := 0; kind <= 27; kind++ {
-		if name := lsp.SymbolKindName(kind); name == "" || strings.HasPrefix(name, "sym.") {
+		if name := tt(lsp.SymbolKindName(kind)); name == "" || strings.HasPrefix(name, "sym.") {
 			t.Errorf("symbol kind %d has no name: %q", kind, name)
 		}
 	}
@@ -74,13 +75,16 @@ func TestConfigReloadSwitchesLanguage(t *testing.T) {
 	}
 	write("ui-language = \"ja\"\n")
 	a := newApp(dir, "")
-	last := func() string { return a.Commands[len(a.Commands)-1].Name }
-	if last() != "終了" || a.FindInput.Placeholder != "検索" {
-		t.Fatalf("ja: %q %q", last(), a.FindInput.Placeholder)
+	last := func() string { return tt(a.Commands[len(a.Commands)-1].Name) }
+	if last() != "終了" || tt(a.FindInput.Placeholder) != "検索" {
+		t.Fatalf("ja: %q %q", last(), tt(a.FindInput.Placeholder))
 	}
 	write("ui-language = \"en\"\n")
 	a.ExecCommand("config-reload")
-	if last() != "Quit" || a.FindInput.Placeholder != "Search" {
-		t.Fatalf("en after reload: %q %q", last(), a.FindInput.Placeholder)
+	if last() != "Quit" || tt(a.FindInput.Placeholder) != "Search" {
+		t.Fatalf("en after reload: %q %q", last(), tt(a.FindInput.Placeholder))
 	}
 }
+
+// tt is m in the selected language, for tests that look at words.
+func tt(m msg.Msg) string { return i18n.Text(m) }

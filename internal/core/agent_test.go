@@ -13,6 +13,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/config"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 func TestMain(m *testing.M) {
@@ -41,7 +42,7 @@ func TestMain(m *testing.M) {
 func logText(a *App) string {
 	var sb strings.Builder
 	for _, e := range a.Ag.Log {
-		sb.WriteString(e.Text)
+		sb.WriteString(a.text(e.Text))
 		sb.WriteByte('\n')
 	}
 	return sb.String()
@@ -50,7 +51,7 @@ func logText(a *App) string {
 func TestAgentNeedsACommand(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.Cfg.Agent = config.Agent{}
-	if effs := a.RunAgent(sgConflict, "k", "t", func() string { return "" }); effs != nil || !a.MsgErr || !strings.Contains(a.Msg, "[agent]") {
+	if effs := a.RunAgent(sgConflict, "k", msg.S("t"), func() msg.Msg { return msg.Msg{} }); effs != nil || !a.MsgErr || !strings.Contains(a.text(a.Msg), "[agent]") {
 		t.Errorf("msg = %q", a.Msg)
 	}
 	if a.Ag.Run != nil {
@@ -63,10 +64,10 @@ func TestLSPErrorSuggestionCanBeDismissed(t *testing.T) {
 	p := a.CurText().Buf.Path
 	a.Lsp.Diags[p] = map[string][]lsp.Diagnostic{"s": {{Severity: 1, Message: "bad"}, {Severity: 1, Message: "worse"}, {Severity: 2, Message: "meh"}}}
 	list := a.Suggestions()
-	if len(list) != 1 || list[0].title != "エラー 2 件を直しますか" {
+	if len(list) != 1 || a.text(list[0].title) != "エラー 2 件を直しますか" {
 		t.Fatalf("suggestions = %+v", list)
 	}
-	if got := a.errorsText(); !strings.Contains(got, "a.txt:1:1: bad\n") || strings.Contains(got, "meh") {
+	if got := a.text(a.errorsText()); !strings.Contains(got, "a.txt:1:1: bad\n") || strings.Contains(got, "meh") {
 		t.Errorf("errors = %q", got)
 	}
 	a.SetFocus(FocusAgent)
@@ -103,7 +104,7 @@ func TestParseReview(t *testing.T) {
 }
 
 func TestReviewPromptCarriesTheDiff(t *testing.T) {
-	got := reviewPrompt(&PrInfo{Number: 7, Title: "t"}, "+added")
+	got := tt(reviewPrompt(&PrInfo{Number: 7, Title: "t"}, msg.S("+added")))
 	if !strings.Contains(got, "#7") || !strings.Contains(got, "```diff\n+added\n```") || !strings.Contains(got, "GitHub には投稿しないでください") {
 		t.Errorf("prompt = %q", got)
 	}
@@ -135,13 +136,13 @@ func TestRepoProbeFindsConflictsAndMissingPR(t *testing.T) {
 	a.Sg.repo.prKnown = true
 	var titles []string
 	for _, s := range a.Suggestions() {
-		titles = append(titles, s.title)
+		titles = append(titles, a.text(s.title))
 	}
 	if strings.Join(titles, "|") != "衝突を解消しますか|PR を作りますか" {
 		t.Errorf("titles = %q", titles)
 	}
 	a.Sg.repo.prs = []prSummary{{Number: 3, Title: "x"}}
-	if s := a.Suggestions(); len(s) != 2 || s[1].Kind != sgReviewMode || s[1].Detail != "#3 x" {
+	if s := a.Suggestions(); len(s) != 2 || s[1].Kind != sgReviewMode || a.text(s[1].Detail) != "#3 x" {
 		t.Errorf("suggestions = %+v", s)
 	}
 }

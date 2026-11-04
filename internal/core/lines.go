@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -54,13 +54,13 @@ func (a *Core) StatusOf() screen.Status {
 	s.Branch = a.Branch
 	switch a.Focus {
 	case FocusExplorer:
-		s.Pane = i18n.T("app.pane.tree")
+		s.Pane = msg.T("app.pane.tree")
 	case FocusChanges:
-		s.Pane = i18n.T("app.pane.changes")
+		s.Pane = msg.T("app.pane.changes")
 	case FocusTerminal:
-		s.Pane = i18n.T("app.pane.terminal")
+		s.Pane = msg.T("app.pane.terminal")
 	case FocusAgent:
-		s.Pane = i18n.T("app.pane.suggest")
+		s.Pane = msg.T("app.pane.suggest")
 	}
 	if t := a.CurText(); t != nil {
 		for _, d := range a.Lsp.diagnostics(t.Buf.Path) {
@@ -73,55 +73,55 @@ func (a *Core) StatusOf() screen.Status {
 	}
 	if !a.SuggestionsShown() {
 		if n := len(a.Suggestions()); n > 0 {
-			s.Suggestions = fmt.Sprintf(i18n.T("app.suggestions"), n)
+			s.Suggestions = msg.T("app.suggestions", n)
 		}
 	}
 	if t := a.Cur(); t != nil && t.Kind == TabText {
 		b := t.Buf
 		s.Cursor = ToScreenPos(b.Cur)
-		s.Indent = fmt.Sprintf(i18n.T("app.spaces"), len(b.IndentUnit()))
+		s.Indent = msg.T("app.spaces", len(b.IndentUnit()))
 		if b.IndentUnit() == "\t" {
-			s.Indent = i18n.T("app.tab")
+			s.Indent = msg.T("app.tab")
 		}
-		s.Position = fmt.Sprintf("%d:%d", b.Cur.Row+1, buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col)+1)
+		s.Position = msg.S(fmt.Sprintf("%d:%d", b.Cur.Row+1, buffer.VisualCol(b.Lines[b.Cur.Row], b.Cur.Col)+1))
 		if b.HasExtra() {
-			s.Position = fmt.Sprintf(i18n.T("app.cursors"), len(b.Extra())+1) + s.Position
+			s.Position = msg.T("app.cursors", len(b.Extra())+1).Add(s.Position)
 		}
 		if sel := b.SelectedText(); sel != "" {
-			s.Position += fmt.Sprintf(i18n.T("app.selected"), len([]rune(sel)))
+			s.Position = s.Position.Add(msg.T("app.selected", len([]rune(sel))))
 		}
-		s.Language = t.Hl.Language()
+		s.Language = msg.S(t.Hl.Language())
 		if st := a.lspStatus(); st != "" {
-			s.Language += " [" + st + "]"
+			s.Language = s.Language.Add(" [", st, "]")
 		}
 	}
 	if n := len(a.Gd.Rv.Pending); n > 0 && a.PrShown() {
-		s.Unsent = fmt.Sprintf(i18n.T("app.pendingcomments"), n)
+		s.Unsent = msg.T("app.pendingcomments", n)
 	}
 	s.Version = a.build().Version
 	switch {
 	case a.ConfirmOverlay() != nil:
 		// the confirmation is an Overlay, drawn over the status line
-	case a.Msg != "":
+	case !a.Msg.IsZero():
 		s.Msg, s.MsgErr = a.Msg, a.MsgErr
-	case a.PrShown() && a.Gd.Rv.Sync.text() != "":
+	case a.PrShown() && !a.Gd.Rv.Sync.text().IsZero():
 		s.Msg = a.Gd.Rv.Sync.text()
 	}
 	return s
 }
 
 // ConfirmOverlay is the confirmation now asked, as a screen.Overlay, or nil.
-// A y/n question (confirm) has the two answers as Items; "press again to
+// The question is its Title (a message; the wire format carries it as a line). A y/n question (confirm) has the two answers as Items; "press again to
 // discard" (confirmQuit, confirmClose) has none, as the same key answers it.
 // It has no place in a pane. It changes nothing. Drawing it is drawStatus's work.
 func (a *Core) ConfirmOverlay() *screen.Overlay {
 	ov := screen.Overlay{Kind: screen.OverlayConfirm}
 	switch {
 	case a.Confirm != nil:
-		ov.Lines = []screen.Line{{Spans: []screen.Span{{Text: a.Confirm.Prompt}}}}
-		ov.Items = []screen.Item{{Label: "y"}, {Label: "n"}}
-	case (a.confirmQuit || a.confirmClose) && a.Msg != "":
-		ov.Lines = []screen.Line{{Spans: []screen.Span{{Text: a.Msg}}}}
+		ov.Title = a.Confirm.Prompt
+		ov.Items = []screen.Item{{Label: msg.S("y")}, {Label: msg.S("n")}}
+	case (a.confirmQuit || a.confirmClose) && !a.Msg.IsZero():
+		ov.Title = a.Msg
 	default:
 		return nil
 	}
@@ -133,7 +133,7 @@ func (a *Core) CmdlineState() *screen.Cmdline {
 	if !a.CmdOpen {
 		return nil
 	}
-	return &screen.Cmdline{Prefix: a.cmdKind, Text: a.cmdInput.Value(), Cursor: a.cmdInput.Position()}
+	return &screen.Cmdline{Prefix: msg.S(a.cmdKind), Text: a.cmdInput.Value(), Cursor: a.cmdInput.Position()}
 }
 
 // FindState is the find bar when it is open.
@@ -143,6 +143,6 @@ func (a *Core) FindState() *screen.Cmdline {
 	}
 	return &screen.Cmdline{
 		Prefix: FindLabel(), Text: a.FindInput.Value(), Cursor: a.FindInput.Position(),
-		Hint: i18n.T("app.findhint"),
+		Hint: msg.T("app.findhint"),
 	}
 }

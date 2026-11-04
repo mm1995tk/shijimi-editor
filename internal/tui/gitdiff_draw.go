@@ -135,8 +135,8 @@ func drawChanges(l core.ChangesList, w, h int, focused, lit bool) []string {
 				switch {
 				case l.Loading:
 					msg = i18n.T("gd.loading")
-				case l.Err != "":
-					msg = i18n.T("gd.error") + l.Err
+				case !l.Err.IsZero():
+					msg = i18n.T("gd.error") + tr(l.Err)
 				default:
 					msg = i18n.T("gd.nochanges")
 				}
@@ -226,7 +226,7 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 	nw := max(0, min(ansi.StringWidth(name), w-hw-ansi.StringWidth(stats+dels)))
 	head := bgfg(cTabBarBg, core.CurTheme.Strong).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
 		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +
-		bgfg(cTabBarBg, noteFg).Render(title.Note)
+		bgfg(cTabBarBg, noteFg).Render(tr(title.Note))
 	return fitStyled(head, max(0, w-hw), bgfg(cTabBarBg, core.CurTheme.Strong)) +
 		bgfg(cTabBarBg, core.CurTheme.Dim).Render(core.Fit(" "+hint, hw))
 }

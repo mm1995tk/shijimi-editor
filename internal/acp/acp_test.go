@@ -170,7 +170,7 @@ func TestTooLongLineEndsTheAgent(t *testing.T) {
 		t.Fatalf("err = %v, ctx = %v", err, ctx.Err())
 	}
 	<-c.Done()
-	if c.Err() == nil || !strings.Contains(c.Err().Error(), "読めません") {
+	if c.Err() == nil || !strings.Contains(i18n.ErrText(c.Err()), "読めません") {
 		t.Errorf("Err = %v", c.Err())
 	}
 }

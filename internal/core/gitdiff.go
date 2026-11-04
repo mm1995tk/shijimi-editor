@@ -12,7 +12,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/diff"
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -46,7 +46,7 @@ type gitDiff struct {
 	closed  map[string]bool // folder paths (see changeRow.path) that are collapsed
 	scroll  int             // first row of rows shown
 	Loading bool
-	err     string
+	err     msg.Msg
 	Gen     int
 	ticks   int
 	PrSeq   int // bumped when the mode changes; older PR lookups are dropped
@@ -150,7 +150,7 @@ func LoadChanges(gen int, root, base string, pr *PrInfo) Event {
 	}
 	if base == BasePR {
 		if pr == nil {
-			m.err = errString(i18n.T("gd.nopr"))
+			m.err = msg.Err("gd.nopr")
 			return m
 		}
 		ref := "origin/" + pr.BaseRefName
@@ -208,16 +208,16 @@ func (a *Core) ApplyChanges(m ChangesLoadedMsg) {
 	}
 	a.Gd.Loading = false
 	if m.err != nil {
-		a.Gd.err = m.err.Error()
+		a.Gd.err = msg.Of(m.err)
 		if m.base == BasePR {
 			// fall back to HEAD so the mode stays usable
 			a.Gd.Base, a.Gd.Pr = BaseHead, nil
 			a.Fail(m.err)
-			a.Gd.err = ""
+			a.Gd.err = msg.Msg{}
 		}
 		return
 	}
-	a.Gd.err = ""
+	a.Gd.err = msg.Msg{}
 	a.Gd.rev = m.rev
 	if m.pr != nil {
 		a.Gd.Pr = m.pr
@@ -505,7 +505,7 @@ func (a *Core) closeDiff() []Effect {
 		a.Focus = FocusExplorer
 	}
 	a.Follow = true
-	a.InfoText(i18n.T("gd.closed"))
+	a.InfoText(msg.T("gd.closed"))
 	return nil
 }
 
@@ -513,7 +513,7 @@ func (a *Core) closeDiff() []Effect {
 // a list of them when there are several, or the list of every open pull
 // request when there is none.
 func (a *Core) branchPR() []Effect {
-	a.InfoText(i18n.T("gd.findingpr"))
+	a.InfoText(msg.T("gd.findingpr"))
 	a.Gd.PrSeq++
 	root, seq, branch := a.Root, a.Gd.PrSeq, a.Branch
 	return async(func() Event {
@@ -535,7 +535,7 @@ func (a *Core) handleBranchPRs(m branchPRsMsg) []Effect {
 	case len(m.prs) > 1:
 		return a.showPRList(prListMsg{prs: m.prs})
 	}
-	a.InfoText(i18n.T("gd.nobranchpr"))
+	a.InfoText(msg.T("gd.nobranchpr"))
 	return listPRs(a.Root)
 }
 
@@ -546,7 +546,7 @@ func (a *Core) findPR(num int) []Effect { return a.lookupPR(num, false) }
 func (a *Core) refreshPR() []Effect { return a.lookupPR(a.Gd.Pr.Number, true) }
 
 func (a *Core) lookupPR(num int, refresh bool) []Effect {
-	a.InfoText(i18n.T("gd.findingpr"))
+	a.InfoText(msg.T("gd.findingpr"))
 	a.Gd.PrSeq++
 	root, seq := a.Root, a.Gd.PrSeq
 	return async(func() Event {
@@ -567,7 +567,7 @@ func (a *Core) HandlePRFound(m PrFoundMsg) []Effect {
 		}
 		return nil
 	}
-	a.Msg = ""
+	a.Msg = msg.Msg{}
 	pr := m.Pr
 	proceed := func() []Effect {
 		if !m.Refresh && pr.HeadRefName != a.Branch {
@@ -582,9 +582,9 @@ func (a *Core) HandlePRFound(m PrFoundMsg) []Effect {
 	}
 	if rv := a.Gd.Rv; len(rv.Pending) > 0 && rv.num != pr.Number {
 		a.Confirm = &YesNo{
-			Prompt: fmt.Sprintf(i18n.T("gd.discardcomments"), rv.num, len(rv.Pending), pr.Number),
+			Prompt: msg.T("gd.discardcomments", rv.num, len(rv.Pending), pr.Number),
 			yes:    proceed,
-			no:     func() []Effect { a.Info(i18n.T("gd.cancelopen"), pr.Number); return nil },
+			no:     func() []Effect { a.Info("gd.cancelopen", pr.Number); return nil },
 		}
 		return nil
 	}
@@ -601,7 +601,7 @@ func (a *Core) openPR(pr *PrInfo) []Effect {
 // to stash uncommitted changes, then opens it.
 func (a *Core) switchToPR(pr *PrInfo) []Effect {
 	if n := a.dirtyCount(); n > 0 {
-		a.Fail(fmt.Errorf(i18n.T("gd.saveswitch"), n, pr.Number))
+		a.Fail(msg.Err("gd.saveswitch", n, pr.Number))
 		return nil
 	}
 	out, err := run(a.Root, nil, "git", "status", "--porcelain")
@@ -613,9 +613,9 @@ func (a *Core) switchToPR(pr *PrInfo) []Effect {
 		return a.CheckoutPR(pr, false)
 	}
 	a.Confirm = &YesNo{
-		Prompt: i18n.T("gd.askstash"),
+		Prompt: msg.T("gd.askstash"),
 		yes:    func() []Effect { return a.CheckoutPR(pr, true) },
-		no:     func() []Effect { a.Info(i18n.T("gd.cancelswitch"), pr.Number); return nil },
+		no:     func() []Effect { a.Info("gd.cancelswitch", pr.Number); return nil },
 	}
 	return nil
 }
@@ -630,7 +630,7 @@ type PrCheckedOutMsg struct {
 // CheckoutPR checks out the branch of pr, stashing the changes first when stash
 // is set.
 func (a *Core) CheckoutPR(pr *PrInfo, stash bool) []Effect {
-	a.Info(i18n.T("gd.checkout"), pr.Number)
+	a.Info("gd.checkout", pr.Number)
 	a.Gd.PrSeq++
 	root, seq := a.Root, a.Gd.PrSeq
 	return async(func() Event {
@@ -640,8 +640,8 @@ func (a *Core) CheckoutPR(pr *PrInfo, stash bool) []Effect {
 		}
 		before := head()
 		if stash {
-			msg := fmt.Sprintf(i18n.T("gd.stashmsg"), pr.Number)
-			if _, err := run(root, nil, "git", "stash", "push", "-u", "-m", msg); err != nil {
+			in := a.text(msg.T("gd.stashmsg", pr.Number))
+			if _, err := run(root, nil, "git", "stash", "push", "-u", "-m", in); err != nil {
 				return PrCheckedOutMsg{seq: seq, pr: pr, Err: err}
 			}
 		}
@@ -654,7 +654,7 @@ func (a *Core) CheckoutPR(pr *PrInfo, stash bool) []Effect {
 				popped = perr == nil
 			}
 			if !popped {
-				err = fmt.Errorf(i18n.T("gd.stashed"), err, pr.Number)
+				err = msg.Err("gd.stashed", err, pr.Number)
 			}
 		}
 		return PrCheckedOutMsg{seq: seq, pr: pr, Err: err}
@@ -672,7 +672,7 @@ func (a *Core) HandlePRCheckedOut(m PrCheckedOutMsg) []Effect {
 		return nil
 	}
 	cmd := a.openPR(m.pr)
-	a.Info(i18n.T("gd.switched"), m.pr.Number, a.Branch)
+	a.Info("gd.switched", m.pr.Number, a.Branch)
 	return cmd
 }
 
@@ -707,7 +707,7 @@ func (a *Core) ReloadPR() []Effect {
 	if !(s.Known && s.Behind > 0 && s.Ahead == 0) {
 		return a.refreshPR() // also refreshes the title, state and comments
 	}
-	a.InfoText(i18n.T("gd.pulling"))
+	a.InfoText(msg.T("gd.pulling"))
 	a.Gd.PrSeq++
 	root, seq := a.Root, a.Gd.PrSeq
 	return async(func() Event {
@@ -730,7 +730,7 @@ func (a *Core) handlePRPulled(m prPulledMsg) []Effect {
 
 // prPicker lists the repository's pull requests to compare with.
 func (a *Core) prPicker() []Effect {
-	a.InfoText(i18n.T("gd.fetchingprs"))
+	a.InfoText(msg.T("gd.fetchingprs"))
 	return listPRs(a.Root)
 }
 
@@ -740,19 +740,19 @@ func (a *Core) showPRList(m prListMsg) []Effect {
 		return nil
 	}
 	if len(m.prs) == 0 {
-		a.InfoText(i18n.T("gd.noopenprs"))
+		a.InfoText(msg.T("gd.noopenprs"))
 		return nil
 	}
-	a.Msg = ""
+	a.Msg = msg.Msg{}
 	items := make([]PaletteItem, len(m.prs))
 	for i, p := range m.prs {
 		draft := ""
 		if p.IsDraft {
 			draft = " [draft]"
 		}
-		items[i] = PaletteItem{Label: fmt.Sprintf("#%d %s%s", p.Number, p.Title, draft), Detail: "@" + p.Author.Login + "  " + p.HeadRefName}
+		items[i] = PaletteItem{Label: msg.S(fmt.Sprintf("#%d %s%s", p.Number, p.Title, draft)), Detail: msg.S("@" + p.Author.Login + "  " + p.HeadRefName)}
 	}
-	return a.Pal.Pick(i18n.T("gd.prs"), items, func(i int) []Effect { return a.findPR(m.prs[i].Number) })
+	return a.Pal.Pick(msg.T("gd.prs"), items, func(i int) []Effect { return a.findPR(m.prs[i].Number) })
 }
 
 // ToggleSplit switches the diff view between side by side and unified.
@@ -781,7 +781,7 @@ func (a *Core) gitDiffCommand(arg string) []Effect {
 		a.Gd.Split = false
 		a.Follow = true
 	default:
-		a.Fail(errString(i18n.T("gd.usage")))
+		a.Fail(msg.Err("gd.usage"))
 	}
 	return nil
 }
@@ -792,7 +792,7 @@ func (a *Core) gitDiffCommand(arg string) []Effect {
 func (a *Core) OpenChange(f *diff.File) []Effect {
 	abs := filepath.Join(a.GitTopDir(), f.Path())
 	if f.Status == "deleted" {
-		a.Info(i18n.T("gd.deleted"), f.Path())
+		a.Info("gd.deleted", f.Path())
 		return nil
 	}
 	n := len(a.Tabs)
@@ -951,22 +951,22 @@ func (a *Core) CompareBase() (branch string, pr *PrInfo) {
 }
 
 // DiffHelp lists the keys usable in diff mode right now.
-func (a *Core) DiffHelp() string {
-	bases := i18n.T("gd.bar.pr")
+func (a *Core) DiffHelp() msg.Msg {
+	bases := msg.T("gd.bar.pr")
 	if a.Gd.Base == BasePR {
-		bases = i18n.T("gd.bar.prreview")
+		bases = msg.T("gd.bar.prreview")
 	}
 	if !a.Helix && a.Focus != FocusChanges {
 		// the VS Code keymap has no Space menu in the editor
-		bases = i18n.T("gd.bar.head")
+		bases = msg.T("gd.bar.head")
 		if a.Gd.Base == BasePR {
-			bases = i18n.T("gd.bar.headvsc")
+			bases = msg.T("gd.bar.headvsc")
 		}
 	}
 	if a.Focus == FocusChanges {
-		return bases + i18n.T("gd.bar.list")
+		return bases.Add(msg.T("gd.bar.list"))
 	}
-	return bases + i18n.T("gd.bar.editable")
+	return bases.Add(msg.T("gd.bar.editable"))
 }
 
 // ---- per-tab diff view ----

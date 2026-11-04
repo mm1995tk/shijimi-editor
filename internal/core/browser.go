@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
-func browserUsage() string { return i18n.T("browser.usage") }
+func browserUsage() msg.Msg { return msg.T("browser.usage") }
 
 // browser runs `:browser <sub> ...`.
 func (a *Core) browser(arg string) []Effect {
@@ -17,7 +17,7 @@ func (a *Core) browser(arg string) []Effect {
 	switch sub {
 	case "forward", "fwd":
 		if len(args) < 1 || len(args) > 2 {
-			a.Fail(fmt.Errorf("%s", browserUsage()))
+			a.Fail(msg.ErrOf(browserUsage()))
 			return nil
 		}
 		ports, err := parsePorts(args)
@@ -34,21 +34,21 @@ func (a *Core) browser(arg string) []Effect {
 			a.Fail(err)
 			return nil
 		}
-		a.Info(i18n.T("browser.started"), f.Listen, f.Target)
+		a.Info("browser.started", f.Listen, f.Target)
 	case "list", "ls", "":
 		fs := a.shared.Proxy.List()
 		if len(fs) == 0 {
-			a.InfoText(i18n.T("browser.none"))
+			a.InfoText(msg.T("browser.none"))
 			return nil
 		}
 		items := make([]string, len(fs))
 		for i, f := range fs {
 			items[i] = fmt.Sprintf("%s → localhost:%d", f.Listen, f.Target)
 		}
-		a.Info(i18n.T("browser.list"), strings.Join(items, " / "))
+		a.Info("browser.list", strings.Join(items, " / "))
 	case "stop", "close":
 		if len(args) != 1 {
-			a.Fail(fmt.Errorf("%s", browserUsage()))
+			a.Fail(msg.ErrOf(browserUsage()))
 			return nil
 		}
 		ports, err := parsePorts(args)
@@ -60,9 +60,9 @@ func (a *Core) browser(arg string) []Effect {
 			a.Fail(err)
 			return nil
 		}
-		a.Info(i18n.T("browser.stopped"), ports[0])
+		a.Info("browser.stopped", ports[0])
 	default:
-		a.Fail(fmt.Errorf("%s", browserUsage()))
+		a.Fail(msg.ErrOf(browserUsage()))
 	}
 	return nil
 }
@@ -72,7 +72,7 @@ func parsePorts(args []string) ([]int, error) {
 	for i, s := range args {
 		n, err := strconv.Atoi(s)
 		if err != nil || n < 1 || n > 65535 {
-			return nil, fmt.Errorf(i18n.T("browser.badport"), s)
+			return nil, msg.Err("browser.badport", s)
 		}
 		out[i] = n
 	}

@@ -69,7 +69,7 @@ func TestBuildImagePane(t *testing.T) {
 	a := appOf(&core.Core{Tabs: []*core.Tab{{Kind: core.TabImage, Img: v}}})
 	p := a.BuildImagePane(a.Tabs[0], 30, 12)
 	want := screen.ImageRef{Blob: core.BlobFile + "/x/a.png", Width: 400, Height: 300, Format: "png", Size: 2048}
-	if p.Kind != screen.KindImage || p.Title.Text != "a.png" || p.Image == nil || *p.Image != want || p.Caption != "PNG  400×300  2.0 KB" {
+	if p.Kind != screen.KindImage || p.Title.Text != "a.png" || p.Image == nil || *p.Image != want || tr(p.Caption) != "PNG  400×300  2.0 KB" {
 		t.Fatalf("pane = %+v", p)
 	}
 	if p.Viewport.Cols != 30 || p.Viewport.Rows != 12 {
@@ -86,7 +86,7 @@ func TestBuildImagePane(t *testing.T) {
 	bad := &core.ImageView{Path: "/x/b.png", Err: errors.New("boom")}
 	a.Tabs = append(a.Tabs, &core.Tab{Kind: core.TabImage, Img: bad})
 	p = a.BuildImagePane(a.Tabs[1], 30, 4)
-	if p.Image != nil || !strings.Contains(p.Caption, "boom") {
+	if p.Image != nil || !strings.Contains(tr(p.Caption), "boom") {
 		t.Fatalf("pane = %+v", p)
 	}
 	lines := drawImagePane(p, nil, 30, 4)

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"unicode"
+
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 )
 
 func TestDefaultIsEnglish(t *testing.T) {
@@ -123,17 +125,17 @@ func TestSourceUsesTablesOnly(t *testing.T) {
 			t.Fatal(err)
 		}
 		slash := filepath.ToSlash(p)
-		isTable := strings.HasSuffix(slash, "internal/i18n/ja.go")
+		isTable := strings.HasSuffix(slash, "internal/i18n/ja.go") || strings.HasSuffix(slash, "internal/i18n/en.go")
 		// The fake agent used by tests answers in Japanese on purpose.
 		isFake := strings.Contains(slash, "internal/acp/acptest/")
 		ast.Inspect(f, func(n ast.Node) bool {
 			switch n := n.(type) {
 			case *ast.CallExpr:
 				sel, ok := n.Fun.(*ast.SelectorExpr)
-				if !ok || sel.Sel.Name != "T" || len(n.Args) != 1 {
+				if !ok || len(n.Args) == 0 {
 					return true
 				}
-				if id, ok := sel.X.(*ast.Ident); !ok || id.Name != "i18n" {
+				if !isKeyCall(sel, len(n.Args), slash) {
 					return true
 				}
 				lit, ok := n.Args[0].(*ast.BasicLit)
@@ -167,5 +169,40 @@ func TestSourceUsesTablesOnly(t *testing.T) {
 		if !used[k] {
 			t.Errorf("key %q is not used by any code", k)
 		}
+	}
+}
+
+// isKeyCall reports whether a call of sel with n arguments hands its first
+// argument to the tables as a key: i18n.T(key), msg.T(key, ...), msg.Err(key, ...)
+// and, in the core and the TUI, Core.Info(key, ...).
+func isKeyCall(sel *ast.SelectorExpr, n int, slash string) bool {
+	id, _ := sel.X.(*ast.Ident)
+	switch sel.Sel.Name {
+	case "T":
+		return id != nil && (id.Name == "i18n" && n == 1 || id.Name == "msg")
+	case "Err":
+		return id != nil && id.Name == "msg"
+	case "Info":
+		return strings.Contains(slash, "internal/core/") || strings.Contains(slash, "internal/tui/")
+	}
+	return false
+}
+
+func TestMsgTextFillsArgs(t *testing.T) {
+	SetLang(English)
+	en["test.args"] = "%s has %d"
+	t.Cleanup(func() { delete(en, "test.args") })
+	m := msg.T("test.args", msg.Cat("a", "b"), 3)
+	if got := Text(m); got != "ab has 3" {
+		t.Errorf("Text = %q", got)
+	}
+	if got := ErrText(msg.Err("test.args", msg.S("x"), 1)); got != "x has 1" {
+		t.Errorf("ErrText = %q", got)
+	}
+	if got := Text(msg.T("test.args", msg.Err("test.args", "y", 2), 3)); got != "y has 2 has 3" {
+		t.Errorf("nested error = %q", got)
+	}
+	if got := Text(msg.S("plain").Add(" ", msg.T("test.args", "z", 4))); got != "plain z has 4" {
+		t.Errorf("Add = %q", got)
 	}
 }

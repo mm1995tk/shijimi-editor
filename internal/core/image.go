@@ -17,7 +17,7 @@ import (
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	"github.com/mm1995tk/shijimi-editor/internal/msg"
 	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
@@ -73,12 +73,12 @@ func (v *ImageView) Name() string { return filepath.Base(v.Path) }
 
 // Info is the line about the image shown under it: its size, or why it could
 // not be loaded.
-func (v *ImageView) Info() string {
+func (v *ImageView) Info() msg.Msg {
 	if v.Err != nil {
-		return i18n.T("image.cantload") + v.Err.Error()
+		return msg.T("image.cantload").Add(v.Err)
 	}
 	b := v.Img.Bounds()
-	return fmt.Sprintf("%s  %d×%d  %s", strings.ToUpper(v.Format), b.Dx(), b.Dy(), humanSize(v.Size))
+	return msg.S(fmt.Sprintf("%s  %d×%d  %s", strings.ToUpper(v.Format), b.Dx(), b.Dy(), humanSize(v.Size)))
 }
 
 func humanSize(n int64) string {
