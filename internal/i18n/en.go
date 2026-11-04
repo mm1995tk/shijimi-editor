@@ -327,6 +327,7 @@ var en = map[string]string{
 	"open.failed":              "%s failed: %s",
 	"open.failedv":             "%s failed: %v",
 	"open.needurl":             "Specify a URL",
+	"open.remote":              "Not opening a browser over SSH: it would not appear on your screen",
 	"open.noopener":            "No command to open URLs was found (install %s)",
 	"open.nourl":               "No URL at the cursor (you can give one with :open-url <URL>)",
 	"open.unsupportedos":       "This OS is not supported: %s",

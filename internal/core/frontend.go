@@ -22,7 +22,6 @@ type FrontEnd interface {
 	DragBorder(r ResizeTarget)
 	ReleasesReported() bool
 	SetReleasesReported(on bool)
-	SendClipboard(s string)
 	TermBlur()
 	TermFocus() []Effect
 	TermCloseAll()

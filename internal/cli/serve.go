@@ -95,6 +95,7 @@ func runServe(args []string) int {
 	shared := core.NewShared(coreBuild())
 	defer shared.Close()
 	cores := core.NewWorkspaces(shared, nil)
+	cores.SetPort(srv)
 	defer cores.CloseAll()
 	// What a core does on its own (a language server replied, a timer fired) is
 	// sent to the GUI like what it did for an input.

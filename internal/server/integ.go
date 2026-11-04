@@ -91,3 +91,7 @@ func (s *Server) OpenURL(url string) {
 		s.log.Info("no GUI to notify", "method", "url.open")
 	}
 }
+
+// Exit is core.Port's: a core of the server never quits, because closing the
+// GUI leaves the server running. It does nothing.
+func (s *Server) Exit() {}

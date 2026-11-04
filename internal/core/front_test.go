@@ -18,10 +18,17 @@ type testFront struct {
 	releases          bool
 	resize            bool
 	clip              string
+	urls              []string
+	exited            bool
 	termKeys          []Key
 	termRuns          []string
 	muxSent           []string
 }
+
+// testFront is also the Port, recording what the core asks of the UI.
+func (f *testFront) WriteClipboard(s string) { f.clip = s }
+func (f *testFront) OpenURL(u string)        { f.urls = append(f.urls, u) }
+func (f *testFront) Exit()                   { f.exited = true }
 
 func (f *testFront) ScreenW() int            { return f.w }
 func (f *testFront) ScreenH() int            { return f.h }
@@ -39,7 +46,6 @@ func (f *testFront) ReleasesReported() bool  { return f.releases }
 func (f *testFront) SetReleasesReported(on bool) {
 	f.releases = on
 }
-func (f *testFront) SendClipboard(s string)       { f.clip = s }
 func (f *testFront) TermBlur()                    {}
 func (f *testFront) TermFocus() []Effect          { return nil }
 func (f *testFront) TermCloseAll()                {}
@@ -135,6 +141,7 @@ func newTestCore(t testing.TB, dir, file string, w, h int) (*Core, *testFront) {
 	t.Helper()
 	f := &testFront{w: w, h: h, side: true}
 	c, _ := New(f, dir, file, Build{})
+	c.SetPort(f)
 	f.c = c
 	return c, f
 }
@@ -147,6 +154,7 @@ type App = Core
 func newApp(dir, file string) *Core {
 	f := &testFront{side: true}
 	c, _ := New(f, dir, file, Build{})
+	c.SetPort(f)
 	f.c = c
 	return c
 }
@@ -156,6 +164,7 @@ func newSingleCore(file string) (*Core, error) {
 	f := &testFront{}
 	c, err := NewSingle(f, file, Build{})
 	if c != nil {
+		c.SetPort(f)
 		f.c = c
 	}
 	return c, err

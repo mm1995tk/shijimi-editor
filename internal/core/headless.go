@@ -43,7 +43,6 @@ func (h *headless) InResizeMode() bool            { return false }
 func (h *headless) DragBorder(ResizeTarget)       {}
 func (h *headless) ReleasesReported() bool        { return false }
 func (h *headless) SetReleasesReported(bool)      {}
-func (h *headless) SendClipboard(string)          {}
 func (h *headless) TermBlur()                     {}
 func (h *headless) TermFocus() []Effect           { return nil }
 func (h *headless) TermCloseAll()                 {}

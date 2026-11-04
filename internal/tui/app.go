@@ -5,6 +5,8 @@ package tui
 import (
 	"path/filepath"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/mm1995tk/shijimi-editor/internal/caret"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 )
@@ -37,6 +39,7 @@ type App struct {
 	keyReleases bool        // the terminal reports key releases
 	askReleases bool        // key releases were asked for in the last View
 	quitting    bool        // tea.Quit was returned (see exit)
+	later       []tea.Cmd   // work the core asked for through the Port, started by the next effectCmd
 }
 
 // New creates the app rooted at dir, optionally opening file. A mistake in a
@@ -48,6 +51,7 @@ func New(dir, file string, b core.Build) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	c.SetPort(a)
 	a.Core = c
 	return a, nil
 }
@@ -63,6 +67,7 @@ func NewSingle(file string, b core.Build) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+	c.SetPort(a)
 	a.Core = c
 	return a, nil
 }
