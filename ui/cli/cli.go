@@ -5,9 +5,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/mm1995tk/shijimi-editor/core/buildinfo"
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // Version prints the version for --version.

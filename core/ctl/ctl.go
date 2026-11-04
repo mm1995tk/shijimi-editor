@@ -10,8 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/mm1995tk/shijimi-editor/core/buildinfo"
 )
 
 // EnvSocket is the environment variable that carries the socket path.
@@ -45,16 +43,17 @@ type Response struct {
 type Handler func(Request) Response
 
 // SocketDir returns the private (0700) directory that holds the sockets of
-// this user's editors: $XDG_RUNTIME_DIR/shijimi-<uid>, or shijimi-nightly-<uid>
-// for a nightly build, so that shj and shj-nightly do not touch each other's
-// sockets. Without XDG_RUNTIME_DIR it is under the temporary directory. With
-// create, the directory is made and its mode is enforced.
-func SocketDir(create bool) (string, error) {
+// this user's editors: $XDG_RUNTIME_DIR/shijimi<suffix>-<uid>. The build says
+// the suffix: "-nightly" for a nightly build, so that shj and shj-nightly do
+// not touch each other's sockets, and "" for the stable one. Without
+// XDG_RUNTIME_DIR it is under the temporary directory. With create, the
+// directory is made and its mode is enforced.
+func SocketDir(suffix string, create bool) (string, error) {
 	base := os.Getenv("XDG_RUNTIME_DIR")
 	if base == "" {
 		base = os.TempDir()
 	}
-	dir := filepath.Join(base, fmt.Sprintf("shijimi%s-%d", buildinfo.Suffix(), os.Getuid()))
+	dir := filepath.Join(base, fmt.Sprintf("shijimi%s-%d", suffix, os.Getuid()))
 	if !create {
 		return dir, nil
 	}
@@ -71,8 +70,8 @@ func SocketDir(create bool) (string, error) {
 // <SocketDir>/<pid>.sock. shj lists this directory to find a running editor
 // when SHIJIMI_SOCKET is not set, so the directory holds nothing else but the
 // per-workspace directories of the herdr links.
-func SocketPath() (string, error) {
-	dir, err := SocketDir(true)
+func SocketPath(suffix string) (string, error) {
+	dir, err := SocketDir(suffix, true)
 	if err != nil {
 		return "", err
 	}
@@ -83,8 +82,8 @@ func SocketPath() (string, error) {
 // The name does not end in ".sock" on purpose: ctlclient.FindSocket treats
 // every "*.sock" in the directory as an editor and would count the server as
 // one.
-func ServeSocketPath() (string, error) {
-	dir, err := SocketDir(true)
+func ServeSocketPath(suffix string) (string, error) {
+	dir, err := SocketDir(suffix, true)
 	if err != nil {
 		return "", err
 	}
@@ -93,8 +92,8 @@ func ServeSocketPath() (string, error) {
 
 // ServeLockPath returns the lock file that "shj attach" takes with flock while
 // it starts "shj serve": <SocketDir>/serve.lock.
-func ServeLockPath() (string, error) {
-	dir, err := SocketDir(true)
+func ServeLockPath(suffix string) (string, error) {
+	dir, err := SocketDir(suffix, true)
 	if err != nil {
 		return "", err
 	}

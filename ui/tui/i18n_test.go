@@ -1,4 +1,4 @@
-package core
+package tui
 
 import (
 	"os"
@@ -6,9 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
-	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
-	"github.com/mm1995tk/shijimi-editor/core/msg"
+	"github.com/mm1995tk/shijimi-editor/core"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // New picks the UI language from ui-language, and English without it.
@@ -18,7 +17,7 @@ func TestNewSelectsTheConfiguredLanguage(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", cfg)
 	dir := t.TempDir()
 
-	newApp(dir, "")
+	mustNew(dir, "")
 	if i18n.Lang() != i18n.English {
 		t.Fatalf("language without ui-language = %q, want en", i18n.Lang())
 	}
@@ -32,7 +31,7 @@ func TestNewSelectsTheConfiguredLanguage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(cfg, "shijimi-editor", "config.toml"), []byte("ui-language = \"ja\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	newApp(dir, "")
+	mustNew(dir, "")
 	if i18n.Lang() != i18n.Japanese {
 		t.Fatalf("language with ui-language = ja is %q", i18n.Lang())
 	}
@@ -44,7 +43,8 @@ func TestNewSelectsTheConfiguredLanguage(t *testing.T) {
 // Menu labels and symbol kinds are looked up by key at draw time, so a key
 // that is not in the table would show up as the key itself.
 func TestTableDrivenLabelsResolve(t *testing.T) {
-	for _, items := range [][]SpaceItem{spaceItems, ReviewItems} {
+	a := newTestApp(t, "x\n")
+	for _, items := range [][]core.SpaceItem{a.SpaceMenuItems(), core.ReviewItems} {
 		for _, it := range items {
 			if i18n.T(it.Label) == it.Label {
 				t.Errorf("menu item %q has no string for %q", it.Key, it.Label)
@@ -52,7 +52,7 @@ func TestTableDrivenLabelsResolve(t *testing.T) {
 		}
 	}
 	for kind := 0; kind <= 27; kind++ {
-		if name := tt(lsp.SymbolKindName(kind)); name == "" || strings.HasPrefix(name, "sym.") {
+		if name := tr(core.SymbolKindName(kind)); name == "" || strings.HasPrefix(name, "sym.") {
 			t.Errorf("symbol kind %d has no name: %q", kind, name)
 		}
 	}
@@ -74,17 +74,14 @@ func TestConfigReloadSwitchesLanguage(t *testing.T) {
 		}
 	}
 	write("ui-language = \"ja\"\n")
-	a := newApp(dir, "")
-	last := func() string { return tt(a.Commands[len(a.Commands)-1].Name) }
-	if last() != "終了" || tt(a.FindInput.Placeholder) != "検索" {
-		t.Fatalf("ja: %q %q", last(), tt(a.FindInput.Placeholder))
+	a := mustNew(dir, "")
+	last := func() string { return tr(a.Commands[len(a.Commands)-1].Name) }
+	if last() != "終了" || tr(a.FindInput.Placeholder) != "検索" {
+		t.Fatalf("ja: %q %q", last(), tr(a.FindInput.Placeholder))
 	}
 	write("ui-language = \"en\"\n")
 	a.ExecCommand("config-reload")
-	if last() != "Quit" || tt(a.FindInput.Placeholder) != "Search" {
-		t.Fatalf("en after reload: %q %q", last(), tt(a.FindInput.Placeholder))
+	if last() != "Quit" || tr(a.FindInput.Placeholder) != "Search" {
+		t.Fatalf("en after reload: %q %q", last(), tr(a.FindInput.Placeholder))
 	}
 }
-
-// tt is m in the selected language, for tests that look at words.
-func tt(m msg.Msg) string { return i18n.Text(m) }

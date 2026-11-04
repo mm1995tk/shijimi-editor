@@ -61,7 +61,7 @@
 
 通常のリリースとは別に、`main` の最新を nightly 版として配ります（#252）。`release` ブランチ・タグ・npm の `latest` の流れは変えません。
 
-- nightly 版は安定版と同じプログラムで、ビルド時の `-X github.com/mm1995tk/shijimi-editor/core/buildinfo.Channel=nightly` だけが違います。バイナリ名は `shj-nightly`（`shijimi-nightly` も）、設定は `~/.config/shijimi-editor-nightly/`、ソケットのディレクトリも別なので、安定版と並べて入れられます。設定の `[experimental]` の既定値は nightly 版だけ `true` です。
+- nightly 版は安定版と同じプログラムで、ビルド時の `-X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Channel=nightly` だけが違います。バイナリ名は `shj-nightly`（`shijimi-nightly` も）、設定は `~/.config/shijimi-editor-nightly/`、ソケットのディレクトリも別なので、安定版と並べて入れられます。設定の `[experimental]` の既定値は nightly 版だけ `true` です。
 - Nix：`nix build .#shj-nightly`。`version` は `flake.nix` の `X.Y.Z` に `-nightly.<yyyymmdd>.<sha>` を付けたものです（`X.Y.Z` はまだ出ていない次のリリースの番号ではなく、`flake.nix` にある今の番号です）。`shj-nightly --version` は `vX.Y.Z-nightly (<sha>)` と出ます。
 - npm：`packaging/npm/pack.sh X.Y.Z-nightly.<yyyymmdd>.<sha> <dir>` で、本体のパッケージ `shijimi-editor-nightly`（コマンドは `shj-nightly` と `shijimi-nightly`）と、OS / CPU ごとのパッケージ（名前は安定版と同じ `shijimi-editor-<os>-<cpu>`、版だけ nightly の版）の tarball ができます。
 - 毎日ビルドして配るのは `nightly.yml`（次の節）です。

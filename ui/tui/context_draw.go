@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // renderContext is the box of the preview c, w cells wide, showing body rows

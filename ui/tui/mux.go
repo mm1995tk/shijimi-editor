@@ -7,7 +7,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/ui/internal/term"
 	tuicfg "github.com/mm1995tk/shijimi-editor/ui/tui/config"
 )

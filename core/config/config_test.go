@@ -444,3 +444,64 @@ func TestSections(t *testing.T) {
 		t.Fatal("a key no one reads was accepted")
 	}
 }
+
+// loadIn is load for a project whose config.toml says text.
+func loadIn(t *testing.T, text string) *Config {
+	t.Helper()
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	if text != "" {
+		os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+		os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte(text), 0o644)
+	}
+	return load(root)
+}
+
+func TestFileIconsOption(t *testing.T) {
+	if !loadIn(t, "").Editor.FileIcons {
+		t.Fatal("file-icons should default to true")
+	}
+	if loadIn(t, "[editor]\nfile-icons = false\n").Editor.FileIcons {
+		t.Fatal("file-icons = false should disable icons")
+	}
+}
+
+func TestThemeOption(t *testing.T) {
+	if got := loadIn(t, "").Editor.Theme; got != "" {
+		t.Fatalf("theme should default to empty, got %q", got)
+	}
+	if got := loadIn(t, "theme = \"github_dark\"\n").Editor.Theme; got != "github_dark" {
+		t.Fatalf("top-level theme = %q", got)
+	}
+	if got := loadIn(t, "[editor]\ntheme = \"light\"\n").Editor.Theme; got != "light" {
+		t.Fatalf("editor.theme = %q", got)
+	}
+}
+
+func TestMouseHoverOption(t *testing.T) {
+	if !loadIn(t, "").Editor.MouseHover {
+		t.Fatal("mouse-hover should default to true")
+	}
+	if loadIn(t, "[editor]\nmouse-hover = false\n").Editor.MouseHover {
+		t.Fatal("mouse-hover = false should disable it")
+	}
+}
+
+func TestIndentGuidesOption(t *testing.T) {
+	if !loadIn(t, "").Editor.IndentGuides {
+		t.Fatal("indent-guides should default to true")
+	}
+	if loadIn(t, "[editor.indent-guides]\nrender = false\n").Editor.IndentGuides {
+		t.Fatal("render = false should disable indent guides")
+	}
+}
+
+func TestLineNumberOption(t *testing.T) {
+	if got := loadIn(t, "").Editor.LineNumber; got != "absolute" {
+		t.Fatalf("line-number should default to absolute, got %q", got)
+	}
+	if got := loadIn(t, "[editor]\nline-number = \"relative\"\n").Editor.LineNumber; got != "relative" {
+		t.Fatalf("line-number = %q", got)
+	}
+}

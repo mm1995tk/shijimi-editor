@@ -14,7 +14,8 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // Subcommands are matched before file paths; write "./diff" to open a file
@@ -36,7 +37,7 @@ func FindSocket() (string, error) {
 	if sock := os.Getenv(ctl.EnvSocket); sock != "" {
 		return sock, nil
 	}
-	dir, err := ctl.SocketDir(false)
+	dir, err := ctl.SocketDir(buildinfo.Suffix(), false)
 	if err != nil {
 		return "", fmt.Errorf(i18n.T("ctl.nosocket"), ctl.EnvSocket)
 	}

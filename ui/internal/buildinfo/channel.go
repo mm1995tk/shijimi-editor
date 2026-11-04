@@ -12,7 +12,7 @@ package buildinfo
 import "testing"
 
 // Channel is set at build time with
-// -ldflags "-X github.com/mm1995tk/shijimi-editor/core/buildinfo.Channel=nightly".
+// -ldflags "-X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Channel=nightly".
 // Empty means the stable channel.
 var Channel = ""
 

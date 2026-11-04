@@ -40,9 +40,9 @@ if [ -n "$(git -C "$root" status --porcelain)" ]; then
 fi
 # The same ldflags as flake.nix, plus -s -w to drop the symbol table and DWARF.
 ldflags="-s -w"
-ldflags+=" -X github.com/mm1995tk/shijimi-editor/core/buildinfo.Version=$base_version"
-ldflags+=" -X github.com/mm1995tk/shijimi-editor/core/buildinfo.Commit=$commit"
-ldflags+=" -X github.com/mm1995tk/shijimi-editor/core/buildinfo.Channel=$channel"
+ldflags+=" -X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Version=$base_version"
+ldflags+=" -X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Commit=$commit"
+ldflags+=" -X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Channel=$channel"
 
 # Go's GOOS/GOARCH next to the os/cpu names npm and Node.js use.
 targets=(

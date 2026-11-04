@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // drawAgent draws the panel as h lines of w cells.

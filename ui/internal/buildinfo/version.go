@@ -8,7 +8,7 @@ import (
 )
 
 // Version and Commit are set at build time with
-// -ldflags "-X github.com/mm1995tk/shijimi-editor/core/buildinfo.Version=... -X github.com/mm1995tk/shijimi-editor/core/buildinfo.Commit=...".
+// -ldflags "-X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Version=... -X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Commit=...".
 // The channel (stable or nightly) is Channel, set the same way.
 var Version, Commit = "", ""
 

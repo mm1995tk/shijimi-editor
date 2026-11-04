@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,9 +11,9 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 func TestStaleFileShowsMarks(t *testing.T) {
@@ -278,7 +277,7 @@ func markerCell(a *App, row int) (x, y int) {
 
 func TestPointerCardTakesNoKeys(t *testing.T) {
 	a, _ := prApp(t)
-	uicfg.Of(a.Cfg).MouseHover = true
+	a.Cfg.Editor.MouseHover = true
 	th := &core.PrThread{ID: "T", Path: "a.txt", Line: 10, Side: "RIGHT", Comments: []core.PrComment{{Author: "r", Body: "x"}}}
 	a.Gd.Rv.Threads = []*core.PrThread{th}
 	x, y := markerCell(a, 9)
@@ -301,7 +300,7 @@ func TestPointerCardTakesNoKeys(t *testing.T) {
 		t.Error("card stayed after the pointer left")
 	}
 	// without mouse hover, resting opens nothing
-	uicfg.Of(a.Cfg).MouseHover = false
+	a.Cfg.Editor.MouseHover = false
 	a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MouseMotion, Button: core.MouseNone}))
 	if a.Card != nil {
 		t.Error("card opened with mouse hover off")

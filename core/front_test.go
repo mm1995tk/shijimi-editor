@@ -2,10 +2,9 @@ package core
 
 import (
 	"github.com/mm1995tk/shijimi-editor/core/config"
-	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
+
 	"testing"
 
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
@@ -48,20 +47,20 @@ func (f *testFront) ShowTerm(on bool) {
 func (f *testFront) ShowAgent(on bool)       { f.agent = on; f.push() }
 func (f *testFront) DragBorder(ResizeTarget) {}
 
-func (f *testFront) TermFocus(on bool)       { f.termFocused = on }
-func (f *testFront) TermKey(k Key)           { f.termKeys = append(f.termKeys, k) }
-func (f *testFront) TermToggle()             { f.termToggled++ }
-func (f *testFront) TermRun(line string)     { f.termRuns = append(f.termRuns, line) }
-func (f *testFront) TermPaste(s string)      { f.termPasted = append(f.termPasted, s) }
-func (f *testFront) TermClose()              { f.termClosed = true }
-func (f *testFront) CommandEnded(int)        {}
-func (f *testFront) ImageClosed(uint32)      {}
-func (f *testFront) StartResize()            { f.resize = true; f.push() }
-func (f *testFront) ResizeKey(string)        {}
-func (f *testFront) ResetPanes()             {}
-func (f *testFront) SetPalette(t *Theme)     { ActivateTheme(t) }
-func (f *testFront) Text(m msg.Msg) string   { return i18n.Text(m) }
-func (f *testFront) SetLanguage(code string) { i18n.SetLang(code) }
+func (f *testFront) TermFocus(on bool)         { f.termFocused = on }
+func (f *testFront) TermKey(k Key)             { f.termKeys = append(f.termKeys, k) }
+func (f *testFront) TermToggle()               { f.termToggled++ }
+func (f *testFront) TermRun(line string)       { f.termRuns = append(f.termRuns, line) }
+func (f *testFront) TermPaste(s string)        { f.termPasted = append(f.termPasted, s) }
+func (f *testFront) TermClose()                { f.termClosed = true }
+func (f *testFront) CommandEnded(int)          {}
+func (f *testFront) ImageClosed(uint32)        {}
+func (f *testFront) StartResize()              { f.resize = true; f.push() }
+func (f *testFront) ResizeKey(string)          {}
+func (f *testFront) ResetPanes()               {}
+func (f *testFront) SetPalette(t *Theme)       { ActivateTheme(t) }
+func (f *testFront) Text(m msg.Msg) string     { return m.String() }
+func (f *testFront) ConfigRead(*config.Config) {}
 
 // sideW is the sidebar's width and rightW the editor area's.
 func (f *testFront) sideW() int {
@@ -152,5 +151,9 @@ func newSingleCore(file string) (*Core, error) {
 
 // testBuild is the Build of a UI that reads the settings the TUI and the GUI share.
 func testBuild() Build {
-	return Build{Config: config.Options{Sections: []config.Section{uicfg.Section}}}
+	return Build{}
 }
+
+// tt is m as the test front end shows it (the key and values, not words in a
+// language), for tests that look at what a message says.
+func tt(m msg.Msg) string { return m.String() }

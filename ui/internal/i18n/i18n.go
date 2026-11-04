@@ -4,11 +4,13 @@
 package i18n
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"strings"
 	"sync/atomic"
 
+	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
@@ -79,7 +81,8 @@ func Text(m msg.Msg) string {
 	return fmt.Sprintf(T(m.Key), args...)
 }
 
-// ErrText is the text of err: Text for an error made by msg, and its own text
+// ErrText is the text of err: Text for an error made by msg, and for the
+// mistakes of a configuration file (a *config.Error), and its own text
 // otherwise.
 func ErrText(err error) string {
 	if err == nil {
@@ -87,6 +90,9 @@ func ErrText(err error) string {
 	}
 	if e, ok := err.(*msg.Error); ok {
 		return Text(e.Msg)
+	}
+	if e, ok := errors.AsType[*config.Error](err); ok {
+		return Text(e.Msg())
 	}
 	return err.Error()
 }

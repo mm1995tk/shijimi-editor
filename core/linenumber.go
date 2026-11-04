@@ -1,7 +1,5 @@
 package core
 
-import uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
-
 // \ shows the line numbers the other way (absolute or relative, the opposite
 // of editor.line-number), so both are at hand without two columns:
 //   - When the terminal reports key releases (kitty keyboard protocol), only
@@ -36,5 +34,5 @@ func (a *Core) lineFlipRelease(msg Key) {
 
 // relativeLineNumbers reports whether line numbers count from the cursor line.
 func (a *Core) relativeLineNumbers() bool {
-	return (uicfg.Of(a.Cfg).LineNumber == "relative") != a.LineFlip
+	return (a.Cfg.Editor.LineNumber == "relative") != a.LineFlip
 }

@@ -1,7 +1,6 @@
 package tui
 
 import (
-	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
 	"strings"
 	"testing"
 
@@ -45,7 +44,7 @@ func TestLineFlipWhileHeld(t *testing.T) {
 
 func TestLineFlipTogglesWithoutKeyReleases(t *testing.T) {
 	a := newTestApp(t, strings.Repeat("x\n", 20))
-	uicfg.Of(a.Cfg).LineNumber = "relative"
+	a.Cfg.Editor.LineNumber = "relative"
 	keys(a, "5", "g")
 	if got := firstLineNumber(a); got != "4" {
 		t.Fatalf("relative: %q, want 4", got)

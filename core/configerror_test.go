@@ -2,20 +2,17 @@ package core
 
 import (
 	"errors"
-	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/core/config"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
 )
 
 // badProject makes a project whose config.toml has a mistake on line 2.
 func badProject(t *testing.T) (dir, file string) {
 	t.Helper()
-	t.Cleanup(func() { i18n.SetLang(i18n.Japanese) }) // the other tests read Japanese
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
 	dir = t.TempDir()
@@ -61,7 +58,6 @@ func TestWorkspaceOpenFailsOnConfigMistake(t *testing.T) {
 // A running editor keeps its settings when :config-reload finds a mistake, and
 // says where it is.
 func TestConfigReloadKeepsSettingsOnMistake(t *testing.T) {
-	t.Cleanup(func() { i18n.SetLang(i18n.Japanese) })
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
 	dir := t.TempDir()
@@ -69,7 +65,7 @@ func TestConfigReloadKeepsSettingsOnMistake(t *testing.T) {
 	file := filepath.Join(dir, ".shijimi-editor", "config.toml")
 	os.WriteFile(file, []byte("[editor]\nline-number = \"relative\"\n"), 0o644)
 	a := newApp(dir, "")
-	if uicfg.Of(a.Cfg).LineNumber != "relative" {
+	if a.Cfg.Editor.LineNumber != "relative" {
 		t.Fatal("setup")
 	}
 	os.WriteFile(file, []byte("[editor]\nline-number = \"absolute\"\nfile-icons = 3\n"), 0o644)

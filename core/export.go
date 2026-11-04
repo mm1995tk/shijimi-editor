@@ -11,6 +11,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core/internal/diff"
 	"github.com/mm1995tk/shijimi-editor/core/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
+	"github.com/mm1995tk/shijimi-editor/core/msg"
 	"os"
 )
 
@@ -51,6 +52,9 @@ type (
 	SignatureHelp  = lsp.SignatureHelp
 )
 
+// SymbolKindName is the name of an LSP SymbolKind, as a message.
+func SymbolKindName(kind int) msg.Msg { return lsp.SymbolKindName(kind) }
+
 // IDE integration (Claude Code connects to it) and control socket.
 type (
 	IDEServer  = ide.Server
@@ -85,7 +89,8 @@ func SetIDEEnv(port int) {
 	os.Setenv(ide.EnvForceTerminal, "true")
 }
 
-// ListenCtl opens the control socket at path, answering through h.
-func ListenCtl(path string, h ctl.Handler) (*CtlServer, error) {
-	return ctlserver.Listen(path, h)
+// ListenCtl opens the control socket at path, answering through h. text turns
+// a message of the server's own into the UI's language.
+func ListenCtl(path string, h ctl.Handler, text func(msg.Msg) string) (*CtlServer, error) {
+	return ctlserver.Listen(path, h, text)
 }

@@ -12,8 +12,6 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
-	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
 	"github.com/mm1995tk/shijimi-editor/ui/cli"
 	"github.com/mm1995tk/shijimi-editor/ui/cli/ctlclient"
 	"github.com/mm1995tk/shijimi-editor/ui/tui"
@@ -87,8 +85,8 @@ func Main() {
 		}
 	}
 	// The socket is best-effort: the editor still works without it.
-	if path, err := ctl.SocketPath(); err == nil && !single {
-		if srv, err := core.ListenCtl(path, tui.ControlHandler(p)); err == nil {
+	if path, err := ctl.SocketPath(cli.Suffix()); err == nil && !single {
+		if srv, err := core.ListenCtl(path, tui.ControlHandler(p), cli.Text); err == nil {
 			closeSock = srv.Close
 			os.Setenv(ctl.EnvSocket, path)
 		}
@@ -110,7 +108,7 @@ func Main() {
 // without settings.
 func setLangFromConfig(dir string) {
 	cfg, _ := config.Load(dir, configOptions())
-	i18n.SetLang(uicfg.Of(cfg).UILanguage)
+	cli.SetLangFrom(cfg)
 }
 
 // failConfig reports why the editor could not start and exits. A mistake in a
@@ -124,7 +122,7 @@ func failConfig(err error) {
 // its count.
 func configErrorText(err error) string {
 	if ce, ok := errors.AsType[*config.Error](err); ok {
-		return fmt.Sprintf(i18n.T("config.err.head"), len(ce.Problems)) + "\n" + ce.Error()
+		return fmt.Sprintf(cli.T("config.err.head"), len(ce.Problems)) + "\n" + cli.ErrText(ce)
 	}
-	return i18n.ErrText(err)
+	return cli.ErrText(err)
 }

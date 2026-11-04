@@ -1,7 +1,6 @@
 package tui
 
 import (
-	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -86,7 +85,7 @@ func TestMouseHoverReplyDroppedWhenStale(t *testing.T) {
 
 func TestMouseHoverDisabled(t *testing.T) {
 	a := newTestApp(t, "hello world\n")
-	uicfg.Of(a.Cfg).MouseHover = false
+	a.Cfg.Editor.MouseHover = false
 	l := a.layout()
 	if cmd := move(a, l.rightX+core.GutterWidth(a.CurText().Buf)+1, l.editY); cmd != nil {
 		t.Fatal("disabled: no timer")

@@ -5,8 +5,10 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
+	uicfg "github.com/mm1995tk/shijimi-editor/ui/internal/config"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // The App is the TUI's core.Port: the core calls these directly, in the same
@@ -141,8 +143,9 @@ func (a *App) SetPalette(t *core.Theme) { applyTheme(t) }
 // draws; the core asks it for text only where it has to lay words out.
 func (a *App) Text(m msg.Msg) string { return i18n.Text(m) }
 
-// SetLanguage selects the language the tables translate with.
-func (a *App) SetLanguage(code string) { i18n.SetLang(code) }
+// ConfigRead takes the UI language from the settings and selects it for the
+// tables the TUI translates with.
+func (a *App) ConfigRead(cfg *config.Config) { i18n.SetLang(uicfg.Of(cfg).UILanguage) }
 
 // tr is m in the selected language, for the drawing code.
 func tr(m msg.Msg) string { return i18n.Text(m) }

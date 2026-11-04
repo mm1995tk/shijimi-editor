@@ -13,7 +13,6 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/core/internal/lsp"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
-	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
 )
 
 // Focus is the part of the screen that takes the keys.
@@ -169,7 +168,7 @@ func newCore(sh *Shared, p Port, dir, file string, setLang bool) (*Core, error) 
 	cfg, err := config.Load(abs, sh.Build.Config)
 	if setLang {
 		// also with a mistake: the settings that did read give the language of the report
-		p.SetLanguage(uicfg.Of(cfg).UILanguage)
+		p.ConfigRead(cfg)
 	}
 	if err != nil {
 		return nil, err
@@ -189,9 +188,9 @@ func newCore(sh *Shared, p Port, dir, file string, setLang bool) (*Core, error) 
 		port:     portOrNop(p),
 	}
 	a.Pal.tr = a.text
-	a.Explorer.Icons = uicfg.Of(cfg).FileIcons
-	if uicfg.Of(cfg).Theme != "" {
-		a.port.SetPalette(ThemeOrDefault(uicfg.Of(cfg).Theme))
+	a.Explorer.Icons = cfg.Editor.FileIcons
+	if cfg.Editor.Theme != "" {
+		a.port.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
 	}
 	a.FindInput = NewInputField(0)
 	a.FindInput.Placeholder = msg.T("app.find")
@@ -218,7 +217,7 @@ func NewSingle(p Port, file string, b Build) (*Core, error) {
 	abs, _ := filepath.Abs(file)
 	dir := filepath.Dir(abs)
 	cfg, err := config.Load(dir, b.Config)
-	p.SetLanguage(uicfg.Of(cfg).UILanguage)
+	p.ConfigRead(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -239,8 +238,8 @@ func NewSingle(p Port, file string, b Build) (*Core, error) {
 		port:      portOrNop(p),
 	}
 	a.Pal.tr = a.text
-	if uicfg.Of(cfg).Theme != "" {
-		a.port.SetPalette(ThemeOrDefault(uicfg.Of(cfg).Theme))
+	if cfg.Editor.Theme != "" {
+		a.port.SetPalette(ThemeOrDefault(cfg.Editor.Theme))
 	}
 	a.FindInput = NewInputField(0)
 	a.FindInput.Placeholder = msg.T("app.find")
@@ -1660,7 +1659,7 @@ func (a *Core) EditorOpts(t *Tab, focused bool) EditorOpts {
 		CursorColor:  CurTheme.Cursor,
 		cursorAt:     t.Buf.Cur,
 		Relative:     a.relativeLineNumbers(),
-		IndentGuides: uicfg.Of(a.Cfg).IndentGuides,
+		IndentGuides: a.Cfg.Editor.IndentGuides,
 		title:        a.TitleOf(t),
 		diags:        a.Lsp.diagnostics(t.Buf.Path),
 	}

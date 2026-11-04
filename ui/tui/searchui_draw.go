@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // styledRunes renders rs[from:] in exactly w cells. colors gives per-rune

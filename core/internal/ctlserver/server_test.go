@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
+	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
 func TestServerRoundTrip(t *testing.T) {
@@ -22,7 +23,7 @@ func TestServerRoundTrip(t *testing.T) {
 			return ctl.Response{OK: true}
 		}
 		return ctl.Response{Error: "bad " + r.Cmd}
-	})
+	}, func(m msg.Msg) string { return m.String() })
 	if err != nil {
 		t.Fatal(err)
 	}

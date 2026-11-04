@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // tmuxBackend is the muxBackend for tmux. Every operation is a call of the

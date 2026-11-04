@@ -14,8 +14,8 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/acptest"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
+	"github.com/mm1995tk/shijimi-editor/ui/cli"
 	"github.com/mm1995tk/shijimi-editor/ui/gui/rpc"
 	"github.com/mm1995tk/shijimi-editor/ui/gui/server"
 )
@@ -233,7 +233,7 @@ func TestServeTypingSendsChangedLine(t *testing.T) {
 		}
 	}
 	var st screen.Status
-	if err := json.Unmarshal(u["status"], &st); err != nil || i18n.Text(st.Position) != "2:3" {
+	if err := json.Unmarshal(u["status"], &st); err != nil || cli.Text(st.Position) != "2:3" {
 		t.Errorf("status: %s", u["status"])
 	}
 	var files filesUpdate
@@ -312,7 +312,7 @@ func TestServeInputKeyAndFileOpen(t *testing.T) {
 	}
 	// Escape (the cursor stays after the Z), then a key named as the GUI names it moves it up.
 	key(4, "Escape", "")
-	if _, st := key(5, "ArrowUp", ""); st == nil || i18n.Text(st.Position) != "1:2" {
+	if _, st := key(5, "ArrowUp", ""); st == nil || cli.Text(st.Position) != "1:2" {
 		t.Errorf("status after ArrowUp: %+v", st)
 	}
 }

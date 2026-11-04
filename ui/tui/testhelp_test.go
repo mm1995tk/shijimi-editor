@@ -1,7 +1,7 @@
 package tui
 
 import (
-	uicfg "github.com/mm1995tk/shijimi-editor/core/uicfg"
+	uicfg "github.com/mm1995tk/shijimi-editor/ui/internal/config"
 	tuicfg "github.com/mm1995tk/shijimi-editor/ui/tui/config"
 	"image"
 	"image/png"
@@ -17,7 +17,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/acptest"
 	"github.com/mm1995tk/shijimi-editor/core/config"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
 
 // TestMain hands the process to the scripted agent first: fakeAgent runs this

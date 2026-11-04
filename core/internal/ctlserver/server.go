@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
-	"github.com/mm1995tk/shijimi-editor/core/i18n"
+	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
 // Server accepts connections on a Unix socket.
@@ -25,7 +25,9 @@ type Server struct {
 // Listen creates the socket (mode 0600) and serves h until Close. Inside a
 // herdr pane it also links the socket under a name built from the herdr
 // environment (see herdrLink), so that shj finds it without SHIJIMI_SOCKET.
-func Listen(path string, h ctl.Handler) (*Server, error) {
+// text turns the message of a request the server cannot read into the UI's
+// language: the server translates nothing itself.
+func Listen(path string, h ctl.Handler, text func(msg.Msg) string) (*Server, error) {
 	_ = os.Remove(path)
 	ln, err := net.Listen("unix", path)
 	if err != nil {
@@ -45,7 +47,7 @@ func Listen(path string, h ctl.Handler) (*Server, error) {
 			}
 		}
 	}
-	go s.serve(h)
+	go s.serve(h, text)
 	return s, nil
 }
 
@@ -78,7 +80,7 @@ func herdrLink(dir string) string {
 	return filepath.Join(ctl.HerdrDir(dir, ws), name+".sock")
 }
 
-func (s *Server) serve(h ctl.Handler) {
+func (s *Server) serve(h ctl.Handler, text func(msg.Msg) string) {
 	for {
 		c, err := s.ln.Accept()
 		if err != nil {
@@ -94,7 +96,7 @@ func (s *Server) serve(h ctl.Handler) {
 				err = json.Unmarshal(line, &req)
 			}
 			if err != nil {
-				resp = ctl.Response{Error: i18n.T("ctl.badrequest") + err.Error()}
+				resp = ctl.Response{Error: text(msg.T("ctl.badrequest").Add(err.Error()))}
 			} else {
 				resp = h(req)
 			}

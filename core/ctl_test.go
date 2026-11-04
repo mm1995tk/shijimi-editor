@@ -41,7 +41,7 @@ func TestCtlExec(t *testing.T) {
 		t.Errorf("keymap: %+v helix=%v", r, a.Helix)
 	}
 	r := ctlCall(a, ctl.Request{Cmd: "exec", Line: "nosuch"})
-	if r.OK || r.Error != "不明なコマンド: nosuch" {
+	if r.OK || r.Error != "cmd.unknowncmd(nosuch)" {
 		t.Errorf("unknown: %+v", r)
 	}
 	for _, line := range []string{":q", ":q!", ":wq", ":bc!", "qa"} {
