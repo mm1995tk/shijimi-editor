@@ -1,5 +1,5 @@
 // 接続の状態を言葉にする。左の一覧の見出しの下の 1 行（statusLine）と、
-// ホストを開く窓の行（stateLabel）と、引き継いだ GUI の説明（describeClient）。
+// マシンを足す窓に出す状態（stateLabel）と、引き継いだ GUI の説明（describeClient）。
 // 画面の仕組み（Solid）には依存しない。
 
 import type { SessionState } from "../ssh/session.ts";
@@ -75,7 +75,7 @@ export function statusLine(
   }
 }
 
-/** ホストを開く窓の行の右に出す短い状態。まだつないでいなければ ""。 */
+/** マシンを足す窓で、つないでいる最中に出す短い状態。まだつないでいなければ ""。 */
 export function stateLabel(s: SessionState | undefined): string {
   switch (s?.kind) {
     case undefined:

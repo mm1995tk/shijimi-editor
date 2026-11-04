@@ -7,6 +7,7 @@
 
 import type { Workspace, WorkspaceId } from "../rpc/protocol.ts";
 import { LOCAL } from "../ssh/api.ts";
+import { LOCAL_LABEL } from "../ssh/machines.ts";
 import type { SessionState } from "../ssh/session.ts";
 import { MACHINE_COLORS } from "./colors.ts";
 
@@ -36,17 +37,19 @@ export interface Band {
 /** マシン 1 台分（見出しと、その下の帯）に出すもの。 */
 export interface MachineGroup {
   target: string;
-  /** 見出しの文字（このマシン / ssh のホスト名） */
+  /** 見出しの文字（このマシン / 付けた名前 / ssh の行き先） */
   label: string;
+  /** 名前を変えたり外したりできるか（「このマシン」はできない） */
+  removable: boolean;
   /** マシンの色（D4）。見出しと帯の左端の線などに使う */
   color: string;
   health: Health;
   bands: Band[];
 }
 
-/** つなぎ先の表示名。 */
+/** つなぎ先の表示名（名前を付けていないとき）。 */
 export const machineLabel = (t: string): string =>
-  t === LOCAL ? "このマシン" : t;
+  t === LOCAL ? LOCAL_LABEL : t;
 
 /** 見出しの丸の色分け。 */
 export function health(s: SessionState | undefined): Health {
@@ -88,6 +91,7 @@ export function band(w: Workspace, focused: boolean): Band {
  * 一覧を組み立てる。targets はつないだ（つなごうとしている）つなぎ先で、この順に並べる。
  * 帯は shj の workspace.list と同じくルートのパスの順（増えても並びが飛ばないように）。
  * colors はつなぎ先 → 色（colors.ts の machineColors）。無いつなぎ先は候補の最初の色にする。
+ * labelOf は見出しの文字（省くと machineLabel）。
  */
 export function buildSidebar(
   targets: string[],
@@ -95,6 +99,7 @@ export function buildSidebar(
   workspaces: Record<string, Workspace[] | undefined>,
   focus: WorkspaceFocus | null,
   colors: Record<string, string> = {},
+  labelOf: (target: string) => string = machineLabel,
 ): MachineGroup[] {
   return targets.map((target) => {
     const ws = [...(workspaces[target] ?? [])].sort((a, b) =>
@@ -102,7 +107,8 @@ export function buildSidebar(
     );
     return {
       target,
-      label: machineLabel(target),
+      label: labelOf(target),
+      removable: target !== LOCAL,
       color: colors[target] ?? MACHINE_COLORS[0],
       health: health(states[target]),
       bands: ws.map((w) =>

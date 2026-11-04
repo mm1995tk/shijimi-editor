@@ -227,3 +227,18 @@ describe("splitAtFocus", () => {
     assert.deepEqual(s.after.groups, []);
   });
 });
+
+describe("buildSidebar の見出し", () => {
+  it("labelOf で名前を差し替え、「このマシン」だけ外せない", () => {
+    const groups = buildSidebar([LOCAL, "dev"], {}, {}, null, {}, (t) =>
+      t === "dev" ? "開発" : "このマシン",
+    );
+    assert.deepEqual(
+      groups.map((g) => [g.label, g.removable]),
+      [
+        ["このマシン", false],
+        ["開発", true],
+      ],
+    );
+  });
+});

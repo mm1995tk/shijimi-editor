@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { KeyValueStore } from "../ssh/last.ts";
+import type { KeyValueStore } from "../ssh/machines.ts";
 import {
   COLORS_KEY,
   loadMachineColors,
