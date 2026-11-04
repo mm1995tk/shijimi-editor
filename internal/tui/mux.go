@@ -10,6 +10,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/term"
+	tuicfg "github.com/mm1995tk/shijimi-editor/internal/ui/tui/config"
 )
 
 // Inside a terminal multiplexer (herdr, tmux, zellij, cmux), the terminal commands (Ctrl+`, :sh,
@@ -100,7 +101,7 @@ func (a *App) resolveMux() {
 	m.resolved, m.cfg = true, a.Settings()
 	old := m.b
 	m.b = nil
-	want := a.Settings().Terminal.Multiplexer
+	want := tuicfg.Of(a.Settings()).Terminal.Multiplexer
 	explicit := want != "auto" && want != "" && want != "none"
 	kind := want
 	if want == "auto" || want == "" {
@@ -133,7 +134,7 @@ func (a *App) resolveMux() {
 // (:config-reload), which closes the pane of one that is no longer used; the
 // layout (pushLayout) asks it after every message.
 func (a *App) muxOn() bool {
-	if a.SingleFile() || a.Settings() == nil || !a.Settings().Experimental.Multiplexer {
+	if a.SingleFile() || !tuicfg.Of(a.Settings()).Experimental.Multiplexer {
 		return false
 	}
 	if !a.mux.resolved || a.mux.cfg != a.Settings() {

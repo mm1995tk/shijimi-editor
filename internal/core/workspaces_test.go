@@ -26,7 +26,7 @@ func TestWorkspacesEditSeparately(t *testing.T) {
 	p1 := writeFile(t, r1, "a.txt", "one\n")
 	p2 := writeFile(t, r2, "a.txt", "two\n")
 
-	ws := NewWorkspaces(NewShared(Build{}))
+	ws := NewWorkspaces(NewShared(testBuild()))
 	defer ws.CloseAll()
 	w1, w2 := openWS(ws, r1), openWS(ws, r2)
 	if w1 == w2 {
@@ -92,7 +92,7 @@ func TestWorkspacesWriteBackups(t *testing.T) {
 	p2 := writeFile(t, r2, "b.txt", "two\n")
 	clean := writeFile(t, r2, "c.txt", "three\n")
 
-	ws := NewWorkspaces(NewShared(Build{}))
+	ws := NewWorkspaces(NewShared(testBuild()))
 	defer ws.CloseAll()
 	openWS(ws, r1).Do(func(c *Core) {
 		c.OpenFile(p1)
@@ -134,7 +134,7 @@ func TestWorkspacesWriteBackups(t *testing.T) {
 // named by its key.
 func TestWorkspacesSameFolder(t *testing.T) {
 	r := t.TempDir()
-	ws := NewWorkspaces(NewShared(Build{}))
+	ws := NewWorkspaces(NewShared(testBuild()))
 	defer ws.CloseAll()
 	a, err := ws.Open("a", r)
 	if err != nil {
@@ -159,7 +159,7 @@ func TestSaveFiles(t *testing.T) {
 	r := t.TempDir()
 	p1 := writeFile(t, r, "a.txt", "one\n")
 	p2 := writeFile(t, r, "b.txt", "two\n")
-	ws := NewWorkspaces(NewShared(Build{}))
+	ws := NewWorkspaces(NewShared(testBuild()))
 	defer ws.CloseAll()
 	openWS(ws, r).Do(func(c *Core) {
 		c.OpenFile(p1)
@@ -193,7 +193,7 @@ func openWS(ws *Workspaces, root string) *Workspace {
 func TestWorkspacesShareBuffer(t *testing.T) {
 	root := t.TempDir()
 	p := writeFile(t, root, "a.txt", "one\ntwo\nthree\n")
-	ws := NewWorkspaces(NewShared(Build{}))
+	ws := NewWorkspaces(NewShared(testBuild()))
 	defer ws.CloseAll()
 	wa, err := ws.Open("a", root)
 	if err != nil {

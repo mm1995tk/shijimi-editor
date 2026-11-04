@@ -8,6 +8,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/buffer"
 	"github.com/mm1995tk/shijimi-editor/internal/core"
 	"github.com/mm1995tk/shijimi-editor/internal/i18n"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 )
 
 // mouse.go is where a pointer on the screen is worked out: which cell it is
@@ -297,7 +298,7 @@ func (a *App) passiveMotion(l layout, msg core.Mouse) []core.Effect {
 	if cmd, ok := a.termMouse(l, msg); ok {
 		return cmd
 	}
-	if th := a.markerAt(l, x, y); th != nil && a.Settings().Editor.MouseHover && a.FocusIs(core.FocusEditor) && !a.HoverBlocked() && a.resizing == core.ResizeNone {
+	if th := a.markerAt(l, x, y); th != nil && uicfg.Of(a.Settings()).MouseHover && a.FocusIs(core.FocusEditor) && !a.HoverBlocked() && a.resizing == core.ResizeNone {
 		// resting on a comment marker shows its thread
 		if !a.CardOnThread(th) {
 			a.ShowCard(th, a.CurText().Buf.Path, x, y, true)
@@ -311,7 +312,7 @@ func (a *App) passiveMotion(l layout, msg core.Mouse) []core.Effect {
 			a.CloseCard()
 		}
 	}
-	if !a.Settings().Editor.MouseHover || a.HoverBlocked() || a.resizing != core.ResizeNone {
+	if !uicfg.Of(a.Settings()).MouseHover || a.HoverBlocked() || a.resizing != core.ResizeNone {
 		return nil
 	}
 	if !a.FocusIs(core.FocusEditor) {

@@ -55,7 +55,7 @@ func headlessCore(t *testing.T, text string) (*Core, string) {
 	t.Helper()
 	dir := t.TempDir()
 	p := writeFile(t, dir, "a.txt", text)
-	sh := NewShared(Build{})
+	sh := NewShared(testBuild())
 	c, _ := newHeadlessCore(sh, nil, dir)
 	t.Cleanup(func() { c.Close(); sh.Close() })
 	if !c.OpenFile(p) {
@@ -160,7 +160,7 @@ func TestOpenAt(t *testing.T) {
 // fires, and the change is reported. Once the workspace is closed, nothing
 // runs, and the goroutines that waited on the core's channels are gone.
 func TestWorkspaceRunsEffects(t *testing.T) {
-	sh := NewShared(Build{})
+	sh := NewShared(testBuild())
 	defer sh.Close()
 	ws := NewWorkspaces(sh)
 	defer ws.CloseAll()

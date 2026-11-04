@@ -21,6 +21,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/internal/ide"
 	"github.com/mm1995tk/shijimi-editor/internal/kitty"
 	"github.com/mm1995tk/shijimi-editor/internal/tui"
+	uicfg "github.com/mm1995tk/shijimi-editor/internal/ui/config"
 )
 
 // Main runs shijimi with the command-line arguments in os.Args.
@@ -125,7 +126,7 @@ func Main() {
 // without settings.
 func setLangFromConfig(dir string) {
 	cfg, _ := config.Load(dir, configOptions())
-	i18n.SetLang(cfg.Editor.UILanguage)
+	i18n.SetLang(uicfg.Of(cfg).UILanguage)
 }
 
 // failConfig reports why the editor could not start and exits. A mistake in a

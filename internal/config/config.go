@@ -20,8 +20,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-
-	"github.com/mm1995tk/shijimi-editor/internal/i18n"
 )
 
 // Server describes how to start a language server.
@@ -56,14 +54,7 @@ type Formatter struct {
 
 // Editor holds editor settings (subset of Helix's config.toml [editor]).
 type Editor struct {
-	Keymap     string // "helix" (default) or "vscode"
-	LineNumber string // "absolute" or "relative"
-	FileIcons  bool   // Nerd Font icons in the file tree (default true)
-	Theme      string // theme name; "" = default (github-dark)
-
-	// UILanguage is the language of the UI text: "en" (default) or "ja".
-	// It is set by ui-language in config.toml.
-	UILanguage string
+	Keymap string // "helix" (default) or "vscode"
 
 	// AutoSave mirrors Helix's [editor.auto-save.after-delay]; unlike Helix
 	// it is enabled by default with a 1 second timeout.
@@ -78,14 +69,6 @@ type Editor struct {
 	// WatchFiles reloads open files that another process (an AI agent, git)
 	// changed on disk. Default true.
 	WatchFiles bool
-
-	// MouseHover shows the LSP hover when the pointer rests on a word in the
-	// editor. Default true.
-	MouseHover bool
-
-	// IndentGuides draws a faint vertical line at each indent level in the
-	// editor ([editor.indent-guides] render). Default true.
-	IndentGuides bool
 
 	// MermaidCommand renders a mermaid diagram to a PNG for the Markdown
 	// preview. {in} and {out} are replaced by file paths; run through `sh -c`.
@@ -126,57 +109,19 @@ type Keys struct {
 	Select map[string]string
 }
 
-// Experimental is the [experimental] section of config.toml: switches for
-// features that are being tried out before they reach the stable channel.
-// Each key defaults to Default.
-type Experimental struct {
-	// Default is the value of every key the configuration files do not set:
-	// true on the nightly channel, false on the stable channel. A nightly user
-	// sees the features without turning them on; a stable user does not see
-	// them without asking.
-	Default bool
-	// Multiplexer makes the terminal commands (Ctrl+`, :sh, ...) use a pane of
-	// the terminal multiplexer the editor runs in instead of the built-in
-	// terminal panel; Terminal.Multiplexer chooses which one. The old key
-	// "herdr" is read as the same switch.
-	Multiplexer bool
-}
-
-// Terminal is the [terminal] section of config.toml.
-type Terminal struct {
-	// Multiplexer is the multiplexer whose panes replace the built-in terminal
-	// while Experimental.Multiplexer is on: "auto" (the innermost one the
-	// editor runs in), "herdr", "tmux", "zellij", "cmux", or "none" (always
-	// the built-in terminal).
-	Multiplexer string
-}
-
-// Serve is the [server] section of config.toml, read by `shj serve`.
-type Serve struct {
-	// IdleStopDays is how many days `shj serve` waits with no GUI connected
-	// before it stops. 0 means it never stops.
-	IdleStopDays int
-	// StartDir is the folder a new workspace's shell starts in, as an absolute
-	// path (a leading ~ is expanded). "" means the home directory.
-	StartDir string
-}
-
-// Multiplexers are the values of [terminal] multiplexer.
-var Multiplexers = []string{"auto", "herdr", "tmux", "zellij", "cmux", "none"}
-
 // Config is the merged configuration.
 type Config struct {
-	Editor       Editor
-	Keys         Keys
-	Search       Search
-	Browser      Browser
-	Agent        Agent
-	Terminal     Terminal
-	Serve        Serve
-	Experimental Experimental
-	Languages    map[string]*Language
-	Servers      map[string]*Server
-	Sources      []string // files that were loaded, for display
+	Editor    Editor
+	Keys      Keys
+	Search    Search
+	Browser   Browser
+	Agent     Agent
+	Languages map[string]*Language
+	Servers   map[string]*Server
+	Sources   []string // files that were loaded, for display
+
+	// values are what the sections of Options.Sections read, by name.
+	values map[string]Value
 }
 
 // nixEvalTimeout bounds one `nix eval`.
@@ -196,14 +141,13 @@ const nixEvalTimeout = 15 * time.Second
 // caller must not run with it.
 func Load(root string, o Options) (*Config, error) {
 	c := &Config{
-		Browser:      Browser{ListenHost: "127.0.0.1"},
-		Experimental: Experimental{Default: o.Experimental, Multiplexer: o.Experimental},
-		Terminal:     Terminal{Multiplexer: "auto"},
-		Serve:        Serve{IdleStopDays: 7},
-		Editor:       Editor{UILanguage: i18n.Default, Keymap: "helix", LineNumber: "absolute", FileIcons: true, AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MouseHover: true, IndentGuides: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
-		Languages:    map[string]*Language{},
-		Servers:      map[string]*Server{},
+		Browser:   Browser{ListenHost: "127.0.0.1"},
+		Editor:    Editor{Keymap: "helix", AutoSave: true, AutoSaveDelay: time.Second, WatchFiles: true, MermaidCommand: "mmdc -q -i {in} -o {out} -b transparent -s 2"},
+		Languages: map[string]*Language{},
+		Servers:   map[string]*Server{},
 	}
+	schema, values := withSections(o.Sections)
+	c.values = values
 	var probs []Problem
 	if err := c.mergeLanguages(defaultLanguages, ""); err != nil {
 		// the built-in table is part of the program; a mistake in it is a bug
@@ -222,8 +166,8 @@ func Load(root string, o Options) (*Config, error) {
 		read   func(path string, schema map[string]field, user bool) (map[string]any, []Problem, bool)
 		config bool // config.*, otherwise languages.*
 	}{
-		{"config.toml", configSchema, readTOML, true},
-		{"config.nix", configSchema, readNix, true},
+		{"config.toml", schema, readTOML, true},
+		{"config.nix", schema, readNix, true},
 		{"languages.toml", languagesSchema, readTOML, false},
 		{"languages.nix", languagesSchema, readNix, false},
 	}
@@ -295,11 +239,11 @@ func lineOf(file string, path []string) int {
 func (c *Config) mergeConfigRaw(raw map[string]any, user bool) {
 	c.mergeEditorRaw(raw)
 	c.mergeBrowserRaw(raw)
-	c.mergeExperimentalRaw(raw)
-	c.mergeTerminalRaw(raw)
+	for _, v := range c.values {
+		v.Merge(raw, user)
+	}
 	if user {
 		c.mergeAgentRaw(raw)
-		c.mergeServeRaw(raw)
 		c.mergeKeysRaw(raw)
 	}
 }
@@ -463,49 +407,6 @@ func (c *Config) mergeBrowserRaw(raw map[string]any) {
 	}
 }
 
-func (c *Config) mergeExperimentalRaw(raw map[string]any) {
-	if ex, ok := raw["experimental"].(map[string]any); ok {
-		// "herdr" is the old name of "multiplexer"; the new one wins when both are set.
-		if v, ok := ex["herdr"].(bool); ok {
-			c.Experimental.Multiplexer = v
-		}
-		if v, ok := ex["multiplexer"].(bool); ok {
-			c.Experimental.Multiplexer = v
-		}
-	}
-}
-
-func (c *Config) mergeTerminalRaw(raw map[string]any) {
-	if t, ok := raw["terminal"].(map[string]any); ok {
-		if v, ok := t["multiplexer"].(string); ok {
-			v = strings.ToLower(strings.TrimSpace(v))
-			if slices.Contains(Multiplexers, v) {
-				c.Terminal.Multiplexer = v
-			}
-		}
-	}
-}
-
-func (c *Config) mergeServeRaw(raw map[string]any) {
-	if t, ok := raw["server"].(map[string]any); ok {
-		if v, ok := t["start_dir"].(string); ok {
-			if dir, ok := ExpandStartDir(v); ok {
-				c.Serve.StartDir = dir
-			}
-		}
-		switch v := t["idle_stop_days"].(type) {
-		case int64:
-			if v >= 0 {
-				c.Serve.IdleStopDays = int(v)
-			}
-		case float64:
-			if v >= 0 && v == float64(int(v)) {
-				c.Serve.IdleStopDays = int(v)
-			}
-		}
-	}
-}
-
 func (c *Config) mergeKeysRaw(raw map[string]any) {
 	keys, ok := raw["keys"].(map[string]any)
 	if !ok {
@@ -570,25 +471,11 @@ func (c *Config) mergeEditorRaw(raw map[string]any) {
 		}
 	}
 	ed, _ := raw["editor"].(map[string]any)
-	if v, ok := ed["line-number"].(string); ok {
-		c.Editor.LineNumber = v
-	}
-	if v, ok := ed["file-icons"].(bool); ok {
-		c.Editor.FileIcons = v
-	}
 	if v, ok := ed["mermaid-command"].(string); ok {
 		c.Editor.MermaidCommand = v
 	}
 	if v, ok := ed["watch-files"].(bool); ok {
 		c.Editor.WatchFiles = v
-	}
-	if v, ok := ed["mouse-hover"].(bool); ok {
-		c.Editor.MouseHover = v
-	}
-	if ig, ok := ed["indent-guides"].(map[string]any); ok {
-		if v, ok := ig["render"].(bool); ok {
-			c.Editor.IndentGuides = v
-		}
 	}
 	if v, ok := ed["keymap"].(string); ok {
 		c.Editor.Keymap = v
@@ -605,15 +492,6 @@ func (c *Config) mergeEditorRaw(raw map[string]any) {
 				c.Editor.AutoSaveDelay = time.Duration(v) * time.Millisecond
 			}
 		}
-	}
-	if v, ok := raw["theme"].(string); ok {
-		c.Editor.Theme = v
-	}
-	if v, ok := raw["ui-language"].(string); ok && i18n.Valid(v) {
-		c.Editor.UILanguage = v
-	}
-	if v, ok := ed["theme"].(string); ok {
-		c.Editor.Theme = v
 	}
 }
 
@@ -989,21 +867,4 @@ func autoSaveEnable(raw map[string]any) tri {
 		return triTrue
 	}
 	return triFalse
-}
-
-// ExpandStartDir turns a [server] start_dir into an absolute path: ~ and ~/x
-// are the home directory. ok is false when it is neither that nor an absolute
-// path.
-func ExpandStartDir(v string) (dir string, ok bool) {
-	switch {
-	case v == "~" || strings.HasPrefix(v, "~/"):
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", false
-		}
-		return filepath.Join(home, v[1:]), true
-	case filepath.IsAbs(v):
-		return filepath.Clean(v), true
-	}
-	return "", false
 }
