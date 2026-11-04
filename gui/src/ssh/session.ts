@@ -626,7 +626,7 @@ export class Session {
     this.emitWorkspaces();
     // hello にはフォーカスが無いので、workspace.list で尋ねる（画面の取り直しは待たせない）
     void this.fetchFocus(conn, gen);
-    // 購読と大きさは接続ごと（shj は GUI ごとに覚える）なので、つなぐたびに送る。返事は待たない
+    // 購読と大きさは接続ごと（shj は GUI ごとに覚える）なので、つなぐたびに送る。翻訳の表の返事だけ待つ
     // （購読すると shj が全部を screen.update で送ってくる。版が合わなければ screen.get で取り直す）
     await this.subscribe(conn, gen);
 

@@ -384,7 +384,9 @@ func TestI18nGetAndMsgOnTheWire(t *testing.T) {
 			} `json:"msg"`
 		} `json:"status"`
 	}
-	json.Unmarshal(*nt.all("screen.update")[1], &raw)
+	if err := json.Unmarshal(*nt.all("screen.update")[1], &raw); err != nil {
+		t.Fatal(err)
+	}
 	if raw.Status.Msg.Key != "acp.notfound" || len(raw.Status.Msg.Args) != 1 || raw.Status.Msg.Args[0] != "claude" {
 		t.Errorf("status.msg: %+v", raw.Status.Msg)
 	}
@@ -392,7 +394,9 @@ func TestI18nGetAndMsgOnTheWire(t *testing.T) {
 
 	srv.SetLanguage("ja")
 	waitFor(t, "i18n.changed", func() bool { return len(nt.all("i18n.changed")) == 1 })
-	json.Unmarshal(*nt.all("i18n.changed")[0], &tb)
+	if err := json.Unmarshal(*nt.all("i18n.changed")[0], &tb); err != nil {
+		t.Fatal(err)
+	}
 	if tb.Lang != "ja" || tb.Messages["acp.notfound"] == "%s not found" {
 		t.Errorf("i18n.changed: %s %q", tb.Lang, tb.Messages["acp.notfound"])
 	}

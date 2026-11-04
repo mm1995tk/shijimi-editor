@@ -16,6 +16,7 @@ export interface I18nTable {
   messages: Record<string, string>;
 }
 
+/** v が文言か。`args` が配列で、`key` は無いか文字列で、ほかの項目が無いオブジェクト。 */
 export function isWireMsg(v: unknown): v is WireMsg {
   if (typeof v !== "object" || v === null || Array.isArray(v)) return false;
   const o = v as Record<string, unknown>;
