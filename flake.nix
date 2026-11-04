@@ -43,7 +43,7 @@
 
           # One build for both channels. The stable shj and the nightly shj-nightly
           # are the same program; the channel is compiled in and only changes the
-          # names that let the two be installed side by side (see internal/buildinfo).
+          # names that let the two be installed side by side (see core/buildinfo).
           mkApp =
             {
               channel ? "",
@@ -65,9 +65,9 @@
               subPackages = [ "cmd/shj" ];
               CGO_ENABLED = 0;
               ldflags = [
-                "-X github.com/mm1995tk/shijimi-editor/internal/buildinfo.Version=${version}"
-                "-X github.com/mm1995tk/shijimi-editor/internal/buildinfo.Commit=${commit}"
-                "-X github.com/mm1995tk/shijimi-editor/internal/buildinfo.Channel=${channel}"
+                "-X github.com/mm1995tk/shijimi-editor/core/buildinfo.Version=${version}"
+                "-X github.com/mm1995tk/shijimi-editor/core/buildinfo.Commit=${commit}"
+                "-X github.com/mm1995tk/shijimi-editor/core/buildinfo.Channel=${channel}"
               ];
               # The same binary also answers to "shijimi" (or "shijimi-nightly").
               postInstall = ''
@@ -161,7 +161,7 @@
             });
           }
           # Go の全パッケージのテスト。packages の shj は subPackages が cmd/shj だけなので、
-          # そのままでは internal/ のテストが回らない。入れるときのビルドは重くしたくないので、ここだけで回す。
+          # そのままでは core/・ui/ のテストが回らない。入れるときのビルドは重くしたくないので、ここだけで回す。
           # Linux だけ。macOS の Nix のビルド環境には PATH に ps が無く、ソケットのパスが長すぎ、
           # PTY のシェルも動かないので、テストが前提にする環境にならない。macOS では CI（check.yml）が
           # devShell の中で go test ./... を回す

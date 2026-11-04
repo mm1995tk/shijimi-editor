@@ -1,6 +1,6 @@
 // ファイルの欄のポップアップ（E4）の置き場所と大きさを決める。描くのは OverlayView.tsx。
 // shj が送る Screen.overlay（Go の screen.Overlay）を、欄の本文のマス目（桁と行）の上の箱にする。
-// 置き方は TUI（internal/tui の app_draw.go の popupPos、signature_draw.go の signaturePos、
+// 置き方は TUI（ui/tui の app_draw.go の popupPos、signature_draw.go の signaturePos、
 // spacemenu_draw.go の renderMenu、prreview_draw.go の cardBox・composerBox、palette の中央寄せ）に合わせる。
 //
 // - 位置（at）は「ペインの中の行と桁（rune）」で来る。行はペインの見えている行から探し、桁は

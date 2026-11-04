@@ -1,8 +1,8 @@
 // Command shj runs shijimi, a VS Code–style IDE for the terminal.
 package main
 
-import "github.com/mm1995tk/shijimi-editor/internal/cli"
+import "github.com/mm1995tk/shijimi-editor/cmd"
 
 func main() {
-	cli.Main()
+	cmd.Main()
 }

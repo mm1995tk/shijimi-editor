@@ -1,6 +1,6 @@
 // 差分のペインの右端の「変更のバー」（E6）。ファイル全体の表示行をペインの高さに縮め、変更のあるところに
 // 印を付け、今見えている範囲を薄い背景で示す。shj の core.BarRange・core.BarKinds と、TUI の
-// internal/tui/gitdiff_draw.go の changeBar と同じ決め方。shj は GUI がバーを自分で描くとして、
+// ui/tui/gitdiff_draw.go の changeBar と同じ決め方。shj は GUI がバーを自分で描くとして、
 // バーの桁を空けない（core.screenDiffGeom）。
 
 import type { DiffInfo, Hunk } from "../rpc/protocol.ts";

@@ -4,7 +4,7 @@ Instructions for coding agents working in this repository. Humans: see [CONTRIBU
 
 ## Project
 
-- shijimi-editor is a terminal IDE written in Go. The binary is `shj` (`cmd/shj`). The code is under `internal/`.
+- shijimi-editor is a terminal IDE written in Go. The binary is `shj` (`cmd/shj`). The code is in three places that depend in one direction, `cmd` -> `ui/*` -> `core`: `core/` is the editor itself (no UI), `ui/` holds the UIs (`ui/tui`, `ui/gui`, `ui/cli`), and `cmd/` is the dispatcher of the binaries. A package under `internal/` is for its owner's tree only.
 - Call it **shijimi-editor** in user-facing text (README, manual, home page, release notes). Do not shorten it to "shijimi".
 
 ## Before you finish a change
@@ -24,7 +24,7 @@ Run every command from the root of the repository. `go.mod`, `package.json` (the
 - **Dependencies**: after changing `go.mod`, run `gomod2nix` and commit the updated `gomod2nix.toml`.
   After changing `package-lock.json`, update `npmDepsHash` in `packaging/nix/gui.nix` (set it to `lib.fakeHash`, run `nix build .#gui`, and copy the hash it prints).
   After adding or changing a `uses:` in `.github/workflows/`, run `gh actions-lock` (install it with `gh extension install github/gh-actions-lock`) and commit the updated `.github/workflows/actions.lock`.
-- **UI strings**: code contains no UI text. Add a key to both `internal/i18n/en.go` and `internal/i18n/ja.go` and use `i18n.T("key")`. A test fails when the two tables differ.
+- **UI strings**: code contains no UI text. Add a key to both `core/i18n/en.go` and `core/i18n/ja.go` and use `i18n.T("key")`. A test fails when the two tables differ.
 - **Manual**: each page in `website/manual/docs/` exists as `name.en.md` and `name.ja.md`. When you change one, change the other in the same change. `website/manual/check-translations.sh origin/main` checks it, and CI runs it on pull requests.
 
 ## Conventions
