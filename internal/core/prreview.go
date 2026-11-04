@@ -853,7 +853,7 @@ func (a *Core) applySuggestion(c *PrCard) []Effect {
 // rendered preview under it.
 type composer struct {
 	Title    string
-	Ta       TextArea
+	Ta       *TextArea
 	orig     []string // lines a suggestion starts from (Ctrl+S); nil = none
 	empty    bool     // an empty text may be sent
 	onSubmit func(string) []Effect
@@ -862,7 +862,7 @@ type composer struct {
 // Compose opens the comment editor. orig is what Ctrl+S puts in a
 // suggestion block.
 func (a *Core) Compose(title, initial string, orig []string, onSubmit func(string) []Effect) []Effect {
-	ta := a.NewTextArea(initial)
+	ta := NewTextArea(initial)
 	a.Comp, a.HoverText = nil, ""
 	a.Composer = &composer{Title: title, Ta: ta, orig: orig, onSubmit: onSubmit}
 	return nil

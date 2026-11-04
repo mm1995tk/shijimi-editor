@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"charm.land/bubbles/v2/textarea"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/internal/core"
@@ -72,7 +71,7 @@ func composerWidth(l layout) (w, iw int) {
 // width, the text area as the widget draws it and the rest as an Overlay.
 func (a *App) composerParts(l layout) (w int, input []string, ov screen.Overlay) {
 	w, iw := composerWidth(l)
-	input = strings.Split(a.OpenComposer().Ta.View(), "\n")
+	input = composerRows(a.OpenComposer().Ta)
 	prevH := max(0, l.editH-(len(input)+2)-1)
 	return w, input, a.ComposerOverlay(iw, min(prevH, 12))
 }
@@ -193,53 +192,17 @@ func (a *App) drawComposer(ov screen.Overlay, input []string) []string {
 	return append(rows, bd.Render("╰"+strings.Repeat("─", w-2)+"╯"))
 }
 
-// textArea is the review comment editor's input: a bubbles textarea in the
-// colours of the palette.
-type textArea struct{ ta textarea.Model }
-
-// NewTextArea is a focused text area holding initial (core.FrontEnd).
-func (a *App) NewTextArea(initial string) core.TextArea {
-	ta := textarea.New()
-	ta.ShowLineNumbers = false
-	ta.Prompt = ""
-	ta.CharLimit = 0
-	ta.SetHeight(6)
-	styleComposer(&ta)
-	ta.Placeholder = i18n.T("rv.markdownok")
-	ta.SetValue(initial)
-	// Focus hands back the cursor's blink command; its BlinkMsg is never routed to
-	// the textarea (see update), so it is dropped.
-	ta.Focus()
-	return &textArea{ta: ta}
-}
-
-// styleComposer gives the comment editor the colours of the palette.
-func styleComposer(ta *textarea.Model) {
-	st := ta.Styles()
+// composerRows is the text of the comment editor's input as the box shows it:
+// the rows the core's text area gives, in the colours of the palette, with the
+// placeholder in the first row while there is no text.
+func composerRows(ta *core.TextArea) []string {
 	base := bgfg(cPaletteBg, cEditorFg)
-	st.Focused = textarea.StyleState{Base: base, Text: base, CursorLine: base, Placeholder: bgfg(cPaletteBg, core.CurTheme.Dim), EndOfBuffer: base, Prompt: base}
-	st.Blurred = st.Focused
-	ta.SetStyles(st)
-}
-
-func (t *textArea) Value() string         { return t.ta.Value() }
-func (t *textArea) SetValue(s string)     { t.ta.SetValue(s) }
-func (t *textArea) InsertString(s string) { t.ta.InsertString(s) }
-func (t *textArea) Line() int             { return t.ta.Line() }
-func (t *textArea) Column() int           { return t.ta.Column() }
-func (t *textArea) SetWidth(w int)        { t.ta.SetWidth(w) }
-func (t *textArea) View() string          { return t.ta.View() }
-
-// Update passes a key or a paste to the textarea; the blink command it
-// returns is not used.
-func (t *textArea) Update(in core.Input) { t.ta, _ = t.ta.Update(widgetMsg(in)) }
-
-func (t *textArea) CursorCell() (x, y int, ok bool) {
-	ta := t.ta // a copy: the real one keeps its virtual cursor
-	ta.SetVirtualCursor(false)
-	c := ta.Cursor()
-	if c == nil {
-		return 0, 0, false
+	rows := ta.Rows()
+	for i := range rows {
+		rows[i] = base.Render(rows[i])
 	}
-	return c.Position.X, c.Position.Y, true
+	if ta.Value() == "" {
+		rows[0] = bgfg(cPaletteBg, core.CurTheme.Dim).Render(i18n.T("rv.markdownok"))
+	}
+	return rows
 }

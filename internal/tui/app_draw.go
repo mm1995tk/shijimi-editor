@@ -282,12 +282,6 @@ func (a *App) hoverOverlay(l layout) screen.Overlay {
 // hoverBox is the hover popup as a box of cells.
 func (a *App) hoverBox(l layout) []string { return drawHover(a.hoverOverlay(l)) }
 
-// ScrollHover scrolls the hover popup by d rows.
-func (a *App) ScrollHover(d int) {
-	v := a.hoverView(a.layout())
-	a.SetHoverTop(core.Clamp(a.HoverTop()+d, 0, v.MaxScroll()))
-}
-
 // fit brings the state that depends on the window size and on what is open
 // up to date for the frame about to be drawn: the scroll that follows the
 // cursor, the palette's filtered list, the widths of the inputs, the diff
@@ -306,6 +300,9 @@ func (a *App) fit() {
 		return
 	}
 	l := a.layout()
+	if a.Hovering() {
+		a.SetHoverTop(core.Clamp(a.HoverTop(), 0, a.hoverView(l).MaxScroll())) // ScrollHover does not know the popup's size
+	}
 	// The panes: a tab's diff view and Markdown preview are made here, and
 	// the scroll of a pane that is not being edited follows its cursor in the
 	// width it has now.

@@ -1,5 +1,7 @@
 package core
 
+import "github.com/mm1995tk/shijimi-editor/internal/buffer"
+
 // ptrq.go is what the pointer does to the state, once mouse.go has found out
 // where it is: the wheel and the clicks in the side bar and in the editor, the
 // hover popup and the review card it opens. mouse.go keeps the cells (the
@@ -81,6 +83,7 @@ func (a *Core) PointerMoved() {
 	a.HoverSeq++
 	a.HoverWord = WordSpan{}
 	a.HoverCell = ScreenPt{-1, -1}
+	a.hoverPosOK = false
 	a.CloseHover()
 }
 
@@ -112,14 +115,13 @@ func (a *Core) RestedOn(pt ScreenPt) bool {
 	return false
 }
 
-// HoverCellPos is the cell the pointer last rested on.
-func (a *Core) HoverCellPos() ScreenPt { return a.HoverCell }
-
-// PointerRests is the pointer resting on a cell of the editor whose word is
+// PointerRests is the pointer resting on a cell of the editor, over the
+// character at pos (ok: there is one), whose word is
 // word (ok: there is one). inBox says it is on the open hover popup. It
 // starts the dwell timer for the word, or leaves a popup that the pointer is
 // reading or whose word it is still on.
-func (a *Core) PointerRests(word WordSpan, ok, inBox bool) []Effect {
+func (a *Core) PointerRests(pos buffer.Pos, word WordSpan, ok, inBox bool) []Effect {
+	a.hoverPos, a.hoverPosOK = pos, ok
 	if a.HoverText != "" && inBox {
 		return nil // reading it (the wheel scrolls it); whatever hides below is not asked about
 	}
@@ -156,4 +158,21 @@ func (a *Core) SearchClick(x, y int) {
 	if x < r[0] || x >= r[0]+r[2] || y < r[1] || y >= r[1]+r[3] {
 		s.close()
 	}
+}
+
+// ScrollHover scrolls the hover popup by d rows. How far it can go depends on
+// the popup's size on the UI's screen, so the UI keeps the scroll inside the
+// rows (SetHoverTop) when it fits the popup.
+func (a *Core) ScrollHover(d int) { a.HoverScroll = max(0, a.HoverScroll+d) }
+
+// HoverCellWord is the character under the cell the pointer last rested on
+// and the word it belongs to. ok is false when the pointer is not on text.
+func (a *Core) HoverCellWord() (buffer.Pos, WordSpan, bool) {
+	t := a.CurText()
+	pos := a.hoverPos
+	if t == nil || !a.hoverPosOK || pos.Row < 0 || pos.Row >= len(t.Buf.Lines) || pos.Col < 0 || pos.Col >= len(t.Buf.Lines[pos.Row]) {
+		return buffer.Pos{}, WordSpan{}, false
+	}
+	s, e := buffer.WordRange(t.Buf.Lines[pos.Row], pos.Col)
+	return pos, NewWordSpan(pos.Row, s, e), true
 }

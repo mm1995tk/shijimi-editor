@@ -368,6 +368,7 @@ func (a *Core) AgentMouse(msg Mouse) ([]Effect, bool) {
 		a.HoverSeq++
 		a.HoverWord = WordSpan{}
 		a.HoverCell = ScreenPt{-1, -1}
+		a.hoverPosOK = false
 		return nil, true
 	}
 	if msg.Action != MousePress {
