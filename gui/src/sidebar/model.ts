@@ -7,6 +7,7 @@
 
 import type { Workspace, WorkspaceId } from "../rpc/protocol.ts";
 import { LOCAL } from "../ssh/api.ts";
+import { LOCAL_LABEL } from "../ssh/machines.ts";
 import type { SessionState } from "../ssh/session.ts";
 import { MACHINE_COLORS } from "./colors.ts";
 
@@ -48,7 +49,7 @@ export interface MachineGroup {
 
 /** つなぎ先の表示名（名前を付けていないとき）。 */
 export const machineLabel = (t: string): string =>
-  t === LOCAL ? "このマシン" : t;
+  t === LOCAL ? LOCAL_LABEL : t;
 
 /** 見出しの丸の色分け。 */
 export function health(s: SessionState | undefined): Health {

@@ -57,7 +57,7 @@ import { LOCAL, type AskpassRequest, type ShellApi } from "./ssh/api.ts";
 import {
   addMachine,
   browserStore,
-  labelOf as machineName,
+  labelOf as machineLabelOf,
   loadMachines,
   removeMachine,
   renameMachine,
@@ -92,7 +92,7 @@ export function App(props: {
   // 足したマシン（サイドバーには、これと「このマシン」だけを出す）
   const [machines, setMachines] = createSignal<Machine[]>(loadMachines(store));
   const targets = createMemo(() => [LOCAL, ...machines().map((m) => m.target)]);
-  const labelOf = (t: string) => machineName(machines(), t);
+  const labelOf = (t: string) => machineLabelOf(machines(), t);
   function updateMachines(next: Machine[]) {
     setMachines(next);
     saveMachines(store, next);
@@ -528,8 +528,8 @@ export function App(props: {
       } else if (st.kind === "failed" || st.kind === "superseded") {
         setAddError(
           st.kind === "failed"
-            ? ` につなげませんでした\n`
-            : ` は別の GUI が使っています`,
+            ? `${labelOf(p.target)} につなげませんでした\n${st.message}`
+            : `${labelOf(p.target)} は別の GUI が使っています`,
         );
         setAddPending(null);
         void disconnect(p.target);

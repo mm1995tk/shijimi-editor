@@ -75,7 +75,7 @@ export function statusLine(
   }
 }
 
-/** マシンを足す窓の候補の行の右に出す短い状態。まだつないでいなければ ""。 */
+/** マシンを足す窓で、つないでいる最中に出す短い状態。まだつないでいなければ ""。 */
 export function stateLabel(s: SessionState | undefined): string {
   switch (s?.kind) {
     case undefined:

@@ -13,6 +13,9 @@ export interface KeyValueStore {
   setItem(key: string, value: string): void;
 }
 
+/** 「このマシン」の表示名。 */
+export const LOCAL_LABEL = "このマシン";
+
 /** 足したマシン 1 台。 */
 export interface Machine {
   /** ssh の行き先（~/.ssh/config のホスト名など） */
@@ -41,22 +44,26 @@ function parse(raw: string | null | undefined): Machine[] | undefined {
   if (!raw) return undefined;
   try {
     const v: unknown = JSON.parse(raw);
-    if (!Array.isArray(v)) return undefined;
-    const out: Machine[] = [];
-    for (const x of v) {
-      if (typeof x !== "object" || x === null) continue;
-      const { target, name } = x as { target?: unknown; name?: unknown };
-      if (typeof target !== "string" || targetProblem(target) !== undefined)
-        continue;
-      if (out.some((m) => m.target === target)) continue;
-      out.push(
-        typeof name === "string" && name !== "" ? { target, name } : { target },
-      );
-    }
-    return out;
+    return Array.isArray(v) ? parseList(v) : undefined;
   } catch {
     return undefined;
   }
+}
+
+/** 配列の中から、使える行き先のマシンだけを取り出す（重なりは先のものを残す）。 */
+function parseList(v: unknown[]): Machine[] {
+  const out: Machine[] = [];
+  for (const x of v) {
+    if (typeof x !== "object" || x === null) continue;
+    const { target, name } = x as { target?: unknown; name?: unknown };
+    if (typeof target !== "string" || targetProblem(target) !== undefined)
+      continue;
+    if (out.some((m) => m.target === target)) continue;
+    out.push(
+      typeof name === "string" && name !== "" ? { target, name } : { target },
+    );
+  }
+  return out;
 }
 
 /** 記録を読む。無い・壊れている・読めないときは空（以前の記録があれば、そこから引き継ぐ）。 */
@@ -68,13 +75,11 @@ export function loadMachines(store: KeyValueStore | undefined): Machine[] {
     if (old) {
       const v: unknown = JSON.parse(old);
       if (Array.isArray(v)) {
-        return parse(
-          JSON.stringify(
-            v
-              .filter((t): t is string => typeof t === "string")
-              .map((target) => ({ target })),
-          ),
-        )!;
+        return parseList(
+          v
+            .filter((t): t is string => typeof t === "string")
+            .map((target) => ({ target })),
+        );
       }
     }
   } catch {
@@ -153,13 +158,13 @@ export function removeMachine(list: Machine[], target: string): Machine[] {
 
 /** サイドバーに出す名前。付けた名前、無ければ ssh の行き先。「このマシン」はそのまま。 */
 export function labelOf(list: Machine[], target: string): string {
-  if (target === LOCAL) return "このマシン";
+  if (target === LOCAL) return LOCAL_LABEL;
   return list.find((m) => m.target === target)?.name ?? target;
 }
 
-/** other の名前（付けた名前か行き先）が、target 以外のマシン（と「このマシン」）と重なるか。 */
+/** name の名前（付けた名前か行き先）が、target 以外のマシン（と「このマシン」）と重なるか。 */
 function nameTaken(list: Machine[], name: string, target: string): boolean {
-  if (name === "このマシン") return true;
+  if (name === LOCAL_LABEL) return true;
   return list.some((m) => m.target !== target && (m.name ?? m.target) === name);
 }
 

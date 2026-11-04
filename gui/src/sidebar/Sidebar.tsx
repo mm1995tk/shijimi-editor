@@ -444,6 +444,10 @@ function MachineMenu(props: {
     window.addEventListener("blur", close);
     window.addEventListener("resize", close);
     window.addEventListener("scroll", close, true);
+    // 画面の端ではみ出す分だけ、左・上にずらす
+    const r = el.getBoundingClientRect();
+    el.style.left = `${Math.max(0, Math.min(props.x, window.innerWidth - r.width))}px`;
+    el.style.top = `${Math.max(0, Math.min(props.y, window.innerHeight - r.height))}px`;
     el.querySelector<HTMLElement>("[role=menuitem]")?.focus();
     onCleanup(() => {
       window.removeEventListener("pointerdown", down, true);
