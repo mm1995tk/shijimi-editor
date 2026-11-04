@@ -20,7 +20,7 @@ in
       pkgs.git
       # packaging/npm/pack.sh と GUI の Web 画面（package.json はリポジトリの根）
       pkgs.nodejs_26
-      # GUI の殻（gui/src-tauri。Cargo.toml の workspace はリポジトリの根）
+      # GUI の殻（ui/gui/app/src-tauri。Cargo.toml の workspace はリポジトリの根）
       pkgs.cargo
       pkgs.rustc
     ]

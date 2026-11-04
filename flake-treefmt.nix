@@ -7,17 +7,17 @@ _: {
     enable = true;
     edition = "2021";
   };
-  # gui/ の Web 画面（Solid + TypeScript）と、根に置いたその設定。ほかのディレクトリの Markdown などには触れない
+  # ui/gui/app/ の Web 画面（Solid + TypeScript）と、根に置いたその設定。ほかのディレクトリの Markdown などには触れない
   programs.prettier = {
     enable = true;
     includes = [
       "package.json"
       "tsconfig.json"
       "vite.config.ts"
-      "gui/**/*.ts"
-      "gui/**/*.tsx"
-      "gui/**/*.html"
-      "gui/**/*.json"
+      "ui/gui/app/**/*.ts"
+      "ui/gui/app/**/*.tsx"
+      "ui/gui/app/**/*.html"
+      "ui/gui/app/**/*.json"
     ];
   };
   # gomod2nix writes this file; reformatting it only makes the next gomod2nix run show a diff.
@@ -25,7 +25,7 @@ _: {
   settings.global.excludes = [
     "gomod2nix.toml"
     "package-lock.json"
-    "gui/src-tauri/icons/*"
-    "gui/src-tauri/gen/*"
+    "ui/gui/app/src-tauri/icons/*"
+    "ui/gui/app/src-tauri/gen/*"
   ];
 }

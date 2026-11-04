@@ -62,7 +62,7 @@ jobs:
           # 後のジョブ（npm-pack と gui）は、main のワークフローのまま、このコミットのファイルでビルドする。
           # その置き場所がこのコミットに無ければ、タグを打つ前に止める（v0.8.0 は置き場所を変える前のコミットで、
           # タグを打ったあとに npm-pack と gui が落ちた）。
-          for f in packaging/npm/pack.sh package-lock.json gui/src-tauri/tauri.conf.json; do
+          for f in packaging/npm/pack.sh package-lock.json ui/gui/app/src-tauri/tauri.conf.json; do
             if ! git cat-file -e "$target:$f" 2>/dev/null; then
               echo "::error::$target に $f がありません。このワークフローではリリースできない古いコミットです"
               exit 1
@@ -206,7 +206,7 @@ jobs:
             platform="${platform#shijimi-editor-}"
             tar -xzf "$f" -O package/bin/shj > "assets/shj-$platform"
           done
-          # GUI が shj を取ったあと、値が合うか確かめるための checksums（sha256sum の形式。GUI は gui/src-tauri/src/install.rs で読む）
+          # GUI が shj を取ったあと、値が合うか確かめるための checksums（sha256sum の形式。GUI は ui/gui/app/src-tauri/src/install.rs で読む）
           (cd assets && sha256sum shj-* > SHA256SUMS)
           # 再実行で上げ直せるよう、同じ名前のアセットは置き換える
           gh release upload "v$NEXT" assets/* --clobber --repo "$GITHUB_REPOSITORY"
