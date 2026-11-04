@@ -3,19 +3,12 @@ package core
 import "github.com/mm1995tk/shijimi-editor/internal/buffer"
 
 // FrontEnd is what Core asks of the front end that draws it: which regions
-// are shown, the terminal panel and the multiplexer pane, the borders the user drags, and the few questions that need the
+// are shown, the multiplexer pane, the borders the user drags, and the few questions that need the
 // layout. Core holds the front end it is drawn by (set in New); in the program
 // it is internal/tui.App.
 type FrontEnd interface {
 	ReleasesReported() bool
 	SetReleasesReported(on bool)
-	TermBlur()
-	TermFocus() []Effect
-	TermCloseAll()
-	TermKey(k Key)
-	TermRun(line string) []Effect
-	TermPaste(s string) []Effect
-	TermShell() Shell
 	MuxReset()
 	MuxOn() bool
 	MuxOpen() error
@@ -24,12 +17,9 @@ type FrontEnd interface {
 	MuxSend(text string, enter bool) []Effect
 	MuxClose()
 	MuxResult(err error) []Effect
-	CommandEnded(code int)
 	ScrollHover(d int)
 	HoverCellWord() (buffer.Pos, WordSpan, bool)
 	SetPalette(t *Theme)
-	// HandleTermEvent takes the terminal panel's TermOutputMsg and TermDoneMsg.
-	HandleTermEvent(ev Event) []Effect
 	HandleMouse(msg Mouse) []Effect
 	// NewTextArea is a focused multi-line input holding initial.
 	NewTextArea(initial string) TextArea

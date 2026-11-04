@@ -106,8 +106,9 @@ func (a *Core) HandleContextKey(msg Key) []Effect {
 			return a.MuxSend(text, false)
 		}
 		a.SetTerm(true)
-		cmd := a.SetFocus(FocusTerminal)
-		return Batch(cmd, a.TermPaste(text))
+		a.SetFocus(FocusTerminal)
+		a.port.TermPaste(text)
+		return nil
 	case "esc", "ctrl+c", "q":
 		a.Ctx = nil
 	case "ctrl+d", "pgdown", "down", "j":

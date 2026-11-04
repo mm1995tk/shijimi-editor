@@ -147,7 +147,7 @@ func TestTerminalHasOneShell(t *testing.T) {
 		t.Fatal("a key started another shell")
 	}
 	// when the shell exits the panel has none, until it is focused again
-	tm.update(core.TermDoneMsg{ID: 1})
+	tm.update(termDoneMsg{ID: 1})
 	if tm.sh != nil {
 		t.Fatal("exited shell kept")
 	}

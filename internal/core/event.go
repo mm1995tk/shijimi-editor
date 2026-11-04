@@ -187,14 +187,6 @@ type RunAgent struct{ Run func() }
 func (WaitAgent) isEffect() {}
 func (RunAgent) isEffect()  {}
 
-// WaitTerm asks for the next thing the terminal panel's shell did (printed,
-// ended) to be delivered as an Event. It is asked again after each one
-// (terminal.armed keeps it to one at a time). The PTY itself is
-// internal/term's; the Events are TermOutputMsg and TermDoneMsg.
-type WaitTerm struct{ From <-chan Event }
-
-func (WaitTerm) isEffect() {}
-
 // RepoProbed carries what the suggestion panel's background look at the
 // repository found (branch, conflicts, pull requests).
 type RepoProbed struct{ probe repoProbe }
@@ -238,35 +230,6 @@ func (MermaidDoneMsg) isEvent()   {}
 func (MdImageDoneMsg) isEvent()   {}
 func (OpenURLResult) isEvent()    {}
 
-// TermOutputMsg says the terminal panel's shell printed something and
-// TermDoneMsg that it ended. A shell that cannot be started is an error from
-// the terminal's start, not an Event. The pump of the PTY (internal/term) sends
-// both; WaitTerm hands them to the front end, which gives them to the terminal
-// (FrontEnd.HandleTermEvent).
-type TermOutputMsg struct{ ID int }
-
-// TermDoneMsg says the shell of terminal ID ended, with Err when it failed.
-type TermDoneMsg struct {
-	ID  int
-	Err error
-}
-
-func (TermOutputMsg) isEvent() {}
-func (TermDoneMsg) isEvent()   {}
-
-// Shell is the shell of the terminal panel as the failure scan sees it.
-type Shell interface {
-	// ID tells the shell from another one (a failure is kept per shell).
-	ID() int
-	// TakeCommandEnds returns the exit codes of the commands that ended since
-	// the last call.
-	TakeCommandEnds() []int
-	// NewLines returns the lines printed since the last call.
-	NewLines() []string
-	// Tail returns the last n lines of the screen.
-	Tail(n int) []string
-}
-
 // HandleEvent is the core's entry for Events: it takes one and answers with the
 // Effects to carry out. The front end calls it from its update loop.
 func (a *Core) HandleEvent(ev Event) []Effect {
@@ -287,8 +250,6 @@ func (a *Core) HandleEvent(ev Event) []Effect {
 	case SearchDone:
 		a.searchDone(ev)
 		return nil
-	case TermOutputMsg, TermDoneMsg:
-		return a.HandleTermEvent(ev)
 	case CtlRequest:
 		return a.handleCtl(ev)
 	case IDECall:

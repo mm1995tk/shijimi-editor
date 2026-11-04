@@ -31,7 +31,7 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 		if code, err := strconv.Atoi(strings.TrimSpace(m.Req.Line)); err != nil {
 			resp = ctl.Response{Error: i18n.T("ctl.usage.commandend")}
 		} else {
-			a.CommandEnded(code)
+			a.port.CommandEnded(code)
 			resp = ctl.Response{OK: true}
 		}
 	default:

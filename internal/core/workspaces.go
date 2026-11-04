@@ -128,8 +128,6 @@ func (w *Workspace) run(effs []Effect) {
 			go func() { w.deliver(e.Run()) }()
 		case Run:
 			go func() { w.deliver(e.Run()) }()
-		case WaitTerm:
-			go w.wait(e.From)
 		case WaitAgent:
 			go w.wait(e.From)
 		case RunAgent:
