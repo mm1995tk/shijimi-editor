@@ -51,7 +51,7 @@
 
 ## release.yml がすること
 
-1. 入力 `ref` のコミット（空なら main の最新）が、main の上にあり、前のリリースより後のコミットであることを確かめます。
+1. 入力 `ref` のコミット（空なら main の最新）が、main の上にあり、前のリリースより後のコミットであることを確かめます。後のジョブがビルドに使うファイル（`packaging/npm/pack.sh`・`package-lock.json`・`gui/src-tauri/tauri.conf.json`）がそのコミットに無ければ、タグを打つ前に止めます。
 2. そのコミットの `flake.nix` の `version` を上げてコミットし、タグ `vX.Y.Z` を打ちます。
 3. そのコミットを main にマージします（`ref` が main の最新なら早送り）。main・タグ・`release` ブランチを一緒に push します。main にマージするのは、main の `version` を上げ、次のリリースで `release` ブランチを早送りで進められるようにするためです。
 4. GitHub Release を作ります（リリースノートは前のリリースのタグからの自動生成）。
