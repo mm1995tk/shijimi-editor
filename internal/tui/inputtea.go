@@ -93,8 +93,9 @@ func keyToTea(k core.Key) tea.KeyPressMsg {
 	}
 }
 
-// keyReleaseFromTea is the key of a release message. A release is a TUI-only
-// notice (core.ReleasesReported), so it has no Input of its own.
+// keyReleaseFromTea is the key of a release message. Whether the terminal reports
+// releases reaches the core as the core.ReleasesReported Input; a release itself
+// is carried by core.KeyReleased.
 func keyReleaseFromTea(m tea.KeyReleaseMsg) core.Key {
 	return keyFromTea(tea.KeyPressMsg(m))
 }

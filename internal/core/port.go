@@ -90,6 +90,6 @@ func portOrNop(p Port) Port {
 	return p
 }
 
-// SetPort sets the Port of a core made by hand (New takes it already). A nil
+// SetPort sets the Port of a core made by hand: a test helper (New takes the Port already). A nil
 // Port is one that does nothing.
 func (a *Core) SetPort(p Port) { a.port = portOrNop(p) }

@@ -172,7 +172,8 @@ type Line struct {
 | `follow` | 中身 | カーソルが見えるようにスクロールする印。`Viewport` を決めるときに使う |
 | `dragging` | 中身 | マウスのドラッグ（選択）の状態 |
 | `lastClick` | 中身 | ダブルクリックの判定。GUI は `clicks` を付けて送る。TUI は今の判定を残す |
-| `keyReleases`, `askReleases` | TUI | 端末が「キーを離した」を報告するか。GUI は最初から押す / 離すを送れる |
+| `askReleases` | TUI | 端末にキーの離しの報告を頼んだか |
+| `releases` | 中身 | 端末が「キーを離した」を報告するか。`core.ReleasesReported` の Input で受けて覚える。GUI は最初から押す / 離すを送れる |
 | `quitting` | TUI | `tea.Quit` を返した印。`core` は「終了してよい」を Port の `Exit` で伝える |
 | `hold`, `holdSeq` | 中身 | 押しっぱなしのスクロール。タイマーは `core` のイベントにする |
 | `lineFlip` | 中身 | 行番号の反転表示 |
