@@ -6,6 +6,11 @@ name: 検査
 #   gui          … nix build .#gui（殻の cargo test も回る）
 #   gui-web-test … Web 画面の npm test
 # 自動更新（feature updater）を付けた殻は Nix の版に無いので、devShell の中で別に確かめる。
+#
+# Nix store は GitHub Actions のキャッシュに残し、依存を毎回ビルドし直さないようにする。キーは依存を決める
+# ファイル（*.nix・flake.lock・各ロックファイル）のハッシュ。保存するのは main の push だけで、PR は main の
+# キャッシュを読むだけにする（PR ごとのキャッシュで容量の上限 10 GB を埋めないため）。main で保存するときは
+# 同じ job の古いキャッシュを消す（そのために actions: write が要る）。
 
 on:
   pull_request:
@@ -14,6 +19,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: check-${{ github.ref }}
@@ -29,6 +35,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-check-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'gomod2nix.toml', 'package-lock.json', 'Cargo.lock') }}
+          restore-prefixes-first-match: nix-check-${{ runner.os }}-
+          save: ${{ github.event_name == 'push' }}
+          purge: ${{ github.event_name == 'push' }}
+          purge-prefixes: nix-check-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
       - name: nix flake check
         run: nix flake check --print-build-logs
       # macOS の Nix のビルド環境では Go のテストが前提にする環境にならない（flake.nix の checks を見よ）ので、
@@ -43,6 +58,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: cachix/install-nix-action@v31
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-updater-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'gomod2nix.toml', 'package-lock.json', 'Cargo.lock') }}
+          restore-prefixes-first-match: nix-updater-${{ runner.os }}-
+          save: ${{ github.event_name == 'push' }}
+          purge: ${{ github.event_name == 'push' }}
+          purge-prefixes: nix-updater-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
       - name: Web 画面を作る（殻が埋め込む）
         run: nix develop --command bash -c 'npm ci && npm run build'
       - name: cargo build --features updater
