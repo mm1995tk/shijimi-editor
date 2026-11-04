@@ -1,6 +1,6 @@
 package server
 
-// tree.watch / tree.changed。GUI が開いているフォルダだけを、一定の間隔で見る（ui/tui/watch.go と同じ作り）。
+// tree.watch / tree.changed。GUI が開いているフォルダだけを、一定の間隔で見る（core/watch.go と同じ作り）。
 // フォルダごとに「中身の署名」（名前・種類・大きさ・更新時刻）を持ち、変わったら tree.changed を送る。
 
 import (

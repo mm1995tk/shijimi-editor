@@ -1,7 +1,7 @@
 package server
 
 // git の印（git.status / git.changed）と、tree.list の git / gitChildren / "!"。
-// 印の求め方は ui/tui/explorer.go の loadGitStatus と同じ（git status --porcelain -z）。
+// 印の求め方は core/explorer.go の loadGitStatus と同じ（git status --porcelain -z）。
 // 印の文字は設計書の表に合わせる：M 変更、A 追加、D 削除、R 名前変更、? 追跡していない、U 衝突、! .gitignore で無視。
 
 import (

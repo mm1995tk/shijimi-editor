@@ -3,7 +3,7 @@ package server
 // ファイルのツリー（tree.*）。設計は docs/design/gui-protocol.md の「ファイルのツリー」。
 //
 // core の Explorer（TUI の 1 つの木）とは別の、状態を持たない取得の API。開閉とスクロールは GUI が持つ。
-// 並び順と「.git は出さない」は TUI のツリー（ui/tui/explorer.go の nodeLess）と同じにしてある。
+// 並び順と「.git は出さない」は TUI のツリー（core/explorer.go の nodeLess）と同じにしてある。
 // TUI の木は選択・開閉の状態と一緒になっていて、そのままは共有できないので、並べ方だけを写した。
 
 import (

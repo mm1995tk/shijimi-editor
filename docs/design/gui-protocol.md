@@ -66,11 +66,11 @@ Port のメソッドの条件は 2 つ。
 | TUI | core の関数を直接呼ぶ（同じプロセス） | Port を満たす TUI が直接受ける |
 | GUI | アダプターが JSON-RPC（`input.*` など）を受けて core の関数を呼ぶ | アダプターが Port を満たし、呼び出しを JSON-RPC の通知に直して GUI へ送る |
 
-TUI 専用のものは core に置かず、`ui/tui` に出す。`ui/internal/vt` のターミナルのパネル、マルチプレクサのペイン、OSC 52、境目のドラッグ、レイアウトの状態がそうである。P12 のエクスプローラ・変更一覧・エージェントのパネルも、TUI はツリーと git のデータから自分で描く（GUI がツリーの API から描くのと同じ）。端末の画像（Kitty のグラフィックス）も TUI の都合で、core は `ui/tui/kitty` を知らない（画像の大きさの上限は TUI が `core.MaxImageCells` に入れ、画像を端末へ送る・消すのは TUI が Port の `ImageClosed` を受けて行う）。
+TUI 専用のものは core に置かず、`ui/tui` に出す。`ui/tui/vt` のターミナルのパネル、マルチプレクサのペイン、OSC 52、境目のドラッグ、レイアウトの状態がそうである。P12 のエクスプローラ・変更一覧・エージェントのパネルも、TUI はツリーと git のデータから自分で描く（GUI がツリーの API から描くのと同じ）。端末の画像（Kitty のグラフィックス）も TUI の都合で、core は `ui/tui/kitty` を知らない（画像の大きさの上限は TUI が `core.MaxImageCells` に入れ、画像を端末へ送る・消すのは TUI が Port の `ImageClosed` を受けて行う）。
 
 単体編集モード（`single`）は core のモードのままにする。1 ファイルを閉じたときの終了は、core から UI への呼び出し（例 `Exit()`）にし、TUI はプロセスを終え、GUI のアダプターは通知に直す。
 
-Port は `core/port.go` の `core.Port` で、`WriteClipboard`・`OpenURL`・`Exit` と、レイアウトの `ShowSide`・`ShowTerm`・`ShowAgent`・`DragBorder`・`StartResize`・`ResizeKey`・`ResetPanes`、ターミナルのパネルの `TermFocus`・`TermToggle`・`TermKey`・`TermRun`・`TermPaste`・`TermClose`、マルチプレクサのペインで終わったコマンドの `CommandEnded`、画像を見せなくなったことの `ImageClosed`、テーマの色の反映の `SetPalette`、文言を訳してもらう `Text` と表示言語を伝える `SetLanguage` を持つ。ターミナルのパネル（`ui/internal/vt`）とマルチプレクサ（herdr・tmux・zellij・cmux）のペインは tui だけが持ち、core は意味（走らせたい行、貼り付けたい文字）だけを Port で伝える（ペインのときは `core.Layout` の `TermInPane` が立ち、core はパネルの表示とフォーカスを持たずに `TermToggle`・`ShowTerm`・`TermRun`・`TermPaste` だけを呼ぶ）。tui はシェルが見せた失敗を `core.AddFailureTab`・`ClearFailure`・`KeepFailuresOf` で core へ返す。表示中かどうかは UI が `core.Layout` の入力で返す。TUI（`tui.App`）と `shj serve` の `server.Server` が満たし、`core.Host` は無い。`OpenURL` の結果は `core.OpenURLResult` の Event で返る。マウスは `Input`（`core.Mouse`）として core が受ける（`Core.HandleMouse`。GUI のアダプターが運ぶペインの中の行と桁）。TUI は画面のマス目の当たり判定（ポップアップ・境目・ターミナル）を先に済ませて、残りを core に渡す（`tui.App.HandleMouse`）。ホバーの下の単語は core が決め（`Core.HoverCellWord`）、ホバーのスクロール（`Core.ScrollHover`）の上限だけは、ポップアップの大きさを知る UI が合わせる。レビューのコメントの入力欄は core の `core.TextArea` で、編集と折り返しは core が行い、UI は `Rows`・`CursorCell` を描く。キーの離しの通知は `core.ReleasesReported` の Input で core が受けて覚え、テーマの色の反映は Port の `SetPalette` で UI に頼む（GUI のアダプターは何もしない。GUI は `theme.get` で自分の色を決める）。`core.New`・`NewIn`・`NewSingle` は Port を受け取る。core が UI を知るのは Port だけで、`core.FrontEnd` と `headless` は無い。
+Port は `core/port.go` の `core.Port` で、`WriteClipboard`・`OpenURL`・`Exit` と、レイアウトの `ShowSide`・`ShowTerm`・`ShowAgent`・`DragBorder`・`StartResize`・`ResizeKey`・`ResetPanes`、ターミナルのパネルの `TermFocus`・`TermToggle`・`TermKey`・`TermRun`・`TermPaste`・`TermClose`、マルチプレクサのペインで終わったコマンドの `CommandEnded`、画像を見せなくなったことの `ImageClosed`、テーマの色の反映の `SetPalette`、文言を訳してもらう `Text` と表示言語を伝える `SetLanguage` を持つ。ターミナルのパネル（`ui/tui/vt`）とマルチプレクサ（herdr・tmux・zellij・cmux）のペインは tui だけが持ち、core は意味（走らせたい行、貼り付けたい文字）だけを Port で伝える（ペインのときは `core.Layout` の `TermInPane` が立ち、core はパネルの表示とフォーカスを持たずに `TermToggle`・`ShowTerm`・`TermRun`・`TermPaste` だけを呼ぶ）。tui はシェルが見せた失敗を `core.AddFailureTab`・`ClearFailure`・`KeepFailuresOf` で core へ返す。表示中かどうかは UI が `core.Layout` の入力で返す。TUI（`tui.App`）と `shj serve` の `server.Server` が満たし、`core.Host` は無い。`OpenURL` の結果は `core.OpenURLResult` の Event で返る。マウスは `Input`（`core.Mouse`）として core が受ける（`Core.HandleMouse`。GUI のアダプターが運ぶペインの中の行と桁）。TUI は画面のマス目の当たり判定（ポップアップ・境目・ターミナル）を先に済ませて、残りを core に渡す（`tui.App.HandleMouse`）。ホバーの下の単語は core が決め（`Core.HoverCellWord`）、ホバーのスクロール（`Core.ScrollHover`）の上限だけは、ポップアップの大きさを知る UI が合わせる。レビューのコメントの入力欄は core の `core.TextArea` で、編集と折り返しは core が行い、UI は `Rows`・`CursorCell` を描く。キーの離しの通知は `core.ReleasesReported` の Input で core が受けて覚え、テーマの色の反映は Port の `SetPalette` で UI に頼む（GUI のアダプターは何もしない。GUI は `theme.get` で自分の色を決める）。`core.New`・`NewIn`・`NewSingle` は Port を受け取る。core が UI を知るのは Port だけで、`core.FrontEnd` と `headless` は無い。
 
 ### 「画面に何を出すか」（`Screen`）のデータの形
 
@@ -384,7 +384,7 @@ P13-09（#385）で `Core` を `core` に移し、分割を終えた。`ui/tui` 
 
 - 終わったプライマリターミナルは `alive: false` のまま残り、ワークスペースを消さない（「ワークスペース」の節の 11）。
 - JSON では base64 にするので出力が約 1.33 倍になる。MessagePack に変えれば生のバイト列で送れる。「速さが足りなければ MessagePack に」が一番効くのはここ。
-- ターミナルの中身を読む `ui/internal/vt` は TUI だけで使う。GUI ではサーバーは PTY のバイト列を中継するだけで、エミュレートしない。コマンドの終了を知らせる印（`command-end`、`shellint`）は、サーバーでは取り出さない（B6 で確かめた）。バイト列は xterm.js にそのまま届くので、印が要る機能は GUI の側（xterm.js の OSC ハンドラ）で拾う。サーバーが出力から読むのはタイトル（OSC 0 / 2）だけ。
+- ターミナルの中身を読む `ui/tui/vt` は TUI だけで使う。GUI ではサーバーは PTY のバイト列を中継するだけで、エミュレートしない。コマンドの終了を知らせる印（`command-end`、`shellint`）は、サーバーでは取り出さない（B6 で確かめた）。バイト列は xterm.js にそのまま届くので、印が要る機能は GUI の側（xterm.js の OSC ハンドラ）で拾う。サーバーが出力から読むのはタイトル（OSC 0 / 2）だけ。
 - GUI の側（F1）で決めた細部（`gui/src/terminal/link.ts`）：
   - `term.output` の `seq` は、そのかたまりの終わりのバイト数の累計。GUI は書いた分の `seq` を覚え、かたまりの始め（`seq` − 長さ）がそれより先なら欠けとみなして `term.attach`（`fromSeq` は覚えた `seq`）で取り直す。重なる分は捨てる。
   - `term.ack` は xterm.js が書き終えた（`write` のコールバックが来た）ときに返す。画面が遅れると shj が送るのを待つので、大量の出力でも WebView が詰まらない。
@@ -523,7 +523,7 @@ GUI はシステムの `ssh` を子プロセスとして起動する（`~/.ssh/c
 
 - **変わった分だけ送る**（領域ごとの版 + 行単位の差分 + `screen.get`）：回線が遅くても使えるため。全部送る形にも、`lines.rows` に全部の行を入れれば同じ形のまま退化できる。逆（全部送る形から差分への移行）は形が変わる。
 - **`Screen` は意味の名前でスタイルを伝える**：テーマの変更に GUI が追従でき、TUI と GUI の見た目の差を描く側に閉じ込められる。
-- **ターミナルは `Screen` に入れない**：`ui/internal/vt` を GUI に持ち込まず、xterm.js の機能をそのまま使える。
+- **ターミナルは `Screen` に入れない**：`ui/tui/vt` を GUI に持ち込まず、xterm.js の機能をそのまま使える。
 - **ワークスペースごとに `core` を持つ**：「開いたファイルはワークスペースごとに覚える」を、状態の切り替えではなくインスタンスを分けることで満たす。メモリは増えるが、ワークスペース数は少ない。
 - **ツリーは `Screen` と別の API**：GUI は複数のワークスペースのツリーを同時に持ち、開閉は GUI の状態だから。
 - **`shj attach` と `shj serve` を分ける**：ssh が切れても状態を残し、つなぎ直しを同じ流れ（`attach` を再実行）にするため。

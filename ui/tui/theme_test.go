@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/ui/internal/vt"
+	"github.com/mm1995tk/shijimi-editor/ui/tui/vt"
 )
 
 func TestApplyThemeChangesColors(t *testing.T) {

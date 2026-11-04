@@ -2,7 +2,7 @@ package server
 
 // ターミナル管理と term.*。設計は docs/design/gui-protocol.md の 3 章「ターミナル」。
 //
-// PTY の出力は Screen に変換せず、そのまま term.output で流す（ui/internal/vt は使わない）。
+// PTY の出力は Screen に変換せず、そのまま term.output で流す（ui/tui/vt は使わない）。
 // 出力は 1 ターミナルにつき最大 1 MiB のリングバッファに溜め、seq はそのバイト数の累計。
 // GUI が term.ack で返した seq から 256 KiB より先は送らない。止まっても PTY は読み続け、
 // 溢れた分は捨てる。捨てた分は term.attach で（残っている分だけ）取り直す。

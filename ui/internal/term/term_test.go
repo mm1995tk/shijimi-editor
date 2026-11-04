@@ -54,7 +54,7 @@ func TestNoTerminalDeps(t *testing.T) {
 		t.Fatalf("go list -deps: %v", err)
 	}
 	for dep := range strings.FieldsSeq(string(out)) {
-		for _, banned := range []string{"charm.land/", "github.com/charmbracelet/", "github.com/mm1995tk/shijimi-editor/ui/tui", "github.com/mm1995tk/shijimi-editor/ui/internal/vt"} {
+		for _, banned := range []string{"charm.land/", "github.com/charmbracelet/", "github.com/mm1995tk/shijimi-editor/ui/tui"} {
 			if strings.HasPrefix(dep, banned) {
 				t.Errorf("ui/internal/term depends on %s", dep)
 			}

@@ -15,7 +15,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/i18n"
 	"github.com/mm1995tk/shijimi-editor/ui/internal/term"
-	"github.com/mm1995tk/shijimi-editor/ui/internal/vt"
+	"github.com/mm1995tk/shijimi-editor/ui/tui/vt"
 )
 
 // termTab is the shell running on its own PTY (ui/internal/term), drawn through

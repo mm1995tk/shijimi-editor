@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
-	"github.com/mm1995tk/shijimi-editor/ui/internal/vt"
+	"github.com/mm1995tk/shijimi-editor/ui/tui/vt"
 )
 
 // addTermTab sets a terminal shell with no PTY behind it.

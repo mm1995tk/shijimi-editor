@@ -13,7 +13,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/lsp"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
-	"github.com/mm1995tk/shijimi-editor/ui/internal/vt"
+	"github.com/mm1995tk/shijimi-editor/ui/tui/vt"
 )
 
 // until handles messages until cond holds.
