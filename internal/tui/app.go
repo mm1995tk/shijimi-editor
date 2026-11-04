@@ -78,5 +78,6 @@ func NewSingle(file string, b core.Build) (*App, error) {
 // terminal's way; call after the program exits.
 func (a *App) Close() {
 	a.Core.Close()
+	a.muxClose()
 	removeMuxShellIntegration()
 }

@@ -18,7 +18,7 @@ func (a *App) View() tea.View {
 	frame, caretAt := a.renderFrame()
 	v := tea.NewView(frame)
 	// Image data goes out before the frame whose placeholder cells show it.
-	if g := core.TakeGraphics(); g != "" && a.caret != nil {
+	if g := takeGraphics(); g != "" && a.caret != nil {
 		_ = a.caret.Send([]byte(g))
 	}
 	v.AltScreen = true
@@ -64,7 +64,14 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case termOutputMsg, termDoneMsg:
 		effs = a.Core.Apply(func() []core.Effect { a.handleTermEvent(msg); return nil })
 	default:
-		effs = a.Core.Update(a.fromTea(msg))
+		switch in := a.fromTea(msg).(type) {
+		case core.Mouse:
+			// The TUI works out where the pointer is (popups, borders, the terminal)
+			// before the editor gets what is left (App.HandleMouse).
+			effs = a.Core.Apply(func() []core.Effect { return a.HandleMouse(in) })
+		default:
+			effs = a.Core.Update(in)
+		}
 	}
 	if _, ok := msg.(core.WatchTick); ok {
 		a.scanTerm()

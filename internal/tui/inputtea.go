@@ -101,17 +101,6 @@ func keyReleaseFromTea(m tea.KeyReleaseMsg) core.Key {
 
 func pasteFromTea(m tea.PasteMsg) core.Paste { return core.Paste{Content: m.Content} }
 
-// widgetMsg is the tea message a bubbles widget wants for an Input, or nil.
-func widgetMsg(in core.Input) tea.Msg {
-	switch in := in.(type) {
-	case core.Key:
-		return keyToTea(in)
-	case core.Paste:
-		return tea.PasteMsg{Content: in.Content}
-	}
-	return nil
-}
-
 var buttonFromTea = map[tea.MouseButton]core.MouseButton{
 	tea.MouseNone:       core.MouseNone,
 	tea.MouseLeft:       core.MouseLeft,

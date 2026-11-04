@@ -95,7 +95,7 @@ func (a *App) handleTermEvent(ev tea.Msg) {
 		}
 	}
 	if a.term.sh == nil && a.showTerm {
-		a.ShowTerm(false)
+		a.hideTermPanel()
 		if a.FocusIs(core.FocusTerminal) {
 			a.SetFocus(core.FocusEditor)
 		}
@@ -106,7 +106,7 @@ func (a *App) handleTermEvent(ev tea.Msg) {
 func (a *App) termFailed(err error) {
 	a.Fail(err)
 	if a.term.sh == nil && a.showTerm {
-		a.ShowTerm(false)
+		a.hideTermPanel()
 		if a.FocusIs(core.FocusTerminal) {
 			a.SetFocus(core.FocusEditor)
 		}

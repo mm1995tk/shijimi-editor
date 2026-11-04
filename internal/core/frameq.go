@@ -19,11 +19,6 @@ func (a *Core) FocusedFirst() bool { return a.Pane == 0 }
 // DiffMode reports whether the diff mode is on.
 func (a *Core) DiffMode() bool { return a.Gd.On }
 
-// ExplorerScreen is the file tree as shown in h rows, with activePath marked.
-func (a *Core) ExplorerScreen(h int, activePath string) screen.Explorer {
-	return a.Explorer.Screen(h, activePath)
-}
-
 // Completing reports whether the completion popup is open.
 func (a *Core) Completing() bool { return a.Comp != nil }
 

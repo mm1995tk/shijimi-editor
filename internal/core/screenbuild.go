@@ -12,7 +12,8 @@ import (
 // files region, the status line, the command line and the overlays. The TUI
 // draws the same parts (internal/tui's renderFrame) with its own layout; here
 // the GUI's regions have the sizes it sent with view.resize. The regions only
-// the TUI shows (the tree, the changes list, the agent panel) are left out.
+// the TUI shows (the tree, the changes list, the agent panel) are not in the
+// Screen: the TUI draws them from the data of Core (ChangesOf, AgentPanelOf).
 
 // BuildScreen fits the core to the regions' sizes v, as the TUI fits a frame
 // before it draws it (the scroll that follows the cursor, the widths of the

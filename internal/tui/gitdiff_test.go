@@ -433,7 +433,7 @@ func TestDiffPanes(t *testing.T) {
 // renderChanges fits the list to h rows and draws it, the way View does.
 func (a *App) renderChanges(w, h int, focused bool) []string {
 	a.FitChanges(h - 1)
-	return drawChanges(a.ChangesScreen(w, h), w, h, focused, false)
+	return drawChanges(a.ChangesOf(h), w, h, focused, false)
 }
 
 func TestChangesTitleShowsBase(t *testing.T) {

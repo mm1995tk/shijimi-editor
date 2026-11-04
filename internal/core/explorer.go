@@ -5,8 +5,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/mm1995tk/shijimi-editor/internal/screen"
 )
 
 // Node is a file or directory in the file tree.
@@ -230,36 +228,6 @@ func (e *Explorer) EnsureVisible(h int) {
 	e.Scroll = Clamp(e.Scroll, 0, max(0, len(e.Flat)-h))
 }
 
-// Screen is the tree as a screen.Explorer: the rows in view, h rows high with
-// the title, scrolled as fit left it. activePath is the file open in the editor.
-// It changes nothing.
-func (e *Explorer) Screen(h int, activePath string) screen.Explorer {
-	ex := screen.Explorer{
-		Title: " EXPLORER: " + strings.ToUpper(e.root.Name),
-		Icons: e.Icons,
-		Top:   e.Scroll,
-		Total: len(e.Flat),
-	}
-	for i := range max(0, h-1) {
-		idx := e.Scroll + i
-		if idx >= len(e.Flat) {
-			break
-		}
-		n := e.Flat[idx]
-		r := screen.ExplorerRow{
-			Depth: n.depth, Name: n.Name, Dir: n.isDir, Expanded: n.expanded,
-			Open: n.Path == activePath, Selected: idx == e.Sel,
-			Git: e.Git[n.Path], Ignored: e.IsIgnored(n),
-		}
-		if e.Icons {
-			ic := IconFor(n)
-			r.Icon, r.IconColor = ic.Glyph+" ", ic.Color
-		}
-		ex.Rows = append(ex.Rows, r)
-	}
-	return ex
-}
-
 // IsIgnored reports whether n or one of its ancestors is matched by .gitignore.
 func (e *Explorer) IsIgnored(n *Node) bool {
 	for ; n != nil; n = n.parent {
@@ -323,3 +291,15 @@ func (e *Explorer) loadGitStatus() {
 		}
 	}
 }
+
+// IsDir reports whether n is a directory.
+func (n *Node) IsDir() bool { return n.isDir }
+
+// Expanded reports whether the directory n shows what is in it.
+func (n *Node) Expanded() bool { return n.expanded }
+
+// Depth is how many directories n is under (0 for what is in the root).
+func (n *Node) Depth() int { return n.depth }
+
+// RootName is the name of the directory the tree shows.
+func (e *Explorer) RootName() string { return e.root.Name }

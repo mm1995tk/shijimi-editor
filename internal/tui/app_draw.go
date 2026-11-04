@@ -120,15 +120,15 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		activePath = t.Path()
 	}
 	if a.showSide {
-		side = drawExplorer(a.ExplorerScreen(a.ExplorerH(), activePath), l.sideW, a.ExplorerH(), a.FocusIn(core.FocusExplorer))
+		side = drawExplorer(a.Explorer, activePath, l.sideW, a.ExplorerH(), a.FocusIn(core.FocusExplorer))
 		if a.DiffMode() {
-			side = append(side, drawChanges(a.ChangesScreen(l.sideW, l.bodyH-a.ExplorerH()), l.sideW, l.bodyH-a.ExplorerH(), a.FocusIn(core.FocusChanges), a.borderLit(l, core.ResizeExplorer))...)
+			side = append(side, drawChanges(a.ChangesOf(l.bodyH-a.ExplorerH()), l.sideW, l.bodyH-a.ExplorerH(), a.FocusIn(core.FocusChanges), a.borderLit(l, core.ResizeExplorer))...)
 		}
 	}
 	var agent []string
 	if l.agentW > 0 {
 		focused := a.FocusIn(core.FocusAgent)
-		agent = drawAgent(a.AgentScreen(l.agentW, l.bodyH, focused), l.agentW, l.bodyH, focused)
+		agent = drawAgent(a.AgentPanelOf(l.agentW, l.bodyH, focused), l.agentW, l.bodyH, focused)
 	}
 	sideSep, agentSep := a.separator(l, core.ResizeSide), a.separator(l, core.ResizeAgent)
 	for i := range rows {
@@ -282,12 +282,6 @@ func (a *App) hoverOverlay(l layout) screen.Overlay {
 // hoverBox is the hover popup as a box of cells.
 func (a *App) hoverBox(l layout) []string { return drawHover(a.hoverOverlay(l)) }
 
-// ScrollHover scrolls the hover popup by d rows.
-func (a *App) ScrollHover(d int) {
-	v := a.hoverView(a.layout())
-	a.SetHoverTop(core.Clamp(a.HoverTop()+d, 0, v.MaxScroll()))
-}
-
 // fit brings the state that depends on the window size and on what is open
 // up to date for the frame about to be drawn: the scroll that follows the
 // cursor, the palette's filtered list, the widths of the inputs, the diff
@@ -306,6 +300,9 @@ func (a *App) fit() {
 		return
 	}
 	l := a.layout()
+	if a.Hovering() {
+		a.SetHoverTop(core.Clamp(a.HoverTop(), 0, a.hoverView(l).MaxScroll())) // ScrollHover does not know the popup's size
+	}
 	// The panes: a tab's diff view and Markdown preview are made here, and
 	// the scroll of a pane that is not being edited follows its cursor in the
 	// width it has now.

@@ -119,6 +119,7 @@ func TestZellijHideWhenAlreadyFullscreen(t *testing.T) {
 
 func TestZellijCommands(t *testing.T) {
 	a, f := zellijApp(t)
+	a.pushLayout() // the layout says the terminal is a pane
 	a.ExecCommand("sh make test")
 	if !f.has("write-chars --pane-id terminal_2 -- make test") || !f.has("write --pane-id terminal_2 13") {
 		t.Fatalf("calls: %v", f.calls)
@@ -171,14 +172,14 @@ func TestZellijBadReply(t *testing.T) {
 func TestZellijOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := zellijApp(t)
 	a.Cfg.Experimental.Multiplexer = false
-	if a.MuxOn() {
+	if a.muxOn() {
 		t.Fatal("zellij must be off when the setting is off")
 	}
 	a.resolveMux()
 	t.Setenv("ZELLIJ", "")
 	a.Cfg.Experimental.Multiplexer = true
 	a.resolveMux()
-	if a.MuxOn() {
+	if a.muxOn() {
 		t.Fatal("zellij must be off outside zellij")
 	}
 	t.Setenv("SHELL", "/bin/sh") // a shell that fails to start closes the panel at once
@@ -210,7 +211,7 @@ func TestZellijAutoFollowsParents(t *testing.T) {
 	a, _ := zellijApp(t)
 	a.Cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "zellij", "systemd")
-	if !a.MuxOn() || a.mux.b.name() != "zellij" {
+	if !a.muxOn() || a.mux.b.name() != "zellij" {
 		t.Fatalf("zellij parent not used: %v", a.mux.b)
 	}
 }

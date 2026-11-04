@@ -7,11 +7,12 @@ import (
 )
 
 // bannedDeps are the import path prefixes core must not depend on
-// (docs/design/gui-protocol.md): the terminal UI libraries and the front end.
+// (docs/design/gui-protocol.md): the terminal UI libraries, the front end and the terminal image protocol.
 var bannedDeps = []string{
 	"charm.land/",
 	"github.com/charmbracelet/",
 	"github.com/mm1995tk/shijimi-editor/internal/tui",
+	"github.com/mm1995tk/shijimi-editor/internal/kitty",
 }
 
 // allowedDeps are exceptions to bannedDeps. github.com/charmbracelet/x/ansi

@@ -142,6 +142,7 @@ func TestTmuxHideWhenAlreadyZoomed(t *testing.T) {
 
 func TestTmuxCommands(t *testing.T) {
 	a, f := tmuxApp(t)
+	a.pushLayout() // the layout says the terminal is a pane
 	a.ExecCommand("sh make test")
 	if !f.has("send-keys -t %2 -l -- make test") || !f.has("send-keys -t %2 Enter") {
 		t.Fatalf("calls: %v", f.calls)
@@ -179,14 +180,14 @@ func TestTmuxSplitEnv(t *testing.T) {
 func TestTmuxOffKeepsBuiltinTerminal(t *testing.T) {
 	a, f := tmuxApp(t)
 	a.Cfg.Experimental.Multiplexer = false
-	if a.MuxOn() {
+	if a.muxOn() {
 		t.Fatal("tmux must be off when the setting is off")
 	}
 	a.resolveMux()
 	t.Setenv("TMUX", "")
 	a.Cfg.Experimental.Multiplexer = true
 	a.resolveMux()
-	if a.MuxOn() {
+	if a.muxOn() {
 		t.Fatal("tmux must be off outside tmux")
 	}
 	a.ToggleTerm()
@@ -217,7 +218,7 @@ func TestTmuxAutoFollowsParents(t *testing.T) {
 	a, _ := tmuxApp(t)
 	a.Cfg.Terminal.Multiplexer = "auto"
 	a.mux.parents = fakeChain("shj", "zsh", "tmux: server", "systemd")
-	if !a.MuxOn() || a.mux.b.name() != "tmux" {
+	if !a.muxOn() || a.mux.b.name() != "tmux" {
 		t.Fatalf("tmux parent not used: %v", a.mux.b)
 	}
 }

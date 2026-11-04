@@ -88,26 +88,63 @@ func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, c
 	a.FollowCursor()
 }
 
+// changesTitle is the title of the list of changes: the number of changed
+// files and, for a pull request, how many are viewed, as much as fits beside
+// the chip in w cells.
+func changesTitle(l core.ChangesList, w int) string {
+	title := fmt.Sprintf(" CHANGES (%d)", l.Files)
+	if l.PR {
+		if long := title + fmt.Sprintf("  viewed %d/%d", l.Viewed, l.Files); ansi.StringWidth(long+l.Base+" ") <= w {
+			return long
+		}
+		title += fmt.Sprintf(" ✓%d/%d", l.Viewed, l.Files)
+	}
+	return title
+}
+
+// statusLetter is the letter of a file's status in the list and its style.
+func statusLetter(status string) (string, screen.Style) {
+	switch status {
+	case "added":
+		return "A", screen.StyleDiffAddSign
+	case "deleted":
+		return "D", screen.StyleDiffDelSign
+	case "renamed":
+		return "R", screen.StyleGitRenamed
+	case "binary":
+		return "B", screen.StyleLineNo
+	}
+	return "M", screen.StyleDirty
+}
+
 // drawChanges draws the list of changed files as h lines of w cells.
-func drawChanges(ch screen.Changes, w, h int, focused, lit bool) []string {
+func drawChanges(l core.ChangesList, w, h int, focused, lit bool) []string {
 	out := make([]string, 0, h)
-	chip := ch.Chip
+	chip := l.Base + " "
+	title := changesTitle(l, w)
 	tw := max(0, w-ansi.StringWidth(chip))
 	if lit { // the title row is the border with the explorer, and it is being moved
-		out = append(out, stSideTitleLit.Render(core.Fit(ch.Title, tw)+core.Fit(chip, w-tw)))
+		out = append(out, stSideTitleLit.Render(core.Fit(title, tw)+core.Fit(chip, w-tw)))
 	} else {
-		out = append(out, stSideTitle.Render(core.Fit(ch.Title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(core.Fit(chip, w-tw)))
+		out = append(out, stSideTitle.Render(core.Fit(title, tw))+bgfg(cSideBg, cAccent).Bold(true).Render(core.Fit(chip, w-tw)))
 	}
 	for i := range max(0, h-1) {
-		if i >= len(ch.Rows) {
+		if i >= len(l.Rows) {
 			msg := ""
-			if i == 0 {
-				msg = ch.Empty
+			if i == 0 && l.Total == 0 {
+				switch {
+				case l.Loading:
+					msg = i18n.T("gd.loading")
+				case l.Err != "":
+					msg = i18n.T("gd.error") + l.Err
+				default:
+					msg = i18n.T("gd.nochanges")
+				}
 			}
 			out = append(out, stSide.Render(core.Fit(msg, w)))
 			continue
 		}
-		row := ch.Rows[i]
+		row := l.Rows[i]
 		indent := " " + strings.Repeat("  ", row.Depth)
 		bg := cSideBg
 		if row.Selected {
@@ -124,7 +161,12 @@ func drawChanges(ch screen.Changes, w, h int, focused, lit bool) []string {
 			out = append(out, bgfg(bg, core.CurTheme.SubSel).Render(core.Fit(indent+mark+row.Name, w)))
 			continue
 		}
-		col := core.StyleColor(row.LetterStyle)
+		letter, style := statusLetter(row.Status)
+		col := core.StyleColor(style)
+		name := row.Name
+		if row.Stale {
+			name += " ✎"
+		}
 		add, del := fmt.Sprintf(" +%d", row.Added), fmt.Sprintf(" -%d ", row.Deleted)
 		viewed, notes := " ", ""
 		if row.Viewed {
@@ -134,8 +176,8 @@ func drawChanges(ch screen.Changes, w, h int, focused, lit bool) []string {
 			notes = fmt.Sprintf(" ●%d", row.Threads)
 		}
 		nameW := max(0, w-ansi.StringWidth(indent)-2-ansi.StringWidth(notes+add+del))
-		line := bgfg(bg, cAddSign).Render(viewed) + bgfg(bg, cSideFg).Render(indent[1:]) + bgfg(bg, col).Bold(true).Render(row.Letter) +
-			bgfg(bg, cSideFg).Render(" "+core.Fit(row.Name, nameW)) + bgfg(bg, core.CurTheme.Renamed).Render(notes) +
+		line := bgfg(bg, cAddSign).Render(viewed) + bgfg(bg, cSideFg).Render(indent[1:]) + bgfg(bg, col).Bold(true).Render(letter) +
+			bgfg(bg, cSideFg).Render(" "+core.Fit(name, nameW)) + bgfg(bg, core.CurTheme.Renamed).Render(notes) +
 			bgfg(bg, cAddSign).Render(add) + bgfg(bg, cDelSign).Render(del)
 		out = append(out, fitStyled(line, w, bgfg(bg, cSideFg)))
 	}

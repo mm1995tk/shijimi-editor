@@ -16,7 +16,7 @@ func (a *Core) HandlePaste(msg Paste) []Effect {
 	case a.Pal.Open:
 		return a.paletteInput(msg)
 	case a.Composer != nil:
-		a.Composer.Ta.InsertString(strings.ReplaceAll(msg.Content, "\r\n", "\n"))
+		a.Composer.Ta.InsertString(msg.Content)
 		return nil
 	case a.Confirm != nil:
 		return nil

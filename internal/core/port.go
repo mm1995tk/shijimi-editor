@@ -33,17 +33,26 @@ type Port interface {
 	TermFocus(on bool)
 	// TermKey sends a key press to the shell of the terminal panel.
 	TermKey(k Key)
+	// TermToggle shows the terminal and gives it the keys, or hides it when it
+	// is shown. The core calls it only for a UI whose terminal is a pane outside
+	// its own panels (Layout.TermInPane), which keeps that state itself; for the
+	// others the core shows and hides the panel with ShowTerm and TermFocus.
+	TermToggle()
 	// TermRun types line into the shell, as if the user entered it.
 	TermRun(line string)
 	// TermPaste sends s to the shell without a trailing Enter.
 	TermPaste(s string)
-	// TermClose ends the shell of the terminal panel.
+	// TermClose ends the shell of the terminal panel, and the pane a UI made for
+	// it.
 	TermClose()
 	// CommandEnded says the shell in the multiplexer pane reported the exit
 	// code of a command that ended ("shj command-end <code>"). What a UI sees
 	// in its own terminal it tells the core with AddFailureTab, ClearFailure
 	// and KeepFailuresOf.
 	CommandEnded(code int)
+	// ImageClosed says the image Id is not shown any more, so that a UI frees
+	// what it holds for it (the TUI's terminal graphics).
+	ImageClosed(id uint32)
 }
 
 // nopPort is the Port of a core whose UI has not set one: it does nothing.
@@ -60,11 +69,13 @@ func (nopPort) StartResize()            {}
 func (nopPort) ResizeKey(string)        {}
 func (nopPort) ResetPanes()             {}
 func (nopPort) TermFocus(bool)          {}
+func (nopPort) TermToggle()             {}
 func (nopPort) TermKey(Key)             {}
 func (nopPort) TermRun(string)          {}
 func (nopPort) TermPaste(string)        {}
 func (nopPort) TermClose()              {}
 func (nopPort) CommandEnded(int)        {}
+func (nopPort) ImageClosed(uint32)      {}
 
 // SetPort sets the Port. The TUI sets itself (internal/tui.New); a core of
 // `shj serve` gets the server's (Workspaces.SetPort).

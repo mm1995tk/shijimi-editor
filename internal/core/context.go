@@ -102,11 +102,10 @@ func (a *Core) HandleContextKey(msg Key) []Effect {
 	case "enter":
 		text := a.Ctx.Text
 		a.Ctx = nil
-		if a.MuxOn() {
-			return a.MuxSend(text, false)
+		if !a.TermInPane() {
+			a.SetTerm(true)
+			a.SetFocus(FocusTerminal)
 		}
-		a.SetTerm(true)
-		a.SetFocus(FocusTerminal)
 		a.port.TermPaste(text)
 		return nil
 	case "esc", "ctrl+c", "q":
