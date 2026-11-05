@@ -192,6 +192,7 @@ export class Session {
   private inputSeq = 0;
   private readonly clipboardHandlers = new Set<(text: string) => void>();
   private readonly resizeHandlers = new Set<(e: ResizeEvent) => void>();
+  private readonly termFocusHandlers = new Set<() => void>();
 
   constructor(api: ShellApi, target: string, opts: SessionOptions = {}) {
     this.api = api;
@@ -380,6 +381,12 @@ export class Session {
   onResizeEvent(h: (e: ResizeEvent) => void): () => void {
     this.resizeHandlers.add(h);
     return () => this.resizeHandlers.delete(h);
+  }
+
+  /** term.focus（TUI でターミナルを開くキーを押した。ターミナルにキーを向ける）。つなぎ直しても外れない。 */
+  onTermFocus(h: () => void): () => void {
+    this.termFocusHandlers.add(h);
+    return () => this.termFocusHandlers.delete(h);
   }
 
   /** tree.changed（開いているフォルダの中身が変わった）。つなぎ直しても外れない。 */
@@ -641,6 +648,11 @@ export class Session {
       conn.client.on("resize.reset", () => {
         if (gen !== this.generation || this.conn !== conn) return;
         for (const h of [...this.resizeHandlers]) h({ kind: "reset" });
+      }),
+      conn.client.on("term.focus", (n) => {
+        if (gen !== this.generation || this.conn !== conn) return;
+        if (n?.on !== true) return;
+        for (const h of [...this.termFocusHandlers]) h();
       }),
       ...(["term.output", "term.exit", "term.title"] as const).map((method) =>
         conn.client.on(method, (params) => {

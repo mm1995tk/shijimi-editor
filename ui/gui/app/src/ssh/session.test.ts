@@ -914,3 +914,30 @@ describe("Session の入力", () => {
     await s.close();
   });
 });
+
+describe("Session の term.focus", () => {
+  it("term.focus を渡す。つなぎ直しても届き、on が true でなければ無視する", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    let n = 0;
+    s.onTermFocus(() => n++);
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    f.drop(connectedId(f));
+    await waitFor(s, (st) => st.kind === "reconnecting");
+    await waitFor(s, (st) => st.kind === "connected");
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "term.focus",
+      params: { on: false },
+    });
+    f.emit(connectedId(f), {
+      jsonrpc: "2.0",
+      method: "term.focus",
+      params: { on: true },
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.equal(n, 1);
+    await s.close();
+  });
+});

@@ -332,5 +332,9 @@ func newHeadlessCore(sh *Shared, p Port, dir string) (*Core, error) {
 		return nil, err
 	}
 	c.SetSizes(Sizes{ScreenW: 80, ScreenH: 24, EditRows: 23, EditorCols: 80, TextCols: 80})
+	// The GUI's terminals are its own (not a panel the core draws), so the core
+	// leaves showing and focusing the terminal to the Port and never moves its
+	// own focus to a terminal nobody sees.
+	c.SetLayout(Layout{TermInPane: true})
 	return c, nil
 }

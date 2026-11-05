@@ -362,6 +362,7 @@ P13-09（#385）で `Core` を `core` に移し、分割を終えた。`ui/tui` 
 | `resize.key` | ← GUI | `{key}`。core がリサイズモード中に受けたキー（GUI が受けるので、ふだんは来ない）。`esc`・`enter`・`q`・`alt+r` で core はモードを終える |
 | `resize.reset` | ← GUI | `{}`。パレットの「ペインの大きさを初期値に戻す」。GUI は境界を全部元の大きさに戻す |
 | `url.open` | ← GUI | `{url}`。`:open-url` など。GUI 側のブラウザで開く |
+| `term.focus` | ← GUI | `{on: true}`。TUI でターミナルを開くキー（Ctrl+`・Ctrl+J・Space t・`:sh`）を押した。GUI は今のワークスペースのプライマリターミナルにキーを向ける。shj の中のターミナルにはフォーカスを移さない（`shj serve` の `core` は `Layout.TermInPane` を立てて、ターミナルを出す・向けるのを Port に任せる） |
 | `notify` | ← GUI | `{level, text}`。画面に出さない通知（接続のログなど） |
 
 ### ターミナル

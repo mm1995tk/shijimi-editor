@@ -441,6 +441,10 @@ function Workbench(props: {
         resizeKey(ev.key, true);
       }
     });
+    // TUI でターミナルを開くキー（Ctrl+`・Ctrl+J・Space t）は、今のワークスペースのターミナルにキーを向ける
+    const offTermFocus = s.onTermFocus(() => {
+      if (focus()?.target === target) focusTerminal();
+    });
     offStates.set(target, () => {
       offTerm();
       off();
@@ -453,6 +457,7 @@ function Workbench(props: {
       offTheme();
       offClipboard();
       offResize();
+      offTermFocus();
     });
     s.setSplits(splitsOf());
     if (filesSize) s.resize(filesSize);

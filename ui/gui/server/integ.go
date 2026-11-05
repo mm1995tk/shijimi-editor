@@ -86,6 +86,25 @@ func (s *Server) WriteClipboard(text string) {
 	}
 }
 
+// ShowTerm is core.Port's. The cores of `shj serve` set Layout.TermInPane, so it
+// is Ctrl+J and ":sh hide": the GUI has the keys go to its primary terminal
+// (term.focus). Hiding has nothing to do, as the GUI keeps both cards.
+func (s *Server) ShowTerm(on bool) {
+	if on {
+		s.termFocus()
+	}
+}
+
+// TermToggle is core.Port's: Ctrl+`, Space t and ":sh". The keys of the terminal
+// never reach the core, so the toggle always means "go to the terminal".
+func (s *Server) TermToggle() { s.termFocus() }
+
+func (s *Server) termFocus() {
+	if !s.notifyOwner("term.focus", map[string]any{"on": true}) {
+		s.log.Info("no GUI to notify", "method", "term.focus")
+	}
+}
+
 // OpenURL tells the GUI to open url in its browser (url.open).
 func (s *Server) OpenURL(url string) {
 	if !s.notifyOwner("url.open", map[string]any{"url": url}) {
@@ -100,14 +119,12 @@ func (s *Server) Exit() {}
 // The regions and borders are the GUI's own (it lays them out and tells the
 // core what it shows), so the server has nothing to do for these Port calls.
 func (s *Server) ShowSide(bool)                {}
-func (s *Server) ShowTerm(bool)                {}
 func (s *Server) ShowAgent(bool)               {}
 func (s *Server) DragBorder(core.ResizeTarget) {}
 
 // The GUI shows its terminals with coneko-term on the PTYs of `shj serve` (term.go), so
 // the core has no terminal panel to drive here.
 func (s *Server) TermFocus(bool)     {}
-func (s *Server) TermToggle()        {}
 func (s *Server) TermKey(core.Key)   {}
 func (s *Server) TermRun(string)     {}
 func (s *Server) TermPaste(string)   {}

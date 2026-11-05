@@ -336,3 +336,20 @@ func TestDirenvBlocked(t *testing.T) {
 		t.Fatalf("waitEnv=%v env=%v msg=%v", c.Lsp.waitEnv, c.Lsp.env, c.Msg)
 	}
 }
+
+// The core of a workspace of `shj serve` leaves the terminal to its Port, so the
+// keys that open the terminal do not move its focus to a terminal nobody sees.
+func TestHeadlessCoreDoesNotFocusTerminal(t *testing.T) {
+	c, err := newHeadlessCore(NewShared(testBuild()), nil, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	if !c.TermInPane() {
+		t.Fatal("TermInPane is off")
+	}
+	c.ToggleTerm()
+	if c.Focus == FocusTerminal {
+		t.Fatal("focus moved to the terminal")
+	}
+}

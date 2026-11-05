@@ -141,3 +141,38 @@ func TestClipboardAndURLNotifyGUI(t *testing.T) {
 		t.Fatalf("missing %v", want)
 	}
 }
+
+func TestTermKeysNotifyGUI(t *testing.T) {
+	srv, sock := start(t)
+	n := &notes{}
+	nc, err := net.Dial("unix", sock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := rpc.NewConn(nc, rpc.JSON{}, n.handle)
+	t.Cleanup(func() { c.Close() })
+	if err := c.Call(context.Background(), "session.hello", hello(Protocol.Major), nil); err != nil {
+		t.Fatal(err)
+	}
+	srv.TermToggle()
+	srv.ShowTerm(true)
+	srv.ShowTerm(false) // nothing to tell
+	deadline := time.Now().Add(3 * time.Second)
+	count := func() (k int) {
+		n.mu.Lock()
+		defer n.mu.Unlock()
+		for _, m := range n.got {
+			if m.Method == "term.focus" && string(m.Params) == `{"on":true}` {
+				k++
+			}
+		}
+		return
+	}
+	for count() < 2 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if got := count(); got != 2 {
+		t.Fatalf("term.focus notifications = %d, want 2", got)
+	}
+}

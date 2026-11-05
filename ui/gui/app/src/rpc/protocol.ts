@@ -684,6 +684,7 @@ export interface Notifications {
   "resize.key": { key: string };
   "resize.reset": Record<string, never>;
   "url.open": { url: string };
+  "term.focus": { on: boolean };
   notify: { level: string; text: string };
   "term.output": { termId: TermId; seq: number; data: string };
   "term.exit": { termId: TermId; code: number; signal?: string };
