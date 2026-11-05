@@ -110,7 +110,7 @@ func (a *App) editorBorder(t *core.Tab) core.ResizeTarget {
 // the focused pane, a vertical border for ← → and a horizontal one for ↑ ↓.
 func (a *App) keyBorder(l layout, across bool) core.ResizeTarget {
 	if !across {
-		if (a.FocusIs(core.FocusExplorer) || a.FocusIs(core.FocusChanges)) && a.showSide && a.DiffMode() {
+		if (a.FocusIs(core.FocusExplorer) || a.FocusIs(core.FocusChanges)) && a.SideVisible() && a.DiffMode() && !a.TreeHidden() {
 			return core.ResizeExplorer
 		}
 		return core.ResizeTerm
@@ -223,11 +223,11 @@ func (a *App) ResizeKey(key string) {
 // resizeHit returns the border under (x, y), if any.
 func (a *App) resizeHit(l layout, x, y int) core.ResizeTarget {
 	switch {
-	case a.showSide && x == l.sideW && y >= l.top && y < l.top+l.bodyH:
+	case a.SideVisible() && x == l.sideW && y >= l.top && y < l.top+l.bodyH:
 		return core.ResizeSide
 	case a.showTerm && y == l.panelY && x >= l.fullX:
 		return core.ResizeTerm
-	case a.showSide && a.DiffMode() && x < l.sideW && y == l.top+a.ExplorerH():
+	case a.SideVisible() && a.DiffMode() && !a.TreeHidden() && x < l.sideW && y == l.top+a.ExplorerH():
 		return core.ResizeExplorer
 	}
 	t := a.CurText()

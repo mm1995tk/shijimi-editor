@@ -63,6 +63,24 @@ describe("band", () => {
     assert.equal(b.root, "");
   });
 
+  it("プライマリで shj が動いているときだけ shj が true（ツリーを出す）", () => {
+    assert.equal(band(ws({ id: "a", root: "/x" }), true).shj, false);
+    assert.equal(
+      band(ws({ id: "a", root: "/x", primaryShj: null }), true).shj,
+      false,
+    );
+    const on = ws({
+      id: "a",
+      root: "/x",
+      primaryShj: { socket: "/s", pid: 1 },
+    });
+    assert.equal(band(on, true).shj, true);
+    assert.equal(
+      band(ws({ id: "u", primaryShj: { socket: "/s", pid: 1 } }), true).shj,
+      true,
+    );
+  });
+
   it("同じフォルダの 2 つ目からは番号を付けて見分ける", () => {
     const g = buildSidebar(
       ["a"],
