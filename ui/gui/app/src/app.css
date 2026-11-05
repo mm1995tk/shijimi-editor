@@ -46,7 +46,7 @@ a {
   position: relative;
   flex: 1;
   min-width: 0;
-  /* 下のブロック（IDE モードのターミナル）の高さ。変えた値は --term-h に入る */
+  /* 下のブロック（IDE モードはターミナル、ターミナルモードはファイルの欄）の高さ。変えた値は --term-h に入る */
   --term-h-eff: clamp(120px, var(--term-h, 300px), calc(100% - 160px));
   display: flex;
   flex-direction: column;
@@ -58,16 +58,20 @@ a {
   height: var(--term-h-eff);
 }
 
-/* ターミナルモード（F3。mode.ts）：ファイルの欄を出さず（display:none。中のファイルは閉じない）、
-   右の列を全部ターミナルにする。IDE モードに戻すと元の状態で出る */
+/* ターミナルモード（F3。mode.ts）：ファイルの欄とターミナルのカードを入れ替える。
+   上が大きなターミナル、下がモックの 300px のファイルの欄。どちらも隠さない */
 .main[data-mode="terminal"] > .terminal {
+  order: -1;
   flex: 1;
   height: auto;
   border-top: none;
 }
 
 .main[data-mode="terminal"] > .files {
-  display: none;
+  order: 1;
+  flex: none;
+  height: var(--term-h-eff);
+  border-top: 1px solid #2a2f39;
 }
 
 /* IDE モードでファイルを開いていない（ワークスペースが無いときも）あいだは、ファイルの欄を出さず、
@@ -112,7 +116,6 @@ a {
   background: var(--machine-color, #7cc4b0);
 }
 
-.main[data-mode="terminal"] > .resizer,
 .main[data-mode="ide"][data-no-file] > .resizer {
   display: none;
 }
