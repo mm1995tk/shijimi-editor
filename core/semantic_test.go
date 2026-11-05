@@ -87,3 +87,11 @@ func TestSemanticOverlay(t *testing.T) {
 		t.Fatalf("edited line kept an old color: %q", c[1])
 	}
 }
+
+// An image tab has no highlighter; asking for semantic tokens must skip it.
+func TestSemanticTabsSkipsImageTab(t *testing.T) {
+	a := &Core{Tabs: []*Tab{{Kind: TabImage, Img: NewImageView("x.png")}}}
+	if got := a.SemanticTabs(); got != nil {
+		t.Errorf("SemanticTabs() = %v, want nil", got)
+	}
+}
