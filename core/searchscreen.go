@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
@@ -146,10 +147,10 @@ func matchSpans(rs []rune, colors []string, from int, matches [][2]int) []screen
 	return out
 }
 
-// wholeSpans is rs[from:] as one span with the background bg.
+// wholeSpans is rs[from:] (tabs as one space, as matchSpans) as one span with the background bg.
 func wholeSpans(rs []rune, from int, bg screen.Style) []screen.Span {
 	if from >= len(rs) {
 		return nil
 	}
-	return []screen.Span{{Text: string(rs[from:]), Bg: bg}}
+	return []screen.Span{{Text: strings.ReplaceAll(string(rs[from:]), "\t", " "), Bg: bg}}
 }

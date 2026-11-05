@@ -158,3 +158,12 @@ func TestSearchHitLabelKeepsEnd(t *testing.T) {
 		t.Errorf("label = %q", got)
 	}
 }
+
+// The lines before and after a replacement show a tab as one space, like the
+// line above them.
+func TestWholeSpansTab(t *testing.T) {
+	sp := wholeSpans([]rune("\tfoo"), 0, screen.StyleDiffDelBg)
+	if len(sp) != 1 || sp[0].Text != " foo" {
+		t.Errorf("spans: %+v", sp)
+	}
+}
