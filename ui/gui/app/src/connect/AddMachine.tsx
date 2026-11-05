@@ -1,4 +1,4 @@
-// マシンを足す窓（左の一覧の一番下の「+ マシンを足す」で出す）。
+// リモートを足す窓（左の一覧の一番下の「+ リモートを足す」で出す）。
 // ssh の行き先は、~/.ssh/config のホストの候補から選ぶか、打って入れる（打った文字で候補を絞る）。
 // 名前は空なら ssh の行き先を使う。「足す」で ssh につなぎ、つながったら呼んだ側がマシンを保存して窓を閉じる。
 // つないでいる最中は入力を止めて状態を出し、つなげなければ理由を出して、直して足し直せるようにする。
@@ -49,9 +49,9 @@ export function AddMachine(props: {
   }
 
   return (
-    <ModalCard label="マシンを足す" onCancel={props.onCancel}>
+    <ModalCard label="リモートを足す" onCancel={props.onCancel}>
       <div class="card-body">
-        <h1 class="card-title">マシンを足す</h1>
+        <h1 class="card-title">リモートを足す</h1>
         <label class="card-field">
           ssh の行き先
           <input
