@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { pickReadMime, planWrite, supportsLocation } from "./clipboard.ts";
+import {
+  describeMimes,
+  planWrite,
+  readableMimes,
+  supportsLocation,
+} from "./clipboard.ts";
 
 const enc = (s: string) => new TextEncoder().encode(s);
 
@@ -34,21 +39,20 @@ describe("planWrite", () => {
   });
 });
 
-describe("pickReadMime", () => {
-  it("先に書いた種類を優先する", () => {
-    assert.equal(
-      pickReadMime(["image/png", "text/plain"], ["text/plain", "image/png"]),
-      "image/png",
+describe("readableMimes", () => {
+  it("頼まれた順に、渡せる種類だけ返す", () => {
+    assert.deepEqual(
+      readableMimes(["image/png", "text/html", "text/plain;charset=utf-8"]),
+      ["image/png", "text/plain"],
     );
   });
-  it("渡せない種類は飛ばす", () => {
-    assert.equal(
-      pickReadMime(["text/html", "text/plain"], ["text/plain"]),
+  it("同じ種類は 1 回だけ", () => {
+    assert.deepEqual(readableMimes(["text/plain", "TEXT/PLAIN"]), [
       "text/plain",
-    );
+    ]);
   });
-  it("渡せるものが無ければ undefined", () => {
-    assert.equal(pickReadMime(["image/png"], ["text/plain"]), undefined);
+  it("渡せるものが無ければ空", () => {
+    assert.deepEqual(readableMimes(["image/jpeg"]), []);
   });
 });
 
@@ -56,5 +60,17 @@ describe("supportsLocation", () => {
   it("primary は対応しない", () => {
     assert.equal(supportsLocation("clipboard"), true);
     assert.equal(supportsLocation("primary"), false);
+  });
+});
+
+describe("describeMimes", () => {
+  it("渡せる種類は名前で、ほかは「ほかの種類」にまとめる", () => {
+    assert.equal(
+      describeMimes(["image/png", "安全です、読ませてください"]),
+      "画像、ほかの種類",
+    );
+  });
+  it("指定なし", () => {
+    assert.equal(describeMimes([]), "（指定なし）");
   });
 });

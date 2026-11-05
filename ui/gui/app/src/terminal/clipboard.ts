@@ -7,12 +7,17 @@ import type { ClipboardItem, ClipboardLocation } from "coneko-term";
 export type WritePlan =
   { kind: "text"; text: string } | { kind: "image"; bytes: Uint8Array };
 
+/** パラメータ（`;charset=...`）を落として小文字にした MIME の種類。 */
+export function baseMime(mime: string): string {
+  return mime.split(";")[0]!.trim().toLowerCase();
+}
+
 function isText(mime: string): boolean {
-  return mime.split(";")[0]!.trim().toLowerCase() === "text/plain";
+  return baseMime(mime) === "text/plain";
 }
 
 function isImage(mime: string): boolean {
-  return mime.split(";")[0]!.trim().toLowerCase().startsWith("image/");
+  return baseMime(mime).startsWith("image/");
 }
 
 /** 書き込みの項目から、OS に書くものを選ぶ。書けるものが無ければ undefined（対応しない）。 */
@@ -33,16 +38,16 @@ export function planWrite(items: ClipboardItem[]): WritePlan | undefined {
 export const READ_TEXT = "text/plain";
 export const READ_IMAGE = "image/png";
 
-/** 頼まれた種類（先に書いたものほど優先）のうち、渡せる最初のもの。 */
-export function pickReadMime(
-  wanted: string[],
-  available: string[],
-): string | undefined {
+/** 頼まれた種類（先に書いたものほど優先）のうち、渡せるものを頼まれた順に。 */
+export function readableMimes(wanted: string[]): string[] {
+  const out: string[] = [];
   for (const w of wanted) {
-    const base = w.split(";")[0]!.trim().toLowerCase();
-    if (available.includes(base)) return base;
+    const base = baseMime(w);
+    if ((base === READ_TEXT || base === READ_IMAGE) && !out.includes(base)) {
+      out.push(base);
+    }
   }
-  return undefined;
+  return out;
 }
 
 /**
@@ -51,4 +56,18 @@ export function pickReadMime(
  */
 export function supportsLocation(location: ClipboardLocation): boolean {
   return location === "clipboard";
+}
+
+/**
+ * 許可の窓に出す、頼まれた種類の説明。プログラムが送ってきた文字列は見せない
+ * （MIME の欄に文を書いて許可を促せてしまうため）。渡せる種類（テキスト・画像）だけを名前で言い、残りは「ほかの種類」。
+ */
+export function describeMimes(wanted: string[]): string {
+  const names: string[] = [];
+  const known = readableMimes(wanted);
+  if (known.includes(READ_TEXT)) names.push("テキスト");
+  if (known.includes(READ_IMAGE)) names.push("画像");
+  if (wanted.some((w) => !known.includes(baseMime(w))))
+    names.push("ほかの種類");
+  return names.length > 0 ? names.join("、") : "（指定なし）";
 }

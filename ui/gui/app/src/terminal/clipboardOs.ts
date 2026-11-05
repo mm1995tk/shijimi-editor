@@ -21,7 +21,13 @@ export async function writeOs(plan: WritePlan): Promise<void> {
     if (!ctx) throw new Error("no 2d context");
     ctx.drawImage(bitmap, 0, 0);
     const { data } = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
-    await writeImage(await Image.new(data.buffer, bitmap.width, bitmap.height));
+    // Image は Rust 側の資源なので、渡し終えたら閉じる
+    const image = await Image.new(data.buffer, bitmap.width, bitmap.height);
+    try {
+      await writeImage(image);
+    } finally {
+      await image.close();
+    }
   } finally {
     bitmap.close();
   }
@@ -36,7 +42,7 @@ export async function availableOs(): Promise<string[]> {
     // テキストが無い
   }
   try {
-    await readImage();
+    await (await readImage()).close();
     out.push(READ_IMAGE);
   } catch {
     // 画像が無い
@@ -55,21 +61,36 @@ export async function readOs(
     }
     if (mime === READ_IMAGE) {
       const img = await readImage();
-      const { width, height } = await img.size();
-      const rgba = await img.rgba();
-      const canvas = new OffscreenCanvas(width, height);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return undefined;
-      ctx.putImageData(
-        new ImageData(new Uint8ClampedArray(rgba), width, height),
-        0,
-        0,
-      );
-      const blob = await canvas.convertToBlob({ type: "image/png" });
-      return { mime, data: new Uint8Array(await blob.arrayBuffer()) };
+      try {
+        const { width, height } = await img.size();
+        const rgba = await img.rgba();
+        const canvas = new OffscreenCanvas(width, height);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return undefined;
+        ctx.putImageData(
+          new ImageData(new Uint8ClampedArray(rgba), width, height),
+          0,
+          0,
+        );
+        const blob = await canvas.convertToBlob({ type: "image/png" });
+        return { mime, data: new Uint8Array(await blob.arrayBuffer()) };
+      } finally {
+        await img.close();
+      }
     }
   } catch {
     // 読めなかった
+  }
+  return undefined;
+}
+
+/** 頼まれた順に試して、最初に読めたもの。 */
+export async function readFirstOs(
+  mimes: string[],
+): Promise<{ mime: string; data: Uint8Array } | undefined> {
+  for (const m of mimes) {
+    const item = await readOs(m);
+    if (item) return item;
   }
   return undefined;
 }

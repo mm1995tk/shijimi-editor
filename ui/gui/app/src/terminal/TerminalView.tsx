@@ -15,8 +15,8 @@ import {
 
 import { monoFontsReady } from "../fonts.ts";
 import type { TermLink, TermSink } from "./link.ts";
-import { pickReadMime, planWrite, supportsLocation } from "./clipboard.ts";
-import { availableOs, readOs, writeOs } from "./clipboardOs.ts";
+import { planWrite, readableMimes, supportsLocation } from "./clipboard.ts";
+import { availableOs, readFirstOs, writeOs } from "./clipboardOs.ts";
 import { askClipboardRead } from "./clipboardPrompt.ts";
 import {
   notificationSupport,
@@ -123,8 +123,7 @@ export function TerminalView(props: {
         if (!(await ask.allowed)) {
           return term.replyClipboardReadError(r.id, "EPERM");
         }
-        const mime = pickReadMime(r.mimes, await availableOs());
-        const item = mime ? await readOs(mime) : undefined;
+        const item = await readFirstOs(readableMimes(r.mimes));
         term.replyClipboardReadData(r.id, item ? [item] : []);
       } catch {
         term.replyClipboardReadError(r.id, "EBUSY");

@@ -3,6 +3,7 @@
 import { Show, type JSX } from "solid-js";
 
 import { ModalCard } from "./connect/Card.tsx";
+import { describeMimes } from "./terminal/clipboard.ts";
 import { currentReadPrompt } from "./terminal/clipboardPrompt.ts";
 
 /** 頼みが無ければ何も出さない。Esc と「許さない」は断り。 */
@@ -12,6 +13,7 @@ export function ClipboardDialog(): JSX.Element {
       {(ask) => (
         <ModalCard
           label="クリップボードの読み取り"
+          focusSelf
           onCancel={() => ask.resolve(false)}
         >
           <div class="card-body">
@@ -23,14 +25,13 @@ export function ClipboardDialog(): JSX.Element {
             </p>
             <p class="card-text">
               頼まれた種類：
-              {ask.mimes.length > 0 ? ask.mimes.join("、") : "（指定なし）"}
+              {describeMimes(ask.mimes)}
             </p>
           </div>
           <div class="card-actions">
             <button
               type="button"
               class="card-button"
-              autofocus
               onClick={() => ask.resolve(false)}
             >
               許さない
