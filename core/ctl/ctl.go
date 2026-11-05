@@ -15,6 +15,12 @@ import (
 // EnvSocket is the environment variable that carries the socket path.
 const EnvSocket = "SHIJIMI_SOCKET"
 
+// EnvGUIPrimary is set by "shj serve" only in the primary terminal of a GUI
+// workspace, and its value is that terminal's id. A TUI shj that finds it
+// announces itself on the primary socket (see PrimaryHello), then removes it
+// from its own environment so that nothing it starts can claim the primary.
+const EnvGUIPrimary = "SHIJIMI_GUI_PRIMARY"
+
 // The herdr terminal multiplexer sets these in the panes it runs. The editor
 // uses them to publish its socket under a name that shj can build from the
 // same variables when SHIJIMI_SOCKET is not passed along (herdr's key bound
@@ -115,4 +121,37 @@ func SafeName(id string) string {
 		}
 		return '_'
 	}, id)
+}
+
+// ServePrimaryName is the file name of the primary socket of "shj serve",
+// <SocketDir>/serve-primary.rpc, on which a TUI shj announces that it runs in
+// the primary terminal of a workspace. Like serve.rpc it does not end in
+// ".sock".
+const ServePrimaryName = "serve-primary.rpc"
+
+// ServePrimarySocketPath returns the path of that socket.
+func ServePrimarySocketPath(suffix string) (string, error) {
+	dir, err := SocketDir(suffix, true)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, ServePrimaryName), nil
+}
+
+// PrimaryHello is the one line (newline-delimited JSON) a shj sends on the
+// primary socket. TermID is the value of EnvGUIPrimary, Socket is the shj's
+// own control socket and PID its process id.
+type PrimaryHello struct {
+	TermID string `json:"termId"`
+	Socket string `json:"socket"`
+	PID    int    `json:"pid"`
+}
+
+// PrimaryReply answers a PrimaryHello with one line. When OK, the connection
+// stays open for as long as the shj runs, and "shj serve" takes its close as
+// the end of the shj. When not OK (the primary already has a shj, the terminal
+// is not a primary one) the server closes the connection.
+type PrimaryReply struct {
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
 }

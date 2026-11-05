@@ -273,6 +273,7 @@ const (
 	OverlayMenu       OverlayKind = "menu"
 	OverlayReviewCard OverlayKind = "reviewCard"
 	OverlaySearch     OverlayKind = "search"
+	OverlayProposal   OverlayKind = "proposal"
 )
 
 // Overlay はペインの上に重ねるもの。At はペインの中の位置（無ければ中央など描く側が決める）。
@@ -297,6 +298,10 @@ type Overlay struct {
 	// レビューカードが使う。Images は Lines の中の画像。Row は Line.No と同じ表示行の番号（Lines のインデックスではない）で、見える範囲に掛かるものだけ入る。Compose は返信・コメントの編集のときだけ。このとき View.Rows はラベルを含むプレビューの高さ（Lines は最大 Rows-1 行）で、Total は使わない。
 	Images  []PreviewImage `json:"images,omitempty"`
 	Compose *Compose       `json:"compose,omitempty"`
+
+	// エージェントの変更の承認の窓（OverlayProposal）が使う。Title は見出し（待っている数を含む）、Lines は見えている差分の行
+	// （追加・削除の行は Band に背景を付ける）、View がその位置と窓の幅（Cols）を表す。差分に行が無いときは Lines の代わりに Empty が入る。
+	Empty msg.Msg `json:"empty,omitzero"`
 
 	// 検索の窓（プロジェクトの検索・置換）が使う。Title は窓の見出し、Hint は状態の行の右に出すキーの一覧。
 	Search *Search `json:"search,omitempty"`

@@ -37,14 +37,16 @@ export interface Band {
   /** ツールチップに出すフォルダのパス（未定なら ""） */
   root: string;
   focused: boolean;
+  /** プライマリターミナルで TUI の shj が動いているか。動いているときだけツリーを出す */
+  showTree: boolean;
 }
 
 /** マシン 1 台分（見出しと、その下の帯）に出すもの。 */
 export interface MachineGroup {
   target: string;
-  /** 見出しの文字（このマシン / 付けた名前 / ssh の行き先） */
+  /** 見出しの文字（ローカル / 付けた名前 / ssh の行き先） */
   label: string;
-  /** 名前を変えたり外したりできるか（「このマシン」はできない） */
+  /** 名前を変えたり外したり切ったりできるか（「ローカル」はできない） */
   removable: boolean;
   /** 設定ファイル（config.toml の [[gui.machines]]）で決めたマシンか。外せず、名前も変えられない */
   fixed: boolean;
@@ -87,6 +89,7 @@ export function band(w: Workspace, focused: boolean, nth = 1): Band {
       detail: "",
       root: "",
       focused,
+      showTree: w.primaryShj != null,
     };
   }
   const detail = (w.kind === "cwd" ? ["git なし"] : [w.branch ?? ""])
@@ -101,6 +104,7 @@ export function band(w: Workspace, focused: boolean, nth = 1): Band {
     detail,
     root: w.folder,
     focused,
+    showTree: w.primaryShj != null,
   };
 }
 

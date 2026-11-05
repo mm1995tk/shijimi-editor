@@ -63,6 +63,25 @@ describe("band", () => {
     assert.equal(b.root, "");
   });
 
+  it("プライマリで shj が動いているときだけ showTree が true（ツリーを出す）", () => {
+    assert.equal(band(ws({ id: "a", root: "/x" }), true).showTree, false);
+    assert.equal(
+      band(ws({ id: "a", root: "/x", primaryShj: null }), true).showTree,
+      false,
+    );
+    const on = ws({
+      id: "a",
+      root: "/x",
+      primaryShj: { socket: "/s", pid: 1 },
+    });
+    assert.equal(band(on, true).showTree, true);
+    assert.equal(
+      band(ws({ id: "u", primaryShj: { socket: "/s", pid: 1 } }), true)
+        .showTree,
+      true,
+    );
+  });
+
   it("同じフォルダの 2 つ目からは番号を付けて見分ける", () => {
     const g = buildSidebar(
       ["a"],
@@ -122,7 +141,7 @@ describe("buildSidebar", () => {
     assert.deepEqual(
       groups.map((g) => [g.label, g.health]),
       [
-        ["このマシン", "down"],
+        ["ローカル", "down"],
         ["dev-vm", "up"],
       ],
     );
@@ -271,14 +290,14 @@ describe("splitAtFocus", () => {
 });
 
 describe("buildSidebar の見出し", () => {
-  it("labelOf で名前を差し替え、「このマシン」だけ外せない", () => {
+  it("labelOf で名前を差し替え、「ローカル」だけ外せない", () => {
     const groups = buildSidebar([LOCAL, "dev"], {}, {}, null, {}, (t) =>
-      t === "dev" ? "開発" : "このマシン",
+      t === "dev" ? "開発" : "ローカル",
     );
     assert.deepEqual(
       groups.map((g) => [g.label, g.removable]),
       [
-        ["このマシン", false],
+        ["ローカル", false],
         ["開発", true],
       ],
     );

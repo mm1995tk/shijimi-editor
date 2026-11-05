@@ -219,3 +219,38 @@ func TestWholeSpansTab(t *testing.T) {
 		t.Errorf("spans: %+v", sp)
 	}
 }
+
+// A change the agent proposes is an overlay of the screen: the title, the rows
+// of the diff in view (added and removed rows carry a band), and Enter answers
+// the agent.
+func TestBuildScreenProposal(t *testing.T) {
+	a, f := ideApp(t)
+	a.OpenFile(f)
+	args := map[string]any{"old_file_path": f, "new_file_path": f, "new_file_contents": "one\n2\nthree\n", "tab_name": "edit"}
+	ch, _, _ := ideCallRaw(a, "openDiff", args)
+
+	sc := a.BuildScreen(view(100, 24))
+	if len(sc.Overlay) != 1 || sc.Overlay[0].Kind != screen.OverlayProposal {
+		t.Fatalf("overlays: %+v", sc.Overlay)
+	}
+	ov := sc.Overlay[0]
+	if ov.View == nil || ov.View.Cols != ProposalWidth(100)-2 || ov.View.Total != len(ov.Lines) || len(ov.Lines) < 4 {
+		t.Fatalf("overlay: %+v", ov)
+	}
+	var add, del bool
+	for _, l := range ov.Lines {
+		add = add || (l.Band == screen.StyleDiffAddBg && l.Spans[0].Text == " + 2")
+		del = del || (l.Band == screen.StyleDiffDelBg && l.Spans[0].Text == " - two")
+	}
+	if !add || !del {
+		t.Errorf("lines: %+v", ov.Lines)
+	}
+
+	a.Update(Key{Code: KeyEnter})
+	if r := <-ch; r.Content[0].Text != "FILE_SAVED" {
+		t.Errorf("reply = %+v", r)
+	}
+	if sc := a.BuildScreen(view(100, 24)); len(sc.Overlay) != 0 {
+		t.Errorf("overlays remain: %+v", sc.Overlay)
+	}
+}

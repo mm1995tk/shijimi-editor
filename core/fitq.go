@@ -53,7 +53,9 @@ func (a *Core) FitFields(findCells, cmdCells int) {
 // FitSide keeps the file tree's selection on screen, and fits the list of
 // changes below it in the diff mode; bodyH is the height of the side bar.
 func (a *Core) FitSide(bodyH int) {
-	a.Explorer.EnsureVisible(a.ExplorerH() - 1)
+	if !a.treeHidden {
+		a.Explorer.EnsureVisible(a.ExplorerH() - 1)
+	}
 	if a.Gd.On {
 		a.FitChanges(bodyH - a.ExplorerH() - 1)
 	}

@@ -168,6 +168,8 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 			a.WheelSide(msg.Row, l.bodyH, wheel)
 		case msg.Region == core.RegionTerminal:
 			a.term.wheel(msg, msg.Col, msg.Row, wheel)
+		case msg.Region == core.RegionEditor && a.overPreview(l, msg):
+			a.WheelPreview(wheel)
 		default:
 			a.WheelEditor(wheel)
 		}

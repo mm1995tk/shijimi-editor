@@ -266,7 +266,8 @@ export type OverlayKind =
   | "palette"
   | "menu"
   | "reviewCard"
-  | "search";
+  | "search"
+  | "proposal";
 
 /** 一覧の 1 行（補完の候補、パレットの項目、メニュー）。Go の screen.Item。 */
 export interface Item {
@@ -320,6 +321,8 @@ export interface Overlay {
   /** レビューカードの中の画像。row は lines の no と同じ表示行の番号 */
   images?: PreviewImage[] | null;
   compose?: Compose;
+  /** エージェントの変更の承認の窓で、差分に行が無いときの文言（lines の代わり） */
+  empty?: string;
   /** 検索の窓。title は見出し、hint は状態の行の右に出すキーの一覧 */
   search?: Search;
 }
@@ -493,6 +496,14 @@ export interface Workspace {
   /** 分割したターミナル（0〜5 個） */
   terms: TermId[];
   files: string[];
+  /** プライマリターミナルの中で動いている TUI の shj。無ければ null（shj serve は常に送る） */
+  primaryShj?: PrimaryShj | null;
+}
+
+export interface PrimaryShj {
+  /** その shj の制御用ソケット（core/ctl）の場所 */
+  socket: string;
+  pid: number;
 }
 
 // ---- ファイルのツリー ----
@@ -617,6 +628,10 @@ export interface Requests {
   };
   "term.resize": {
     params: { termId: TermId; cols: number; rows: number };
+    result: Record<string, never>;
+  };
+  "term.cd": {
+    params: { termId: TermId; path?: string };
     result: Record<string, never>;
   };
   "term.input": {

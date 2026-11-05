@@ -41,3 +41,15 @@ func TestCopyPathExplorerKeys(t *testing.T) {
 		t.Fatalf("Y -> %q want %q", a.Clipboard, want)
 	}
 }
+
+func TestCopyPathColonCommands(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	a.ExecCommand("copy-rel")
+	if a.Clipboard != "a.txt" {
+		t.Fatalf(":copy-rel -> %q", a.Clipboard)
+	}
+	a.ExecCommand("copy-abs")
+	if want := filepath.Join(a.Root, "a.txt"); a.Clipboard != want {
+		t.Fatalf(":copy-abs -> %q want %q", a.Clipboard, want)
+	}
+}

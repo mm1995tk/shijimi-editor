@@ -29,7 +29,7 @@ func (a *App) layout() layout {
 	if a.DiffMode() {
 		l.top = 1
 	}
-	if a.showSide {
+	if a.SideVisible() {
 		l.sideW = a.sideWidth()
 		l.rightX = l.sideW + 1
 	}
@@ -93,6 +93,14 @@ func (a *App) inEditorText(l layout, msg core.Mouse) bool {
 	}
 	top := l.editY - l.top
 	return msg.Row >= top && msg.Row < top+l.editH
+}
+
+// overPreview reports whether the pointer is over the Markdown preview beside
+// the text of the current tab.
+func (a *App) overPreview(l layout, msg core.Mouse) bool {
+	t := a.Cur()
+	return t != nil && t.Kind == core.TabText && t.Preview == core.PreviewSplit && a.DiffFile(t) == nil &&
+		msg.Col > a.editW(t, l) && msg.Row >= l.editY-l.top && msg.Row < l.editY-l.top+l.editH
 }
 
 // cursorShown reports whether the cursor drawn at (x, y) is inside the text

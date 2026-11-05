@@ -207,6 +207,8 @@ func (a *Core) HandleMouse(m Mouse) []Effect {
 		}
 		if t := a.CurText(); t != nil && m.Shift {
 			a.ScrollCols(t, d)
+		} else if p.Kind == screen.KindPreview {
+			a.WheelPreview(d)
 		} else {
 			a.WheelEditor(d)
 		}
