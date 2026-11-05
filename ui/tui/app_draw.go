@@ -120,8 +120,10 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	if t != nil {
 		activePath = t.Path()
 	}
-	if a.showSide {
-		side = drawExplorer(a.Explorer, activePath, l.sideW, a.ExplorerH(), a.FocusIn(core.FocusExplorer))
+	if a.SideVisible() {
+		if !a.TreeHidden() {
+			side = drawExplorer(a.Explorer, activePath, l.sideW, a.ExplorerH(), a.FocusIn(core.FocusExplorer))
+		}
 		if a.DiffMode() {
 			side = append(side, drawChanges(a.ChangesOf(l.bodyH-a.ExplorerH()), l.sideW, l.bodyH-a.ExplorerH(), a.FocusIn(core.FocusChanges), a.borderLit(l, core.ResizeExplorer))...)
 		}
@@ -134,7 +136,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	sideSep, agentSep := a.separator(l, core.ResizeSide), a.separator(l, core.ResizeAgent)
 	for i := range rows {
 		var sb strings.Builder
-		if a.showSide {
+		if a.SideVisible() {
 			sb.WriteString(side[i])
 			sb.WriteString(sideSep)
 		}
@@ -330,7 +332,7 @@ func (a *App) fit() {
 		a.term.fit(l.fullW, l.panelH)
 	}
 	a.FitFields(findInputCells(l.rightW), a.w)
-	if a.showSide {
+	if a.SideVisible() {
 		a.FitSide(l.bodyH)
 	}
 	a.fitAgent(l)

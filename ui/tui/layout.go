@@ -29,7 +29,7 @@ func (a *App) layout() layout {
 	if a.DiffMode() {
 		l.top = 1
 	}
-	if a.showSide {
+	if a.SideVisible() {
 		l.sideW = a.sideWidth()
 		l.rightX = l.sideW + 1
 	}

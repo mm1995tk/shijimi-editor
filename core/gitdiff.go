@@ -502,7 +502,7 @@ func (a *Core) closeDiff() []Effect {
 	a.Gd.On = false
 	a.Card = nil
 	if a.Focus == FocusChanges {
-		a.Focus = FocusExplorer
+		a.Focus = a.explorerFocus()
 	}
 	a.Follow = true
 	a.InfoText(msg.T("gd.closed"))
@@ -910,8 +910,12 @@ func (a *Core) BodyH() int {
 
 // ExplorerH is the height of the file tree: the user's share of the sidebar
 // (7/10 by default) in diff mode, all of it otherwise. The tree and CHANGES
-// each keep at least MinSideSectionH rows.
+// each keep at least MinSideSectionH rows. Without a tree
+// (SetTreeHidden) it is 0, and CHANGES has the whole sidebar.
 func (a *Core) ExplorerH() int {
+	if a.treeHidden {
+		return 0
+	}
 	if a.Gd.On {
 		body := a.BodyH()
 		if a.ExplorerShare() <= 0 {

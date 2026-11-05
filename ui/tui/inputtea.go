@@ -193,7 +193,7 @@ func (a *App) hitTest(l layout, x, y int) (core.Region, int, int) {
 	switch {
 	case y < l.top || y >= l.top+l.bodyH:
 		return core.RegionNone, y, x
-	case a.showSide && x < l.sideW:
+	case a.SideVisible() && x < l.sideW:
 		return core.RegionExplorer, y - l.top, x
 	case l.agentW > 0 && x >= l.agentX-1: // the border column belongs to the panel (it is dragged to resize)
 		return core.RegionAgent, y - l.top, x - l.agentX
