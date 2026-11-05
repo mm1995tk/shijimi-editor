@@ -13,7 +13,7 @@ import { stateLabel } from "./status.ts";
 const optionId = (i: number) => `add-machine-option-${i}`;
 
 /**
- * マシンを足す窓。candidates は ~/.ssh/config のホストのうち、まだ足していないもの。
+ * リモートを足す窓。candidates は ~/.ssh/config のホストのうち、まだ足していないもの。
  * onSubmit は「足す」で呼ぶ（入れた行き先と名前をそのまま渡す。確かめるのは呼んだ側）。
  * busy の間（つないでいる最中）は入力と「足す」を止める。state はそのときの接続の状態。
  * error は直前に足せなかった理由。onCancel は「キャンセル」と Esc で呼ぶ。

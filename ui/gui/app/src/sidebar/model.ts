@@ -44,7 +44,7 @@ export interface MachineGroup {
   target: string;
   /** 見出しの文字（ローカル / 付けた名前 / ssh の行き先） */
   label: string;
-  /** 名前を変えたり外したりできるか（「ローカル」はできない） */
+  /** 名前を変えたり外したり切ったりできるか（「ローカル」はできない） */
   removable: boolean;
   /** 設定ファイル（config.toml の [[gui.machines]]）で決めたマシンか。外せず、名前も変えられない */
   fixed: boolean;

@@ -230,7 +230,7 @@ function Workbench(props: {
     return open;
   }, false);
   const [asks, setAsks] = createSignal<AskpassRequest[]>([]);
-  // マシンを足す窓を出しているか。足すためにつないでいる最中のマシン、足せなかった理由
+  // リモートを足す窓を出しているか。足すためにつないでいる最中のマシン、足せなかった理由
   const [adding, setAdding] = createSignal(false);
   const [addPending, setAddPending] = createSignal<Machine | null>(null);
   const [addError, setAddError] = createSignal<string | undefined>();
