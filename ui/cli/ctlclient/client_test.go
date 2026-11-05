@@ -89,7 +89,7 @@ func TestRunExec(t *testing.T) {
 func isolate(t *testing.T) string {
 	t.Helper()
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	for _, k := range []string{ctl.EnvSocket, ctl.EnvHerdr, ctl.EnvHerdrWorkspace, ctl.EnvHerdrPane} {
+	for _, k := range []string{ctl.EnvSocket, ctl.EnvHerdr, ctl.EnvHerdrWorkspace, ctl.EnvHerdrPane, ctl.EnvGUIWorkspace} {
 		t.Setenv(k, "")
 	}
 	dir, err := ctl.SocketDir(buildinfo.Suffix(), true)
@@ -220,5 +220,52 @@ func TestNoHerdrLinkOutsideHerdr(t *testing.T) {
 	listen(t, filepath.Join(dir, "1.sock"))
 	if _, err := os.Stat(filepath.Join(dir, "herdr-w1")); !os.IsNotExist(err) {
 		t.Fatalf("link made outside herdr: %v", err)
+	}
+}
+
+// GUI のワークスペースのターミナルは、プライマリの shj のリンクがあればそこへ届く。
+// 無ければ（shj が動いていない）SHIJIMI_SOCKET の serve へ、今まで通り。
+func TestFindSocketGUIWorkspaceLink(t *testing.T) {
+	dir := isolate(t)
+	serve := filepath.Join(dir, "serve.sock") // 環境変数が指す serve の代わり
+	shj := filepath.Join(dir, "1.sock")
+	listen(t, serve)
+	listen(t, shj)
+	t.Setenv(ctl.EnvSocket, serve)
+	t.Setenv(ctl.EnvGUIWorkspace, "w1")
+
+	// まだ shj がいない。ターミナルは先に開いている。
+	if got, err := FindSocket(); err != nil || got != serve {
+		t.Fatalf("no link: %q %v", got, err)
+	}
+
+	// あとから shj が起動してリンクが置かれる。
+	link := ctl.GUILinkPath(dir, "w1")
+	if err := os.MkdirAll(filepath.Dir(link), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(shj, link); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := FindSocket(); err != nil || got != link {
+		t.Fatalf("link: %q %v", got, err)
+	}
+	if resp, err := Call(ctl.Request{Cmd: "diff"}); err != nil || !resp.OK {
+		t.Fatalf("call through the link: %+v %v", resp, err)
+	}
+
+	// 別のワークスペースのリンクは使わない。
+	t.Setenv(ctl.EnvGUIWorkspace, "w2")
+	if got, _ := FindSocket(); got != serve {
+		t.Fatalf("other workspace: %q", got)
+	}
+
+	// shj が落ちてリンクだけ残っても、serve へ戻る。
+	t.Setenv(ctl.EnvGUIWorkspace, "w3")
+	dead := ctl.GUILinkPath(dir, "w3")
+	os.MkdirAll(filepath.Dir(dead), 0o700)
+	os.Symlink(filepath.Join(dir, "gone.sock"), dead)
+	if got, _ := FindSocket(); got != serve {
+		t.Fatalf("dangling: %q", got)
 	}
 }

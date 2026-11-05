@@ -27,13 +27,17 @@ func IsSubcommand(arg string) bool {
 	return slices.Contains(Subcommands, arg)
 }
 
-// FindSocket returns the socket shj talks to: SHIJIMI_SOCKET when it is set;
-// otherwise, inside a herdr workspace, the link of the pane HERDR_PANE_ID or
+// FindSocket returns the socket shj talks to: in a terminal of a GUI workspace
+// (SHIJIMI_GUI_WORKSPACE) whose primary terminal runs a shj, that shj's socket;
+// otherwise SHIJIMI_SOCKET when it is set; otherwise, inside a herdr workspace, the link of the pane HERDR_PANE_ID or
 // the only live link of the workspace; otherwise the only live socket of this
 // user. Sockets that do not accept a connection (left behind by an editor that
 // was killed) are skipped. More than one candidate is an error, because shj
 // cannot tell which editor is meant.
 func FindSocket() (string, error) {
+	if p := guiPrimarySocket(); p != "" {
+		return p, nil
+	}
 	if sock := os.Getenv(ctl.EnvSocket); sock != "" {
 		return sock, nil
 	}
@@ -60,6 +64,24 @@ func FindSocket() (string, error) {
 		return live[0], nil
 	}
 	return "", fmt.Errorf(i18n.T("ctl.ambiguous"), ctl.EnvSocket, len(live), ctl.EnvSocket)
+}
+
+// guiPrimarySocket returns the link to the shj in the primary terminal of this
+// terminal's GUI workspace, or "" when this is not a GUI terminal or that shj
+// is not running (the link is missing or dangling).
+func guiPrimarySocket() string {
+	ws := os.Getenv(ctl.EnvGUIWorkspace)
+	if ws == "" {
+		return ""
+	}
+	dir, err := ctl.SocketDir(buildinfo.Suffix(), false)
+	if err != nil {
+		return ""
+	}
+	if p := ctl.GUILinkPath(dir, ws); alive(p) {
+		return p
+	}
+	return ""
 }
 
 // liveSockets lists the *.sock entries of dir that accept a connection.
