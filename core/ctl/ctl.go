@@ -33,8 +33,8 @@ const (
 
 // Request is sent by the CLI to the editor.
 type Request struct {
-	Cmd  string `json:"cmd"` // diff | exec | command-end
-	Path string `json:"path,omitempty"`
+	Cmd  string `json:"cmd"`            // diff | exec | command-end | open
+	Path string `json:"path,omitempty"` // diff, open: an absolute path
 	Line string `json:"line,omitempty"` // exec: the ":" command to run; command-end: the exit code
 }
 
@@ -145,6 +145,14 @@ type PrimaryHello struct {
 	TermID string `json:"termId"`
 	Socket string `json:"socket"`
 	PID    int    `json:"pid"`
+}
+
+// PrimaryFile is a line the shj sends on the primary socket after the reply
+// said OK, each time the file it shows changes (and once at the start):
+// File is the absolute path of the text or image in the focused pane, or ""
+// when the pane shows none (a diff, a preview, the welcome page).
+type PrimaryFile struct {
+	File string `json:"file"`
 }
 
 // PrimaryReply answers a PrimaryHello with one line. When OK, the connection

@@ -94,6 +94,7 @@ import { Session, type SessionState } from "./ssh/session.ts";
 import { tauriShell } from "./ssh/tauri.ts";
 import {
   currentFile,
+  relativeIn,
   openErrorText,
   rows as treeRows,
   type TreeRow,
@@ -741,6 +742,24 @@ function Workbench(props: {
     if (!s || switching || s.focus !== id) return;
     const seq = ++openSeq; // 続けて押したら、最後に押したものの失敗だけを出す
     setFocusError(null);
+    // プライマリで shj が動いているなら、そこで開いてもらい、キーもそのターミナルに向ける
+    if (workspaces()[target]?.find((w) => w.id === id)?.primaryShj) {
+      s.request("shj.open", { workspaceId: id, path }).then(
+        () => {
+          if (seq !== openSeq) return;
+          termGroup()?.setActive(0); // 0 番目がプライマリ
+          focusTerminal();
+        },
+        (e) => {
+          if (seq !== openSeq) return;
+          setFocusError({
+            title: "ファイルを開けませんでした",
+            error: openErrorText(path, e),
+          });
+        },
+      );
+      return;
+    }
     const sent = s.input("file.open", { workspaceId: id, path }, (e) => {
       if (seq !== openSeq) return;
       focusFilesWhenShown = false;
@@ -889,6 +908,9 @@ function Workbench(props: {
   function currentOf(target: string, id: WorkspaceId) {
     const f = focus();
     if (f?.target !== target || f.id !== id) return undefined;
+    // プライマリの shj があれば、その shj が出しているファイル。なければ GUI 自身のファイルの欄のもの
+    const w = workspaces()[target]?.find((x) => x.id === id);
+    if (w?.primaryShj) return relativeIn(w.primaryShj.file, rootOf(target, id));
     return currentFile(screens()[target]?.files, rootOf(target, id));
   }
 

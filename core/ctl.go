@@ -25,6 +25,20 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 			}
 			cmd = Batch(cmd, a.SetFocus(FocusEditor))
 		}
+	case "open":
+		// What the GUI file tree asks for when a file is pressed: open the file
+		// (an absolute path) and give the keys to the editor.
+		if !filepath.IsAbs(m.Req.Path) {
+			resp = CtlResponse{Error: msg.T("ctl.cantopen").Add(m.Req.Path)}
+			break
+		}
+		a.pushJump()
+		if !a.OpenFile(m.Req.Path) {
+			resp = CtlResponse{Error: msg.T("ctl.cantopen").Add(m.Req.Path)}
+			break
+		}
+		resp = CtlResponse{OK: true}
+		cmd = a.SetFocus(FocusEditor)
 	case "exec":
 		resp, cmd = a.ctlExec(m.Req.Line)
 	case "command-end":

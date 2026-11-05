@@ -81,3 +81,20 @@ func TestReviewToRoot(t *testing.T) {
 		t.Errorf("without gitTop: %q", got)
 	}
 }
+
+func TestCtlOpenOpensTheFileAndFocusesTheEditor(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "b.txt")
+	os.WriteFile(f, []byte("1\n"), 0o644)
+	a := newApp(dir, "")
+	a.Focus = FocusExplorer
+	if r := ctlCall(a, ctl.Request{Cmd: "open", Path: f}); !r.OK {
+		t.Fatalf("open: %+v", r)
+	}
+	if a.CurText() == nil || a.CurText().Buf.Path != f || a.Focus != FocusEditor {
+		t.Errorf("cur=%v focus=%v", a.CurText(), a.Focus)
+	}
+	if r := ctlCall(a, ctl.Request{Cmd: "open", Path: "b.txt"}); r.OK {
+		t.Error("a relative path must be refused")
+	}
+}
