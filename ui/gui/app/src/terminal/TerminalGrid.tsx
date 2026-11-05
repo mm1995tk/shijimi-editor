@@ -82,7 +82,9 @@ export function TerminalGrid(props: {
             hidden={!props.showAll && link !== props.active}
             area={area(i())}
             onFocus={() => props.onActivate(i())}
-            handle={(f) => (f ? focusers.set(link, f) : focusers.delete(link))}
+            focusRef={(f) =>
+              f ? focusers.set(link, f) : focusers.delete(link)
+            }
           />
         )}
       </For>

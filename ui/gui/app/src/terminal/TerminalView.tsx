@@ -27,7 +27,7 @@ export function TerminalView(props: {
   /** 欄がフォーカスを受けた（押した・キーを向けた） */
   onFocus?: () => void;
   /** この欄にキーを向ける関数を受け取る（欄が無くなるとき undefined で呼ぶ） */
-  handle?: (focus: (() => void) | undefined) => void;
+  focusRef?: (focus: (() => void) | undefined) => void;
 }): JSX.Element {
   let host!: HTMLDivElement;
   // 親 #271 のモック（案：フラットな一覧）の右下の文字と色に合わせる
@@ -72,8 +72,8 @@ export function TerminalView(props: {
     // coneko-term は open のときに字の幅を測るので、JetBrains Mono を読み終えてから開く
     // （先に開くと代わりの字で測ってしまい、字の間が合わない）
     let disposed = false;
-    props.handle?.(() => term.focus());
-    onCleanup(() => props.handle?.(undefined));
+    props.focusRef?.(() => term.focus());
+    onCleanup(() => props.focusRef?.(undefined));
     const ro = new ResizeObserver(() => refit());
     onCleanup(() => {
       disposed = true;
