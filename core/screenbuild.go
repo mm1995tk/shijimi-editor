@@ -288,6 +288,9 @@ func (a *Core) screenOverlays(v screen.View) []screen.Overlay {
 	if a.PaletteOpen() {
 		out = append(out, a.PaletteOverlay())
 	}
+	if a.SearchOpen() {
+		out = append(out, a.SearchOverlay())
+	}
 	if c := a.ConfirmOverlay(); c != nil {
 		out = append(out, *c)
 	}

@@ -272,6 +272,7 @@ const (
 	OverlayPalette    OverlayKind = "palette"
 	OverlayMenu       OverlayKind = "menu"
 	OverlayReviewCard OverlayKind = "reviewCard"
+	OverlaySearch     OverlayKind = "search"
 )
 
 // Overlay はペインの上に重ねるもの。At はペインの中の位置（無ければ中央など描く側が決める）。
@@ -296,6 +297,62 @@ type Overlay struct {
 	// レビューカードが使う。Images は Lines の中の画像。Row は Line.No と同じ表示行の番号（Lines のインデックスではない）で、見える範囲に掛かるものだけ入る。Compose は返信・コメントの編集のときだけ。このとき View.Rows はラベルを含むプレビューの高さ（Lines は最大 Rows-1 行）で、Total は使わない。
 	Images  []PreviewImage `json:"images,omitempty"`
 	Compose *Compose       `json:"compose,omitempty"`
+
+	// 検索の窓（プロジェクトの検索・置換）が使う。Title は窓の見出し、Hint は枠の下の案内（キーの一覧）。
+	Search *Search `json:"search,omitempty"`
+}
+
+// Search は検索の窓（OverlaySearch）の状態。上に 4 つの入力欄（検索・置換・含める・除く）とオプション、
+// 状態の行があり、下の左に一致した行の一覧、右に選んだ行のプレビューが並ぶ。窓は欄いっぱい（周りに 1 マスの余白）に広げる。
+type Search struct {
+	Fields  [4]SearchField  `json:"fields"`  // 検索・置換・含める・除くの順（Tab の順）
+	Field   int             `json:"field"`   // 今の欄（Fields の番号）
+	Options [4]SearchOption `json:"options"` // 大文字小文字・単語・正規表現・大文字小文字を保つの順
+	Status  msg.Msg         `json:"status"`  // 状態の行（件数、検索中、エラーなど）
+	Err     bool            `json:"err,omitempty"`
+	Busy    bool            `json:"busy,omitempty"` // 検索中
+
+	// 一覧とプレビューの高さ（行）。Hits は Scroll から見えている分だけで、Cursor は全体の中の選択位置。
+	BodyRows int         `json:"bodyRows"`
+	Hits     []SearchHit `json:"hits,omitempty"`
+	Scroll   int         `json:"scroll"`
+	Cursor   int         `json:"cursor"`
+	Total    int         `json:"total"`          // 一致した行の全部の数
+	Empty    msg.Msg     `json:"empty,omitzero"` // 一致した行が無いときの文言
+
+	Preview *SearchPreview `json:"preview,omitempty"` // 選んだ行があるときだけ
+}
+
+// SearchField は検索の窓の入力欄。
+type SearchField struct {
+	Label       msg.Msg `json:"label"`
+	Text        string  `json:"text"`
+	Cursor      int     `json:"cursor"` // rune の位置
+	Placeholder msg.Msg `json:"placeholder,omitzero"`
+}
+
+// SearchOption は検索のオプション（切り替え）。
+type SearchOption struct {
+	Label msg.Msg `json:"label"`
+	On    bool    `json:"on"`
+}
+
+// SearchHit は一致した行の一覧の 1 行。Line は、一致した部分に背景（StyleMatch）を付けた、見せる最初の桁からの行。
+type SearchHit struct {
+	Label string `json:"label"` // 「相対パス:行番号」
+	Line  Line   `json:"line"`
+	Skip  bool   `json:"skip,omitempty"` // 置換から外した行
+}
+
+// SearchPreview は選んだ行のプレビュー。Lines はファイルの中の見える行（No は 0 始まりの行番号）で、
+// Hit の行には一致した部分に背景を付ける。置換のあとの行が違うときは Del と Add に前と後の行を入れる（Hit の行の下に出す）。
+type SearchPreview struct {
+	Title string `json:"title"` // 「相対パス:行番号」
+	Lines []Line `json:"lines"`
+	Hit   int    `json:"hit"`   // 選んだ行の No
+	Total int    `json:"total"` // ファイルの全行数（行番号の桁数に使う）
+	Del   *Line  `json:"del,omitempty"`
+	Add   *Line  `json:"add,omitempty"`
 }
 
 // Compose はレビューカードの編集（返信・コメント・レビューの本文）の入力欄。Overlay の Lines は、その本文を
