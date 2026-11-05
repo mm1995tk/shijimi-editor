@@ -3,10 +3,13 @@ import type { NotificationSupport, TerminalNotification } from "coneko-term";
 /**
  * `p=?` への返事。公式の通知プラグインはデスクトップで押された・閉じられたを返さないので、
  * 押されたとき欄を前に出す（a=focus）は OS の既定に任せ、a=report と c=1 は対応しないと答える。
+ * p=alive と p=close も、通知を後から調べる・閉じる口が無いので対応しないと答え、緊急度（u）も渡せないので対応しないと答える。
  * ここで省いた項目は coneko-term の既定（対応する）になる。
  */
 export const notificationSupport: NotificationSupport = {
   actions: ["focus"],
+  payloads: ["title", "body", "?"],
+  urgencies: [],
   closeReport: false,
 };
 

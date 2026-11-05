@@ -69,8 +69,7 @@ export function TerminalView(props: {
   // キー・貼り付け・マウスの報告・問い合わせへの返事は、どれもバイト列で出てくる
   term.onData((b) => current?.input(b));
 
-  // ターミナルの通知（kitty の OSC 99）を OS の通知につなぐ。押されたとき欄を前に出す・閉じたことを返すのは
-  // 公式プラグインのデスクトップ版にできないので、p=? には対応しないと答える（notify.ts）
+  // ターミナルの通知（kitty の OSC 99）を OS の通知につなぐ。何に対応すると答えるかは notify.ts
   term.onNotificationQuery((id) =>
     term.replyNotificationQuery(id, notificationSupport),
   );
@@ -85,9 +84,7 @@ export function TerminalView(props: {
       return;
     void (async () => {
       try {
-        let granted = await isPermissionGranted();
-        if (!granted) granted = (await requestPermission()) === "granted";
-        if (granted) sendNotification(toOsNotification(n));
+        if (await notifyPermission()) sendNotification(toOsNotification(n));
       } catch {
         // 通知を出せなくても、ターミナルの動きには関わらない
       }
@@ -155,4 +152,15 @@ export function TerminalView(props: {
       <div class="terminal-host" ref={host} />
     </div>
   );
+}
+
+// 通知の許可。全部の欄で 1 つの Promise にまとめ、許可のダイアログを同時に複数出さない。
+// 拒否されたら、このセッションでは求め直さない
+let permission: Promise<boolean> | undefined;
+function notifyPermission(): Promise<boolean> {
+  permission ??= (async () => {
+    if (await isPermissionGranted()) return true;
+    return (await requestPermission()) === "granted";
+  })();
+  return permission;
 }
