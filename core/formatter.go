@@ -10,6 +10,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
+	"github.com/mm1995tk/shijimi-editor/core/internal/direnv"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
@@ -28,6 +29,10 @@ type FormatterDoneMsg struct {
 // runFormatter formats the current buffer with the language's formatter
 // command: the buffer goes to stdin, stdout becomes the new text.
 func (a *Core) runFormatter(t *Tab, f *config.Formatter, save bool) []Effect {
+	if a.Lsp.waitEnv {
+		a.Info("direnv.loading")
+		return nil
+	}
 	in := t.Buf.Text()
 	root := a.Root
 	name := a.Rel(t.Buf.Path)
@@ -36,11 +41,19 @@ func (a *Core) runFormatter(t *Tab, f *config.Formatter, save bool) []Effect {
 		args[i] = strings.ReplaceAll(s, "%{buffer_name}", name)
 	}
 	cmdName := f.Command
+	env := a.Lsp.env
 	return async(func() Event {
 		ctx, cancel := context.WithTimeout(context.Background(), formatterTimeout)
 		defer cancel()
-		cmd := exec.CommandContext(ctx, cmdName, args...)
+		path := cmdName
+		if env != nil {
+			if p, err := direnv.LookPath(env, cmdName); err == nil {
+				path = p
+			}
+		}
+		cmd := exec.CommandContext(ctx, path, args...)
 		cmd.Dir = root
+		cmd.Env = env
 		cmd.Stdin = strings.NewReader(in)
 		var stdout, stderr bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &stdout, &stderr

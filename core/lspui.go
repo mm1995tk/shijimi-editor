@@ -26,6 +26,8 @@ type lspManager struct {
 	clients map[string]*lsp.Client // key: server name + "\x00" + root
 	failed  map[string]bool
 	events  chan lsp.Event
+	env     []string                               // the environment servers run in; nil is the process's
+	waitEnv bool                                   // the environment is being read: no server starts yet
 	Diags   map[string]map[string][]lsp.Diagnostic // path -> server -> diags
 }
 
@@ -43,6 +45,9 @@ func newLSPManager(cfg *config.Config, root string) *lspManager {
 // Errors (e.g. server binary missing) are returned once per server.
 func (m *lspManager) clientsFor(t *Tab) ([]*lsp.Client, []error) {
 	if t.Kind != TabText || t.Lang == nil || t.Buf.Path == "" {
+		return nil, nil
+	}
+	if m.waitEnv {
 		return nil, nil
 	}
 	var out []*lsp.Client
@@ -63,7 +68,7 @@ func (m *lspManager) clientsFor(t *Tab) ([]*lsp.Client, []error) {
 			errs = append(errs, msg.Err("lspui.noconfig", name))
 			continue
 		}
-		c, err := lsp.Start(s, root, m.events)
+		c, err := lsp.Start(s, root, m.env, m.events)
 		if err != nil {
 			m.failed[key] = true
 			errs = append(errs, err)
