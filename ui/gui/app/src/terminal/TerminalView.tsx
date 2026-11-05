@@ -84,6 +84,9 @@ export function TerminalView(props: {
       notificationSupportFor(navigator.userAgent),
     ),
   );
+  // 出した通知の取り消し関数。欄が無くなったら、あとで返ってきても欄を触らない
+  const notifyCancels = new Set<() => void>();
+  onCleanup(() => notifyCancels.forEach((c) => c()));
   term.onNotification((n) => {
     if (
       !shouldNotify(n.when, {
@@ -95,18 +98,24 @@ export function TerminalView(props: {
       return;
     void (async () => {
       try {
-        await showOsNotification(toOsNotification(n), (kind) => {
-          if (kind === "activated") {
-            // 欄を前に出す（窓は Rust 側が前に出す）。a=focus が無い通知は、欄を動かさない
-            if (n.actions.focus) {
-              props.onFocus?.();
-              term.focus();
+        const cancel = await showOsNotification(
+          toOsNotification(n),
+          n.actions.focus,
+          (kind) => {
+            notifyCancels.delete(cancel);
+            if (kind === "activated") {
+              // 欄を前に出す（窓は Rust 側が前に出す）。a=focus が無い通知は、欄を動かさない
+              if (n.actions.focus) {
+                props.onFocus?.();
+                term.focus();
+              }
+              if (n.actions.report) term.notificationActivated(n.id);
+            } else if (n.reportClose) {
+              term.notificationClosed(n.id);
             }
-            if (n.actions.report) term.notificationActivated(n.id);
-          } else if (n.reportClose) {
-            term.notificationClosed(n.id);
-          }
-        });
+          },
+        );
+        notifyCancels.add(cancel);
       } catch {
         // 通知を出せなくても、ターミナルの動きには関わらない
       }

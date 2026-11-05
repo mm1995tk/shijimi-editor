@@ -11,25 +11,35 @@
 
 use notify_rust::{Notification, NotificationResponse};
 use serde::Serialize;
-use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, Manager};
+
+/// 利用者の操作。画面には `activated` / `closed` で渡る。
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum Kind {
+    /// 押された
+    Activated,
+    /// 閉じられた
+    Closed,
+}
 
 #[derive(Clone, Serialize)]
 struct Response {
     /// 画面が通知を出すときに付けた番号
     key: u64,
-    /// `activated`（押された）か `closed`（閉じられた）
-    kind: &'static str,
+    kind: Kind,
 }
 
-/// 通知を出し、押された・閉じられたを待って `notify-response` で返す。出せなかったときはエラー。
-/// `key` は画面が欄との対応を引くための番号。
+/// 通知を出し、押された・閉じられたを待って `notify-response` で返す。
+/// `key` は画面が欄との対応を引くための番号。`focus` が真のときだけ、押されたら窓を前に出す（kitty の `a=focus`）。
+/// 出せなかったときはエラー。ただし macOS は通知を出すのが待つ側（`wait_for_response`）なので、出せなかったことはログに出るだけでエラーにならない。
 #[tauri::command]
 pub fn notify_show(
     app: AppHandle,
     key: u64,
     title: String,
     body: Option<String>,
+    focus: bool,
 ) -> Result<(), String> {
     let mut n = Notification::new();
     n.summary(&title);
@@ -40,17 +50,10 @@ pub fn notify_show(
     // Linux の通知サーバーに、押されたときの既定の動きを持たせる（これが無いと押されたが来ない）
     #[cfg(all(unix, not(target_os = "macos")))]
     n.action("default", "default");
-    // 入れたアプリのときだけ AppUserModelID を付ける（開発中の実行ファイルでは付けない）
+    // 入れたアプリのときだけ AppUserModelID を付ける（開発中は付けない）
     #[cfg(windows)]
-    {
-        let dev = std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-            .map(|d| d.ends_with("target/debug") || d.ends_with("target/release"))
-            .unwrap_or(false);
-        if !dev {
-            n.app_id(&app.config().identifier);
-        }
+    if !tauri::is_dev() {
+        n.app_id(&app.config().identifier);
     }
     #[cfg(target_os = "macos")]
     {
@@ -62,20 +65,20 @@ pub fn notify_show(
     }
     let handle = n.show().map_err(|e| e.to_string())?;
     std::thread::spawn(move || {
-        let kind = Arc::new(Mutex::new(None));
-        let slot = Arc::clone(&kind);
-        let _ = handle.wait_for_response(move |r: &NotificationResponse| {
-            *slot.lock().unwrap() = match r {
+        let mut kind = None;
+        if let Err(e) = handle.wait_for_response(|r: &NotificationResponse| {
+            kind = match r {
                 NotificationResponse::Default | NotificationResponse::Action(_) => {
-                    Some("activated")
+                    Some(Kind::Activated)
                 }
                 NotificationResponse::Reply(_) => None,
-                NotificationResponse::Closed(_) => Some("closed"),
+                NotificationResponse::Closed(_) => Some(Kind::Closed),
             };
-        });
-        let kind = *kind.lock().unwrap();
+        }) {
+            eprintln!("notify: {e}");
+        }
         let Some(kind) = kind else { return };
-        if kind == "activated" {
+        if focus && matches!(kind, Kind::Activated) {
             front(&app);
         }
         let _ = app.emit("notify-response", Response { key, kind });

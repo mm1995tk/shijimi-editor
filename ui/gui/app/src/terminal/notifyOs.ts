@@ -22,18 +22,24 @@ function ensureListening(): Promise<unknown> {
   return listening;
 }
 
-/** OS の通知を出す。`onResponse` は押された・閉じられたのとき 1 回だけ呼ばれる。出せなければ例外。 */
+/**
+ * OS の通知を出す。`onResponse` は押された・閉じられたのとき 1 回だけ呼ばれる。出せなければ例外。
+ * `focus` が真なら、押されたとき Rust 側が窓を前に出す。
+ * 返す関数は、欄が無くなるときに呼ぶ（以後の返事を捨てる）。
+ */
 export async function showOsNotification(
   n: { title: string; body?: string },
+  focus: boolean,
   onResponse: Handler,
-): Promise<void> {
+): Promise<() => void> {
   await ensureListening();
   const key = ++seq;
   pending.set(key, onResponse);
   try {
-    await invoke("notify_show", { key, title: n.title, body: n.body });
+    await invoke("notify_show", { key, title: n.title, body: n.body, focus });
   } catch (e) {
     pending.delete(key);
     throw e;
   }
+  return () => pending.delete(key);
 }
