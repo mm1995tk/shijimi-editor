@@ -33,9 +33,10 @@ type span struct{ x0, x1 int }
 // keeps what only a terminal has: which regions are
 // shown, the terminal panel and the pane sizes the user picked.
 type Core struct {
-	sizes    Sizes    // the sizes the UI last gave (SetSizes)
-	layout   Layout   // the regions the UI last said it shows (SetLayout)
-	splitPct splitPct // the shares the GUI dragged the files region's borders to (BuildScreen)
+	sizes      Sizes    // the sizes the UI last gave (SetSizes)
+	layout     Layout   // the regions the UI last said it shows (SetLayout)
+	splitPct   splitPct // the shares the GUI dragged the files region's borders to (BuildScreen)
+	treeHidden bool     // the file tree is not in the sidebar (SetTreeHidden)
 
 	Root           string
 	GitTop         string
@@ -345,6 +346,9 @@ func (a *Core) Fail(err error) {
 func (a *Core) SetFocus(f Focus) []Effect {
 	if a.single {
 		f = FocusEditor
+	}
+	if f == FocusExplorer {
+		f = a.explorerFocus()
 	}
 	a.Focus = f
 	a.port.TermFocus(f == FocusTerminal)
@@ -660,7 +664,7 @@ func (a *Core) CloseTab(force bool) []Effect {
 		return a.Quit()
 	}
 	if len(a.Tabs) == 0 && a.Focus == FocusEditor {
-		a.Focus = FocusExplorer
+		a.Focus = a.explorerFocus()
 	}
 	return nil
 }
@@ -738,8 +742,8 @@ func (a *Core) TrackLast() {
 
 // ToggleSide shows or hides the sidebar.
 func (a *Core) ToggleSide() {
-	if a.single {
-		return
+	if a.single || (a.treeHidden && !a.Gd.On) {
+		return // nothing to show or hide: the tree is elsewhere and there is no CHANGES list
 	}
 	a.SetSide(!a.SideShown())
 	if !a.SideShown() && (a.Focus == FocusExplorer || a.Focus == FocusChanges) {
@@ -1207,6 +1211,25 @@ func (a *Core) HandleKey(in Key) []Effect {
 	}
 	t := a.Cur()
 	if t == nil {
+		if a.treeHidden {
+			// The keys stay in the editor with no tab to show: the Space leader works
+			// here as it does in the tree.
+			switch a.Pending {
+			case "space v":
+				a.Pending = ""
+				return a.ReviewKey(key)
+			case "space w":
+				a.Pending = ""
+				return a.windowKey(key)
+			case " ":
+				a.Pending = ""
+				return a.SpaceMode(key)
+			}
+			if key == "space" {
+				a.Pending = " "
+				return nil
+			}
+		}
 		if key == "esc" || key == "tab" || key == "space" {
 			a.SetSide(true)
 			return a.SetFocus(FocusExplorer)

@@ -32,7 +32,7 @@ func (a *Core) AgentShown(sideW int) bool {
 		return false
 	}
 	used := 0
-	if a.SideShown() {
+	if a.SideVisible() {
 		used = sideW + 1
 	}
 	return a.ScreenW()-used-a.AgentWidth()-1 >= minEditorBeside

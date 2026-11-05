@@ -41,8 +41,41 @@ const (
 // SetLayout takes the layout the UI gave.
 func (a *Core) SetLayout(l Layout) { a.layout = l }
 
-// SideShown reports whether the sidebar is on screen.
+// SideShown reports whether the sidebar is wanted on screen. It is not on
+// screen when the file tree is hidden (SetTreeHidden) and there is no CHANGES
+// list to show; SideVisible says what is drawn.
 func (a *Core) SideShown() bool { return a.layout.SideShown }
+
+// SideVisible reports whether the sidebar is on screen: it is shown and has
+// something in it. Without a file tree it has CHANGES in diff mode only.
+func (a *Core) SideVisible() bool { return a.layout.SideShown && (!a.treeHidden || a.Gd.On) }
+
+// SetTreeHidden takes the file tree out of the sidebar, or puts it back. It is
+// for a shj whose tree is somewhere else (the GUI sidebar, for the shj in the
+// primary terminal of a workspace). The sidebar then holds only the CHANGES
+// list of diff mode, and nothing moves the keys to the tree.
+func (a *Core) SetTreeHidden(on bool) {
+	a.treeHidden = on
+	if on && a.Focus == FocusExplorer {
+		a.Focus = a.explorerFocus()
+	}
+}
+
+// TreeHidden reports whether the file tree is left out of the sidebar.
+func (a *Core) TreeHidden() bool { return a.treeHidden }
+
+// explorerFocus is where the keys go when they would go to the file tree: the
+// tree itself, or without one, the CHANGES list in diff mode and the editor
+// otherwise.
+func (a *Core) explorerFocus() Focus {
+	switch {
+	case !a.treeHidden:
+		return FocusExplorer
+	case a.Gd.On:
+		return FocusChanges
+	}
+	return FocusEditor
+}
 
 // TermShown reports whether the terminal panel is on screen.
 func (a *Core) TermShown() bool { return a.layout.TermShown }

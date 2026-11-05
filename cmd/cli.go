@@ -90,7 +90,9 @@ func Main() {
 			closeSock = srv.Close
 			os.Setenv(ctl.EnvSocket, path)
 			// In the primary terminal of a GUI workspace, shj serve is told.
-			endPrimary := ctlclient.AnnouncePrimary(cli.Suffix(), path)
+			// The GUI shows the file tree then, so this shj leaves its own out.
+			endPrimary, primary := ctlclient.AnnouncePrimary(cli.Suffix(), path)
+			app.SetTreeHidden(primary)
 			prev := closeSock
 			closeSock = func() { endPrimary(); prev() }
 		}
