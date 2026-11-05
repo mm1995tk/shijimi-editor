@@ -735,7 +735,13 @@ function Workbench(props: {
         error: openErrorText(path, e),
       });
     });
-    if (sent === undefined || mode() !== "ide") return;
+    if (sent === undefined) return;
+    // ターミナルモードはファイルの欄を隠しているので、IDE モードに戻してファイルを見せる
+    if (mode() === "terminal") {
+      switchMode("ide");
+      if (!fileOpen()) focusFilesWhenShown = true;
+      return;
+    }
     // 初めて開くときは、まだファイルの欄を出していない。画面が来て欄が出てからキーを向ける
     if (fileOpen()) focusFiles();
     else focusFilesWhenShown = true;
@@ -757,7 +763,11 @@ function Workbench(props: {
 
   /** IDE モードとターミナルモードを入れ替え、上に来た大きいカードにキーを向ける（F3）。 */
   function toggleMode() {
-    const next = otherMode(mode());
+    switchMode(otherMode(mode()));
+  }
+
+  /** モードを next にし、上に来たカードにキーを向ける。 */
+  function switchMode(next: Mode) {
     const files = mainEl?.querySelector<HTMLElement>(":scope > .files");
     const term = mainEl?.querySelector<HTMLElement>(":scope > .terminal");
     swapWithMotion([files, term], () => setMode(next));
