@@ -155,13 +155,29 @@ func TestPrimaryShjLinkAndWorkspaceEnv(t *testing.T) {
 	if _, err := os.Lstat(link); err == nil {
 		t.Fatal("no link before a shj")
 	}
-	r, conn := announceShj(t, sock, ctl.PrimaryHello{TermID: primary, Socket: "/run/a.sock", PID: 11})
+	want := filepath.Join(filepath.Dir(sock), "11.sock")
+	r, conn := announceShj(t, sock, ctl.PrimaryHello{TermID: primary, Socket: want, PID: 11})
 	if !r.OK {
 		t.Fatalf("reply: %+v", r)
 	}
-	if to, err := os.Readlink(link); err != nil || to != "/run/a.sock" {
+	if to, err := os.Readlink(link); err != nil || to != want {
 		t.Fatalf("link: %q %v", to, err)
 	}
 	conn.Close()
 	waitFor(t, "link removed", func() bool { _, err := os.Lstat(link); return err != nil })
+}
+
+// ソケットのディレクトリの外のソケットには、リンクを置かない（名乗りは通る）。
+func TestPrimaryShjLinkOnlyInsideSocketDir(t *testing.T) {
+	t.Setenv("HOME", normalizePath(t.TempDir()))
+	_, sock := startFast(t)
+	c, _ := termClient(t, sock)
+	id, primary := createWS(t, c)
+	r, _ := announceShj(t, sock, ctl.PrimaryHello{TermID: primary, Socket: "/tmp/x.sock", PID: 11})
+	if !r.OK {
+		t.Fatalf("reply: %+v", r)
+	}
+	if _, err := os.Lstat(ctl.GUILinkPath(filepath.Dir(sock), id)); err == nil {
+		t.Fatal("no link for a socket outside the socket directory")
+	}
 }
