@@ -88,3 +88,16 @@ func TestTermCdBusyWhenProgramRuns(t *testing.T) {
 		t.Errorf("data %s", err.(*rpc.Error).Data)
 	}
 }
+
+func TestHasControlChar(t *testing.T) {
+	for _, bad := range []string{"a\x15touch ~/pwned\r", "a\x03", "a\x1b[A", "a\x7f", "a\u0085b"} {
+		if !hasControlChar(bad) {
+			t.Errorf("%q must be refused", bad)
+		}
+	}
+	for _, ok := range []string{"/a b/it's", "/日本語/フォルダ"} {
+		if hasControlChar(ok) {
+			t.Errorf("%q must be allowed", ok)
+		}
+	}
+}

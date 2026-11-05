@@ -553,6 +553,10 @@ func (ss *session) termRequest(req *rpc.Message) (res any, err error, handled bo
 		t.mu.Unlock()
 		return struct{}{}, nil, true
 	case "term.cd":
+		// 制御文字（行の編集や端末の行の規律が解釈する）を含むパスは、引用しても守れないので何も打たない。
+		if p.Path != nil && hasControlChar(*p.Path) {
+			return nil, rpc.Errorf(rpc.CodeInvalidParams, "path contains control characters"), true
+		}
 		// ツリーの「ここへ移動」「親のフォルダへ」。シェルでないプログラム（vim・REPL・確認待ちなど）が
 		// 前面にいるときは、打った文字がそのプログラムへの入力になってしまうので送らず、busy で断る。
 		if t.busy() {
@@ -680,6 +684,16 @@ func (o *oscScan) end(title string, changed bool) (string, bool) {
 // shellQuote は、シェルに渡す 1 語にする（単引用符で囲み、中の ' は '\” にする。bash・zsh・fish で同じ意味）。
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// hasControlChar は、s に制御文字（C0・DEL・C1）が入っているか。
+func hasControlChar(s string) bool {
+	for _, r := range s {
+		if r < 0x20 || r == 0x7f || (r >= 0x80 && r <= 0x9f) {
+			return true
+		}
+	}
+	return false
 }
 
 // cdInput は term.cd がシェルに打つ文字。入力の途中の行に続けて実行されないよう、行末へ行って

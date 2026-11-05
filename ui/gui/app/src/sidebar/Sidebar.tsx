@@ -583,8 +583,8 @@ function MachineMenu(props: {
     });
   });
   const choose = (run: () => void) => () => {
+    run(); // 親の <Show> の値は onClose で消えるので、先に run
     props.onClose();
-    run();
   };
   return (
     <div
