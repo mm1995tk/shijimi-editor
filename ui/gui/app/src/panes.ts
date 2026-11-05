@@ -11,6 +11,7 @@ import type { KeyValueStore } from "./ssh/machines.ts";
 import type { KeyLike } from "./files/input.ts";
 import type { SplitKind } from "./files/split.ts";
 
+/** 動かせる境界。サイドバーの右・ファイルの欄とターミナルの間・差分の左右・プレビューの左右。 */
 export type Border = "sidebar" | "term" | "diff" | "preview";
 
 /** 4 つの境界の、決めた値。無いものは元の大きさ。 */
@@ -48,9 +49,13 @@ export const PREVIEW_STEP = 5;
 
 const STORAGE_KEY = "shijimi.paneSizes";
 
-export function clampBorder(b: Border, v: number): number {
+/**
+ * v を境界 b の範囲に収め、整数に丸める。max は今の画面で効く上限（窓の大きさで決まる。LIMITS より小さいときだけ効く）。
+ */
+export function clampBorder(b: Border, v: number, max?: number): number {
   const [lo, hi] = LIMITS[b];
-  return Math.min(hi, Math.max(lo, Math.round(v)));
+  const top = Math.max(lo, Math.min(hi, max ?? hi));
+  return Math.min(top, Math.max(lo, Math.round(v)));
 }
 
 /** 覚えておいた大きさを読む。壊れていたり範囲外のものは捨てる。 */
@@ -73,6 +78,7 @@ export function loadSizes(store: KeyValueStore | undefined): PaneSizes {
   return out;
 }
 
+/** 大きさを覚えておく。書けなくても例外にしない。 */
 export function saveSizes(
   store: KeyValueStore | undefined,
   sizes: PaneSizes,
@@ -90,8 +96,13 @@ export function sizeOf(sizes: PaneSizes, b: Border): number {
 }
 
 /** sizes の b を v にしたもの（範囲に収める）。 */
-export function withSize(sizes: PaneSizes, b: Border, v: number): PaneSizes {
-  return { ...sizes, [b]: clampBorder(b, v) };
+export function withSize(
+  sizes: PaneSizes,
+  b: Border,
+  v: number,
+  max?: number,
+): PaneSizes {
+  return { ...sizes, [b]: clampBorder(b, v, max) };
 }
 
 /** 境界 b を元の大きさに戻したもの。 */
@@ -100,8 +111,6 @@ export function withoutSize(sizes: PaneSizes, b?: Border): PaneSizes {
   const { [b]: _, ...rest } = sizes;
   return rest;
 }
-
-/** ファイルの欄の分割の種類。 */
 
 /** リサイズモードの手がかり。 */
 export interface ResizeContext {
@@ -189,14 +198,24 @@ function preview(c: ResizeContext, step: number): ResizeAction {
   return c.split ? { kind: "move", border: c.split, step } : { kind: "none" };
 }
 
-/** sizes の動きを当てる。term は上へ動かす（step が負）と高さが増える。 */
+/**
+ * sizes の動きを当てる。term は上へ動かす（step が負）と高さが増える。max は今の画面で効く上限。
+ * 値が上限を超えていたら（窓を狭めたあとなど）上限から動かす（見えない分を動かして反応が無くならないように）。
+ */
 export function applyMove(
   sizes: PaneSizes,
   border: Border,
   step: number,
+  max?: number,
 ): PaneSizes {
-  const cur = sizeOf(sizes, border) || HALF;
-  return withSize(sizes, border, border === "term" ? cur - step : cur + step);
+  let cur = sizeOf(sizes, border) || HALF;
+  if (max !== undefined) cur = Math.min(cur, max);
+  return withSize(
+    sizes,
+    border,
+    border === "term" ? cur - step : cur + step,
+    max,
+  );
 }
 
 /**

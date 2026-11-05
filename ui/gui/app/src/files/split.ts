@@ -4,6 +4,7 @@
 
 import type { Files, Pane } from "../rpc/protocol.ts";
 
+/** ファイルの欄を左右に分けた境界の種類（差分の分割表示・Markdown プレビューの分割）。 */
 export type SplitKind = "diff" | "preview";
 
 /** panes[i - 1] と panes[i] の間の境界の種類。動かせない境界（や境界でないところ）は null。 */

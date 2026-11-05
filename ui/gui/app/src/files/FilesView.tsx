@@ -196,8 +196,8 @@ export function FilesView(props: {
                     <SplitDivider
                       kind={props.onSplit ? splitKindAt(f().panes, i) : null}
                       lit={
-                        (props.litSplit ?? null) ===
-                          splitKindAt(f().panes, i) && props.litSplit != null
+                        props.litSplit != null &&
+                        props.litSplit === splitKindAt(f().panes, i)
                       }
                       cellWidth={cellWidth}
                       onSplit={props.onSplit}

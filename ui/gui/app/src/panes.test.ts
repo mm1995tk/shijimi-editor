@@ -181,3 +181,22 @@ describe("動かす", () => {
     assert.equal(splitPct("preview", 100, 10, 10), 0);
   });
 });
+
+describe("今の画面で効く上限", () => {
+  it("上限を超えて溜めず、超えた値からも動き出せる", () => {
+    assert.equal(
+      sizeOf(applyMove({ term: 300 }, "term", -20, 350), "term"),
+      320,
+    );
+    assert.equal(
+      sizeOf(applyMove({ term: 340 }, "term", -20, 350), "term"),
+      350,
+    );
+    // 上限を超えて保存されていても、上限から動かす
+    assert.equal(
+      sizeOf(applyMove({ term: 900 }, "term", 20, 350), "term"),
+      330,
+    );
+    assert.equal(clampBorder("sidebar", 900, 500), 500);
+  });
+});

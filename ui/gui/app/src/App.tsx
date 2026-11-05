@@ -48,7 +48,6 @@ import { OsClipboard } from "./files/clipboard.ts";
 import { activeSplit, type SplitKind } from "./files/split.ts";
 import {
   applyMove,
-  clampBorder,
   litBorders,
   loadSizes,
   resizeAction,
@@ -436,7 +435,11 @@ function Workbench(props: {
     const offResize = s.onResizeEvent((ev) => {
       if (ev.kind === "start") setResizeMode(true);
       else if (ev.kind === "reset") changeSizes({});
-      else resizeKey(ev.key, true);
+      else {
+        // core だけがリサイズモードに残っていたときも、GUI をモードに入れてから当てる
+        setResizeMode(true);
+        resizeKey(ev.key, true);
+      }
     });
     offStates.set(target, () => {
       offTerm();
@@ -477,6 +480,14 @@ function Workbench(props: {
     await s.close();
   }
 
+  /** 今の窓で効く境界の上限（app.css の clamp と同じ。無ければ undefined）。 */
+  function maxOf(border: Border): number | undefined {
+    if (border === "sidebar") return Math.min(640, window.innerWidth / 2);
+    if (border === "term" && mainEl)
+      return mainEl.getBoundingClientRect().height - 160;
+    return undefined;
+  }
+
   /**
    * リサイズモードで key（TUI と同じ名前。panes.ts）を押した。fromShj は shj が教えてきたとき（出るのは shj が決めている）。
    * GUI で押したときの出るキーは、shj のリサイズモードも終わらせるため Esc を送る。
@@ -485,7 +496,7 @@ function Workbench(props: {
     const a = resizeAction(key, resizeCtx());
     switch (a.kind) {
       case "move":
-        changeSizes(applyMove(sizes(), a.border, a.step));
+        changeSizes(applyMove(sizes(), a.border, a.step, maxOf(a.border)));
         break;
       case "reset":
         changeSizes({});
@@ -514,10 +525,8 @@ function Workbench(props: {
     const move = (ev: PointerEvent) => {
       const r = box.getBoundingClientRect();
       const v =
-        border === "sidebar"
-          ? ev.clientX - r.left
-          : Math.min(r.bottom - ev.clientY, r.height - 160);
-      changeSizes(withSize(sizes(), border, clampBorder(border, v)));
+        border === "sidebar" ? ev.clientX - r.left : r.bottom - ev.clientY;
+      changeSizes(withSize(sizes(), border, v, maxOf(border)));
     };
     const end = () => {
       setDragging(null);
