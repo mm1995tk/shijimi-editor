@@ -19,6 +19,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/mm1995tk/shijimi-editor/core/config"
+	"github.com/mm1995tk/shijimi-editor/core/internal/direnv"
 	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
@@ -137,18 +138,23 @@ type Client struct {
 }
 
 // Start launches a server and performs the initialize handshake in the
-// background. Events (diagnostics, messages) are sent to events.
-func Start(s *config.Server, root string, events chan<- Event) (*Client, error) {
+// background. Events (diagnostics, messages) are sent to events. env is the
+// environment the server runs in and whose PATH finds its command; nil is the
+// process's own.
+func Start(s *config.Server, root string, env []string, events chan<- Event) (*Client, error) {
 	if s.Command == "" {
 		return nil, msg.Err("lsp.nocommand", s.Name)
 	}
-	path, err := exec.LookPath(s.Command)
+	path, err := direnv.LookPath(env, s.Command)
 	if err != nil {
 		return nil, msg.Err("acp.notfound", s.Command)
 	}
 	cmd := exec.Command(path, s.Args...)
 	cmd.Dir = root
-	cmd.Env = os.Environ()
+	cmd.Env = env
+	if cmd.Env == nil {
+		cmd.Env = os.Environ()
+	}
 	for k, v := range s.Env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}

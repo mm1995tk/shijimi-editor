@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
+
+	"github.com/mm1995tk/shijimi-editor/core/internal/direnv"
 
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
@@ -277,5 +280,59 @@ func TestWorkspacesShareBuffer(t *testing.T) {
 	ws.Close("b")
 	if ws.shared.Buffers.Len() != 0 {
 		t.Errorf("%d files are still held after every workspace closed", ws.shared.Buffers.Len())
+	}
+}
+
+// A workspace whose folder has an .envrc waits for direnv, then starts its
+// language server from the PATH direnv made.
+func TestWorkspaceDirenvEnv(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "direnv"), []byte("#!/bin/sh\necho '{\"PATH\":\"/envbin\",\"X\":\"1\"}'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
+	root := t.TempDir()
+	writeFile(t, root, ".envrc", "use flake\n")
+
+	ws := NewWorkspaces(NewShared(testBuild()))
+	defer ws.CloseAll()
+	w := openWS(ws, root)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var env []string
+		var waiting bool
+		w.Do(func(c *Core) { env, waiting = c.Lsp.env, c.Lsp.waitEnv })
+		if !waiting {
+			if !slices.Contains(env, "PATH=/envbin") {
+				t.Fatalf("env not applied: %v", env)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("direnv was not read")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// With no .envrc nothing changes: no waiting, the process's environment.
+func TestWorkspaceNoEnvrc(t *testing.T) {
+	ws := NewWorkspaces(NewShared(testBuild()))
+	defer ws.CloseAll()
+	w := openWS(ws, t.TempDir())
+	w.Do(func(c *Core) {
+		if c.Lsp.waitEnv || c.Lsp.env != nil {
+			t.Fatal("environment was touched")
+		}
+	})
+}
+
+// While direnv is being read no server starts; once blocked, the process's PATH is used.
+func TestDirenvBlocked(t *testing.T) {
+	c := &Core{Lsp: newLSPManager(nil, "")}
+	c.Lsp.waitEnv = true
+	c.handleDirenvLoaded(DirenvLoaded{Err: direnv.ErrBlocked})
+	if c.Lsp.waitEnv || c.Lsp.env != nil || c.Msg.Key != "direnv.blocked" {
+		t.Fatalf("waitEnv=%v env=%v msg=%v", c.Lsp.waitEnv, c.Lsp.env, c.Msg)
 	}
 }

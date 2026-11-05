@@ -52,6 +52,8 @@ If you rest the mouse on a word in the editor for 0.5 seconds, the hover for tha
 
 The settings for the following language servers are built in. If the server is on your PATH, it works without any configuration.
 
+In the GUI (`shj serve`), if the workspace folder has an `.envrc` and direnv is installed, shijimi-editor reads the environment from `direnv export json` and uses it to find and start language servers and formatters, so a server that comes from `use flake` works. If the `.envrc` has not been approved, the status line says `direnv allow` is required and the PATH of `shj serve` is used. The terminal is not given this environment.
+
 | Language | Server |
 | --- | --- |
 | Go | `gopls` |

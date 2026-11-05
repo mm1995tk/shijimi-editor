@@ -186,6 +186,7 @@ func (ws *Workspaces) Open(key, root string) (*Workspace, error) {
 	if err != nil {
 		return nil, err
 	}
+	direnvEffs := c.startDirenv()
 	ws.mu.Lock()
 	w := &Workspace{Key: key, Root: root, mu: &ws.coresMu, core: c, onChange: ws.onChange, done: make(chan struct{})}
 	if got := ws.cores[key]; got != nil {
@@ -196,7 +197,7 @@ func (ws *Workspaces) Open(key, root string) (*Workspace, error) {
 	}
 	ws.cores[key] = w
 	ws.mu.Unlock()
-	w.run([]Effect{WaitLSP{c.LspEvents()}, WatchTimer()})
+	w.run(append([]Effect{WaitLSP{c.LspEvents()}, WatchTimer()}, direnvEffs...))
 	return w, nil
 }
 
