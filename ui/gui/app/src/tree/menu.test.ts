@@ -3,13 +3,11 @@ import { describe, it } from "node:test";
 
 import {
   absolutePath,
-  cdInput,
   menuItems,
   newEntryDefault,
   newEntryPath,
   parentPath,
   renamedPath,
-  shellQuote,
 } from "./menu.ts";
 
 describe("menuItems", () => {
@@ -51,24 +49,15 @@ describe("パス", () => {
     assert.equal(newEntryDefault("src"), "src/");
   });
   it("newEntryPath は名前が無ければ null", () => {
-    assert.equal(newEntryPath(" src/a.go "), "src/a.go");
-    assert.equal(newEntryPath("./a.go"), "a.go");
-    assert.equal(newEntryPath("src/"), null);
-    assert.equal(newEntryPath("  "), null);
+    assert.equal(newEntryPath(" src/a.go ", "file"), "src/a.go");
+    assert.equal(newEntryPath("./a.go", "file"), "a.go");
+    assert.equal(newEntryPath("src/", "file"), null);
+    assert.equal(newEntryPath("  ", "file"), null);
+    assert.equal(newEntryPath("src/new/", "dir"), "src/new");
   });
   it("renamedPath は変わっていなければ null", () => {
     assert.equal(renamedPath("a/b", "a/c"), "a/c");
     assert.equal(renamedPath("a/b", "a/b"), null);
     assert.equal(renamedPath("a/b", ""), null);
-  });
-});
-
-describe("cdInput", () => {
-  it("空白や ' を含むパスを 1 語にする", () => {
-    assert.equal(shellQuote("/a b/it's"), "'/a b/it'\\''s'");
-    assert.equal(cdInput("/a b"), "\x05\x15cd -- '/a b'\r");
-  });
-  it("親へ", () => {
-    assert.equal(cdInput(), "\x05\x15cd ..\r");
   });
 });

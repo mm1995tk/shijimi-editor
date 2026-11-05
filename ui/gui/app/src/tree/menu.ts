@@ -1,4 +1,4 @@
-// ツリーの右クリックのメニュー（項目の出し分け）と、プライマリターミナルに送る cd の文字、パスの組み立て。
+// ツリーの右クリックのメニュー（項目の出し分け）と、パスの組み立て。
 // DOM を使わないので node --test で確かめられる。
 
 import type { TreeRow } from "./model.ts";
@@ -56,11 +56,15 @@ export function newEntryDefault(dir: string): string {
 }
 
 /**
- * 新しいファイル・フォルダの入力を、ルートからの相対パスにする。空・"/" で終わる（名前が無い）ときは null。
- * 先頭の "./" と末尾の空白は落とす。
+ * 新しいファイル・フォルダの入力を、ルートからの相対パスにする。名前が無いとき（空、ファイルで "/" 終わり）は null。
+ * 先頭の "./" と前後の空白は落とす。フォルダは末尾の "/" も落とす（TUI の A と同じく "src/new/" でも作る）。
  */
-export function newEntryPath(input: string): string | null {
-  const v = input.trim().replace(/^(\.\/)+/, "");
+export function newEntryPath(
+  input: string,
+  kind: "file" | "dir",
+): string | null {
+  let v = input.trim().replace(/^(\.\/)+/, "");
+  if (kind === "dir") v = v.replace(/\/+$/, "");
   if (v === "" || v.endsWith("/")) return null;
   return v;
 }
@@ -70,19 +74,4 @@ export function renamedPath(old: string, input: string): string | null {
   const v = input.trim().replace(/^(\.\/)+/, "");
   if (v === "" || v === old || v.endsWith("/")) return null;
   return v;
-}
-
-/** シェルに渡す 1 語にする（単引用符で囲み、中の ' は '\'' にする。bash・zsh・fish で同じ意味）。 */
-export function shellQuote(s: string): string {
-  return `'${s.replaceAll("'", "'\\''")}'`;
-}
-
-/**
- * プライマリターミナルに送る cd。入力の途中の行に続けて実行されないよう、行末へ行って行頭まで消してから打つ
- * （Ctrl+E・Ctrl+U。bash・zsh・fish で効く。vim など、シェルでないものが前面にいるときは分からないので送ってしまう）。
- * path が undefined なら親のフォルダへ（cd ..）。
- */
-export function cdInput(path?: string): string {
-  const cmd = path === undefined ? "cd .." : `cd -- ${shellQuote(path)}`;
-  return `\x05\x15${cmd}\r`;
 }

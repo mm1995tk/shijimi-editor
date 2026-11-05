@@ -102,7 +102,8 @@ export type TermMethod =
   | "term.close"
   | "term.restart"
   | "term.resize"
-  | "term.input";
+  | "term.input"
+  | "term.cd";
 /** Session.request で送れる要求（画像の実体。E6）。 */
 export type BlobMethod = "blob.get";
 /** ターミナルの通知（F1）。method で見分ける。 */

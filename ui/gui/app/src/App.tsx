@@ -100,7 +100,6 @@ import {
 } from "./tree/model.ts";
 import {
   absolutePath,
-  cdInput,
   newEntryDefault,
   newEntryPath,
   parentPath,
@@ -109,7 +108,6 @@ import {
 } from "./tree/menu.ts";
 import { DeleteDialog, NameDialog } from "./tree/TreeDialogs.tsx";
 import { WorkspaceTrees } from "./tree/trees.ts";
-import { encodeBase64 } from "./terminal/link.ts";
 import { directionKey, isNewTermKey } from "./terminal/grid.ts";
 import { TermGroup, TermGroups } from "./terminal/group.ts";
 import { TerminalGrid } from "./terminal/TerminalGrid.tsx";
@@ -822,14 +820,19 @@ function Workbench(props: {
     if (!s || !term) return;
     setFocusError(null);
     try {
-      await s.request("term.input", {
-        termId: term,
-        data: encodeBase64(new TextEncoder().encode(cdInput(path))),
-      });
+      await s.request("term.cd", { termId: term, path });
     } catch (e) {
+      const running =
+        e instanceof RpcError &&
+        e.code === ErrorCode.Busy &&
+        (e.data as { reason?: string } | undefined)?.reason === "running";
       setFocusError({
         title: "プライマリターミナルに cd を送れませんでした",
-        error: e instanceof Error ? e.message : String(e),
+        error: running
+          ? "プライマリターミナルでプログラムが動いています。終わらせてからもう一度試してください。"
+          : e instanceof Error
+            ? e.message
+            : String(e),
       });
     }
   }
@@ -849,7 +852,7 @@ function Workbench(props: {
         });
       }
     } else {
-      const path = newEntryPath(value);
+      const path = newEntryPath(value, d.kind === "new-file" ? "file" : "dir");
       if (path !== null) {
         const kind = d.kind === "new-file" ? "file" : "dir";
         await s.request("tree.create", { workspaceId: d.id, path, kind });

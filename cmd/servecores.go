@@ -259,3 +259,16 @@ func (s serveCores) OpenFile(id, root, path string, at *screen.Pos, pane string)
 	})
 	return err
 }
+
+// Renamed moves the open files of every workspace's core from a renamed path
+// to the new one, as the file tree's rename (r) does in the TUI.
+func (s serveCores) Renamed(from, to string) {
+	for _, w := range s.ws.List() {
+		w.Apply(func(c *core.Core) []core.Effect {
+			return c.Apply(func() []core.Effect {
+				c.MovePaths(from, to)
+				return nil
+			})
+		})
+	}
+}

@@ -603,17 +603,7 @@ func (a *Core) renameFile() []Effect {
 			a.Fail(err)
 			return nil
 		}
-		for _, t := range a.Tabs {
-			switch {
-			case t.Kind == TabText && t.Buf.Path == old:
-				t.Buf.SetPath(v)
-				t.Hl = NewHighlighter(v)
-			case t.Kind == TabText && strings.HasPrefix(t.Buf.Path, old+string(filepath.Separator)):
-				t.Buf.SetPath(v + t.Buf.Path[len(old):])
-			case t.Kind == TabImage && t.Img.Path == old:
-				t.Img.Path = v
-			}
-		}
+		a.MovePaths(old, v)
 		a.Explorer.Refresh()
 		a.Explorer.Reveal(v)
 		a.Info("app.renamed", a.Rel(v))
@@ -1740,3 +1730,19 @@ func (a *Core) text(m msg.Msg) string { return a.port.Text(m) }
 
 // errText is the text of err in the UI's language.
 func (a *Core) errText(err error) string { return a.port.Text(msg.Of(err)) }
+
+// MovePaths follows a rename of old to v on disk: the open text and image
+// tabs on old, or on a file under old, move to the new path.
+func (a *Core) MovePaths(old, v string) {
+	for _, t := range a.Tabs {
+		switch {
+		case t.Kind == TabText && t.Buf.Path == old:
+			t.Buf.SetPath(v)
+			t.Hl = NewHighlighter(v)
+		case t.Kind == TabText && strings.HasPrefix(t.Buf.Path, old+string(filepath.Separator)):
+			t.Buf.SetPath(v + t.Buf.Path[len(old):])
+		case t.Kind == TabImage && t.Img.Path == old:
+			t.Img.Path = v
+		}
+	}
+}
