@@ -242,6 +242,21 @@ export function TerminalView(props: {
     dropped = sent ? items : [];
   };
 
+  // マウスで文字を選び終えた（離した）瞬間に、OS のクリップボードへ入れる（Cmd+C は使わない）。
+  // この欄で押したときだけ見る。プログラムがマウスを受けている間は選択が無いので、何もしない
+  let pressedHere = false;
+  const onPress = () => (pressedHere = true);
+  const onRelease = () => {
+    if (!pressedHere) return;
+    pressedHere = false;
+    // coneko-term も同じ mouseup で選択を確定するので、そのあとに読む
+    setTimeout(() => {
+      if (!term.hasSelection()) return;
+      const text = term.getSelection();
+      if (text) void writeOs({ kind: "text", text }).catch(() => {});
+    }, 0);
+  };
+
   function refit() {
     if (!host.isConnected || host.clientWidth === 0) return;
     term.fit();
@@ -257,6 +272,8 @@ export function TerminalView(props: {
     // （先に開くと代わりの字で測ってしまい、字の間が合わない）
     let disposed = false;
     props.focusRef?.(() => term.focus());
+    host.addEventListener("mousedown", onPress, true);
+    document.addEventListener("mouseup", onRelease);
     host.addEventListener("dragenter", onDragOver);
     host.addEventListener("dragover", onDragOver);
     host.addEventListener("dragleave", onDragLeave);
@@ -264,6 +281,8 @@ export function TerminalView(props: {
     onCleanup(() => props.focusRef?.(undefined));
     const ro = new ResizeObserver(() => refit());
     onCleanup(() => {
+      host.removeEventListener("mousedown", onPress, true);
+      document.removeEventListener("mouseup", onRelease);
       host.removeEventListener("dragenter", onDragOver);
       host.removeEventListener("dragover", onDragOver);
       host.removeEventListener("dragleave", onDragLeave);
