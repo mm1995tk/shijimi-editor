@@ -18,6 +18,8 @@ In VS Code mode, you can do the same from the command palette (`F1`).
 | `:bc` | `:bclose` `:buffer-close` | Close the buffer |
 | `:bc!` | `:bclose!` `:buffer-close!` | Close the buffer without saving |
 | `:reload` | `:rl` | Reload from disk |
+| `:copy-rel` | — | Copy the relative path of the current file |
+| `:copy-abs` | — | Copy the absolute path of the current file |
 | `:<line number>` | — | Go to that line |
 
 ## Editing and LSP
