@@ -109,3 +109,31 @@ func TestTransientTabKeptOnDiskChange(t *testing.T) {
 		t.Fatal("a change on disk made the tab normal")
 	}
 }
+
+func TestCloseAllAndOthers(t *testing.T) {
+	a := newTestApp(t, "one\n")
+	ps := writeFiles(t, a.Root, "b.txt", "c.txt")
+	a.OpenFile(ps[0])
+	a.OpenFile(ps[1])
+	if len(a.Tabs) != 3 {
+		t.Fatalf("tabs=%d", len(a.Tabs))
+	}
+	a.Tabs[0].Buf.Dirty = true
+	a.ExecCommand("bco")
+	if len(a.Tabs) != 3 || !a.MsgErr {
+		t.Fatalf("bco with unsaved changes: tabs=%d err=%v", len(a.Tabs), a.MsgErr)
+	}
+	a.ExecCommand("bca")
+	if len(a.Tabs) != 3 {
+		t.Fatalf("bca with unsaved changes: tabs=%d", len(a.Tabs))
+	}
+	a.ExecCommand("bco!")
+	if len(a.Tabs) != 1 || a.Cur() == nil || a.Cur().Path() != ps[1] {
+		t.Fatalf("bco!: tabs=%d", len(a.Tabs))
+	}
+	a.OpenFile(ps[0])
+	a.ExecCommand("bca")
+	if len(a.Tabs) != 0 {
+		t.Fatalf("bca: tabs=%d", len(a.Tabs))
+	}
+}

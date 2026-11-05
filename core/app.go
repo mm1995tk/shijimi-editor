@@ -33,9 +33,10 @@ type span struct{ x0, x1 int }
 // keeps what only a terminal has: which regions are
 // shown, the terminal panel and the pane sizes the user picked.
 type Core struct {
-	sizes    Sizes    // the sizes the UI last gave (SetSizes)
-	layout   Layout   // the regions the UI last said it shows (SetLayout)
-	splitPct splitPct // the shares the GUI dragged the files region's borders to (BuildScreen)
+	sizes      Sizes    // the sizes the UI last gave (SetSizes)
+	layout     Layout   // the regions the UI last said it shows (SetLayout)
+	splitPct   splitPct // the shares the GUI dragged the files region's borders to (BuildScreen)
+	treeHidden bool     // the file tree is not in the sidebar (SetTreeHidden)
 
 	Root           string
 	GitTop         string
@@ -345,6 +346,9 @@ func (a *Core) Fail(err error) {
 func (a *Core) SetFocus(f Focus) []Effect {
 	if a.single {
 		f = FocusEditor
+	}
+	if f == FocusExplorer {
+		f = a.explorerFocus()
 	}
 	a.Focus = f
 	a.port.TermFocus(f == FocusTerminal)
@@ -660,6 +664,39 @@ func (a *Core) CloseTab(force bool) []Effect {
 		return a.Quit()
 	}
 	if len(a.Tabs) == 0 && a.Focus == FocusEditor {
+		a.Focus = a.explorerFocus()
+	}
+	return nil
+}
+
+// CloseTabs closes every tab but keep (nil keeps none). When any tab to close
+// has unsaved changes and force is off, nothing is closed.
+func (a *Core) CloseTabs(keep *Tab, force bool) []Effect {
+	if a.single {
+		return nil
+	}
+	n := 0
+	for _, t := range a.Tabs {
+		if t != keep && t.dirty() {
+			n++
+		}
+	}
+	if !force && n > 0 {
+		a.Fail(msg.Err("app.closeunsavedn", n))
+		return nil
+	}
+	for i, v := range slices.Backward(a.Tabs) {
+		if v != keep {
+			a.dropTab(i)
+		}
+	}
+	a.Split, a.Pane, a.Other, a.otherPrev, a.PrevTab = false, 0, nil, nil, nil
+	a.Active = max(a.tabIndex(keep), 0)
+	a.seenTab = a.Cur()
+	a.confirmClose = false
+	a.Comp = nil
+	a.Mode = ModeNormal
+	if len(a.Tabs) == 0 && a.Focus == FocusEditor {
 		a.Focus = FocusExplorer
 	}
 	return nil
@@ -705,8 +742,8 @@ func (a *Core) TrackLast() {
 
 // ToggleSide shows or hides the sidebar.
 func (a *Core) ToggleSide() {
-	if a.single {
-		return
+	if a.single || (a.treeHidden && !a.Gd.On) {
+		return // nothing to show or hide: the tree is elsewhere and there is no CHANGES list
 	}
 	a.SetSide(!a.SideShown())
 	if !a.SideShown() && (a.Focus == FocusExplorer || a.Focus == FocusChanges) {
@@ -1174,6 +1211,25 @@ func (a *Core) HandleKey(in Key) []Effect {
 	}
 	t := a.Cur()
 	if t == nil {
+		if a.treeHidden {
+			// The keys stay in the editor with no tab to show: the Space leader works
+			// here as it does in the tree.
+			switch a.Pending {
+			case "space v":
+				a.Pending = ""
+				return a.ReviewKey(key)
+			case "space w":
+				a.Pending = ""
+				return a.windowKey(key)
+			case " ":
+				a.Pending = ""
+				return a.SpaceMode(key)
+			}
+			if key == "space" {
+				a.Pending = " "
+				return nil
+			}
+		}
 		if key == "esc" || key == "tab" || key == "space" {
 			a.SetSide(true)
 			return a.SetFocus(FocusExplorer)
