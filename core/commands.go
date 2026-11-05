@@ -244,6 +244,10 @@ func (a *Core) ExecCommand(line string) []Effect {
 		return a.documentSymbols()
 	case "symbol-all", "sym-all":
 		return a.workspaceSymbols()
+	case "copy-rel":
+		a.copyPath(a.activePath(), false)
+	case "copy-abs":
+		a.copyPath(a.activePath(), true)
 	case "reload", "rl":
 		if t := a.CurText(); t != nil && t.Buf.Path != "" {
 			if err := t.reload(); err != nil {
