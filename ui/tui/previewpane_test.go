@@ -165,3 +165,33 @@ func TestPreviewMermaidFallback(t *testing.T) {
 		t.Fatalf("a diagram not drawn yet shows its source: %+v", m)
 	}
 }
+
+func TestWheelScrollsPreviewNotCursor(t *testing.T) {
+	a := previewApp(t, t.TempDir(), strings.Repeat("段落\n\n", 30))
+	tb := a.Tabs[0]
+	a.Cur() // the tab is current
+	if p := a.BuildPreviewPane(tb, 30, 5); p.Preview.Top != 0 {
+		t.Fatalf("top = %d", p.Preview.Top)
+	}
+	a.WheelPreview(3)
+	a.WheelPreview(3)
+	p := a.BuildPreviewPane(tb, 30, 5)
+	if p.Preview.Top != 6 || tb.Buf.Cur.Row != 0 {
+		t.Fatalf("top %d cursor %d", p.Preview.Top, tb.Buf.Cur.Row)
+	}
+	a.WheelPreview(-100)
+	if p = a.BuildPreviewPane(tb, 30, 5); p.Preview.Top != 0 {
+		t.Fatalf("top = %d", p.Preview.Top)
+	}
+	a.WheelPreview(1000)
+	a.BuildPreviewPane(tb, 30, 5)
+	a.WheelPreview(-3)
+	p = a.BuildPreviewPane(tb, 30, 5)
+	if p.Preview.Top != p.Preview.Rows-5-3 {
+		t.Fatalf("scrolling back from the end: top %d of %d", p.Preview.Top, p.Preview.Rows)
+	}
+	tb.Buf.Cur.Row = 20 // the cursor moved: the preview follows it
+	if p = a.BuildPreviewPane(tb, 30, 5); p.Preview.Top <= 0 {
+		t.Fatalf("top = %d", p.Preview.Top)
+	}
+}
