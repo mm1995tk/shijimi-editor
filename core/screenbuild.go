@@ -292,6 +292,10 @@ func (a *Core) screenOverlays(v screen.View) []screen.Overlay {
 	if a.SearchOpen() {
 		out = append(out, a.SearchOverlay())
 	}
+	if a.ProposalsOpen() {
+		// the TUI draws it over everything but the command line
+		out = append(out, a.ProposalOverlay(min(ProposalWidth(ow), ow)))
+	}
 	if c := a.ConfirmOverlay(); c != nil {
 		out = append(out, *c)
 	}

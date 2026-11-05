@@ -41,7 +41,7 @@ func renderProposalBox(p *core.ProposalView, a *App, w, maxH int) []string {
 }
 
 func (a *App) renderProposal(rows []string) []string {
-	w := core.Clamp(a.w*4/5, 30, 140)
+	w := core.ProposalWidth(a.w)
 	box := renderProposalBox(a.PropView(), a, w, a.ProposalH())
 	if ansi.StringWidth(box[0]) > w {
 		box[0] = ansi.Truncate(box[0], w, "")
