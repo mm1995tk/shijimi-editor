@@ -41,9 +41,12 @@ type SemanticMsg struct {
 // is under way, or no server provides them. Edits made meanwhile are requested
 // once that one is applied.
 func (a *Core) semanticCmd(t *Tab) []Effect {
+	if t.Kind != TabText {
+		return nil
+	}
 	h := t.Hl
 	s := &h.Sem
-	if t.Kind != TabText || t.Lang == nil || s.running || len(t.Buf.Lines) > maxHighlightLines ||
+	if t.Lang == nil || s.running || len(t.Buf.Lines) > maxHighlightLines ||
 		s.asked && s.version == t.Buf.Version || t.lspVersion != t.Buf.Version {
 		return nil
 	}
