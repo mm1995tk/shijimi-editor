@@ -211,7 +211,7 @@ function Workbench(props: {
       : undefined;
   };
   const termList = () => termGroup()?.list ?? [];
-  // プライマリ以外の欄を隠しているワークスペース（"マシン/ワークスペース"）。GUI だけで持つ。隠した欄のターミナルは止めない
+  // プライマリ以外の欄を隠しているワークスペース（マシンとワークスペースの組）。GUI だけで持つ。隠した欄のターミナルは止めない
   const [zoomedWs, setZoomedWs] = createSignal<
     ReadonlyMap<string, { target: string; id: WorkspaceId }>
   >(new Map());
@@ -365,7 +365,7 @@ function Workbench(props: {
       if (!e.repeat) toggleMode();
       return;
     }
-    if (isZoomKey(e)) {
+    if (isZoomKey(e, IS_MAC)) {
       e.preventDefault();
       e.stopPropagation();
       if (!e.repeat) setZoom();
