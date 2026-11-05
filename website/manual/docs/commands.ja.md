@@ -17,6 +17,10 @@ VS Code モードでは、コマンドパレット（`F1`）から同じ操作�
 | `:n <パス>` | `:new <パス>` | 新しいファイル（名前が必要） |
 | `:bc` | `:bclose` `:buffer-close` | バッファを閉じる |
 | `:bc!` | `:bclose!` `:buffer-close!` | 保存せずにバッファを閉じる |
+| `:bca` | `:bclose-all` `:buffer-close-all` | バッファをすべて閉じる。未保存のファイルがあると止まる |
+| `:bca!` | `:bclose-all!` `:buffer-close-all!` | 保存せずにバッファをすべて閉じる |
+| `:bco` | `:bclose-others` `:buffer-close-others` | 今のバッファ以外を閉じる。未保存のファイルがあると止まる |
+| `:bco!` | `:bclose-others!` `:buffer-close-others!` | 保存せずに今のバッファ以外を閉じる |
 | `:reload` | `:rl` | ディスクから読み直す |
 | `:<行番号>` | — | その行へ移動 |
 

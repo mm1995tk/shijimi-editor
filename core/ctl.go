@@ -58,6 +58,8 @@ var agentForbidden = map[string]bool{
 	"wq": true, "x": true, "write-quit": true, "x!": true, "wq!": true,
 	"wqa": true, "xa": true, "write-quit-all": true,
 	"bc!": true, "bclose!": true, "buffer-close!": true,
+	"bca!": true, "bclose-all!": true, "buffer-close-all!": true,
+	"bco!": true, "bclose-others!": true, "buffer-close-others!": true,
 }
 
 // agentNeedsHuman reports whether the command, written like this, would stop

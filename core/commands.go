@@ -30,6 +30,13 @@ func defaultCommands() []Command {
 		{msg.T("cmd.copyabs"), msg.T("cmd.copyabs.key"), func(a *Core) []Effect { a.copyPath(a.activePath(), true); return nil }},
 		{msg.T("cmd.reload"), msg.S(":reload"), func(a *Core) []Effect { return a.ExecCommand("reload") }},
 		{msg.T("cmd.closetab"), msg.S("Ctrl+W / :bc"), func(a *Core) []Effect { return a.CloseTab(false) }},
+		{msg.T("cmd.closeall"), msg.S(":bca"), func(a *Core) []Effect { return a.CloseTabs(nil, false) }},
+		{msg.T("cmd.closeothers"), msg.S(":bco"), func(a *Core) []Effect {
+			if a.Cur() == nil {
+				return nil
+			}
+			return a.CloseTabs(a.Cur(), false)
+		}},
 		{msg.T("cmd.buffers"), msg.S("Space b"), func(a *Core) []Effect { return a.BufferPicker() }},
 		{msg.T("cmd.sidebar"), msg.S("Ctrl+B"), func(a *Core) []Effect { a.ToggleSide(); return nil }},
 		{msg.T("cmd.focustree"), msg.S("Ctrl+E / Space e"), func(a *Core) []Effect { a.SetSide(true); return a.SetFocus(FocusExplorer) }},
@@ -234,6 +241,13 @@ func (a *Core) ExecCommand(line string) []Effect {
 		return a.CloseTab(false)
 	case "bc!", "bclose!", "buffer-close!":
 		return a.CloseTab(true)
+	case "bca", "bclose-all", "buffer-close-all", "bca!", "bclose-all!", "buffer-close-all!":
+		return a.CloseTabs(nil, strings.HasSuffix(name, "!"))
+	case "bco", "bclose-others", "buffer-close-others", "bco!", "bclose-others!", "buffer-close-others!":
+		if a.Cur() == nil {
+			return nil
+		}
+		return a.CloseTabs(a.Cur(), strings.HasSuffix(name, "!"))
 	case "fmt", "format":
 		return a.Format(false)
 	case "signature", "sig":

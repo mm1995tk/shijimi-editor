@@ -665,6 +665,39 @@ func (a *Core) CloseTab(force bool) []Effect {
 	return nil
 }
 
+// CloseTabs closes every tab but keep (nil keeps none). When any tab to close
+// has unsaved changes and force is off, nothing is closed.
+func (a *Core) CloseTabs(keep *Tab, force bool) []Effect {
+	if a.single {
+		return nil
+	}
+	n := 0
+	for _, t := range a.Tabs {
+		if t != keep && t.dirty() {
+			n++
+		}
+	}
+	if !force && n > 0 {
+		a.Fail(msg.Err("app.closeunsavedn", n))
+		return nil
+	}
+	for i := len(a.Tabs) - 1; i >= 0; i-- {
+		if a.Tabs[i] != keep {
+			a.dropTab(i)
+		}
+	}
+	a.Split, a.Pane, a.Other, a.otherPrev, a.PrevTab = false, 0, nil, nil, nil
+	a.Active = max(a.tabIndex(keep), 0)
+	a.seenTab = a.Cur()
+	a.confirmClose = false
+	a.Comp = nil
+	a.Mode = ModeNormal
+	if len(a.Tabs) == 0 && a.Focus == FocusEditor {
+		a.Focus = FocusExplorer
+	}
+	return nil
+}
+
 // dropTab removes tab i and releases what it holds; the caller fixes active.
 func (a *Core) dropTab(i int) {
 	t := a.Tabs[i]
