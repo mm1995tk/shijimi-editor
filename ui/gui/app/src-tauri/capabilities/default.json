@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "メイン窓の権限。イベントの受け取りなど core の既定だけ許可する（listen が plugin:event|listen を呼ぶため要る）。自前のコマンドは app の ACL で許可される",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "notification:default"]
 }

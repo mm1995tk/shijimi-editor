@@ -7,8 +7,19 @@ import {
   type JSX,
 } from "solid-js";
 
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from "@tauri-apps/plugin-notification";
+
 import { monoFontsReady } from "../fonts.ts";
 import type { TermLink, TermSink } from "./link.ts";
+import {
+  notificationSupport,
+  shouldNotify,
+  toOsNotification,
+} from "./notify.ts";
 import "./terminal.css";
 
 /**
@@ -57,6 +68,31 @@ export function TerminalView(props: {
   let current: TermLink | undefined;
   // キー・貼り付け・マウスの報告・問い合わせへの返事は、どれもバイト列で出てくる
   term.onData((b) => current?.input(b));
+
+  // ターミナルの通知（kitty の OSC 99）を OS の通知につなぐ。押されたとき欄を前に出す・閉じたことを返すのは
+  // 公式プラグインのデスクトップ版にできないので、p=? には対応しないと答える（notify.ts）
+  term.onNotificationQuery((id) =>
+    term.replyNotificationQuery(id, notificationSupport),
+  );
+  term.onNotification((n) => {
+    if (
+      !shouldNotify(n.when, {
+        windowFocused: document.hasFocus(),
+        cellVisible: !props.hidden,
+        pageVisible: document.visibilityState === "visible",
+      })
+    )
+      return;
+    void (async () => {
+      try {
+        let granted = await isPermissionGranted();
+        if (!granted) granted = (await requestPermission()) === "granted";
+        if (granted) sendNotification(toOsNotification(n));
+      } catch {
+        // 通知を出せなくても、ターミナルの動きには関わらない
+      }
+    })();
+  });
 
   function refit() {
     if (!host.isConnected || host.clientWidth === 0) return;
