@@ -18,7 +18,7 @@ const stateVersion = 1
 
 // StatePath は workspaces.json の場所（serve.log と同じフォルダ）。
 func StatePath() (string, error) {
-	dir, err := stateDir()
+	dir, err := StateDir()
 	if err != nil {
 		return "", err
 	}

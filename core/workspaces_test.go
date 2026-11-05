@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -334,5 +335,129 @@ func TestDirenvBlocked(t *testing.T) {
 	c.handleDirenvLoaded(DirenvLoaded{Err: direnv.ErrBlocked})
 	if c.Lsp.waitEnv || c.Lsp.env != nil || c.Msg.Key != "direnv.blocked" {
 		t.Fatalf("waitEnv=%v env=%v msg=%v", c.Lsp.waitEnv, c.Lsp.env, c.Msg)
+	}
+}
+
+// fakeNix puts a `nix` on PATH (and only it) that prints a dev shell with
+// PATH=/flakebin and appends a line to the returned log on every run.
+func fakeNix(t *testing.T, withDirenv bool) string {
+	t.Helper()
+	bin := t.TempDir()
+	log := filepath.Join(t.TempDir(), "nix.log")
+	script := "#!/bin/sh\necho run >> " + log + "\necho '{\"variables\":{\"PATH\":{\"type\":\"exported\",\"value\":\"/flakebin\"}}}'\n"
+	if err := os.WriteFile(filepath.Join(bin, "nix"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if withDirenv {
+		if err := os.WriteFile(filepath.Join(bin, "direnv"), []byte("#!/bin/sh\necho '{}'\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin)
+	return log
+}
+
+func nixRuns(log string) int {
+	data, _ := os.ReadFile(log)
+	return strings.Count(string(data), "run")
+}
+
+func waitEnvRead(t *testing.T, w *Workspace) (env []string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var waiting bool
+		w.Do(func(c *Core) { env, waiting = c.Lsp.env, c.Lsp.waitEnv })
+		if !waiting {
+			return env
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the environment was not read")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// Without an .envrc, a flake.nix is asked about once: yes reads the dev shell,
+// and the answer is kept, so the next time it is read without asking.
+func TestWorkspaceNixAskOnce(t *testing.T) {
+	log := fakeNix(t, false)
+	root := t.TempDir()
+	writeFile(t, root, "flake.nix", "{}\n")
+	state := t.TempDir()
+	build := Build{StateDir: state}
+
+	ws := NewWorkspaces(NewShared(build))
+	w := openWS(ws, root)
+	var asked, waiting bool
+	w.Do(func(c *Core) { asked, waiting = c.Confirm != nil, c.Lsp.waitEnv })
+	if !asked || !waiting || nixRuns(log) != 0 {
+		t.Fatalf("asked=%v waiting=%v runs=%d, want a question and no nix yet", asked, waiting, nixRuns(log))
+	}
+	w.Update(textKey("y"))
+	if env := waitEnvRead(t, w); !slices.Contains(env, "PATH=/flakebin") {
+		t.Fatalf("env not applied: %v", env)
+	}
+	ws.CloseAll()
+
+	ws = NewWorkspaces(NewShared(build))
+	defer ws.CloseAll()
+	w = openWS(ws, root)
+	w.Do(func(c *Core) { asked = c.Confirm != nil })
+	if asked {
+		t.Fatal("asked again")
+	}
+	if env := waitEnvRead(t, w); !slices.Contains(env, "PATH=/flakebin") {
+		t.Fatalf("env not applied the second time: %v", env)
+	}
+}
+
+// A no is kept too: the folder is not asked again and nix does not run.
+func TestWorkspaceNixNo(t *testing.T) {
+	log := fakeNix(t, false)
+	root := t.TempDir()
+	writeFile(t, root, "flake.nix", "{}\n")
+	build := Build{StateDir: t.TempDir()}
+
+	ws := NewWorkspaces(NewShared(build))
+	w := openWS(ws, root)
+	w.Update(textKey("n"))
+	w.Do(func(c *Core) {
+		if c.Confirm != nil || c.Lsp.waitEnv || c.Lsp.env != nil {
+			t.Fatalf("confirm=%v waitEnv=%v env=%v", c.Confirm, c.Lsp.waitEnv, c.Lsp.env)
+		}
+	})
+	ws.CloseAll()
+
+	ws = NewWorkspaces(NewShared(build))
+	defer ws.CloseAll()
+	w = openWS(ws, root)
+	w.Do(func(c *Core) {
+		if c.Confirm != nil || c.Lsp.waitEnv {
+			t.Fatalf("asked or waited again: confirm=%v waitEnv=%v", c.Confirm, c.Lsp.waitEnv)
+		}
+	})
+	if nixRuns(log) != 0 {
+		t.Fatal("nix ran for a folder answered no")
+	}
+}
+
+// With an .envrc (and direnv installed) the flake is not looked at.
+func TestWorkspaceEnvrcSkipsNix(t *testing.T) {
+	log := fakeNix(t, true)
+	root := t.TempDir()
+	writeFile(t, root, ".envrc", "use flake\n")
+	writeFile(t, root, "flake.nix", "{}\n")
+	ws := NewWorkspaces(NewShared(Build{StateDir: t.TempDir()}))
+	defer ws.CloseAll()
+	w := openWS(ws, root)
+	waitEnvRead(t, w)
+	w.Do(func(c *Core) {
+		if c.Confirm != nil {
+			t.Fatal("asked about the flake")
+		}
+	})
+	if nixRuns(log) != 0 {
+		t.Fatal("nix ran")
 	}
 }

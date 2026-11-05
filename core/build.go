@@ -12,4 +12,7 @@ type Build struct {
 	// Version is the build's version as the status line shows it and as the
 	// agent is told it, such as "v0.1 (be64521)".
 	Version string
+	// StateDir is the folder the UI keeps what it remembers between runs in, such
+	// as the folders whose flake the user let be read. Empty remembers nothing.
+	StateDir string
 }

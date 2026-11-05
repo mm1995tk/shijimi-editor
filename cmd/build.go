@@ -5,6 +5,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/ui/cli"
 	guicfg "github.com/mm1995tk/shijimi-editor/ui/gui/config"
+	"github.com/mm1995tk/shijimi-editor/ui/gui/server"
 	tuicfg "github.com/mm1995tk/shijimi-editor/ui/tui/config"
 )
 
@@ -13,9 +14,11 @@ import (
 // and the version the status line and the agent show. The core reads nothing
 // of the build itself.
 func coreBuild() core.Build {
+	stateDir, _ := server.StateDir() // without one, the answers about flakes are not kept
 	return core.Build{
-		Config:  configOptions(),
-		Version: cli.Label(),
+		Config:   configOptions(),
+		Version:  cli.Label(),
+		StateDir: stateDir,
 	}
 }
 
