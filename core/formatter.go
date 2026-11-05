@@ -30,7 +30,11 @@ type FormatterDoneMsg struct {
 // command: the buffer goes to stdin, stdout becomes the new text.
 func (a *Core) runFormatter(t *Tab, f *config.Formatter, save bool) []Effect {
 	if a.Lsp.waitEnv {
-		a.Info("direnv.loading")
+		if a.Lsp.envNix {
+			a.Info("nixenv.loading")
+		} else {
+			a.Info("direnv.loading")
+		}
 		return nil
 	}
 	in := t.Buf.Text()

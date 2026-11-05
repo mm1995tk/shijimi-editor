@@ -53,6 +53,7 @@ func (a *Core) startNix() []Effect {
 		return nil
 	}
 	a.Lsp.waitEnv = true
+	a.Lsp.envNix = true
 	if answered {
 		return a.loadNix()
 	}

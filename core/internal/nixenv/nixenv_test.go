@@ -9,10 +9,11 @@ import (
 
 func TestApply(t *testing.T) {
 	out := `{"variables":{
-	  "PATH":{"type":"exported","value":"/nix/gopls/bin:/usr/bin"},
+	  "PATH":{"type":"exported","value":"/nix/gopls/bin"},
 	  "HOME":{"type":"exported","value":"/homeless-shelter"},
 	  "buildInputs":{"type":"var","value":"/nix/x"},
 	  "arr":{"type":"array","value":["a"]},
+	  "TZ":{"type":"exported","value":"UTC"},
 	  "GOFLAGS":{"type":"exported","value":"-mod=mod"}}}`
 	got, err := Apply([]string{"HOME=/home/u", "PATH=/usr/bin", "A=1"}, []byte(out))
 	if err != nil {

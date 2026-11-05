@@ -62,12 +62,18 @@ func Load(ctx context.Context, root string, base []string) ([]string, error) {
 // skip are the variables a dev shell sets for building, not for working in:
 // taking them would point HOME or the temporary folder at a build sandbox that
 // does not exist.
+// joined are the variables whose value is the dev shell's followed by the one the
+// process had, as `nix develop` does: the user's own tools stay found.
+var joined = map[string]bool{"PATH": true, "XDG_DATA_DIRS": true}
+
 var skip = map[string]bool{
 	"HOME": true, "USER": true, "LOGNAME": true, "SHELL": true, "TERM": true,
 	"PWD": true, "OLDPWD": true, "SHLVL": true, "_": true,
 	"TMP": true, "TMPDIR": true, "TEMP": true, "TEMPDIR": true,
 	"NIX_BUILD_TOP": true, "NIX_LOG_FD": true, "NIX_STORE": true,
 	"builder": true, "out": true, "outputs": true,
+	"BASHOPTS": true, "SHELLOPTS": true, "PPID": true, "UID": true, "NIX_ENFORCE_PURITY": true,
+	"NIX_REMOTE": true, "SSL_CERT_FILE": true, "TZ": true,
 }
 
 // Apply returns base with the exported variables in out, the JSON
@@ -89,6 +95,11 @@ func Apply(base []string, out []byte) ([]string, error) {
 			continue
 		}
 		set[k] = s
+		if joined[k] {
+			if old := getenv(base, k); old != "" {
+				set[k] = s + ":" + old
+			}
+		}
 	}
 	env := make([]string, 0, len(base)+len(set))
 	for _, kv := range base {
@@ -101,6 +112,15 @@ func Apply(base []string, out []byte) ([]string, error) {
 		env = append(env, k+"="+v)
 	}
 	return env, nil
+}
+
+func getenv(env []string, key string) string {
+	for i := len(env) - 1; i >= 0; i-- {
+		if k, v, ok := strings.Cut(env[i], "="); ok && k == key {
+			return v
+		}
+	}
+	return ""
 }
 
 func lastLine(s, def string) string {

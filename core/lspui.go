@@ -28,6 +28,7 @@ type lspManager struct {
 	events  chan lsp.Event
 	env     []string                               // the environment servers run in; nil is the process's
 	waitEnv bool                                   // the environment is being read: no server starts yet
+	envNix  bool                                   // the environment being read is the flake's
 	Diags   map[string]map[string][]lsp.Diagnostic // path -> server -> diags
 }
 
