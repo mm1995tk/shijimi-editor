@@ -260,7 +260,7 @@ describe("write (プログラム → 手元)", () => {
     assert.ok(log.includes("wclose false"));
   });
 
-  it("欄を閉じると、聞いているものを断り、途中のファイルを消す", async () => {
+  it("欄を閉じると、聞いているものを断り、書き終えたファイルは残して途中のものだけ消す", async () => {
     const { term } = fakeTerm();
     const { os, log } = fakeOs();
     const a = fakeAsk("wait");
@@ -270,7 +270,7 @@ describe("write (プログラム → 手元)", () => {
     t.dispose();
     await settle();
     assert.equal(a.cancelled(), 1);
-    assert.ok(log.includes("wclose false"));
+    assert.ok(log.includes("wclose true"));
   });
 });
 
@@ -443,5 +443,25 @@ describe("helpers", () => {
       assert.equal(info.more, 3);
       assert.equal(info.files, 15);
     }
+  });
+});
+
+describe("見つからないだけの頼み", () => {
+  it("聞かず、エラーの中身も返さず、断りだけで答える", async () => {
+    const { term, calls } = fakeTerm();
+    const empty: Listing = {
+      entries: [],
+      errors: [{ requestId: "f1", code: "EACCES", message: "(os error 13)" }],
+      home: "/home/u",
+      totalSize: 0,
+    };
+    const { os } = fakeOs({ list: empty });
+    const a = fakeAsk(true);
+    const t = createTransfer(term, os, a.ask, "v1");
+    t.handle(receive(1));
+    t.handle(req("f1", "/root/secret"));
+    await settle();
+    assert.equal(a.asked.length, 0);
+    assert.deepEqual(calls, [["refuse", "r1"]]);
   });
 });

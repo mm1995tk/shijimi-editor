@@ -237,6 +237,7 @@ pub fn transfer_write_begin(state: State<Transfers>, key: String) -> R<String> {
     Ok(dir.to_string_lossy().into_owned())
 }
 
+/// 画面（transferOs.ts の writeOpen）から受ける、書くファイルかディレクトリ 1 つの頼み。
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WriteOpen {
@@ -387,6 +388,7 @@ pub fn transfer_write_close(state: State<Transfers>, key: String, keep_done: boo
 
 // ---- 読む（手元 → リモート） ----
 
+/// 画面（transferOs.ts の readList）から受ける、相手が読みたいと頼んだパス 1 つ。
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReadRequest {
@@ -394,6 +396,7 @@ pub struct ReadRequest {
     name: String,
 }
 
+/// 並べた項目 1 つ。画面（transfer.ts の ListEntry）が窓に見せ、許されたら相手への一覧にする。
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListEntry {
@@ -409,6 +412,7 @@ pub struct ListEntry {
     data: Option<String>,
 }
 
+/// 並べられなかった頼み 1 つ（画面は許可のあとにだけ、記号名を相手に返す）。
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListError {
@@ -417,6 +421,7 @@ pub struct ListError {
     message: String,
 }
 
+/// `transfer_read_list` の結果。画面（transfer.ts の Listing）に渡す。
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Listing {

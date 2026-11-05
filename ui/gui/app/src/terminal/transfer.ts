@@ -31,6 +31,7 @@ export interface ListEntry {
   data: string | null;
 }
 
+/** Rust 側（transfer_read_list）が並べた結果。許可の窓に見せ、許されたら相手に返す。 */
 export interface Listing {
   entries: ListEntry[];
   errors: { requestId: string; code: string; message: string }[];
@@ -90,6 +91,7 @@ export interface TransferReplies {
   ): void;
 }
 
+/** 許可の窓を出して答えを待つ関数（transferPrompt.ts の askTransfer）。cancel で取り下げる。 */
 export type AskTransfer = (info: TransferInfo) => {
   allowed: Promise<boolean>;
   cancel: () => void;
@@ -130,6 +132,11 @@ export function toError(e: unknown): {
     code: CODES.find((c) => c === code) ?? "EIO",
     message,
   };
+}
+
+/** 記号名に対する、固定の説明（OS の文を外に出さないため）。 */
+function errorText(code: string): string {
+  return code === "ENOENT" ? "Does not exist" : "Cannot be read";
 }
 
 /** 大きさを読みやすくする（1024 区切り）。 */
@@ -251,6 +258,7 @@ interface Session {
   listed: boolean;
 }
 
+/** 欄ごとの転送の入り口。TerminalView が coneko-term のイベントを渡す。 */
 export interface Transfer {
   /** coneko-term の onFileTransfer に渡す */
   handle(e: FileTransferEvent): void;
@@ -400,12 +408,9 @@ export function createTransfer(
       return;
     }
     if (list.entries.length === 0) {
-      for (const er of list.errors) {
-        fail(id, { code: er.code, message: er.message }, er.requestId);
-      }
-      fail(id, { code: "ENOENT", message: "No files found" });
-      finish(id, s, false);
-      return;
+      // 見つからない・読めないという答えは、ユーザーに聞かずには返さない（手元のファイルの有無や権限を外に出さない）。
+      // 聞く中身が無いので、断りとして答える
+      return refuse(id, s);
     }
     if (!(await confirm(s, readInfo(list)))) {
       if (!s.cancelled) refuse(id, s);
@@ -418,8 +423,9 @@ export function createTransfer(
       finish(id, s, false);
       return;
     }
+    // 許されたあとでも、返すのは記号名だけ。OS の文は外に出さない
     for (const er of list.errors) {
-      fail(id, { code: er.code, message: er.message }, er.requestId);
+      fail(id, { code: er.code, message: errorText(er.code) }, er.requestId);
     }
     const enc = new TextEncoder();
     for (const en of list.entries) {
@@ -568,7 +574,7 @@ export function createTransfer(
     dispose() {
       for (const [id, s] of [...sessions]) {
         s.cancelled = true;
-        finish(id, s, false);
+        finish(id, s, true);
       }
     },
   };
