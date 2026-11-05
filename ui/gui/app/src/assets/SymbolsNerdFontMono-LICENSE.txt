@@ -1,0 +1,47 @@
+SymbolsNerdFontMono-Regular.woff2 is "Symbols Nerd Font Mono" from Nerd Fonts
+(https://github.com/ryanoasis/nerd-fonts), version 3.5.0, converted from TTF to
+WOFF2 without any change to the glyphs.
+
+Nerd Fonts is released under the MIT License:
+
+  MIT License
+
+  Copyright (c) 2014, Ryan L McIntyre
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+The icons inside the font keep the licenses of the icon sets they come from.
+The font bundles these sets (see the Nerd Fonts repository, LICENSE and
+license-audit.md, for the exact terms and copyright holders):
+
+  - Powerline Symbols and Powerline Extra Symbols (MIT / public domain)
+  - Font Awesome (icons CC BY 4.0, font SIL OFL 1.1)
+  - Material Design Icons (Apache License 2.0)
+  - Weather Icons (SIL OFL 1.1)
+  - Devicons (MIT)
+  - Octicons (MIT)
+  - Font Logos (CC0 / MIT)
+  - Codicons (CC BY 4.0)
+  - Pomicons (CC BY 4.0)
+  - Seti-UI + Custom (MIT)
+  - IEC Power Symbols (public domain)
+  - Heavy Angle Brackets (MIT)
+
+The full texts are in https://github.com/ryanoasis/nerd-fonts/tree/master/src/glyphs
+and https://github.com/ryanoasis/nerd-fonts/blob/master/LICENSE.
