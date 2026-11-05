@@ -100,7 +100,7 @@ func (a *App) inEditorText(l layout, msg core.Mouse) bool {
 func (a *App) overPreview(l layout, msg core.Mouse) bool {
 	t := a.Cur()
 	return t != nil && t.Kind == core.TabText && t.Preview == core.PreviewSplit && a.DiffFile(t) == nil &&
-		msg.Col > a.editW(t, l) && msg.Row > l.editY-l.top-1
+		msg.Col > a.editW(t, l) && msg.Row >= l.editY-l.top && msg.Row < l.editY-l.top+l.editH
 }
 
 // cursorShown reports whether the cursor drawn at (x, y) is inside the text

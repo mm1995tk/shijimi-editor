@@ -169,7 +169,6 @@ func TestPreviewMermaidFallback(t *testing.T) {
 func TestWheelScrollsPreviewNotCursor(t *testing.T) {
 	a := previewApp(t, t.TempDir(), strings.Repeat("段落\n\n", 30))
 	tb := a.Tabs[0]
-	a.Cur() // the tab is current
 	if p := a.BuildPreviewPane(tb, 30, 5); p.Preview.Top != 0 {
 		t.Fatalf("top = %d", p.Preview.Top)
 	}
@@ -193,5 +192,25 @@ func TestWheelScrollsPreviewNotCursor(t *testing.T) {
 	tb.Buf.Cur.Row = 20 // the cursor moved: the preview follows it
 	if p = a.BuildPreviewPane(tb, 30, 5); p.Preview.Top <= 0 {
 		t.Fatalf("top = %d", p.Preview.Top)
+	}
+}
+
+func TestWheelOverSplitPreview(t *testing.T) {
+	a := newTestApp(t, strings.Repeat("段落\n\n", 60))
+	tb := a.CurText()
+	tb.Preview = core.PreviewSplit
+	l := a.layout()
+	a.BuildPreviewPane(tb, 30, 5) // PrevTop starts at its place
+	wheel := func(x int) {
+		a.HandleMouse(a.locate(x, l.editY+2, core.Mouse{Action: core.MousePress, Button: core.MouseWheelDown}))
+	}
+	wheel(l.rightX + a.editW(tb, l) + 2)
+	if tb.PrevTop == 0 || tb.Buf.ScrollRow != 0 || tb.Buf.Cur.Row != 0 {
+		t.Fatalf("over the preview: top %d scroll %d cursor %d", tb.PrevTop, tb.Buf.ScrollRow, tb.Buf.Cur.Row)
+	}
+	top := tb.PrevTop
+	wheel(l.rightX + a.editW(tb, l) - 1)
+	if tb.PrevTop != top || tb.Buf.ScrollRow == 0 {
+		t.Fatalf("over the text: top %d scroll %d", tb.PrevTop, tb.Buf.ScrollRow)
 	}
 }
