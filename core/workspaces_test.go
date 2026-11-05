@@ -395,7 +395,7 @@ func TestWorkspaceNixAskOnce(t *testing.T) {
 		t.Fatalf("asked=%v waiting=%v runs=%d, want a question and no nix yet", asked, waiting, nixRuns(log))
 	}
 	w.Update(textKey("y"))
-	if env := waitEnvRead(t, w); !slices.Contains(env, "PATH=/flakebin") {
+	if env := waitEnvRead(t, w); !slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "PATH=/flakebin:") }) {
 		t.Fatalf("env not applied: %v", env)
 	}
 	ws.CloseAll()
@@ -407,7 +407,7 @@ func TestWorkspaceNixAskOnce(t *testing.T) {
 	if asked {
 		t.Fatal("asked again")
 	}
-	if env := waitEnvRead(t, w); !slices.Contains(env, "PATH=/flakebin") {
+	if env := waitEnvRead(t, w); !slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, "PATH=/flakebin:") }) {
 		t.Fatalf("env not applied the second time: %v", env)
 	}
 }
