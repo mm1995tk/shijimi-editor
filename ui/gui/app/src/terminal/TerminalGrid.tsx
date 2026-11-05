@@ -1,5 +1,6 @@
 import { createEffect, For, on, Show, type JSX } from "solid-js";
 
+import { IS_MAC } from "../guiKeys.ts";
 import { cellOf, gridSize } from "./grid.ts";
 import type { TermLink } from "./link.ts";
 import { TerminalView } from "./TerminalView.tsx";
@@ -94,7 +95,8 @@ export function TerminalGrid(props: {
       </For>
       <Show when={props.zoomed && props.links.length > 1}>
         <p class="terminal-others" role="status">
-          ほかに {props.links.length - 1} つを隠している（Ctrl+Shift+M で戻す）
+          ほかに {props.links.length - 1} つを隠している（
+          {IS_MAC ? "Cmd+Shift+Enter" : "Ctrl+Shift+M"} で戻す）
         </p>
       </Show>
       <Show when={!props.zoomed && !props.showAll && props.links.length > 1}>
