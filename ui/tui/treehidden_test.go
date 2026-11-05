@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -71,5 +73,25 @@ func TestTreeHiddenNoTabSpaceLeader(t *testing.T) {
 	a.Update(textKey("f"))
 	if !a.Pal.Open {
 		t.Error("Space f must open the file palette")
+	}
+}
+
+// The file reporter hears the file at the start and each time it changes.
+func TestFileReporter(t *testing.T) {
+	a := newTestApp(t, "hello\n")
+	var got []string
+	a.SetFileReporter(func(f string) { got = append(got, f) })
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	first := a.Cur().Path()
+	if len(got) != 1 || got[0] != first || first == "" {
+		t.Fatalf("at the start: %q", got)
+	}
+	other := filepath.Join(filepath.Dir(first), "b.txt")
+	os.WriteFile(other, []byte("x\n"), 0o644)
+	a.OpenFile(other)
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if len(got) != 2 || got[1] != other {
+		t.Errorf("after open: %q", got)
 	}
 }

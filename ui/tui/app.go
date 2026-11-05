@@ -39,6 +39,10 @@ type App struct {
 	askReleases bool        // key releases were asked for in the last View
 	quitting    bool        // tea.Quit was returned (see exit)
 	later       []tea.Cmd   // work the core asked for through the Port, started by the next effectCmd
+
+	fileReport   func(string) // SetFileReporter
+	reportedFile string       // the file fileReport was last called with
+	reported     bool         // fileReport has been called
 }
 
 // New creates the app rooted at dir, optionally opening file. A mistake in a

@@ -46,7 +46,7 @@ func TestAnnouncePrimary(t *testing.T) {
 	}()
 
 	t.Setenv(ctl.EnvGUIPrimary, "t7")
-	end, primary := AnnouncePrimary("", filepath.Join(dir, "1.sock"))
+	end, primary, _ := AnnouncePrimary("", filepath.Join(dir, "1.sock"))
 	if !primary {
 		t.Error("an accepted announcement is a primary")
 	}
@@ -73,7 +73,8 @@ func TestAnnouncePrimary(t *testing.T) {
 func TestAnnouncePrimaryWithoutEnv(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	t.Setenv(ctl.EnvGUIPrimary, "")
-	end, primary := AnnouncePrimary("", "/x.sock")
+	end, primary, report := AnnouncePrimary("", "/x.sock")
+	report("/ignored")
 	end()
 	if primary {
 		t.Error("without the variable there is no primary")

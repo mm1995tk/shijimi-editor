@@ -78,5 +78,6 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	a.pushLayout()
 	a.pushSizes()
+	a.reportFile()
 	return a, a.effectCmd(effs...)
 }

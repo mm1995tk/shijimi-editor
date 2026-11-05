@@ -93,8 +93,12 @@ func Main() {
 			os.Unsetenv(ctl.EnvGUIWorkspace)
 			// In the primary terminal of a GUI workspace, shj serve is told.
 			// The GUI shows the file tree then, so this shj leaves its own out.
-			endPrimary, primary := ctlclient.AnnouncePrimary(cli.Suffix(), path)
+			endPrimary, primary, reportFile := ctlclient.AnnouncePrimary(cli.Suffix(), path)
 			app.SetTreeHidden(primary)
+			// The GUI tree lights the row of the file this shj shows.
+			if primary {
+				app.SetFileReporter(reportFile)
+			}
 			prev := closeSock
 			closeSock = func() { endPrimary(); prev() }
 		}
