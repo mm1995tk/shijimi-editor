@@ -33,8 +33,9 @@ type span struct{ x0, x1 int }
 // keeps what only a terminal has: which regions are
 // shown, the terminal panel and the pane sizes the user picked.
 type Core struct {
-	sizes  Sizes  // the sizes the UI last gave (SetSizes)
-	layout Layout // the regions the UI last said it shows (SetLayout)
+	sizes    Sizes    // the sizes the UI last gave (SetSizes)
+	layout   Layout   // the regions the UI last said it shows (SetLayout)
+	splitPct splitPct // the shares the GUI dragged the files region's borders to (BuildScreen)
 
 	Root           string
 	GitTop         string
@@ -1048,6 +1049,12 @@ func (a *Core) HandleKey(in Key) []Effect {
 		return a.handleCmdlineKey(in)
 	}
 	if a.InResizeMode() {
+		if ResizeExitKey(key) {
+			a.layout.ResizeMode = false
+			a.ClearMsg()
+		} else {
+			a.Info("resize.hint")
+		}
 		a.port.ResizeKey(key)
 		return nil
 	}
