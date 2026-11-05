@@ -76,14 +76,16 @@ export function isPasteKey(e: KeyLike, mac: boolean): boolean {
 }
 
 /**
- * GUI 自身が受けるキー（shj に送らない）。貼り付けのキーと、ターミナルの Ctrl+Shift+T・Ctrl+Shift+`
+ * GUI 自身が受けるキー（shj に送らない）。貼り付けのキーと、ターミナルの Ctrl+Shift+T・Ctrl+Shift+Z・Ctrl+Shift+`
  * （ターミナルを新しく作る、IDE モードとターミナルモードの切り替え。設計書 3 章と 6 章の F3・F4）。
  */
 export function isGuiKey(e: KeyLike, mac: boolean): boolean {
   if (isPasteKey(e, mac)) return true;
   if (!e.ctrlKey || !e.shiftKey || e.altKey || e.metaKey) return false;
   const k = e.key.toLowerCase();
-  return k === "t" || e.code === "Backquote" || k === "`" || k === "~";
+  return (
+    k === "t" || k === "z" || e.code === "Backquote" || k === "`" || k === "~"
+  );
 }
 
 /** 1 つの code point だけでできた名前か（"a"・"あ"・" "。"Enter" などの名前は違う）。 */

@@ -65,6 +65,8 @@ The sizes are kept until you quit shijimi.
 
 In the GUI, the borders you can move are the sidebar and the area to its right, the files area and the terminals, and the split inside the files area (the left and right of a split diff, the text and its Markdown preview). Drag a border with the mouse, and double-click it to reset it. `Alt+R` (or "Resize panes" in the palette) enters resize mode with the same keys: `←` `→` move the border of the focused block (the split inside the files area when the current file has one, otherwise the sidebar), `↑` `↓` move the border between the files area and the terminals, and `<` `>` move the split. The borders they move are drawn in the machine color. The terminals you lay out side by side in terminal mode have no borders to move. The GUI keeps the sizes when you restart it.
 
+In the GUI, while shj is running in the primary terminal, `Ctrl+Shift+Z` hides every terminal except the primary and moves the keys to the primary. Press it again to bring them back. While they are hidden, the number of hidden terminals appears at the top right. Hidden terminals keep running and come back as they were. When shj exits, the hidden terminals reappear. The key does nothing while shj is not running in the primary.
+
 ## Switching files
 
 There is no tab bar. The files you have opened are kept in a list, and only the current one is shown, with its path on the title line. To see two files at once, [split the editor](#split-editor).

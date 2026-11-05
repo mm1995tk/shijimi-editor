@@ -84,3 +84,9 @@ export function isNewTermKey(e: KeyLike): boolean {
   if (!isCtrlShift(e)) return false;
   return e.code === "KeyT" || e.key === "T" || e.key === "t";
 }
+
+/** プライマリ以外の欄を隠す・戻すキー（Ctrl+Shift+Z）か。 */
+export function isZoomKey(e: KeyLike): boolean {
+  if (!isCtrlShift(e)) return false;
+  return e.code === "KeyZ" || e.key === "Z" || e.key === "z";
+}

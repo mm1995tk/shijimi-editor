@@ -108,7 +108,7 @@ import {
 } from "./tree/menu.ts";
 import { DeleteDialog, NameDialog } from "./tree/TreeDialogs.tsx";
 import { WorkspaceTrees } from "./tree/trees.ts";
-import { directionKey, isNewTermKey } from "./terminal/grid.ts";
+import { directionKey, isNewTermKey, isZoomKey } from "./terminal/grid.ts";
 import { TermGroup, TermGroups } from "./terminal/group.ts";
 import { TerminalGrid } from "./terminal/TerminalGrid.tsx";
 import {
@@ -210,6 +210,51 @@ function Workbench(props: {
       : undefined;
   };
   const termList = () => termGroup()?.list ?? [];
+  // プライマリ以外の欄を隠しているワークスペース（"マシン/ワークスペース"）。GUI だけで持つ。隠した欄のターミナルは止めない
+  const [zoomedWs, setZoomedWs] = createSignal<ReadonlySet<string>>(new Set());
+  const wsKey = (target: string, id: WorkspaceId) => `${target}/${id}`;
+  /** そのワークスペースのプライマリで shj が動いているか */
+  const primaryShjOn = (target: string, id: WorkspaceId) =>
+    !!workspaces()[target]?.find((w) => w.id === id)?.primaryShj;
+  const zoomed = () => {
+    const f = focus();
+    return (
+      !!f &&
+      zoomedWs().has(wsKey(f.target, f.id)) &&
+      primaryShjOn(f.target, f.id)
+    );
+  };
+  // プライマリの shj が終わったら（#549 の primaryShj が null）、隠していた欄を出す
+  createEffect(() => {
+    const ws = workspaces();
+    const cur = untrack(zoomedWs);
+    const keep = [...cur].filter((k) => {
+      const i = k.lastIndexOf("/");
+      const w = ws[k.slice(0, i)]?.find((x) => x.id === k.slice(i + 1));
+      return !!w?.primaryShj;
+    });
+    if (keep.length !== cur.size) setZoomedWs(new Set(keep));
+  });
+  /**
+   * プライマリ以外の欄を隠してプライマリにキーを向ける、もう一度で戻す（Ctrl+Shift+Z。#553 の hide/show もこれを使う）。
+   * プライマリで shj が動いていなければ何もしない。
+   */
+  function setZoom(on: boolean | "toggle" = "toggle"): boolean {
+    const f = focus();
+    if (!f || !primaryShjOn(f.target, f.id)) return false;
+    const k = wsKey(f.target, f.id);
+    const was = zoomedWs().has(k);
+    const want = on === "toggle" ? !was : on;
+    if (want === was) return want;
+    const next = new Set(zoomedWs());
+    if (want) {
+      next.add(k);
+      termGroup()?.setActive(0);
+    } else next.delete(k);
+    setZoomedWs(next);
+    focusTerminal();
+    return want;
+  }
   const termActive = () => termGroup()?.active;
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
@@ -318,6 +363,12 @@ function Workbench(props: {
       e.preventDefault();
       e.stopPropagation();
       if (!e.repeat) toggleMode();
+      return;
+    }
+    if (isZoomKey(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) setZoom();
       return;
     }
     if (isNewTermKey(e)) {
@@ -918,6 +969,8 @@ function Workbench(props: {
 
   /** 分割したターミナルを足して並べ、キーを向ける（Ctrl+Shift+T。F4）。フォーカスしているワークスペースに属する。 */
   function newTerminal() {
+    // 隠している欄があれば先に戻す（足した欄が見えないままになるため）
+    setZoom(false);
     // フォルダは shj が決める（ワークスペースのフォルダ。未定なら start_dir）
     void termGroup()
       ?.add()
@@ -1162,6 +1215,7 @@ function Workbench(props: {
           links={termList()}
           active={termActive()}
           showAll={mode() === "terminal"}
+          zoomed={zoomed()}
           accent={colors()[termTarget() ?? ""]}
           onActivate={(i) => termGroup()?.setActive(i)}
           focusRef={(f) => (focusActiveTerminal = f)}
