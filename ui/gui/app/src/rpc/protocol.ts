@@ -320,7 +320,7 @@ export interface Overlay {
   /** レビューカードの中の画像。row は lines の no と同じ表示行の番号 */
   images?: PreviewImage[] | null;
   compose?: Compose;
-  /** 検索の窓。title は見出し、hint は枠の下の案内（キーの一覧） */
+  /** 検索の窓。title は見出し、hint は状態の行の右に出すキーの一覧 */
   search?: Search;
 }
 

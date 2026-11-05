@@ -298,7 +298,7 @@ type Overlay struct {
 	Images  []PreviewImage `json:"images,omitempty"`
 	Compose *Compose       `json:"compose,omitempty"`
 
-	// 検索の窓（プロジェクトの検索・置換）が使う。Title は窓の見出し、Hint は枠の下の案内（キーの一覧）。
+	// 検索の窓（プロジェクトの検索・置換）が使う。Title は窓の見出し、Hint は状態の行の右に出すキーの一覧。
 	Search *Search `json:"search,omitempty"`
 }
 

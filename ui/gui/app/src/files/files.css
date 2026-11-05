@@ -525,10 +525,7 @@
 
 .files-search-hit-label {
   flex: none;
-  max-width: 60%;
-  overflow: hidden;
   white-space: pre;
-  text-overflow: ellipsis;
 }
 
 .files-pop-item[data-skip] .files-search-hit-label {

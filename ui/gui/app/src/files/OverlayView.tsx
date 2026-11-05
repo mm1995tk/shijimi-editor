@@ -13,6 +13,7 @@ import type {
   Item,
   Line,
   Overlay,
+  Search,
   SearchField,
   Theme,
 } from "../rpc/protocol.ts";
@@ -555,7 +556,6 @@ function SearchBody(props: {
   const columns = createMemo(() => searchColumns(props.box.w));
   const fieldCells = () => Math.max(1, Math.floor((props.box.w - 6) / 2) - 4);
   const fields = () => s()?.fields ?? [];
-  const gutterW = () => searchGutterCells(s()?.preview?.total ?? 0);
   return (
     <Show when={s()}>
       {(sr) => (
@@ -604,78 +604,109 @@ function SearchBody(props: {
               height: `${sr().bodyRows * LINE_HEIGHT}px`,
             }}
           >
-            <div class="files-search-hits" role="listbox">
-              <For each={sr().hits ?? []}>
-                {(h, i) => {
-                  const selected = () => sr().scroll + i() === sr().cursor;
-                  return (
-                    <div
-                      class="files-pop-row files-pop-item"
-                      role="option"
-                      aria-selected={selected()}
-                      data-active={selected() ? "" : undefined}
-                      data-skip={h.skip ? "" : undefined}
-                    >
-                      <span class="files-pop-dim files-search-hit-label">
-                        {`${searchMarker(!!h.skip, selected())}${h.label}  `}
-                      </span>
-                      <span class="files-pop-label">
-                        <LineRuns
-                          line={h.line}
-                          cols={columns().left}
-                          theme={props.theme}
-                        />
-                      </span>
-                    </div>
-                  );
-                }}
-              </For>
-              <Show when={!(sr().hits?.length ?? 0) && sr().empty}>
-                <div class="files-pop-row files-pop-dim">{sr().empty}</div>
-              </Show>
-            </div>
+            <SearchHits
+              search={sr()}
+              cols={columns().left}
+              theme={props.theme}
+            />
             <div class="files-search-divider" />
-            <div class="files-search-preview">
-              <Show when={sr().preview}>
-                {(p) => (
-                  <>
-                    <div class="files-pop-row files-pop-pad files-search-title">
-                      {p().title}
-                    </div>
-                    <div class="files-pop-row" />
-                    <For each={p().lines}>
-                      {(l) => (
-                        <>
-                          <SearchPreviewRow
-                            gutter={`${String(l.no + 1).padStart(gutterW())} │ `}
-                            line={l}
-                            cols={columns().right - gutterW() - 3}
-                            theme={props.theme}
-                          />
-                          <Show when={l.no === p().hit && p().del && p().add}>
-                            <SearchPreviewRow
-                              gutter={`${" ".repeat(gutterW())} - `}
-                              line={p().del}
-                              cols={columns().right - gutterW() - 3}
-                              theme={props.theme}
-                            />
-                            <SearchPreviewRow
-                              gutter={`${" ".repeat(gutterW())} + `}
-                              line={p().add}
-                              cols={columns().right - gutterW() - 3}
-                              theme={props.theme}
-                            />
-                          </Show>
-                        </>
-                      )}
-                    </For>
-                  </>
-                )}
-              </Show>
-            </div>
+            <SearchPreviewPane
+              search={sr()}
+              cols={columns().right}
+              theme={props.theme}
+            />
           </div>
         </>
       )}
     </Show>
+  );
+}
+
+/** 検索の窓の、一致した行の一覧（印、相対パス:行番号、行）。ラベルは shj が長ければ左を切って送る。 */
+function SearchHits(props: {
+  search: Search;
+  cols: number;
+  theme: Theme | null;
+}): JSX.Element {
+  const s = () => props.search;
+  return (
+    <div class="files-search-hits" role="listbox">
+      <For each={s().hits ?? []}>
+        {(h, i) => {
+          const selected = () => s().scroll + i() === s().cursor;
+          return (
+            <div
+              class="files-pop-row files-pop-item"
+              role="option"
+              aria-selected={selected()}
+              data-active={selected() ? "" : undefined}
+              data-skip={h.skip ? "" : undefined}
+            >
+              <span class="files-pop-dim files-search-hit-label">
+                {`${searchMarker(!!h.skip, selected())}${h.label}  `}
+              </span>
+              <span class="files-pop-label">
+                <LineRuns line={h.line} cols={props.cols} theme={props.theme} />
+              </span>
+            </div>
+          );
+        }}
+      </For>
+      <Show when={!(s().hits?.length ?? 0) && s().empty}>
+        <div class="files-pop-row files-pop-dim">{s().empty}</div>
+      </Show>
+    </div>
+  );
+}
+
+/** 検索の窓の、選んだ行のプレビュー（見出し、行番号付きの行、置換の前後の行）。 */
+function SearchPreviewPane(props: {
+  search: Search;
+  cols: number;
+  theme: Theme | null;
+}): JSX.Element {
+  return (
+    <div class="files-search-preview">
+      <Show when={props.search.preview}>
+        {(p) => {
+          const gutterW = () => searchGutterCells(p().total);
+          const cols = () => props.cols - gutterW() - 3;
+          return (
+            <>
+              <div class="files-pop-row files-pop-pad files-search-title">
+                {p().title}
+              </div>
+              <div class="files-pop-row" />
+              <For each={p().lines}>
+                {(l) => (
+                  <>
+                    <SearchPreviewRow
+                      gutter={`${String(l.no + 1).padStart(gutterW())} │ `}
+                      line={l}
+                      cols={cols()}
+                      theme={props.theme}
+                    />
+                    <Show when={l.no === p().hit && p().del && p().add}>
+                      <SearchPreviewRow
+                        gutter={`${" ".repeat(gutterW())} - `}
+                        line={p().del}
+                        cols={cols()}
+                        theme={props.theme}
+                      />
+                      <SearchPreviewRow
+                        gutter={`${" ".repeat(gutterW())} + `}
+                        line={p().add}
+                        cols={cols()}
+                        theme={props.theme}
+                      />
+                    </Show>
+                  </>
+                )}
+              </For>
+            </>
+          );
+        }}
+      </Show>
+    </div>
   );
 }

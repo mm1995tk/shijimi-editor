@@ -65,6 +65,9 @@ func (s *SearchPanel) statusMsg() (m msg.Msg, isErr bool) {
 
 func (a *Core) searchHitRow(h *SearchHit, w int) screen.SearchHit {
 	label := fmt.Sprintf("%s:%d", a.Rel(h.Path), h.Row+1)
+	if maxL := max(12, w*3/5); ansi.StringWidth(label) > maxL {
+		label = "…" + ansi.TruncateLeft(label, ansi.StringWidth(label)-maxL+1, "")
+	}
 	rs := []rune(h.Line)
 	lead := 0
 	for lead < len(rs) && (rs[lead] == ' ' || rs[lead] == '\t') {
@@ -73,7 +76,7 @@ func (a *Core) searchHitRow(h *SearchHit, w int) screen.SearchHit {
 	if len(h.Spans) > 0 {
 		lead = min(lead, h.Spans[0][0])
 	}
-	avail := max(1, w-min(ansi.StringWidth(label), max(12, w*3/5))-4)
+	avail := max(1, w-ansi.StringWidth(label)-4)
 	from := FirstColumn(h.Spans, lead, avail)
 	return screen.SearchHit{Label: label, Line: screen.Line{No: h.Row, Spans: matchSpans(rs, nil, from, h.Spans)}, Skip: h.Skip}
 }
@@ -113,8 +116,7 @@ func (a *Core) searchPreview(hit *SearchHit, w int) *screen.SearchPreview {
 
 // matchSpans splits rs[from:] into spans by syntax color (colors may be nil)
 // and by matches (rune ranges of rs), which get the background StyleMatch.
-// Tabs and control characters are shown as they are: the drawing side lays
-// them out.
+// A tab is one space, as in the TUI.
 func matchSpans(rs []rune, colors []string, from int, matches [][2]int) []screen.Span {
 	var out []screen.Span
 	var cur screen.Span
@@ -132,7 +134,11 @@ func matchSpans(rs []rune, colors []string, from int, matches [][2]int) []screen
 		if cur.Text == "" {
 			cur = sp
 		}
-		cur.Text += string(rs[i])
+		r := rs[i]
+		if r == '\t' {
+			r = ' ' // as the TUI shows it, so that FirstColumn counts the same cells
+		}
+		cur.Text += string(r)
 	}
 	if cur.Text != "" {
 		out = append(out, cur)

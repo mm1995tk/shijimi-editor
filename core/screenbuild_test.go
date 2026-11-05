@@ -147,3 +147,14 @@ func TestBuildScreenSearch(t *testing.T) {
 		t.Errorf("Esc leaves overlays: %+v", sc.Overlay)
 	}
 }
+
+// A long label of a matched line keeps its end (file name and line number),
+// as the TUI does.
+func TestSearchHitLabelKeepsEnd(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	h := &SearchHit{Path: a.Root + "/" + strings.Repeat("dir/", 20) + "file.go", Row: 41, Line: "needle", Spans: [][2]int{{0, 6}}}
+	got := a.searchHitRow(h, 40).Label
+	if !strings.HasPrefix(got, "…") || !strings.HasSuffix(got, "file.go:42") || len([]rune(got)) > 24 {
+		t.Errorf("label = %q", got)
+	}
+}
