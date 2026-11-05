@@ -155,6 +155,7 @@ func (w *wsManager) claimShj(h ctl.PrimaryHello) (*primaryShj, error) {
 	}
 	st.shj = claim
 	w.mu.Unlock()
+	w.linkShj(wsID, claim)
 	w.recompute()
 	return claim, nil
 }
@@ -162,11 +163,44 @@ func (w *wsManager) claimShj(h ctl.PrimaryHello) (*primaryShj, error) {
 // releaseShj は claim の shj が終わったことを覚える。別の shj に替わっていれば何もしない。
 func (w *wsManager) releaseShj(claim *primaryShj) {
 	w.mu.Lock()
+	var wsID string
 	for _, st := range w.reg {
 		if st.shj == claim {
 			st.shj = nil
+			wsID = st.id
 		}
 	}
 	w.mu.Unlock()
+	if wsID != "" {
+		w.unlinkShj(wsID, claim)
+	}
 	w.recompute()
+}
+
+// linkShj は同じワークスペースのほかのターミナルが引く先（ctl.GUILinkPath）に、claim の shj のソケットへのリンクを置く。
+// 置く場所は shj serve のソケットと同じ 0700 のディレクトリの中で、同じユーザーだけ。置けなくても名乗りは通す（届かないだけ）。
+func (w *wsManager) linkShj(wsID string, claim *primaryShj) {
+	link := ctl.GUILinkPath(filepath.Dir(w.srv.opts.SocketPath), wsID)
+	if err := os.MkdirAll(filepath.Dir(link), 0o700); err != nil {
+		w.srv.log.Warn("primary link", "err", err)
+		return
+	}
+	tmp := link + ".tmp"
+	_ = os.Remove(tmp)
+	if err := os.Symlink(claim.Socket, tmp); err != nil {
+		w.srv.log.Warn("primary link", "err", err)
+		return
+	}
+	if err := os.Rename(tmp, link); err != nil { // 前のリンク（落ちた shj の残り）は置き換える
+		_ = os.Remove(tmp)
+		w.srv.log.Warn("primary link", "err", err)
+	}
+}
+
+// unlinkShj は linkShj のリンクを消す。別の shj に替わったあとのリンクは消さない。
+func (w *wsManager) unlinkShj(wsID string, claim *primaryShj) {
+	link := ctl.GUILinkPath(filepath.Dir(w.srv.opts.SocketPath), wsID)
+	if to, err := os.Readlink(link); err == nil && to == claim.Socket {
+		_ = os.Remove(link)
+	}
 }
