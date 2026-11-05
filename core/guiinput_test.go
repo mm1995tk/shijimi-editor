@@ -192,3 +192,16 @@ func TestWorkspaceRunsEffects(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// The wheel over the preview beside the text scrolls the preview, not the text.
+func TestPaneMouseWheelOnPreview(t *testing.T) {
+	c, p := headlessCore(t, strings.Repeat("line\n\n", 100))
+	c.CurText().Preview = PreviewSplit
+	c.BuildScreen(view(80, 10))
+	c.Update(Mouse{Pane: p + "#preview", Button: MouseWheelDown, Action: MousePress})
+	c.BuildScreen(view(80, 10))
+	tb := c.CurText()
+	if tb.PrevTop != 1 || tb.Buf.ScrollRow != 0 || tb.Buf.Cur.Row != 0 {
+		t.Fatalf("top %d scroll %d cursor %d", tb.PrevTop, tb.Buf.ScrollRow, tb.Buf.Cur.Row)
+	}
+}

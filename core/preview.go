@@ -412,9 +412,10 @@ func (a *Core) FitPreview(t *Tab, w int) {
 
 // BuildPreviewPane makes the Pane of the Markdown preview of t, w columns
 // wide and h rows high: the part of the document in view, scrolled so the part
-// around the editor cursor is visible. It changes nothing: it reads the
-// document FitPreview cached for width w, or renders one for this call alone
-// when the cache is not for it.
+// around the editor cursor is visible after the cursor moved, and where the
+// wheel left it otherwise (WheelPreview). It only keeps that place in the tab
+// (PrevTop): it reads the document FitPreview cached for width w, or renders
+// one for this call alone when the cache is not for it.
 func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
 	var doc MdDoc
 	if a.previewFresh(t, w) {
@@ -425,9 +426,15 @@ func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
 	all := doc.Lines
 	top := 0
 	if span := len(all) - h; span > 0 {
-		n := max(1, len(t.Buf.Lines)-1)
-		top = Clamp(t.Buf.Cur.Row*span/n, 0, span)
+		if t.Buf.Cur.Row != t.prevCurRow {
+			n := max(1, len(t.Buf.Lines)-1)
+			top = t.Buf.Cur.Row * span / n
+		} else {
+			top = t.PrevTop
+		}
+		top = Clamp(top, 0, span)
 	}
+	t.PrevTop, t.prevCurRow = top, t.Buf.Cur.Row
 	end := min(len(all), top+max(0, h))
 	p := screen.Pane{
 		ID:       t.Path() + "#preview",

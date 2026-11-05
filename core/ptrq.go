@@ -30,11 +30,19 @@ func (a *Core) WheelEditor(wheel int) {
 		switch t.Kind {
 		case TabText:
 			if a.FullPreview(t) {
-				t.Buf.MoveLines(wheel, false) // the preview scrolls with the cursor
+				a.WheelPreview(wheel)
 				break
 			}
 			t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow+wheel, 0, max(0, len(t.Buf.Lines)-1))
 		}
+	}
+}
+
+// WheelPreview scrolls the Markdown preview of the current tab by wheel rows
+// of the rendered document, and leaves the cursor where it is.
+func (a *Core) WheelPreview(wheel int) {
+	if t := a.Cur(); t != nil && t.Kind == TabText && t.Preview != PreviewOff {
+		t.PrevTop = max(0, t.PrevTop+wheel) // BuildPreviewPane clamps it to the end
 	}
 }
 
