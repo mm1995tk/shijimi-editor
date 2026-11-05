@@ -243,12 +243,21 @@ export function TerminalView(props: {
   };
 
   // マウスで文字を選び終えた（離した）瞬間に、OS のクリップボードへ入れる（Cmd+C は使わない）。
-  // この欄で押したときだけ見る。プログラムがマウスを受けている間は選択が無いので、何もしない
+  // この欄で押したときだけ見る。プログラムがマウスを受けている間は選択が変わらないので、何もしない
+  // 押している間に選択が変わったときだけ入れる（前からある選択を、右クリックなどの離したときに入れ直さない）
   let pressedHere = false;
-  const onPress = () => (pressedHere = true);
+  let selectionChanged = false;
+  term.onSelectionChange(() => {
+    if (pressedHere) selectionChanged = true;
+  });
+  const onPress = () => {
+    pressedHere = true;
+    selectionChanged = false;
+  };
   const onRelease = () => {
     if (!pressedHere) return;
     pressedHere = false;
+    if (!selectionChanged) return;
     // coneko-term も同じ mouseup で選択を確定するので、そのあとに読む
     setTimeout(() => {
       if (!term.hasSelection()) return;

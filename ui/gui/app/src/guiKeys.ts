@@ -2,12 +2,12 @@
 // Option は字を打つキーのまま使うので、Cmd+Option+矢印以外では使わない。Cmd+` は macOS が使うので使わない。
 // DOM には触らない（node --test で確かめられる）。
 
-import type { KeyLike } from "./files/input.ts";
+import { isMac, type KeyLike } from "./files/input.ts";
 
 /** 動いている OS が macOS か。 */
 export const IS_MAC =
   typeof navigator !== "undefined" &&
-  /mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent || "");
+  isMac(navigator.platform || navigator.userAgent || "");
 
 /** Cmd だけを押して、文字 k（小文字）を打ったか。code か key のどちらかで見る（配列によって key が違うため）。 */
 export function isCmdKey(e: KeyLike, k: string): boolean {
