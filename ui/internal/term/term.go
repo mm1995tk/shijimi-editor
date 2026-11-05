@@ -1,6 +1,6 @@
 // Package term runs a shell on a PTY. It is the part of the terminal that has
 // neither a screen nor a front end: the TUI feeds the output to its emulator
-// (ui/tui/vt) and draws it, `shj serve` relays it to xterm.js. Neither
+// (ui/tui/vt) and draws it, `shj serve` relays it to coneko-term. Neither
 // bubbletea nor lipgloss nor terminal cell widths come in here.
 // See docs/design/gui-protocol.md.
 package term
