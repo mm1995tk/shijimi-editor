@@ -146,6 +146,8 @@ export function TerminalView(props: {
   // 受けるのは OS から落とされたテキストとファイルの中身だけ。ファイルは頼まれたときに読む（落としたものだけ）。
   // プログラムが始めるドラッグを OS に出すのはここではしない（Tauri に始める口が無い）
   let dropped: DropItem[] = [];
+  // プログラムが、今の位置では受けないと答えたか（dropResponse の operation が null）
+  let dropRefused = false;
   const dropPoint = (e: DragEvent) => {
     const cell = term.cellSize;
     if (!cell) return undefined;
@@ -158,6 +160,7 @@ export function TerminalView(props: {
   };
   term.onDnd((e) => {
     if (e.type === "dropDisabled" || e.type === "dropFinished") dropped = [];
+    if (e.type === "dropResponse") dropRefused = e.operation === null;
     if (e.type !== "dropRequest") return;
     const req = e.request;
     const r = resolveRequest(req, dropped);
@@ -175,7 +178,7 @@ export function TerminalView(props: {
     const at = dropPoint(e);
     if (!at) return;
     e.preventDefault();
-    dt.dropEffect = "copy";
+    dt.dropEffect = dropRefused ? "none" : "copy";
     term.dropMove(at, offeredMimes(dt.types, Array.from(dt.items)), {
       copy: true,
     });
@@ -184,6 +187,7 @@ export function TerminalView(props: {
     if (e.relatedTarget instanceof Node && host.contains(e.relatedTarget)) {
       return;
     }
+    dropRefused = false;
     term.dropLeave();
   };
   const onDrop = (e: DragEvent) => {
@@ -191,17 +195,20 @@ export function TerminalView(props: {
     if (!dt || !term.dropAccepting) return;
     e.preventDefault();
     const at = dropPoint(e);
-    const items = collectDrop(dt);
+    const refused = dropRefused;
+    dropRefused = false;
+    const items = refused ? [] : collectDrop(dt);
     if (!at || items.length === 0) {
       term.dropLeave();
       return;
     }
-    dropped = items;
-    term.dropDrop(
+    const sent = term.dropDrop(
       at,
       items.map((i) => i.mime),
       { copy: true },
     );
+    // 送れなかった（受け付けをやめた直後など）ときは、ファイルを持ち越さない
+    dropped = sent ? items : [];
   };
 
   function refit() {

@@ -55,13 +55,16 @@ export function locate(
 ): DndLocation {
   const px = Math.max(0, Math.floor(client.x - rect.left));
   const py = Math.max(0, Math.floor(client.y - rect.top));
-  const col = Math.min(grid.cols - 1, Math.floor(px / cell.width));
-  const row = Math.min(grid.rows - 1, Math.floor(py / cell.height));
+  const col = Math.max(0, Math.min(grid.cols - 1, Math.floor(px / cell.width)));
+  const row = Math.max(
+    0,
+    Math.min(grid.rows - 1, Math.floor(py / cell.height)),
+  );
   return {
-    x: Math.max(0, col),
-    y: Math.max(0, row),
-    pixelX: Math.max(0, Math.round(px - Math.max(0, col) * cell.width)),
-    pixelY: Math.max(0, Math.round(py - Math.max(0, row) * cell.height)),
+    x: col,
+    y: row,
+    pixelX: Math.max(0, Math.round(px - col * cell.width)),
+    pixelY: Math.max(0, Math.round(py - row * cell.height)),
   };
 }
 
