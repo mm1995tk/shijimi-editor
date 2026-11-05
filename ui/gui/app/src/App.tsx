@@ -732,7 +732,8 @@ function Workbench(props: {
   }
 
   /**
-   * ツリーのファイルの行を押した。そのワークスペースで file.open を送り、ファイルの欄の
+   * ツリーのファイルの行を押した。プライマリの shj があれば shj.open を送り、通ったらプライマリのターミナルにキーを向ける。
+   * なければ file.open を送り、ファイルの欄の
    * フォーカスしているペインで開く（pane を省くと shj はフォーカスしているペインで開く）。
    * 送れたら、IDE モードなら続けて打てるようにキーもファイルの欄に向ける。断られたら、帯を押して移れなかったときと同じ所に出す。
    * ワークスペースを移している途中は送らない（shj は file.open でフォーカスを動かさないので、開いても移った先では見えない）。
@@ -746,7 +747,8 @@ function Workbench(props: {
     if (workspaces()[target]?.find((w) => w.id === id)?.primaryShj) {
       s.request("shj.open", { workspaceId: id, path }).then(
         () => {
-          if (seq !== openSeq) return;
+          // 返事を待つあいだに別のワークスペースへ移っていたら、そちらのターミナルは動かさない
+          if (seq !== openSeq || s.focus !== id) return;
           termGroup()?.setActive(0); // 0 番目がプライマリ
           focusTerminal();
         },

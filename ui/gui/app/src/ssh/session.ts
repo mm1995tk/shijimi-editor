@@ -105,9 +105,9 @@ export type TermMethod =
   | "term.input"
   | "term.cd";
 /** Session.request で送れる要求（画像の実体。E6）。 */
+export type BlobMethod = "blob.get";
 /** Session.request で送れる要求（プライマリの shj にファイルを開かせる）。 */
 export type ShjMethod = "shj.open";
-export type BlobMethod = "blob.get";
 /** ターミナルの通知（F1）。method で見分ける。 */
 export type TermEvent =
   | { method: "term.output"; params: Notifications["term.output"] }

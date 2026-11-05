@@ -149,8 +149,9 @@ type PrimaryHello struct {
 
 // PrimaryFile is a line the shj sends on the primary socket after the reply
 // said OK, each time the file it shows changes (and once at the start):
-// File is the absolute path of the text or image in the focused pane, or ""
-// when the pane shows none (a diff, a preview, the welcome page).
+// File is the absolute path of the file of the focused tab (a text or an image,
+// also while a diff or a preview of it is shown), or "" when there is no tab
+// (the welcome page).
 type PrimaryFile struct {
 	File string `json:"file"`
 }

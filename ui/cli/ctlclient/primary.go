@@ -22,7 +22,7 @@ import (
 // only then does this shj leave its own out.
 //
 // report tells the server which file this shj shows (ctl.PrimaryFile); it does
-// nothing when primary is false. Calls may come from any goroutine.
+// nothing when primary is false. It does not wait for the server.
 func AnnouncePrimary(suffix, ownSocket string) (end func(), primary bool, report func(file string)) {
 	termID := os.Getenv(ctl.EnvGUIPrimary)
 	if termID == "" {
@@ -53,13 +53,36 @@ func announce(path string, h ctl.PrimaryHello) (func(), bool, func(string)) {
 		return func() {}, false, func(string) {}
 	}
 	_ = c.SetDeadline(time.Time{})
-	var mu sync.Mutex
+	// report never waits for the server: the newest file waits in a channel of
+	// one place and a goroutine writes it, so a slow server costs nothing and
+	// the last file always arrives.
+	latest := make(chan string, 1)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case file := <-latest:
+				b, _ := json.Marshal(ctl.PrimaryFile{File: file})
+				_ = c.SetWriteDeadline(time.Now().Add(time.Second))
+				_, _ = c.Write(append(b, '\n'))
+			}
+		}
+	}()
 	report := func(file string) {
-		b, _ := json.Marshal(ctl.PrimaryFile{File: file})
-		mu.Lock()
-		defer mu.Unlock()
-		_ = c.SetWriteDeadline(time.Now().Add(time.Second))
-		_, _ = c.Write(append(b, '\n'))
+		for {
+			select {
+			case latest <- file:
+				return
+			default:
+			}
+			select {
+			case <-latest: // drop the older one
+			default:
+			}
+		}
 	}
-	return func() { c.Close() }, true, report
+	var once sync.Once
+	return func() { once.Do(func() { close(done); c.Close() }) }, true, report
 }

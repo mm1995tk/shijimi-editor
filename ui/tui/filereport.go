@@ -1,7 +1,8 @@
 package tui
 
-// SetFileReporter sets what is told the file the focused pane shows: the
-// absolute path of a text or an image, or "" when it shows none. It is called
+// SetFileReporter sets what is told the file of the focused tab: the
+// absolute path of a text or an image (also while a diff or a preview of it is
+// shown), or "" when there is no tab. It is called
 // once with the file at the start and then each time that changes. The GUI's
 // file tree lights the row of that file (the shj in the primary terminal of a
 // GUI workspace reports it to shj serve).
