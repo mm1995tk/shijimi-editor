@@ -392,6 +392,10 @@ type View struct {
 	Status  Size `json:"status"`
 	Cmdline Size `json:"cmdline"`
 	Overlay Size `json:"overlay"`
+	// DiffPct と PreviewPct は、ユーザーがドラッグで決めた左右の境界の位置。左側（差分の元の側・プレビューの横の
+	// テキスト）が、間の 1 桁を除いた幅の何 % か。0 なら半分。
+	DiffPct    int `json:"diffPct,omitempty"`
+	PreviewPct int `json:"previewPct,omitempty"`
 }
 
 // DefaultView は GUI が view.resize を送るまでの大きさ。

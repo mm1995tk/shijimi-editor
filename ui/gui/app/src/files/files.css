@@ -23,8 +23,8 @@
   overflow: hidden;
   padding: var(--files-pad-y) 0;
   box-sizing: border-box;
-  font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
-    Consolas, monospace;
+  font-family:
+    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 13px;
   line-height: var(--files-line-height);
   /* 等幅のマス目を崩さない（合字で文字の数が変わらないように） */
@@ -194,8 +194,8 @@
   border-bottom: 1px solid var(--files-border);
   box-sizing: border-box;
   /* 幅の ch を本文と同じにするため、フォントは本文と同じ。中の文字は UI のフォントにする */
-  font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
-    Consolas, monospace;
+  font-family:
+    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 13px;
 }
 
@@ -304,8 +304,8 @@
 /* コマンド行は入力をマス目で切るので、本文と同じ等幅のフォントにする */
 .files-cmdline {
   padding: 0 1ch;
-  font-family: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo,
-    Consolas, monospace;
+  font-family:
+    "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 13px;
   white-space: pre;
   color: var(--files-fg);
@@ -540,4 +540,23 @@
 .files-search-gutter {
   flex: none;
   white-space: pre;
+
+/* ドラッグで動かせる左右の境界（#526：差分の分割・プレビューの分割）。当たりを左右に広げ、リサイズモードやドラッグ中は
+   マシンの色（--machine-color。App.tsx が .app に入れる）で光らせる */
+.files-split[data-draggable] {
+  cursor: col-resize;
+}
+
+.files-split[data-draggable]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  right: -4px;
+}
+
+.files-split[data-lit]::before {
+  left: calc(50% - 1px);
+  border-left: 3px solid var(--machine-color, #7cc4b0);
 }

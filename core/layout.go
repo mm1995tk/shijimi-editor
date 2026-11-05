@@ -81,6 +81,7 @@ func (a *Core) DragBorder(r ResizeTarget) { a.port.DragBorder(r) }
 // StartResize starts moving the borders with the keys.
 func (a *Core) StartResize() []Effect {
 	a.layout.ResizeMode = true
+	a.Info("resize.hint")
 	a.port.StartResize()
 	return nil
 }
@@ -89,4 +90,15 @@ func (a *Core) StartResize() []Effect {
 func (a *Core) ResetPanes() {
 	a.layout.AgentWidthPref, a.layout.ExplorerShare = 0, 0
 	a.port.ResetPanes()
+}
+
+// ResizeExitKey reports whether key leaves the resize mode. The core leaves it
+// itself on these keys, as the UI may not push a Layout back (a GUI keeps its
+// borders to itself); the UI still gets the key to stop its own drawing.
+func ResizeExitKey(key string) bool {
+	switch key {
+	case "esc", "enter", "q", "alt+r":
+		return true
+	}
+	return false
 }

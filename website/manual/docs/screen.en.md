@@ -63,6 +63,8 @@ You can also change them by dragging the border with the mouse.
 In diff mode, dragging the boundary between the explorer and CHANGES (the CHANGES heading row) changes the height ratio of the top and bottom. Neither becomes smaller than 3 rows. `=` resets it to 7:3. The ratio is kept when you change the height of the terminal.
 The sizes are kept until you quit shijimi.
 
+In the GUI, the borders you can move are the sidebar and the area to its right, the files area and the terminals, and the split inside the files area (the left and right of a split diff, the text and its Markdown preview). Drag a border with the mouse, and double-click it to reset it. `Alt+R` (or "Resize" in the palette) enters resize mode with the same keys: `←` `→` move the border of the focused block (the split inside the files area when the current file has one, otherwise the sidebar), `↑` `↓` move the border between the files area and the terminals, and `<` `>` move the split. The borders they move are drawn in the machine color. The terminals you lay out side by side in terminal mode have no borders to move. The GUI keeps the sizes when you restart it.
+
 ## Switching files
 
 There is no tab bar. The files you have opened are kept in a list, and only the current one is shown, with its path on the title line. To see two files at once, [split the editor](#split-editor).

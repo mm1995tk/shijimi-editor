@@ -20,6 +20,7 @@ import (
 // inputs), and makes what is on screen. Rev and AckSeq are left for the caller.
 func (a *Core) BuildScreen(v screen.View) screen.Screen {
 	a.settleViews()
+	a.splitPct = splitPct{diff: v.DiffPct, preview: v.PreviewPct}
 	cols, rows := max(1, v.Files.Cols), max(1, v.Files.Rows)
 	a.fitScreenSize(cols, rows)
 	slots := a.screenSlots(cols)
@@ -176,7 +177,7 @@ func (a *Core) screenEditW(t *Tab, w int) int {
 	}
 	switch t.Preview {
 	case PreviewSplit:
-		return previewSplitW(w)
+		return a.previewSplitW(w)
 	case PreviewFull:
 		return 0
 	}
@@ -189,7 +190,7 @@ func (a *Core) screenEditW(t *Tab, w int) int {
 func (a *Core) screenDiffGeom(w, h int) DiffGeom {
 	g := DiffGeom{H: h, RightW: w}
 	if a.SplitShown() {
-		g.LeftW = (w - 1) / 2
+		g.LeftW = splitLeftW(w, a.splitPct.diff)
 		g.RightX = g.LeftW + 1
 		g.RightW = w - g.LeftW - 1
 	}
@@ -198,7 +199,7 @@ func (a *Core) screenDiffGeom(w, h int) DiffGeom {
 
 // previewSplitW is the width of the text beside its Markdown preview in a pane
 // w columns wide; the preview has the rest but the column between them.
-func previewSplitW(w int) int { return (w - 1) / 2 }
+func (a *Core) previewSplitW(w int) int { return splitLeftW(w, a.splitPct.preview) }
 
 // screenPreviewW is the width of t's Markdown preview in a pane w columns
 // wide: all of it for a full preview, the rest beside the text otherwise, and
@@ -211,7 +212,7 @@ func (a *Core) screenPreviewW(t *Tab, w int) int {
 	case PreviewFull:
 		return w
 	case PreviewSplit:
-		return w - previewSplitW(w) - 1
+		return w - a.previewSplitW(w) - 1
 	}
 	return 0
 }
@@ -236,7 +237,7 @@ func (a *Core) screenPanes(t *Tab, w, h int, focused bool) (panes []screen.Pane,
 	case PreviewFull:
 		return []screen.Pane{a.BuildPreviewPane(t, a.screenPreviewW(t, w), h)}, 0
 	case PreviewSplit:
-		return []screen.Pane{BuildTextPane(t, previewSplitW(w), h, o.PaneOpts), a.BuildPreviewPane(t, a.screenPreviewW(t, w), h)}, 0
+		return []screen.Pane{BuildTextPane(t, a.previewSplitW(w), h, o.PaneOpts), a.BuildPreviewPane(t, a.screenPreviewW(t, w), h)}, 0
 	}
 	return []screen.Pane{BuildTextPane(t, w, h, o.PaneOpts)}, 0
 }
@@ -295,4 +296,22 @@ func (a *Core) screenOverlays(v screen.View) []screen.Overlay {
 		out = append(out, *c)
 	}
 	return out
+}
+
+// splitPct is the share of its pane the left side of a split diff and the text
+// beside a Markdown preview get, in percent as the GUI dragged them (0 = half).
+type splitPct struct{ diff, preview int }
+
+// minSplitW is the narrowest side a dragged split leaves.
+const minSplitW = 10
+
+// splitLeftW is the width of the left side of two panes that share w columns
+// with a column between them: pct percent of the rest, or half when pct is 0 or
+// the panes are too narrow to keep minSplitW on each side.
+func splitLeftW(w, pct int) int {
+	avail := w - 1
+	if pct <= 0 || avail < 2*minSplitW {
+		return avail / 2
+	}
+	return Clamp(avail*pct/100, minSplitW, avail-minSplitW)
 }

@@ -110,8 +110,60 @@ func TestBuildScreenPreviewSplitActive(t *testing.T) {
 	if sc.Files.Active != 0 {
 		t.Errorf("active %d, want the text (0)", sc.Files.Active)
 	}
-	if got := ps[0].Viewport.Cols + GutterWidth(a.CurText().Buf); got != previewSplitW(81) {
-		t.Errorf("text is %d columns, want %d", got, previewSplitW(81))
+	if got := ps[0].Viewport.Cols + GutterWidth(a.CurText().Buf); got != a.previewSplitW(81) {
+		t.Errorf("text is %d columns, want %d", got, a.previewSplitW(81))
+	}
+}
+
+func TestSplitLeftW(t *testing.T) {
+	for _, c := range []struct{ w, pct, want int }{
+		{81, 0, 40},   // half when nothing was dragged
+		{81, 25, 20},  // a quarter of the 80 columns beside the divider
+		{81, 1, 10},   // never narrower than minSplitW
+		{81, 99, 70},  // nor the other side
+		{15, 70, 7},   // too narrow to keep both sides: half
+		{101, -3, 50}, // a negative share is none
+	} {
+		if got := splitLeftW(c.w, c.pct); got != c.want {
+			t.Errorf("splitLeftW(%d, %d) = %d, want %d", c.w, c.pct, got, c.want)
+		}
+	}
+}
+
+// The share the GUI dragged the preview's border to moves the panes.
+func TestBuildScreenPreviewPct(t *testing.T) {
+	a := newTestApp(t, "# title\n\nbody\n")
+	a.Update(Key{Code: KeyEscape})
+	a.Focus = FocusEditor
+	a.CurText().Preview = PreviewSplit
+	v := view(81, 10)
+	v.PreviewPct = 25
+	ps := a.BuildScreen(v).Files.Panes
+	if len(ps) != 2 {
+		t.Fatalf("panes: %+v", ps)
+	}
+	if got := ps[0].Viewport.Cols + GutterWidth(a.CurText().Buf); got != 20 {
+		t.Errorf("text is %d columns, want 20", got)
+	}
+	if got := ps[1].Viewport.Cols; got != 60 {
+		t.Errorf("preview is %d columns, want 60", got)
+	}
+}
+
+// Leaving the resize mode with a key clears it in the core, and the hint with it.
+func TestResizeModeLeaves(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	a.StartResize()
+	if !a.InResizeMode() || a.Msg.IsZero() {
+		t.Fatalf("resize mode %v, message %v", a.InResizeMode(), a.Msg)
+	}
+	a.HandleKey(Key{Code: 'h', Text: "h"})
+	if !a.InResizeMode() {
+		t.Fatal("h left the mode")
+	}
+	a.HandleKey(Key{Code: KeyEscape})
+	if a.InResizeMode() || !a.Msg.IsZero() {
+		t.Errorf("after Esc: resize mode %v, message %v", a.InResizeMode(), a.Msg)
 	}
 }
 
