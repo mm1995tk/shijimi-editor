@@ -89,8 +89,14 @@ func Main() {
 		if srv, err := core.ListenCtl(path, tui.ControlHandler(p), cli.Text); err == nil {
 			closeSock = srv.Close
 			os.Setenv(ctl.EnvSocket, path)
+			// In the primary terminal of a GUI workspace, shj serve is told.
+			endPrimary := ctlclient.AnnouncePrimary(cli.Suffix(), path)
+			prev := closeSock
+			closeSock = func() { endPrimary(); prev() }
 		}
 	}
+	// Whatever happened above, nothing started from here is a primary.
+	os.Unsetenv(ctl.EnvGUIPrimary)
 	_, err := p.Run()
 	_ = caretOut.ShowCursor()
 	app.Close()
