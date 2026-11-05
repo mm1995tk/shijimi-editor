@@ -114,3 +114,56 @@ func TestBuildScreenPreviewSplitActive(t *testing.T) {
 		t.Errorf("text is %d columns, want %d", got, previewSplitW(81))
 	}
 }
+
+// The search window is an overlay of the screen: its fields, the matched
+// lines (the matches carry a background) and the preview of the selected one.
+func TestBuildScreenSearch(t *testing.T) {
+	a := newTestApp(t, "alpha\nneedle here\nomega\n")
+	a.OpenSearch(FQuery)
+	for _, r := range "needle" {
+		a.HandleSearchKey(textKey(string(r)))
+	}
+	a.HandleEvent(SearchTick{seq: a.Search.seq.Load()})
+	effs := a.HandleEvent(SearchTick{seq: a.Search.seq.Load()})
+	a.HandleEvent(effs[0].(RunSearch).Run())
+
+	sc := a.BuildScreen(view(80, 24))
+	if len(sc.Overlay) != 1 || sc.Overlay[0].Kind != screen.OverlaySearch || sc.Overlay[0].Search == nil {
+		t.Fatalf("overlays: %+v", sc.Overlay)
+	}
+	s := sc.Overlay[0].Search
+	if s.Fields[FQuery].Text != "needle" || s.Field != FQuery || s.Total != 1 || len(s.Hits) != 1 || s.BodyRows < 1 {
+		t.Fatalf("search: %+v", s)
+	}
+	if h := s.Hits[0]; h.Label != "a.txt:2" || len(h.Line.Spans) != 2 || h.Line.Spans[0].Bg != screen.StyleMatch || h.Line.Spans[0].Text != "needle" {
+		t.Errorf("hit: %+v", h)
+	}
+	if p := s.Preview; p == nil || p.Hit != 1 || len(p.Lines) != 4 || p.Del != nil {
+		t.Errorf("preview: %+v", p)
+	}
+
+	a.HandleSearchKey(Key{Code: KeyEscape})
+	if sc := a.BuildScreen(view(80, 24)); len(sc.Overlay) != 0 {
+		t.Errorf("Esc leaves overlays: %+v", sc.Overlay)
+	}
+}
+
+// A long label of a matched line keeps its end (file name and line number),
+// as the TUI does.
+func TestSearchHitLabelKeepsEnd(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	h := &SearchHit{Path: a.Root + "/" + strings.Repeat("dir/", 20) + "file.go", Row: 41, Line: "needle", Spans: [][2]int{{0, 6}}}
+	got := a.searchHitRow(h, 40).Label
+	if !strings.HasPrefix(got, "…") || !strings.HasSuffix(got, "file.go:42") || len([]rune(got)) > 24 {
+		t.Errorf("label = %q", got)
+	}
+}
+
+// The lines before and after a replacement show a tab as one space, like the
+// line above them.
+func TestWholeSpansTab(t *testing.T) {
+	sp := wholeSpans([]rune("\tfoo"), 0, screen.StyleDiffDelBg)
+	if len(sp) != 1 || sp[0].Text != " foo" {
+		t.Errorf("spans: %+v", sp)
+	}
+}
