@@ -89,6 +89,8 @@ func Main() {
 		if srv, err := core.ListenCtl(path, tui.ControlHandler(p), cli.Text); err == nil {
 			closeSock = srv.Close
 			os.Setenv(ctl.EnvSocket, path)
+			// The terminals this shj starts belong to this shj, not to the GUI workspace it may run in.
+			os.Unsetenv(ctl.EnvGUIWorkspace)
 			// In the primary terminal of a GUI workspace, shj serve is told.
 			// The GUI shows the file tree then, so this shj leaves its own out.
 			endPrimary, primary := ctlclient.AnnouncePrimary(cli.Suffix(), path)

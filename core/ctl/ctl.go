@@ -21,6 +21,14 @@ const EnvSocket = "SHIJIMI_SOCKET"
 // from its own environment so that nothing it starts can claim the primary.
 const EnvGUIPrimary = "SHIJIMI_GUI_PRIMARY"
 
+// EnvGUIWorkspace is set by "shj serve" in every terminal of a GUI workspace;
+// its value is the workspace id. The shj subcommands use it to reach the shj
+// that runs in that workspace's primary terminal (GUILinkPath), even when it
+// was started after the terminal. A terminal's environment cannot change after
+// it starts, so the variable names the workspace and the link says where the
+// shj is now.
+const EnvGUIWorkspace = "SHIJIMI_GUI_WORKSPACE"
+
 // The herdr terminal multiplexer sets these in the panes it runs. The editor
 // uses them to publish its socket under a name that shj can build from the
 // same variables when SHIJIMI_SOCKET is not passed along (herdr's key bound
@@ -109,6 +117,14 @@ func ServeLockPath(suffix string) (string, error) {
 // HerdrDir is the directory of the links of the editors of one herdr workspace.
 func HerdrDir(dir, ws string) string {
 	return filepath.Join(dir, "herdr-"+SafeName(ws))
+}
+
+// GUILinkPath is where "shj serve" links the socket of the shj in the primary
+// terminal of GUI workspace ws: <dir>/gui-<ws>/primary.sock, a symbolic link to
+// <pid>.sock. It lives in a directory of its own so that FindSocket's search
+// of dir for "*.sock" does not count it twice.
+func GUILinkPath(dir, ws string) string {
+	return filepath.Join(dir, "gui-"+SafeName(ws), "primary.sock")
 }
 
 // SafeName makes a herdr id usable as a file name: anything but letters,
