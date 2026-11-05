@@ -681,8 +681,8 @@ func (a *Core) CloseTabs(keep *Tab, force bool) []Effect {
 		a.Fail(msg.Err("app.closeunsavedn", n))
 		return nil
 	}
-	for i := len(a.Tabs) - 1; i >= 0; i-- {
-		if a.Tabs[i] != keep {
+	for i, v := range slices.Backward(a.Tabs) {
+		if v != keep {
 			a.dropTab(i)
 		}
 	}
