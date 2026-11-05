@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -94,8 +95,8 @@ func Apply(base []string, out []byte) ([]string, error) {
 
 // Getenv is the value of key in env (os.Environ form).
 func Getenv(env []string, key string) string {
-	for i := len(env) - 1; i >= 0; i-- {
-		if k, v, ok := strings.Cut(env[i], "="); ok && k == key {
+	for _, e := range slices.Backward(env) {
+		if k, v, ok := strings.Cut(e, "="); ok && k == key {
 			return v
 		}
 	}
