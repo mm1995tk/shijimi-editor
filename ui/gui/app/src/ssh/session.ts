@@ -86,8 +86,14 @@ export interface SessionOptions {
   onDiscard?: (reason: string, line: string) => void;
 }
 
-/** Session.request で送れる要求（ツリーと git）。 */
-export type TreeMethod = "tree.list" | "tree.watch" | "git.status";
+/** Session.request で送れる要求（ツリーと git。tree.create・tree.rename・tree.delete は右クリックのメニューから）。 */
+export type TreeMethod =
+  | "tree.list"
+  | "tree.watch"
+  | "git.status"
+  | "tree.create"
+  | "tree.rename"
+  | "tree.delete";
 /** Session.request で送れる要求（ターミナル。F1）。 */
 export type TermMethod =
   | "term.create"
