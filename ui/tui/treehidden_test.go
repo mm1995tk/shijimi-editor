@@ -61,3 +61,15 @@ func TestTreeHiddenKeepsChangesInDiffMode(t *testing.T) {
 		t.Errorf("after diff: focus=%v side=%d", a.Focus, a.layout().sideW)
 	}
 }
+
+// With no tab open and no tree, the Space leader still works.
+func TestTreeHiddenNoTabSpaceLeader(t *testing.T) {
+	a := mustNew(t.TempDir(), "")
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	a.SetTreeHidden(true)
+	a.Update(core.Key{Code: core.KeySpace, Text: " "})
+	a.Update(textKey("f"))
+	if !a.Pal.Open {
+		t.Error("Space f must open the file palette")
+	}
+}

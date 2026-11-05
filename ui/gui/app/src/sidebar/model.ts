@@ -38,7 +38,7 @@ export interface Band {
   root: string;
   focused: boolean;
   /** プライマリターミナルで TUI の shj が動いているか。動いているときだけツリーを出す */
-  shj: boolean;
+  showTree: boolean;
 }
 
 /** マシン 1 台分（見出しと、その下の帯）に出すもの。 */
@@ -89,7 +89,7 @@ export function band(w: Workspace, focused: boolean, nth = 1): Band {
       detail: "",
       root: "",
       focused,
-      shj: w.primaryShj != null,
+      showTree: w.primaryShj != null,
     };
   }
   const detail = (w.kind === "cwd" ? ["git なし"] : [w.branch ?? ""])
@@ -104,7 +104,7 @@ export function band(w: Workspace, focused: boolean, nth = 1): Band {
     detail,
     root: w.folder,
     focused,
-    shj: w.primaryShj != null,
+    showTree: w.primaryShj != null,
   };
 }
 

@@ -506,7 +506,9 @@ function BandItem(
         </Show>
       </div>
       <Show
-        when={b().focused && b().shj && props.treeOf?.(props.target, b().id)}
+        when={
+          b().focused && b().showTree && props.treeOf?.(props.target, b().id)
+        }
       >
         {(rows) => (
           <TreeView

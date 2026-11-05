@@ -63,10 +63,10 @@ describe("band", () => {
     assert.equal(b.root, "");
   });
 
-  it("プライマリで shj が動いているときだけ shj が true（ツリーを出す）", () => {
-    assert.equal(band(ws({ id: "a", root: "/x" }), true).shj, false);
+  it("プライマリで shj が動いているときだけ showTree が true（ツリーを出す）", () => {
+    assert.equal(band(ws({ id: "a", root: "/x" }), true).showTree, false);
     assert.equal(
-      band(ws({ id: "a", root: "/x", primaryShj: null }), true).shj,
+      band(ws({ id: "a", root: "/x", primaryShj: null }), true).showTree,
       false,
     );
     const on = ws({
@@ -74,9 +74,10 @@ describe("band", () => {
       root: "/x",
       primaryShj: { socket: "/s", pid: 1 },
     });
-    assert.equal(band(on, true).shj, true);
+    assert.equal(band(on, true).showTree, true);
     assert.equal(
-      band(ws({ id: "u", primaryShj: { socket: "/s", pid: 1 } }), true).shj,
+      band(ws({ id: "u", primaryShj: { socket: "/s", pid: 1 } }), true)
+        .showTree,
       true,
     );
   });

@@ -1178,6 +1178,25 @@ func (a *Core) HandleKey(in Key) []Effect {
 	}
 	t := a.Cur()
 	if t == nil {
+		if a.treeHidden {
+			// The keys stay in the editor with no tab to show: the Space leader works
+			// here as it does in the tree.
+			switch a.Pending {
+			case "space v":
+				a.Pending = ""
+				return a.ReviewKey(key)
+			case "space w":
+				a.Pending = ""
+				return a.windowKey(key)
+			case " ":
+				a.Pending = ""
+				return a.SpaceMode(key)
+			}
+			if key == "space" {
+				a.Pending = " "
+				return nil
+			}
+		}
 		if key == "esc" || key == "tab" || key == "space" {
 			a.SetSide(true)
 			return a.SetFocus(FocusExplorer)
