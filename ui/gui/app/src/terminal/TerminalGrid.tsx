@@ -94,7 +94,7 @@ export function TerminalGrid(props: {
       </For>
       <Show when={props.zoomed && props.links.length > 1}>
         <p class="terminal-others" role="status">
-          ほかに {props.links.length - 1} つを隠している（Ctrl+Shift+Z で戻す）
+          ほかに {props.links.length - 1} つを隠している（Ctrl+Shift+M で戻す）
         </p>
       </Show>
       <Show when={!props.zoomed && !props.showAll && props.links.length > 1}>

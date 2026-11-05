@@ -211,8 +211,11 @@ function Workbench(props: {
   };
   const termList = () => termGroup()?.list ?? [];
   // プライマリ以外の欄を隠しているワークスペース（"マシン/ワークスペース"）。GUI だけで持つ。隠した欄のターミナルは止めない
-  const [zoomedWs, setZoomedWs] = createSignal<ReadonlySet<string>>(new Set());
-  const wsKey = (target: string, id: WorkspaceId) => `${target}/${id}`;
+  const [zoomedWs, setZoomedWs] = createSignal<
+    ReadonlyMap<string, { target: string; id: WorkspaceId }>
+  >(new Map());
+  const wsKey = (target: string, id: WorkspaceId) =>
+    JSON.stringify([target, id]);
   /** そのワークスペースのプライマリで shj が動いているか */
   const primaryShjOn = (target: string, id: WorkspaceId) =>
     !!workspaces()[target]?.find((w) => w.id === id)?.primaryShj;
@@ -226,17 +229,13 @@ function Workbench(props: {
   };
   // プライマリの shj が終わったら（#549 の primaryShj が null）、隠していた欄を出す
   createEffect(() => {
-    const ws = workspaces();
+    void workspaces();
     const cur = untrack(zoomedWs);
-    const keep = [...cur].filter((k) => {
-      const i = k.lastIndexOf("/");
-      const w = ws[k.slice(0, i)]?.find((x) => x.id === k.slice(i + 1));
-      return !!w?.primaryShj;
-    });
-    if (keep.length !== cur.size) setZoomedWs(new Set(keep));
+    const keep = [...cur].filter(([, v]) => primaryShjOn(v.target, v.id));
+    if (keep.length !== cur.size) setZoomedWs(new Map(keep));
   });
   /**
-   * プライマリ以外の欄を隠してプライマリにキーを向ける、もう一度で戻す（Ctrl+Shift+Z。#553 の hide/show もこれを使う）。
+   * プライマリ以外の欄を隠してプライマリにキーを向ける、もう一度で戻す（Ctrl+Shift+M。#553 の hide/show もこれを使う）。
    * プライマリで shj が動いていなければ何もしない。
    */
   function setZoom(on: boolean | "toggle" = "toggle"): boolean {
@@ -246,9 +245,9 @@ function Workbench(props: {
     const was = zoomedWs().has(k);
     const want = on === "toggle" ? !was : on;
     if (want === was) return want;
-    const next = new Set(zoomedWs());
+    const next = new Map(zoomedWs());
     if (want) {
-      next.add(k);
+      next.set(k, { target: f.target, id: f.id });
       termGroup()?.setActive(0);
     } else next.delete(k);
     setZoomedWs(next);
@@ -399,7 +398,12 @@ function Workbench(props: {
     // 隣へ移るのは、ターミナルを並べていて、キーがターミナルに向いているときだけ（ファイルの欄の Ctrl+Shift+矢印は shj に送る）
     const dir = directionKey(e);
     const card = mainEl?.querySelector(":scope > .terminal");
-    if (dir && mode() === "terminal" && card?.contains(e.target as Node)) {
+    if (
+      dir &&
+      mode() === "terminal" &&
+      !zoomed() &&
+      card?.contains(e.target as Node)
+    ) {
       e.preventDefault();
       e.stopPropagation();
       if (termGroup()?.move(dir)) focusTerminal();

@@ -83,11 +83,11 @@ describe("keys", () => {
     assert.equal(isNewTermKey(key("Y", "KeyY")), false);
   });
 
-  it("Ctrl+Shift+Z をプライマリ以外の欄を隠すキーにする", () => {
-    assert.equal(isZoomKey(key("Z", "KeyZ")), true);
-    assert.equal(isZoomKey(key("z")), true);
+  it("Ctrl+Shift+M をプライマリ以外の欄を隠すキーにする", () => {
+    assert.equal(isZoomKey(key("M", "KeyM")), true);
+    assert.equal(isZoomKey(key("m")), true);
     assert.equal(
-      isZoomKey(key("z", "KeyZ", { ctrl: true, shift: false })),
+      isZoomKey(key("m", "KeyM", { ctrl: true, shift: false })),
       false,
     );
     assert.equal(isZoomKey(key("T", "KeyT")), false);
