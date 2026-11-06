@@ -1298,7 +1298,16 @@ func (b *Buffer) InsertAt(p Pos, text string) {
 // indentation, and moves the cursor onto it.
 func (b *Buffer) OpenLine(below bool) {
 	row := b.Cur.Row
-	indent := string(leadingSpace(b.Lines[row]))
+	line := b.Lines[row]
+	indent := string(leadingSpace(line))
+	// Like Newline, indent one level more inside a bracket: below a line that
+	// ends with an opener, and above a line that starts with a closer.
+	if trimmed := strings.TrimSpace(string(line)); trimmed != "" {
+		if below && strings.ContainsRune("{[(:", rune(trimmed[len(trimmed)-1])) ||
+			!below && strings.ContainsRune("}])", rune(trimmed[0])) {
+			indent += b.IndentUnit()
+		}
+	}
 	b.Anchor = nil
 	if below {
 		b.Cur = Pos{row, len(b.Lines[row])}
