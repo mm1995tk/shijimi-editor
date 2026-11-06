@@ -205,8 +205,8 @@ GitHub は、差分の周り（変更された行と、その前後 3 行）に�
 
 | キー | 動作 |
 | --- | --- |
-| `Enter` | 送信（コメントは未送信の一覧に入る） |
-| `Shift+Enter` / `Alt+Enter` / `Ctrl+J` | 改行 |
+| `Ctrl+Enter` / `Alt+Enter` | 送信（コメントは未送信の一覧に入る） |
+| `Enter` / `Shift+Enter` / `Ctrl+J` | 改行 |
 | `Ctrl+S` | 選んだ範囲の元の行を入れた ```` ```suggestion ```` ブロックを挿入する |
 | `Esc` | 取り消す |
 
