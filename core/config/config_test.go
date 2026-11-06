@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -121,36 +120,30 @@ enable = false
 timeout = 2500
 `), 0o644)
 	c = load(root)
-	if c.Editor.AutoSave || c.Editor.AutoSaveDelay != 2500*time.Millisecond || c.Editor.OnSwitch != "discard" {
+	if c.Editor.AutoSave || c.Editor.AutoSaveDelay != 2500*time.Millisecond {
 		t.Fatalf("override = %+v", c.Editor)
 	}
 }
 
-// With auto-save off there is no default for what a workspace does with its
-// files when it switches folders: Load reports the missing on-switch, at the
-// line that turned auto-save off.
-func TestOnSwitchRequiredWithoutAutoSave(t *testing.T) {
+// With auto-save off, nothing more is asked for: on-switch (what `shj serve` did
+// with the open files when a workspace switched folders) is no longer required.
+// A file that still has it keeps loading, and a value that is neither save nor
+// discard is a mistake of its own.
+func TestOnSwitchIsNotRequired(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("HOME", t.TempDir())
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
 	path := filepath.Join(root, ".shijimi-editor", "config.toml")
 	os.WriteFile(path, []byte("[editor.auto-save.after-delay]\nenable = false\n"), 0o644)
-	_, err := Load(root, Options{})
-	var ce *Error
-	if !errors.As(err, &ce) || len(ce.Problems) != 1 {
-		t.Fatalf("err = %v", err)
+	c, err := Load(root, Options{})
+	if err != nil || c.Editor.AutoSave {
+		t.Fatalf("auto-save off: auto-save = %v, err = %v", c.Editor.AutoSave, err)
 	}
-	p := ce.Problems[0]
-	if p.File != path || p.Line != 2 || p.Key != "editor.auto-save.on-switch" {
-		t.Errorf("problem = %+v", p)
-	}
-	// Auto-save on needs no answer.
-	os.WriteFile(path, []byte("[editor.auto-save.after-delay]\nenable = true\n"), 0o644)
+	os.WriteFile(path, []byte("[editor.auto-save]\non-switch = \"save\"\n[editor.auto-save.after-delay]\nenable = false\n"), 0o644)
 	if _, err := Load(root, Options{}); err != nil {
-		t.Errorf("auto-save on: %v", err)
+		t.Errorf("on-switch = save: %v", err)
 	}
-	// A value that is neither is a mistake of its own.
 	os.WriteFile(path, []byte("[editor.auto-save]\non-switch = \"maybe\"\n"), 0o644)
 	if _, err := Load(root, Options{}); err == nil {
 		t.Error("on-switch = maybe was accepted")

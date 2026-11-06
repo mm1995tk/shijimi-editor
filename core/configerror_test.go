@@ -43,18 +43,6 @@ func TestNewSingleFailsOnConfigMistake(t *testing.T) {
 	}
 }
 
-func TestWorkspaceOpenFailsOnConfigMistake(t *testing.T) {
-	dir, _ := badProject(t)
-	ws := NewWorkspaces(NewShared(testBuild()))
-	defer ws.CloseAll()
-	if w, err := ws.Open(dir, dir); err == nil || w != nil {
-		t.Fatalf("w = %v, err = %v", w, err)
-	}
-	if ws.Lookup(dir) != nil {
-		t.Fatal("a workspace without a core was kept")
-	}
-}
-
 // A running editor keeps its settings when :config-reload finds a mistake, and
 // says where it is.
 func TestConfigReloadKeepsSettingsOnMistake(t *testing.T) {

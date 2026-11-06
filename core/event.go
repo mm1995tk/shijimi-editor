@@ -271,9 +271,6 @@ func (a *Core) HandleEvent(ev Event) []Effect {
 	case MdImageDoneMsg:
 		a.HandleMDImageDone(ev)
 		return nil
-	case DirenvLoaded:
-		a.handleDirenvLoaded(ev)
-		return nil
 	case FormatterDoneMsg:
 		return a.handleFormatterDone(ev)
 	case OpenURLResult:

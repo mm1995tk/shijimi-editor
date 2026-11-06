@@ -1,10 +1,9 @@
 package core
 
 // Input is what the user does, in a form that does not depend on where it came
-// from. The TUI turns bubbletea messages into Inputs (see inputtea.go); the GUI
-// protocol's input.key, input.mouse, input.paste and input.composition map onto
-// the same four types (docs/design/gui-protocol.md, chapter 3). Everything that
-// handles input takes an Input; only the adapter in inputtea.go knows tea.
+// from. The TUI turns bubbletea messages into Inputs (see inputtea.go).
+// Everything that handles input takes an Input; only the adapter in inputtea.go
+// knows tea.
 type Input interface{ input() }
 
 // Mod is a set of modifier keys.
@@ -27,8 +26,7 @@ func (m Mod) Has(m2 Mod) bool { return m&m2 == m2 }
 // Code is the key: a printable character, or one of the Key* constants for a
 // named key. Text is what typing the key produces ("" for named keys and
 // Ctrl/Alt combinations). ShiftedCode and BaseCode are filled where the source
-// knows them (the Kitty keyboard protocol on a TUI; W3C KeyboardEvent.key and
-// .code on a GUI).
+// knows them (the Kitty keyboard protocol).
 type Key struct {
 	Code        rune
 	ShiftedCode rune
@@ -36,9 +34,6 @@ type Key struct {
 	Text        string
 	Mod         Mod
 	Repeat      bool
-	// Seq numbers the inputs a GUI sends, so a screen can say how far it has
-	// caught up (Screen.AckSeq). The TUI leaves it 0.
-	Seq uint64
 }
 
 func (Key) input() {}
@@ -46,34 +41,9 @@ func (Key) input() {}
 // Paste is text pasted in one piece.
 type Paste struct {
 	Content string
-	Seq     uint64
 }
 
 func (Paste) input() {}
-
-// Composition is text an input method (IME) is still composing, or has just
-// committed. The TUI never produces one: a terminal hands over only the
-// committed text, as a Key. It is here so the GUI's input.composition has a
-// place to go.
-type Composition struct {
-	Text   string
-	Cursor int // where the caret sits inside Text, in runes
-	Phase  CompositionPhase
-	Seq    uint64
-}
-
-func (Composition) input() {}
-
-// CompositionPhase is how far a composition has come: CompositionStart, then
-// any number of CompositionUpdate, then CompositionEnd. At the end Text is the
-// committed text (or empty if the composition was cancelled).
-type CompositionPhase uint8
-
-const (
-	CompositionStart  CompositionPhase = iota // the first composing text
-	CompositionUpdate                         // the composing text changed
-	CompositionEnd                            // committed or cancelled
-)
 
 // MouseButton is the button of a Mouse input, or a wheel step.
 type MouseButton uint8
@@ -113,32 +83,23 @@ const (
 
 // Mouse is a pointer event.
 //
-// Region, Row and Col say where it is as a GUI would: which part of the screen,
-// and the line and column inside that part (0-based, from the part's top-left
-// corner). Clicks is how many presses in a row hit the same spot: a GUI counts
-// them itself; the TUI counts in its adapter (App.clicks in inputtea.go). The
-// core only reads the number. Zero means not counted (not a left press).
+// Region, Row and Col say where it is: which part of the screen, and the line
+// and column inside that part (0-based, from the part's top-left corner).
+// Clicks is how many presses in a row hit the same spot: the TUI counts in its
+// adapter (App.clicks in inputtea.go). The core only reads the number. Zero means not counted (not a left press).
 //
 // There is no screen cell in a Mouse. Where a TUI popup or a border hangs from
 // a screen cell, the TUI works the cell out from Region, Row and Col
-// (App.screenCell); a GUI draws those itself. While a button is held, Region
-// stays the one the press was in (see App.locate) and Row and Col may fall
+// (App.screenCell). While a button is held, Region stays the one the press was in (see App.locate) and Row and Col may fall
 // outside it. For RegionNone, which has no corner of its own, Row and Col count
 // from the top-left of the screen.
-//
-// A GUI names the pane instead (Pane, a screen.Pane.ID), and Row and Col
-// count from the top-left of that pane's text: the first row below its title
-// and the first column right of its line numbers (see guiinput.go). The TUI
-// leaves Pane empty.
 type Mouse struct {
 	Region           Region
-	Pane             string
 	Row, Col         int
 	Button           MouseButton
 	Action           MouseAction
 	Shift, Alt, Ctrl bool
 	Clicks           int
-	Seq              uint64
 }
 
 func (Mouse) input() {}
