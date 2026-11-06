@@ -91,11 +91,12 @@ func (a *Core) holdScrollRelease(msg Key) {
 }
 
 // WantKeyReleases reports whether Ctrl+D / Ctrl+U would scroll now: the Helix
-// normal or select mode in the editor, with nothing open on top. Text is not
-// typed there, so losing IME input to key-release reporting does no harm.
+// normal or select mode in the editor, with nothing open on top (the comment
+// editor included). Text is not typed there, so losing IME input to
+// key-release reporting does no harm.
 func (a *Core) WantKeyReleases() bool {
 	return a.Helix && a.Mode != ModeInsert && a.Focus == FocusEditor && a.CurText() != nil &&
-		!a.overlayOpen() && !a.CmdOpen && !a.FindOpen && a.props.Len() == 0 && a.Ctx == nil
+		!a.overlayOpen() && !a.CmdOpen && !a.FindOpen && a.props.Len() == 0 && a.Ctx == nil && a.Composer == nil
 }
 
 // scrollKeepCursor scrolls the view by n lines (Ctrl+Alt+D / Ctrl+Alt+U) and
