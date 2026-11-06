@@ -59,10 +59,10 @@ jobs:
             echo "::error::$target は前のリリース v$last より後のコミットではありません"
             exit 1
           fi
-          # 後のジョブ（npm-pack と gui）は、main のワークフローのまま、このコミットのファイルでビルドする。
+          # 後のジョブ（npm-pack）は、main のワークフローのまま、このコミットのファイルでビルドする。
           # その置き場所がこのコミットに無ければ、タグを打つ前に止める（v0.8.0 は置き場所を変える前のコミットで、
-          # タグを打ったあとに npm-pack と gui が落ちた）。
-          for f in packaging/npm/pack.sh package-lock.json ui/gui/app/src-tauri/tauri.conf.json; do
+          # タグを打ったあとに npm-pack が落ちた）。
+          for f in packaging/npm/pack.sh package-lock.json; do
             if ! git cat-file -e "$target:$f" 2>/dev/null; then
               echo "::error::$target に $f がありません。このワークフローではリリースできない古いコミットです"
               exit 1
@@ -205,22 +205,9 @@ jobs:
             platform="$(basename "${f%-"$NEXT".tgz}")"
             platform="${platform#shijimi-editor-}"
             tar -xzf "$f" -O package/bin/shj > "assets/shj-$platform"
-            tar -xzf "$f" -O package/bin/kisui > "assets/kisui-$platform"
           done
-          # GUI が shj を取ったあと、値が合うか確かめるための checksums（sha256sum の形式。GUI は ui/gui/app/src-tauri/src/install.rs で読む）
-          (cd assets && sha256sum shj-* kisui-* > SHA256SUMS)
+          # 取ったあとに値を確かめられるよう、checksums（sha256sum の形式）も置く。GUI が入れる kisui と shj は GUI の Release にある（kisui-terminal-release.yml）
+          (cd assets && sha256sum shj-* > SHA256SUMS)
           # 再実行で上げ直せるよう、同じ名前のアセットは置き換える
           gh release upload "v$NEXT" assets/* --clobber --repo "$GITHUB_REPOSITORY"
 
-  # GUI の AppImage と署名なしの .dmg、自動更新の latest.json を、同じ Release に上げる（gui-release.yml）
-  gui:
-    needs: release
-    permissions:
-      contents: write
-    uses: ./.github/workflows/gui-release.yml
-    with:
-      version: ${{ needs.release.outputs.next }}
-      tag: v${{ needs.release.outputs.next }}
-      ref: v${{ needs.release.outputs.next }}
-    secrets:
-      OP_SERVICE_ACCOUNT_TOKEN_RELEASE: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_RELEASE }}

@@ -46,12 +46,12 @@ npx shijimi-editor-nightly              # 入れずにその場で起動
 
 ### GUI
 
-GUI（アプリ `shijimi-editor`）は、各 [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases/latest) に Linux 用の AppImage（`shijimi-editor-linux-x86_64.AppImage`、`shijimi-editor-linux-aarch64.AppImage`）と macOS 用の `.dmg`（`shijimi-editor-macos-universal.dmg`。Apple シリコンと Intel の両方で動きます）として置いています。AppImage と `.dmg` は自分で更新します。新しいリリースが出るとアプリが知らせ、ボタンを押すと入れ替えます。アプリには組み合わせを確かめた `shj` が入っていて、欄の中の `shj` はそれが動きます（`PATH` の先頭に置きます。自分で入れた `shj` の版には左右されません）。ssh 先でも、`kisui` の隣のキャッシュに同じ版の `shj` を入れます。
+GUI（アプリ `shijimi-editor`）は `shj` とは別の版で、別にリリースしています。[`kisui-terminal-v<版>` の Release](https://github.com/mm1995tk/shijimi-editor/releases)（タグは `kisui-terminal-v<版>`。GitHub の「Latest」の印は `shj` のリリースのままです）に Linux 用の AppImage（`shijimi-editor-linux-x86_64.AppImage`、`shijimi-editor-linux-aarch64.AppImage`）と macOS 用の `.dmg`（`shijimi-editor-macos-universal.dmg`。Apple シリコンと Intel の両方で動きます）として置いています。AppImage と `.dmg` は自分で更新します。新しいリリースが出るとアプリが知らせ、ボタンを押すと入れ替えます。アプリにはその版に対応する `shj` が入っていて（Release の説明に版を書いています）、欄の中の `shj` はそれが動きます（`PATH` の先頭に置きます。自分で入れた `shj` の版には左右されません）。ssh 先でも、`kisui` の隣のキャッシュに同じ版の `shj` を入れます。
 
 - **AppImage**：`chmod +x shijimi-editor-linux-*.AppImage` してから起動します。
 - **`.dmg`**：Apple の署名が無いので、macOS は初回に開くのを断ります。`shijimi-editor.app` をアプリケーションに入れて 1 度開き（「確認できません」と出たら閉じます）、**システム設定 → プライバシーとセキュリティ** で `shijimi-editor` についての表示の横にある **このまま開く** を押します。次からは普通に開けます。代わりに、ターミナルで隔離の印を外しても開けます：`xattr -dr com.apple.quarantine /Applications/shijimi-editor.app`。
 
-nightly 版の GUI は `shijimi-editor-nightly` で、[`nightly` の pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/nightly) に置いています（`shijimi-editor-nightly-linux-x86_64.AppImage`、`shijimi-editor-nightly-macos-universal.dmg` など）。名前が別なので普通の版と並べて入れられ、`nightly` の pre-release から自分で更新します。`.dmg` の開き方は同じです（`shijimi-editor-nightly.app` で）。
+nightly 版の GUI は `shijimi-editor-nightly` で、[`kisui-terminal-nightly` の pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/kisui-terminal-nightly) に置いています（`shijimi-editor-nightly-linux-x86_64.AppImage`、`shijimi-editor-nightly-macos-universal.dmg` など）。名前が別なので普通の版と並べて入れられ、`kisui-terminal-nightly` の pre-release から自分で更新します。`.dmg` の開き方は同じです（`shijimi-editor-nightly.app` で）。
 
 Nix では、GUI はパッケージ `gui`（nightly 版は `gui-nightly`。`shijimi-editor-gui-nightly` として入ります）か、home-manager の `programs.shijimi-editor.gui.enable = true;` で入れます。Nix で作った GUI は自分では更新しません。`nix flake update` と `home-manager switch`（か `nix profile upgrade`）で更新します。
 
