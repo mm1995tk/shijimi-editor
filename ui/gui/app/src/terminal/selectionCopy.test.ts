@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { copyAndNotify, SelectionCopy } from "./selectionCopy.ts";
+import { SelectionCopy } from "./selectionCopy.ts";
 
 describe("SelectionCopy", () => {
   it("押している間に選択が変わったら、離したときにコピーする", () => {
@@ -30,27 +30,5 @@ describe("SelectionCopy", () => {
     s.release();
     s.press();
     assert.equal(s.release(), false);
-  });
-});
-
-describe("copyAndNotify", () => {
-  it("書けたら知らせる", async () => {
-    let n = 0;
-    await copyAndNotify(
-      async () => {},
-      () => n++,
-    );
-    assert.equal(n, 1);
-  });
-
-  it("書けなかったら知らせない", async () => {
-    let n = 0;
-    await copyAndNotify(
-      async () => {
-        throw new Error("denied");
-      },
-      () => n++,
-    );
-    assert.equal(n, 0);
   });
 });

@@ -39,6 +39,7 @@ import { describeClient, statusLine } from "./connect/status.ts";
 import { UpdateBar } from "./update/UpdateBar.tsx";
 import { OsClipboard } from "./clipboard.ts";
 import { CopiedToast, copiedNotice } from "./CopiedToast.tsx";
+import { copyAndNotify } from "./copiedNotice.ts";
 import {
   applyMove,
   litBorders,
@@ -739,7 +740,10 @@ function Workbench(props: {
 
   /** OS のクリップボードに入れ、書けたときだけ「コピーしました」を出す。 */
   async function copyToClipboard(text: string) {
-    if (await clipboard.write(text)) copiedNotice.show();
+    await copyAndNotify(
+      () => clipboard.write(text),
+      () => copiedNotice.show(),
+    );
   }
 
   /** ツリーの行のメニューで項目を選んだ。コピーと cd はすぐ、新規・名前の変更・削除は窓を出す。 */

@@ -33,8 +33,7 @@ export class OsClipboard {
   /** text を OS のクリップボードに入れる。断られたら覚えておく。書けたら true。 */
   async write(text: string): Promise<boolean> {
     this.pending = text;
-    await this.flush();
-    return this.pending !== text;
+    return this.flush();
   }
 
   /** 書けていない文字（OS のクリップボードより新しい）。無ければ undefined。 */
@@ -47,16 +46,18 @@ export class OsClipboard {
     this.pending = undefined;
   }
 
-  /** 書けていない文字があれば、もう一度書く（ユーザーの操作の中で呼ぶ）。 */
-  async flush(): Promise<void> {
+  /** 書けていない文字があれば、もう一度書く（ユーザーの操作の中で呼ぶ）。書けたら true。 */
+  async flush(): Promise<boolean> {
     const text = this.pending;
     const cb = this.cb();
-    if (text === undefined || !cb) return;
+    if (text === undefined || !cb) return false;
     try {
       await cb.writeText(text);
       if (this.pending === text) this.pending = undefined;
+      return true;
     } catch (e) {
       this.onError(e);
+      return false;
     }
   }
 
