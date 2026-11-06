@@ -94,7 +94,7 @@
               };
             };
 
-          # The GUI. Built with Nix it has no auto update (update it with nix flake update).
+          # kisui-terminal (the GUI). Built with Nix it has no auto update (update it with nix flake update).
           guiDrv = import ./packaging/nix/gui.nix {
             inherit pkgs;
             version = guiVersion;
@@ -103,7 +103,7 @@
             # And its shj, which the terminals in the panes use first.
             shj = "${appDrv}/bin/shj";
           };
-          # The nightly GUI (shijimi-editor-nightly), installed as shijimi-editor-gui-nightly.
+          # The nightly kisui-terminal, installed as kisui-terminal-nightly.
           guiNightlyDrv = import ./packaging/nix/gui.nix {
             inherit pkgs;
             version = guiNightlyVersion;
@@ -121,8 +121,8 @@
             default = appDrv;
             shijimi = appDrv;
             shj-nightly = nightlyDrv;
-            gui = guiDrv;
-            gui-nightly = guiNightlyDrv;
+            kisui-terminal = guiDrv;
+            kisui-terminal-nightly = guiNightlyDrv;
             treefmt = treefmtEval.config.build.configFile;
           };
 
@@ -174,9 +174,9 @@
             formatting = treefmtEval.config.build.check self;
 
             # GUI の殻（cargo test も回る）と Web 画面のテスト（npm test）
-            gui = guiDrv;
+            kisui-terminal = guiDrv;
             gui-web-test = guiDrv.web.overrideAttrs (_: {
-              pname = "shijimi-editor-gui-web-test";
+              pname = "kisui-terminal-web-test";
               doCheck = true;
               checkPhase = ''
                 runHook preCheck

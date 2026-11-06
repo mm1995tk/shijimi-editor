@@ -35,7 +35,7 @@ These are mistakes:
 
 Older versions ignored these mistakes in silence. After an update, a file that used to start the editor may stop it; fix what the message points at.
 
-While it is running, `:config-reload` with a mistake in a file does not stop the editor. It keeps the current settings and shows the first mistake in the status line. A mistake in the user's own files stops `kisui serve` itself, and `kisui attach` passes the reason to the GUI as the connection error.
+While it is running, `:config-reload` with a mistake in a file does not stop the editor. It keeps the current settings and shows the first mistake in the status line. A mistake in the user's own files stops `kisui serve` itself, and `kisui attach` passes the reason to kisui-terminal as the connection error.
 
 ## Unknown keys are ignored
 
@@ -63,12 +63,12 @@ A key that this version does not read is not a mistake. shijimi-editor ignores i
 
 | Value | Meaning |
 | --- | --- |
-| `"auto"` (default) | The innermost multiplexer that shijimi runs in. In the primary terminal of the GUI, the GUI. Otherwise it follows the parent processes of shijimi and takes the first multiplexer it finds; with none, the terminal panel is used |
+| `"auto"` (default) | The innermost multiplexer that shijimi runs in. In the primary terminal of kisui-terminal, its panes. Otherwise it follows the parent processes of shijimi and takes the first multiplexer it finds; with none, the terminal panel is used |
 | `"herdr"` | herdr (needs `HERDR_ENV=1`) |
 | `"tmux"` | tmux 3.1 or later (needs `TMUX`) |
 | `"zellij"` | zellij 0.44 or later (needs `ZELLIJ`) |
 | `"cmux"` | cmux on macOS (needs `CMUX_WORKSPACE_ID` and `CMUX_SURFACE_ID`). It cannot hide the pane |
-| `"gui"` | The panes of the shijimi-editor GUI (only for the editor that runs in the primary terminal of a GUI workspace; elsewhere the terminal panel is used) |
+| `"gui"` | The panes of kisui-terminal (only for the editor that runs in the primary terminal of a kisui-terminal workspace; elsewhere the terminal panel is used) |
 | `"none"` | Always the terminal panel, even inside a multiplexer |
 
 ## Example config.toml
@@ -115,9 +115,9 @@ idle_stop_days = 7        # 0 = never stop
 start_dir = "~/work"      # where a new workspace's shell starts (default ~)
 ```
 
-## Machines in the GUI
+## Machines in kisui-terminal
 
-The GUI (not `shj`) reads `[[gui.machines]]` in the config.toml on the machine where the GUI runs, and shows each machine in the sidebar after "Local". Use it when you always use the same machines, so you do not have to add them again after reinstalling the GUI or on another Mac.
+kisui-terminal (not `shj`) reads `[[gui.machines]]` in the config.toml on the machine where kisui-terminal runs, and shows each machine in the sidebar after "Local". Use it when you always use the same machines, so you do not have to add them again after reinstalling kisui-terminal or on another Mac.
 
 ```toml
 [[gui.machines]]
@@ -125,10 +125,10 @@ ssh = "dev-vm"   # where to ssh to (required; a host from ~/.ssh/config, for exa
 name = "dev"     # the name in the sidebar (optional; without it, the ssh target)
 ```
 
-- The GUI reads the file when it starts. The nightly GUI reads `shijimi-editor-nightly/` the same way as `shj-nightly` ("Nightly build" on this page). Only `config.toml` is read; a `config.nix` is not.
-- Machines written here cannot be removed or renamed in the GUI (the right-click menu is disabled and says so). To change them, edit the file and start the GUI again. Machines added in the GUI are saved inside the GUI as before.
-- If a machine added in the GUI has the same ssh target as one in the file, the one in the file is shown. A machine added in the GUI is not shown while its name is the same as a machine in the file.
-- If the file has a mistake (TOML syntax, a value of the wrong type, an ssh target that cannot be used, the same ssh target or name twice, `name` empty or "Local"), the GUI does not start. It shows the file, line and reason on a plain screen and does nothing else. Fix the file and start the GUI again. `shj` starts with a file that has `[gui]`.
+- kisui-terminal reads the file when it starts. The nightly kisui-terminal reads `shijimi-editor-nightly/` the same way as `shj-nightly` ("Nightly build" on this page). Only `config.toml` is read; a `config.nix` is not.
+- Machines written here cannot be removed or renamed in kisui-terminal (the right-click menu is disabled and says so). To change them, edit the file and start kisui-terminal again. Machines added in kisui-terminal are saved inside kisui-terminal as before.
+- If a machine added in kisui-terminal has the same ssh target as one in the file, the one in the file is shown. A machine added in kisui-terminal is not shown while its name is the same as a machine in the file.
+- If the file has a mistake (TOML syntax, a value of the wrong type, an ssh target that cannot be used, the same ssh target or name twice, `name` empty or "Local"), kisui-terminal does not start. It shows the file, line and reason on a plain screen and does nothing else. Fix the file and start kisui-terminal again. `shj` starts with a file that has `[gui]`.
 - With home-manager, write it in `settings` ([Nix and home-manager](nix.md)).
 
 ## Options
@@ -152,7 +152,7 @@ name = "dev"     # the name in the sidebar (optional; without it, the ssh target
 | `browser.listen-host` | Listen address for port forwarding | [External browser and port forwarding](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | The ACP agent used by the suggestions panel | [AI agent integration](agent.md) |
 | `server.start_dir` | The folder where the primary terminal of a new workspace starts (an absolute path, or one that starts with `~`). Default `~`. A folder that does not exist is a mistake in the configuration. If it is inside a project, the workspace's folder is decided at once | — |
-| `server.idle_stop_days` | Days `kisui serve` stays up with no GUI connected before it stops itself (default 7, 0 = never). Running shells end with it. The list of workspaces (their folders, and the ones with no folder yet) is saved in `workspaces.json` next to `serve.log`, and the next `kisui serve` makes them again, each with a new primary shell in its folder (in `start_dir` if the folder is gone or not decided). Split terminals do not come back | — |
+| `server.idle_stop_days` | Days `kisui serve` stays up with no kisui-terminal connected before it stops itself (default 7, 0 = never). Running shells end with it. The list of workspaces (their folders, and the ones with no folder yet) is saved in `workspaces.json` next to `serve.log`, and the next `kisui serve` makes them again, each with a new primary shell in its folder (in `start_dir` if the folder is gone or not decided). Split terminals do not come back | — |
 
 ## Themes
 

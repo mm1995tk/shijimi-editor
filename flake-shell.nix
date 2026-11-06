@@ -24,7 +24,7 @@ in
       pkgs.cargo
       pkgs.rustc
     ]
-    # Linux で殻をビルドし tauri dev で動かすための WebView 周りのライブラリ（nix build .#gui と同じもの）
+    # Linux で殻をビルドし tauri dev で動かすための WebView 周りのライブラリ（nix build .#kisui-terminal と同じもの）
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       pkgs.webkitgtk_4_1
       pkgs.gtk3
@@ -38,7 +38,7 @@ in
     CGO_ENABLED = "0";
     PROJECT_NAME = project-name;
 
-    # nix build .#gui では wrapGAppsHook3 が付ける環境。devShell では自分で足す
+    # nix build .#kisui-terminal では wrapGAppsHook3 が付ける環境。devShell では自分で足す
     # （GTK の設定のスキーマと、WebView が HTTPS に使う GIO のモジュール）
     shellHook = lib.optionalString stdenv.hostPlatform.isLinux ''
       export XDG_DATA_DIRS="${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"

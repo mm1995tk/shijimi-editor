@@ -24,7 +24,7 @@ Import the flake's `homeManagerModules.default`.
 
 - `settings` is written to `~/.config/shijimi-editor/config.toml`.
 - `languages` is written to `~/.config/shijimi-editor/languages.toml`.
-- The GUI's default machines can also go in `settings` (`settings.gui.machines = [ { ssh = "dev-vm"; name = "dev"; } ];`; "Machines in the GUI" in [Configuration files](config.md)).
+- kisui-terminal's default machines can also go in `settings` (`settings.gui.machines = [ { ssh = "dev-vm"; name = "dev"; } ];`; "Machines in kisui-terminal" in [Configuration files](config.md)).
 - With `package = inputs.shijimi.packages.${pkgs.system}.shj-nightly` you get the nightly build ([Installation](install.md)). The two files above are then written to `~/.config/shijimi-editor-nightly/` instead.
 
 ```nix
