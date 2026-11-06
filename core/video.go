@@ -16,8 +16,7 @@ var videoMIME = map[string]string{
 
 // IsVideo reports whether path is a video file, by its extension.
 func IsVideo(path string) bool {
-	_, ok := videoMIME[strings.ToLower(filepath.Ext(path))]
-	return ok
+	return VideoMIME(path) != ""
 }
 
 // VideoMIME is the media type of the video at path ("" when it is not a video).

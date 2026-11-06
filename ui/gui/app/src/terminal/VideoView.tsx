@@ -1,27 +1,14 @@
-import { createEffect, createSignal, on, onCleanup, type JSX } from "solid-js";
+import { createEffect, Match, onCleanup, Switch, type JSX } from "solid-js";
 
 import type { ExtraPane } from "../rpc/protocol.ts";
-import { formatBytes } from "./transfer.ts";
-import {
-  baseName,
-  loadVideo,
-  MAX_VIDEO_BYTES,
-  seekTo,
-  tooLarge,
-  videoKey,
-  type MediaFetch,
-} from "./media.ts";
-
-type Load =
-  | { kind: "loading"; ratio: number }
-  | { kind: "ready"; url: string }
-  | { kind: "error"; text: string };
+import { baseName, seekTo, videoKey, type MediaFetch } from "./media.ts";
+import { createVideoSource } from "./videoSource.ts";
 
 /**
  * 動画の欄（#555）。ターミナルの欄と同じ升目に並ぶ（TerminalGrid）。shj が頼んだ動画を media.read で取って
- * <video> で再生する。見出しの × で閉じる。キーは、この欄にキーが向いているときだけ受ける：
- * 空白と k は再生・停止、← → は 5 秒、j l は 10 秒、m は消音。GUI のショートカット（Ctrl+Shift+矢印など）は
- * ここで止めず、いつも通り GUI が受ける。
+ * <video> で再生する（取るのは videoSource.ts）。見出しの × で閉じる。キーは、この欄にキーが向いているときだけ
+ * 受ける：空白と k は再生・停止、← → は 5 秒、j l は 10 秒、m は消音。GUI のショートカット
+ * （Ctrl+Shift+矢印など）はここで止めず、いつも通り GUI が受ける。隠したら止める（音が鳴り続けないように。戻しても再開しない）。
  */
 export function VideoView(props: {
   pane: ExtraPane;
@@ -41,51 +28,18 @@ export function VideoView(props: {
 }): JSX.Element {
   let cell!: HTMLDivElement;
   let video: HTMLVideoElement | undefined;
-  const [load, setLoad] = createSignal<Load>({ kind: "loading", ratio: 0 });
+  const source = createVideoSource(
+    () => props.pane,
+    () => props.read,
+  );
 
   const focus = () => (video ?? cell).focus();
   props.focusRef?.(focus);
   onCleanup(() => props.focusRef?.(undefined));
 
-  // 欄の動画（id）が替わったら、取り直す
-  createEffect(
-    on(
-      () => props.pane.id,
-      () => {
-        const pane = props.pane;
-        const ac = new AbortController();
-        let url: string | undefined;
-        setLoad({ kind: "loading", ratio: 0 });
-        onCleanup(() => {
-          ac.abort();
-          if (url) URL.revokeObjectURL(url);
-        });
-        if (tooLarge(pane.size)) {
-          setLoad({
-            kind: "error",
-            text: `動画が大きすぎて開けません（${formatBytes(pane.size)}。上限は ${formatBytes(MAX_VIDEO_BYTES)}）`,
-          });
-          return;
-        }
-        loadVideo(props.read, ac.signal, (ratio) =>
-          setLoad({ kind: "loading", ratio }),
-        ).then(
-          (blob) => {
-            if (ac.signal.aborted) return;
-            url = URL.createObjectURL(blob);
-            setLoad({ kind: "ready", url });
-          },
-          (e) => {
-            if (ac.signal.aborted) return;
-            setLoad({
-              kind: "error",
-              text: `動画を取れませんでした：${e instanceof Error ? e.message : e}`,
-            });
-          },
-        );
-      },
-    ),
-  );
+  createEffect(() => {
+    if (props.hidden) video?.pause();
+  });
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.isComposing || !video) return;
@@ -125,10 +79,9 @@ export function VideoView(props: {
         </button>
       </div>
       <div class="video-body">
-        {(() => {
-          const l = load();
-          if (l.kind === "ready")
-            return (
+        <Switch>
+          <Match when={source.load().kind === "ready" && source.load()}>
+            {(l) => (
               <video
                 ref={(el) => {
                   video = el;
@@ -136,27 +89,32 @@ export function VideoView(props: {
                     if (video === el) video = undefined;
                   });
                 }}
-                src={l.url}
+                src={(l() as { url: string }).url}
                 controls
                 autoplay
                 playsinline
                 tabindex="0"
                 onError={() =>
-                  setLoad({
-                    kind: "error",
-                    text: "この動画は再生できません（形式に対応していません）",
-                  })
+                  source.fail(
+                    "この動画は再生できません（形式に対応していません）",
+                  )
                 }
               />
-            );
-          return (
-            <p class="video-note" role="status">
-              {l.kind === "error"
-                ? l.text
-                : `動画を取っています… ${Math.round((l.kind === "loading" ? l.ratio : 1) * 100)}%`}
-            </p>
-          );
-        })()}
+            )}
+          </Match>
+          <Match when={source.load()}>
+            {(l) => (
+              <p class="video-note" role="status">
+                {(() => {
+                  const v = l();
+                  return v.kind === "error"
+                    ? v.text
+                    : `動画を取っています… ${Math.round((v.kind === "loading" ? v.ratio : 1) * 100)}%`;
+                })()}
+              </p>
+            )}
+          </Match>
+        </Switch>
       </div>
     </div>
   );

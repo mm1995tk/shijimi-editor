@@ -110,61 +110,80 @@ func (w *wsManager) closeExtra(claim *primaryShj, id string) {
 }
 
 // extraOf は id の欄と、その持ち主の shj。無ければ ok == false。
-func (w *wsManager) extraOf(wsID, id string) (extraPane, bool) {
+func (w *wsManager) extraOf(wsID, id string) (extraPane, *primaryShj, bool) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if st := w.reg[wsID]; st != nil && st.shj != nil {
 		for _, e := range st.shj.extras {
 			if e.ID == id {
-				return e, true
+				return e, st.shj, true
 			}
 		}
 	}
-	return extraPane{}, false
+	return extraPane{}, nil, false
 }
 
-// mediaRequest は media.read と extra.close。
+// mediaRequest は media.read と extra.close を振り分ける。
 func (ss *session) mediaRequest(req *rpc.Message) (res any, err error, handled bool) {
-	if req.Method != "media.read" && req.Method != "extra.close" {
+	switch req.Method {
+	case "media.read":
+		res, err = ss.readMediaReq(req)
+	case "extra.close":
+		res, err = ss.closeExtraReq(req)
+	default:
 		return nil, nil, false
 	}
+	return res, err, true
+}
+
+// extraParams は media.read と extra.close が欄を指す部分。
+type extraParams struct {
+	WorkspaceID string `json:"workspaceId"`
+	ID          string `json:"id"`
+}
+
+// readMediaReq は media.read：欄のファイルの範囲を読む。
+func (ss *session) readMediaReq(req *rpc.Message) (any, error) {
 	if err := ss.needHello(); err != nil {
-		return nil, err, true
+		return nil, err
 	}
 	var p struct {
-		WorkspaceID string `json:"workspaceId"`
-		ID          string `json:"id"`
-		Offset      int64  `json:"offset"`
-		Length      int64  `json:"length"`
+		extraParams
+		Offset int64 `json:"offset"`
+		Length int64 `json:"length"`
 	}
 	if err := json.Unmarshal(req.Params, &p); err != nil {
-		return nil, invalidParams(err), true
+		return nil, invalidParams(err)
 	}
-	w := ss.srv.ws
-	e, ok := w.extraOf(p.WorkspaceID, p.ID)
+	e, _, ok := ss.srv.ws.extraOf(p.WorkspaceID, p.ID)
 	if !ok {
-		return nil, rpc.Errorf(rpc.CodeNotFound, "no such pane: %s", p.ID), true
-	}
-	if req.Method == "extra.close" {
-		w.mu.Lock()
-		var claim *primaryShj
-		if st := w.reg[p.WorkspaceID]; st != nil {
-			claim = st.shj
-		}
-		w.mu.Unlock()
-		if claim != nil {
-			w.closeExtra(claim, p.ID)
-		}
-		return struct{}{}, nil, true
+		return nil, rpc.Errorf(rpc.CodeNotFound, "no such pane: %s", p.ID)
 	}
 	if p.Offset < 0 || p.Length < 0 {
-		return nil, rpc.Errorf(rpc.CodeInvalidParams, "negative offset or length"), true
+		return nil, rpc.Errorf(rpc.CodeInvalidParams, "negative offset or length")
 	}
 	r, err := readMedia(e, p.Offset, p.Length)
 	if err != nil {
-		return nil, rpc.Errorf(rpc.CodeInternalError, "%s: %v", e.Path, err), true
+		return nil, rpc.Errorf(rpc.CodeInternalError, "%s: %v", e.Path, err)
 	}
-	return r, nil, true
+	return r, nil
+}
+
+// closeExtraReq は extra.close：GUI が欄を閉じる。
+func (ss *session) closeExtraReq(req *rpc.Message) (any, error) {
+	if err := ss.needHello(); err != nil {
+		return nil, err
+	}
+	var p extraParams
+	if err := json.Unmarshal(req.Params, &p); err != nil {
+		return nil, invalidParams(err)
+	}
+	_, claim, ok := ss.srv.ws.extraOf(p.WorkspaceID, p.ID)
+	if !ok {
+		return nil, rpc.Errorf(rpc.CodeNotFound, "no such pane: %s", p.ID)
+	}
+	ss.srv.ws.closeExtra(claim, p.ID)
+	return struct{}{}, nil
 }
 
 // MediaResult は media.read の結果。blob.get と同じ形。

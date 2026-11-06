@@ -498,7 +498,7 @@ export interface Workspace {
   files: string[];
   /** プライマリターミナルの中で動いている TUI の shj。無ければ null（shj serve は常に送る） */
   primaryShj?: PrimaryShj | null;
-  /** プライマリの shj が開かせた、ターミナルでない欄（動画。#555）。並びはターミナルの後ろ。無ければ省く */
+  /** プライマリの shj が開かせた、ターミナルでない欄（動画。#555）。並びはターミナルの後ろ。無ければ []（古い shj serve は送らない） */
   extras?: ExtraPane[];
 }
 
