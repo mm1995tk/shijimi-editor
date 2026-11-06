@@ -43,7 +43,8 @@
 
           # The GUI (kisui-terminal) has its own version, apart from shj (#581). It lives in
           # the Cargo.toml of the Tauri shell; bump it there to release the GUI.
-          guiVersion = (builtins.fromTOML (builtins.readFile ./ui/gui/app/src-tauri/Cargo.toml)).package.version;
+          guiVersion =
+            (builtins.fromTOML (builtins.readFile ./ui/gui/app/src-tauri/Cargo.toml)).package.version;
           guiNightlyVersion = "${guiVersion}-nightly.${
             builtins.substring 0 8 (self.lastModifiedDate or "00000000")
           }.${commit}";
