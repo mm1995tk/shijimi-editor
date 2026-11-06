@@ -68,3 +68,19 @@ func (g *guiBackend) tail(id string, n int) []string {
 func (g *guiBackend) close(id string) { _, _ = g.do(ctl.PaneRequest{Op: "close", ID: id}) }
 
 func (*guiBackend) shellEnv(sh, exe string) []string { return muxShellIntegration(sh, exe) }
+
+func (g *guiBackend) openVideo(path string) error {
+	_, err := g.do(ctl.PaneRequest{Op: "open", Kind: "video", Path: path})
+	return err
+}
+
+// OpenVideo is core.VideoOpener's: the shj of the primary terminal of a GUI
+// workspace asks the GUI to play the video in a pane beside the terminals,
+// because a terminal cannot. Any other shj has no GUI to ask (ok is false) and
+// opens the file as it did before.
+func (a *App) OpenVideo(path string) (bool, error) {
+	if a.mux.gui == nil {
+		return false, nil
+	}
+	return true, a.mux.gui.openVideo(path)
+}
