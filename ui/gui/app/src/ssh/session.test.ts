@@ -116,7 +116,7 @@ function fakeShell(opts: {
     onAskpass: async () => () => {},
     installPlan: async () => ({
       version: "0.0.0",
-      path: "~/.cache/shijimi-editor/0.0.0/kisui",
+      path: "~/.cache/kisui-terminal/0.0.0/kisui",
       release_url: "https://example.invalid/r",
     }),
     installCancel: async (id) => {

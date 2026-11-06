@@ -490,7 +490,7 @@ mod tests {
         let s = remote_script("0.7.0", "shj", H);
         assert!(!s.contains('\''));
         assert!(s.contains("$d/.shj.$$") && s.contains("\"$d/shj\""));
-        assert!(!s.replace("kisui-terminal", "").contains("kisui"));
+        assert!(!s.contains("\"$d/kisui\"") && !s.contains(".kisui."));
     }
 
     #[test]
