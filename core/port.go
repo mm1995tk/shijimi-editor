@@ -16,8 +16,7 @@ type Port interface {
 	// OpenURL opens url in the user's browser. A UI that can tell whether it
 	// worked answers with an OpenURLResult.
 	OpenURL(url string)
-	// Exit says the program may end. A core of `shj serve` never ends (closing
-	// the GUI leaves the server running), so its adapter drops it.
+	// Exit says the program may end.
 	Exit()
 	// ShowSide, ShowTerm and ShowAgent open or close the sidebar, the terminal
 	// panel and the suggestion panel. The UI answers with a Layout.
@@ -56,8 +55,7 @@ type Port interface {
 	// and KeepFailuresOf.
 	CommandEnded(code int)
 	// SetPalette makes t the colors the UI draws with (the user picked a theme,
-	// or the config names one). The core keeps which theme is chosen. A GUI
-	// draws with its own and asks for the theme with theme.get.
+	// or the config names one). The core keeps which theme is chosen.
 	SetPalette(t *Theme)
 	// ImageClosed says the image Id is not shown any more, so that a UI frees
 	// what it holds for it (the TUI's terminal graphics).

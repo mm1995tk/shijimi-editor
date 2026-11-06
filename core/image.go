@@ -160,7 +160,7 @@ func (a *Core) BuildImagePane(t *Tab, w, h int) screen.Pane {
 	return p
 }
 
-// BlobImage is the image that a Blob names (blob.get): a local file, which may
+// BlobImage is the image that a Blob names (the TUI draws it, image_draw.go): a local file, which may
 // be open in a tab, or a mermaid diagram of the preview. nil when it is gone.
 func (a *Core) BlobImage(blob string) *ImageView {
 	if iv := a.PreviewImage(blob); iv != nil {

@@ -3,7 +3,7 @@ package core
 import "github.com/mm1995tk/shijimi-editor/core/screen"
 
 // Palette は、screen.Style（意味の名前）→ このテーマの色の対応を返す。
-// 設計書 docs/design/gui-protocol.md の `theme.get` が送る表の元。
+// テーマの色の表（TUI は themeTables でこれを引く）。
 // Control と IndentGuide は空のとき、applyTheme と同じ代わりの色を使う。
 func (t *Theme) Palette() screen.Palette {
 	s := t.Syntax

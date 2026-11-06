@@ -205,8 +205,8 @@ The body of a comment, reply or review is written in an input box. Below the inp
 
 | Key | Action |
 | --- | --- |
-| `Enter` | Submit (a comment goes into the unsent list) |
-| `Shift+Enter` / `Alt+Enter` / `Ctrl+J` | New line |
+| `Ctrl+Enter` / `Alt+Enter` | Submit (a comment goes into the unsent list) |
+| `Enter` / `Shift+Enter` / `Ctrl+J` | New line |
 | `Ctrl+S` | Insert a ```` ```suggestion ```` block containing the original lines of the selected range |
 | `Esc` | Cancel |
 

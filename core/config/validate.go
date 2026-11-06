@@ -143,6 +143,9 @@ var configSchema = map[string]field{
 		"theme":           fString,
 		"indent-guides":   table(map[string]field{"render": fBool}),
 		"auto-save": table(map[string]field{
+			// on-switch was what `shj serve` did with the open files of a workspace that
+			// switched folders. Nothing reads it now; it is still accepted so that a file
+			// that has it keeps loading.
 			"on-switch": {kind: kString, check: checkOnSwitch},
 			"after-delay": table(map[string]field{
 				"enable":  fBool,

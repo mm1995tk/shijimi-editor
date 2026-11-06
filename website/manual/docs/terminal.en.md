@@ -85,7 +85,7 @@ In the editor that runs in the primary terminal of a shijimi-editor GUI workspac
 A terminal cannot play a video, but the GUI can. In the editor that runs in the primary terminal of a GUI workspace, opening a video file (pressing it in the GUI's file tree, `:open <file>`, the command palette and so on) does not read it as text. The GUI opens a video pane beside the terminals and plays it there. This works for a file on another machine too: the video travels over the same ssh connection as the GUI.
 
 - The extensions are `.mp4`, `.m4v`, `.mov`, `.webm`, `.ogv` and `.mkv`. Which of them play depends on the codecs of the GUI's web view; a video that cannot be played says so in the pane.
-- The pane is one of the terminals' cells (up to 6 cells in a workspace, the primary and the panes included). It is not a tab. A workspace has one video pane: opening another video replaces it. Opening a video also switches the GUI to the terminal mode and moves the keys to the pane.
+- The pane is one of the terminals' cells (up to 6 cells in a workspace, the primary and the panes included). It is not a tab. A workspace has one video pane: opening another video replaces it. Opening a video moves the keys to the pane.
 - The video is fetched in full before it plays, so a video of more than 512 MiB is not opened (the pane says so).
 - Keys, while the keys are in the pane: Space or `k` plays and pauses, `←` and `→` seek 5 seconds, `j` and `l` 10 seconds, `m` mutes. The GUI's own keys (`Ctrl+Shift+arrows`, `Ctrl+Shift+M`, `Cmd+W` on a Mac) work as in the terminals.
 - Close the pane with the × in its title, or with `Cmd+W` on a Mac. It also closes when the editor in the primary terminal quits.

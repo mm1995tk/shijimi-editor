@@ -115,8 +115,7 @@ func argText(a any) string {
 }
 
 // Table is every string of the selected language, with the English strings
-// under the ones it lacks (the same fallback as T). The GUI gets it with
-// i18n.get and translates a Msg itself.
+// under the ones it lacks (the same fallback as T). Tests use it to check the tables.
 func Table() map[string]string {
 	t := make(map[string]string, len(en))
 	maps.Copy(t, en)

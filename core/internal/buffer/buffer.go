@@ -77,8 +77,7 @@ type Buffer struct {
 // the text, its undo history and its state against the disk. A Buffer is one
 // view: the cursor, the selection and the scroll position are its own. The
 // Doc's fields are reached through the Buffer (b.Lines, b.Dirty, ...).
-// Whoever uses a Doc does it one at a time: the cores that share one run under
-// one lock (core.Workspaces).
+// Whoever uses a Doc does it one at a time: the one core that has a Doc is its only user.
 type Doc struct {
 	Path  string
 	Lines [][]rune

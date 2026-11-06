@@ -200,11 +200,11 @@ func TestSubmitNeedsSomething(t *testing.T) {
 	if a.Composer == nil {
 		t.Fatal("no editor for the review body")
 	}
-	if cmd := a.HandleComposerKey(Key{Code: KeyEnter}); cmd != nil || !a.MsgErr {
+	if cmd := a.HandleComposerKey(Key{Code: KeyEnter, Mod: ModCtrl}); cmd != nil || !a.MsgErr {
 		t.Error("empty comment-only review was sent")
 	}
 	a.ReviewKey("A")
-	if cmd := a.HandleComposerKey(Key{Code: KeyEnter}); cmd == nil {
+	if cmd := a.HandleComposerKey(Key{Code: KeyEnter, Mod: ModCtrl}); cmd == nil {
 		t.Error("approval without a body was not sent")
 	}
 }
@@ -443,5 +443,22 @@ func TestCardOverlay(t *testing.T) {
 	ov = a.CardOverlay(a.Card, 40, 4)
 	if got := ov.Lines[0].Spans[0].Text; got != "@r" {
 		t.Errorf("first row = %q, want the author", got)
+	}
+}
+
+// While the comment editor is open, key releases are not asked for: a
+// terminal that reports them loses the text an IME commits with Enter.
+func TestComposerAsksNoKeyReleases(t *testing.T) {
+	a, _ := prApp(t)
+	a.Helix, a.Mode = true, ModeNormal
+	if !a.WantKeyReleases() {
+		t.Fatal("releases are not asked for before composing")
+	}
+	a.ReviewKey("S")
+	if a.Composer == nil {
+		t.Fatal("no editor for the review body")
+	}
+	if a.WantKeyReleases() {
+		t.Error("key releases asked for while composing")
 	}
 }
