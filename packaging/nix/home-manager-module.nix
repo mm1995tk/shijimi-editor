@@ -98,7 +98,10 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [ cfg.package ] ++ lib.optional cfg.kisui-terminal.enable cfg.kisui-terminal.package;
+    home.packages = [
+      cfg.package
+    ]
+    ++ lib.optional cfg.kisui-terminal.enable cfg.kisui-terminal.package;
     xdg.configFile."${configDir}/config.toml" = lib.mkIf (cfg.settings != { }) {
       source = toml.generate "shijimi-config.toml" cfg.settings;
     };
