@@ -11,8 +11,10 @@ export const SCALES: readonly number[] = [
   0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2,
 ];
 
+/** 元の大きさ。Cmd 0 で戻る先。 */
 export const DEFAULT_SCALE = 1;
 
+/** 大きさを変える動き。 */
 export type ScaleAction = "in" | "out" | "reset";
 
 const STORAGE_KEY = "shijimi.uiScale";
@@ -20,6 +22,7 @@ const STORAGE_KEY = "shijimi.uiScale";
 /**
  * 大きさを変えるキーなら、その動き。Mac は Cmd、そのほかは Ctrl（どちらも Alt は押さない）。
  * Shift は + を打つために許す（US 配列の Cmd+Shift+=）。
+ * Mac 以外の Ctrl+- は、ターミナルの C-_（readline の undo）を奪うことを承知で選んだ（ブラウザや多くのターミナルと同じ形に揃える）。
  */
 export function scaleKey(e: KeyLike, mac: boolean): ScaleAction | null {
   const mod = mac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
