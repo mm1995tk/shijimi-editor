@@ -8,7 +8,6 @@ const [visible, setVisible] = createSignal(false);
 export const copiedNotice = new CopiedNotice(setVisible);
 
 /** 画面の下の中央に出る「コピーしました」。copiedNotice.show() で出て、自分で消える。 */
-/** 画面の下の中央に出る「コピーしました」。copiedNotice.show() で出て、自分で消える。 */
 export function CopiedToast() {
   return (
     <Show when={visible()}>
