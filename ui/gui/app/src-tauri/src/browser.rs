@@ -349,7 +349,7 @@ pub fn browser_bounds(
         .map_err(|e| e.to_string())
 }
 
-/// 欄を見せる・隠す（IDE モードで別の欄を見せているとき・窓のカードが上に出ているときは隠す）。
+/// 欄を見せる・隠す（ほかの欄を隠しているとき（`Ctrl+Shift+M`）・窓のカードが上に出ているときは隠す）。
 #[tauri::command]
 pub fn browser_visible(
     app: AppHandle,

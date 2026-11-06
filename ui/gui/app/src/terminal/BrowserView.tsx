@@ -50,7 +50,7 @@ export function BrowserView(props: {
   /** この欄を開いたマシン（ssh のホスト名か @local）。localhost のページをどこのものとして開くかを決める */
   target: string;
   active?: boolean;
-  /** 隠すか（IDE モードで別の欄を見せているとき・ほかの欄を隠しているとき） */
+  /** 隠すか（ほかの欄を隠しているとき） */
   hidden?: boolean;
   /** 欄の位置（CSS grid の grid-area） */
   area?: string;
