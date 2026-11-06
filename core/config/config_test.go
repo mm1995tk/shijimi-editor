@@ -432,9 +432,9 @@ func TestSections(t *testing.T) {
 	if c.Value("none") != nil {
 		t.Fatal("a section that was not registered has a Value")
 	}
-	// Without the section, its keys are mistakes.
-	if _, err := Load(root, Options{}); err == nil {
-		t.Fatal("a key no one reads was accepted")
+	// Without the section, its keys are not read: a warning, not an error.
+	if c, err := Load(root, Options{}); err != nil || len(c.Warnings) == 0 {
+		t.Fatalf("a key no one reads: err = %v", err)
 	}
 }
 

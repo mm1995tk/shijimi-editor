@@ -341,6 +341,7 @@ func (a *Core) ExecCommand(line string) []Effect {
 			}
 		}
 		a.Info("cmd.configreloaded", strings.Join(a.Cfg.Sources, ", "))
+		a.warnConfig()
 		a.loadKeymap()
 	case "theme":
 		if arg == "" {

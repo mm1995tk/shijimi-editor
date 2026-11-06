@@ -15,7 +15,7 @@
 - `languages.toml` には言語サーバーを書きます（[LSP](lsp.md)）。
 - `config.toml` にはそれ以外を書きます（このページ）。
 - 実行中に `:config-reload` を実行すると、読み直します。
-- 間違いのあるファイルがあると、shijimi-editor は起動しません（[ファイルに間違いがあるとき](#ファイルに間違いがあるとき)）。
+- 間違いのあるファイルがあると、shijimi-editor は起動しません。知らない項目は警告だけです（[ファイルに間違いがあるとき](#ファイルに間違いがあるとき)）。
 - `[agent]` はユーザー自身の `config.toml`（`~/.config/shijimi-editor/config.toml`、または下の nightly 版のディレクトリ）からだけ読みます（[AI エージェント連携](agent.md)）。
 
 ## ファイルに間違いがあるとき
@@ -23,20 +23,31 @@
 どれか 1 つのファイルに間違いがあると、`shj` も `shj serve` も起動しません。間違い全部について、ファイルの場所・行・理由を出して、0 以外で終わります。
 
 ```
-/home/me/.config/shijimi-editor/config.toml:4: editor.bogus: 知らない項目です（shijimi-editor は読みません）
 /home/me/.config/shijimi-editor/config.toml:3: editor.file-icons: true か false で書いてください（今は 文字列 です）
+/home/me/.config/shijimi-editor/config.toml:8: ui-language: 値が正しくないか、この版の shijimi-editor では使えない値です。次のどれかで書いてください: en, ja
 ```
 
 次のものが間違いです。
 
 - TOML の書き方の間違い。評価できない Nix のファイル（`config.nix` / `languages.nix`）。Nix には行が無いので、行の代わりに項目の名前を出します。
-- 知らない項目。Helix にあっても shijimi-editor が読まない項目（`languages.toml` の `comment-token` など）も含みます。このマニュアルに載っている項目だけを読みます。
-- 型の違い（数を書くところに文字を書いた、など）と、使えない値（`ui-language`、`[terminal]` の `multiplexer`、負の `idle_stop_days`、0 以下の `timeout`、フォルダでない `start_dir`）。
+- 型の違い（数を書くところに文字を書いた、など）と、使えない値（`ui-language`、`[terminal]` の `multiplexer`、負の `idle_stop_days`、0 以下の `timeout`、フォルダでない `start_dir`）。値が決まっている項目では、新しい版で足された値も、この版では使えないので止まります（メッセージに「値が正しくないか、この版の shijimi-editor では使えない値です」と出ます）。
 - プロジェクトの `.shijimi-editor/config.toml` に書いた `[agent]`・`[server]`・`[gui]`・`[keys]`。これらはユーザー自身のフォルダからだけ読みます。
 
 以前のバージョンは、これらの間違いを黙って無視していました。更新したあと、今まで起動できたファイルで起動しなくなることがあります。出たメッセージの場所を直してください。
 
 起動中の `:config-reload` で間違いが見つかっても、エディタは止まりません。今の設定のまま、最初の間違いをステータス行に出します。ユーザー自身のファイルの間違いは `shj serve` 自体を止め、`shj attach` がその理由を GUI の接続エラーとして渡します。
+
+## 知らない項目は無視します
+
+この版が読まない項目は、間違いではありません。shijimi-editor は無視して起動します。新しい版用に書いた項目があっても古い版が起動するので、1 つのファイルを版の違う shijimi-editor で使えます。Helix にあっても shijimi-editor が読まない項目（`languages.toml` の `comment-token` など）も同じです。このマニュアルに載っている項目だけを読みます。
+
+- `shj` は、起動したときと `:config-reload` のあとに、無視した最初の項目（ファイルの場所と行つき）をステータス行に出します。
+- `shj serve` は、無視した項目を全部、標準エラーに出してログにも書き、そのまま動きます。
+- `[gui]` の中の知らない項目も同じです。
+
+```
+/home/me/.config/shijimi-editor/config.toml:4: editor.bogus: 知らない項目なので無視しました（新しい版の shijimi-editor 用かもしれません。この版は読みません）
+```
 
 ## nightly 版
 
@@ -117,7 +128,7 @@ name = "dev"     # サイドバーに出す名前（省くと ssh の行き先�
 - GUI は起動したときにファイルを読みます。nightly 版の GUI は、`shj-nightly` と同じく `shijimi-editor-nightly/` を読みます（このページの「nightly 版」）。読むのは `config.toml` だけで、`config.nix` は読みません。
 - ここに書いたマシンは、GUI から外せず、名前も変えられません（右クリックのメニューは押せず、理由が出ます）。変えるには、ファイルを直して GUI を起動し直します。GUI で足したマシンは、今までどおり GUI の中に保存します。
 - GUI で足したマシンの ssh の行き先がファイルのものと同じなら、ファイルのほうを出します。GUI で足したマシンの名前がファイルのマシンと同じあいだは、そのマシンは出しません。
-- ファイルに間違い（TOML の書き方、知らない項目、型の違い、使えない ssh の行き先、同じ ssh の行き先や名前が 2 つ、空の `name` や「ローカル」）があると、GUI は起動しません。ファイルの場所・行・理由だけの画面を出して、ほかは何もしません。直してから GUI を起動し直してください。`shj` は `[gui]` のあるファイルでも起動します。
+- ファイルに間違い（TOML の書き方、型の違い、使えない ssh の行き先、同じ ssh の行き先や名前が 2 つ、空の `name` や「ローカル」）があると、GUI は起動しません。ファイルの場所・行・理由だけの画面を出して、ほかは何もしません。直してから GUI を起動し直してください。`shj` は `[gui]` のあるファイルでも起動します。
 - home-manager では `settings` に書きます（[Nix と home-manager](nix.md)）。
 
 ## 項目

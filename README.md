@@ -77,7 +77,7 @@ Given a file, shj starts in single-file mode. It does not start the file tree, L
 
 ## Settings
 
-Files are read in the following order, and later ones win (`languages.toml` uses Helix's format. If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/` and remove the keys shijimi-editor does not read). If a file has a mistake (a syntax error, an unknown key, a value of the wrong type), shijimi-editor does not start and prints the file, line and reason.
+Files are read in the following order, and later ones win (`languages.toml` uses Helix's format. If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/` and remove the keys shijimi-editor does not read). If a file has a mistake (a syntax error, a value of the wrong type), shijimi-editor does not start and prints the file, line and reason. Keys it does not read are ignored with a warning.
 
 1. Built-in defaults (gopls / rust-analyzer / typescript-language-server and others)
 2. `~/.config/shijimi-editor/languages.toml`, `~/.config/shijimi-editor/config.toml`

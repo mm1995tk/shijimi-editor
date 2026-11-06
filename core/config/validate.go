@@ -19,6 +19,9 @@ type Problem struct {
 	// code is an i18n key; args are its format arguments.
 	code string
 	args []any
+	// Warning marks a problem that does not stop shijimi-editor: a key this
+	// version does not read. Load reports it in Config.Warnings, not in Error.
+	Warning bool
 }
 
 // typeKey is the i18n key of a type's name. It stays a key in Problem.args and
@@ -79,9 +82,13 @@ func (e *Error) Error() string { return e.Msg().String() }
 
 // Summary is the first problem and how many more there are, on one line, for
 // the status line.
-func (e *Error) Summary() msg.Msg {
-	m := e.Problems[0].Msg()
-	if n := len(e.Problems) - 1; n > 0 {
+func (e *Error) Summary() msg.Msg { return Summary(e.Problems) }
+
+// Summary is the first of ps and how many more there are, on one line. ps must
+// not be empty.
+func Summary(ps []Problem) msg.Msg {
+	m := ps[0].Msg()
+	if n := len(ps) - 1; n > 0 {
 		m = msg.Cat(m, msg.T("config.err.more", n))
 	}
 	return m
@@ -244,7 +251,7 @@ func validate(raw map[string]any, schema map[string]field, file, text string, us
 }
 
 func (v *validator) add(path []string, code string, args ...any) {
-	p := Problem{File: v.file, Key: pathString(path), code: code, args: args}
+	p := Problem{File: v.file, Key: pathString(path), code: code, args: args, Warning: code == "config.err.unknown"}
 	if v.lines != nil {
 		p.Line = v.lines.find(path)
 	}

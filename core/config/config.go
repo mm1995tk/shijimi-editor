@@ -126,6 +126,10 @@ type Config struct {
 	Languages map[string]*Language
 	Servers   map[string]*Server
 	Sources   []string // files that were loaded, for display
+	// Warnings are the keys the files have and this version does not read. They
+	// are ignored, so that a file written for a newer version still loads; the
+	// UI shows them after it has started.
+	Warnings []Problem
 
 	// values are what the sections of Options.Sections read, by name.
 	values map[string]Value
@@ -141,9 +145,10 @@ const nixEvalTimeout = 15 * time.Second
 // `config.nix` / `languages.nix` are evaluated with `nix eval --json` and
 // applied after the TOML file of the same name.
 //
-// A mistake in a file (TOML syntax, a key that is not read, a value of the
-// wrong type, a Nix file that does not evaluate) is an *Error that lists every
-// mistake with its file, line and reason. The Config returned with it is
+// A mistake in a file (TOML syntax, a value of the wrong type, a Nix file that
+// does not evaluate) is an *Error that lists every mistake with its file, line
+// and reason. A key that is not read is not a mistake: it is ignored and listed
+// in Config.Warnings, so that a file written for a newer version loads. The Config returned with it is
 // still usable for what it needs before it reports (the UI language), but the
 // caller must not run with it.
 func Load(root string, o Options) (*Config, error) {
@@ -199,8 +204,16 @@ func Load(root string, o Options) (*Config, error) {
 			}
 		}
 	}
-	if len(probs) > 0 {
-		return c, &Error{Problems: probs}
+	var errs []Problem
+	for _, p := range probs {
+		if p.Warning {
+			c.Warnings = append(c.Warnings, p)
+		} else {
+			errs = append(errs, p)
+		}
+	}
+	if len(errs) > 0 {
+		return c, &Error{Problems: errs}
 	}
 	return c, nil
 }

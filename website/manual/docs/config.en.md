@@ -15,7 +15,7 @@ They are loaded in the following order. Later ones take precedence.
 - Write language servers in `languages.toml` ([LSP](lsp.md)).
 - Write everything else in `config.toml` (this page).
 - Run `:config-reload` while running to reload them.
-- If a file has a mistake, shijimi-editor does not start ([If a file has a mistake](#if-a-file-has-a-mistake)).
+- If a file has a mistake, shijimi-editor does not start. Keys it does not know are only a warning ([If a file has a mistake](#if-a-file-has-a-mistake)).
 - `[agent]` is read only from the user's own `config.toml` (`~/.config/shijimi-editor/config.toml`, or the nightly build's directory below) ([AI agent integration](agent.md)).
 
 ## If a file has a mistake
@@ -23,20 +23,31 @@ They are loaded in the following order. Later ones take precedence.
 If any file has a mistake, `shj` and `shj serve` do not start. They print the file, the line and the reason for every mistake, and exit with a non-zero status:
 
 ```
-/home/me/.config/shijimi-editor/config.toml:4: editor.bogus: unknown key (shijimi-editor does not read it)
 /home/me/.config/shijimi-editor/config.toml:3: editor.file-icons: must be true or false, but it is a string
+/home/me/.config/shijimi-editor/config.toml:8: ui-language: is not valid, or this version of shijimi-editor cannot use it. It must be one of: en, ja
 ```
 
 These are mistakes:
 
 - TOML syntax errors, and Nix files (`config.nix` / `languages.nix`) that do not evaluate (Nix has no lines, so the setting is shown instead).
-- Unknown keys. This includes keys that Helix has but shijimi-editor does not read, such as `comment-token` in `languages.toml`. Only the keys in this manual are read.
-- Values of the wrong type, such as a string where a number goes, and values that are not allowed (`ui-language`, `[terminal]` `multiplexer`, a negative `idle_stop_days`, `timeout` of 0 or less, a `start_dir` that is not a folder).
+- Values of the wrong type, such as a string where a number goes, and values that are not allowed (`ui-language`, `[terminal]` `multiplexer`, a negative `idle_stop_days`, `timeout` of 0 or less, a `start_dir` that is not a folder). A setting that has a fixed list of values also stops on a value that a newer version added, because this version cannot use it: the message says "is not valid, or this version of shijimi-editor cannot use it".
 - `[agent]`, `[server]`, `[gui]` and `[keys]` in a project's `.shijimi-editor/config.toml`, because they are read only from the user's own directory.
 
 Older versions ignored these mistakes in silence. After an update, a file that used to start the editor may stop it; fix what the message points at.
 
 While it is running, `:config-reload` with a mistake in a file does not stop the editor. It keeps the current settings and shows the first mistake in the status line. A mistake in the user's own files stops `shj serve` itself, and `shj attach` passes the reason to the GUI as the connection error.
+
+## Unknown keys are ignored
+
+A key that this version does not read is not a mistake. shijimi-editor ignores it and starts. This lets one file be used by versions of different ages (a file written for a newer version still starts an older one), and it includes keys that Helix has but shijimi-editor does not read, such as `comment-token` in `languages.toml`. Only the keys in this manual are read.
+
+- `shj` shows the first ignored key (with the file and line) in the status line when it starts, and after `:config-reload`.
+- `shj serve` prints every ignored key to the standard error and writes it to its log, then goes on.
+- The same goes for unknown keys inside `[gui]`.
+
+```
+/home/me/.config/shijimi-editor/config.toml:4: editor.bogus: unknown key, ignored (it may be for a newer shijimi-editor; this version does not read it)
+```
 
 ## Nightly build
 
@@ -117,7 +128,7 @@ name = "dev"     # the name in the sidebar (optional; without it, the ssh target
 - The GUI reads the file when it starts. The nightly GUI reads `shijimi-editor-nightly/` the same way as `shj-nightly` ("Nightly build" on this page). Only `config.toml` is read; a `config.nix` is not.
 - Machines written here cannot be removed or renamed in the GUI (the right-click menu is disabled and says so). To change them, edit the file and start the GUI again. Machines added in the GUI are saved inside the GUI as before.
 - If a machine added in the GUI has the same ssh target as one in the file, the one in the file is shown. A machine added in the GUI is not shown while its name is the same as a machine in the file.
-- If the file has a mistake (TOML syntax, an unknown key, a value of the wrong type, an ssh target that cannot be used, the same ssh target or name twice, `name` empty or "Local"), the GUI does not start. It shows the file, line and reason on a plain screen and does nothing else. Fix the file and start the GUI again. `shj` starts with a file that has `[gui]`.
+- If the file has a mistake (TOML syntax, a value of the wrong type, an ssh target that cannot be used, the same ssh target or name twice, `name` empty or "Local"), the GUI does not start. It shows the file, line and reason on a plain screen and does nothing else. Fix the file and start the GUI again. `shj` starts with a file that has `[gui]`.
 - With home-manager, write it in `settings` ([Nix and home-manager](nix.md)).
 
 ## Options
