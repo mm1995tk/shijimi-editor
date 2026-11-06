@@ -42,7 +42,7 @@ While it is running, `:config-reload` with a mistake in a file does not stop the
 A key that this version does not read is not a mistake. shijimi-editor ignores it and starts. This lets one file be used by versions of different ages (a file written for a newer version still starts an older one), and it includes keys that Helix has but shijimi-editor does not read, such as `comment-token` in `languages.toml`. Only the keys in this manual are read.
 
 - `shj` shows the first ignored key (with the file and line) in the status line when it starts, and after `:config-reload`.
-- `shj serve` prints every ignored key to the standard error and writes it to its log, then goes on.
+- `kisui serve` prints every ignored key to the standard error and writes it to its log, then goes on.
 - The same goes for unknown keys inside `[gui]`.
 
 ```
