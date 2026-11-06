@@ -3,6 +3,7 @@ package ctlclient
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"sync"
@@ -22,35 +23,36 @@ import (
 // only then does this shj leave its own out.
 //
 // report tells the server which file this shj shows (ctl.PrimaryFile); it does
-// nothing when primary is false. It does not wait for the server.
-func AnnouncePrimary(suffix, ownSocket string) (end func(), primary bool, report func(file string)) {
+// nothing when primary is false. It does not wait for the server. pane is how
+// to use the GUI's panes; it is nil when primary is false.
+func AnnouncePrimary(suffix, ownSocket string) (end func(), primary bool, report func(file string), pane *Pane) {
 	termID := os.Getenv(ctl.EnvGUIPrimary)
 	if termID == "" {
-		return func() {}, false, func(string) {}
+		return func() {}, false, func(string) {}, nil
 	}
 	os.Unsetenv(ctl.EnvGUIPrimary)
 	path, err := ctl.ServePrimarySocketPath(suffix)
 	if err != nil {
-		return func() {}, false, func(string) {}
+		return func() {}, false, func(string) {}, nil
 	}
 	return announce(path, ctl.PrimaryHello{TermID: termID, Socket: ownSocket, PID: os.Getpid()})
 }
 
-func announce(path string, h ctl.PrimaryHello) (func(), bool, func(string)) {
+func announce(path string, h ctl.PrimaryHello) (func(), bool, func(string), *Pane) {
 	c, err := net.DialTimeout("unix", path, 2*time.Second)
 	if err != nil {
-		return func() {}, false, func(string) {}
+		return func() {}, false, func(string) {}, nil
 	}
 	_ = c.SetDeadline(time.Now().Add(2 * time.Second))
 	line, _ := json.Marshal(h)
 	if _, err := c.Write(append(line, '\n')); err != nil {
 		c.Close()
-		return func() {}, false, func(string) {}
+		return func() {}, false, func(string) {}, nil
 	}
 	var r ctl.PrimaryReply
 	if err := json.NewDecoder(bufio.NewReader(c)).Decode(&r); err != nil || !r.OK {
 		c.Close()
-		return func() {}, false, func(string) {}
+		return func() {}, false, func(string) {}, nil
 	}
 	_ = c.SetDeadline(time.Time{})
 	// report never waits for the server: the newest file waits in a channel of
@@ -84,5 +86,37 @@ func announce(path string, h ctl.PrimaryHello) (func(), bool, func(string)) {
 		}
 	}
 	var once sync.Once
-	return func() { once.Do(func() { close(done); c.Close() }) }, true, report
+	return func() { once.Do(func() { close(done); c.Close() }) }, true, report, &Pane{path: path, termID: h.TermID, pid: h.PID}
+}
+
+// Pane is how the shj that the server accepted as the primary uses the GUI's
+// panes (ctl.PaneRequest). Every call is a connection of its own.
+type Pane struct {
+	path   string
+	termID string
+	pid    int
+}
+
+// Do sends req (Op and the fields it needs) and returns the reply. The shj's
+// termId and pid are filled in.
+func (p *Pane) Do(req ctl.PaneRequest) (ctl.PaneReply, error) {
+	req.TermID, req.PID = p.termID, p.pid
+	c, err := net.DialTimeout("unix", p.path, 2*time.Second)
+	if err != nil {
+		return ctl.PaneReply{}, err
+	}
+	defer c.Close()
+	_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+	line, _ := json.Marshal(req)
+	if _, err := c.Write(append(line, '\n')); err != nil {
+		return ctl.PaneReply{}, err
+	}
+	var r ctl.PaneReply
+	if err := json.NewDecoder(bufio.NewReader(c)).Decode(&r); err != nil {
+		return ctl.PaneReply{}, err
+	}
+	if !r.OK {
+		return r, errors.New(r.Error)
+	}
+	return r, nil
 }

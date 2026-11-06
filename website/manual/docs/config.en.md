@@ -53,11 +53,12 @@ While it is running, `:config-reload` with a mistake in a file does not stop the
 
 | Value | Meaning |
 | --- | --- |
-| `"auto"` (default) | The innermost multiplexer that shijimi runs in. It follows the parent processes of shijimi and takes the first multiplexer it finds; with none, the terminal panel is used |
+| `"auto"` (default) | The innermost multiplexer that shijimi runs in. In the primary terminal of the GUI, the GUI. Otherwise it follows the parent processes of shijimi and takes the first multiplexer it finds; with none, the terminal panel is used |
 | `"herdr"` | herdr (needs `HERDR_ENV=1`) |
 | `"tmux"` | tmux 3.1 or later (needs `TMUX`) |
 | `"zellij"` | zellij 0.44 or later (needs `ZELLIJ`) |
 | `"cmux"` | cmux on macOS (needs `CMUX_WORKSPACE_ID` and `CMUX_SURFACE_ID`). It cannot hide the pane |
+| `"gui"` | The panes of the shijimi-editor GUI (only for the editor that runs in the primary terminal of a GUI workspace; elsewhere the terminal panel is used) |
 | `"none"` | Always the terminal panel, even inside a multiplexer |
 
 ## Example config.toml
@@ -96,7 +97,7 @@ include = []
 listen-host = "127.0.0.1"
 
 [terminal]
-multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "none"
+multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "gui" / "none"
 
 
 # Effective only in ~/.config/shijimi-editor/config.toml

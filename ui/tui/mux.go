@@ -12,14 +12,20 @@ import (
 	tuicfg "github.com/mm1995tk/shijimi-editor/ui/tui/config"
 )
 
-// Inside a terminal multiplexer (herdr, tmux, zellij, cmux), the terminal commands (Ctrl+`, :sh,
+// Inside a terminal multiplexer (herdr, tmux, zellij, cmux) or as the shj of the
+// primary terminal of the GUI, the terminal commands (Ctrl+`, :sh,
 // :run, :!, Space t, Space a) use a pane of the multiplexer instead of the
 // built-in terminal panel, so that the multiplexer detects, notifies about and
 // restores the agents run there. The pane is created below the editor's own
 // pane, hidden by zooming the editor's pane, and closed when the editor quits.
 // The built-in panel stays in use when [experimental] multiplexer is off,
 // [terminal] multiplexer is "none", or the editor does not run in a
-// multiplexer that is supported.
+// multiplexer that is supported. In the GUI the "multiplexer" is the GUI itself:
+// the pane is another terminal of the workspace that shj serve starts, and
+// hiding it means the GUI hides every pane but the primary (gui.go). Only the
+// shj that shj serve accepted as the primary has it (SetGUIPane); "auto" takes
+// it before looking at the parent processes, because that shj runs in the GUI
+// whatever started shj serve.
 
 // muxBackend is what a multiplexer has to do for the terminal commands.
 // Adding a multiplexer means implementing it and adding it to newMuxBackend
@@ -56,6 +62,9 @@ type muxPane struct {
 	// Tests replace these.
 	newBackend func(kind string) muxBackend
 	parents    func(pid int) (ppid int, comm string, ok bool)
+
+	// gui is the GUI backend; nil unless this shj is the primary of a GUI workspace (SetGUIPane).
+	gui *guiBackend
 }
 
 // makeBackend returns the backend of a multiplexer that is supported, or nil.
@@ -72,6 +81,10 @@ func (m *muxPane) makeBackend(kind string) muxBackend {
 		return newZellijBackend()
 	case "cmux":
 		return newCmuxBackend()
+	case "gui":
+		if m.gui != nil {
+			return m.gui
+		}
 	}
 	return nil
 }
@@ -88,6 +101,8 @@ func muxUsable(kind string) bool {
 		return os.Getenv(envZellij) != ""
 	case "cmux":
 		return cmuxGOOS == cmuxOS && os.Getenv(envCmuxWorkspace) != "" && os.Getenv(envCmuxSurface) != ""
+	case "gui":
+		return true // makeBackend has it only for the primary shj
 	}
 	return true
 }
@@ -104,10 +119,17 @@ func (a *App) resolveMux() {
 	explicit := want != "auto" && want != "" && want != "none"
 	kind := want
 	if want == "auto" || want == "" {
-		kind = detectMultiplexer(os.Getpid(), m.parents)
+		kind = "gui"
+		if m.gui == nil {
+			kind = detectMultiplexer(os.Getpid(), m.parents)
+		}
 	}
 	if kind != "" && kind != "none" {
 		switch b := m.makeBackend(kind); {
+		case b == nil && kind == "gui":
+			if explicit {
+				a.Info("mux.unavailable", i18n.T("mux.guiname"))
+			}
 		case b == nil:
 			if explicit {
 				a.Info("mux.unsupported", want)

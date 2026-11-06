@@ -46,7 +46,7 @@ func TestAnnouncePrimary(t *testing.T) {
 	}()
 
 	t.Setenv(ctl.EnvGUIPrimary, "t7")
-	end, primary, _ := AnnouncePrimary("", filepath.Join(dir, "1.sock"))
+	end, primary, _, _ := AnnouncePrimary("", filepath.Join(dir, "1.sock"))
 	if !primary {
 		t.Error("an accepted announcement is a primary")
 	}
@@ -73,10 +73,45 @@ func TestAnnouncePrimary(t *testing.T) {
 func TestAnnouncePrimaryWithoutEnv(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	t.Setenv(ctl.EnvGUIPrimary, "")
-	end, primary, report := AnnouncePrimary("", "/x.sock")
+	end, primary, report, _ := AnnouncePrimary("", "/x.sock")
 	report("/ignored")
 	end()
 	if primary {
 		t.Error("without the variable there is no primary")
+	}
+}
+
+// Pane.Do sends one ctl.PaneRequest with the shj's termId and pid on a connection of its own.
+func TestPaneDo(t *testing.T) {
+	dir, err := os.MkdirTemp("", "shjp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	path := filepath.Join(dir, ctl.ServePrimaryName)
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	got := make(chan ctl.PaneRequest, 1)
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		var rq ctl.PaneRequest
+		json.NewDecoder(bufio.NewReader(c)).Decode(&rq)
+		got <- rq
+		json.NewEncoder(c).Encode(ctl.PaneReply{OK: rq.Op != "bad", Error: "no", ID: "t5"})
+	}()
+	p := &Pane{path: path, termID: "t7", pid: 42}
+	r, err := p.Do(ctl.PaneRequest{Op: "split", Cwd: "/x"})
+	if rq := <-got; rq.TermID != "t7" || rq.PID != 42 || rq.Op != "split" || rq.Cwd != "/x" {
+		t.Errorf("request: %+v", rq)
+	}
+	if err != nil || r.ID != "t5" {
+		t.Errorf("reply: %+v %v", r, err)
 	}
 }

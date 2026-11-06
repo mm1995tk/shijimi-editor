@@ -180,3 +180,37 @@ type PrimaryReply struct {
 	OK    bool   `json:"ok"`
 	Error string `json:"error,omitempty"`
 }
+
+// PaneRequest is the one line a shj that runs in the primary terminal of a GUI
+// workspace sends on the primary socket (a connection of its own, apart from
+// the one that announced it) to use the GUI's panes for its terminal commands.
+// The server answers with one PaneReply and closes the connection. TermID and
+// PID are the ones of the announcement: the server serves only the shj that
+// holds the primary, and only for the panes that shj created.
+//
+// Op is "split" (a pane in the workspace of the primary: Cwd, Env as
+// "NAME=value"; the reply has its ID, and the GUI shows it and moves the focus
+// to it), "alive" (Alive), "show" (the GUI shows the panes again and focuses
+// pane ID), "hide" (the GUI hides every pane but the primary and focuses it),
+// "send" (Text to pane ID; Enter runs it), "tail" (Lines: the last N lines of
+// the pane) and "close" (pane ID).
+type PaneRequest struct {
+	Op     string   `json:"op"`
+	TermID string   `json:"termId"`
+	PID    int      `json:"pid"`
+	ID     string   `json:"id,omitempty"`
+	Cwd    string   `json:"cwd,omitempty"`
+	Env    []string `json:"env,omitempty"`
+	Text   string   `json:"text,omitempty"`
+	Enter  bool     `json:"enter,omitempty"`
+	N      int      `json:"n,omitempty"`
+}
+
+// PaneReply answers a PaneRequest.
+type PaneReply struct {
+	OK    bool     `json:"ok"`
+	Error string   `json:"error,omitempty"`
+	ID    string   `json:"id,omitempty"`
+	Alive bool     `json:"alive,omitempty"`
+	Lines []string `json:"lines,omitempty"`
+}
