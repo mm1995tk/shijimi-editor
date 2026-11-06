@@ -24,7 +24,7 @@
 
 `Ctrl+B` toggles it. `Ctrl+E` moves focus.
 
-A `shj` run in the primary terminal of a GUI (`kisui serve`) workspace does not show the file tree. The tree is in the GUI sidebar, so the editor uses the whole width, and `Ctrl+E` and `:tree` move focus to CHANGES in [diff mode](review.md) and to the editor otherwise. The left side shows only the CHANGES list, and only in diff mode (`Ctrl+B` toggles it). The GUI sidebar shows the tree only while a `shj` runs in that workspace's primary terminal. When the `shj` ends, the tree goes away and only the machine and the workspace remain. A `shj` run in a split terminal shows the file tree as usual.
+A `shj` run in the primary terminal of a kisui-terminal (`kisui serve`) workspace does not show the file tree. The tree is in the sidebar of kisui-terminal, so the editor uses the whole width, and `Ctrl+E` and `:tree` move focus to CHANGES in [diff mode](review.md) and to the editor otherwise. The left side shows only the CHANGES list, and only in diff mode (`Ctrl+B` toggles it). The sidebar of kisui-terminal shows the tree only while a `shj` runs in that workspace's primary terminal. When the `shj` ends, the tree goes away and only the machine and the workspace remain. A `shj` run in a split terminal shows the file tree as usual.
 
 The sort order is: folders starting with a dot, other folders, files starting with a dot, other files. Within each group, names are sorted by letters, ignoring case.
 

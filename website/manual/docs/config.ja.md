@@ -35,7 +35,7 @@
 
 以前のバージョンは、これらの間違いを黙って無視していました。更新したあと、今まで起動できたファイルで起動しなくなることがあります。出たメッセージの場所を直してください。
 
-起動中の `:config-reload` で間違いが見つかっても、エディタは止まりません。今の設定のまま、最初の間違いをステータス行に出します。ユーザー自身のファイルの間違いは `kisui serve` 自体を止め、`kisui attach` がその理由を GUI の接続エラーとして渡します。
+起動中の `:config-reload` で間違いが見つかっても、エディタは止まりません。今の設定のまま、最初の間違いをステータス行に出します。ユーザー自身のファイルの間違いは `kisui serve` 自体を止め、`kisui attach` がその理由を kisui-terminal の接続エラーとして渡します。
 
 ## 知らない項目は無視します
 
@@ -63,12 +63,12 @@
 
 | 値 | 意味 |
 | --- | --- |
-| `"auto"`（既定） | shijimi が動いているマルチプレクサのうち一番内側のもの。GUI のプライマリターミナルでは GUI。それ以外は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサを使う。無ければターミナルパネル |
+| `"auto"`（既定） | shijimi が動いているマルチプレクサのうち一番内側のもの。kisui-terminal のプライマリターミナルでは、そのペイン。それ以外は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサを使う。無ければターミナルパネル |
 | `"herdr"` | herdr（`HERDR_ENV=1` が必要） |
 | `"tmux"` | tmux 3.1 以降（`TMUX` が必要） |
 | `"zellij"` | zellij 0.44 以降（`ZELLIJ` が必要） |
 | `"cmux"` | macOS の cmux（`CMUX_WORKSPACE_ID` と `CMUX_SURFACE_ID` が必要）。ペインは隠せない |
-| `"gui"` | shijimi-editor の GUI のペイン（GUI のワークスペースのプライマリターミナルで動く shijimi-editor だけ。ほかではターミナルパネル） |
+| `"gui"` | kisui-terminal のペイン（kisui-terminal のワークスペースのプライマリターミナルで動く shijimi-editor だけ。ほかではターミナルパネル） |
 | `"none"` | マルチプレクサの中でも、いつもターミナルパネルを使う |
 
 ## config.toml の例
@@ -115,9 +115,9 @@ idle_stop_days = 7        # 0 = never stop
 start_dir = "~/work"      # 新しいワークスペースのシェルを始めるフォルダ（既定 ~）
 ```
 
-## GUI のマシン
+## kisui-terminal のマシン
 
-GUI（`shj` ではなく）は、GUI を動かしているマシンの config.toml の `[[gui.machines]]` を読み、サイドバーの「ローカル」のあとに出します。使うマシンが決まっている人が、GUI を入れ直したり別の Mac に入れたりするたびにマシンを足し直さなくて済むようにするものです。
+kisui-terminal（`shj` ではなく）は、kisui-terminal を動かしているマシンの config.toml の `[[gui.machines]]` を読み、サイドバーの「ローカル」のあとに出します。使うマシンが決まっている人が、kisui-terminal を入れ直したり別の Mac に入れたりするたびにマシンを足し直さなくて済むようにするものです。
 
 ```toml
 [[gui.machines]]
@@ -125,10 +125,10 @@ ssh = "dev-vm"   # ssh の行き先（必須。~/.ssh/config のホスト名な�
 name = "dev"     # サイドバーに出す名前（省くと ssh の行き先）
 ```
 
-- GUI は起動したときにファイルを読みます。nightly 版の GUI は、`shj-nightly` と同じく `shijimi-editor-nightly/` を読みます（このページの「nightly 版」）。読むのは `config.toml` だけで、`config.nix` は読みません。
-- ここに書いたマシンは、GUI から外せず、名前も変えられません（右クリックのメニューは押せず、理由が出ます）。変えるには、ファイルを直して GUI を起動し直します。GUI で足したマシンは、今までどおり GUI の中に保存します。
-- GUI で足したマシンの ssh の行き先がファイルのものと同じなら、ファイルのほうを出します。GUI で足したマシンの名前がファイルのマシンと同じあいだは、そのマシンは出しません。
-- ファイルに間違い（TOML の書き方、型の違い、使えない ssh の行き先、同じ ssh の行き先や名前が 2 つ、空の `name` や「ローカル」）があると、GUI は起動しません。ファイルの場所・行・理由だけの画面を出して、ほかは何もしません。直してから GUI を起動し直してください。`shj` は `[gui]` のあるファイルでも起動します。
+- kisui-terminal は起動したときにファイルを読みます。nightly 版の kisui-terminal は、`shj-nightly` と同じく `shijimi-editor-nightly/` を読みます（このページの「nightly 版」）。読むのは `config.toml` だけで、`config.nix` は読みません。
+- ここに書いたマシンは、kisui-terminal から外せず、名前も変えられません（右クリックのメニューは押せず、理由が出ます）。変えるには、ファイルを直して kisui-terminal を起動し直します。kisui-terminal で足したマシンは、今までどおり kisui-terminal の中に保存します。
+- kisui-terminal で足したマシンの ssh の行き先がファイルのものと同じなら、ファイルのほうを出します。kisui-terminal で足したマシンの名前がファイルのマシンと同じあいだは、そのマシンは出しません。
+- ファイルに間違い（TOML の書き方、型の違い、使えない ssh の行き先、同じ ssh の行き先や名前が 2 つ、空の `name` や「ローカル」）があると、kisui-terminal は起動しません。ファイルの場所・行・理由だけの画面を出して、ほかは何もしません。直してから kisui-terminal を起動し直してください。`shj` は `[gui]` のあるファイルでも起動します。
 - home-manager では `settings` に書きます（[Nix と home-manager](nix.md)）。
 
 ## 項目
@@ -152,7 +152,7 @@ name = "dev"     # サイドバーに出す名前（省くと ssh の行き先�
 | `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | 提案パネルが使う ACP エージェント | [AI エージェント連携](agent.md) |
 | `server.start_dir` | 新しいワークスペースのプライマリターミナルが始まるフォルダ（絶対パス、または `~` で始まるパス）。既定は `~`。無いフォルダは設定の間違い。プロジェクトの中なら、ワークスペースのフォルダがそのまま決まる | — |
-| `server.idle_stop_days` | GUI がつながらないまま `kisui serve` が動き続ける日数。過ぎると自分で止まる（既定 7、0 で止まらない）。動いているシェルも終わる。ワークスペースの一覧（それぞれのフォルダ。フォルダ未定のものも）は `serve.log` の隣の `workspaces.json` に保存され、次の `kisui serve` が作り直す。プライマリターミナルはそのフォルダ（フォルダが無い・未定なら `start_dir`）で新しいシェルを始める。分割したターミナルは戻らない | — |
+| `server.idle_stop_days` | kisui-terminal がつながらないまま `kisui serve` が動き続ける日数。過ぎると自分で止まる（既定 7、0 で止まらない）。動いているシェルも終わる。ワークスペースの一覧（それぞれのフォルダ。フォルダ未定のものも）は `serve.log` の隣の `workspaces.json` に保存され、次の `kisui serve` が作り直す。プライマリターミナルはそのフォルダ（フォルダが無い・未定なら `start_dir`）で新しいシェルを始める。分割したターミナルは戻らない | — |
 
 ## テーマ
 

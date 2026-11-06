@@ -41,6 +41,14 @@
             builtins.substring 0 8 (self.lastModifiedDate or "00000000")
           }.${commit}";
 
+          # The GUI (kisui-terminal) has its own version, apart from shj (#581). It lives in
+          # the Cargo.toml of the Tauri shell; bump it there to release the GUI.
+          guiVersion =
+            (builtins.fromTOML (builtins.readFile ./ui/gui/app/src-tauri/Cargo.toml)).package.version;
+          guiNightlyVersion = "${guiVersion}-nightly.${
+            builtins.substring 0 8 (self.lastModifiedDate or "00000000")
+          }.${commit}";
+
           # One build for both channels. The stable shj and the nightly shj-nightly
           # are the same program; the channel is compiled in and only changes the
           # names that let the two be installed side by side (see ui/internal/buildinfo).
@@ -86,17 +94,21 @@
               };
             };
 
-          # The GUI. Built with Nix it has no auto update (update it with nix flake update).
+          # kisui-terminal (the GUI). Built with Nix it has no auto update (update it with nix flake update).
           guiDrv = import ./packaging/nix/gui.nix {
-            inherit pkgs version;
+            inherit pkgs;
+            version = guiVersion;
             # The kisui of the same build, so the GUI and its server always match.
             kisui = "${appDrv}/bin/kisui";
+            # And its shj, which the terminals in the panes use first.
+            shj = "${appDrv}/bin/shj";
           };
-          # The nightly GUI (shijimi-editor-nightly), installed as shijimi-editor-gui-nightly.
+          # The nightly kisui-terminal, installed as kisui-terminal-nightly.
           guiNightlyDrv = import ./packaging/nix/gui.nix {
             inherit pkgs;
-            version = nightlyVersion;
+            version = guiNightlyVersion;
             kisui = "${nightlyDrv}/bin/kisui-nightly";
+            shj = "${nightlyDrv}/bin/shj-nightly";
             channel = "nightly";
           };
 
@@ -109,8 +121,8 @@
             default = appDrv;
             shijimi = appDrv;
             shj-nightly = nightlyDrv;
-            gui = guiDrv;
-            gui-nightly = guiNightlyDrv;
+            kisui-terminal = guiDrv;
+            kisui-terminal-nightly = guiNightlyDrv;
             treefmt = treefmtEval.config.build.configFile;
           };
 
@@ -162,9 +174,9 @@
             formatting = treefmtEval.config.build.check self;
 
             # GUI の殻（cargo test も回る）と Web 画面のテスト（npm test）
-            gui = guiDrv;
+            kisui-terminal = guiDrv;
             gui-web-test = guiDrv.web.overrideAttrs (_: {
-              pname = "shijimi-editor-gui-web-test";
+              pname = "kisui-terminal-web-test";
               doCheck = true;
               checkPhase = ''
                 runHook preCheck

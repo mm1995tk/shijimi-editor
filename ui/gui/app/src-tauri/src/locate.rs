@@ -5,7 +5,7 @@
 //!   ログインシェルの PATH を引き継がない（`/usr/bin:/bin:/usr/sbin:/sbin` だけ）。`kisui attach` が起動する
 //!   `kisui serve` の中のターミナルが `shj` などを見つけられるよう、ログインシェルに PATH を聞き（時間切れ付き）、
 //!   GUI の PATH とよく使う場所（[`COMMON_DIRS`]）を足した PATH を子プロセスの PATH にする。
-//! - **ssh 先**：GUI の版のキャッシュ（`~/.cache/shijimi-editor/<版>/kisui`）だけを見る（[`remote_attach_script`]）。
+//! - **ssh 先**：GUI の版のキャッシュ（`~/.cache/kisui-terminal/<版>/kisui`）だけを見る（[`remote_attach_script`]）。
 //!   無ければ、入れるかを聞く（C6。入れる先はキャッシュだけ）。リモートの PATH の `kisui` は使わない。
 
 use std::ffi::{OsStr, OsString};
@@ -185,6 +185,13 @@ fn bundled_kisui(exe: &Path) -> Option<PathBuf> {
         .find(|p| is_executable(p))
 }
 
+/// GUI と一緒に配った shj のあるフォルダ（`../libexec/shj-bin/shj`。Nix のパッケージ。shj を PATH の `bin/` に出さないため、
+/// kisui の隣には無い）。AppImage と .app は kisui の隣に shj があり、kisui が自分で見つけるので、ここでは None。
+fn libexec_shj_dir(exe: &Path) -> Option<PathBuf> {
+    let dir = exe.parent()?.join("../libexec/shj-bin");
+    is_executable(&dir.join("shj")).then_some(dir)
+}
+
 /// 配った kisui の名前。nightly でも同じ（Tauri が `externalBin` の名前から作る）。
 const KISUI: &str = if cfg!(windows) { "kisui.exe" } else { "kisui" };
 
@@ -217,6 +224,10 @@ pub fn local_kisui_command() -> Command {
         });
     let mut c = Command::new(kisui);
     c.env("PATH", path);
+    // kisui は欄の中の PATH の先頭に、この shj を足す（server.EnvShjDir）
+    if let Some(d) = exe.as_deref().and_then(libexec_shj_dir) {
+        c.env("KISUI_SHJ_DIR", d);
+    }
     c
 }
 
@@ -369,6 +380,21 @@ mod tests {
         std::fs::remove_dir_all(&root).unwrap();
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn finds_the_libexec_shj_only_when_executable() {
+        let root = temp_root("shjdir");
+        let exe = root.join("app/bin/gui");
+        assert_eq!(libexec_shj_dir(&exe), None);
+        std::fs::create_dir_all(root.join("app/bin")).unwrap();
+        write_exe(&root.join("app/libexec/shj-bin/shj"), "");
+        assert_eq!(
+            libexec_shj_dir(&exe),
+            Some(root.join("app/bin/../libexec/shj-bin"))
+        );
+        std::fs::remove_dir_all(&root).unwrap();
+    }
+
     #[test]
     fn version_patterns() {
         assert_eq!(split_version("0.7.0"), Some(("0.7.0", None)));
@@ -382,10 +408,10 @@ mod tests {
 
     #[test]
     fn remote_script_has_no_quotes_and_only_looks_at_the_cache() {
-        let s = remote_attach_script(".cache/shijimi-editor/1.2.3", 97);
+        let s = remote_attach_script(".cache/kisui-terminal/1.2.3", 97);
         // sh -c '…' で包むので単一引用符は使えない。fish の単一引用符の中で意味を持つ \ も避ける
         assert!(!s.contains('\'') && !s.contains('\\'), "{s}");
-        assert!(s.contains("$HOME/.cache/shijimi-editor/1.2.3/kisui"));
+        assert!(s.contains("$HOME/.cache/kisui-terminal/1.2.3/kisui"));
         // PATH の kisui は探さない
         assert!(!s.contains("command -v") && !s.contains("--version"));
         assert!(s.ends_with("exit 97"));
@@ -398,7 +424,7 @@ mod tests {
         let root = temp_root("remote");
         let home = root.join("home");
         let run = |path: &str| {
-            let script = remote_attach_script(".cache/shijimi-editor/1.2.3", 97);
+            let script = remote_attach_script(".cache/kisui-terminal/1.2.3", 97);
             Command::new("/bin/sh")
                 .arg("-c")
                 .arg(&script)
@@ -417,7 +443,7 @@ mod tests {
 
         // キャッシュにあれば、それを attach つきで動かす
         write_exe(
-            &home.join(".cache/shijimi-editor/1.2.3/kisui"),
+            &home.join(".cache/kisui-terminal/1.2.3/kisui"),
             "#!/bin/sh\necho cache \"$1\"\n",
         );
         let out = run(&with_path);

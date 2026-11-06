@@ -24,7 +24,7 @@ flake の `homeManagerModules.default` を読み込みます。
 
 - `settings` は `~/.config/shijimi-editor/config.toml` に書き出します。
 - `languages` は `~/.config/shijimi-editor/languages.toml` に書き出します。
-- GUI の既定のマシンも `settings` に書けます（`settings.gui.machines = [ { ssh = "dev-vm"; name = "dev"; } ];`。[設定ファイル](config.md)の「GUI のマシン」）。
+- kisui-terminal の既定のマシンも `settings` に書けます（`settings.gui.machines = [ { ssh = "dev-vm"; name = "dev"; } ];`。[設定ファイル](config.md)の「kisui-terminal のマシン」）。
 - `package = inputs.shijimi.packages.${pkgs.system}.shj-nightly` にすると nightly 版が入ります（[インストール](install.md)）。このとき、上の 2 つのファイルは `~/.config/shijimi-editor-nightly/` に書き出します。
 
 ```nix

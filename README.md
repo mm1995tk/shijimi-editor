@@ -46,21 +46,21 @@ npx shijimi-editor-nightly              # run it without installing
 
 To compare with the base of a pull request you need [gh](https://cli.github.com/) and `gh auth login`.
 
-### GUI
+### kisui-terminal
 
-The GUI (the `shijimi-editor` app) is attached to each [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases/latest) as an AppImage for Linux (`shijimi-editor-linux-x86_64.AppImage`, `shijimi-editor-linux-aarch64.AppImage`) and a `.dmg` for macOS (`shijimi-editor-macos-universal.dmg`, for both Apple silicon and Intel). The AppImage and the `.dmg` update themselves: when a newer release is out, the app offers it and installs it when you press the button.
+kisui-terminal is a separate app that works closely with shijimi-editor: it splits a window into panes and runs terminals (with `shj` inside), videos, browser pages and a file tree in them. It is released separately from `shj`, with its own version. Each [`kisui-terminal-v<version>` Release](https://github.com/mm1995tk/shijimi-editor/releases) (tagged `kisui-terminal-v<version>`; it is not marked as the "Latest" release, which stays `shj`) has an AppImage for Linux (`kisui-terminal-linux-x86_64.AppImage`, `kisui-terminal-linux-aarch64.AppImage`) and a `.dmg` for macOS (`kisui-terminal-macos-universal.dmg`, for both Apple silicon and Intel). The AppImage and the `.dmg` update themselves: when a newer release is out, the app offers it and installs it when you press the button. The app ships with the `shj` that matches that version (the Release notes say which one): inside its panes, `shj` is that one (it is put first on `PATH`), whatever version you installed yourself. Over ssh the same `shj` is installed in the cache next to `kisui`.
 
-- **AppImage**: `chmod +x shijimi-editor-linux-*.AppImage` and run it.
-- **`.dmg`**: the app is not signed by Apple, so macOS refuses to open it the first time. Drag `shijimi-editor.app` to Applications, open it once (macOS says it cannot be verified; close that dialog), then go to **System Settings → Privacy & Security** and press **Open Anyway** next to the message about `shijimi-editor`. From then on it opens normally. Or remove the quarantine flag in a terminal instead: `xattr -dr com.apple.quarantine /Applications/shijimi-editor.app`.
+- **AppImage**: `chmod +x kisui-terminal-linux-*.AppImage` and run it.
+- **`.dmg`**: the app is not signed by Apple, so macOS refuses to open it the first time. Drag `kisui-terminal.app` to Applications, open it once (macOS says it cannot be verified; close that dialog), then go to **System Settings → Privacy & Security** and press **Open Anyway** next to the message about `kisui-terminal`. From then on it opens normally. Or remove the quarantine flag in a terminal instead: `xattr -dr com.apple.quarantine /Applications/kisui-terminal.app`.
 
-The nightly GUI is `shijimi-editor-nightly` in the [`nightly` pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/nightly) (`shijimi-editor-nightly-linux-x86_64.AppImage`, `shijimi-editor-nightly-macos-universal.dmg`, …). It has its own name, so it sits next to the stable app, and it updates itself from the `nightly` pre-release. Open the `.dmg` the same way (with `shijimi-editor-nightly.app`).
+The nightly kisui-terminal is `kisui-terminal-nightly` in the [`kisui-terminal-nightly` pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/kisui-terminal-nightly) (`kisui-terminal-nightly-linux-x86_64.AppImage`, `kisui-terminal-nightly-macos-universal.dmg`, …). It has its own name, so it sits next to the stable app, and it updates itself from the `kisui-terminal-nightly` pre-release. Open the `.dmg` the same way (with `kisui-terminal-nightly.app`).
 
-With Nix, the GUI is the `gui` package (`gui-nightly` for the nightly, installed as `shijimi-editor-gui-nightly`), or `programs.shijimi-editor.gui.enable = true;` in home-manager. A GUI built with Nix does not update itself; update it with `nix flake update` and `home-manager switch` (or `nix profile upgrade`).
+With Nix, kisui-terminal is the `kisui-terminal` package (`kisui-terminal-nightly` for the nightly, installed under the same name), or `programs.shijimi-editor.kisui-terminal.enable = true;` in home-manager (the old `programs.shijimi-editor.gui` still works but warns). A kisui-terminal built with Nix does not update itself; update it with `nix flake update` and `home-manager switch` (or `nix profile upgrade`).
 
 ```sh
-nix run github:mm1995tk/shijimi-editor/release#gui
-nix profile install github:mm1995tk/shijimi-editor/release#gui
-nix profile install github:mm1995tk/shijimi-editor#gui-nightly
+nix run github:mm1995tk/shijimi-editor/release#kisui-terminal
+nix profile install github:mm1995tk/shijimi-editor/release#kisui-terminal
+nix profile install github:mm1995tk/shijimi-editor#kisui-terminal-nightly
 ```
 
 ## Usage
@@ -333,18 +333,18 @@ How you open it decides what you compare with (the base). Pressing the same key 
 
 ## Development
 
-Use the Nix devShell (Go, gopls, gomod2nix, git, Node.js, Rust, and on Linux the WebView libraries for the GUI). With direnv, `.envrc` enters it automatically. Every command runs from the root of the repository: `go.mod`, `package.json` (the GUI's web UI) and `Cargo.toml` (a workspace with the GUI's Tauri shell, `ui/gui/app/src-tauri`) are all there.
+Use the Nix devShell (Go, gopls, gomod2nix, git, Node.js, Rust, and on Linux the WebView libraries for kisui-terminal). With direnv, `.envrc` enters it automatically. Every command runs from the root of the repository: `go.mod`, `package.json` (kisui-terminal's web UI) and `Cargo.toml` (a workspace with kisui-terminal's Tauri shell, `ui/gui/app/src-tauri`) are all there.
 
 ```sh
 nix develop            # or: direnv allow
 go test ./...
 go build ./cmd/shj
-npm ci                 # the GUI's web UI (once, and after package-lock.json changes)
+npm ci                 # kisui-terminal's web UI (once, and after package-lock.json changes)
 npm test
-go build -o target/dev/kisui ./cmd/kisui   # the GUI starts this kisui (SHIJIMI_KISUI)
-SHIJIMI_KISUI=$PWD/target/dev/kisui npm run tauri dev   # run the GUI (outside the devShell: nix run .#gui-dev)
-cargo test             # the GUI's Tauri shell
-nix flake check        # every check CI runs: formatting, go test, the GUI build and its tests
+go build -o target/dev/kisui ./cmd/kisui   # kisui-terminal starts this kisui (SHIJIMI_KISUI)
+SHIJIMI_KISUI=$PWD/target/dev/kisui npm run tauri dev   # run kisui-terminal (outside the devShell: nix run .#gui-dev)
+cargo test             # kisui-terminal's Tauri shell
+nix flake check        # every check CI runs: formatting, go test, kisui-terminal build and its tests
 scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
 ```
 
@@ -440,7 +440,7 @@ When the first argument is `diff` / `exec` / `command-end` / `skill`, it is trea
 
 When shijimi runs in a terminal multiplexer, `[experimental]` `multiplexer` is `true` in `config.toml` (the default is `true` in the nightly build and `false` in the stable build; the old key `herdr` is read as the same key) and the multiplexer is supported, ``Ctrl+` ``, `Space t`, `:sh`, `:sh <command>`, `:run` and `:!` use a pane of the multiplexer instead of the terminal panel. The multiplexer then detects the state of the agents run in the pane, notifies you and restores them.
 
-Which multiplexer is used is set by `multiplexer` in `[terminal]`: `"auto"` (default), `"herdr"`, `"tmux"`, `"zellij"`, `"cmux"`, `"gui"` or `"none"`. `"auto"` takes the GUI in the primary terminal of the shijimi-editor GUI (see the manual); otherwise it follows the parent processes of shijimi and takes the first multiplexer it finds, that is the innermost one when several are nested (for example tmux inside herdr); with none, the terminal panel is used. `"none"` always uses the terminal panel. herdr, tmux, zellij, cmux (macOS only) and the GUI are supported. Without a supported multiplexer, or with `multiplexer = false`, the terminal panel is used as before.
+Which multiplexer is used is set by `multiplexer` in `[terminal]`: `"auto"` (default), `"herdr"`, `"tmux"`, `"zellij"`, `"cmux"`, `"gui"` or `"none"`. `"auto"` takes the panes of kisui-terminal in its primary terminal (see the manual); otherwise it follows the parent processes of shijimi and takes the first multiplexer it finds, that is the innermost one when several are nested (for example tmux inside herdr); with none, the terminal panel is used. `"none"` always uses the terminal panel. herdr, tmux, zellij, cmux (macOS only) and kisui-terminal are supported. Without a supported multiplexer, or with `multiplexer = false`, the terminal panel is used as before.
 
 The rest of this section describes [herdr](https://herdr.dev) (`HERDR_ENV=1`); tmux is described at the end.
 
