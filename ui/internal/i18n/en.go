@@ -290,6 +290,7 @@ var en = map[string]string{
 	"mux.unsupported":          "[terminal] multiplexer = \"%s\" is not supported yet; using the built-in terminal",
 	"mux.unavailable":          "Not running in %s; using the built-in terminal",
 	"mux.guiname":              "the primary terminal of kisui-terminal",
+	"gui.protocol":             "kisui-terminal and shj versions do not match (shj speaks protocol %d, kisui-terminal accepts %d to %d)",
 	"hover.copybtn":            "[Copy]",
 	"hover.hint":               " ^D/^U scroll  y copy ",
 	"hover.hintcopy":           " y copy ",

@@ -85,8 +85,12 @@ func Main() {
 			os.Unsetenv(ctl.EnvGUIWorkspace)
 			// In the primary terminal of a GUI workspace, kisui serve is told.
 			// The GUI shows the file tree then, so this shj leaves its own out.
-			endPrimary, primary, reportFile, pane := ctlclient.AnnouncePrimary(cli.Suffix(), path)
+			endPrimary, primary, reportFile, pane, perr := ctlclient.AnnouncePrimary(cli.Suffix(), path)
 			app.SetTreeHidden(primary)
+			// A shj that kisui-terminal refuses for its version works like one in a pane that is not the primary.
+			if ve, ok := errors.AsType[*ctlclient.VersionError](perr); ok {
+				app.Info("gui.protocol", ctl.PrimaryProtocol, ve.Min, ve.Max)
+			}
 			// The GUI tree lights the row of the file this shj shows.
 			if primary {
 				app.SetFileReporter(reportFile)

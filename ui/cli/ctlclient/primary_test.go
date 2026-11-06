@@ -3,6 +3,7 @@ package ctlclient
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -46,7 +47,7 @@ func TestAnnouncePrimary(t *testing.T) {
 	}()
 
 	t.Setenv(ctl.EnvGUIPrimary, "t7")
-	end, primary, _, _ := AnnouncePrimary("", filepath.Join(dir, "1.sock"))
+	end, primary, _, _, _ := AnnouncePrimary("", filepath.Join(dir, "1.sock"))
 	if !primary {
 		t.Error("an accepted announcement is a primary")
 	}
@@ -73,7 +74,7 @@ func TestAnnouncePrimary(t *testing.T) {
 func TestAnnouncePrimaryWithoutEnv(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	t.Setenv(ctl.EnvGUIPrimary, "")
-	end, primary, report, _ := AnnouncePrimary("", "/x.sock")
+	end, primary, report, _, _ := AnnouncePrimary("", "/x.sock")
 	report("/ignored")
 	end()
 	if primary {
@@ -113,5 +114,44 @@ func TestPaneDo(t *testing.T) {
 	}
 	if err != nil || r.ID != "t5" {
 		t.Errorf("reply: %+v %v", r, err)
+	}
+}
+
+// kisui が版の範囲を理由に断ったら、VersionError で範囲を返す。名乗りには自分の版を載せる。
+func TestAnnouncePrimaryVersionRefused(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_RUNTIME_DIR", dir)
+	path, err := ctl.ServePrimarySocketPath("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	got := make(chan ctl.PrimaryHello, 1)
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		var h ctl.PrimaryHello
+		json.NewDecoder(bufio.NewReader(c)).Decode(&h)
+		got <- h
+		json.NewEncoder(c).Encode(ctl.PrimaryReply{Error: "x", Code: ctl.ReplyCodeVersion, Min: 3, Max: 4})
+	}()
+	t.Setenv(ctl.EnvGUIPrimary, "t7")
+	_, primary, _, _, err := AnnouncePrimary("", filepath.Join(dir, "1.sock"))
+	if primary {
+		t.Error("a refused announcement is not a primary")
+	}
+	var ve *VersionError
+	if !errors.As(err, &ve) || ve.Min != 3 || ve.Max != 4 {
+		t.Errorf("err = %v", err)
+	}
+	if h := <-got; h.Protocol != ctl.PrimaryProtocol {
+		t.Errorf("hello: %+v", h)
 	}
 }

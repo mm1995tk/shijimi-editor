@@ -154,13 +154,26 @@ func ServePrimarySocketPath(suffix string) (string, error) {
 	return filepath.Join(dir, ServePrimaryName), nil
 }
 
+// PrimaryProtocol is the version of the shj -> kisui protocol (PrimaryHello,
+// PrimaryFile, PrimaryReply, PaneRequest, PaneReply, the variables and the
+// socket) that this shj speaks. kisui-terminal owns the protocol; see
+// docs/design/kisui-shj-protocol.md for when the number goes up. A shj from
+// before the number existed sends none, which is version 0.
+const PrimaryProtocol = 1
+
+// ReplyCodeVersion is PrimaryReply.Code when the shj's protocol version is
+// outside the range that "kisui serve" accepts.
+const ReplyCodeVersion = "version"
+
 // PrimaryHello is the one line (newline-delimited JSON) a shj sends on the
 // primary socket. TermID is the value of EnvGUIPrimary, Socket is the shj's
-// own control socket and PID its process id.
+// own control socket and PID its process id. Protocol is the version of the
+// protocol the shj speaks (PrimaryProtocol); absent means 0.
 type PrimaryHello struct {
-	TermID string `json:"termId"`
-	Socket string `json:"socket"`
-	PID    int    `json:"pid"`
+	TermID   string `json:"termId"`
+	Socket   string `json:"socket"`
+	PID      int    `json:"pid"`
+	Protocol int    `json:"protocol,omitempty"`
 }
 
 // PrimaryFile is a line the shj sends on the primary socket after the reply
@@ -175,10 +188,15 @@ type PrimaryFile struct {
 // PrimaryReply answers a PrimaryHello with one line. When OK, the connection
 // stays open for as long as the shj runs, and "kisui serve" takes its close as
 // the end of the shj. When not OK (the primary already has a shj, the terminal
-// is not a primary one) the server closes the connection.
+// is not a primary one) the server closes the connection. Code is
+// ReplyCodeVersion when the version is the reason; Min and Max are then the
+// versions "kisui serve" accepts.
 type PrimaryReply struct {
 	OK    bool   `json:"ok"`
 	Error string `json:"error,omitempty"`
+	Code  string `json:"code,omitempty"`
+	Min   int    `json:"min,omitempty"`
+	Max   int    `json:"max,omitempty"`
 }
 
 // PaneRequest is the one line a shj that runs in the primary terminal of a GUI
