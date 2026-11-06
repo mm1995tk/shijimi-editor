@@ -272,6 +272,7 @@ function Workbench(props: {
     const f = untrack(focus);
     if (f && f.target === target && f.id === id) focusTerminal();
   }
+  const termActive = () => termGroup()?.active;
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
   const [treeVersion, setTreeVersion] = createSignal(0);
