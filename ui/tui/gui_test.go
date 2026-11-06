@@ -158,3 +158,30 @@ func TestGUIOpenVideo(t *testing.T) {
 		t.Fatalf("a refusal is an error on the status line: %q", a.Msg)
 	}
 }
+
+// :open-url in the primary shj asks the GUI for a browser pane, even over SSH; the other shj uses the opener.
+func TestGUIOpenURL(t *testing.T) {
+	a := newTestApp(t, "hello")
+	oldSSH := core.IsRemoteSession
+	core.IsRemoteSession = func() bool { return true }
+	defer func() { core.IsRemoteSession = oldSSH }()
+	var got []ctl.PaneRequest
+	var fail error
+	a.SetGUIPane(func(r ctl.PaneRequest) (ctl.PaneReply, error) {
+		got = append(got, r)
+		return ctl.PaneReply{OK: fail == nil, ID: "x1"}, fail
+	})
+	old := core.OpenExternal
+	core.OpenExternal = func(string) error { t.Fatal("the opener must not run in the GUI"); return nil }
+	defer func() { core.OpenExternal = old }()
+
+	runCmd(a, a.effectCmd(a.ExecCommand("open-url http://localhost:3000/x")...))
+	if len(got) != 1 || got[0].Op != "open" || got[0].Kind != "browser" || got[0].URL != "http://localhost:3000/x" || a.MsgErr {
+		t.Fatalf("request: %+v err %v %q", got, a.MsgErr, a.Msg)
+	}
+	fail = errors.New("too many panes")
+	runCmd(a, a.effectCmd(a.ExecCommand("open-url https://example.com")...))
+	if !a.MsgErr {
+		t.Fatalf("a refusal is an error on the status line: %q", a.Msg)
+	}
+}

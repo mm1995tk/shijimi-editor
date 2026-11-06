@@ -1320,6 +1320,7 @@ function Workbench(props: {
           extras={termExtras()}
           activeExtra={termActiveExtra()}
           readExtra={readExtra}
+          target={termTarget()}
           onActivateExtra={(x) => termGroup()?.activateExtra(x)}
           onCloseExtra={(x) => termGroup()?.closeExtra(x)}
           showAll={mode() === "terminal"}

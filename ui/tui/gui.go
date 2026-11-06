@@ -84,3 +84,8 @@ func (a *App) OpenVideo(path string) (bool, error) {
 	}
 	return true, a.mux.gui.openVideo(path)
 }
+
+func (g *guiBackend) openBrowser(url string) error {
+	_, err := g.do(ctl.PaneRequest{Op: "open", Kind: "browser", URL: url})
+	return err
+}
