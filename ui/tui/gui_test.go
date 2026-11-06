@@ -1,7 +1,9 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
@@ -124,5 +126,35 @@ func TestGUIPaneErrorsAndTail(t *testing.T) {
 	g = &guiBackend{do: f.do}
 	if l := g.tail("t1", 3); len(l) != 1 {
 		t.Fatalf("tail: %v", l)
+	}
+}
+
+// A video is not opened as text: the primary shj asks the GUI for a pane, and a failure is on the status line.
+func TestGUIOpenVideo(t *testing.T) {
+	a := newTestApp(t, "hello")
+	dir := t.TempDir()
+	mp4 := dir + "/a.mp4"
+	if err := os.WriteFile(mp4, []byte("not really a video"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if ok, _ := a.OpenVideo(mp4); ok {
+		t.Fatal("a shj without the GUI has no video view")
+	}
+	var got []ctl.PaneRequest
+	var fail error
+	a.SetGUIPane(func(r ctl.PaneRequest) (ctl.PaneReply, error) {
+		got = append(got, r)
+		return ctl.PaneReply{OK: fail == nil, ID: "x1"}, fail
+	})
+	n := len(a.Tabs)
+	if !a.OpenFile(mp4) || len(a.Tabs) != n {
+		t.Fatalf("a video opens in the GUI, not as a tab: %d tabs", len(a.Tabs))
+	}
+	if len(got) != 1 || got[0].Op != "open" || got[0].Kind != "video" || got[0].Path != mp4 {
+		t.Fatalf("request: %+v", got)
+	}
+	fail = errors.New("too many panes")
+	if a.OpenFile(mp4) || !a.MsgErr {
+		t.Fatalf("a refusal is an error on the status line: %q", a.Msg)
 	}
 }
