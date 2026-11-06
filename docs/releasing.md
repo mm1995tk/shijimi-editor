@@ -51,11 +51,26 @@
 
 ## release.yml がすること
 
-1. 入力 `ref` のコミット（空なら main の最新）が、main の上にあり、前のリリースより後のコミットであることを確かめます。後のジョブがビルドに使うファイル（`packaging/npm/pack.sh`・`package-lock.json`・`ui/gui/app/src-tauri/tauri.conf.json`）がそのコミットに無ければ、タグを打つ前に止めます。
+1. 入力 `ref` のコミット（空なら main の最新）が、main の上にあり、前のリリースより後のコミットであることを確かめます。後のジョブがビルドに使うファイル（`packaging/npm/pack.sh`・`package-lock.json`）がそのコミットに無ければ、タグを打つ前に止めます。
 2. そのコミットの `flake.nix` の `version` を上げてコミットし、タグ `vX.Y.Z` を打ちます。
 3. そのコミットを main にマージします（`ref` が main の最新なら早送り）。main・タグ・`release` ブランチを一緒に push します。main にマージするのは、main の `version` を上げ、次のリリースで `release` ブランチを早送りで進められるようにするためです。
 4. GitHub Release を作ります（リリースノートは前のリリースのタグからの自動生成）。
 5. OS と CPU ごとの `shj` をビルドし、npm に publish し、GitHub Release にも `shj-<os>-<cpu>` として置きます。
+
+GUI（kisui-terminal）はここでは作りません。shj の版も、GitHub の「Latest」の印も、GUI のリリースの影響を受けません（次の節）。
+
+## GUI のリリース（kisui-terminal）
+
+GUI は shj とは別の版・別のタイミングでリリースします（#581）。毎日のリリース判定は GUI を扱いません。
+
+- GUI の版は `ui/gui/app/src-tauri/Cargo.toml` の `version` です（shj の版は `flake.nix` の `version` で、別です）。GUI の最初のリリースは 0.1.0 で、アプリの名前と identifier を kisui-terminal に変えたあとに出します。それまで GUI のリリースは出しません。
+- 版を上げる手順：`Cargo.toml` の `version`（と、`Cargo.lock` の同じ行）を直す PR をマージします。そのあと、人が Actions の「GUI（kisui-terminal）のリリース」（`kisui-terminal-release.yml`）を main で起動します（`gh workflow run kisui-terminal-release.yml --ref main`。`ref` を空にすると main の最新）。このワークフローは版を書き換えません。同じ版のタグがもう別のコミットにあれば止まります。
+- Release のタグは `kisui-terminal-v<版>` です。`--latest=false` で作るので、GitHub の「Latest」の印は shj のリリースのままです。
+- そのコミットの shj（`flake.nix` の `version`）を同梱します。Release の説明に、GUI の版と同梱した shj の版を書きます。
+- 上がるもの：AppImage（Linux の x86_64 と aarch64）、署名なしの `.dmg`、`.app.tar.gz` とその `.sig`、リモートに入れる `kisui-<os>-<cpu>` と `shj-<os>-<cpu>`、`SHA256SUMS`、`latest.json`。ビルドと Release への upload は `gui-release.yml`（`kisui-terminal-release.yml` と `nightly.yml` から呼ぶ）です。ssh 先への kisui と shj の取得（`install.rs`）は、この Release から取ります。
+- 自動更新の確認先（Tauri の updater の `endpoints`）は、GUI のリリースだけを指す `https://github.com/mm1995tk/shijimi-editor/releases/download/kisui-terminal-latest/latest.json` です。`kisui-terminal-latest` は、GUI のリリースのたびに `latest.json` を置き換える pre-release で、ダウンロードするものはありません。`releases/latest/download/` は shj のリリースを指すことがあるので使いません。
+- 古い nightly の GUI（`releases/download/nightly/latest.json` を見ていたもの）は、`kisui-terminal-nightly` に移ったあと更新されなくなります。`kisui-terminal-nightly` から入れ直してください。
+- 古い版を出し直しても、`kisui-terminal-latest` の `latest.json` が古い版に戻ります。出し直しは、最新の版でだけ行います。
 
 ## nightly 版
 
@@ -65,6 +80,7 @@
 - Nix：`nix build .#shj-nightly`。`version` は `flake.nix` の `X.Y.Z` に `-nightly.<yyyymmdd>.<sha>` を付けたものです（`X.Y.Z` はまだ出ていない次のリリースの番号ではなく、`flake.nix` にある今の番号です）。`shj-nightly --version` は `vX.Y.Z-nightly (<sha>)` と出ます。
 - npm：`packaging/npm/pack.sh X.Y.Z-nightly.<yyyymmdd>.<sha> <dir>` で、本体のパッケージ `shijimi-editor-nightly`（コマンドは `shj-nightly` と `shijimi-nightly`）と、OS / CPU ごとのパッケージ（名前は安定版と同じ `shijimi-editor-<os>-<cpu>`、版だけ nightly の版）の tarball ができます。
 - 毎日ビルドして配るのは `nightly.yml`（次の節）です。
+- GUI の nightly も別です。pre-release `kisui-terminal-nightly`（毎回作り直します）に、`kisui-terminal-nightly` の AppImage・`.dmg`・`latest.json`、リモートに入れる `kisui-nightly-<os>-<cpu>` と `shj-nightly-<os>-<cpu>`、`SHA256SUMS` を置きます。版は `<Cargo.toml の version>-nightly.<yyyymmdd>.<sha>` で、同梱する shj は nightly の shj（`<flake.nix の version>-nightly.…`）です。shj の pre-release `nightly` には shj だけを置きます。
 
 ### nightly.yml がすること
 
@@ -74,6 +90,8 @@
 2. pre-release `nightly` の本文の `Commit: <sha>` を読み、main のコミットが前の nightly から進んでいなければ、何もせずに成功します（`workflow_dispatch` の `force` を `true` にすると、進んでいなくても作り直します）。
 3. `packaging/npm/pack.sh` で OS と CPU ごとの `shj-nightly` をビルドし、npm に publish します。`shijimi-editor-<os>-<cpu>` は安定版と共有なので `--tag nightly` で publish し、`latest` は動かしません。`shijimi-editor-nightly` は nightly 専用なので `--tag latest` で publish し、`npm install -g shijimi-editor-nightly` が毎回の nightly の版を入れるようにします。dist-tag `nightly` は `shijimi-editor-nightly` では使いません（`npm dist-tag add` は Trusted Publishing では認証できないため。過去に付いた古い `nightly` タグは `npm dist-tag rm shijimi-editor-nightly nightly` で手で消します）。認証は `release.yml` と同じ Trusted Publishing（OIDC）で、npm 側で `nightly.yml` を `shijimi-editor-nightly` と `shijimi-editor-<os>-<cpu>` の Trusted Publisher に登録しておく必要があります（`release.yml` の登録とは別です）。
 4. pre-release `nightly` を作り直します（タグ `nightly` をそのコミットに付け直し、`shj-nightly-<os>-<cpu>` を assets に置き、本文に版・コミット・日付を書きます）。
+
+   GUI の nightly は同じコミットから `gui-release.yml` で別に作ります（上の「GUI の nightly も別です」）。shj の pre-release とは順番に縛られません。
 
 ## 止める・変える
 

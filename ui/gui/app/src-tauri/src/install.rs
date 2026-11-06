@@ -2,7 +2,7 @@
 //!
 //! 信頼の境目（ここを変えるときは設計書と PR の説明を読み直す）:
 //!  - 呼ぶ前に、画面がユーザーに聞く。ここは聞かない（聞かずに呼ばれないことは画面側が守る）。
-//!  - 入れる先は `~/.cache/shijimi-editor/<GUI の版>/` の `kisui` と、同じ版の `shj`（欄の中で先に使う。kisui が隣の shj を PATH の先頭に足す）だけ。PATH の `kisui` には触らない。
+//!  - 入れる先は `~/.cache/kisui-terminal/<GUI の版>/` の `kisui` と、同じ版の `shj`（欄の中で先に使う。kisui が隣の shj を PATH の先頭に足す）だけ。PATH の `kisui` には触らない。
 //!  - 取ってくるのは GitHub Releases の固定の URL（`https` のみ、リダイレクトも `https` のみ）。
 //!  - 取った実行ファイルは、同じ Release の `SHA256SUMS` の値と合わなければ、ssh を起動する前に捨てる。
 //!  - 送ったあと、リモートで SHA-256 を計り直し、同じ値のときだけ実行できる名前にする（合わなければ消す）。
@@ -63,12 +63,13 @@ fn is_nightly(version: &str) -> bool {
     version.contains("-nightly")
 }
 
-/// Release のタグ。安定版は `v<版>`、nightly 版は動くタグ `nightly`。
+/// GUI の Release のタグ。安定版は `kisui-terminal-v<版>`、nightly 版は動くタグ `kisui-terminal-nightly`。
+/// shj のリリース（`v<版>`、`nightly`）とは別で、kisui と shj は GUI の Release から取る（#581）。
 fn release_tag(version: &str) -> String {
     if is_nightly(version) {
-        "nightly".to_string()
+        "kisui-terminal-nightly".to_string()
     } else {
-        format!("v{version}")
+        format!("kisui-terminal-v{version}")
     }
 }
 
@@ -377,8 +378,11 @@ mod tests {
         assert!(!valid_version("-x"));
         assert!(!valid_version("1.0\"; rm -rf ~; \""));
         assert!(!valid_version("a/b"));
-        assert_eq!(release_tag("0.7.0"), "v0.7.0");
-        assert_eq!(release_tag("0.7.0-nightly.20261101.abc1234"), "nightly");
+        assert_eq!(release_tag("0.7.0"), "kisui-terminal-v0.7.0");
+        assert_eq!(
+            release_tag("0.7.0-nightly.20261101.abc1234"),
+            "kisui-terminal-nightly"
+        );
     }
 
     #[test]
@@ -422,11 +426,11 @@ mod tests {
     fn urls_are_fixed_to_the_repo() {
         assert_eq!(
             asset_url("0.7.0", "kisui-linux-x64"),
-            "https://github.com/mm1995tk/shijimi-editor/releases/download/v0.7.0/kisui-linux-x64"
+            "https://github.com/mm1995tk/shijimi-editor/releases/download/kisui-terminal-v0.7.0/kisui-linux-x64"
         );
         assert_eq!(
             asset_url("0.7.0-nightly.1.a", CHECKSUMS_NAME),
-            "https://github.com/mm1995tk/shijimi-editor/releases/download/nightly/SHA256SUMS"
+            "https://github.com/mm1995tk/shijimi-editor/releases/download/kisui-terminal-nightly/SHA256SUMS"
         );
     }
 
@@ -476,7 +480,7 @@ mod tests {
         let s = remote_script("0.7.0", "kisui", H);
         assert!(!s.contains('\''));
         assert!(s.contains(&format!("\"$h\" != \"{H}\"")));
-        assert!(s.contains("$HOME/.cache/shijimi-editor/0.7.0"));
+        assert!(s.contains("$HOME/.cache/kisui-terminal/0.7.0"));
         // 実行できる名前に変えるのは、比べたあと
         assert!(s.find("exit 98").unwrap() < s.find("mv -f").unwrap());
         // PATH の kisui には触らない
@@ -486,7 +490,7 @@ mod tests {
         let s = remote_script("0.7.0", "shj", H);
         assert!(!s.contains('\''));
         assert!(s.contains("$d/.shj.$$") && s.contains("\"$d/shj\""));
-        assert!(!s.contains("kisui"));
+        assert!(!s.contains("\"$d/kisui\"") && !s.contains(".kisui."));
     }
 
     #[test]

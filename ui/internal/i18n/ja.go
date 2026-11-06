@@ -289,7 +289,7 @@ var ja = map[string]string{
 	"mux.failed":               "%s のコマンドが失敗しました: %w",
 	"mux.unsupported":          "[terminal] multiplexer = \"%s\" にはまだ対応していません。内蔵ターミナルを使います",
 	"mux.unavailable":          "%s の中ではないので、内蔵ターミナルを使います",
-	"mux.guiname":              "GUI のプライマリターミナル",
+	"mux.guiname":              "kisui-terminal のプライマリターミナル",
 	"hover.copybtn":            "[コピー]",
 	"hover.hint":               " ^D/^U スクロール  y コピー ",
 	"hover.hintcopy":           " y コピー ",
