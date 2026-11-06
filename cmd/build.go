@@ -4,7 +4,6 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/config"
 	"github.com/mm1995tk/shijimi-editor/ui/cli"
-	guicfg "github.com/mm1995tk/shijimi-editor/ui/gui/config"
 	tuicfg "github.com/mm1995tk/shijimi-editor/ui/tui/config"
 )
 
@@ -20,11 +19,11 @@ func coreBuild() core.Build {
 }
 
 // configOptions is what the configuration is told about this build: the
-// directory, and the settings of the UIs (the one `shj` runs is one of them,
-// and `kisui serve` another; all are accepted in every file).
+// directory, and the settings of the UIs (with the keys of kisui-terminal,
+// which reads the same file; all are accepted in every file).
 func configOptions() config.Options {
 	return config.Options{
 		DirSuffix: cli.Suffix(),
-		Sections:  []config.Section{cli.Section, tuicfg.Section(cli.IsNightly()), guicfg.Section},
+		Sections:  []config.Section{cli.Section, tuicfg.Section(cli.IsNightly())},
 	}
 }

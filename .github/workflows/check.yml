@@ -3,9 +3,6 @@ name: 検査
 # flake の checks（nix flake check）を Linux と macOS で回す。手元の nix flake check と同じもの:
 #   formatting   … nix fmt で差分が出ない
 #   go-test      … go test ./...（Linux だけ。macOS は devShell の中で go test ./... を回す）
-#   gui          … nix build .#kisui-terminal（殻の cargo test も回る）
-#   gui-web-test … Web 画面の npm test
-# 自動更新（feature updater）を付けた殻は Nix の版に無いので、devShell の中で別に確かめる。
 #
 # Nix store は GitHub Actions のキャッシュに残し、依存を毎回ビルドし直さないようにする。キーは依存を決める
 # ファイル（*.nix・flake.lock・各ロックファイル）のハッシュ。保存するのは main の push だけで、PR は main の
@@ -40,7 +37,7 @@ jobs:
       - uses: cachix/install-nix-action@v31.11.3
       - uses: nix-community/cache-nix-action@v7.0.2
         with:
-          primary-key: nix-check-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'gomod2nix.toml', 'package-lock.json', 'Cargo.lock') }}
+          primary-key: nix-check-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'gomod2nix.toml') }}
           restore-prefixes-first-match: nix-check-${{ runner.os }}-
           save: ${{ github.event_name == 'push' }}
           purge: ${{ github.event_name == 'push' }}
@@ -54,23 +51,3 @@ jobs:
       - name: go test ./...（macOS）
         if: runner.os == 'macOS'
         run: nix develop --command go test ./...
-
-  # 自動更新を付けた殻。配る版（gui-release.yml）はこれを tauri build で作る
-  updater:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7.0.1
-      - uses: cachix/install-nix-action@v31.11.3
-      - uses: nix-community/cache-nix-action@v7.0.2
-        with:
-          primary-key: nix-updater-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'gomod2nix.toml', 'package-lock.json', 'Cargo.lock') }}
-          restore-prefixes-first-match: nix-updater-${{ runner.os }}-
-          save: ${{ github.event_name == 'push' }}
-          purge: ${{ github.event_name == 'push' }}
-          purge-prefixes: nix-updater-${{ runner.os }}-
-          purge-created: 0
-          purge-primary-key: never
-      - name: Web 画面を作る（殻が埋め込む）
-        run: nix develop --command bash -c 'npm ci && npm run build'
-      - name: cargo build --features updater
-        run: nix develop --command cargo build --locked -p kisui-terminal --features custom-protocol,updater

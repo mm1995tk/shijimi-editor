@@ -6,8 +6,6 @@ name: nightly 版を配る
 #   `latest` には触らない。nightly 専用の shijimi-editor-nightly は `latest` だけを今回の版に合わせる（#260）。dist-tag `nightly` は使わない。
 # - GitHub：`nightly` という名前の pre-release を 1 つ持ち、毎回その assets（shj-nightly-<os>-<cpu>）と
 #   本文（版・コミット・日付）を差し替える。
-# - GUI：kisui-terminal-nightly の AppImage と .dmg、自動更新の latest.json を、別の pre-release `kisui-terminal-nightly` に上げる
-#   （gui-release.yml。GUI の版は shj とは別で、nightly の shj を同梱する。#581）。
 # - 前の nightly から main にコミットが無ければ何もしない（workflow_dispatch の force で作り直せる）。
 #
 # 版は X.Y.Z-nightly.<yyyymmdd>.<sha>。X.Y.Z は flake.nix の version で、flake.nix は書き換えない。
@@ -37,7 +35,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.ver.outputs.version }}
-      gui_version: ${{ steps.ver.outputs.gui_version }}
       skip: ${{ steps.ver.outputs.skip }}
     steps:
       - name: main 以外では実行しない
@@ -66,13 +63,6 @@ jobs:
           sha=$(git rev-parse --short HEAD)
           version="$base-nightly.$date.$sha"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          # GUI（kisui-terminal）の版は shj とは別で、Cargo.toml にある（#581）
-          gui_base=$(sed -n 's/^version = "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p' ui/gui/app/src-tauri/Cargo.toml | head -1)
-          if [ -z "$gui_base" ]; then
-            echo "::error::ui/gui/app/src-tauri/Cargo.toml から X.Y.Z 形式の version を読めませんでした"
-            exit 1
-          fi
-          echo "gui_version=$gui_base-nightly.$date.$sha" >> "$GITHUB_OUTPUT"
 
           # 前の nightly のコミットは pre-release の本文の「Commit: <sha>」から読む。
           # pre-release が無い（最初の実行・手で消した）ときは作る
@@ -181,10 +171,11 @@ jobs:
             platform="${platform#shijimi-editor-}"
             tar -xzf "$f" -O package/bin/shj > "assets/shj-nightly-$platform"
           done
-          # 取ったあとに値を確かめられるよう、checksums（sha256sum の形式）も置く。GUI が入れる kisui と shj は GUI の nightly にある（gui-release.yml）
+          # 取ったあとに値を確かめられるよう、checksums（sha256sum の形式）も置く。kisui-terminal が ssh 先に入れる shj は kisui-terminal の nightly にある（mm1995tk/kisui-terminal）
           (cd assets && sha256sum shj-nightly-* > SHA256SUMS)
           date=$(date -u +%Y-%m-%d)
-          # check ジョブは本文の「Commit: <sha>」の行で前の nightly を見分けるので、形を変えない
+          # check ジョブは本文の「Commit: <sha>」の行で前の nightly を見分け、kisui-terminal の nightly.yml は
+          # 「- Version: `…`」の行で同梱する shj の版を読むので、形を変えない
           {
             echo "main の最新を nightly 版として毎日ビルドしたものです。安定版は [Releases](https://github.com/$GITHUB_REPOSITORY/releases/latest) を見てください。"
             echo
@@ -208,20 +199,3 @@ jobs:
             --prerelease \
             --title "nightly ($VERSION)" \
             --notes-file notes.md
-
-  # GUI（kisui-terminal-nightly）の AppImage と署名なしの .dmg、同梱する kisui と nightly の shj、自動更新の latest.json を、
-  # GUI 専用の pre-release kisui-terminal-nightly に上げる（gui-release.yml）。shj の pre-release nightly とは別で、順番に縛られない
-  gui:
-    needs: check
-    if: needs.check.outputs.skip != 'true'
-    permissions:
-      contents: write
-    uses: ./.github/workflows/gui-release.yml
-    with:
-      version: ${{ needs.check.outputs.gui_version }}
-      shj_version: ${{ needs.check.outputs.version }}
-      tag: kisui-terminal-nightly
-      ref: ${{ github.sha }}
-      channel: nightly
-    secrets:
-      OP_SERVICE_ACCOUNT_TOKEN_RELEASE: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN_RELEASE }}

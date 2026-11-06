@@ -46,20 +46,7 @@ npx shijimi-editor-nightly              # 入れずにその場で起動
 
 ### kisui-terminal
 
-kisui-terminal は、shijimi-editor と強く連携する別のアプリです。窓を欄に分け、欄にターミナル（その中で `shj`）・動画・ブラウザ・ファイルツリーを置きます。`shj` とは別の版で、別にリリースしています。[`kisui-terminal-v<版>` の Release](https://github.com/mm1995tk/shijimi-editor/releases)（タグは `kisui-terminal-v<版>`。GitHub の「Latest」の印は `shj` のリリースのままです）に Linux 用の AppImage（`kisui-terminal-linux-x86_64.AppImage`、`kisui-terminal-linux-aarch64.AppImage`）と macOS 用の `.dmg`（`kisui-terminal-macos-universal.dmg`。Apple シリコンと Intel の両方で動きます）として置いています。AppImage と `.dmg` は自分で更新します。新しいリリースが出るとアプリが知らせ、ボタンを押すと入れ替えます。アプリにはその版に対応する `shj` が入っていて（Release の説明に版を書いています）、欄の中の `shj` はそれが動きます（`PATH` の先頭に置きます。自分で入れた `shj` の版には左右されません）。ssh 先でも、`kisui` の隣のキャッシュに同じ版の `shj` を入れます。
-
-- **AppImage**：`chmod +x kisui-terminal-linux-*.AppImage` してから起動します。
-- **`.dmg`**：Apple の署名が無いので、macOS は初回に開くのを断ります。`kisui-terminal.app` をアプリケーションに入れて 1 度開き（「確認できません」と出たら閉じます）、**システム設定 → プライバシーとセキュリティ** で `kisui-terminal` についての表示の横にある **このまま開く** を押します。次からは普通に開けます。代わりに、ターミナルで隔離の印を外しても開けます：`xattr -dr com.apple.quarantine /Applications/kisui-terminal.app`。
-
-nightly 版の kisui-terminal は `kisui-terminal-nightly` で、[`kisui-terminal-nightly` の pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/kisui-terminal-nightly) に置いています（`kisui-terminal-nightly-linux-x86_64.AppImage`、`kisui-terminal-nightly-macos-universal.dmg` など）。名前が別なので普通の版と並べて入れられ、`kisui-terminal-nightly` の pre-release から自分で更新します。`.dmg` の開き方は同じです（`kisui-terminal-nightly.app` で）。
-
-Nix では、kisui-terminal はパッケージ `kisui-terminal`（nightly 版は `kisui-terminal-nightly`。同じ名前で入ります）か、home-manager の `programs.shijimi-editor.kisui-terminal.enable = true;` で入れます（古い `programs.shijimi-editor.gui` も、警告つきで今は動きます）。Nix で作った kisui-terminal は自分では更新しません。`nix flake update` と `home-manager switch`（か `nix profile upgrade`）で更新します。
-
-```sh
-nix run github:mm1995tk/shijimi-editor/release#kisui-terminal
-nix profile install github:mm1995tk/shijimi-editor/release#kisui-terminal
-nix profile install github:mm1995tk/shijimi-editor#kisui-terminal-nightly
-```
+[kisui-terminal](https://github.com/mm1995tk/kisui-terminal) は、shijimi-editor と強く連携する別のアプリです。窓を欄に分け、欄にターミナル（その中で `shj`）・動画・ブラウザ・ファイルツリーを置きます。リポジトリも版もリリースも別で、組み合わせを確かめた版の `shj` を同梱しています（欄の中ではその `shj` が先に動きます。自分で入れた `shj` の版には左右されません）。入れ方は kisui-terminal の README に、kisui-terminal の中での `shj` の動きは[マニュアル](https://mm1995tk.github.io/shijimi-editor/manual/ja/terminal/)にあります。
 
 ## 使い方
 
@@ -331,18 +318,13 @@ mermaid の図は [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mm
 
 ## 開発
 
-Nix の devShell（Go・gopls・gomod2nix・git・Node.js・Rust。Linux では kisui-terminal 用の WebView のライブラリも）を使います。direnv があれば `.envrc` で自動で入ります。コマンドはどれもリポジトリの根で動かします。`go.mod`、`package.json`（kisui-terminal の Web 画面）、`Cargo.toml`（kisui-terminal の Tauri の殻 `ui/gui/app/src-tauri` を持つ workspace）はどれも根にあります。
+Nix の devShell（Go・gopls・gomod2nix・git。npm のパッケージを作るための Node.js も）を使います。direnv があれば `.envrc` で自動で入ります。コマンドはどれもリポジトリの根で動かします。
 
 ```sh
 nix develop            # または direnv allow
 go test ./...
 go build ./cmd/shj
-npm ci                 # kisui-terminal の Web 画面（最初と、package-lock.json が変わったとき）
-npm test
-go build -o target/dev/kisui ./cmd/kisui   # kisui-terminal が起動する kisui（SHIJIMI_KISUI）
-SHIJIMI_KISUI=$PWD/target/dev/kisui npm run tauri dev   # kisui-terminal を動かす（devShell の外では nix run .#gui-dev）
-cargo test             # kisui-terminal の Tauri の殻
-nix flake check        # CI が回す検査を全部（整形・go test・kisui-terminal のビルドとテスト）
+nix flake check        # CI が回す検査を全部（整形と go test）
 scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
 ```
 

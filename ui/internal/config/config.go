@@ -1,4 +1,4 @@
-// Package config holds the setting that the TUI and the GUI share and the
+// Package config holds the setting that the UIs share and the
 // core does not read: the language of the UI text. (How things look that the
 // core draws with, such as line numbers and the theme, are the core's own
 // settings: core/config.) A UI registers Section with core/config's
@@ -25,12 +25,13 @@ func Default() *Settings {
 	return &Settings{UILanguage: i18n.Default}
 }
 
-// Section is what the UI registers in config.Options.Sections.
+// Section is what the UI registers in config.Options.Sections. It also
+// declares the keys of kisui-terminal (kisui.go), which reads the same file.
 var Section = config.Section{
 	Name: Name,
-	Schema: map[string]config.Field{
+	Schema: withKisui(map[string]config.Field{
 		"ui-language": config.String.Check(checkUILanguage),
-	},
+	}),
 	New: func() config.Value { return Default() },
 }
 
