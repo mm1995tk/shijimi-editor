@@ -91,12 +91,15 @@
             inherit pkgs version;
             # The kisui of the same build, so the GUI and its server always match.
             kisui = "${appDrv}/bin/kisui";
+            # And its shj, which the terminals in the panes use first.
+            shj = "${appDrv}/bin/shj";
           };
           # The nightly GUI (shijimi-editor-nightly), installed as shijimi-editor-gui-nightly.
           guiNightlyDrv = import ./packaging/nix/gui.nix {
             inherit pkgs;
             version = nightlyVersion;
             kisui = "${nightlyDrv}/bin/kisui-nightly";
+            shj = "${nightlyDrv}/bin/shj-nightly";
             channel = "nightly";
           };
 
