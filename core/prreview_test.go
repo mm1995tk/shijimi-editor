@@ -445,3 +445,20 @@ func TestCardOverlay(t *testing.T) {
 		t.Errorf("first row = %q, want the author", got)
 	}
 }
+
+// While the comment editor is open, key releases are not asked for: a
+// terminal that reports them loses the text an IME commits with Enter.
+func TestComposerAsksNoKeyReleases(t *testing.T) {
+	a, _ := prApp(t)
+	a.Helix, a.Mode = true, ModeNormal
+	if !a.WantKeyReleases() {
+		t.Skip("releases are not asked for in this editor state")
+	}
+	a.ReviewKey("S")
+	if a.Composer == nil {
+		t.Fatal("no editor for the review body")
+	}
+	if a.WantKeyReleases() {
+		t.Error("key releases asked for while composing")
+	}
+}
