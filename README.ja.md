@@ -46,7 +46,7 @@ npx shijimi-editor-nightly              # 入れずにその場で起動
 
 ### GUI
 
-GUI（アプリ `shijimi-editor`）は、各 [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases/latest) に Linux 用の AppImage（`shijimi-editor-linux-x86_64.AppImage`、`shijimi-editor-linux-aarch64.AppImage`）と macOS 用の `.dmg`（`shijimi-editor-macos-universal.dmg`。Apple シリコンと Intel の両方で動きます）として置いています。AppImage と `.dmg` は自分で更新します。新しいリリースが出るとアプリが知らせ、ボタンを押すと入れ替えます。
+GUI（アプリ `shijimi-editor`）は、各 [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases/latest) に Linux 用の AppImage（`shijimi-editor-linux-x86_64.AppImage`、`shijimi-editor-linux-aarch64.AppImage`）と macOS 用の `.dmg`（`shijimi-editor-macos-universal.dmg`。Apple シリコンと Intel の両方で動きます）として置いています。AppImage と `.dmg` は自分で更新します。新しいリリースが出るとアプリが知らせ、ボタンを押すと入れ替えます。アプリには組み合わせを確かめた `shj` が入っていて、欄の中の `shj` はそれが動きます（`PATH` の先頭に置きます。自分で入れた `shj` の版には左右されません）。ssh 先でも、`kisui` の隣のキャッシュに同じ版の `shj` を入れます。
 
 - **AppImage**：`chmod +x shijimi-editor-linux-*.AppImage` してから起動します。
 - **`.dmg`**：Apple の署名が無いので、macOS は初回に開くのを断ります。`shijimi-editor.app` をアプリケーションに入れて 1 度開き（「確認できません」と出たら閉じます）、**システム設定 → プライバシーとセキュリティ** で `shijimi-editor` についての表示の横にある **このまま開く** を押します。次からは普通に開けます。代わりに、ターミナルで隔離の印を外しても開けます：`xattr -dr com.apple.quarantine /Applications/shijimi-editor.app`。
