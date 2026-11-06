@@ -127,3 +127,17 @@ func TestShellIntegrationUnsupportedShell(t *testing.T) {
 		t.Fatalf("args=%v env=%v", args, env)
 	}
 }
+
+// ユーザーの .zshenv が ZDOTDIR を設定する（XDG 配置）ときも、その ZDOTDIR の .zshrc が読まれる。
+func TestShellIntegrationZshZDOTDIRFromZshenv(t *testing.T) {
+	home, bundled, other := setupShellTest(t)
+	zd := filepath.Join(home, ".config", "zsh")
+	writeFile(t, filepath.Join(home, ".zshenv"), "export ZDOTDIR="+zd+"\n")
+	writeFile(t, filepath.Join(home, ".zshrc"), "echo WRONG_HOME_ZSHRC\n")
+	writeFile(t, filepath.Join(zd, ".zshrc"), "export PATH="+other+":$PATH\nalias hello='echo hi'\n")
+	got := runBundledShell(t, "zsh", home, "whence -p shj; alias hello; echo ZD=$ZDOTDIR")
+	want := filepath.Join(bundled, "shj") + "\nhello='echo hi'\nZD=" + zd
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}

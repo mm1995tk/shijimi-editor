@@ -1,4 +1,5 @@
-# kisui-terminal が書き出した、ユーザーの ~/.bashrc を読むための包み。ユーザーのファイルは書き換えない。
+# kisui-terminal が書き出した、ユーザーの ~/.bashrc を読むための包み（--rcfile で /etc/bash.bashrc が読まれなくなるので、それも読む）。ユーザーのファイルは書き換えない。
+[ -r /etc/bash.bashrc ] && . /etc/bash.bashrc
 [ -r "$HOME/.bashrc" ] && . "$HOME/.bashrc"
 # 同梱の shj のフォルダを PATH の先頭に入れ直す（ユーザーの起動ファイルが入れた別の shj より先にする）
 if [ -n "$KISUI_SHJ_PATH_DIR" ]; then

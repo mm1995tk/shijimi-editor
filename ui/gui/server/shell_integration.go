@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -32,7 +33,7 @@ func bundledShell(sh string, env []string) (args, outEnv []string) {
 		return nil, env
 	}
 	env = prependPath(env, dir)
-	env = append(env, envShjPathDir+"="+dir)
+	withDir := append(slices.Clone(env), envShjPathDir+"="+dir) // 包みが使う
 
 	switch filepath.Base(sh) {
 	case "zsh":
@@ -40,6 +41,7 @@ func bundledShell(sh string, env []string) (args, outEnv []string) {
 		if err != nil {
 			return nil, env
 		}
+		env = withDir
 		// 元の ZDOTDIR を預け、ZDOTDIR を kisui の包みに向ける。包みが元の ZDOTDIR の起動ファイルを読む。
 		return nil, append(env, envOrigZDOTDIR+"="+lookupEnv(env, "ZDOTDIR"), "ZDOTDIR="+filepath.Join(root, "zsh"))
 	case "bash":
@@ -47,10 +49,11 @@ func bundledShell(sh string, env []string) (args, outEnv []string) {
 		if err != nil {
 			return nil, env
 		}
+		env = withDir
 		return []string{"--rcfile", filepath.Join(root, "bash", "bashrc")}, env
 	case "fish":
 		// -C は config.fish を読んだあとに実行される
-		return []string{"-C", `set -gx PATH $` + envShjPathDir + ` (string match -v -- $` + envShjPathDir + ` $PATH)`}, env
+		return []string{"-C", `set -gx PATH $` + envShjPathDir + ` (string match -v -- $` + envShjPathDir + ` $PATH)`}, withDir
 	}
 	return nil, env
 }
