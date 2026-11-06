@@ -30,10 +30,11 @@ export class OsClipboard {
     this.onError = onError;
   }
 
-  /** text を OS のクリップボードに入れる。断られたら覚えておく。 */
-  async write(text: string): Promise<void> {
+  /** text を OS のクリップボードに入れる。断られたら覚えておく。書けたら true。 */
+  async write(text: string): Promise<boolean> {
     this.pending = text;
     await this.flush();
+    return this.pending !== text;
   }
 
   /** 書けていない文字（OS のクリップボードより新しい）。無ければ undefined。 */

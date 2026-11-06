@@ -38,6 +38,7 @@ import { RenameMachine } from "./connect/RenameMachine.tsx";
 import { describeClient, statusLine } from "./connect/status.ts";
 import { UpdateBar } from "./update/UpdateBar.tsx";
 import { OsClipboard } from "./clipboard.ts";
+import { CopiedToast, copiedNotice } from "./CopiedToast.tsx";
 import {
   applyMove,
   litBorders,
@@ -736,6 +737,11 @@ function Workbench(props: {
     dir: boolean;
   } | null>(null);
 
+  /** OS のクリップボードに入れ、書けたときだけ「コピーしました」を出す。 */
+  async function copyToClipboard(text: string) {
+    if (await clipboard.write(text)) copiedNotice.show();
+  }
+
   /** ツリーの行のメニューで項目を選んだ。コピーと cd はすぐ、新規・名前の変更・削除は窓を出す。 */
   function treeAction(
     target: string,
@@ -747,13 +753,13 @@ function Workbench(props: {
     if (root === undefined) return;
     switch (action) {
       case "copy-name":
-        void clipboard.write(row.name);
+        void copyToClipboard(row.name);
         break;
       case "copy-relative":
-        void clipboard.write(row.path);
+        void copyToClipboard(row.path);
         break;
       case "copy-absolute":
-        void clipboard.write(absolutePath(root, row.path));
+        void copyToClipboard(absolutePath(root, row.path));
         break;
       case "cd":
         void sendCd(target, id, absolutePath(root, row.path));
@@ -1203,6 +1209,7 @@ function Workbench(props: {
       <AskpassDialog ask={asks()[0]} onReply={reply} />
       <ClipboardDialog />
       <TransferDialog />
+      <CopiedToast />
       <Notices notices={notices()}>
         <UpdateBar />
       </Notices>

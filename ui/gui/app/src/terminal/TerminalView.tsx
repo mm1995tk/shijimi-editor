@@ -7,11 +7,13 @@ import {
   type JSX,
 } from "solid-js";
 
+import { copiedNotice } from "../CopiedToast.tsx";
 import { monoFontsReady } from "../fonts.ts";
 import type { TermLink, TermSink } from "./link.ts";
 import { planWrite, readableMimes, supportsLocation } from "./clipboard.ts";
 import { availableOs, readFirstOs, writeOs } from "./clipboardOs.ts";
 import { askClipboardRead } from "./clipboardPrompt.ts";
+import { copyAndNotify, SelectionCopy } from "./selectionCopy.ts";
 import { createTransfer } from "./transfer.ts";
 import { tauriTransferOs } from "./transferOs.ts";
 import { askTransfer } from "./transferPrompt.ts";
@@ -243,24 +245,21 @@ export function TerminalView(props: {
   // マウスで文字を選び終えた（離した）瞬間に、OS のクリップボードへ入れる（Cmd+C は使わない）。
   // この欄で押したときだけ見る。プログラムがマウスを受けている間は選択が変わらないので、何もしない
   // 押している間に選択が変わったときだけ入れる（前からある選択を、右クリックなどの離したときに入れ直さない）
-  let pressedHere = false;
-  let selectionChanged = false;
-  term.onSelectionChange(() => {
-    if (pressedHere) selectionChanged = true;
-  });
-  const onPress = () => {
-    pressedHere = true;
-    selectionChanged = false;
-  };
+  const selection = new SelectionCopy();
+  term.onSelectionChange(() => selection.selectionChanged());
+  const onPress = () => selection.press();
   const onRelease = () => {
-    if (!pressedHere) return;
-    pressedHere = false;
-    if (!selectionChanged) return;
+    if (!selection.release()) return;
     // coneko-term も同じ mouseup で選択を確定するので、そのあとに読む
     setTimeout(() => {
       if (!term.hasSelection()) return;
       const text = term.getSelection();
-      if (text) void writeOs({ kind: "text", text }).catch(() => {});
+      if (text) {
+        void copyAndNotify(
+          () => writeOs({ kind: "text", text }),
+          () => copiedNotice.show(),
+        );
+      }
     }, 0);
   };
 
