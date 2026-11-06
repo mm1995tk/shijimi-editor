@@ -78,3 +78,17 @@ func placeholderView(l *core.InputField, st inputStyle) string {
 	}
 	return caretCell(l, st, st.placeholder, first) + st.placeholder.Inline(true).Render(rest)
 }
+
+// withCaret draws s in base with the character at cell x drawn in caret, or a
+// blank caret cell after s when x is past its end.
+func withCaret(s string, x int, base, caret lipgloss.Style) string {
+	w := 0
+	for i, r := range s {
+		if w >= x {
+			c := string(r)
+			return base.Inline(true).Render(s[:i]) + caret.Inline(true).Render(c) + base.Inline(true).Render(s[i+len(c):])
+		}
+		w += ansi.StringWidth(string(r))
+	}
+	return base.Inline(true).Render(s) + caret.Inline(true).Render(" ")
+}

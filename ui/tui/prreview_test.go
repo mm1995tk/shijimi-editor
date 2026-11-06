@@ -70,7 +70,7 @@ func TestCommentOnLines(t *testing.T) {
 		t.Errorf("suggestion block: %q", v)
 	}
 	a.Composer.Ta.SetValue("見てください")
-	a.HandleComposerKey(core.Key{Code: KeyEnter})
+	a.HandleComposerKey(core.Key{Code: KeyEnter, Mod: core.ModCtrl})
 	if a.Composer != nil || len(a.Gd.Rv.Pending) != 1 {
 		t.Fatal("comment not added")
 	}
@@ -113,7 +113,7 @@ func TestSpaceVMenu(t *testing.T) {
 		t.Fatal("Space v C did not open the editor")
 	}
 	a.Composer.Ta.SetValue("全体")
-	a.HandleKey(core.Key{Code: KeyEnter})
+	a.HandleKey(core.Key{Code: KeyEnter, Mod: core.ModCtrl})
 	if len(a.Gd.Rv.Pending) != 1 || !a.Gd.Rv.Pending[0].File {
 		t.Fatal("file comment not added")
 	}
@@ -230,10 +230,14 @@ func TestComposerNewlineAndPreview(t *testing.T) {
 	a, _ := prApp(t)
 	a.Compose(msg.S("t"), "", nil, func(string) []core.Effect { return nil })
 	a.Composer.Ta.InsertString("# 見出し")
-	a.HandleComposerKey(core.Key{Code: KeyEnter, Mod: core.ModShift})
+	a.HandleComposerKey(core.Key{Code: KeyEnter})
 	a.Composer.Ta.InsertString("本文")
-	if v := a.Composer.Ta.Value(); v != "# 見出し\n本文" {
+	a.HandleComposerKey(core.Key{Code: KeyEnter, Mod: core.ModShift})
+	if v := a.Composer.Ta.Value(); v != "# 見出し\n本文\n" {
 		t.Errorf("value %q", v)
+	}
+	if a.Composer == nil {
+		t.Fatal("Enter sent the comment")
 	}
 	view := ansi.Strip(a.render())
 	if !strings.Contains(view, "プレビュー") || !strings.Contains(view, "本文") {
@@ -353,7 +357,7 @@ func TestCommentOnNewFileInOnePane(t *testing.T) {
 		t.Fatalf("no editor: %s", a.Msg)
 	}
 	a.Composer.Ta.SetValue("新規ファイルへ")
-	a.HandleComposerKey(core.Key{Code: KeyEnter})
+	a.HandleComposerKey(core.Key{Code: KeyEnter, Mod: core.ModCtrl})
 	if len(a.Gd.Rv.Pending) != 1 {
 		t.Fatal("comment not added")
 	}
@@ -447,5 +451,25 @@ func TestReviewPRURLCommands(t *testing.T) {
 	runCmd(a, cmdOf(a, a.ReviewCommand("o")))
 	if opened != "" || a.Clipboard != "" || tr(a.Msg) != i18n.T("rv.needpr") {
 		t.Fatalf("needpr: opened %q clip %q msg %q", opened, a.Clipboard, a.Msg)
+	}
+}
+
+func TestComposerDrawsCaret(t *testing.T) {
+	a, _ := prApp(t)
+	a.Compose(msg.S("t"), "", nil, func(string) []core.Effect { return nil })
+	a.Composer.Ta.SetWidth(20)
+	st := inputStyleOn(cPaletteBg)
+	caret := func(s string) string { return st.cursor.Inline(true).Render(s) }
+	// empty: on the placeholder's first character
+	if rows := composerRows(a.Composer.Ta); !strings.Contains(rows[0], caret(string([]rune(i18n.T("rv.markdownok"))[0]))) {
+		t.Errorf("no caret on the placeholder: %q", rows[0])
+	}
+	a.Composer.Ta.InsertString("日本語")
+	if rows := composerRows(a.Composer.Ta); !strings.Contains(rows[0], caret(" ")) || ansi.Strip(rows[0]) != "日本語 " {
+		t.Errorf("no caret after the text: %q", rows[0])
+	}
+	a.HandleComposerKey(core.Key{Code: KeyLeft})
+	if rows := composerRows(a.Composer.Ta); !strings.Contains(rows[0], caret("語")) {
+		t.Errorf("no caret on 語: %q", rows[0])
 	}
 }

@@ -874,14 +874,15 @@ func (a *Core) HandleComposerKey(in Key) []Effect {
 		a.Composer = nil
 		a.InfoText(msg.T("rv.inputcancelled"))
 		return nil
-	case "enter":
+	case "ctrl+enter", "alt+enter":
+		// Alt+Enter is for the terminals that send Ctrl+Enter as a plain Enter.
 		body := strings.TrimSpace(c.Ta.Value())
 		if body == "" && !c.empty {
 			return nil
 		}
 		a.Composer = nil
 		return c.onSubmit(body)
-	case "shift+enter", "alt+enter", "ctrl+j":
+	case "enter", "shift+enter", "ctrl+j":
 		c.Ta.InsertString("\n")
 		return nil
 	case "ctrl+s":

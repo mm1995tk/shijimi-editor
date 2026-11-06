@@ -200,11 +200,11 @@ func TestSubmitNeedsSomething(t *testing.T) {
 	if a.Composer == nil {
 		t.Fatal("no editor for the review body")
 	}
-	if cmd := a.HandleComposerKey(Key{Code: KeyEnter}); cmd != nil || !a.MsgErr {
+	if cmd := a.HandleComposerKey(Key{Code: KeyEnter, Mod: ModCtrl}); cmd != nil || !a.MsgErr {
 		t.Error("empty comment-only review was sent")
 	}
 	a.ReviewKey("A")
-	if cmd := a.HandleComposerKey(Key{Code: KeyEnter}); cmd == nil {
+	if cmd := a.HandleComposerKey(Key{Code: KeyEnter, Mod: ModCtrl}); cmd == nil {
 		t.Error("approval without a body was not sent")
 	}
 }

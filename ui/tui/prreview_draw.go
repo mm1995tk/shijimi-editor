@@ -194,15 +194,22 @@ func (a *App) drawComposer(ov screen.Overlay, input []string) []string {
 
 // composerRows is the text of the comment editor's input as the box shows it:
 // the rows the core's text area gives, in the colours of the palette, with the
-// placeholder in the first row while there is no text.
+// placeholder in the first row while there is no text, and the cursor drawn
+// reversed on its cell (the terminal's own cursor stays hidden).
 func composerRows(ta *core.TextArea) []string {
-	base := bgfg(cPaletteBg, cEditorFg)
+	st := inputStyleOn(cPaletteBg)
 	rows := ta.Rows()
+	cx, cy, ok := ta.CursorCell()
 	for i := range rows {
+		base := st.text
+		if i == 0 && ta.Value() == "" {
+			rows[i], base = i18n.T("rv.markdownok"), st.placeholder
+		}
+		if ok && i == cy {
+			rows[i] = withCaret(rows[i], cx, base, st.cursor)
+			continue
+		}
 		rows[i] = base.Render(rows[i])
-	}
-	if ta.Value() == "" {
-		rows[0] = bgfg(cPaletteBg, core.CurTheme.Dim).Render(i18n.T("rv.markdownok"))
 	}
 	return rows
 }
