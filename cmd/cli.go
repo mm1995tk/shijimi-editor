@@ -88,8 +88,7 @@ func Main() {
 			endPrimary, primary, reportFile, pane, perr := ctlclient.AnnouncePrimary(cli.Suffix(), path)
 			app.SetTreeHidden(primary)
 			// A shj that kisui-terminal refuses for its version works like one in a pane that is not the primary.
-			var ve *ctlclient.VersionError
-			if errors.As(perr, &ve) {
+			if ve, ok := errors.AsType[*ctlclient.VersionError](perr); ok {
 				app.Info("gui.protocol", ctl.PrimaryProtocol, ve.Min, ve.Max)
 			}
 			// The GUI tree lights the row of the file this shj shows.
