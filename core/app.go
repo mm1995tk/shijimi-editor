@@ -195,6 +195,7 @@ func newCore(sh *Shared, p Port, dir, file string) (*Core, error) {
 	if file != "" && a.OpenFile(file) {
 		a.Focus = FocusEditor
 	}
+	a.warnConfig()
 	a.loadKeymap()
 	return a, nil
 }
@@ -243,6 +244,7 @@ func NewSingle(p Port, file string, b Build) (*Core, error) {
 		}
 		return nil, msg.ErrOf(m)
 	}
+	a.warnConfig()
 	a.loadKeymap()
 	return a, nil
 }
@@ -1785,5 +1787,14 @@ func (a *Core) MovePaths(old, v string) {
 		case t.Kind == TabImage && t.Img.Path == old:
 			t.Img.Path = v
 		}
+	}
+}
+
+// warnConfig tells on the status line which keys of the configuration files
+// were ignored because this version does not read them (they may be for a
+// newer version). The editor runs as usual.
+func (a *Core) warnConfig() {
+	if ws := a.Cfg.Warnings; len(ws) > 0 {
+		a.Msg, a.MsgErr = msg.T("config.warn.ignored", config.Summary(ws)), true
 	}
 }

@@ -62,15 +62,34 @@ func TestSyntaxErrorHasFileAndLine(t *testing.T) {
 func TestUnknownKey(t *testing.T) {
 	root, _, write := setup(t)
 	path := write("config.toml", "keymap = \"x\"\n\n[editor]\nwatch-files = true\nline-numbers = \"relative\"\n\n[editr]\na = 1\n")
-	ps := problems(t, root)
-	if len(ps) != 2 {
-		t.Fatalf("problems = %+v", ps)
+	// an unknown key is a warning: Load goes on, and the known keys are read
+	c, err := Load(root, Options{})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if ps[0].File != path || ps[0].Line != 5 || ps[0].Key != "editor.line-numbers" {
+	ps := c.Warnings
+	if len(ps) != 2 {
+		t.Fatalf("warnings = %+v", ps)
+	}
+	if !ps[0].Warning || ps[0].File != path || ps[0].Line != 5 || ps[0].Key != "editor.line-numbers" {
 		t.Fatalf("first = %+v", ps[0])
 	}
 	if ps[1].Line != 7 || ps[1].Key != "editr" {
 		t.Fatalf("second = %+v", ps[1])
+	}
+}
+
+// A wrong value of a known key stays an error, with the unknown key beside it only a warning.
+func TestUnknownKeyBesideMistake(t *testing.T) {
+	root, _, write := setup(t)
+	write("config.toml", "keymap = 1\nbogus = 2\n")
+	c, err := Load(root, Options{})
+	var ce *Error
+	if !errors.As(err, &ce) || len(ce.Problems) != 1 || ce.Problems[0].Key != "keymap" {
+		t.Fatalf("err = %v", err)
+	}
+	if len(c.Warnings) != 1 || c.Warnings[0].Key != "bogus" {
+		t.Fatalf("warnings = %+v", c.Warnings)
 	}
 }
 
@@ -129,7 +148,7 @@ func TestEveryProblemIsListed(t *testing.T) {
 	write("config.toml", "keymap = 1\nbogus = 2\n")
 	write("languages.toml", "[[language]]\nname = 3\n")
 	ps := problems(t, root)
-	if len(ps) != 3 {
+	if len(ps) != 2 {
 		t.Fatalf("problems = %+v", ps)
 	}
 }
@@ -163,10 +182,9 @@ file-types = ["c"]
 		got[p.Key] = p.Line
 	}
 	want := map[string]int{
-		"language-server.my.timeout": 4,
-		"language[1].file-types[1]":  11,
-		"language[1].indent.unit":    14,
-		"language[2]":                16,
+		"language[1].file-types[1]": 11,
+		"language[1].indent.unit":   14,
+		"language[2]":               16,
 	}
 	if len(got) != len(want) {
 		t.Fatalf("problems = %+v", ps)
@@ -196,7 +214,7 @@ func TestNixMistakes(t *testing.T) {
 	root, _, write := setup(t)
 	path := write("config.nix", `{ editor.watch-files = "yes"; nope = 1; }`)
 	ps := problems(t, root)
-	if len(ps) != 2 || ps[0].File != path || ps[0].Line != 0 {
+	if len(ps) != 1 || ps[0].File != path || ps[0].Line != 0 {
 		t.Fatalf("problems = %+v", ps)
 	}
 	write("config.nix", `{ editor = ; }`)

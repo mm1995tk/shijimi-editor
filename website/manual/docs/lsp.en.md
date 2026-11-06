@@ -84,7 +84,7 @@ When the language server returns semantic tokens, their colors are drawn over th
 ## Writing settings
 
 Settings go in `languages.toml`, which uses Helix's format.
-If you are moving from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/` and delete the keys that are not in the table below; shijimi-editor does not start while a file has keys it does not read ([Configuration files](config.md#if-a-file-has-a-mistake)).
+If you are moving from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/` and delete the keys that are not in the table below; shijimi-editor ignores keys it does not read and shows them as a warning ([Configuration files](config.md#unknown-keys-are-ignored)).
 Where files are read from and in what order is described in [Configuration files](config.md).
 
 ```toml
