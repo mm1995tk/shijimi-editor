@@ -115,6 +115,30 @@ func TestNewlineMismatchedBracketsKeepsOldBehavior(t *testing.T) {
 	}
 }
 
+func TestOpenLineIndentsInsideBrackets(t *testing.T) {
+	src := "func f() {\n\tk(s{\n\t\tX: 1,\n\t})\n}"
+	for _, c := range []struct {
+		name  string
+		row   int
+		below bool
+		want  string
+		cur   Pos
+	}{
+		{"above closer", 3, false, "func f() {\n\tk(s{\n\t\tX: 1,\n\t\t\n\t})\n}", Pos{3, 2}},
+		{"below opener", 1, true, "func f() {\n\tk(s{\n\t\t\n\t\tX: 1,\n\t})\n}", Pos{2, 2}},
+		{"above plain", 2, false, "func f() {\n\tk(s{\n\t\t\n\t\tX: 1,\n\t})\n}", Pos{2, 2}},
+		{"below plain", 2, true, "func f() {\n\tk(s{\n\t\tX: 1,\n\t\t\n\t})\n}", Pos{3, 2}},
+	} {
+		b := fromText(src)
+		b.UseTabs = true
+		b.Cur = Pos{c.row, 1}
+		b.OpenLine(c.below)
+		if got := b.Text(); got != c.want || b.Cur != c.cur {
+			t.Errorf("%s: text = %q cur = %+v, want %q %+v", c.name, got, b.Cur, c.want, c.cur)
+		}
+	}
+}
+
 func TestToggleComment(t *testing.T) {
 	b := fromText("  a\n  b")
 	b.SelectAll()
