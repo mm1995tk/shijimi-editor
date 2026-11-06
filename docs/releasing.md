@@ -69,6 +69,7 @@ GUI は shj とは別の版・別のタイミングでリリースします（#5
 - そのコミットの shj（`flake.nix` の `version`）を同梱します。Release の説明に、GUI の版と同梱した shj の版を書きます。
 - 上がるもの：AppImage（Linux の x86_64 と aarch64）、署名なしの `.dmg`、`.app.tar.gz` とその `.sig`、リモートに入れる `kisui-<os>-<cpu>` と `shj-<os>-<cpu>`、`SHA256SUMS`、`latest.json`。ビルドと Release への upload は `gui-release.yml`（`kisui-terminal-release.yml` と `nightly.yml` から呼ぶ）です。ssh 先への kisui と shj の取得（`install.rs`）は、この Release から取ります。
 - 自動更新の確認先（Tauri の updater の `endpoints`）は、GUI のリリースだけを指す `https://github.com/mm1995tk/shijimi-editor/releases/download/kisui-terminal-latest/latest.json` です。`kisui-terminal-latest` は、GUI のリリースのたびに `latest.json` を置き換える pre-release で、ダウンロードするものはありません。`releases/latest/download/` は shj のリリースを指すことがあるので使いません。
+- 古い nightly の GUI（`releases/download/nightly/latest.json` を見ていたもの）は、`kisui-terminal-nightly` に移ったあと更新されなくなります。`kisui-terminal-nightly` から入れ直してください。
 - 古い版を出し直しても、`kisui-terminal-latest` の `latest.json` が古い版に戻ります。出し直しは、最新の版でだけ行います。
 
 ## nightly 版
