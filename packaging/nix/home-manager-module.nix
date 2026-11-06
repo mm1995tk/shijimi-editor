@@ -16,9 +16,12 @@ let
 in
 {
   imports = [
-    (lib.mkRenamedOptionModule
-      [ "programs" "shijimi-editor" "gui" ]
-      [ "programs" "shijimi-editor" "kisui-terminal" ]
+    # kisui-terminal moved to its own flake, github:mm1995tk/kisui-terminal (programs.kisui-terminal).
+    (lib.mkRemovedOptionModule [ "programs" "shijimi-editor" "kisui-terminal" ]
+      "kisui-terminal is installed from its own flake now: import homeManagerModules.default of github:mm1995tk/kisui-terminal and set programs.kisui-terminal.enable."
+    )
+    (lib.mkRemovedOptionModule [ "programs" "shijimi-editor" "gui" ]
+      "kisui-terminal is installed from its own flake now: import homeManagerModules.default of github:mm1995tk/kisui-terminal and set programs.kisui-terminal.enable."
     )
   ];
 
@@ -56,17 +59,6 @@ in
       description = "Written to {file}`$XDG_CONFIG_HOME/shijimi-editor/languages.toml` (the same way of writing as Helix's languages.toml; keys shijimi-editor does not read are ignored with a warning), or {file}`shijimi-editor-nightly/languages.toml` for the nightly package.";
     };
 
-    kisui-terminal = {
-      enable = lib.mkEnableOption "kisui-terminal (the GUI app). Built with Nix it has no auto update; update it with `nix flake update` and `home-manager switch`";
-
-      package = lib.mkOption {
-        type = lib.types.package;
-        default = self.packages.${pkgs.stdenv.hostPlatform.system}.kisui-terminal;
-        defaultText = lib.literalExpression "shijimi.packages.\${system}.kisui-terminal";
-        description = "The kisui-terminal package to install. Use `kisui-terminal-nightly` for the nightly build.";
-      };
-    };
-
     herdr = {
       enable = lib.mkEnableOption "the herdr key entry (`keysCommand`) that hides the pane; shijimi-editor never writes herdr's config.toml";
 
@@ -98,10 +90,7 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = [
-      cfg.package
-    ]
-    ++ lib.optional cfg.kisui-terminal.enable cfg.kisui-terminal.package;
+    home.packages = [ cfg.package ];
     xdg.configFile."${configDir}/config.toml" = lib.mkIf (cfg.settings != { }) {
       source = toml.generate "shijimi-config.toml" cfg.settings;
     };

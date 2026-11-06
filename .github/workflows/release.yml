@@ -206,7 +206,7 @@ jobs:
             platform="${platform#shijimi-editor-}"
             tar -xzf "$f" -O package/bin/shj > "assets/shj-$platform"
           done
-          # 取ったあとに値を確かめられるよう、checksums（sha256sum の形式）も置く。GUI が入れる kisui と shj は GUI の Release にある（kisui-terminal-release.yml）
+          # 取ったあとに値を確かめられるよう、checksums（sha256sum の形式）も置く。kisui-terminal が ssh 先に入れる shj は kisui-terminal の Release にある（mm1995tk/kisui-terminal。packaging/fetch-shj.sh がここから取る）
           (cd assets && sha256sum shj-* > SHA256SUMS)
           # 再実行で上げ直せるよう、同じ名前のアセットは置き換える
           gh release upload "v$NEXT" assets/* --clobber --repo "$GITHUB_REPOSITORY"

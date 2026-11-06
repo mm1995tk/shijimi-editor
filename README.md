@@ -48,20 +48,7 @@ To compare with the base of a pull request you need [gh](https://cli.github.com/
 
 ### kisui-terminal
 
-kisui-terminal is a separate app that works closely with shijimi-editor: it splits a window into panes and runs terminals (with `shj` inside), videos, browser pages and a file tree in them. It is released separately from `shj`, with its own version. Each [`kisui-terminal-v<version>` Release](https://github.com/mm1995tk/shijimi-editor/releases) (tagged `kisui-terminal-v<version>`; it is not marked as the "Latest" release, which stays `shj`) has an AppImage for Linux (`kisui-terminal-linux-x86_64.AppImage`, `kisui-terminal-linux-aarch64.AppImage`) and a `.dmg` for macOS (`kisui-terminal-macos-universal.dmg`, for both Apple silicon and Intel). The AppImage and the `.dmg` update themselves: when a newer release is out, the app offers it and installs it when you press the button. The app ships with the `shj` that matches that version (the Release notes say which one): inside its panes, `shj` is that one (it is put first on `PATH`), whatever version you installed yourself. Over ssh the same `shj` is installed in the cache next to `kisui`.
-
-- **AppImage**: `chmod +x kisui-terminal-linux-*.AppImage` and run it.
-- **`.dmg`**: the app is not signed by Apple, so macOS refuses to open it the first time. Drag `kisui-terminal.app` to Applications, open it once (macOS says it cannot be verified; close that dialog), then go to **System Settings → Privacy & Security** and press **Open Anyway** next to the message about `kisui-terminal`. From then on it opens normally. Or remove the quarantine flag in a terminal instead: `xattr -dr com.apple.quarantine /Applications/kisui-terminal.app`.
-
-The nightly kisui-terminal is `kisui-terminal-nightly` in the [`kisui-terminal-nightly` pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/kisui-terminal-nightly) (`kisui-terminal-nightly-linux-x86_64.AppImage`, `kisui-terminal-nightly-macos-universal.dmg`, …). It has its own name, so it sits next to the stable app, and it updates itself from the `kisui-terminal-nightly` pre-release. Open the `.dmg` the same way (with `kisui-terminal-nightly.app`).
-
-With Nix, kisui-terminal is the `kisui-terminal` package (`kisui-terminal-nightly` for the nightly, installed under the same name), or `programs.shijimi-editor.kisui-terminal.enable = true;` in home-manager (the old `programs.shijimi-editor.gui` still works but warns). A kisui-terminal built with Nix does not update itself; update it with `nix flake update` and `home-manager switch` (or `nix profile upgrade`).
-
-```sh
-nix run github:mm1995tk/shijimi-editor/release#kisui-terminal
-nix profile install github:mm1995tk/shijimi-editor/release#kisui-terminal
-nix profile install github:mm1995tk/shijimi-editor#kisui-terminal-nightly
-```
+[kisui-terminal](https://github.com/mm1995tk/kisui-terminal) is a separate app that works closely with shijimi-editor: it splits a window into panes and runs terminals (with `shj` inside), videos, browser pages and a file tree in them. It has its own repository, version and releases, and ships with the `shj` it was tested with (inside its panes that `shj` runs first, whatever version you installed yourself). How to install it is in its README; how `shj` behaves inside it is in the [manual](https://mm1995tk.github.io/shijimi-editor/manual/terminal/).
 
 ## Usage
 
@@ -333,18 +320,13 @@ How you open it decides what you compare with (the base). Pressing the same key 
 
 ## Development
 
-Use the Nix devShell (Go, gopls, gomod2nix, git, Node.js, Rust, and on Linux the WebView libraries for kisui-terminal). With direnv, `.envrc` enters it automatically. Every command runs from the root of the repository: `go.mod`, `package.json` (kisui-terminal's web UI) and `Cargo.toml` (a workspace with kisui-terminal's Tauri shell, `ui/gui/app/src-tauri`) are all there.
+Use the Nix devShell (Go, gopls, gomod2nix, git, and Node.js for the npm packages). With direnv, `.envrc` enters it automatically. Every command runs from the root of the repository.
 
 ```sh
 nix develop            # or: direnv allow
 go test ./...
 go build ./cmd/shj
-npm ci                 # kisui-terminal's web UI (once, and after package-lock.json changes)
-npm test
-go build -o target/dev/kisui ./cmd/kisui   # kisui-terminal starts this kisui (SHIJIMI_KISUI)
-SHIJIMI_KISUI=$PWD/target/dev/kisui npm run tauri dev   # run kisui-terminal (outside the devShell: nix run .#gui-dev)
-cargo test             # kisui-terminal's Tauri shell
-nix flake check        # every check CI runs: formatting, go test, kisui-terminal build and its tests
+nix flake check        # every check CI runs: formatting and go test
 scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
 ```
 

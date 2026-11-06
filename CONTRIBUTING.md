@@ -17,10 +17,10 @@ Use the Nix devShell. With direnv, `.envrc` enters it automatically.
 nix develop            # or: direnv allow
 go test ./...
 scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt
-nix flake check        # every check CI runs: formatting, go test, the GUI build and its tests
+nix flake check        # every check CI runs: formatting and go test
 ```
 
-Everything runs from the root of the repository. For the GUI, `npm ci`, `npm test`, `npm run tauri dev` with `SHIJIMI_KISUI` pointing at a kisui you built (outside the devShell: `nix run .#gui-dev`, which does that) and `cargo test` also run there.
+Everything runs from the root of the repository. kisui-terminal (the desktop app that runs `shj` in its panes) is a separate repository, [mm1995tk/kisui-terminal](https://github.com/mm1995tk/kisui-terminal); a change to how the two talk (`docs/design/kisui-shj-protocol.md`) needs a matching pull request there.
 
 - Run `scripts/tidy.sh` before you push (outside the devShell: `nix run .#tidy`). CI runs it and fails if it changes anything (it also updates `gomod2nix.toml` after you change `go.mod`).
 - When you add or change a `uses:` in `.github/workflows/`, run `gh actions-lock` ([install it](https://github.com/github/gh-actions-lock) with `gh extension install github/gh-actions-lock`) and commit `.github/workflows/actions.lock`. CI checks it with `gh actions-lock --verify`. Dependabot updates actions and the `flake.lock` inputs other than nixpkgs once a week, and regenerates the lockfile in the same pull request.
