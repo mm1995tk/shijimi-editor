@@ -80,7 +80,7 @@ GUI は shj とは別の版・別のタイミングでリリースします（#5
 - Nix：`nix build .#shj-nightly`。`version` は `flake.nix` の `X.Y.Z` に `-nightly.<yyyymmdd>.<sha>` を付けたものです（`X.Y.Z` はまだ出ていない次のリリースの番号ではなく、`flake.nix` にある今の番号です）。`shj-nightly --version` は `vX.Y.Z-nightly (<sha>)` と出ます。
 - npm：`packaging/npm/pack.sh X.Y.Z-nightly.<yyyymmdd>.<sha> <dir>` で、本体のパッケージ `shijimi-editor-nightly`（コマンドは `shj-nightly` と `shijimi-nightly`）と、OS / CPU ごとのパッケージ（名前は安定版と同じ `shijimi-editor-<os>-<cpu>`、版だけ nightly の版）の tarball ができます。
 - 毎日ビルドして配るのは `nightly.yml`（次の節）です。
-- GUI の nightly も別です。pre-release `kisui-terminal-nightly`（毎回作り直します）に、`shijimi-editor-nightly` の AppImage・`.dmg`・`latest.json`、リモートに入れる `kisui-nightly-<os>-<cpu>` と `shj-nightly-<os>-<cpu>`、`SHA256SUMS` を置きます。版は `<Cargo.toml の version>-nightly.<yyyymmdd>.<sha>` で、同梱する shj は nightly の shj（`<flake.nix の version>-nightly.…`）です。shj の pre-release `nightly` には shj だけを置きます。
+- GUI の nightly も別です。pre-release `kisui-terminal-nightly`（毎回作り直します）に、`kisui-terminal-nightly` の AppImage・`.dmg`・`latest.json`、リモートに入れる `kisui-nightly-<os>-<cpu>` と `shj-nightly-<os>-<cpu>`、`SHA256SUMS` を置きます。版は `<Cargo.toml の version>-nightly.<yyyymmdd>.<sha>` で、同梱する shj は nightly の shj（`<flake.nix の version>-nightly.…`）です。shj の pre-release `nightly` には shj だけを置きます。
 
 ### nightly.yml がすること
 

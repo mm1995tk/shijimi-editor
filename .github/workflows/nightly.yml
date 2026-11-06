@@ -6,7 +6,7 @@ name: nightly 版を配る
 #   `latest` には触らない。nightly 専用の shijimi-editor-nightly は `latest` だけを今回の版に合わせる（#260）。dist-tag `nightly` は使わない。
 # - GitHub：`nightly` という名前の pre-release を 1 つ持ち、毎回その assets（shj-nightly-<os>-<cpu>）と
 #   本文（版・コミット・日付）を差し替える。
-# - GUI：shijimi-editor-nightly の AppImage と .dmg、自動更新の latest.json を、別の pre-release `kisui-terminal-nightly` に上げる
+# - GUI：kisui-terminal-nightly の AppImage と .dmg、自動更新の latest.json を、別の pre-release `kisui-terminal-nightly` に上げる
 #   （gui-release.yml。GUI の版は shj とは別で、nightly の shj を同梱する。#581）。
 # - 前の nightly から main にコミットが無ければ何もしない（workflow_dispatch の force で作り直せる）。
 #
@@ -209,7 +209,7 @@ jobs:
             --title "nightly ($VERSION)" \
             --notes-file notes.md
 
-  # GUI（shijimi-editor-nightly）の AppImage と署名なしの .dmg、同梱する kisui と nightly の shj、自動更新の latest.json を、
+  # GUI（kisui-terminal-nightly）の AppImage と署名なしの .dmg、同梱する kisui と nightly の shj、自動更新の latest.json を、
   # GUI 専用の pre-release kisui-terminal-nightly に上げる（gui-release.yml）。shj の pre-release nightly とは別で、順番に縛られない
   gui:
     needs: check

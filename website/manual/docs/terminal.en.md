@@ -70,26 +70,26 @@ When shijimi runs in a terminal multiplexer, `[experimental]` `multiplexer` is `
 - The shell of the pane reports the exit code of each command with `shj command-end <code>`, so the suggestion to investigate a failed command still appears. This works for zsh and bash. For bash, the hook is set through `PROMPT_COMMAND`, so it does not work when a startup file replaces `PROMPT_COMMAND`.
 - When a command of the multiplexer fails, the error is shown in the status bar.
 
-### In the GUI
+### In kisui-terminal
 
-In the editor that runs in the primary terminal of a shijimi-editor GUI workspace (the one `kisui serve` accepts as the primary), the GUI itself is the multiplexer. The terminal commands then open another terminal of the same workspace, which the GUI shows beside the primary, and move the focus to it. The keys and commands are the same as above, with these differences:
+In the editor that runs in the primary terminal of a kisui-terminal workspace (the one `kisui serve` accepts as the primary), kisui-terminal itself is the multiplexer. The terminal commands then open another terminal of the same workspace, which kisui-terminal shows beside the primary, and move the focus to it. The keys and commands are the same as above, with these differences:
 
-- The second ``Ctrl+` `` hides every terminal but the primary (the same as `Ctrl+Shift+M` in the GUI), and the next one shows them again and moves the focus to the pane. You can have up to 6 terminals in a workspace, the pane included.
+- The second ``Ctrl+` `` hides every terminal but the primary (the same as `Ctrl+Shift+M` in kisui-terminal), and the next one shows them again and moves the focus to the pane. You can have up to 6 terminals in a workspace, the pane included.
 - The pane starts in the root of the workspace, with the same environment variables as the other multiplexers.
-- When shijimi-editor quits, the panes it opened are closed. If you type `exit` in the pane, the GUI closes it and the next ``Ctrl+` `` opens a new one.
-- The text that the commands send to the pane (`:sh <command>`, `Space a`) is written to the terminal as it is. The lines kept for the failed command are taken from the output the GUI has kept, so they can differ a little from the screen.
-- An editor in any other terminal of the GUI (a split terminal) is not the primary: it keeps the built-in terminal panel. `"auto"` chooses the GUI in the primary even when `kisui serve` was started inside tmux; set `[terminal]` `multiplexer = "none"` to keep the terminal panel there too.
+- When shijimi-editor quits, the panes it opened are closed. If you type `exit` in the pane, kisui-terminal closes it and the next ``Ctrl+` `` opens a new one.
+- The text that the commands send to the pane (`:sh <command>`, `Space a`) is written to the terminal as it is. The lines kept for the failed command are taken from the output kisui-terminal has kept, so they can differ a little from the screen.
+- An editor in any other terminal of kisui-terminal (a split terminal) is not the primary: it keeps the built-in terminal panel. `"auto"` chooses kisui-terminal in the primary even when `kisui serve` was started inside tmux; set `[terminal]` `multiplexer = "none"` to keep the terminal panel there too.
 
-### Videos in the GUI
+### Videos in kisui-terminal
 
-A terminal cannot play a video, but the GUI can. In the editor that runs in the primary terminal of a GUI workspace, opening a video file (pressing it in the GUI's file tree, `:open <file>`, the command palette and so on) does not read it as text. The GUI opens a video pane beside the terminals and plays it there. This works for a file on another machine too: the video travels over the same ssh connection as the GUI.
+A terminal cannot play a video, but kisui-terminal can. In the editor that runs in the primary terminal of a kisui-terminal workspace, opening a video file (pressing it in kisui-terminal's file tree, `:open <file>`, the command palette and so on) does not read it as text. kisui-terminal opens a video pane beside the terminals and plays it there. This works for a file on another machine too: the video travels over the same ssh connection as kisui-terminal.
 
-- The extensions are `.mp4`, `.m4v`, `.mov`, `.webm`, `.ogv` and `.mkv`. Which of them play depends on the codecs of the GUI's web view; a video that cannot be played says so in the pane.
+- The extensions are `.mp4`, `.m4v`, `.mov`, `.webm`, `.ogv` and `.mkv`. Which of them play depends on the codecs of kisui-terminal's web view; a video that cannot be played says so in the pane.
 - The pane is one of the terminals' cells (up to 6 cells in a workspace, the primary and the panes included). It is not a tab. A workspace has one video pane: opening another video replaces it. Opening a video moves the keys to the pane.
 - The video is fetched in full before it plays, so a video of more than 512 MiB is not opened (the pane says so).
-- Keys, while the keys are in the pane: Space or `k` plays and pauses, `←` and `→` seek 5 seconds, `j` and `l` 10 seconds, `m` mutes. The GUI's own keys (`Ctrl+Shift+arrows`, `Ctrl+Shift+M`, `Cmd+W` on a Mac) work as in the terminals.
+- Keys, while the keys are in the pane: Space or `k` plays and pauses, `←` and `→` seek 5 seconds, `j` and `l` 10 seconds, `m` mutes. kisui-terminal's own keys (`Ctrl+Shift+arrows`, `Ctrl+Shift+M`, `Cmd+W` on a Mac) work as in the terminals.
 - Close the pane with the × in its title, or with `Cmd+W` on a Mac. It also closes when the editor in the primary terminal quits.
-- Images are still shown inside the editor, not in a pane. The editor in any other terminal of the GUI (a split terminal) is not the primary and does not use video panes.
+- Images are still shown inside the editor, not in a pane. The editor in any other terminal of kisui-terminal (a split terminal) is not the primary and does not use video panes.
 
 ## Environment variables
 

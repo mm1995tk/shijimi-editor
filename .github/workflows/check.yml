@@ -3,7 +3,7 @@ name: 検査
 # flake の checks（nix flake check）を Linux と macOS で回す。手元の nix flake check と同じもの:
 #   formatting   … nix fmt で差分が出ない
 #   go-test      … go test ./...（Linux だけ。macOS は devShell の中で go test ./... を回す）
-#   gui          … nix build .#gui（殻の cargo test も回る）
+#   gui          … nix build .#kisui-terminal（殻の cargo test も回る）
 #   gui-web-test … Web 画面の npm test
 # 自動更新（feature updater）を付けた殻は Nix の版に無いので、devShell の中で別に確かめる。
 #
@@ -73,4 +73,4 @@ jobs:
       - name: Web 画面を作る（殻が埋め込む）
         run: nix develop --command bash -c 'npm ci && npm run build'
       - name: cargo build --features updater
-        run: nix develop --command cargo build --locked -p shijimi-editor-gui --features custom-protocol,updater
+        run: nix develop --command cargo build --locked -p kisui-terminal --features custom-protocol,updater
