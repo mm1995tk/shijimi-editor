@@ -251,7 +251,7 @@ func validate(raw map[string]any, schema map[string]field, file, text string, us
 }
 
 func (v *validator) add(path []string, code string, args ...any) {
-	p := Problem{File: v.file, Key: pathString(path), code: code, args: args, Warning: code == "config.err.unknown"}
+	p := Problem{File: v.file, Key: pathString(path), code: code, args: args, Warning: code == codeUnknown}
 	if v.lines != nil {
 		p.Line = v.lines.find(path)
 	}
@@ -283,7 +283,7 @@ func (v *validator) table(m map[string]any, schema map[string]field, path []stri
 		p := extend(path, k)
 		f, ok := schema[k]
 		if !ok {
-			v.add(p, "config.err.unknown")
+			v.add(p, codeUnknown)
 			continue
 		}
 		if f.userOnly && !v.user {
@@ -609,3 +609,7 @@ func parseKey(s string) ([]string, string) {
 func isBare(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-'
 }
+
+// codeUnknown is the reason of a key this version does not read. It is the one
+// problem that is a warning (Problem.Warning).
+const codeUnknown = "config.warn.unknown"
