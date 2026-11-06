@@ -545,6 +545,13 @@ func (b *Buffer) insertRaw(text []rune) {
 	b.syncWant()
 }
 
+// After a character in indentOpeners a new line is indented one level deeper;
+// before a character in indentClosers too (see OpenLine).
+const (
+	indentOpeners = "{[(:"
+	indentClosers = "}])"
+)
+
 // Newline inserts a line break, copying the current line's indentation.
 func (b *Buffer) Newline() {
 	line := b.Lines[b.Cur.Row]
@@ -553,7 +560,7 @@ func (b *Buffer) Newline() {
 		indent = indent[:b.Cur.Col]
 	}
 	extra := ""
-	if b.Cur.Col > 0 && strings.ContainsRune("{[(:", line[b.Cur.Col-1]) {
+	if b.Cur.Col > 0 && strings.ContainsRune(indentOpeners, line[b.Cur.Col-1]) {
 		extra = b.IndentUnit()
 	}
 	// Between a bracket pair, keep the closing bracket on its own line at the
@@ -1295,16 +1302,16 @@ func (b *Buffer) InsertAt(p Pos, text string) {
 }
 
 // OpenLine inserts an empty line below (or above) the cursor, keeping the
-// indentation, and moves the cursor onto it.
+// indentation, and moves the cursor onto it. Like Newline, the line is one
+// level deeper inside a bracket: below a line that ends with an opener, and
+// above a line that starts with a closer.
 func (b *Buffer) OpenLine(below bool) {
 	row := b.Cur.Row
 	line := b.Lines[row]
 	indent := string(leadingSpace(line))
-	// Like Newline, indent one level more inside a bracket: below a line that
-	// ends with an opener, and above a line that starts with a closer.
 	if trimmed := strings.TrimSpace(string(line)); trimmed != "" {
-		if below && strings.ContainsRune("{[(:", rune(trimmed[len(trimmed)-1])) ||
-			!below && strings.ContainsRune("}])", rune(trimmed[0])) {
+		if below && strings.ContainsRune(indentOpeners, rune(trimmed[len(trimmed)-1])) ||
+			!below && strings.ContainsRune(indentClosers, rune(trimmed[0])) {
 			indent += b.IndentUnit()
 		}
 	}
