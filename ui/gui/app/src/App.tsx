@@ -256,6 +256,31 @@ function Workbench(props: {
     focusTerminal();
     return want;
   }
+  /** shj が端末のコマンドで欄を出した（#553 の muxBackend の show・split）。隠していれば戻し、その欄にキーを向ける。 */
+  function paneShow(target: string, id: WorkspaceId, termId: string) {
+    const k = wsKey(target, id);
+    if (zoomedWs().has(k)) {
+      const next = new Map(zoomedWs());
+      next.delete(k);
+      setZoomedWs(next);
+    }
+    termGroups.get(target)?.get(id)?.activate(termId);
+    const f = untrack(focus);
+    if (f && f.target === target && f.id === id) focusTerminal();
+  }
+  /** shj が端末のコマンドで欄を隠した（muxBackend の hide）。setZoom と同じで、プライマリだけにする。 */
+  function paneHide(target: string, id: WorkspaceId) {
+    if (!primaryShjOn(target, id)) return;
+    const k = wsKey(target, id);
+    if (!zoomedWs().has(k)) {
+      const next = new Map(zoomedWs());
+      next.set(k, { target, id });
+      setZoomedWs(next);
+    }
+    termGroups.get(target)?.get(id)?.setActive(0);
+    const f = untrack(focus);
+    if (f && f.target === target && f.id === id) focusTerminal();
+  }
   const termActive = () => termGroup()?.active;
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
@@ -517,6 +542,10 @@ function Workbench(props: {
       setThemes((m) => ({ ...m, [target]: th })),
     );
     const offClipboard = s.onClipboard((text) => void clipboard.write(text));
+    const offPane = s.onPane((ev) => {
+      if (ev.kind === "show") paneShow(target, ev.workspaceId, ev.termId);
+      else paneHide(target, ev.workspaceId);
+    });
     const offResize = s.onResizeEvent((ev) => {
       if (ev.kind === "start") setResizeMode(true);
       else if (ev.kind === "reset") changeSizes({});
@@ -538,6 +567,7 @@ function Workbench(props: {
       offTheme();
       offClipboard();
       offResize();
+      offPane();
     });
     s.setSplits(splitsOf());
     if (filesSize) s.resize(filesSize);

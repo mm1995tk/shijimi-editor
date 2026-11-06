@@ -294,6 +294,7 @@ var en = map[string]string{
 	"mux.failed":               "%s failed: %w",
 	"mux.unsupported":          "[terminal] multiplexer = \"%s\" is not supported yet; using the built-in terminal",
 	"mux.unavailable":          "Not running in %s; using the built-in terminal",
+	"mux.guiname":              "the primary terminal of the GUI",
 	"hover.copybtn":            "[Copy]",
 	"hover.hint":               " ^D/^U scroll  y copy ",
 	"hover.hintcopy":           " y copy ",

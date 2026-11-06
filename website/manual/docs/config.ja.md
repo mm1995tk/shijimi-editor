@@ -53,11 +53,12 @@
 
 | 値 | 意味 |
 | --- | --- |
-| `"auto"`（既定） | shijimi が動いているマルチプレクサのうち一番内側のもの。shijimi の親プロセスをたどり、最初に見つかったマルチプレクサを使う。無ければターミナルパネル |
+| `"auto"`（既定） | shijimi が動いているマルチプレクサのうち一番内側のもの。GUI のプライマリターミナルでは GUI。それ以外は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサを使う。無ければターミナルパネル |
 | `"herdr"` | herdr（`HERDR_ENV=1` が必要） |
 | `"tmux"` | tmux 3.1 以降（`TMUX` が必要） |
 | `"zellij"` | zellij 0.44 以降（`ZELLIJ` が必要） |
 | `"cmux"` | macOS の cmux（`CMUX_WORKSPACE_ID` と `CMUX_SURFACE_ID` が必要）。ペインは隠せない |
+| `"gui"` | shijimi-editor の GUI のペイン（GUI のワークスペースのプライマリターミナルで動く shijimi-editor だけ。ほかではターミナルパネル） |
 | `"none"` | マルチプレクサの中でも、いつもターミナルパネルを使う |
 
 ## config.toml の例
@@ -96,7 +97,7 @@ include = []
 listen-host = "127.0.0.1"
 
 [terminal]
-multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "none"
+multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "gui" / "none"
 
 
 # ~/.config/shijimi-editor/config.toml だけで有効

@@ -14,14 +14,15 @@ import (
 const Name = "tui"
 
 // Multiplexers are the values of [terminal] multiplexer.
-var Multiplexers = []string{"auto", "herdr", "tmux", "zellij", "cmux", "none"}
+var Multiplexers = []string{"auto", "herdr", "tmux", "zellij", "cmux", "gui", "none"}
 
 // Terminal is the [terminal] section of config.toml.
 type Terminal struct {
 	// Multiplexer is the multiplexer whose panes replace the built-in terminal
 	// while Experimental.Multiplexer is on: "auto" (the innermost one the
-	// editor runs in), "herdr", "tmux", "zellij", "cmux", or "none" (always
-	// the built-in terminal).
+	// editor runs in; in the GUI's primary terminal, the GUI), "herdr", "tmux",
+	// "zellij", "cmux", "gui" (the panes of the GUI, for the shj of its primary
+	// terminal) or "none" (always the built-in terminal).
 	Multiplexer string
 }
 
