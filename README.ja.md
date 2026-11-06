@@ -437,7 +437,7 @@ shijimi のターミナルパネルで `claude` を起動すると、環境変�
 
 ターミナルマルチプレクサの中で shijimi を動かしていて、`config.toml` の `[experimental]` の `multiplexer` が `true`（既定値は nightly 版が `true`、安定版が `false`。古いキー `herdr` も同じキーとして読みます）で、そのマルチプレクサに対応しているとき、``Ctrl+` ``・`Space t`・`:sh`・`:sh <コマンド>`・`:run`・`:!` はターミナルパネルの代わりにマルチプレクサのペインを使います。ペインの中で動かしたエージェントの状態検出・通知・復元はマルチプレクサに任せられます。
 
-どのマルチプレクサを使うかは `[terminal]` の `multiplexer` で決めます。値は `"auto"`（既定）・`"herdr"`・`"tmux"`・`"zellij"`・`"cmux"`・`"gui"`・`"none"` です。`"auto"` は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサ（入れ子のときは一番内側。たとえば herdr の中の tmux なら tmux）を使います。見つからなければターミナルパネルです。`"none"` はいつもターミナルパネルを使います。今は herdr・tmux・zellij・cmux（macOS だけ）に対応しています。対応するマルチプレクサが無いとき、または `multiplexer = false` のときは、今までどおりターミナルパネルを使います。
+どのマルチプレクサを使うかは `[terminal]` の `multiplexer` で決めます。値は `"auto"`（既定）・`"herdr"`・`"tmux"`・`"zellij"`・`"cmux"`・`"gui"`・`"none"` です。`"auto"` は、shijimi-editor の GUI のプライマリターミナルでは GUI を使い（マニュアル参照）、それ以外は shijimi の親プロセスをたどり、最初に見つかったマルチプレクサ（入れ子のときは一番内側。たとえば herdr の中の tmux なら tmux）を使います。見つからなければターミナルパネルです。`"none"` はいつもターミナルパネルを使います。今は herdr・tmux・zellij・cmux（macOS だけ）と GUI に対応しています。対応するマルチプレクサが無いとき、または `multiplexer = false` のときは、今までどおりターミナルパネルを使います。
 
 この節の以降は [herdr](https://herdr.dev)（`HERDR_ENV=1`）の説明です。tmux は最後に書きます。
 

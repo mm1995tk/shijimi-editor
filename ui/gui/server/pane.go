@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -42,58 +43,68 @@ func replyPane(c net.Conn, r ctl.PaneReply) {
 	_, _ = c.Write(append(b, '\n'))
 }
 
-// pane は rq を行う。頼んだ shj が、そのワークスペースのプライマリの shj でなければ断る。
-func (w *wsManager) pane(rq ctl.PaneRequest) (ctl.PaneReply, error) {
+// claimOf は rq を頼んだ shj が、そのワークスペースのプライマリの shj かを確かめ、その claim とワークスペースを返す。
+func (w *wsManager) claimOf(rq ctl.PaneRequest) (*primaryShj, string, error) {
 	t, err := w.srv.terms.get(rq.TermID)
 	if err != nil {
-		return ctl.PaneReply{}, err
+		return nil, "", err
 	}
 	t.mu.Lock()
 	primary, wsID := t.primary, t.wsID
 	t.mu.Unlock()
 	if !primary {
-		return ctl.PaneReply{}, errors.New("not a primary terminal")
+		return nil, "", errors.New("not a primary terminal")
 	}
 	w.mu.Lock()
-	st := w.reg[wsID]
+	defer w.mu.Unlock()
 	var claim *primaryShj
-	if st != nil {
+	if st := w.reg[wsID]; st != nil {
 		claim = st.shj
 	}
 	if claim == nil || claim.PID != rq.PID {
-		w.mu.Unlock()
-		return ctl.PaneReply{}, errors.New("not the shj of the primary")
+		return nil, "", errors.New("not the shj of the primary")
 	}
-	w.mu.Unlock()
+	return claim, wsID, nil
+}
 
-	if rq.Op == "split" {
+// ownPane は id が claim の shj の作った欄か。
+func (w *wsManager) ownPane(claim *primaryShj, id string) bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return slices.Contains(claim.panes, id)
+}
+
+// pane は rq を行う。頼んだ shj が、そのワークスペースのプライマリの shj でなければ断る。
+// split と hide のほかは、その shj が作った欄にだけ効く。
+func (w *wsManager) pane(rq ctl.PaneRequest) (ctl.PaneReply, error) {
+	claim, wsID, err := w.claimOf(rq)
+	if err != nil {
+		return ctl.PaneReply{}, err
+	}
+	switch rq.Op {
+	case "split":
 		id, err := w.splitPane(claim, wsID, rq)
 		return ctl.PaneReply{ID: id}, err
-	}
-	if rq.Op == "hide" {
+	case "hide":
 		w.srv.notifyOwner("pane.hide", map[string]any{"workspaceId": wsID})
 		return ctl.PaneReply{}, nil
+	case "show", "send", "tail", "alive", "close":
+	default:
+		return ctl.PaneReply{}, fmt.Errorf("unknown op: %q", rq.Op)
 	}
-	// 以下は、この shj が作った欄だけ。
-	w.mu.Lock()
-	own := false
-	for _, id := range claim.panes {
-		own = own || id == rq.ID
-	}
-	w.mu.Unlock()
-	if !own {
+	if !w.ownPane(claim, rq.ID) {
 		if rq.Op == "alive" { // 閉じたあとに聞かれても、いないだけ
 			return ctl.PaneReply{}, nil
 		}
 		return ctl.PaneReply{}, fmt.Errorf("not a pane of this shj: %s", rq.ID)
 	}
-	pt, err := w.srv.terms.get(rq.ID)
-	switch rq.Op {
-	case "alive":
-		return ctl.PaneReply{Alive: err == nil && pt.isAlive()}, nil
-	case "close":
+	if rq.Op == "close" {
 		w.closePane(claim, rq.ID)
 		return ctl.PaneReply{}, nil
+	}
+	pt, err := w.srv.terms.get(rq.ID)
+	if rq.Op == "alive" {
+		return ctl.PaneReply{Alive: err == nil && pt.isAlive()}, nil
 	}
 	if err != nil {
 		return ctl.PaneReply{}, err
@@ -101,7 +112,6 @@ func (w *wsManager) pane(rq ctl.PaneRequest) (ctl.PaneReply, error) {
 	switch rq.Op {
 	case "show":
 		w.srv.notifyOwner("pane.show", map[string]any{"workspaceId": wsID, "termId": rq.ID})
-		return ctl.PaneReply{}, nil
 	case "send":
 		text := rq.Text
 		if rq.Enter {
@@ -111,11 +121,10 @@ func (w *wsManager) pane(rq ctl.PaneRequest) (ctl.PaneReply, error) {
 		if _, err := ptmx.WriteString(text); err != nil {
 			return ctl.PaneReply{}, fmt.Errorf("terminal has exited: %s", rq.ID)
 		}
-		return ctl.PaneReply{}, nil
 	case "tail":
 		return ctl.PaneReply{Lines: pt.tailLines(min(max(rq.N, 1), paneTailMax))}, nil
 	}
-	return ctl.PaneReply{}, fmt.Errorf("unknown op: %q", rq.Op)
+	return ctl.PaneReply{}, nil
 }
 
 // splitPane は claim の shj の欄を 1 つ足して GUI に出させる。フォルダは cwd（無いか、フォルダでなければワークスペースのフォルダ）。
@@ -144,7 +153,14 @@ func (w *wsManager) splitPane(claim *primaryShj, wsID string, rq ctl.PaneRequest
 	if err != nil {
 		return "", err
 	}
+	// 確かめてから始めるまでの間に shj が終わっていたら、誰も閉じないので、ここで閉じる。
 	w.mu.Lock()
+	st := w.reg[wsID]
+	if st == nil || st.shj != claim {
+		w.mu.Unlock()
+		w.srv.terms.closeTerm(t.id)
+		return "", errors.New("the shj of the primary has ended")
+	}
 	claim.panes = append(claim.panes, t.id)
 	w.mu.Unlock()
 	w.recomputeLocked() // workspace.changed が先に届くので、GUI は欄を知っている
@@ -152,34 +168,13 @@ func (w *wsManager) splitPane(claim *primaryShj, wsID string, rq ctl.PaneRequest
 	return t.id, nil
 }
 
-// closePane は claim の shj の欄を終わらせて忘れる（term.close と同じ）。
+// closePane は claim の shj の欄を終わらせて忘れる。
 func (w *wsManager) closePane(claim *primaryShj, id string) {
 	w.mu.Lock()
-	claim.panes = removeStr(claim.panes, id)
+	claim.panes = slices.DeleteFunc(claim.panes, func(x string) bool { return x == id })
 	w.mu.Unlock()
-	m := w.srv.terms
-	t, err := m.get(id)
-	if err != nil {
-		return
-	}
-	m.mu.Lock()
-	delete(m.terms, id)
-	m.mu.Unlock()
-	t.hangup()
-	t.mu.Lock()
-	t.alive = false
-	t.mu.Unlock()
+	w.srv.terms.closeTerm(id)
 	w.recompute()
-}
-
-func removeStr(l []string, s string) []string {
-	out := l[:0:0]
-	for _, x := range l {
-		if x != s {
-			out = append(out, x)
-		}
-	}
-	return out
 }
 
 func (t *terminal) isAlive() bool {

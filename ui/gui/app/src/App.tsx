@@ -237,51 +237,41 @@ function Workbench(props: {
     if (keep.length !== cur.size) setZoomedWs(new Map(keep));
   });
   /**
-   * プライマリ以外の欄を隠してプライマリにキーを向ける、もう一度で戻す（Ctrl+Shift+M。#553 の hide/show もこれを使う）。
-   * プライマリで shj が動いていなければ何もしない。
+   * ワークスペース（target, id）のプライマリ以外の欄を隠す・戻す。プライマリで shj が動いていなければ何もしない。
+   * 隠すときはプライマリを使う欄にする。そのワークスペースにフォーカスしているときだけ、キーを向け直す。
    */
-  function setZoom(on: boolean | "toggle" = "toggle"): boolean {
-    const f = focus();
-    if (!f || !primaryShjOn(f.target, f.id)) return false;
-    const k = wsKey(f.target, f.id);
+  function zoomWs(
+    target: string,
+    id: WorkspaceId,
+    on: boolean | "toggle",
+  ): boolean {
+    if (!primaryShjOn(target, id)) return false;
+    const k = wsKey(target, id);
     const was = zoomedWs().has(k);
     const want = on === "toggle" ? !was : on;
     if (want === was) return want;
     const next = new Map(zoomedWs());
     if (want) {
-      next.set(k, { target: f.target, id: f.id });
-      termGroup()?.setActive(0);
+      next.set(k, { target, id });
+      termGroups.get(target)?.get(id)?.setActive(0);
     } else next.delete(k);
     setZoomedWs(next);
-    focusTerminal();
+    const f = untrack(focus);
+    if (f && f.target === target && f.id === id) focusTerminal();
     return want;
   }
-  /** shj が端末のコマンドで欄を出した（#553 の muxBackend の show・split）。隠していれば戻し、その欄にキーを向ける。 */
+  /** フォーカスしているワークスペースで zoomWs する（Ctrl+Shift+M）。 */
+  function setZoom(on: boolean | "toggle" = "toggle"): boolean {
+    const f = focus();
+    return f ? zoomWs(f.target, f.id, on) : false;
+  }
+  /** shj が端末のコマンドで欄を出した（muxBackend の show・split）。隠していれば戻し、その欄にキーを向ける。 */
   function paneShow(target: string, id: WorkspaceId, termId: string) {
-    const k = wsKey(target, id);
-    if (zoomedWs().has(k)) {
-      const next = new Map(zoomedWs());
-      next.delete(k);
-      setZoomedWs(next);
-    }
+    zoomWs(target, id, false);
     termGroups.get(target)?.get(id)?.activate(termId);
     const f = untrack(focus);
     if (f && f.target === target && f.id === id) focusTerminal();
   }
-  /** shj が端末のコマンドで欄を隠した（muxBackend の hide）。setZoom と同じで、プライマリだけにする。 */
-  function paneHide(target: string, id: WorkspaceId) {
-    if (!primaryShjOn(target, id)) return;
-    const k = wsKey(target, id);
-    if (!zoomedWs().has(k)) {
-      const next = new Map(zoomedWs());
-      next.set(k, { target, id });
-      setZoomedWs(next);
-    }
-    termGroups.get(target)?.get(id)?.setActive(0);
-    const f = untrack(focus);
-    if (f && f.target === target && f.id === id) focusTerminal();
-  }
-  const termActive = () => termGroup()?.active;
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
   const [treeVersion, setTreeVersion] = createSignal(0);
@@ -544,7 +534,7 @@ function Workbench(props: {
     const offClipboard = s.onClipboard((text) => void clipboard.write(text));
     const offPane = s.onPane((ev) => {
       if (ev.kind === "show") paneShow(target, ev.workspaceId, ev.termId);
-      else paneHide(target, ev.workspaceId);
+      else zoomWs(target, ev.workspaceId, true);
     });
     const offResize = s.onResizeEvent((ev) => {
       if (ev.kind === "start") setResizeMode(true);
