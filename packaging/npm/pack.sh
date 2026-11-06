@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds shj for each OS and CPU and packs the npm packages into OUT_DIR.
+# Builds shj and kisui for each OS and CPU and packs the npm packages into OUT_DIR.
 #
 #   packaging/npm/pack.sh VERSION OUT_DIR
 #
@@ -61,6 +61,9 @@ for t in "${targets[@]}"; do
   mkdir -p "$dir/bin"
   (cd "$root" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
     go build -trimpath -ldflags "$ldflags" -o "$dir/bin/shj" ./cmd/shj)
+  # kisui, the server of the GUI, goes in the same package (the Release gets it from there).
+  (cd "$root" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
+    go build -trimpath -ldflags "$ldflags" -o "$dir/bin/kisui" ./cmd/kisui)
   cp "$root/LICENSE" "$dir/"
   # shellcheck disable=SC2016 # ${OS} and ${CPU} are a JavaScript template literal, not shell
   NAME="$name" VERSION="$version" OS="$os" CPU="$cpu" node -e '

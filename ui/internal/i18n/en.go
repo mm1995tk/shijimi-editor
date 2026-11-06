@@ -270,6 +270,7 @@ var en = map[string]string{
 	"serve.running":            "shj serve is already running (%s)",
 	"serve.usage":              "usage: shj serve",
 	"attach.usage":             "usage: shj attach",
+	"kisui.usage":              "usage: kisui serve | kisui attach | kisui --version",
 	"help.vs.diffhead":         "Ctrl+G        Diff against HEAD (see changes as a diff)",
 	"help.vs.diffpr":           "Space g       Diff against the PR base",
 	"help.vs.openfile":         "Space f       Open a file",

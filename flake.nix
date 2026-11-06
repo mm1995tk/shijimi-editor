@@ -62,7 +62,10 @@
               pwd = ./.;
               src = ./.;
               modules = ./gomod2nix.toml;
-              subPackages = [ "cmd/shj" ];
+              subPackages = [
+                "cmd/shj"
+                "cmd/kisui"
+              ];
               CGO_ENABLED = 0;
               ldflags = [
                 "-X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Version=${version}"
@@ -70,7 +73,9 @@
                 "-X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Channel=${channel}"
               ];
               # The same binary also answers to "shijimi" (or "shijimi-nightly").
+              # kisui, the server of the GUI, is named kisui-nightly on the nightly channel.
               postInstall = ''
+                ${pkgs.lib.optionalString (suffix != "") "mv $out/bin/kisui $out/bin/kisui${suffix}"}
                 ${pkgs.lib.optionalString (bin != "shj") "mv $out/bin/shj $out/bin/${bin}"}
                 ln -s ${bin} $out/bin/${alias}
               '';
