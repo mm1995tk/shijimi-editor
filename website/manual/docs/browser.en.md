@@ -1,6 +1,6 @@
 # External browser and port forwarding
 
-In the terminal UI, shijimi has no built-in browser: open web pages in the browser on your own machine (the GUI has a browser pane, see "Browser pane in the GUI" below). For a development server running on a remote VM, forward the port and view it in your local browser (see "Example: using it on a remote VM" below).
+In the terminal UI, shijimi-editor has no built-in browser: open web pages in the browser on your own machine (the GUI has a browser pane, see "Browser pane in the GUI" below). For a development server running on a remote VM, forward the port and view it in your local browser (see "Example: using it on a remote VM" below).
 
 ## Opening in an external browser
 
@@ -63,3 +63,8 @@ listen-host = "127.0.0.1"
 ```
 
 The default is `127.0.0.1`. Change it to `0.0.0.0` only inside a trusted network.
+
+### Limits of the browser pane
+
+- A link or a redirect inside a page of a remote machine that points to `http://localhost:<port>/…` as an absolute address is opened as `localhost` of your own machine, not through the forward. Type the address in the address bar instead.
+- Passkeys (WebAuthn) do not work in the pane: the web views of the GUI (WebKitGTK on Linux, WKWebView on macOS) do not offer them to arbitrary sites. Use the browser of your own machine for such sites.

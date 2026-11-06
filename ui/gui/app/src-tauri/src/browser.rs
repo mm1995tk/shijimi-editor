@@ -8,7 +8,7 @@
 //! - 子の webview は `WebviewUrl::External` で作る。外のページからの IPC は、`remote` を持つ capability が
 //!   無い限り tauri が断る（capabilities/default.json は `remote` を持たない）。
 //! - そのうえで、ここの命令は呼んだ webview が `main` かも確かめる（`from_main`）。
-//! - 子の webview の遷移は http と https だけ許す。新しい窓（`target=_blank` など）は開かず、同じ欄で開く。
+//! - 子の webview の遷移は http・https・about だけ許す。新しい窓（`target=_blank` など）は開かず、同じ欄で開く。
 //!
 //! リモートのマシンの欄では、`localhost` などのページを、その欄のために張る ssh のポート転送（`ssh -N -L`）越しに
 //! 見せる。転送は欄ごとに 1 本で、欄を閉じるか、GUI が終わるときに止める。
@@ -200,6 +200,11 @@ impl Browsers {
             let _ = child.wait();
             return Err("the pane was closed".into());
         };
+        // 待つあいだに同じ欄で別の転送が先に入っていたら、それは止めてから置き換える
+        if let Some(mut old) = p.forward.take() {
+            let _ = old.child.kill();
+            let _ = old.child.wait();
+        }
         *p.map.lock().unwrap() = Some((local, remote));
         p.forward = Some(Forward {
             local,
@@ -474,7 +479,6 @@ mod tests {
         assert_eq!(rewrite(&s, 5000).as_str(), "https://127.0.0.1:5000/");
     }
 
-    #[test]
     // 外のページに Tauri の API を渡さない：どの capability にも `remote`（外の URL に権限を渡す指定）を書かない。
     #[test]
     fn no_capability_for_remote_pages() {
@@ -490,6 +494,7 @@ mod tests {
         }
     }
 
+    #[test]
     fn keys() {
         assert!(valid_key("bv1"));
         assert!(!valid_key(""));

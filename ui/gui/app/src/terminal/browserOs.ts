@@ -15,14 +15,17 @@ export function openBrowser(
   return invoke("browser_open", { key, target, url, ...b });
 }
 
+/** 子の webview の位置と大きさを合わせる。 */
 export function moveBrowser(key: string, b: Bounds): Promise<void> {
   return invoke("browser_bounds", { key, ...b });
 }
 
+/** 子の webview を見せる・隠す。 */
 export function showBrowser(key: string, visible: boolean): Promise<void> {
   return invoke("browser_visible", { key, visible });
 }
 
+/** 開いている欄で URL を開く（リモートのマシンの localhost 系は転送越し）。 */
 export function goBrowser(
   key: string,
   target: string,
@@ -31,6 +34,7 @@ export function goBrowser(
   return invoke("browser_go", { key, target, url });
 }
 
+/** 戻る・進む・再読み込み。 */
 export function navBrowser(
   key: string,
   action: "back" | "forward" | "reload",
@@ -38,6 +42,7 @@ export function navBrowser(
   return invoke("browser_nav", { key, action });
 }
 
+/** 子の webview を壊し、その欄の転送も止める。 */
 export function closeBrowser(key: string): Promise<void> {
   return invoke("browser_close", { key });
 }

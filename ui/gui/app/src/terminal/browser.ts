@@ -46,6 +46,7 @@ export function boundsOf(r: {
   };
 }
 
+/** a が b と同じ場所か。a が undefined なら偽。 */
 export function sameBounds(a: Bounds | undefined, b: Bounds): boolean {
   return !!a && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 }
