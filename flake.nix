@@ -87,11 +87,16 @@
             };
 
           # The GUI. Built with Nix it has no auto update (update it with nix flake update).
-          guiDrv = import ./packaging/nix/gui.nix { inherit pkgs version; };
+          guiDrv = import ./packaging/nix/gui.nix {
+            inherit pkgs version;
+            # The kisui of the same build, so the GUI and its server always match.
+            kisui = "${appDrv}/bin/kisui";
+          };
           # The nightly GUI (shijimi-editor-nightly), installed as shijimi-editor-gui-nightly.
           guiNightlyDrv = import ./packaging/nix/gui.nix {
             inherit pkgs;
             version = nightlyVersion;
+            kisui = "${nightlyDrv}/bin/kisui-nightly";
             channel = "nightly";
           };
 
@@ -140,6 +145,9 @@
                   if [ ! -f node_modules/.package-lock.json ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then
                     npm ci
                   fi
+                  # GUI をつなぐ kisui（同梱の代わり）。GUI は SHIJIMI_KISUI を先に見る（locate.rs）
+                  go build -o target/dev/kisui ./cmd/kisui
+                  export SHIJIMI_KISUI="$PWD/target/dev/kisui"
                   exec npm run tauri dev -- "$@"
                 ' gui-dev "$@"
               '';

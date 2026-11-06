@@ -6,7 +6,7 @@ import (
 )
 
 // Port is the one interface the core knows its UI by (docs/design/gui-protocol.md,
-// 「core が知る相手は Port だけ」). The TUI and the adapter of `shj serve` meet it.
+// 「core が知る相手は Port だけ」). The TUI and the adapter of `kisui serve` meet it.
 // Its methods mean the same in every UI and return nothing: the core goes on
 // when it has called one, and an answer that matters comes back later as an
 // Event (OpenURLResult).

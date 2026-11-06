@@ -34,14 +34,6 @@ func Main() {
 			cli.Help()
 			return
 		}
-		if arg == "attach" {
-			setLangFromConfig(dir)
-			os.Exit(runAttach(os.Args[2:]))
-		}
-		if arg == "serve" {
-			setLangFromConfig(dir)
-			os.Exit(runServe(os.Args[2:]))
-		}
 		if ctlclient.IsSubcommand(arg) {
 			setLangFromConfig(dir)
 			os.Exit(ctlclient.Run(os.Args[1:],
@@ -91,7 +83,7 @@ func Main() {
 			os.Setenv(ctl.EnvSocket, path)
 			// The terminals this shj starts belong to this shj, not to the GUI workspace it may run in.
 			os.Unsetenv(ctl.EnvGUIWorkspace)
-			// In the primary terminal of a GUI workspace, shj serve is told.
+			// In the primary terminal of a GUI workspace, kisui serve is told.
 			// The GUI shows the file tree then, so this shj leaves its own out.
 			endPrimary, primary, reportFile, pane := ctlclient.AnnouncePrimary(cli.Suffix(), path)
 			app.SetTreeHidden(primary)

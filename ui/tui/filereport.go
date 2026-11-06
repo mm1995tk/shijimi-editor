@@ -5,7 +5,7 @@ package tui
 // shown), or "" when there is no tab. It is called
 // once with the file at the start and then each time that changes. The GUI's
 // file tree lights the row of that file (the shj in the primary terminal of a
-// GUI workspace reports it to shj serve).
+// GUI workspace reports it to kisui serve).
 func (a *App) SetFileReporter(f func(file string)) {
 	a.fileReport = f
 	a.reportedFile, a.reported = "", false

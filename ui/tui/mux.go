@@ -21,11 +21,11 @@ import (
 // The built-in panel stays in use when [experimental] multiplexer is off,
 // [terminal] multiplexer is "none", or the editor does not run in a
 // multiplexer that is supported. In the GUI the "multiplexer" is the GUI itself:
-// the pane is another terminal of the workspace that shj serve starts, and
+// the pane is another terminal of the workspace that kisui serve starts, and
 // hiding it means the GUI hides every pane but the primary (gui.go). Only the
-// shj that shj serve accepted as the primary has it (SetGUIPane); "auto" takes
+// shj that kisui serve accepted as the primary has it (SetGUIPane); "auto" takes
 // it before looking at the parent processes, because that shj runs in the GUI
-// whatever started shj serve.
+// whatever started kisui serve.
 
 // muxBackend is what a multiplexer has to do for the terminal commands.
 // Adding a multiplexer means implementing it and adding it to newMuxBackend
