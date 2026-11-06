@@ -26,10 +26,18 @@ func (a *App) WriteClipboard(s string) {
 	}
 }
 
-// OpenURL opens url with the opener of this machine and tells the core how it
-// went (core.OpenURLResult). Over SSH it does not try: the browser would not
-// appear on the user's screen.
+// OpenURL opens url and tells the core how it went (core.OpenURLResult). In the
+// primary terminal of a GUI workspace it asks the GUI for a browser pane beside
+// the terminals (the page may be on this machine, which only the GUI can reach
+// from the user's screen). Elsewhere it uses the opener of this machine, and over
+// SSH it does not try: the browser would not appear on the user's screen.
 func (a *App) OpenURL(url string) {
+	if g := a.mux.gui; g != nil {
+		a.later = append(a.later, func() tea.Msg {
+			return core.OpenURLResult{URL: url, Err: g.openBrowser(url)}
+		})
+		return
+	}
 	a.later = append(a.later, func() tea.Msg {
 		if core.IsRemoteSession() {
 			return core.OpenURLResult{URL: url, Err: core.ErrRemoteSession}

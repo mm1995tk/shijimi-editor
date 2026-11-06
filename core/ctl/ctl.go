@@ -195,10 +195,11 @@ type PrimaryReply struct {
 // "send" (Text to pane ID; Enter runs it), "tail" (Lines: the last N lines of
 // the pane) and "close" (pane ID).
 //
-// "open" adds a pane that is not a terminal: Kind says which ("video") and Path
-// is the absolute path of the file it plays. The reply has its ID; the GUI
-// shows it and moves the focus to it. The workspace has one video pane: a new
-// one takes the place of the old. "close" also closes such a pane.
+// "open" adds a pane that is not a terminal: Kind says which. "video": Path is
+// the absolute path of the file it plays. "browser": URL is the http or https
+// address it shows. The reply has its ID; the GUI shows it and moves the focus
+// to it. The workspace has one pane of each kind: a new one takes the place of
+// the old. "close" also closes such a pane.
 type PaneRequest struct {
 	Op     string   `json:"op"`
 	TermID string   `json:"termId"`
@@ -207,6 +208,7 @@ type PaneRequest struct {
 	Cwd    string   `json:"cwd,omitempty"`
 	Kind   string   `json:"kind,omitempty"`
 	Path   string   `json:"path,omitempty"`
+	URL    string   `json:"url,omitempty"`
 	Env    []string `json:"env,omitempty"`
 	Text   string   `json:"text,omitempty"`
 	Enter  bool     `json:"enter,omitempty"`
