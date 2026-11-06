@@ -1,6 +1,6 @@
 // Package term runs a shell on a PTY. It is the part of the terminal that has
 // neither a screen nor a front end: the TUI feeds the output to its emulator
-// (ui/tui/vt) and draws it, `shj serve` relays it to coneko-term. Neither
+// (ui/tui/vt) and draws it, `kisui serve` relays it to coneko-term. Neither
 // bubbletea nor lipgloss nor terminal cell widths come in here.
 // See docs/design/gui-protocol.md.
 package term
@@ -102,7 +102,7 @@ func (s *Session) Close() {
 // Pid is the shell's process ID.
 func (s *Session) Pid() int { return s.cmd.Process.Pid }
 
-// File is the master side of the PTY. `shj serve` reads it itself so it can
+// File is the master side of the PTY. `kisui serve` reads it itself so it can
 // keep its ring buffer and flow control between the shell and the GUI.
 func (s *Session) File() *os.File { return s.ptmx }
 

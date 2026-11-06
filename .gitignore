@@ -9,3 +9,4 @@ tmp
 /target
 /ui/gui/app/dist
 /ui/gui/app/src-tauri/gen
+/ui/gui/app/src-tauri/binaries

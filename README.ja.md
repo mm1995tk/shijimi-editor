@@ -339,7 +339,8 @@ go test ./...
 go build ./cmd/shj
 npm ci                 # GUI の Web 画面（最初と、package-lock.json が変わったとき）
 npm test
-npm run tauri dev      # GUI を動かす（devShell の外では nix run .#gui-dev）
+go build -o target/dev/kisui ./cmd/kisui   # GUI が起動する kisui（SHIJIMI_KISUI）
+SHIJIMI_KISUI=$PWD/target/dev/kisui npm run tauri dev   # GUI を動かす（devShell の外では nix run .#gui-dev）
 cargo test             # GUI の Tauri の殻
 nix flake check        # CI が回す検査を全部（整形・go test・GUI のビルドとテスト）
 scripts/tidy.sh        # go mod tidy / gomod2nix / go fix / nix fmt

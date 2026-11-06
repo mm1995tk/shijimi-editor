@@ -7,19 +7,19 @@ import (
 )
 
 // guiBackend is the muxBackend for the GUI. It is for the shj that runs in the
-// primary terminal of a GUI workspace and that "shj serve" accepted as the
-// primary: the panes are terminals of the same workspace, which "shj serve"
+// primary terminal of a GUI workspace and that "kisui serve" accepted as the
+// primary: the panes are terminals of the same workspace, which "kisui serve"
 // starts and the GUI lays out beside the primary (docs/design/gui-protocol.md,
 // "Panes of the primary shj"). Every operation is one ctl.PaneRequest.
 type guiBackend struct {
-	// do sends a request to "shj serve"; tests replace it.
+	// do sends a request to "kisui serve"; tests replace it.
 	do func(ctl.PaneRequest) (ctl.PaneReply, error)
 }
 
 func (*guiBackend) name() string { return "gui" }
 
 // SetGUIPane makes the GUI a multiplexer that the terminal commands can use.
-// do sends a ctl.PaneRequest to "shj serve" (ctlclient.Pane.Do). It is called
+// do sends a ctl.PaneRequest to "kisui serve" (ctlclient.Pane.Do). It is called
 // only for the shj that is the primary of a GUI workspace; any other shj has
 // no GUI backend and keeps the built-in terminal.
 func (a *App) SetGUIPane(do func(ctl.PaneRequest) (ctl.PaneReply, error)) {

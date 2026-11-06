@@ -24,8 +24,6 @@ func Help() {
 	fmt.Println("       shj diff [path]")
 	fmt.Println(i18n.T("help.exec"))
 	fmt.Println(i18n.T("help.skill"))
-	fmt.Println(i18n.T("help.serve"))
-	fmt.Println(i18n.T("help.attach"))
 	fmt.Println("       shj -v, --version")
 	fmt.Println(i18n.T("help.sub1") + ctl.EnvSocket + i18n.T("help.sub2"))
 	fmt.Println(i18n.T("help.samename"))

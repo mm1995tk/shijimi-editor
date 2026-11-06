@@ -12,7 +12,7 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
 )
 
-// AnnouncePrimary tells "shj serve" that this shj, whose control socket is
+// AnnouncePrimary tells "kisui serve" that this shj, whose control socket is
 // ownSocket, runs in the primary terminal of a GUI workspace. It does nothing
 // unless ctl.EnvGUIPrimary is set, and it removes the variable either way so
 // that a shj started from this one (or from a terminal panel of it) is never

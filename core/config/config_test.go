@@ -125,7 +125,7 @@ timeout = 2500
 	}
 }
 
-// With auto-save off, nothing more is asked for: on-switch (what `shj serve` did
+// With auto-save off, nothing more is asked for: on-switch (what `kisui serve` did
 // with the open files when a workspace switched folders) is no longer required.
 // A file that still has it keeps loading, and a value that is neither save nor
 // discard is a mistake of its own.

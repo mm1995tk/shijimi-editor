@@ -7,7 +7,7 @@ import (
 
 // Pool keeps the open files of a process so that opening a file that is
 // already open gives another view of the same Doc instead of a second copy
-// of its text. The cores of `shj serve` share one.
+// of its text. The cores of `kisui serve` share one.
 type Pool struct {
 	mu   sync.Mutex
 	docs map[string]*Doc // by fileKey

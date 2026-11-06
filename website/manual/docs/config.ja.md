@@ -20,7 +20,7 @@
 
 ## ファイルに間違いがあるとき
 
-どれか 1 つのファイルに間違いがあると、`shj` も `shj serve` も起動しません。間違い全部について、ファイルの場所・行・理由を出して、0 以外で終わります。
+どれか 1 つのファイルに間違いがあると、`shj` も `kisui serve` も起動しません。間違い全部について、ファイルの場所・行・理由を出して、0 以外で終わります。
 
 ```
 /home/me/.config/shijimi-editor/config.toml:3: editor.file-icons: true か false で書いてください（今は 文字列 です）
@@ -35,7 +35,7 @@
 
 以前のバージョンは、これらの間違いを黙って無視していました。更新したあと、今まで起動できたファイルで起動しなくなることがあります。出たメッセージの場所を直してください。
 
-起動中の `:config-reload` で間違いが見つかっても、エディタは止まりません。今の設定のまま、最初の間違いをステータス行に出します。ユーザー自身のファイルの間違いは `shj serve` 自体を止め、`shj attach` がその理由を GUI の接続エラーとして渡します。
+起動中の `:config-reload` で間違いが見つかっても、エディタは止まりません。今の設定のまま、最初の間違いをステータス行に出します。ユーザー自身のファイルの間違いは `kisui serve` 自体を止め、`kisui attach` がその理由を GUI の接続エラーとして渡します。
 
 ## 知らない項目は無視します
 
@@ -145,14 +145,14 @@ name = "dev"     # サイドバーに出す名前（省くと ssh の行き先�
 | `editor.indent-guides.render` | インデントガイドを描くか（既定 true） | — |
 | `editor.mouse-hover` | マウスを乗せたときにホバーを表示するか | [LSP](lsp.md) |
 | `editor.auto-save.after-delay` | 自動保存 | [ファイルと検索](files.md) |
-| `editor.auto-save.on-switch` | 今は使いません。ワークスペースが別のフォルダへ切り替わるときに `shj serve` が開いているファイルをどうするかを決めるものでしたが、`shj serve` はファイルを編集しなくなりました。書いてあるファイルが読めなくならないよう、`save` か `discard` は受け付けます。自動保存を切っても必須ではありません | — |
+| `editor.auto-save.on-switch` | 今は使いません。ワークスペースが別のフォルダへ切り替わるときに `kisui serve` が開いているファイルをどうするかを決めるものでしたが、`kisui serve` はファイルを編集しなくなりました。書いてあるファイルが読めなくならないよう、`save` か `discard` は受け付けます。自動保存を切っても必須ではありません | — |
 | `[[language]]` の `formatter` | `:fmt` で動かす整形コマンド（languages.toml） | [LSP](lsp.md) |
 | `search.exclude` / `search.include` | 全体検索の除外 / 包含 | [ファイルと検索](files.md) |
 | `[keys.normal]` `[keys.insert]` `[keys.select]` | Helix モードのキーの差し替え（`~/.config/shijimi-editor/` だけ） | [編集（Helix モード）](editing-helix.md#キーの差し替え) |
 | `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | 提案パネルが使う ACP エージェント | [AI エージェント連携](agent.md) |
 | `server.start_dir` | 新しいワークスペースのプライマリターミナルが始まるフォルダ（絶対パス、または `~` で始まるパス）。既定は `~`。無いフォルダは設定の間違い。プロジェクトの中なら、ワークスペースのフォルダがそのまま決まる | — |
-| `server.idle_stop_days` | GUI がつながらないまま `shj serve` が動き続ける日数。過ぎると自分で止まる（既定 7、0 で止まらない）。動いているシェルも終わる。ワークスペースの一覧（それぞれのフォルダ。フォルダ未定のものも）は `serve.log` の隣の `workspaces.json` に保存され、次の `shj serve` が作り直す。プライマリターミナルはそのフォルダ（フォルダが無い・未定なら `start_dir`）で新しいシェルを始める。分割したターミナルは戻らない | — |
+| `server.idle_stop_days` | GUI がつながらないまま `kisui serve` が動き続ける日数。過ぎると自分で止まる（既定 7、0 で止まらない）。動いているシェルも終わる。ワークスペースの一覧（それぞれのフォルダ。フォルダ未定のものも）は `serve.log` の隣の `workspaces.json` に保存され、次の `kisui serve` が作り直す。プライマリターミナルはそのフォルダ（フォルダが無い・未定なら `start_dir`）で新しいシェルを始める。分割したターミナルは戻らない | — |
 
 ## テーマ
 

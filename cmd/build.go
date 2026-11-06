@@ -21,7 +21,7 @@ func coreBuild() core.Build {
 
 // configOptions is what the configuration is told about this build: the
 // directory, and the settings of the UIs (the one `shj` runs is one of them,
-// and `shj serve` another; all are accepted in every file).
+// and `kisui serve` another; all are accepted in every file).
 func configOptions() config.Options {
 	return config.Options{
 		DirSuffix: cli.Suffix(),

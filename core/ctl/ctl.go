@@ -15,13 +15,13 @@ import (
 // EnvSocket is the environment variable that carries the socket path.
 const EnvSocket = "SHIJIMI_SOCKET"
 
-// EnvGUIPrimary is set by "shj serve" only in the primary terminal of a GUI
+// EnvGUIPrimary is set by "kisui serve" only in the primary terminal of a GUI
 // workspace, and its value is that terminal's id. A TUI shj that finds it
 // announces itself on the primary socket (see PrimaryHello), then removes it
 // from its own environment so that nothing it starts can claim the primary.
 const EnvGUIPrimary = "SHIJIMI_GUI_PRIMARY"
 
-// EnvGUIWorkspace is set by "shj serve" in every terminal of a GUI workspace;
+// EnvGUIWorkspace is set by "kisui serve" in every terminal of a GUI workspace;
 // its value is the workspace id. The shj subcommands use it to reach the shj
 // that runs in that workspace's primary terminal (GUILinkPath), even when it
 // was started after the terminal. A terminal's environment cannot change after
@@ -92,7 +92,7 @@ func SocketPath(suffix string) (string, error) {
 	return filepath.Join(dir, fmt.Sprintf("%d.sock", os.Getpid())), nil
 }
 
-// ServeSocketPath returns the socket of "shj serve": <SocketDir>/serve.rpc.
+// ServeSocketPath returns the socket of "kisui serve": <SocketDir>/serve.rpc.
 // The name does not end in ".sock" on purpose: ctlclient.FindSocket treats
 // every "*.sock" in the directory as an editor and would count the server as
 // one.
@@ -104,8 +104,8 @@ func ServeSocketPath(suffix string) (string, error) {
 	return filepath.Join(dir, "serve.rpc"), nil
 }
 
-// ServeLockPath returns the lock file that "shj attach" takes with flock while
-// it starts "shj serve": <SocketDir>/serve.lock.
+// ServeLockPath returns the lock file that "kisui attach" takes with flock while
+// it starts "kisui serve": <SocketDir>/serve.lock.
 func ServeLockPath(suffix string) (string, error) {
 	dir, err := SocketDir(suffix, true)
 	if err != nil {
@@ -119,7 +119,7 @@ func HerdrDir(dir, ws string) string {
 	return filepath.Join(dir, "herdr-"+SafeName(ws))
 }
 
-// GUILinkPath is where "shj serve" links the socket of the shj in the primary
+// GUILinkPath is where "kisui serve" links the socket of the shj in the primary
 // terminal of GUI workspace ws: <dir>/gui-<ws>/primary.sock, a symbolic link to
 // <pid>.sock. It lives in a directory of its own so that FindSocket's search
 // of dir for "*.sock" does not count it twice.
@@ -139,7 +139,7 @@ func SafeName(id string) string {
 	}, id)
 }
 
-// ServePrimaryName is the file name of the primary socket of "shj serve",
+// ServePrimaryName is the file name of the primary socket of "kisui serve",
 // <SocketDir>/serve-primary.rpc, on which a TUI shj announces that it runs in
 // the primary terminal of a workspace. Like serve.rpc it does not end in
 // ".sock".
@@ -173,7 +173,7 @@ type PrimaryFile struct {
 }
 
 // PrimaryReply answers a PrimaryHello with one line. When OK, the connection
-// stays open for as long as the shj runs, and "shj serve" takes its close as
+// stays open for as long as the shj runs, and "kisui serve" takes its close as
 // the end of the shj. When not OK (the primary already has a shj, the terminal
 // is not a primary one) the server closes the connection.
 type PrimaryReply struct {

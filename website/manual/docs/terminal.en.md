@@ -72,13 +72,13 @@ When shijimi runs in a terminal multiplexer, `[experimental]` `multiplexer` is `
 
 ### In the GUI
 
-In the editor that runs in the primary terminal of a shijimi-editor GUI workspace (the one `shj serve` accepts as the primary), the GUI itself is the multiplexer. The terminal commands then open another terminal of the same workspace, which the GUI shows beside the primary, and move the focus to it. The keys and commands are the same as above, with these differences:
+In the editor that runs in the primary terminal of a shijimi-editor GUI workspace (the one `kisui serve` accepts as the primary), the GUI itself is the multiplexer. The terminal commands then open another terminal of the same workspace, which the GUI shows beside the primary, and move the focus to it. The keys and commands are the same as above, with these differences:
 
 - The second ``Ctrl+` `` hides every terminal but the primary (the same as `Ctrl+Shift+M` in the GUI), and the next one shows them again and moves the focus to the pane. You can have up to 6 terminals in a workspace, the pane included.
 - The pane starts in the root of the workspace, with the same environment variables as the other multiplexers.
 - When shijimi-editor quits, the panes it opened are closed. If you type `exit` in the pane, the GUI closes it and the next ``Ctrl+` `` opens a new one.
 - The text that the commands send to the pane (`:sh <command>`, `Space a`) is written to the terminal as it is. The lines kept for the failed command are taken from the output the GUI has kept, so they can differ a little from the screen.
-- An editor in any other terminal of the GUI (a split terminal) is not the primary: it keeps the built-in terminal panel. `"auto"` chooses the GUI in the primary even when `shj serve` was started inside tmux; set `[terminal]` `multiplexer = "none"` to keep the terminal panel there too.
+- An editor in any other terminal of the GUI (a split terminal) is not the primary: it keeps the built-in terminal panel. `"auto"` chooses the GUI in the primary even when `kisui serve` was started inside tmux; set `[terminal]` `multiplexer = "none"` to keep the terminal panel there too.
 
 ### Videos in the GUI
 
