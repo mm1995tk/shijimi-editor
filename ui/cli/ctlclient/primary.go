@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"sync"
@@ -25,34 +26,37 @@ import (
 // report tells the server which file this shj shows (ctl.PrimaryFile); it does
 // nothing when primary is false. It does not wait for the server. pane is how
 // to use the GUI's panes; it is nil when primary is false.
-func AnnouncePrimary(suffix, ownSocket string) (end func(), primary bool, report func(file string), pane *Pane) {
+func AnnouncePrimary(suffix, ownSocket string) (end func(), primary bool, report func(file string), pane *Pane, err error) {
 	termID := os.Getenv(ctl.EnvGUIPrimary)
 	if termID == "" {
-		return func() {}, false, func(string) {}, nil
+		return func() {}, false, func(string) {}, nil, nil
 	}
 	os.Unsetenv(ctl.EnvGUIPrimary)
 	path, err := ctl.ServePrimarySocketPath(suffix)
 	if err != nil {
-		return func() {}, false, func(string) {}, nil
+		return func() {}, false, func(string) {}, nil, nil
 	}
-	return announce(path, ctl.PrimaryHello{TermID: termID, Socket: ownSocket, PID: os.Getpid()})
+	return announce(path, ctl.PrimaryHello{TermID: termID, Socket: ownSocket, PID: os.Getpid(), Protocol: ctl.PrimaryProtocol})
 }
 
-func announce(path string, h ctl.PrimaryHello) (func(), bool, func(string), *Pane) {
+func announce(path string, h ctl.PrimaryHello) (func(), bool, func(string), *Pane, error) {
 	c, err := net.DialTimeout("unix", path, 2*time.Second)
 	if err != nil {
-		return func() {}, false, func(string) {}, nil
+		return func() {}, false, func(string) {}, nil, nil
 	}
 	_ = c.SetDeadline(time.Now().Add(2 * time.Second))
 	line, _ := json.Marshal(h)
 	if _, err := c.Write(append(line, '\n')); err != nil {
 		c.Close()
-		return func() {}, false, func(string) {}, nil
+		return func() {}, false, func(string) {}, nil, nil
 	}
 	var r ctl.PrimaryReply
 	if err := json.NewDecoder(bufio.NewReader(c)).Decode(&r); err != nil || !r.OK {
 		c.Close()
-		return func() {}, false, func(string) {}, nil
+		if err == nil && r.Code == ctl.ReplyCodeVersion {
+			return func() {}, false, func(string) {}, nil, &VersionError{Min: r.Min, Max: r.Max}
+		}
+		return func() {}, false, func(string) {}, nil, nil
 	}
 	_ = c.SetDeadline(time.Time{})
 	// report never waits for the server: the newest file waits in a channel of
@@ -86,7 +90,16 @@ func announce(path string, h ctl.PrimaryHello) (func(), bool, func(string), *Pan
 		}
 	}
 	var once sync.Once
-	return func() { once.Do(func() { close(done); c.Close() }) }, true, report, &Pane{path: path, termID: h.TermID, pid: h.PID}
+	return func() { once.Do(func() { close(done); c.Close() }) }, true, report, &Pane{path: path, termID: h.TermID, pid: h.PID}, nil
+}
+
+// VersionError says "kisui serve" refused the announcement because this shj's
+// protocol version (ctl.PrimaryProtocol) is outside the range Min to Max that
+// it accepts.
+type VersionError struct{ Min, Max int }
+
+func (e *VersionError) Error() string {
+	return fmt.Sprintf("kisui-terminal accepts protocol versions %d to %d; this shj speaks %d", e.Min, e.Max, ctl.PrimaryProtocol)
 }
 
 // Pane is how the shj that the server accepted as the primary uses the GUI's
