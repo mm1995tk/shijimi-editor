@@ -452,7 +452,7 @@ func TestComposerAsksNoKeyReleases(t *testing.T) {
 	a, _ := prApp(t)
 	a.Helix, a.Mode = true, ModeNormal
 	if !a.WantKeyReleases() {
-		t.Skip("releases are not asked for in this editor state")
+		t.Fatal("releases are not asked for before composing")
 	}
 	a.ReviewKey("S")
 	if a.Composer == nil {
