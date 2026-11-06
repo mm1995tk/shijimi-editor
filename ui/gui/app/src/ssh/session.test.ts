@@ -448,6 +448,26 @@ describe("プライマリの shj の欄（#553）", () => {
     ]);
     await s.close();
   });
+
+  it("プライマリの shj が動画の欄を出した知らせを渡す（pane.show の extraId）", async () => {
+    const f = fakeShell({ serverIds: ["A"] });
+    const s = new Session(f.api, "h", fast);
+    const got: unknown[] = [];
+    s.onPane((e) => got.push(e));
+    s.start();
+    await waitFor(s, (st) => st.kind === "connected");
+    const id = connectedId(f);
+    f.emit(id, {
+      jsonrpc: "2.0",
+      method: "pane.show",
+      params: { workspaceId: "w1", extraId: "x3" },
+    });
+    await settle();
+    assert.deepEqual(got, [
+      { kind: "show-extra", workspaceId: "w1", extraId: "x3" },
+    ]);
+    await s.close();
+  });
 });
 
 describe("applyWorkspaceChange", () => {

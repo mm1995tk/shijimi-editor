@@ -52,7 +52,7 @@ import {
   type PaneSizes,
 } from "./panes.ts";
 import { ErrorCode, RpcError } from "./rpc/message.ts";
-import type { Workspace, WorkspaceId } from "./rpc/protocol.ts";
+import type { ExtraPane, Workspace, WorkspaceId } from "./rpc/protocol.ts";
 import {
   adoptFocus,
   buildSidebar,
@@ -98,6 +98,7 @@ import { WorkspaceTrees } from "./tree/trees.ts";
 import { cmdDigit, IS_MAC, isCloseTermKey } from "./guiKeys.ts";
 import { directionKey, isNewTermKey, isZoomKey } from "./terminal/grid.ts";
 import { TermGroup, TermGroups } from "./terminal/group.ts";
+import type { MediaFetch } from "./terminal/media.ts";
 import { TerminalGrid } from "./terminal/TerminalGrid.tsx";
 
 /**
@@ -252,6 +253,19 @@ function Workbench(props: {
     if (f && f.target === target && f.id === id) focusTerminal();
   }
   const termActive = () => termGroup()?.active;
+  const termExtras = () => termGroup()?.extras ?? [];
+  const termActiveExtra = () => termGroup()?.activeExtra;
+  // shj が動画などの欄を出した回数（ツリーで押したファイルの返事で、動画の欄から奪い返さないため）
+  let extraShown = 0;
+  /** shj が動画の欄を出した（#555）。隠していれば戻し、その欄にキーを向ける。 */
+  function paneShowExtra(target: string, id: WorkspaceId, extraId: string) {
+    extraShown++;
+    zoomWs(target, id, false);
+    termGroups.get(target)?.get(id)?.activateExtra(extraId);
+    const f = untrack(focus);
+    if (!f || f.target !== target || f.id !== id) return;
+    focusTerminal();
+  }
   // マシンごとのツリー（D2）。中身は WorkspaceTrees が持ち、変わったら treeVersion を進めて描き直す
   const trees = new Map<string, WorkspaceTrees>();
   const [treeVersion, setTreeVersion] = createSignal(0);
@@ -430,6 +444,8 @@ function Workbench(props: {
     );
     const offPane = s.onPane((ev) => {
       if (ev.kind === "show") paneShow(target, ev.workspaceId, ev.termId);
+      else if (ev.kind === "show-extra")
+        paneShowExtra(target, ev.workspaceId, ev.extraId);
       else zoomWs(target, ev.workspaceId, true);
     });
     offStates.set(target, () => {
@@ -675,10 +691,13 @@ function Workbench(props: {
     if (!workspaces()[target]?.find((w) => w.id === id)?.primaryShj) return;
     const seq = ++openSeq; // 続けて押したら、最後に押したものの失敗だけを出す
     setFocusError(null);
+    const shown = extraShown;
     s.request("shj.open", { workspaceId: id, path }).then(
       () => {
         // 返事を待つあいだに別のワークスペースへ移っていたら、そちらのターミナルは動かさない
         if (seq !== openSeq || s.focus !== id) return;
+        // 動画だった（shj が動画の欄を出して、そこにキーを向けた）なら、プライマリに奪い返さない
+        if (extraShown !== shown) return;
         termGroup()?.setActive(0); // 0 番目がプライマリ
         focusTerminal();
       },
@@ -821,6 +840,18 @@ function Workbench(props: {
     if (f?.target !== target || f.id !== id) return undefined;
     const w = workspaces()[target]?.find((x) => x.id === id);
     return relativeIn(w?.primaryShj?.file, rootOf(target, id));
+  }
+
+  /** フォーカスしているワークスペースの、ターミナルでない欄（動画）の中身を取る関数。 */
+  function readExtra(pane: ExtraPane): MediaFetch {
+    const f = focus();
+    const s = f ? sessions()[f.target] : undefined;
+    const workspaceId = f?.id;
+    return async (p) => {
+      if (!s || workspaceId === undefined)
+        throw new Error("つながっていません");
+      return s.request("media.read", { workspaceId, id: pane.id, ...p });
+    };
   }
 
   /** 今使っているターミナルの欄にキーを向ける。 */
@@ -1060,6 +1091,11 @@ function Workbench(props: {
         <TerminalGrid
           links={termList()}
           active={termActive()}
+          extras={termExtras()}
+          activeExtra={termActiveExtra()}
+          readExtra={readExtra}
+          onActivateExtra={(x) => termGroup()?.activateExtra(x)}
+          onCloseExtra={(x) => termGroup()?.closeExtra(x)}
           zoomed={zoomed()}
           accent={colors()[termTarget() ?? ""]}
           onActivate={(i) => termGroup()?.setActive(i)}

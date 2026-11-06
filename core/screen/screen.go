@@ -28,7 +28,7 @@ type Pane struct {
 	CurLine    int          `json:"curLine"`              // カーソルのある行（バッファの行番号）。行の強調と相対行番号の基準。Cursors の描く位置とは別（選択が前向きのとき、描く位置は 1 つ前の文字になる）
 	Cursors    []Pos        `json:"cursors,omitempty"`    // 描くカーソルの位置。先頭が主のカーソルで、残りが複数カーソルの追加分
 	Selections []Range      `json:"selections,omitempty"` // Cursors と同じ並び。選択が無いカーソルは Start == End の空の範囲
-	Image      *ImageRef    `json:"image,omitempty"`      // Kind が KindImage のとき。実体は blob.get で取る。読めなかったときは nil
+	Image      *ImageRef    `json:"image,omitempty"`      // Kind が KindImage のとき。実体は ImageRef.Blob で引く（Core.BlobImage）。読めなかったときは nil
 	Caption    msg.Msg      `json:"caption,omitzero"`     // Kind が KindImage のとき、画像の説明の行（形式・大きさ・容量。読めなかったときはその理由）
 	Diff       *DiffInfo    `json:"diff,omitempty"`       // Kind が KindDiff のとき
 	Preview    *PreviewInfo `json:"preview,omitempty"`    // Kind が KindPreview のとき
@@ -71,7 +71,7 @@ type Hunk struct {
 // プレビューは文書を Pane の幅（Viewport.Cols）で折り返して作った「表示行」を上から並べたもので、Lines は
 // そのうち見えている分（Top から Viewport.Rows 行まで）だけ。Line.No は文書の中の表示行の番号で、バッファの
 // 行番号ではない。画像（ローカルの画像と mermaid の図）は Lines に埋め込まず、場所だけ Images で指す。
-// 実体は blob.get で取る。
+// 実体は ImageRef.Blob で引く（Core.BlobImage）。
 type PreviewInfo struct {
 	Top    int            `json:"top"`    // Lines[0] の表示行
 	Rows   int            `json:"rows"`   // 表示行の全部の数

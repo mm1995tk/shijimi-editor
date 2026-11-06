@@ -19,7 +19,6 @@
 | `:wa` | Save all |
 
 **Auto save** is enabled by default. It saves when editing pauses for 1 second. Unnamed files are not saved. You can turn it off with `[editor.auto-save.after-delay] enable = false` (see [Configuration](config.md)).
-To turn it off, see [Configuration files](config.md).
 
 ## File tree
 

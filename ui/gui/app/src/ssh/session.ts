@@ -1,7 +1,7 @@
 // 切れたら自動でつなぎ直す接続（C4）。connectShj の上に、次の 3 つを足す。
 //  - session.ping を一定間隔で送り、ssh が黙って切れたことに気づく
 //  - 切れたら間隔を空けて何度かつなぎ直す。session.hello で resume を送り、同じ serverId なら
-//    ワークスペースの一覧を取り直す
+//    つなぎ直したら、ワークスペースの一覧を取り直す
 //  - 状態（State）を外に出す。一覧の表示はこれを読む
 //  - ワークスペースの一覧と shj のフォーカスを持ち、workspace.focus でフォーカスを移す（D1）
 //  - ツリーと git の要求（tree.list / tree.watch / git.status）を今の接続に流し、
@@ -95,7 +95,10 @@ export type TermMethod =
   | "term.restart"
   | "term.resize"
   | "term.input"
-  | "term.cd";
+  | "term.cd"
+  | "extra.close";
+/** Session.request で送れる要求（動画の欄の中身。#555）。 */
+export type BlobMethod = "media.read";
 /** Session.request で送れる要求（プライマリの shj にファイルを開かせる）。 */
 export type ShjMethod = "shj.open";
 /** ターミナルの通知（F1）。method で見分ける。 */
@@ -107,6 +110,7 @@ export type TermEvent =
 /** shj が出した・隠した欄の知らせ（プライマリの shj の端末のコマンド。#553）。 */
 export type PaneEvent =
   | { kind: "show"; workspaceId: WorkspaceId; termId: TermId }
+  | { kind: "show-extra"; workspaceId: WorkspaceId; extraId: string }
   | { kind: "hide"; workspaceId: WorkspaceId };
 
 /** 1, 2, 4, 8, 16, 30 秒…（最後の値を繰り返す）。10 回で待ちは合わせて 151 秒ほど（ssh の接続待ちは別）。 */
@@ -238,7 +242,7 @@ export class Session {
    * ツリーと git（D2）・ターミナル（F1）・プライマリの shj（#551）の要求を今の接続で送る。つながっていないときは投げる。
    * つなぎ直したら、呼ぶ側が取り直す（onState の connected で知る）。
    */
-  async request<M extends TreeMethod | TermMethod | ShjMethod>(
+  async request<M extends TreeMethod | TermMethod | BlobMethod | ShjMethod>(
     method: M,
     params: Requests[M]["params"],
   ): Promise<Requests[M]["result"]> {
@@ -469,10 +473,19 @@ export class Session {
       }),
       conn.client.on("pane.show", (n) => {
         if (gen !== this.generation || this.conn !== conn) return;
-        if (typeof n?.workspaceId !== "string" || typeof n?.termId !== "string")
-          return;
-        for (const h of [...this.paneHandlers])
-          h({ kind: "show", workspaceId: n.workspaceId, termId: n.termId });
+        if (typeof n?.workspaceId !== "string") return;
+        const ev: PaneEvent | undefined =
+          typeof n.termId === "string"
+            ? { kind: "show", workspaceId: n.workspaceId, termId: n.termId }
+            : typeof n.extraId === "string"
+              ? {
+                  kind: "show-extra",
+                  workspaceId: n.workspaceId,
+                  extraId: n.extraId,
+                }
+              : undefined;
+        if (!ev) return;
+        for (const h of [...this.paneHandlers]) h(ev);
       }),
       conn.client.on("pane.hide", (n) => {
         if (gen !== this.generation || this.conn !== conn) return;

@@ -37,6 +37,8 @@ type wsInfo struct {
 	Terms   []string `json:"terms"`   // 分割したターミナル
 	// PrimaryShj は GUI のプライマリターミナルの中で動いている TUI の shj。無ければ null。
 	PrimaryShj *primaryShj `json:"primaryShj"`
+	// Extras はターミナルでない欄（プライマリの shj が開かせた動画。docs/design/gui-protocol.md）。
+	Extras []extraPane `json:"extras"`
 
 	root string // Folder の値。未定なら ""
 	seq  int    // 作った順
@@ -63,6 +65,7 @@ type wsManager struct {
 	home      string
 	reg       map[string]*wsState // id -> ワークスペース
 	next      int
+	nextExtra int                // ターミナルでない欄の id の連番
 	list      map[string]*wsInfo // 前回の recompute の結果
 	focus     string             // フォーカスしているワークスペースの id。無ければ ""
 	restoring bool               // restore の途中（persist は書かない）
@@ -189,6 +192,7 @@ func (w *wsManager) recomputeLocked() {
 		c := *st
 		if c.shj != nil {
 			cp := *c.shj // File は後から変わるので、写しを渡す
+			cp.extras = slices.Clone(cp.extras)
 			c.shj = &cp
 		}
 		states = append(states, &c)
@@ -214,13 +218,16 @@ func (w *wsManager) recomputeLocked() {
 func buildWorkspaces(states []*wsState, terms []*terminal) map[string]*wsInfo {
 	next := map[string]*wsInfo{}
 	for _, st := range states {
-		x := &wsInfo{ID: st.id, Primary: st.primary, Terms: []string{}, root: st.root, seq: st.seq, PrimaryShj: st.shj}
+		x := &wsInfo{ID: st.id, Primary: st.primary, Terms: []string{}, Extras: []extraPane{}, root: st.root, seq: st.seq, PrimaryShj: st.shj}
 		if st.root != "" {
 			folder, kind, name := st.root, st.kind, filepath.Base(st.root)
 			x.Folder, x.Kind, x.Name = &folder, &kind, &name
 			if st.kind == "git" {
 				x.Branch = gitBranch(st.root)
 			}
+		}
+		if st.shj != nil {
+			x.Extras = append(x.Extras, st.shj.extras...)
 		}
 		next[st.id] = x
 	}
@@ -282,7 +289,7 @@ func sortWS(l []*wsInfo) { sort.Slice(l, func(i, j int) bool { return l[i].seq <
 
 func wsEqual(a, b *wsInfo) bool {
 	return a.root == b.root && ptrEq(a.Kind, b.Kind) && a.Branch == b.Branch && a.Primary == b.Primary && shjEq(a.PrimaryShj, b.PrimaryShj) &&
-		slices.Equal(a.Terms, b.Terms)
+		slices.Equal(a.Terms, b.Terms) && slices.Equal(a.Extras, b.Extras)
 }
 
 func ptrEq(a, b *string) bool {
