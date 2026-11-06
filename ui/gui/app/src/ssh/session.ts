@@ -1,7 +1,6 @@
 // 切れたら自動でつなぎ直す接続（C4）。connectShj の上に、次の 3 つを足す。
 //  - session.ping を一定間隔で送り、ssh が黙って切れたことに気づく
-//  - 切れたら間隔を空けて何度かつなぎ直す。session.hello で resume を送り、同じ serverId なら
-//    つなぎ直したら、ワークスペースの一覧を取り直す
+//  - 切れたら間隔を空けて何度かつなぎ直す。session.hello で resume を送り、つなぎ直したらワークスペースの一覧を取り直す
 //  - 状態（State）を外に出す。一覧の表示はこれを読む
 //  - ワークスペースの一覧と shj のフォーカスを持ち、workspace.focus でフォーカスを移す（D1）
 //  - ツリーと git の要求（tree.list / tree.watch / git.status）を今の接続に流し、
