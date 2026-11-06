@@ -16,7 +16,7 @@ import (
 )
 
 // SetIDE attaches the MCP server cmd made for the program, so the
-// editor can push events. The server is not the core's: a GUI server makes its own.
+// editor can push events.
 func (a *Core) SetIDE(s *ide.Server) { a.ide = s }
 
 func (a *Core) ideAbs(p string) string {

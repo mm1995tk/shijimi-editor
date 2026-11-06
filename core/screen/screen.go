@@ -1,42 +1,11 @@
 // Package screen は「画面に何を出すか」のデータ型だけを持つ（設計書 docs/design/gui-protocol.md の 1 章）。
 //
-// 中身（core）が作り、TUI の描画とプロトコルが読む。標準ライブラリと msg（キーと値）以外に依存しない。
+// 中身（core）が作り、TUI の描画が読む。標準ライブラリと msg（キーと値）以外に依存しない。
 // 色は RGB ではなくテーマ上の名前（Style）で持ち、名前 → 色の対応は Palette が表す。
-// 位置は画面全体の座標ではなく「ペインの中の行と桁」で持つ。文言はキーと値の msg.Msg で持ち、訳すのは UI（TUI は描くとき、server は送る直前）。
+// 位置は画面全体の座標ではなく「ペインの中の行と桁」で持つ。文言はキーと値の msg.Msg で持ち、訳すのは UI（TUI は描くとき）。
 package screen
 
 import "github.com/mm1995tk/shijimi-editor/core/msg"
-
-// Region は領域。Screen.Focus（今キーを受ける領域）などに使う。
-type Region string
-
-const (
-	RegionFiles    Region = "files"
-	RegionExplorer Region = "explorer"
-	RegionChanges  Region = "changes"
-	RegionAgent    Region = "agent"
-	RegionTerminal Region = "terminal"
-	RegionStatus   Region = "status"
-	RegionCmdline  Region = "cmdline"
-	RegionOverlay  Region = "overlay"
-)
-
-// Screen は、ある時点で画面に出すもの全部。
-type Screen struct {
-	Rev     uint64    `json:"rev"`               // 作るたびに増える。GUI はこれで抜けを見つける
-	AckSeq  uint64    `json:"ackSeq"`            // どの入力（Input.Seq）までがこの画面に入っているか
-	Focus   Region    `json:"focus"`             // 今キーを受ける領域
-	Files   *Files    `json:"files,omitempty"`   // ファイルの欄
-	Status  Status    `json:"status"`            // 状態行
-	Cmdline *Cmdline  `json:"cmdline,omitempty"` // ":" と "/" の入力行。無ければ nil
-	Overlay []Overlay `json:"overlay,omitempty"` // 補完・ホバー・シグネチャ・確認・パレット・メニュー・レビューカード
-}
-
-// Files はファイルの欄。普段は Pane が 1 つ、必要なら左右に 2 つ。
-type Files struct {
-	Panes  []Pane `json:"panes"`
-	Active int    `json:"active"`
-}
 
 // PaneKind は Pane の中身の種類。
 type PaneKind string
@@ -49,7 +18,7 @@ const (
 	KindWelcome PaneKind = "welcome"
 )
 
-// Pane はファイルの欄の 1 つの区画。差分は左右の Pane を 2 つ返す。
+// Pane はエディタの 1 つの区画。差分は左右の Pane を 2 つ返す。
 type Pane struct {
 	ID         string       `json:"id"`
 	Title      Title        `json:"title"`
@@ -59,7 +28,7 @@ type Pane struct {
 	CurLine    int          `json:"curLine"`              // カーソルのある行（バッファの行番号）。行の強調と相対行番号の基準。Cursors の描く位置とは別（選択が前向きのとき、描く位置は 1 つ前の文字になる）
 	Cursors    []Pos        `json:"cursors,omitempty"`    // 描くカーソルの位置。先頭が主のカーソルで、残りが複数カーソルの追加分
 	Selections []Range      `json:"selections,omitempty"` // Cursors と同じ並び。選択が無いカーソルは Start == End の空の範囲
-	Image      *ImageRef    `json:"image,omitempty"`      // Kind が KindImage のとき。実体は blob.get で取る。読めなかったときは nil
+	Image      *ImageRef    `json:"image,omitempty"`      // Kind が KindImage のとき。実体は ImageRef.Blob で引く（Core.BlobImage）。読めなかったときは nil
 	Caption    msg.Msg      `json:"caption,omitzero"`     // Kind が KindImage のとき、画像の説明の行（形式・大きさ・容量。読めなかったときはその理由）
 	Diff       *DiffInfo    `json:"diff,omitempty"`       // Kind が KindDiff のとき
 	Preview    *PreviewInfo `json:"preview,omitempty"`    // Kind が KindPreview のとき
@@ -102,7 +71,7 @@ type Hunk struct {
 // プレビューは文書を Pane の幅（Viewport.Cols）で折り返して作った「表示行」を上から並べたもので、Lines は
 // そのうち見えている分（Top から Viewport.Rows 行まで）だけ。Line.No は文書の中の表示行の番号で、バッファの
 // 行番号ではない。画像（ローカルの画像と mermaid の図）は Lines に埋め込まず、場所だけ Images で指す。
-// 実体は blob.get で取る。
+// 実体は ImageRef.Blob で引く（Core.BlobImage）。
 type PreviewInfo struct {
 	Top    int            `json:"top"`    // Lines[0] の表示行
 	Rows   int            `json:"rows"`   // 表示行の全部の数
@@ -253,14 +222,6 @@ type Status struct {
 	Version  string  `json:"version,omitempty"` // shj の版
 }
 
-// Cmdline は ":" と "/" の入力行。検索バー（Ctrl+F）も同じ形で、ラベルと案内が付く。
-type Cmdline struct {
-	Prefix msg.Msg `json:"prefix"` // ":" か "/" か "?"（検索バーはラベル）
-	Text   string  `json:"text"`
-	Cursor int     `json:"cursor"`        // rune の位置
-	Hint   msg.Msg `json:"hint,omitzero"` // 検索バーの右の案内
-}
-
 // OverlayKind は Overlay の種類。
 type OverlayKind string
 
@@ -272,8 +233,6 @@ const (
 	OverlayPalette    OverlayKind = "palette"
 	OverlayMenu       OverlayKind = "menu"
 	OverlayReviewCard OverlayKind = "reviewCard"
-	OverlaySearch     OverlayKind = "search"
-	OverlayProposal   OverlayKind = "proposal"
 )
 
 // Overlay はペインの上に重ねるもの。At はペインの中の位置（無ければ中央など描く側が決める）。
@@ -298,66 +257,6 @@ type Overlay struct {
 	// レビューカードが使う。Images は Lines の中の画像。Row は Line.No と同じ表示行の番号（Lines のインデックスではない）で、見える範囲に掛かるものだけ入る。Compose は返信・コメントの編集のときだけ。このとき View.Rows はラベルを含むプレビューの高さ（Lines は最大 Rows-1 行）で、Total は使わない。
 	Images  []PreviewImage `json:"images,omitempty"`
 	Compose *Compose       `json:"compose,omitempty"`
-
-	// エージェントの変更の承認の窓（OverlayProposal）が使う。Title は見出し（待っている数を含む）、Lines は見えている差分の行
-	// （追加・削除の行は Band に背景を付ける）、View がその位置と窓の幅（Cols）を表す。差分に行が無いときは Lines の代わりに Empty が入る。
-	Empty msg.Msg `json:"empty,omitzero"`
-
-	// 検索の窓（プロジェクトの検索・置換）が使う。Title は窓の見出し、Hint は状態の行の右に出すキーの一覧。
-	Search *Search `json:"search,omitempty"`
-}
-
-// Search は検索の窓（OverlaySearch）の状態。上に 4 つの入力欄（検索・置換・含める・除く）とオプション、
-// 状態の行があり、下の左に一致した行の一覧、右に選んだ行のプレビューが並ぶ。窓は欄いっぱい（周りに 1 マスの余白）に広げる。
-type Search struct {
-	Fields  [4]SearchField  `json:"fields"`  // 検索・置換・含める・除くの順（Tab の順）
-	Field   int             `json:"field"`   // 今の欄（Fields の番号）
-	Options [4]SearchOption `json:"options"` // 大文字小文字・単語・正規表現・大文字小文字を保つの順
-	Status  msg.Msg         `json:"status"`  // 状態の行（件数、検索中、エラーなど）
-	Err     bool            `json:"err,omitempty"`
-	Busy    bool            `json:"busy,omitempty"` // 検索中
-
-	// 一覧とプレビューの高さ（行）。Hits は Scroll から見えている分だけで、Cursor は全体の中の選択位置。
-	BodyRows int         `json:"bodyRows"`
-	Hits     []SearchHit `json:"hits,omitempty"`
-	Scroll   int         `json:"scroll"`
-	Cursor   int         `json:"cursor"`
-	Total    int         `json:"total"`          // 一致した行の全部の数
-	Empty    msg.Msg     `json:"empty,omitzero"` // 一致した行が無いときの文言
-
-	Preview *SearchPreview `json:"preview,omitempty"` // 選んだ行があるときだけ
-}
-
-// SearchField は検索の窓の入力欄。
-type SearchField struct {
-	Label       msg.Msg `json:"label"`
-	Text        string  `json:"text"`
-	Cursor      int     `json:"cursor"` // rune の位置
-	Placeholder msg.Msg `json:"placeholder,omitzero"`
-}
-
-// SearchOption は検索のオプション（切り替え）。
-type SearchOption struct {
-	Label msg.Msg `json:"label"`
-	On    bool    `json:"on"`
-}
-
-// SearchHit は一致した行の一覧の 1 行。Line は、一致した部分に背景（StyleMatch）を付けた、見せる最初の桁からの行。
-type SearchHit struct {
-	Label string `json:"label"` // 「相対パス:行番号」
-	Line  Line   `json:"line"`
-	Skip  bool   `json:"skip,omitempty"` // 置換から外した行
-}
-
-// SearchPreview は選んだ行のプレビュー。Lines はファイルの中の見える行（No は 0 始まりの行番号）で、
-// Hit の行には一致した部分に背景を付ける。置換のあとの行が違うときは Del と Add に前と後の行を入れる（Hit の行の下に出す）。
-type SearchPreview struct {
-	Title string `json:"title"` // 「相対パス:行番号」
-	Lines []Line `json:"lines"`
-	Hit   int    `json:"hit"`   // 選んだ行の No
-	Total int    `json:"total"` // ファイルの全行数（行番号の桁数に使う）
-	Del   *Line  `json:"del,omitempty"`
-	Add   *Line  `json:"add,omitempty"`
 }
 
 // Compose はレビューカードの編集（返信・コメント・レビューの本文）の入力欄。Overlay の Lines は、その本文を
@@ -384,29 +283,10 @@ type Field struct {
 	Placeholder msg.Msg `json:"placeholder,omitzero"` // Text が空のときに見せる薄い文言
 }
 
-// Size は領域の大きさ（等幅のマス目で数える）。
-type Size struct {
-	Cols int `json:"cols"`
-	Rows int `json:"rows,omitempty"`
-}
-
-// View は GUI が view.resize で送る、領域ごとの大きさ。Files.Rows はペインの本文の行数で、タイトル行は含めない。
-// ペインを 2 つ並べるときの割り方は core が Files の中で決める。
-type View struct {
-	Files   Size `json:"files"`
-	Status  Size `json:"status"`
-	Cmdline Size `json:"cmdline"`
-	Overlay Size `json:"overlay"`
-	// DiffPct と PreviewPct は、ユーザーがドラッグで決めた左右の境界の位置。左側（差分の元の側・プレビューの横の
-	// テキスト）が、間の 1 桁を除いた幅の何 % か。0 なら半分。
-	DiffPct    int `json:"diffPct,omitempty"`
-	PreviewPct int `json:"previewPct,omitempty"`
-}
-
-// DefaultView は GUI が view.resize を送るまでの大きさ。
-var DefaultView = View{
-	Files:   Size{Cols: 80, Rows: 22},
-	Status:  Size{Cols: 80},
-	Cmdline: Size{Cols: 80},
-	Overlay: Size{Cols: 80, Rows: 22},
+// Cmdline は ":" と "/" の入力行。検索バー（Ctrl+F）も同じ形で、ラベルと案内が付く。
+type Cmdline struct {
+	Prefix msg.Msg `json:"prefix"` // ":" か "/" か "?"（検索バーはラベル）
+	Text   string  `json:"text"`
+	Cursor int     `json:"cursor"`        // rune の位置
+	Hint   msg.Msg `json:"hint,omitzero"` // 検索バーの右の案内
 }

@@ -33,10 +33,9 @@ type span struct{ x0, x1 int }
 // keeps what only a terminal has: which regions are
 // shown, the terminal panel and the pane sizes the user picked.
 type Core struct {
-	sizes      Sizes    // the sizes the UI last gave (SetSizes)
-	layout     Layout   // the regions the UI last said it shows (SetLayout)
-	splitPct   splitPct // the shares the GUI dragged the files region's borders to (BuildScreen)
-	treeHidden bool     // the file tree is not in the sidebar (SetTreeHidden)
+	sizes      Sizes  // the sizes the UI last gave (SetSizes)
+	layout     Layout // the regions the UI last said it shows (SetLayout)
+	treeHidden bool   // the file tree is not in the sidebar (SetTreeHidden)
 
 	Root           string
 	GitTop         string
@@ -120,7 +119,6 @@ type Core struct {
 	confirmClose bool
 	Follow       bool // scroll to the cursor on next render
 	dragging     bool
-	preedit      *Composition // the text a GUI's input method is composing, or nil (see guiinput.go)
 	Hold         holdScroll
 	HoldSeq      int  // tells the current hold-scroll tick chain from stale ones
 	LineFlip     bool // line numbers shown the other way (\ held, or toggled with \)
@@ -149,7 +147,7 @@ type Core struct {
 // A mistake in a configuration file is an *config.Error and no core: shijimi
 // does not start with settings it cannot read as written.
 func New(p Port, dir, file string, b Build) (*Core, error) {
-	a, err := newCore(NewShared(b), p, dir, file, true)
+	a, err := newCore(NewShared(b), p, dir, file)
 	if err != nil {
 		return nil, err
 	}
@@ -157,21 +155,11 @@ func New(p Port, dir, file string, b Build) (*Core, error) {
 	return a, nil
 }
 
-// NewIn creates the core rooted at dir on the process-wide parts sh, which
-// other cores may share; Close leaves them open. `shj serve` makes a core per
-// workspace this way (Workspaces). The UI language is the process's, so NewIn
-// leaves it as it is (New sets it from the root's config).
-func NewIn(sh *Shared, p Port, dir, file string) (*Core, error) {
-	return newCore(sh, p, dir, file, false)
-}
-
-func newCore(sh *Shared, p Port, dir, file string, setLang bool) (*Core, error) {
+func newCore(sh *Shared, p Port, dir, file string) (*Core, error) {
 	abs, _ := filepath.Abs(dir)
 	cfg, err := config.Load(abs, sh.Build.Config)
-	if setLang {
-		// also with a mistake: the settings that did read give the language of the report
-		p.ConfigRead(cfg)
-	}
+	// also with a mistake: the settings that did read give the language of the report
+	p.ConfigRead(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -932,7 +920,7 @@ func (a *Core) Update(msg any) []Effect {
 }
 
 // Apply is Update for a change that is not a message: fn changes the state
-// (the GUI's file.open and command.run), and the round's bookkeeping follows
+// (the TUI's mouse handling and terminal events), and the round's bookkeeping follows
 // as after any message.
 func (a *Core) Apply(fn func() []Effect) []Effect {
 	a.settleViews()
@@ -968,8 +956,6 @@ func (a *Core) handle(msg any) []Effect {
 // handleInput takes an Input from whichever front end made it.
 func (a *Core) handleInput(in Input) []Effect {
 	switch msg := in.(type) {
-	case Mouse:
-		return a.HandleMouse(msg)
 	case Key:
 		a.Ag.Sel = AgentSel{}
 		if a.Hold.Buf != nil && !a.Hold.continues(msg) {
@@ -978,7 +964,6 @@ func (a *Core) handleInput(in Input) []Effect {
 		a.lineFlipOtherKey(msg)
 		a.HoverSeq++ // a pending mouse hover is stale once the user types
 		a.HoverWord = WordSpan{}
-		a.preedit = nil // a key the input method let through ends what it composed
 		// Fast typing can deliver several runes in one message; Helix-style
 		// commands need them one at a time.
 		if utf8.RuneCountInString(msg.Text) > 1 {
@@ -997,15 +982,6 @@ func (a *Core) handleInput(in Input) []Effect {
 		a.SetSizes(msg)
 	case Layout:
 		a.SetLayout(msg)
-	case Composition:
-		// A composition is only shown (underlined at the cursor, see
-		// splicePreedit); it never edits the buffer. A GUI sends the committed text
-		// as input.key (its text), so typing it here too would type it twice. A
-		// terminal never composes.
-		a.preedit = nil
-		if msg.Phase != CompositionEnd && msg.Text != "" {
-			a.preedit = &msg
-		}
 	}
 	return nil
 }

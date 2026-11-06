@@ -67,9 +67,8 @@ type wire struct {
 	Args []any  `json:"args"`
 }
 
-// MarshalJSON writes m for the GUI protocol. Text with no key (S, or a Cat of
-// strings) is a JSON string. Anything else is {"key", "args"}: the GUI
-// translates it with the table it got from i18n.get. An arg that is a Msg or an
+// MarshalJSON writes m as JSON. Text with no key (S, or a Cat of
+// strings) is a JSON string. Anything else is {"key", "args"}. An arg that is a Msg or an
 // error becomes a nested object (or a string, when it is plain text); numbers,
 // booleans and strings stay as they are; any other value is its fmt.Sprint text.
 func (m Msg) MarshalJSON() ([]byte, error) {

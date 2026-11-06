@@ -5,10 +5,9 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core/internal/proxy"
 )
 
-// Shared is what the whole process has one of, whatever number of cores it
-// runs: the port forwards (docs/design/gui-protocol.md, 1 章の表の `proxy`).
-// The TUI makes one core and with it one Shared (New); `shj serve` makes one
-// Shared and a core per workspace on it (Workspaces).
+// Shared is what the whole process has one of: the port forwards
+// (docs/design/gui-protocol.md, 1 章の表の `proxy`). The TUI makes one core and
+// with it one Shared (New).
 //
 // The theme and the UI language are process-wide too, but they are set where
 // they always were: the theme by the UI (Port.SetPalette) and the
