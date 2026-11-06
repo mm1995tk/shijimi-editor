@@ -56,3 +56,8 @@ export async function onBrowserUrl(
     if (e.payload.key === key) h(e.payload.url);
   });
 }
+
+/** いま開いているページを、手元の既定のブラウザで開き直す（パスキーなど、欄では使えないものの逃がし道）。 */
+export function openExternally(key: string): Promise<void> {
+  return invoke("browser_external", { key });
+}

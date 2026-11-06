@@ -398,6 +398,32 @@ pub fn browser_nav(
     child(&app, &key)?.eval(js).map_err(|e| e.to_string())
 }
 
+/// いま欄が開いているページを、手元の既定のブラウザで開き直す（パスキーなど、子の webview で使えないものの逃がし道）。
+/// リモートのマシンの localhost 系は、転送越しの URL のまま開く（転送が生きているあいだ手元から見える）。
+#[tauri::command]
+pub fn browser_external(app: AppHandle, webview: Webview, key: String) -> Result<(), String> {
+    from_main(&webview)?;
+    let u = child(&app, &key)?.url().map_err(|e| e.to_string())?;
+    let u = parse_url(u.as_str())?;
+    let opener = if cfg!(target_os = "macos") {
+        "open"
+    } else {
+        "xdg-open"
+    };
+    std::process::Command::new(opener)
+        .arg(u.as_str())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map(|mut c| {
+            std::thread::spawn(move || {
+                let _ = c.wait();
+            });
+        })
+        .map_err(|e| format!("failed to start {opener}: {e}"))
+}
+
 /// 欄を閉じる（子の webview を壊し、転送を止める）。
 #[tauri::command]
 pub fn browser_close(

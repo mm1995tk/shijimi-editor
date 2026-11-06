@@ -143,6 +143,7 @@ fn main() {
             browser::browser_visible,
             browser::browser_go,
             browser::browser_nav,
+            browser::browser_external,
             browser::browser_close,
             notify::notify_show,
             transfer::transfer_dest,

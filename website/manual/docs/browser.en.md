@@ -14,7 +14,7 @@ It uses `xdg-open` on Linux and `open` on macOS.
 
 The GUI can show a page beside the terminals, so you do not have to leave the window. In the editor that runs in the primary terminal of a GUI workspace, `:open-url <URL>` (or `Space o` on a URL) does not call the browser of the machine. The GUI opens a browser pane next to the terminals. It works for pages on the internet and for a development server on the machine the workspace is on.
 
-- Only `http` and `https` addresses open. The pane has back, forward, reload, an address bar and a close button (×). Type a host such as `localhost:3000` in the address bar and it is completed (`http://` for your own machine, `https://` for the rest).
+- Only `http` and `https` addresses open. The pane has back, forward, reload, an address bar, a button to open the page in the external browser (↗) and a close button (×). Type a host such as `localhost:3000` in the address bar and it is completed (`http://` for your own machine, `https://` for the rest).
 - The page is shown in a web view of its own that lies over the pane, because most sites refuse to be shown in a frame. A web view lies over the GUI's own cards, so it is hidden while a card (for example an ssh question) is on the screen, and while the pane is not shown.
 - The page cannot call the GUI's API. The GUI gives no permission to any address from the internet.
 - **A development server on a remote machine** (`localhost`, `127.0.0.1`, `[::1]` or `0.0.0.0`): the GUI starts `ssh -N -L` to that machine for the pane and opens the page through it. The address bar keeps showing `localhost:<port>`. You may be asked the ssh password in the GUI. The forward stops when the pane closes. An address that is not the machine itself (such as `https://example.com`) is opened from your own machine.
@@ -67,4 +67,4 @@ The default is `127.0.0.1`. Change it to `0.0.0.0` only inside a trusted network
 ### Limits of the browser pane
 
 - A link or a redirect inside a page of a remote machine that points to `http://localhost:<port>/…` as an absolute address is opened as `localhost` of your own machine, not through the forward. Type the address in the address bar instead.
-- Passkeys (WebAuthn) do not work in the pane: the web views of the GUI (WebKitGTK on Linux, WKWebView on macOS) do not offer them to arbitrary sites. Use the browser of your own machine for such sites.
+- Passkeys (WebAuthn, for example the ones kept in 1Password) do not work in the pane: the web views of the GUI (WebKitGTK on Linux, WKWebView on macOS) do not offer them to arbitrary sites. Press the ↗ button in the pane to open the page again in the browser of your own machine, and use the passkey there. A page of a remote development server opens through the pane's ssh forward, so it works while the pane is open.

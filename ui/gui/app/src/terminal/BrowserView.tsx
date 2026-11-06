@@ -16,6 +16,7 @@ import {
   navBrowser,
   onBrowserUrl,
   openBrowser,
+  openExternally,
   showBrowser,
 } from "./browserOs.ts";
 
@@ -208,6 +209,16 @@ export function BrowserView(props: {
           onInput={(e) => setDraft(e.currentTarget.value)}
           onFocus={(e) => e.currentTarget.select()}
         />
+        <button
+          type="button"
+          class="browser-button"
+          aria-label="外部ブラウザで開き直す"
+          title="外部ブラウザで開き直す（パスキーなど、欄では使えないとき）"
+          disabled={state() !== "open"}
+          onClick={() => openExternally(key).catch(fail)}
+        >
+          ↗
+        </button>
         <button
           type="button"
           class="video-close"
