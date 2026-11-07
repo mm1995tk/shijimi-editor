@@ -19,7 +19,14 @@
       treefmt-nix,
     }:
     let
-      perSystem = flake-utils.lib.eachDefaultSystem (
+      # macOS on Intel (x86_64-darwin) is not supported.
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "aarch64-darwin"
+      ];
+
+      perSystem = flake-utils.lib.eachSystem systems (
         system:
         let
           project-name = "mm1995tk/shijimi-editor";

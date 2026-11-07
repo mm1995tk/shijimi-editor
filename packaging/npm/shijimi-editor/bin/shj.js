@@ -12,7 +12,7 @@ try {
 } catch {
   console.error(
     `shijimi-editor: ${pkg} is not installed. ` +
-      "Builds exist for Linux and macOS on x64 and arm64. " +
+      "Builds exist for Linux on x64 and arm64 and for macOS on Apple silicon (arm64). " +
       "If you installed with --no-optional (or --omit=optional), reinstall without it.",
   );
   process.exit(1);

@@ -9,7 +9,7 @@ nix run github:mm1995tk/shijimi-editor/release   # インストールせずに�
 nix profile install github:mm1995tk/shijimi-editor/release
 go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # shj コマンドとして入れる
 go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # 同じものを shijimi コマンドとして入れる
-npm install -g shijimi-editor                                     # shj と shijimi の両方を入れる（Linux と macOS）
+npm install -g shijimi-editor                                     # shj と shijimi の両方を入れる（Linux と、Apple シリコンの macOS）
 ```
 
 どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。`main` のリリース前の変更は入りません。

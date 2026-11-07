@@ -45,10 +45,10 @@ ldflags+=" -X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Commit=$c
 ldflags+=" -X github.com/mm1995tk/shijimi-editor/ui/internal/buildinfo.Channel=$channel"
 
 # Go's GOOS/GOARCH next to the os/cpu names npm and Node.js use.
+# macOS on Intel (darwin amd64) is not supported.
 targets=(
   "linux amd64 linux x64"
   "linux arm64 linux arm64"
-  "darwin amd64 darwin x64"
   "darwin arm64 darwin arm64"
 )
 
