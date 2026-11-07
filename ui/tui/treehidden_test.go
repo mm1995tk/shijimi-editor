@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,5 +94,30 @@ func TestFileReporter(t *testing.T) {
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	if len(got) != 2 || got[1] != other {
 		t.Errorf("after open: %q", got)
+	}
+}
+
+// In the primary terminal of a GUI workspace Space e asks the GUI for the file
+// explorer. Without the GUI answering, the keys go where they went before.
+func TestSpaceEAsksGUIExplorer(t *testing.T) {
+	a := newTestApp(t, "hello\n")
+	a.SetTreeHidden(true)
+	calls := 0
+	a.SetGUIExplorer(func() error { calls++; return nil })
+	a.SpaceMode("e")
+	if calls != 1 || a.Focus != core.FocusEditor {
+		t.Errorf("calls=%d focus=%v", calls, a.Focus)
+	}
+	a.SetGUIExplorer(func() error { calls++; return errors.New("unknown op") })
+	a.SpaceMode("e")
+	if calls != 2 || a.Focus != core.FocusEditor {
+		t.Errorf("refused: calls=%d focus=%v", calls, a.Focus)
+	}
+	// A shj with its own tree (not in a GUI, or not the primary) never asks.
+	b := newTestApp(t, "hello\n")
+	b.SetGUIExplorer(func() error { calls++; return nil })
+	b.SpaceMode("e")
+	if calls != 2 || b.Focus != core.FocusExplorer {
+		t.Errorf("own tree: calls=%d focus=%v", calls, b.Focus)
 	}
 }

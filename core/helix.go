@@ -336,6 +336,10 @@ func (a *Core) SpaceMode(key string) []Effect {
 	case "d", "D":
 		return a.diagnosticPicker()
 	case "e":
+		// The tree is the GUI's: ask it for the focus instead of moving to our own.
+		if a.treeHidden && a.guiExplorer != nil && a.guiExplorer() == nil {
+			return nil
+		}
 		a.SetSide(true)
 		return a.SetFocus(FocusExplorer)
 	case "E":

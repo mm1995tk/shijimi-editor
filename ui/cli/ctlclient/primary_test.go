@@ -155,3 +155,42 @@ func TestAnnouncePrimaryVersionRefused(t *testing.T) {
 		t.Errorf("hello: %+v", h)
 	}
 }
+
+// FocusExplorer sends op "explorer"; a refusal (a kisui from before it) is an error.
+func TestPaneFocusExplorer(t *testing.T) {
+	dir, err := os.MkdirTemp("", "shjp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	path := filepath.Join(dir, ctl.ServePrimaryName)
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	got := make(chan ctl.PaneRequest, 2)
+	go func() {
+		for i := range 2 {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			var rq ctl.PaneRequest
+			json.NewDecoder(bufio.NewReader(c)).Decode(&rq)
+			got <- rq
+			json.NewEncoder(c).Encode(ctl.PaneReply{OK: i == 0, Error: `unknown op: "explorer"`})
+			c.Close()
+		}
+	}()
+	p := &Pane{path: path, termID: "t7", pid: 42}
+	if err := p.FocusExplorer(); err != nil {
+		t.Errorf("accepted: %v", err)
+	}
+	if rq := <-got; rq.Op != "explorer" || rq.TermID != "t7" || rq.PID != 42 {
+		t.Errorf("request: %+v", rq)
+	}
+	if err := p.FocusExplorer(); err == nil {
+		t.Error("a refusal must be an error")
+	}
+}
