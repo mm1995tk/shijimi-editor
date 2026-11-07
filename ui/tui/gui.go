@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
+	"github.com/mm1995tk/shijimi-editor/core/msg"
 )
 
 // guiBackend is the muxBackend for the GUI. It is for the shj that runs in the
@@ -22,10 +23,15 @@ func (*guiBackend) name() string { return "gui" }
 // do sends a ctl.PaneRequest to "kisui serve" (ctlclient.Pane.Do). It is called
 // only for the shj that is the primary of a GUI workspace; any other shj has
 // no GUI backend and keeps the built-in terminal. New has already looked for a
-// multiplexer by then (pushLayout), so the next muxOn looks again.
+// multiplexer by then (pushLayout), so the next muxOn looks again, and what
+// that first look said on the status line (the built-in terminal, because the
+// named multiplexer is not around) no longer holds.
 func (a *App) SetGUIPane(do func(ctl.PaneRequest) (ctl.PaneReply, error)) {
 	a.mux.gui = &guiBackend{do: do}
 	a.mux.resolved = false
+	if k := a.Msg.Key; k == "mux.unavailable" || k == "mux.unsupported" {
+		a.Msg = msg.Msg{}
+	}
 }
 
 func (g *guiBackend) split(cwd string, env []string) (string, error) {
