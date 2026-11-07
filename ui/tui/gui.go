@@ -29,7 +29,7 @@ func (*guiBackend) name() string { return "gui" }
 func (a *App) SetGUIPane(do func(ctl.PaneRequest) (ctl.PaneReply, error)) {
 	a.mux.gui = &guiBackend{do: do}
 	a.mux.resolved = false
-	if k := a.Msg.Key; k == "mux.unavailable" || k == "mux.unsupported" {
+	if isMuxFallback(a.Msg.Key) {
 		a.Msg = msg.Msg{}
 	}
 }

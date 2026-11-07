@@ -110,6 +110,19 @@ func muxUsable(kind string) bool {
 	return true
 }
 
+// The keys of what resolveMux says on the status line when a named multiplexer
+// cannot be used and the built-in terminal stays (cleared by SetGUIPane).
+const (
+	keyMuxUnavailable = "mux.unavailable"
+	keyMuxUnsupported = "mux.unsupported"
+)
+
+// isMuxFallback reports whether key is one resolveMux says when it keeps the
+// built-in terminal for a named multiplexer.
+func isMuxFallback(key string) bool {
+	return key == keyMuxUnavailable || key == keyMuxUnsupported
+}
+
 // resolveMux decides which multiplexer the terminal commands use from the
 // current configuration. It runs on first use and again after
 // :config-reload, and after SetGUIPane (the first use, in New, comes before
@@ -141,15 +154,15 @@ func (a *App) resolveMux() {
 		switch b := m.makeBackend(kind); {
 		case b == nil && kind == "gui":
 			if explicit {
-				a.Info("mux.unavailable", i18n.T("mux.guiname"))
+				a.Info(keyMuxUnavailable, i18n.T("mux.guiname"))
 			}
 		case b == nil:
 			if explicit {
-				a.Info("mux.unsupported", want)
+				a.Info(keyMuxUnsupported, want)
 			}
 		case !muxUsable(kind):
 			if explicit {
-				a.Info("mux.unavailable", want)
+				a.Info(keyMuxUnavailable, want)
 			}
 		default:
 			m.b = b
