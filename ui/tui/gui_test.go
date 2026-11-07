@@ -89,6 +89,40 @@ func TestGUIPaneToggle(t *testing.T) {
 	}
 }
 
+// New lays the app out (and so looks for a multiplexer) before cli.Main has
+// announced the primary; SetGUIPane after that still gives the GUI's panes.
+func TestGUIPaneAfterLayout(t *testing.T) {
+	a := newTestApp(t, "hello")
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = true
+	a.mux.parents = fakeChain("shj", "zsh", "kisui", "init")
+	if a.muxOn() {
+		t.Fatal("no multiplexer before the primary is announced")
+	}
+	f := &fakeGUI{}
+	a.SetGUIPane(f.do)
+	if !a.muxOn() || a.mux.b.name() != "gui" {
+		t.Fatal("the primary keeps the built-in terminal")
+	}
+}
+
+// What the first look said about a named multiplexer (the built-in terminal)
+// does not stay on the status line once the primary uses the GUI.
+func TestGUIPaneAfterLayoutClearsReason(t *testing.T) {
+	t.Setenv(envHerdr, "")
+	for _, s := range []string{"herdr", "screen"} {
+		a := newTestApp(t, "hello")
+		tuicfg.Of(a.Cfg).Experimental.Multiplexer = true
+		tuicfg.Of(a.Cfg).Terminal.Multiplexer = s
+		if a.muxOn() || (a.Msg.Key != "mux.unavailable" && a.Msg.Key != "mux.unsupported") {
+			t.Fatalf("%s: expected a reason before the primary is announced: %v", s, a.Msg)
+		}
+		a.SetGUIPane((&fakeGUI{}).do)
+		if !a.muxOn() || a.mux.b.name() != "gui" || a.Msg.Key != "" {
+			t.Fatalf("%s: the GUI with no stale reason expected: %v", s, a.Msg)
+		}
+	}
+}
+
 // Without the GUI (not the primary shj), the built-in terminal stays, also when "gui" is asked for.
 func TestGUIPaneNeedsPrimary(t *testing.T) {
 	for _, s := range []string{"auto", "gui"} {
