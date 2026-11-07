@@ -343,8 +343,11 @@ func (a *Core) SpaceMode(key string) []Effect {
 		a.SetSide(true)
 		return a.SetFocus(FocusExplorer)
 	case "E":
-		if a.Gd.On {
+		if a.ChangesListShown() {
 			return a.focusChangesList()
+		}
+		if a.Gd.On {
+			return nil // the GUI has the list
 		}
 		a.SetSide(true)
 		return a.SetFocus(FocusExplorer)

@@ -56,7 +56,7 @@ func (a *Core) SpaceMenuItems() []SpaceItem {
 		if it.Key == "v" && !a.PrShown() {
 			continue
 		}
-		if it.Key == "E" && !a.Gd.On {
+		if it.Key == "E" && !a.ChangesListShown() {
 			continue
 		}
 		if full && !strings.Contains("fbkodDeEmgGvwy?/tai", it.Key) {

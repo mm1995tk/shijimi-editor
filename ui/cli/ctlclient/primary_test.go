@@ -75,7 +75,7 @@ func TestAnnouncePrimaryWithoutEnv(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	t.Setenv(ctl.EnvGUIPrimary, "")
 	end, primary, report, _, _ := AnnouncePrimary("", "/x.sock")
-	report("/ignored")
+	report(ctl.PrimaryFile{File: "/ignored"})
 	end()
 	if primary {
 		t.Error("without the variable there is no primary")

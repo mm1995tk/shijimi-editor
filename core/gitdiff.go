@@ -490,6 +490,9 @@ func (a *Core) ShowDiff(base string, pr *PrInfo) []Effect {
 	}
 	a.Gd.Base, a.Gd.Pr = base, pr
 	a.Gd.stale, a.Gd.staleAll = nil, false
+	if a.Focus == FocusChanges && !a.ChangesListShown() {
+		a.Focus = FocusEditor // the list went to the GUI
+	}
 	a.SetSide(true)
 	a.Follow = true
 	cmd := a.ReloadChanges()

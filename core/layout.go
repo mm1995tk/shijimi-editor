@@ -47,8 +47,23 @@ func (a *Core) SetLayout(l Layout) { a.layout = l }
 func (a *Core) SideShown() bool { return a.layout.SideShown }
 
 // SideVisible reports whether the sidebar is on screen: it is shown and has
-// something in it. Without a file tree it has CHANGES in diff mode only.
-func (a *Core) SideVisible() bool { return a.layout.SideShown && (!a.treeHidden || a.Gd.On) }
+// something in it. Without a file tree it has CHANGES in diff mode only (and not when the GUI shows them: SetChangesInGUI).
+func (a *Core) SideVisible() bool {
+	return a.layout.SideShown && (!a.treeHidden || a.ChangesListShown())
+}
+
+// SetChangesInGUI says the GUI shows the CHANGES list of the diff mode against
+// HEAD in its own sidebar (the shj in the primary terminal of a GUI workspace
+// whose kisui replied "changes"). The shj then draws no list of its own for
+// that diff mode and tells the GUI the list instead (ChangesReport). The diff
+// mode against a pull request keeps the shj's own list.
+func (a *Core) SetChangesInGUI(on bool) { a.changesInGUI = on }
+
+// ChangesListShown reports whether the shj draws the CHANGES list itself: in
+// diff mode, unless the GUI shows the list of the diff mode against HEAD.
+func (a *Core) ChangesListShown() bool {
+	return a.Gd.On && !(a.changesInGUI && a.Gd.Base == BaseHead)
+}
 
 // SetTreeHidden takes the file tree out of the sidebar, or puts it back. It is
 // for a shj whose tree is somewhere else (the GUI sidebar, for the shj in the
@@ -77,7 +92,7 @@ func (a *Core) explorerFocus() Focus {
 	switch {
 	case !a.treeHidden:
 		return FocusExplorer
-	case a.Gd.On:
+	case a.ChangesListShown():
 		return FocusChanges
 	}
 	return FocusEditor

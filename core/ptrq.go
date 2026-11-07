@@ -12,7 +12,7 @@ import "github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 // bodyH is the height of the body.
 func (a *Core) WheelSide(row, bodyH, wheel int) {
 	e := a.Explorer
-	if a.Gd.On && row >= a.ExplorerH() {
+	if a.ChangesListShown() && row >= a.ExplorerH() {
 		g := &a.Gd
 		body := bodyH - a.ExplorerH() - 1
 		g.scroll = Clamp(g.scroll+wheel, 0, max(0, len(g.vis())-body))
@@ -49,7 +49,7 @@ func (a *Core) WheelPreview(wheel int) {
 // ClickSide is a left press on row sy of the side bar (double: the second
 // press of a double click).
 func (a *Core) ClickSide(sy int, double bool) []Effect {
-	if a.Gd.On && sy >= a.ExplorerH() {
+	if a.ChangesListShown() && sy >= a.ExplorerH() {
 		g := &a.Gd
 		if vis, i := g.vis(), sy-1-a.ExplorerH()+g.scroll; sy > a.ExplorerH() && i < len(vis) {
 			r := vis[i]

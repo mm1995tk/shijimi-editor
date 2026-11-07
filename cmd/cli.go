@@ -91,11 +91,13 @@ func Main() {
 			if ve, ok := errors.AsType[*ctlclient.VersionError](perr); ok {
 				app.Info("gui.protocol", ctl.PrimaryProtocol, ve.Min, ve.Max)
 			}
-			// The GUI tree lights the row of the file this shj shows.
+			// The GUI tree lights the row of the file this shj shows, and lists its changes.
 			if primary {
 				app.SetFileReporter(reportFile)
 				app.SetGUIPane(pane.Do)
 				app.SetGUIExplorer(pane.FocusExplorer)
+				// A kisui that says so shows the CHANGES of the diff mode in its sidebar.
+				app.SetChangesInGUI(pane.Changes)
 			}
 			prev := closeSock
 			closeSock = func() { endPrimary(); prev() }

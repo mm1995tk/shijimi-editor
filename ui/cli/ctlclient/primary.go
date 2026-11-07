@@ -23,63 +23,63 @@ import (
 // accepted it as the primary shj: only then does the GUI show the file tree, so
 // only then does this shj leave its own out.
 //
-// report tells the server which file this shj shows (ctl.PrimaryFile); it does
+// report tells the server the state of this shj (ctl.PrimaryFile: the file it shows and its diff mode); it does
 // nothing when primary is false. It does not wait for the server. pane is how
 // to use the GUI's panes; it is nil when primary is false.
-func AnnouncePrimary(suffix, ownSocket string) (end func(), primary bool, report func(file string), pane *Pane, err error) {
+func AnnouncePrimary(suffix, ownSocket string) (end func(), primary bool, report func(ctl.PrimaryFile), pane *Pane, err error) {
 	termID := os.Getenv(ctl.EnvGUIPrimary)
 	if termID == "" {
-		return func() {}, false, func(string) {}, nil, nil
+		return func() {}, false, func(ctl.PrimaryFile) {}, nil, nil
 	}
 	os.Unsetenv(ctl.EnvGUIPrimary)
 	path, err := ctl.ServePrimarySocketPath(suffix)
 	if err != nil {
-		return func() {}, false, func(string) {}, nil, nil
+		return func() {}, false, func(ctl.PrimaryFile) {}, nil, nil
 	}
 	return announce(path, ctl.PrimaryHello{TermID: termID, Socket: ownSocket, PID: os.Getpid(), Protocol: ctl.PrimaryProtocol})
 }
 
-func announce(path string, h ctl.PrimaryHello) (func(), bool, func(string), *Pane, error) {
+func announce(path string, h ctl.PrimaryHello) (func(), bool, func(ctl.PrimaryFile), *Pane, error) {
 	c, err := net.DialTimeout("unix", path, 2*time.Second)
 	if err != nil {
-		return func() {}, false, func(string) {}, nil, nil
+		return func() {}, false, func(ctl.PrimaryFile) {}, nil, nil
 	}
 	_ = c.SetDeadline(time.Now().Add(2 * time.Second))
 	line, _ := json.Marshal(h)
 	if _, err := c.Write(append(line, '\n')); err != nil {
 		c.Close()
-		return func() {}, false, func(string) {}, nil, nil
+		return func() {}, false, func(ctl.PrimaryFile) {}, nil, nil
 	}
 	var r ctl.PrimaryReply
 	if err := json.NewDecoder(bufio.NewReader(c)).Decode(&r); err != nil || !r.OK {
 		c.Close()
 		if err == nil && r.Code == ctl.ReplyCodeVersion {
-			return func() {}, false, func(string) {}, nil, &VersionError{Min: r.Min, Max: r.Max}
+			return func() {}, false, func(ctl.PrimaryFile) {}, nil, &VersionError{Min: r.Min, Max: r.Max}
 		}
-		return func() {}, false, func(string) {}, nil, nil
+		return func() {}, false, func(ctl.PrimaryFile) {}, nil, nil
 	}
 	_ = c.SetDeadline(time.Time{})
-	// report never waits for the server: the newest file waits in a channel of
+	// report never waits for the server: the newest state waits in a channel of
 	// one place and a goroutine writes it, so a slow server costs nothing and
-	// the last file always arrives.
-	latest := make(chan string, 1)
+	// the last state always arrives.
+	latest := make(chan ctl.PrimaryFile, 1)
 	done := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case <-done:
 				return
-			case file := <-latest:
-				b, _ := json.Marshal(ctl.PrimaryFile{File: file})
+			case pf := <-latest:
+				b, _ := json.Marshal(pf)
 				_ = c.SetWriteDeadline(time.Now().Add(time.Second))
 				_, _ = c.Write(append(b, '\n'))
 			}
 		}
 	}()
-	report := func(file string) {
+	report := func(pf ctl.PrimaryFile) {
 		for {
 			select {
-			case latest <- file:
+			case latest <- pf:
 				return
 			default:
 			}
@@ -90,7 +90,7 @@ func announce(path string, h ctl.PrimaryHello) (func(), bool, func(string), *Pan
 		}
 	}
 	var once sync.Once
-	return func() { once.Do(func() { close(done); c.Close() }) }, true, report, &Pane{path: path, termID: h.TermID, pid: h.PID}, nil
+	return func() { once.Do(func() { close(done); c.Close() }) }, true, report, &Pane{path: path, termID: h.TermID, pid: h.PID, Changes: r.Changes}, nil
 }
 
 // VersionError says "kisui serve" refused the announcement because this shj's
@@ -108,6 +108,10 @@ type Pane struct {
 	path   string
 	termID string
 	pid    int
+
+	// Changes is whether the server shows the CHANGES of the diff mode in the
+	// GUI sidebar (ctl.PrimaryReply.Changes).
+	Changes bool
 }
 
 // Do sends req (Op and the fields it needs) and returns the reply. The shj's
