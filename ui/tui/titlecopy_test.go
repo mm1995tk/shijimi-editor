@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -33,8 +34,8 @@ func TestTitleCopyButton(t *testing.T) {
 	if a.Clipboard != "a.txt" {
 		t.Fatalf("clipboard %q", a.Clipboard)
 	}
-	if got := ansi.Strip(a.render()); !strings.Contains(got, "a.txt") {
-		t.Fatal("no status")
+	if got, want := ansi.Strip(a.renderStatus()), fmt.Sprintf(i18n.T("app.pathcopied"), "a.txt"); !strings.Contains(got, want) {
+		t.Fatalf("status %q lacks %q", got, want)
 	}
 }
 
@@ -80,13 +81,34 @@ func TestDiffHeaderCopyButton(t *testing.T) {
 	}
 	split = a.Gd.Split
 	a.Clipboard = ""
-	pressAt(a, l.rightX+l.rightW-2, l.editY)
+	hw := diffHintWidth(diffHint(a.DiffFor(a.CurText())))
+	pressAt(a, l.rightX+l.rightW-hw-2, l.editY) // the button, left of the hint
 	if a.Clipboard == "" || a.Gd.Split != split {
 		t.Fatalf("clipboard %q split %v", a.Clipboard, a.Gd.Split)
+	}
+	a.Clipboard = ""
+	pressAt(a, l.rightX+l.rightW-2, l.editY) // the hint
+	if a.Gd.Split == split || a.Clipboard != "" {
+		t.Fatal("a press on the hint must switch the split only")
 	}
 	a.Clipboard = ""
 	pressAt(a, l.rightX+l.rightW-2, l.top) // the pane's title row
 	if a.Clipboard == "" {
 		t.Fatal("title row button")
+	}
+}
+
+// In a narrow pane the hint of the diff header takes its place before the
+// button, so the row never grows past the pane.
+func TestDiffHeaderNarrowKeepsWidth(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	dv := a.DiffFor(a.CurText())
+	hint := diffHint(dv)
+	hw := diffHintWidth(hint)
+	title := a.BuildDiffPanes(a.CurText(), dv, a.dvGeom(a.layout()), core.PaneOpts{})[1].Title
+	for w := hw; w < hw+titleCopyMin+ansi.StringWidth(i18n.T("title.copy")); w++ {
+		if got := ansi.StringWidth(drawDiffHeader(title, hint, w)); got != w {
+			t.Fatalf("w=%d: header is %d wide", w, got)
+		}
 	}
 }

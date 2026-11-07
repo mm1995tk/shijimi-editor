@@ -48,10 +48,7 @@ func (a *App) renderDiffText(t *core.Tab, dv *core.DiffView, l layout, focused b
 	opts.GutterMark = a.CommentMark(t)
 	panes := a.BuildDiffPanes(t, dv, g, opts.PaneOpts)
 
-	hint := i18n.T("gd.splittoggle")
-	if dv.Single {
-		hint = "" // one pane: there is nothing to switch
-	}
+	hint := diffHint(dv)
 	out := make([]string, 0, l.editH)
 	out = append(out, drawDiffHeader(panes[len(panes)-1].Title, hint, l.rightW))
 	return append(out, drawDiff(panes, g, opts, a.separator(l, core.ResizeDiff))...)
@@ -207,6 +204,23 @@ func changeBar(d *screen.DiffInfo, h int) []string {
 	return out
 }
 
+// diffHintWidth is the width the hint takes in the header of a diff.
+func diffHintWidth(hint string) int {
+	if hint == "" {
+		return 0
+	}
+	return ansi.StringWidth(hint) + 1
+}
+
+// diffHint is the hint at the right of the header of a diff (nothing for one
+// pane: there is nothing to switch).
+func diffHint(dv *core.DiffView) string {
+	if dv.Single {
+		return ""
+	}
+	return i18n.T("gd.splittoggle")
+}
+
 // drawDiffHeader draws the header row of a diff: the file name with what was
 // added and deleted, the review note and the hint, w cells wide.
 func drawDiffHeader(title screen.Title, hint string, w int) string {
@@ -217,12 +231,9 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 	if title.NoteWarn {
 		noteFg = core.CurTheme.DiagWarn
 	}
-	bw := titleCopyWidth(&title, w) // the button at the right end
+	hw := diffHintWidth(hint)
+	bw := titleCopyWidth(&title, w-hw) // the button at the right end
 	w -= bw
-	hw := 0
-	if hint != "" {
-		hw = ansi.StringWidth(hint) + 1
-	}
 	nw := max(0, min(ansi.StringWidth(name), w-hw-ansi.StringWidth(stats+dels)))
 	head := bgfg(cTabBarBg, core.CurTheme.Strong).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
 		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +

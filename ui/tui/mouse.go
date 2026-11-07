@@ -409,6 +409,10 @@ func (a *App) copyButtonHit(l layout, msg core.Mouse) bool {
 	if msg.Row != 0 && !(a.DiffFile(t) != nil && msg.Row == l.editY-l.top) {
 		return false
 	}
-	bw := titleCopyWidth(a.TitleOf(t), l.rightW)
-	return bw > 0 && msg.Col >= l.rightW-bw && msg.Col < l.rightW
+	w := l.rightW
+	if msg.Row != 0 { // the header of a diff: the hint takes its place first
+		w -= diffHintWidth(diffHint(a.DiffFor(t)))
+	}
+	bw := titleCopyWidth(a.TitleOf(t), w)
+	return bw > 0 && msg.Col >= w-bw && msg.Col < w
 }
