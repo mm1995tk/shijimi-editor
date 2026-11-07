@@ -23,8 +23,18 @@ func (a *Core) FitCursor(t *Tab, editW, editH, dvH int) {
 		}
 		a.Follow = false
 	}
-	t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow, 0, max(0, len(t.Buf.Lines)-1))
+	h := editH
+	if a.DiffFor(t) != nil {
+		h = 1 // the diff view has rows of its own (the deleted lines), which it scrolls by
+	}
+	t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow, 0, MaxScrollRow(len(t.Buf.Lines), h))
 }
+
+// MaxScrollRow is the last first row of a view h rows high over n lines: the
+// one that puts the last line on the bottom row, so the view never shows the
+// empty space below the end of the file. A view with no rows (a hidden
+// editor) may still start at the last line.
+func MaxScrollRow(n, h int) int { return max(0, n-max(1, h)) }
 
 // FitPalette filters the palette's list and sizes its input, and fits the
 // project search, while they are open.

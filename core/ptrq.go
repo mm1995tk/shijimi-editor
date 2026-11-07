@@ -33,7 +33,11 @@ func (a *Core) WheelEditor(wheel int) {
 				a.WheelPreview(wheel)
 				break
 			}
-			t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow+wheel, 0, max(0, len(t.Buf.Lines)-1))
+			h := a.EditRows()
+			if a.DiffFor(t) != nil {
+				h = 1 // the diff view has rows of its own (the deleted lines), which it scrolls by
+			}
+			t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow+wheel, 0, MaxScrollRow(len(t.Buf.Lines), h))
 		}
 	}
 }
