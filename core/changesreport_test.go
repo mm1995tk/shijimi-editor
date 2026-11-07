@@ -76,15 +76,18 @@ func TestCtlDiffOpensFileOfList(t *testing.T) {
 	}
 }
 
-// A list longer than ctl.MaxDiffFiles is cut.
+// A list longer than maxDiffFiles is cut.
 func TestChangesReportCutsLongList(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	a.SetChangesInGUI(true)
-	for i := 0; len(a.Gd.Files) <= ctl.MaxDiffFiles+10; i++ {
+	for len(a.Gd.Files) <= maxDiffFiles+10 {
 		a.Gd.Files = append(a.Gd.Files, a.Gd.Files[0])
 	}
 	d, _ := a.ChangesReport()
-	if d == nil || len(d.Files) != ctl.MaxDiffFiles {
-		t.Errorf("files = %d, want %d", len(d.Files), ctl.MaxDiffFiles)
+	if d == nil {
+		t.Fatal("no report")
+	}
+	if len(d.Files) != maxDiffFiles {
+		t.Errorf("files = %d, want %d", len(d.Files), maxDiffFiles)
 	}
 }

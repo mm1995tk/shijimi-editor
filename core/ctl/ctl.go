@@ -195,13 +195,8 @@ type PrimaryFile struct {
 // PrimaryDiff is the list of changes (CHANGES) of the diff mode of a shj that
 // runs in the primary terminal of a GUI workspace. kisui shows it in the
 // sidebar under the file explorer, and the shj shows no list of its own.
-// Files are in the order the shj shows them. At most MaxDiffFiles are sent. Selected is the absolute path of
+// Files are in the order the shj shows them. Selected is the absolute path of
 // the file whose diff the shj shows now, or "" when none is shown.
-// MaxDiffFiles is the most files a shj puts in PrimaryDiff.Files: the longest list it
-// sends. A longer list is cut, so that the line stays far under the limit of
-// one line that "kisui serve" reads (which drops a line over it whole).
-const MaxDiffFiles = 5000
-
 type PrimaryDiff struct {
 	Files    []DiffFile `json:"files"`
 	Selected string     `json:"selected,omitempty"`
