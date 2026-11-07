@@ -33,9 +33,10 @@ type span struct{ x0, x1 int }
 // keeps what only a terminal has: which regions are
 // shown, the terminal panel and the pane sizes the user picked.
 type Core struct {
-	sizes      Sizes  // the sizes the UI last gave (SetSizes)
-	layout     Layout // the regions the UI last said it shows (SetLayout)
-	treeHidden bool   // the file tree is not in the sidebar (SetTreeHidden)
+	sizes        Sizes  // the sizes the UI last gave (SetSizes)
+	layout       Layout // the regions the UI last said it shows (SetLayout)
+	treeHidden   bool   // the file tree is not in the sidebar (SetTreeHidden)
+	changesInGUI bool   // the GUI shows the CHANGES of the diff mode against HEAD (SetChangesInGUI)
 	// guiExplorer asks the GUI to focus its file explorer (SetGUIExplorer); nil outside a GUI workspace.
 	guiExplorer func() error
 
@@ -743,7 +744,7 @@ func (a *Core) TrackLast() {
 
 // ToggleSide shows or hides the sidebar.
 func (a *Core) ToggleSide() {
-	if a.single || (a.treeHidden && !a.Gd.On) {
+	if a.single || (a.treeHidden && !a.ChangesListShown()) {
 		return // nothing to show or hide: the tree is elsewhere and there is no CHANGES list
 	}
 	a.SetSide(!a.SideShown())
@@ -1428,7 +1429,7 @@ func (a *Core) HandleExplorerKey(in Key) []Effect {
 	case ":":
 		return a.openCmdline(":")
 	case "tab":
-		if a.Gd.On {
+		if a.ChangesListShown() {
 			return a.SetFocus(FocusChanges)
 		}
 		if len(a.Tabs) > 0 {

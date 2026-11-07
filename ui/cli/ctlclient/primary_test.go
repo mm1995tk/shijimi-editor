@@ -75,7 +75,7 @@ func TestAnnouncePrimaryWithoutEnv(t *testing.T) {
 	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
 	t.Setenv(ctl.EnvGUIPrimary, "")
 	end, primary, report, _, _ := AnnouncePrimary("", "/x.sock")
-	report("/ignored")
+	report(ctl.PrimaryFile{File: "/ignored"})
 	end()
 	if primary {
 		t.Error("without the variable there is no primary")
@@ -192,5 +192,58 @@ func TestPaneFocusExplorer(t *testing.T) {
 	}
 	if err := p.FocusExplorer(); err == nil {
 		t.Error("a refusal must be an error")
+	}
+}
+
+// 返事の changes は Pane.Changes に写り、report は diff 付きの行をそのまま書く。
+func TestAnnouncePrimaryChangesAndDiff(t *testing.T) {
+	dir, err := os.MkdirTemp("", "shjp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	t.Setenv("XDG_RUNTIME_DIR", dir)
+	path, err := ctl.ServePrimarySocketPath("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ln, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	lines := make(chan ctl.PrimaryFile, 1)
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		br := bufio.NewReader(c)
+		var h ctl.PrimaryHello
+		json.NewDecoder(br).Decode(&h)
+		json.NewEncoder(c).Encode(ctl.PrimaryReply{OK: true, Changes: true})
+		var pf ctl.PrimaryFile
+		json.NewDecoder(br).Decode(&pf)
+		lines <- pf
+	}()
+	t.Setenv(ctl.EnvGUIPrimary, "t8")
+	end, primary, report, pane, _ := AnnouncePrimary("", filepath.Join(dir, "1.sock"))
+	defer end()
+	if !primary || pane == nil || !pane.Changes {
+		t.Fatalf("primary=%v pane=%+v", primary, pane)
+	}
+	want := ctl.PrimaryFile{File: "/w/a.go", Diff: &ctl.PrimaryDiff{
+		Files:    []ctl.DiffFile{{Path: "/w/a.go", Status: "modified", Added: 2, Deleted: 1}},
+		Selected: "/w/a.go",
+	}}
+	report(want)
+	select {
+	case got := <-lines:
+		if got.File != want.File || got.Diff == nil || got.Diff.Selected != "/w/a.go" || len(got.Diff.Files) != 1 || got.Diff.Files[0] != want.Diff.Files[0] {
+			t.Errorf("line: %+v", got)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no line")
 	}
 }

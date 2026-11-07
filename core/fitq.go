@@ -72,7 +72,7 @@ func (a *Core) FitSide(bodyH int) {
 	if !a.treeHidden {
 		a.Explorer.EnsureVisible(a.ExplorerH() - 1)
 	}
-	if a.Gd.On {
+	if a.ChangesListShown() {
 		a.FitChanges(bodyH - a.ExplorerH() - 1)
 	}
 }

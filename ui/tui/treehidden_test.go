@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
+	"github.com/mm1995tk/shijimi-editor/core/ctl"
 )
 
 // The shj in the primary terminal of a GUI workspace has no file tree: the GUI
@@ -81,7 +82,7 @@ func TestTreeHiddenNoTabSpaceLeader(t *testing.T) {
 func TestFileReporter(t *testing.T) {
 	a := newTestApp(t, "hello\n")
 	var got []string
-	a.SetFileReporter(func(f string) { got = append(got, f) })
+	a.SetFileReporter(func(f ctl.PrimaryFile) { got = append(got, f.File) })
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 	first := a.Cur().Path()
@@ -119,5 +120,32 @@ func TestSpaceEAsksGUIExplorer(t *testing.T) {
 	b.SpaceMode("e")
 	if calls != 2 || b.Focus != core.FocusExplorer {
 		t.Errorf("own tree: calls=%d focus=%v", calls, b.Focus)
+	}
+}
+
+// With the GUI showing the CHANGES, the reporter hears the list when the diff
+// mode starts and an empty state when it ends; the shj draws no list.
+func TestFileReporterDiff(t *testing.T) {
+	a := newTestApp(t, "hello\n")
+	a.SetTreeHidden(true)
+	a.SetChangesInGUI(true)
+	var got []ctl.PrimaryFile
+	a.SetFileReporter(func(f ctl.PrimaryFile) { got = append(got, f) })
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if len(got) != 1 || got[0].Diff != nil {
+		t.Fatalf("at the start: %+v", got)
+	}
+	a.Gd.On, a.Gd.Base = true, core.BaseHead
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if len(got) != 2 || got[1].Diff == nil || got[1].File != got[0].File {
+		t.Fatalf("diff mode: %+v", got)
+	}
+	if strings.Contains(ansi.Strip(a.render()), "CHANGES") || a.layout().sideW != 0 {
+		t.Errorf("the shj must draw no list; sideW=%d", a.layout().sideW)
+	}
+	a.Gd.On = false
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	if len(got) != 3 || got[2].Diff != nil {
+		t.Fatalf("diff mode off: %+v", got)
 	}
 }

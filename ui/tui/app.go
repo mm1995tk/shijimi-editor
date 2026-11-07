@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/mm1995tk/shijimi-editor/core"
+	"github.com/mm1995tk/shijimi-editor/core/ctl"
 	"github.com/mm1995tk/shijimi-editor/ui/tui/caret"
 )
 
@@ -40,9 +41,9 @@ type App struct {
 	quitting    bool        // tea.Quit was returned (see exit)
 	later       []tea.Cmd   // work the core asked for through the Port, started by the next effectCmd
 
-	fileReport   func(string) // SetFileReporter
-	reportedFile string       // the file fileReport was last called with
-	reported     bool         // fileReport has been called
+	fileReport   func(ctl.PrimaryFile) // SetFileReporter
+	reportedFile ctl.PrimaryFile       // what fileReport was last called with
+	reported     bool                  // fileReport has been called
 }
 
 // New creates the app rooted at dir, optionally opening file. A mistake in a

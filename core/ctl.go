@@ -19,6 +19,12 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 		cmd = a.diffWithHead()
 		resp = CtlResponse{OK: true}
 		if m.Req.Path != "" {
+			if f := a.Gd.ByAbs[m.Req.Path]; a.Gd.On && a.Gd.Base == BaseHead && !a.Gd.Loading && f != nil {
+				// A file of the list (the GUI sidebar shows it): open it as the list does,
+				// also when it is deleted (nothing to open then).
+				cmd = Batch(cmd, a.OpenChange(f))
+				break
+			}
 			if !a.OpenFile(m.Req.Path) {
 				resp = CtlResponse{Error: msg.T("ctl.cantopen").Add(m.Req.Path)}
 				break

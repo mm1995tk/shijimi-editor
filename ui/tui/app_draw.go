@@ -124,7 +124,7 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		if !a.TreeHidden() {
 			side = drawExplorer(a.Explorer, activePath, l.sideW, a.ExplorerH(), a.FocusIn(core.FocusExplorer))
 		}
-		if a.DiffMode() {
+		if a.ChangesListShown() {
 			side = append(side, drawChanges(a.ChangesOf(l.bodyH-a.ExplorerH()), l.sideW, l.bodyH-a.ExplorerH(), a.FocusIn(core.FocusChanges), a.borderLit(l, core.ResizeExplorer))...)
 		}
 	}
