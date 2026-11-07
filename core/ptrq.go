@@ -33,7 +33,7 @@ func (a *Core) WheelEditor(wheel int) {
 				a.WheelPreview(wheel)
 				break
 			}
-			t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow+wheel, 0, max(0, len(t.Buf.Lines)-1))
+			t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow+wheel, 0, a.maxScrollRow(t, a.EditRows()))
 		}
 	}
 }
