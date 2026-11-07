@@ -42,7 +42,7 @@ func (a *App) Init() tea.Cmd {
 	if a.SingleFile() {
 		return a.effectCmd(core.WatchTimer())
 	}
-	return a.effectCmd(append([]core.Effect{core.WaitLSP{a.LspEvents()}, core.WatchTimer()}, a.ProbeRepo()...)...)
+	return a.effectCmd(append([]core.Effect{core.WaitLSP{From: a.LspEvents()}, core.WatchTimer()}, a.ProbeRepo()...)...)
 }
 
 var _ tea.Model = (*App)(nil)

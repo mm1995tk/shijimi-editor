@@ -441,21 +441,21 @@ func termKeyBytes(msg core.Key, appCursor bool) []byte {
 			}
 			return []byte{0x1b, '[', f}
 		}
-		return []byte(fmt.Sprintf("\x1b[1;%d%c", mod, f))
+		return fmt.Appendf(nil, "\x1b[1;%d%c", mod, f)
 	}
 	// ss3 builds F1-F4, which drop to CSI form once a modifier is held.
 	ss3 := func(f byte) []byte {
 		if mod == 1 {
 			return []byte{0x1b, 'O', f}
 		}
-		return []byte(fmt.Sprintf("\x1b[1;%d%c", mod, f))
+		return fmt.Appendf(nil, "\x1b[1;%d%c", mod, f)
 	}
 	// tilde builds an ESC [ n ; mod ~ sequence.
 	tilde := func(n int) []byte {
 		if mod == 1 {
-			return []byte(fmt.Sprintf("\x1b[%d~", n))
+			return fmt.Appendf(nil, "\x1b[%d~", n)
 		}
-		return []byte(fmt.Sprintf("\x1b[%d;%d~", n, mod))
+		return fmt.Appendf(nil, "\x1b[%d;%d~", n, mod)
 	}
 	switch msg.Code {
 	case KeyUp:

@@ -83,7 +83,7 @@ func encodeMouse(mode MouseMode, sgr bool, ev MouseEvent) []byte {
 		if ev.Action == MouseRelease {
 			final = 'm'
 		}
-		return []byte(fmt.Sprintf("\x1b[<%d;%d;%d%c", code, ev.X+1, ev.Y+1, final))
+		return fmt.Appendf(nil, "\x1b[<%d;%d;%d%c", code, ev.X+1, ev.Y+1, final)
 	}
 	if ev.Action == MouseRelease {
 		code = code&^3 | 3

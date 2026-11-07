@@ -121,11 +121,15 @@ func (c *cmuxBackend) alive(id string) bool {
 // goes to cwd and replaces the shell with one that has env.
 func cmuxCommand(cwd string, env []string, sh string) string {
 	var b strings.Builder
-	b.WriteString("cd " + shQuote(cwd) + " && exec env")
+	b.WriteString("cd ")
+	b.WriteString(shQuote(cwd))
+	b.WriteString(" && exec env")
 	for _, e := range env {
-		b.WriteString(" " + shQuote(e))
+		b.WriteString(" ")
+		b.WriteString(shQuote(e))
 	}
-	b.WriteString(" " + shQuote(sh))
+	b.WriteString(" ")
+	b.WriteString(shQuote(sh))
 	return b.String()
 }
 

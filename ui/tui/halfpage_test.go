@@ -35,7 +35,7 @@ func TestHalfPageScrollsWhileHeld(t *testing.T) {
 	a.render()
 	a.Update(tea.KeyboardEnhancementsMsg{Flags: ansi.KittyReportEventTypes})
 	start, screenRow := b.Cur.Row, b.Cur.Row-b.ScrollRow
-	tick := func() { a.Update(core.HoldScrollTick{a.HoldSeq}); a.render() }
+	tick := func() { a.Update(core.HoldScrollTick{Seq: a.HoldSeq}); a.render() }
 
 	a.Update(ctrlD)
 	repeat := ctrlD
@@ -139,7 +139,7 @@ func TestScrollKeepCursorWhileHeld(t *testing.T) {
 	b.ScrollRow = b.Cur.Row - a.layout().editH/2
 	a.Update(tea.KeyboardEnhancementsMsg{Flags: ansi.KittyReportEventTypes})
 	row, scroll := b.Cur.Row, b.ScrollRow
-	tick := func() { a.Update(core.HoldScrollTick{a.HoldSeq}); a.render() }
+	tick := func() { a.Update(core.HoldScrollTick{Seq: a.HoldSeq}); a.render() }
 
 	a.Update(ctrlAltD)
 	a.render()
@@ -183,14 +183,14 @@ func TestScrollKeepCursorStopsAtEnds(t *testing.T) {
 	a.Update(tea.KeyboardEnhancementsMsg{Flags: ansi.KittyReportEventTypes})
 	a.Update(ctrlAltD)
 	for range 400 {
-		a.Update(core.HoldScrollTick{a.HoldSeq})
+		a.Update(core.HoldScrollTick{Seq: a.HoldSeq})
 	}
 	if a.Hold.Buf != nil || b.ScrollRow != len(b.Lines)-a.layout().editH {
 		t.Fatalf("scroll %d, scrolling %v; want last line at the bottom and stopped", b.ScrollRow, a.Hold.Buf != nil)
 	}
 	a.Update(ctrlAltU)
 	for range 400 {
-		a.Update(core.HoldScrollTick{a.HoldSeq})
+		a.Update(core.HoldScrollTick{Seq: a.HoldSeq})
 	}
 	if a.Hold.Buf != nil || b.ScrollRow != 0 {
 		t.Fatalf("scroll %d; want 0 and stopped", b.ScrollRow)
@@ -203,7 +203,7 @@ func TestHalfPageStopsAtEndOfFile(t *testing.T) {
 	a.Update(tea.KeyboardEnhancementsMsg{Flags: ansi.KittyReportEventTypes})
 	a.Update(ctrlD)
 	for range 10 {
-		a.Update(core.HoldScrollTick{a.HoldSeq})
+		a.Update(core.HoldScrollTick{Seq: a.HoldSeq})
 	}
 	if b.Cur.Row != len(b.Lines)-1 || a.Hold.Buf != nil {
 		t.Fatalf("row %d, scrolling %v; want last row and stopped", b.Cur.Row, a.Hold.Buf != nil)

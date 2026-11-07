@@ -117,7 +117,7 @@ func TestPreviewPaneImages(t *testing.T) {
 	load := func() {
 		a.SyncPreview()
 		for path, job := range a.MdImages {
-			a.HandleMDImageDone(core.MdImageDoneMsg{path, job.Stamp, core.NewImageView(path)})
+			a.HandleMDImageDone(core.MdImageDoneMsg{Path: path, Stamp: job.Stamp, Img: core.NewImageView(path)})
 		}
 	}
 	p := a.BuildPreviewPane(a.Tabs[0], 30, 100)

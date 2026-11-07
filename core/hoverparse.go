@@ -123,8 +123,8 @@ func parseHover(text string) []hoverLine {
 			fence = append(fence, l)
 			continue
 		}
-		switch {
-		case trim == "---" || trim == "***" || trim == "___":
+		switch trim {
+		case "---", "***", "___":
 			out = append(out, hoverLine{rule: true})
 		default:
 			out = append(out, hoverLine{cells: textCells(l)[0]})
