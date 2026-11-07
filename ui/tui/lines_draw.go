@@ -9,7 +9,33 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/screen"
+	"github.com/mm1995tk/shijimi-editor/ui/internal/i18n"
 )
+
+// titleCopyMin is the width the path keeps at least before the copy button is
+// dropped from a narrow pane.
+const titleCopyMin = 8
+
+// titleCopyWidth is the width of the copy button at the right end of a title
+// row of width w, or 0 when the title has none or the pane is too narrow.
+func titleCopyWidth(title *screen.Title, w int) int {
+	if title == nil || !title.Copy {
+		return 0
+	}
+	bw := ansi.StringWidth(i18n.T("title.copy"))
+	if w < bw+titleCopyMin {
+		return 0
+	}
+	return bw
+}
+
+// copyButton is the copy button when bw (from titleCopyWidth) is not 0.
+func copyButton(bw int) string {
+	if bw == 0 {
+		return ""
+	}
+	return stTabBar.Render(i18n.T("title.copy"))
+}
 
 // drawTitle draws title as a row of width w. current is whether the pane is
 // the one with the focus.
@@ -25,11 +51,12 @@ func drawTitle(title *screen.Title, w int, current bool) string {
 	if !current {
 		st = stTabInactive // the pane without the focus
 	}
-	s := st.Render(" " + title.Text + mark + " ")
-	if n := ansi.StringWidth(s); n < w {
-		s += stTabBar.Render(strings.Repeat(" ", w-n))
+	bw := titleCopyWidth(title, w)
+	s := fitStyled(st.Render(" "+title.Text+mark+" "), w-bw, stTabBar) // the path is cut first
+	if n := ansi.StringWidth(s); n < w-bw {
+		s += stTabBar.Render(strings.Repeat(" ", w-bw-n))
 	}
-	return fitStyled(s, w, stTabBar)
+	return s + copyButton(bw)
 }
 
 // drawStatus draws s as a row of width w, with the confirmation ov (if any)

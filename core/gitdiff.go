@@ -1335,7 +1335,7 @@ func (a *Core) BuildDiffPanes(t *Tab, dv *DiffView, g DiffGeom, o PaneOpts) []sc
 
 	right := textPaneHead(t, g.RightW, g.H, o)
 	right.Kind = screen.KindDiff
-	right.Title = screen.Title{Text: a.Rel(b.Path)}
+	right.Title = screen.Title{Text: a.Rel(b.Path), Copy: b.Path != ""}
 	if f := a.DiffFile(t); f != nil {
 		right.Title.Added, right.Title.Deleted = f.Added, f.Deleted
 	}

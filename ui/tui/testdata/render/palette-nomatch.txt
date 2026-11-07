@@ -1,4 +1,4 @@
- EXPLORER: 001      │ a.txt
+ EXPLORER: 001      │ a.txt                                                                  コピー
     a.txt
                      > zzzzqqq
                       一致する項目はありません

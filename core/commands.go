@@ -26,7 +26,7 @@ func defaultCommands() []Command {
 		{msg.T("cmd.saveall"), msg.S(":wa"), func(a *Core) []Effect { return a.saveAll() }},
 		{msg.T("cmd.newfile"), msg.S("Ctrl+N"), func(a *Core) []Effect { return a.newFile() }},
 		{msg.T("cmd.openfile"), msg.S("Ctrl+P / Space f"), func(a *Core) []Effect { return a.Pal.Show(a.Root, "") }},
-		{msg.T("cmd.copyrel"), msg.T("cmd.copyrel.key"), func(a *Core) []Effect { a.copyPath(a.activePath(), false); return nil }},
+		{msg.T("cmd.copyrel"), msg.T("cmd.copyrel.key"), func(a *Core) []Effect { a.CopyActivePath(); return nil }},
 		{msg.T("cmd.copyabs"), msg.T("cmd.copyabs.key"), func(a *Core) []Effect { a.copyPath(a.activePath(), true); return nil }},
 		{msg.T("cmd.reload"), msg.S(":reload"), func(a *Core) []Effect { return a.ExecCommand("reload") }},
 		{msg.T("cmd.closetab"), msg.S("Ctrl+W / :bc"), func(a *Core) []Effect { return a.CloseTab(false) }},
@@ -259,7 +259,7 @@ func (a *Core) ExecCommand(line string) []Effect {
 	case "symbol-all", "sym-all":
 		return a.workspaceSymbols()
 	case "copy-rel":
-		a.copyPath(a.activePath(), false)
+		a.CopyActivePath()
 	case "copy-abs":
 		a.copyPath(a.activePath(), true)
 	case "reload", "rl":

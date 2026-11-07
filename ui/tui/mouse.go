@@ -218,6 +218,11 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 	}
 	double := msg.Clicks >= 2
 
+	if msg.Region == core.RegionEditor && a.copyButtonHit(l, msg) {
+		a.CopyActivePath()
+		return nil
+	}
+
 	switch {
 	case msg.Region == core.RegionNone:
 		return nil // the diff mode header and help lines
@@ -392,4 +397,22 @@ func (a *App) searchMouse(msg core.Mouse) []core.Effect {
 		a.SearchClick(x, y)
 	}
 	return nil
+}
+
+// copyButtonHit reports whether msg is a press on the copy button at the right
+// end of the title row of the current pane, or of the header of a diff.
+func (a *App) copyButtonHit(l layout, msg core.Mouse) bool {
+	t := a.Cur()
+	if t == nil {
+		return false
+	}
+	if msg.Row != 0 && !(a.DiffFile(t) != nil && msg.Row == l.editY-l.top) {
+		return false
+	}
+	w := l.rightW
+	if msg.Row != 0 { // the header of a diff: the hint is drawn before the button
+		w -= diffHintWidth(diffHint(a.DiffFor(t)))
+	}
+	bw := titleCopyWidth(a.TitleOf(t), w) // the same width as drawDiffHeader
+	return bw > 0 && msg.Col >= l.rightW-bw && msg.Col < l.rightW
 }

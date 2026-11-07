@@ -25,7 +25,7 @@ func (a *Core) TitleOf(t *Tab) *screen.Title {
 	if !a.single && t.Path() != "" {
 		name = a.Rel(t.Path())
 	}
-	return &screen.Title{Text: name, Dirty: t.dirty()}
+	return &screen.Title{Text: name, Dirty: t.dirty(), Copy: t.Path() != ""}
 }
 
 // modeStyleName is the name of the color of the mode m in the status line.
