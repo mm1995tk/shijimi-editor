@@ -21,9 +21,11 @@ func (*guiBackend) name() string { return "gui" }
 // SetGUIPane makes the GUI a multiplexer that the terminal commands can use.
 // do sends a ctl.PaneRequest to "kisui serve" (ctlclient.Pane.Do). It is called
 // only for the shj that is the primary of a GUI workspace; any other shj has
-// no GUI backend and keeps the built-in terminal.
+// no GUI backend and keeps the built-in terminal. New has already looked for a
+// multiplexer by then (pushLayout), so the next muxOn looks again.
 func (a *App) SetGUIPane(do func(ctl.PaneRequest) (ctl.PaneReply, error)) {
 	a.mux.gui = &guiBackend{do: do}
+	a.mux.resolved = false
 }
 
 func (g *guiBackend) split(cwd string, env []string) (string, error) {
