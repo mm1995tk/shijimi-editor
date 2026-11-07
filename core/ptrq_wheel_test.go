@@ -27,7 +27,8 @@ func TestWheelEditorStopsAtEnd(t *testing.T) {
 	}
 }
 
-// A file shorter than the view does not scroll at all.
+// The edges of MaxScrollRow: a file longer than the view, one shorter, one
+// that just fits, a view with no rows (a hidden editor) and a file of no lines.
 func TestMaxScrollRow(t *testing.T) {
 	for _, c := range []struct{ n, h, want int }{
 		{100, 20, 80}, {10, 20, 0}, {20, 20, 0}, {5, 0, 4}, {0, 10, 0},

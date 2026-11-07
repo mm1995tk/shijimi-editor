@@ -23,11 +23,17 @@ func (a *Core) FitCursor(t *Tab, editW, editH, dvH int) {
 		}
 		a.Follow = false
 	}
-	h := editH
+	t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow, 0, a.maxScrollRow(t, editH))
+}
+
+// maxScrollRow is the last ScrollRow of t, a text tab whose editor is h rows
+// high: MaxScrollRow of its lines, or, in the diff view, the last line, since
+// that view has rows of its own (the deleted lines) and scrolls by them.
+func (a *Core) maxScrollRow(t *Tab, h int) int {
 	if a.DiffFor(t) != nil {
-		h = 1 // the diff view has rows of its own (the deleted lines), which it scrolls by
+		h = 1
 	}
-	t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow, 0, MaxScrollRow(len(t.Buf.Lines), h))
+	return MaxScrollRow(len(t.Buf.Lines), h)
 }
 
 // MaxScrollRow is the last first row of a view h rows high over n lines: the
