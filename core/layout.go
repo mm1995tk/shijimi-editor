@@ -61,6 +61,12 @@ func (a *Core) SetTreeHidden(on bool) {
 	}
 }
 
+// SetGUIExplorer sets how Space e asks the GUI to focus the file explorer that
+// stands in for the hidden file tree. f returns an error when the GUI cannot
+// (a kisui that does not know the request); the keys then go where they would
+// without it. Pass nil outside a GUI workspace.
+func (a *Core) SetGUIExplorer(f func() error) { a.guiExplorer = f }
+
 // TreeHidden reports whether the file tree is left out of the sidebar.
 func (a *Core) TreeHidden() bool { return a.treeHidden }
 

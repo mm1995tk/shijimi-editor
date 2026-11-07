@@ -36,6 +36,8 @@ type Core struct {
 	sizes      Sizes  // the sizes the UI last gave (SetSizes)
 	layout     Layout // the regions the UI last said it shows (SetLayout)
 	treeHidden bool   // the file tree is not in the sidebar (SetTreeHidden)
+	// guiExplorer asks the GUI to focus its file explorer (SetGUIExplorer); nil outside a GUI workspace.
+	guiExplorer func() error
 
 	Root           string
 	GitTop         string

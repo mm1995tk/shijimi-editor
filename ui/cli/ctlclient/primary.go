@@ -133,3 +133,10 @@ func (p *Pane) Do(req ctl.PaneRequest) (ctl.PaneReply, error) {
 	}
 	return r, nil
 }
+
+// FocusExplorer asks the GUI to move the keys to its file explorer (Space e).
+// It fails when the server does not know the request (a kisui from before it).
+func (p *Pane) FocusExplorer() error {
+	_, err := p.Do(ctl.PaneRequest{Op: "explorer"})
+	return err
+}

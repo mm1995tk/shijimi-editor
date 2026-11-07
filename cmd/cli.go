@@ -95,6 +95,7 @@ func Main() {
 			if primary {
 				app.SetFileReporter(reportFile)
 				app.SetGUIPane(pane.Do)
+				app.SetGUIExplorer(pane.FocusExplorer)
 			}
 			prev := closeSock
 			closeSock = func() { endPrimary(); prev() }
