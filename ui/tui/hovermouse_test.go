@@ -43,7 +43,7 @@ func TestMouseHoverStaleDwellIgnored(t *testing.T) {
 	move(a, l.rightX+gw+1, l.editY)
 	seq := a.HoverSeq
 	move(a, l.rightX+gw+3, l.editY)
-	if cmd := a.HoverDwell(core.HoverDwell{seq}); cmd != nil {
+	if cmd := a.HoverDwell(core.HoverDwell{Seq: seq}); cmd != nil {
 		t.Fatal("a timer from an earlier cell must be dropped")
 	}
 }
@@ -56,7 +56,7 @@ func TestMouseHoverPopupStaysOnPointerAndCloses(t *testing.T) {
 	move(a, x, y)
 	a.HoverText, a.HoverScroll = "text", 0
 	a.HoverAt = &core.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
-	a.HoverWord = core.WordSpan{0, 0, 5}
+	a.HoverWord = core.WordSpan{Row: 0, Start: 0, End: 5}
 	move(a, x, y+1) // onto the popup below the word
 	if a.HoverText == "" {
 		t.Fatal("popup closed while the pointer is on it")
@@ -106,7 +106,7 @@ func TestMouseHoverWheelOutsidePopupScrollsBuffer(t *testing.T) {
 	b := a.CurText().Buf
 	x, y := l.rightX+core.GutterWidth(b)+2, l.editY
 	a.HoverText, a.HoverAt = "text", &core.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
-	a.HoverWord = core.WordSpan{0, 0, 5}
+	a.HoverWord = core.WordSpan{Row: 0, Start: 0, End: 5}
 	wheelDown(a, x, y) // on the word, outside the popup below it
 	if a.HoverText != "" || a.HoverAt != nil {
 		t.Fatal("popup should close when the wheel turns outside it")
@@ -168,8 +168,8 @@ func TestMouseHoverNeedsEditorFocus(t *testing.T) {
 		if cmd := move(a, l.rightX+core.GutterWidth(a.CurText().Buf)+1, l.editY); cmd != nil {
 			t.Fatalf("focus %v: timer started", f)
 		}
-		a.HoverCell = core.ScreenPt{l.rightX + core.GutterWidth(a.CurText().Buf) + 1, l.editY}
-		if cmd := a.HoverDwell(core.HoverDwell{a.HoverSeq}); cmd != nil {
+		a.HoverCell = core.ScreenPt{X: l.rightX + core.GutterWidth(a.CurText().Buf) + 1, Y: l.editY}
+		if cmd := a.HoverDwell(core.HoverDwell{Seq: a.HoverSeq}); cmd != nil {
 			t.Fatalf("focus %v: dwell sent a request", f)
 		}
 	}
@@ -206,10 +206,10 @@ func TestMouseHoverKeptAfterWheelOnPopup(t *testing.T) {
 		long += "line\n\n"
 	}
 	a.HoverText, a.HoverAt = long, &core.Pos{Row: y - l.editY, Col: x - l.rightX - core.GutterWidth(a.CurText().Buf)}
-	a.HoverWord = core.WordSpan{0, 0, 5}
-	a.HoverCell = core.ScreenPt{x, y}
+	a.HoverWord = core.WordSpan{Row: 0, Start: 0, End: 5}
+	a.HoverCell = core.ScreenPt{X: x, Y: y}
 	wheelDown(a, x, y+1) // on the popup
-	if a.HoverText == "" || a.HoverWord != (core.WordSpan{0, 0, 5}) {
+	if a.HoverText == "" || a.HoverWord != (core.WordSpan{Row: 0, Start: 0, End: 5}) {
 		t.Fatal("wheel on the popup must keep the popup and its word")
 	}
 	if cmd := move(a, x+2, y); cmd != nil || a.HoverText == "" {
@@ -248,8 +248,8 @@ func TestMouseHoverBlockedByKeyOwners(t *testing.T) {
 		if cmd := move(a, x, y); cmd != nil {
 			t.Fatalf("%s: timer started", name)
 		}
-		a.HoverCell = core.ScreenPt{x, y}
-		if cmd := a.HoverDwell(core.HoverDwell{a.HoverSeq}); cmd != nil {
+		a.HoverCell = core.ScreenPt{X: x, Y: y}
+		if cmd := a.HoverDwell(core.HoverDwell{Seq: a.HoverSeq}); cmd != nil {
 			t.Fatalf("%s: dwell sent a request", name)
 		}
 	}

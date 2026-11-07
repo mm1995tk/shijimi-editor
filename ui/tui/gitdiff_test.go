@@ -411,7 +411,7 @@ func TestDiffPanes(t *testing.T) {
 	if l := left.Lines[0]; isDeletedLine(l) || changedLine(right.Lines[0]) {
 		t.Errorf("context row is marked: %+v %+v", l, right.Lines[0])
 	}
-	if want := []screen.Hunk{{1, 2, screen.MarkDeleted}, {4, 5, screen.MarkAdded}}; !reflect.DeepEqual(right.Diff.Hunks, want) {
+	if want := []screen.Hunk{{Start: 1, End: 2, Kind: screen.MarkDeleted}, {Start: 4, End: 5, Kind: screen.MarkAdded}}; !reflect.DeepEqual(right.Diff.Hunks, want) {
 		t.Errorf("hunks = %v", right.Diff.Hunks)
 	}
 	if right.Title.Text != "a.txt" || right.Title.Added != 1 || right.Title.Deleted != 1 {

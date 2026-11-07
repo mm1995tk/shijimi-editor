@@ -1,6 +1,7 @@
 package core
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
@@ -242,7 +243,7 @@ func (t *TextArea) backspace() {
 	}
 	prev := t.lines[t.row-1]
 	t.col = len(prev)
-	t.lines[t.row-1] = append(prev[:len(prev):len(prev)], t.lines[t.row]...)
+	t.lines[t.row-1] = append(slices.Clip(prev), t.lines[t.row]...)
 	t.lines = append(t.lines[:t.row], t.lines[t.row+1:]...)
 	t.row--
 }

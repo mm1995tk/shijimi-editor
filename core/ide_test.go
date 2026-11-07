@@ -18,10 +18,13 @@ func TestUnifiedDiff(t *testing.T) {
 	var sb strings.Builder
 	for _, l := range got {
 		if l.Kind == '@' {
-			sb.WriteString(tt(l.Text) + "\n")
+			sb.WriteString(tt(l.Text))
+			sb.WriteString("\n")
 			continue
 		}
-		sb.WriteString(string(l.Kind) + tt(l.Text) + "\n")
+		sb.WriteString(string(l.Kind))
+		sb.WriteString(tt(l.Text))
+		sb.WriteString("\n")
 	}
 	want := "@@ -8,7 +8,7 @@\n li\n lj\n lk\n-ll\n+CHANGED\n lm\n ln\n lo\n"
 	if sb.String() != want {

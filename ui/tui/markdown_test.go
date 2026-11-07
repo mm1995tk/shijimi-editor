@@ -40,7 +40,7 @@ func TestMermaidRenderWithExternalCommand(t *testing.T) {
 	if got := a.testMedia(a.MermaidLines(code, 30), 30); !strings.Contains(ansi.Strip(strings.Join(got, "\n")), "描画中") {
 		t.Fatalf("pending placeholder expected: %q", got)
 	}
-	msg := cmdOf(a, a.HandleMermaidStart(core.MermaidStartMsg{key, code}))()
+	msg := cmdOf(a, a.HandleMermaidStart(core.MermaidStartMsg{Key: key, Code: code}))()
 	done, ok := msg.(core.MermaidDoneMsg)
 	if !ok || done.Err != nil {
 		t.Fatalf("msg = %#v", msg)
@@ -74,7 +74,7 @@ func TestMermaidJobRestoredAfterTabSwitch(t *testing.T) {
 	code := core.MermaidBlocks(a1.Text())[0]
 	key := a.MermaidKey(code)
 	a.Active = 1 // switch away before the timer fires
-	if cmd := a.HandleMermaidStart(core.MermaidStartMsg{key, code}); cmd != nil {
+	if cmd := a.HandleMermaidStart(core.MermaidStartMsg{Key: key, Code: code}); cmd != nil {
 		t.Fatal("job for a hidden tab must not start")
 	}
 	if _, ok := a.Mermaid[key]; ok {
@@ -220,7 +220,7 @@ func TestMarkdownImageInPreview(t *testing.T) {
 		t.Fatalf("only local images should load: %v", a.MdImages)
 	}
 	for path := range a.MdImages {
-		a.HandleMDImageDone(core.MdImageDoneMsg{path, a.MdImages[path].Stamp, core.NewImageView(path)})
+		a.HandleMDImageDone(core.MdImageDoneMsg{Path: path, Stamp: a.MdImages[path].Stamp, Img: core.NewImageView(path)})
 	}
 	lines := a.previewLines(a.Tabs[0], w, 40)
 	for _, l := range lines {
@@ -256,7 +256,7 @@ func TestMarkdownImageReloadedWhenFileChanges(t *testing.T) {
 		if a.SyncPreview() == nil {
 			t.Fatal("expected the image to load")
 		}
-		a.HandleMDImageDone(core.MdImageDoneMsg{path, a.MdImages[path].Stamp, core.NewImageView(path)})
+		a.HandleMDImageDone(core.MdImageDoneMsg{Path: path, Stamp: a.MdImages[path].Stamp, Img: core.NewImageView(path)})
 	}
 
 	// written in the document before the file exists
@@ -280,11 +280,11 @@ func TestMarkdownImageReloadedWhenFileChanges(t *testing.T) {
 		t.Fatal("the old image should stay shown while the new one loads")
 	}
 	// a result read before the last change is dropped
-	a.HandleMDImageDone(core.MdImageDoneMsg{path, old, core.NewImageView(path)})
+	a.HandleMDImageDone(core.MdImageDoneMsg{Path: path, Stamp: old, Img: core.NewImageView(path)})
 	if job.Img.RowsFor(30) != first {
 		t.Fatal("stale result must be ignored")
 	}
-	a.HandleMDImageDone(core.MdImageDoneMsg{path, job.Stamp, core.NewImageView(path)})
+	a.HandleMDImageDone(core.MdImageDoneMsg{Path: path, Stamp: job.Stamp, Img: core.NewImageView(path)})
 	if job.Img.RowsFor(30) == first {
 		t.Fatal("image should have been read again")
 	}

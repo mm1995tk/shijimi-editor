@@ -116,14 +116,14 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 	}
 	// Sideways: the horizontal wheel, or the vertical one with Shift held.
 	hwheel := 0
-	switch {
-	case msg.Button == core.MouseWheelLeft:
+	switch msg.Button {
+	case core.MouseWheelLeft:
 		hwheel = -core.HscrollWheel
-	case msg.Button == core.MouseWheelRight:
+	case core.MouseWheelRight:
 		hwheel = core.HscrollWheel
 	}
 	// A popup the pointer opened only owns the wheel while the pointer is on it.
-	if wheel != 0 && a.Hovering() && (!a.HoverByPointer() || a.inHoverBox(l, core.ScreenPt{x, y})) {
+	if wheel != 0 && a.Hovering() && (!a.HoverByPointer() || a.inHoverBox(l, core.ScreenPt{X: x, Y: y})) {
 		if msg.Action == core.MousePress {
 			a.ScrollHover(wheel)
 		}
@@ -326,7 +326,7 @@ func (a *App) passiveMotion(l layout, msg core.Mouse) []core.Effect {
 		}
 		return nil
 	}
-	pt := core.ScreenPt{x, y}
+	pt := core.ScreenPt{X: x, Y: y}
 	if a.RestedOn(pt) {
 		return nil
 	}

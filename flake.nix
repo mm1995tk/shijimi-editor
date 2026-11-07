@@ -110,6 +110,7 @@
               runtimeInputs = [
                 pkgs.go_1_27
                 pkgs.gomod2nix
+                pkgs.gopls
                 pkgs.git
               ];
               text = "exec ${./scripts/tidy.sh}";

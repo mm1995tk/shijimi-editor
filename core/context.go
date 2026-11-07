@@ -38,7 +38,9 @@ func (a *Core) formatContext(path string, startRow, endRow int, selected string,
 			rest := len(lines) - maxContextLines
 			lines = append(lines[:maxContextLines], a.text(msg.T("ctx.elided", rest)))
 		}
-		sb.WriteString("```\n" + strings.Join(lines, "\n") + "\n```\n")
+		sb.WriteString("```\n")
+		sb.WriteString(strings.Join(lines, "\n"))
+		sb.WriteString("\n```\n")
 	}
 	for _, d := range diags {
 		if d.Range.End.Line < startRow || d.Range.Start.Line > endRow {

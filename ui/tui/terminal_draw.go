@@ -11,7 +11,8 @@ func (t *terminal) render(w, h int, focused bool) []string {
 	out = append(out, stPanelBord.Render(strings.Repeat("─", w)))
 
 	var bar strings.Builder
-	bar.WriteString(stPanelTitle.Render(" ") + stPanelTab.Render("TERMINAL"))
+	bar.WriteString(stPanelTitle.Render(" "))
+	bar.WriteString(stPanelTab.Render("TERMINAL"))
 	if tab := t.sh; tab != nil {
 		bar.WriteString(stPanelCmd.Render(" " + tab.label() + " "))
 	}

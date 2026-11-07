@@ -62,7 +62,7 @@ func TestAgentSelectionJoinsWrappedRows(t *testing.T) {
 	top := a.Ag.View.Start
 	w := a.Ag.View.W
 	// from the first row to the last, all of it
-	a.Ag.Sel = core.AgentSel{On: true, A: core.AgentPos{top, 0}, B: core.AgentPos{top + n - 1, w - 1}}
+	a.Ag.Sel = core.AgentSel{On: true, A: core.AgentPos{Row: top, Col: 0}, B: core.AgentPos{Row: top + n - 1, Col: w - 1}}
 	got := a.Ag.Sel.Text(a.Ag.View.Rows, w)
 	if want := long + "\n" + long; got != want {
 		t.Fatalf("copied\n%q\nwant\n%q", got, want)
@@ -134,7 +134,7 @@ func TestAgentSelectionDropsQuoteBars(t *testing.T) {
 	if len(rows) < 3 {
 		t.Fatalf("only %d rows", len(rows))
 	}
-	s := core.AgentSel{On: true, A: core.AgentPos{0, 0}, B: core.AgentPos{len(rows) - 1, w - 1}}
+	s := core.AgentSel{On: true, A: core.AgentPos{Row: 0, Col: 0}, B: core.AgentPos{Row: len(rows) - 1, Col: w - 1}}
 	if got, want := s.Text(rows, w), "▎ "+long; got != want {
 		t.Fatalf("copied %q, want %q", got, want)
 	}
@@ -148,7 +148,7 @@ func TestAgentSelectionKeepsSpacesOfWrappedCode(t *testing.T) {
 		t.Fatalf("code not wrapped: %d rows", len(rows))
 	}
 	// the rows of the code line, between the language label and the bottom edge
-	a.Ag.Sel = core.AgentSel{On: true, A: core.AgentPos{1, 0}, B: core.AgentPos{len(rows) - 2, w - 1}}
+	a.Ag.Sel = core.AgentSel{On: true, A: core.AgentPos{Row: 1, Col: 0}, B: core.AgentPos{Row: len(rows) - 2, Col: w - 1}}
 	if got := a.Ag.Sel.Text(rows, w); got != strings.ReplaceAll(code, "\t", "    ") {
 		t.Fatalf("copied\n%q\nwant\n%q", got, code)
 	}

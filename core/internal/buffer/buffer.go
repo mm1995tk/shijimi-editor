@@ -1428,9 +1428,10 @@ func (b *Buffer) MatchBracket(extend bool) {
 			continue
 		}
 		c := b.Lines[p.Row][p.Col]
-		if c == open {
+		switch c {
+		case open:
 			depth++
-		} else if c == close {
+		case close:
 			if depth == 0 {
 				b.startSelect(extend)
 				b.Cur = p

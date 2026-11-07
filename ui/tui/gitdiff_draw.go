@@ -316,14 +316,19 @@ func drawCompareBar(branch string, pr *core.PrInfo, w int) string {
 		case pr.State == "CLOSED":
 			col = cDelSign
 		}
-		sb.WriteString(text.Render("  ") + bgfg(bg, col).Bold(true).Render(state))
+		sb.WriteString(text.Render("  "))
+		sb.WriteString(bgfg(bg, col).Bold(true).Render(state))
 		if pr.Author.Login != "" {
 			sb.WriteString(dim.Render("  @" + pr.Author.Login))
 		}
-		sb.WriteString(dim.Render(i18n.T("gd.comparing")) + strong.Render(pr.BaseRefName) + text.Render(i18n.T("gd.prbase")+tree))
+		sb.WriteString(dim.Render(i18n.T("gd.comparing")))
+		sb.WriteString(strong.Render(pr.BaseRefName))
+		sb.WriteString(text.Render(i18n.T("gd.prbase") + tree))
 	} else {
 		sb.WriteString(bgfg(cAccent, core.CurTheme.AccentFg).Bold(true).Render(" DIFF "))
-		sb.WriteString(dim.Render(i18n.T("gd.comparing")) + strong.Render("HEAD") + text.Render(" ↔ "+tree))
+		sb.WriteString(dim.Render(i18n.T("gd.comparing")))
+		sb.WriteString(strong.Render("HEAD"))
+		sb.WriteString(text.Render(" ↔ " + tree))
 	}
 	return fitStyled(sb.String(), w, text)
 }
