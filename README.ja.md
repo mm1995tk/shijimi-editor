@@ -28,17 +28,17 @@ nix run github:mm1995tk/shijimi-editor/release   # その場で起動
 nix profile install github:mm1995tk/shijimi-editor/release
 go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # shj コマンドとして入れる
 go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # 同じものを shijimi コマンドとして入れる
-npm install -g shijimi-editor                                     # shj と shijimi の両方を入れる（Linux と macOS）
+npm install -g shijimi-editor                                     # shj と shijimi の両方を入れる（Linux と、Apple シリコンの macOS）
 ```
 
-どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。同じバイナリを `shj-<os>-<cpu>` として各 [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) にも置いています。`main` のリリース前の変更は入りません。
+どれも最新のリリースを入れます。Nix のコマンドは `release` ブランチを、`go install` は一番新しいタグを、npm はリリースのときに publish したバイナリを取ります。同じバイナリを `shj-<os>-<cpu>`（`shj-linux-x64`・`shj-linux-arm64`・`shj-darwin-arm64`。Intel の macOS には対応していません）として各 [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) にも置いています。`main` のリリース前の変更は入りません。
 
 `main` のリリース前の変更を試すには、nightly 版を入れます。`shj` と並べて `shj-nightly`（と `shijimi-nightly`）として入り、設定は `~/.config/shijimi-editor-nightly/` を読み（そのディレクトリが無い間は `~/.config/shijimi-editor/` を読みます）、ソケットのディレクトリも別で、設定の `[experimental]`（試している途中の機能）が既定で有効です。Nix は入れる時点の最新の `main` からビルドします。npm は毎日 publish したビルド（dist-tag `nightly`、版は `X.Y.Z-nightly.<yyyymmdd>.<sha>`）を取り、同じバイナリを `shj-nightly-<os>-<cpu>` として [`nightly` の pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/nightly) にも置いています。
 
 ```sh
 nix run github:mm1995tk/shijimi-editor#shj-nightly
 nix profile install github:mm1995tk/shijimi-editor#shj-nightly
-npm install -g shijimi-editor-nightly   # shj-nightly と shijimi-nightly を入れる（Linux と macOS）
+npm install -g shijimi-editor-nightly   # shj-nightly と shijimi-nightly を入れる（Linux と、Apple シリコンの macOS）
 npx shijimi-editor-nightly              # 入れずにその場で起動
 ```
 

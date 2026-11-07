@@ -30,17 +30,17 @@ nix run github:mm1995tk/shijimi-editor/release   # run it right away
 nix profile install github:mm1995tk/shijimi-editor/release
 go install github.com/mm1995tk/shijimi-editor/cmd/shj@latest      # installs the shj command
 go install github.com/mm1995tk/shijimi-editor/cmd/shijimi@latest  # installs the same thing as shijimi
-npm install -g shijimi-editor                                     # installs both shj and shijimi (Linux and macOS)
+npm install -g shijimi-editor                                     # installs both shj and shijimi (Linux, and macOS on Apple silicon)
 ```
 
-All of them get the latest release: the Nix commands follow the `release` branch, `go install` takes the newest tag, and npm takes the binaries published at release time. The same binaries are also attached to each [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) as `shj-<os>-<cpu>`. Unreleased changes on `main` are not included.
+All of them get the latest release: the Nix commands follow the `release` branch, `go install` takes the newest tag, and npm takes the binaries published at release time. The same binaries are also attached to each [GitHub Release](https://github.com/mm1995tk/shijimi-editor/releases) as `shj-<os>-<cpu>` (`shj-linux-x64`, `shj-linux-arm64` and `shj-darwin-arm64`; macOS on Intel is not supported). Unreleased changes on `main` are not included.
 
 To try the unreleased changes on `main`, install the nightly build. It installs as `shj-nightly` (and `shijimi-nightly`) next to `shj`, reads `~/.config/shijimi-editor-nightly/` (falling back to `~/.config/shijimi-editor/` while that directory does not exist), uses its own socket directory, and has the `[experimental]` settings (features being tried out) on by default. Nix builds it from the newest `main` at install time; npm takes the build published every day (the `nightly` dist-tag, version `X.Y.Z-nightly.<yyyymmdd>.<sha>`), and the same binaries are attached to the [`nightly` pre-release](https://github.com/mm1995tk/shijimi-editor/releases/tag/nightly) as `shj-nightly-<os>-<cpu>`.
 
 ```sh
 nix run github:mm1995tk/shijimi-editor#shj-nightly
 nix profile install github:mm1995tk/shijimi-editor#shj-nightly
-npm install -g shijimi-editor-nightly   # installs shj-nightly and shijimi-nightly (Linux and macOS)
+npm install -g shijimi-editor-nightly   # installs shj-nightly and shijimi-nightly (Linux, and macOS on Apple silicon)
 npx shijimi-editor-nightly              # run it without installing
 ```
 
