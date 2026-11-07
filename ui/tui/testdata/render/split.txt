@@ -1,4 +1,4 @@
- EXPLORER: 001          │ a.txt                                         │
+ EXPLORER: 001          │ a.txt                                  コピー │
     a.txt              │   1  package main                             │
                         │   2                                           │
                         │   3  import "fmt"                             │

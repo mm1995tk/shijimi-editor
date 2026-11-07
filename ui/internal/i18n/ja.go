@@ -58,6 +58,7 @@ var ja = map[string]string{
 	"app.pane.terminal":        "ターミナル",
 	"app.pane.tree":            "ファイルツリー",
 	"app.pathcopied":           "パスをコピーしました: %s",
+	"title.copy":               " コピー ",
 	"app.pendingcomments":      "未送信コメント %d 件   ",
 	"app.quitunsaved":          "未保存のファイルが %d 個あります。もう一度 Ctrl+Q（または :q!）で破棄して終了します",
 	"app.renamed":              "名前を変更しました: %s",

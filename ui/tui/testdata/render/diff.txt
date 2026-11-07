@@ -1,6 +1,6 @@
   DIFF    比較元 HEAD ↔ 作業ツリー（main）
- EXPLORER: 001      │ a.txt
-    a.txt         M│ a.txt  +1 -1                                                     [分割 ⇄ 統合]
+ EXPLORER: 001      │ a.txt                                                                  コピー
+    a.txt         M│ a.txt  +1 -1                                             [分割 ⇄ 統合] コピー
     new.txt       U│  1  a                                │  1  a
                     │- 2  b                                │                                       ▐
                     │  3  c                                │  2  c

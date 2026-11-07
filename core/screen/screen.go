@@ -93,6 +93,7 @@ type Title struct {
 	Dirty    bool   `json:"dirty,omitempty"`
 	ReadOnly bool   `json:"readOnly,omitempty"`
 	Peer     string `json:"peer,omitempty"` // 差分の相手など
+	Copy     bool   `json:"copy,omitempty"` // 相対パスをコピーするボタンを右の端に出す（ファイルのパスがあるとき）
 
 	// 差分の Pane（変更後の側）のタイトル。
 	Added    int     `json:"added,omitempty"`    // 足した行の数

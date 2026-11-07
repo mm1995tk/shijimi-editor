@@ -217,6 +217,8 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 	if title.NoteWarn {
 		noteFg = core.CurTheme.DiagWarn
 	}
+	bw := titleCopyWidth(&title, w) // the button at the right end
+	w -= bw
 	hw := 0
 	if hint != "" {
 		hw = ansi.StringWidth(hint) + 1
@@ -226,7 +228,8 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +
 		bgfg(cTabBarBg, noteFg).Render(tr(title.Note))
 	return fitStyled(head, max(0, w-hw), bgfg(cTabBarBg, core.CurTheme.Strong)) +
-		bgfg(cTabBarBg, core.CurTheme.Dim).Render(core.Fit(" "+hint, hw))
+		bgfg(cTabBarBg, core.CurTheme.Dim).Render(core.Fit(" "+hint, hw)) +
+		copyButton(bw)
 }
 
 // drawDiff draws the rows of the Panes of a diff (the last one is the current

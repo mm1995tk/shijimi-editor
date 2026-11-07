@@ -875,6 +875,10 @@ func (a *Core) copyPath(p string, abs bool) {
 	a.Info("app.pathcopied", p)
 }
 
+// CopyActivePath copies the path of the current file relative to the root, as
+// ":copy-rel" does (the button in the title row).
+func (a *Core) CopyActivePath() { a.copyPath(a.activePath(), false) }
+
 func (a *Core) pasteText() string {
 	if s, ok := ReadSystemClipboard(); ok {
 		return s

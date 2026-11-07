@@ -1,4 +1,4 @@
- EXPLORER: 001      │ a.txt
+ EXPLORER: 001      │ a.txt                                                                  コピー
     a.txt
                      > ファイル名で検索  ( > コマンド   : 行番号 )
                       a.txt

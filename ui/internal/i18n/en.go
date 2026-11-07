@@ -58,6 +58,7 @@ var en = map[string]string{
 	"app.pane.terminal":        "Terminal",
 	"app.pane.tree":            "File tree",
 	"app.pathcopied":           "Copied the path: %s",
+	"title.copy":               " copy ",
 	"app.pendingcomments":      "%d unsent comments   ",
 	"app.quitunsaved":          "There are %d unsaved files. Press Ctrl+Q (or :q!) again to discard them and quit",
 	"app.renamed":              "Renamed: %s",

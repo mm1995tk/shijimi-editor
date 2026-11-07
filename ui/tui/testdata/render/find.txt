@@ -1,4 +1,4 @@
- EXPLORER: 001      │ a.txt
+ EXPLORER: 001      │ a.txt                                                                  コピー
     a.txt          │ 検索: fmt                                          Enter:次  ↑:前  Esc:閉じる
                     │   1  package main
                     │   2
