@@ -79,6 +79,7 @@ In the editor that runs in the primary terminal of a kisui-terminal workspace (t
 - When shijimi-editor quits, the panes it opened are closed. If you type `exit` in the pane, kisui-terminal closes it and the next ``Ctrl+` `` opens a new one.
 - The text that the commands send to the pane (`:sh <command>`, `Space a`) is written to the terminal as it is. The lines kept for the failed command are taken from the output kisui-terminal has kept, so they can differ a little from the screen.
 - An editor in any other terminal of kisui-terminal (a split terminal) is not the primary: it keeps the built-in terminal panel. `"auto"` chooses kisui-terminal in the primary even when `kisui serve` was started inside tmux; set `[terminal]` `multiplexer = "none"` to keep the terminal panel there too.
+- In the primary, `[terminal]` `multiplexer` other than `"none"` (for example `"herdr"` left over from using shijimi-editor in another terminal) is read as `"auto"`: kisui-terminal is used. When the primary keeps the terminal panel because of `"none"` or `[experimental]` `multiplexer = false`, the status bar says so.
 
 ### Videos in kisui-terminal
 

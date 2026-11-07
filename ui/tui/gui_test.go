@@ -9,6 +9,7 @@ import (
 
 	"github.com/mm1995tk/shijimi-editor/core"
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
+	"github.com/mm1995tk/shijimi-editor/core/msg"
 	tuicfg "github.com/mm1995tk/shijimi-editor/ui/tui/config"
 )
 
@@ -101,16 +102,34 @@ func TestGUIPaneNeedsPrimary(t *testing.T) {
 	}
 }
 
-// "none" and a named multiplexer win over the GUI.
+// "none" wins over the GUI and says why on the status line; a named multiplexer does not.
 func TestGUIPaneSettings(t *testing.T) {
 	a, _ := guiApp(t, "none")
 	if a.muxOn() {
 		t.Fatal("none uses the built-in terminal")
 	}
-	a, _ = guiApp(t, "tmux")
-	t.Setenv("TMUX", "")
-	if a.muxOn() {
-		t.Fatal("tmux was asked for and is not usable")
+	if a.Msg.Key != "mux.guioff.none" {
+		t.Fatalf("no reason on the status line: %v", a.Msg)
+	}
+	for _, s := range []string{"tmux", "herdr", "zellij", "cmux"} {
+		a, _ = guiApp(t, s)
+		t.Setenv("TMUX", "")
+		if !a.muxOn() || a.mux.b.name() != "gui" {
+			t.Fatalf("%s: the primary uses the GUI", s)
+		}
+	}
+}
+
+// With [experimental] multiplexer off, the primary says so once.
+func TestGUIPaneExperimentalOff(t *testing.T) {
+	a, _ := guiApp(t, "auto")
+	tuicfg.Of(a.Cfg).Experimental.Multiplexer = false
+	if a.muxOn() || a.Msg.Key != "mux.guioff.experimental" {
+		t.Fatalf("expected a reason: %v", a.Msg)
+	}
+	a.Msg = msg.Msg{}
+	if a.muxOn() || a.Msg.Key != "" {
+		t.Fatal("told again")
 	}
 }
 

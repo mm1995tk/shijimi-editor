@@ -23,9 +23,11 @@ import (
 // multiplexer that is supported. In the GUI the "multiplexer" is the GUI itself:
 // the pane is another terminal of the workspace that kisui serve starts, and
 // hiding it means the GUI hides every pane but the primary (gui.go). Only the
-// shj that kisui serve accepted as the primary has it (SetGUIPane); "auto" takes
-// it before looking at the parent processes, because that shj runs in the GUI
-// whatever started kisui serve.
+// shj that kisui serve accepted as the primary has it (SetGUIPane); there every
+// value but "none" takes it ("auto" before looking at the parent processes),
+// because that shj runs in the GUI whatever started kisui serve. When the
+// primary keeps the built-in terminal ("none", or [experimental] multiplexer
+// off), the status line says why.
 
 // muxBackend is what a multiplexer has to do for the terminal commands.
 // Adding a multiplexer means implementing it and adding it to newMuxBackend
@@ -58,6 +60,7 @@ type muxPane struct {
 	cfg      *config.Config // the configuration it was resolved for; a reload makes a new one
 	id       string         // "" until a pane has been created
 	visible  bool
+	offTold  bool // the status line already said that [experimental] multiplexer is off
 
 	// Tests replace these.
 	newBackend func(kind string) muxBackend
@@ -116,6 +119,14 @@ func (a *App) resolveMux() {
 	old := m.b
 	m.b = nil
 	want := tuicfg.Of(a.Settings()).Terminal.Multiplexer
+	if m.gui != nil && want == "none" {
+		a.Info("mux.guioff.none")
+	}
+	if m.gui != nil && want != "none" {
+		// In the primary of a GUI workspace the GUI is the multiplexer whatever
+		// else is named: tmux, herdr and the like are outside the GUI.
+		want = "gui"
+	}
 	explicit := want != "auto" && want != "" && want != "none"
 	kind := want
 	if want == "auto" || want == "" {
@@ -155,9 +166,17 @@ func (a *App) resolveMux() {
 // (:config-reload), which closes the pane of one that is no longer used; the
 // layout (pushLayout) asks it after every message.
 func (a *App) muxOn() bool {
-	if a.SingleFile() || !tuicfg.Of(a.Settings()).Experimental.Multiplexer {
+	if a.SingleFile() {
 		return false
 	}
+	if !tuicfg.Of(a.Settings()).Experimental.Multiplexer {
+		if a.mux.gui != nil && !a.mux.offTold {
+			a.mux.offTold = true // once, not after every message
+			a.Info("mux.guioff.experimental")
+		}
+		return false
+	}
+	a.mux.offTold = false
 	if !a.mux.resolved || a.mux.cfg != a.Settings() {
 		a.resolveMux()
 	}

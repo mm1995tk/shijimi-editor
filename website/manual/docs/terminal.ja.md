@@ -79,6 +79,7 @@ kisui-terminal のワークスペースのプライマリターミナルで動�
 - shijimi-editor を終えると、開いたペインは閉じます。ペインで `exit` すると kisui-terminal がそのペインを閉じ、次の ``Ctrl+` `` で新しく開きます。
 - コマンドがペインに送る文字（`:sh <コマンド>`、`Space a`）は、そのままターミナルに書かれます。失敗したコマンドのために取る末尾の行は、kisui-terminal が残してある出力から取るので、画面と少し違うことがあります。
 - kisui-terminal のほかのターミナル（分割したターミナル）で動く shijimi-editor はプライマリではないので、今までどおりターミナルパネルを使います。`"auto"` は、`kisui serve` を tmux の中で起動していても、プライマリでは kisui-terminal を選びます。そこでもターミナルパネルを使いたいときは `[terminal]` の `multiplexer = "none"` にします。
+- プライマリでは、`[terminal]` の `multiplexer` が `"none"` 以外なら（ほかのターミナルで使うために `"herdr"` などと書いてあっても）`"auto"` と同じに読み、kisui-terminal を使います。`"none"` や `[experimental]` の `multiplexer = false` のためにターミナルパネルのままのときは、状態行にそう出ます。
 
 ### kisui-terminal の動画
 
