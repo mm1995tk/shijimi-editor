@@ -61,8 +61,9 @@ jobs:
           fi
           # 後のジョブ（npm-pack）は、main のワークフローのまま、このコミットのファイルでビルドする。
           # その置き場所がこのコミットに無ければ、タグを打つ前に止める（v0.8.0 は置き場所を変える前のコミットで、
-          # タグを打ったあとに npm-pack が落ちた）。
-          for f in packaging/npm/pack.sh package-lock.json; do
+          # タグを打ったあとに npm-pack が落ちた）。package-lock.json は GUI を kisui-terminal に分けたとき（#602）に
+          # 無くなり、npm-pack も使わないので確かめない。
+          for f in packaging/npm/pack.sh; do
             if ! git cat-file -e "$target:$f" 2>/dev/null; then
               echo "::error::$target に $f がありません。このワークフローではリリースできない古いコミットです"
               exit 1
