@@ -112,7 +112,9 @@ func muxUsable(kind string) bool {
 
 // resolveMux decides which multiplexer the terminal commands use from the
 // current configuration. It runs on first use and again after
-// :config-reload. A pane of a multiplexer that is no longer used is closed.
+// :config-reload, and after SetGUIPane (the first use, in New, comes before
+// the primary is announced). A pane of a multiplexer that is no longer used is
+// closed.
 func (a *App) resolveMux() {
 	m := &a.mux
 	m.resolved, m.cfg = true, a.Settings()
@@ -163,8 +165,9 @@ func (a *App) resolveMux() {
 
 // muxOn reports whether the terminal commands should use a multiplexer pane.
 // It looks for the multiplexer again when the configuration was replaced
-// (:config-reload), which closes the pane of one that is no longer used; the
-// layout (pushLayout) asks it after every message.
+// (:config-reload) or the GUI became one (SetGUIPane), which closes the pane
+// of one that is no longer used; the layout (pushLayout) asks it after every
+// message.
 func (a *App) muxOn() bool {
 	if a.SingleFile() {
 		return false
