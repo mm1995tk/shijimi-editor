@@ -29,11 +29,11 @@ func (a *App) reportFile() {
 	if t := a.Cur(); t != nil {
 		pf.File = t.Path()
 	}
-	if d, loading := a.ChangesReport(); loading {
+	d, loading := a.ChangesReport()
+	if loading {
 		return
-	} else {
-		pf.Diff = d
 	}
+	pf.Diff = d
 	if a.reported && reflect.DeepEqual(pf, a.reportedFile) {
 		return
 	}
