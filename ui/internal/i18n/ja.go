@@ -286,6 +286,8 @@ var ja = map[string]string{
 	"mux.unsupported":          "[terminal] multiplexer = \"%s\" にはまだ対応していません。内蔵ターミナルを使います",
 	"mux.unavailable":          "%s の中ではないので、内蔵ターミナルを使います",
 	"mux.guiname":              "kisui-terminal のプライマリターミナル",
+	"mux.guioff.none":          "[terminal] multiplexer = \"none\" なので、kisui-terminal の欄ではなく内蔵ターミナルを使います",
+	"mux.guioff.experimental":  "[experimental] multiplexer が false なので、kisui-terminal の欄ではなく内蔵ターミナルを使います",
 	"gui.protocol":             "kisui-terminal と shj の版が合いません（shj は通信の版 %d、kisui-terminal は %d〜%d を受けます）",
 	"hover.copybtn":            "[コピー]",
 	"hover.hint":               " ^D/^U スクロール  y コピー ",
