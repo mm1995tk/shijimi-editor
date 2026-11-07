@@ -410,9 +410,9 @@ func (a *App) copyButtonHit(l layout, msg core.Mouse) bool {
 		return false
 	}
 	w := l.rightW
-	if msg.Row != 0 { // the header of a diff: the hint takes its place first
+	if msg.Row != 0 { // the header of a diff: the hint is drawn before the button
 		w -= diffHintWidth(diffHint(a.DiffFor(t)))
 	}
-	bw := titleCopyWidth(a.TitleOf(t), w)
-	return bw > 0 && msg.Col >= w-bw && msg.Col < w
+	bw := titleCopyWidth(a.TitleOf(t), w) // the same width as drawDiffHeader
+	return bw > 0 && msg.Col >= l.rightW-bw && msg.Col < l.rightW
 }

@@ -81,13 +81,19 @@ func TestDiffHeaderCopyButton(t *testing.T) {
 	}
 	split = a.Gd.Split
 	a.Clipboard = ""
-	hw := diffHintWidth(diffHint(a.DiffFor(a.CurText())))
-	pressAt(a, l.rightX+l.rightW-hw-2, l.editY) // the button, left of the hint
+	col := func(s string) int { // the column of s in the drawn header
+		i := strings.Index(head, s)
+		if i < 0 {
+			t.Fatalf("header %q lacks %q", head, s)
+		}
+		return ansi.StringWidth(head[:i])
+	}
+	pressAt(a, l.rightX+col(label)+1, l.editY) // on the button
 	if a.Clipboard == "" || a.Gd.Split != split {
 		t.Fatalf("clipboard %q split %v", a.Clipboard, a.Gd.Split)
 	}
 	a.Clipboard = ""
-	pressAt(a, l.rightX+l.rightW-2, l.editY) // the hint
+	pressAt(a, l.rightX+col(strings.TrimSpace(diffHint(a.DiffFor(a.CurText()))))+1, l.editY) // on the hint
 	if a.Gd.Split == split || a.Clipboard != "" {
 		t.Fatal("a press on the hint must switch the split only")
 	}
