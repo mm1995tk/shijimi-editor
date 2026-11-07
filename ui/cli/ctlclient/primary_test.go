@@ -171,7 +171,7 @@ func TestPaneFocusExplorer(t *testing.T) {
 	defer ln.Close()
 	got := make(chan ctl.PaneRequest, 2)
 	go func() {
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			c, err := ln.Accept()
 			if err != nil {
 				return
