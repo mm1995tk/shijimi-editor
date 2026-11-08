@@ -114,9 +114,22 @@ func TestCtlChangesKeyActsOnlyWhenTheGUIShowsTheList(t *testing.T) {
 	}
 	// The next key is the Space's, with the keys of any editor.
 	a.Helix = false
+	f := filepath.Join(a.Root, "t.txt")
+	os.WriteFile(f, []byte("x\n"), 0o644)
+	if !a.OpenFile(f) {
+		t.Fatal("open")
+	}
+	before := a.CurText().Buf.Cur
 	a.HandleKey(Key{Code: 'w', Text: "w"})
-	if a.changesSpace || a.Pending != "space w" {
+	if !a.changesSpace || a.Pending != "space w" {
 		t.Errorf("after w: changesSpace=%v pending=%q", a.changesSpace, a.Pending)
+	}
+	if !a.changesSpace {
+		t.Error("Space w waits for one more key")
+	}
+	a.HandleKey(Key{Code: 'l', Text: "l"})
+	if a.changesSpace || a.Pending != "" || a.CurText().Buf.Cur != before || a.CurText().dirty() {
+		t.Errorf("after l: changesSpace=%v pending=%q", a.changesSpace, a.Pending)
 	}
 	a.Pending = ""
 	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "r"}); !r.OK {

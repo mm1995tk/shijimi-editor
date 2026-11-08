@@ -1087,9 +1087,23 @@ func (a *Core) HandleKey(in Key) []Effect {
 		// The Space the GUI pressed in its CHANGES list: this key follows it, whatever has the focus here.
 		a.changesSpace = false
 		if key == "esc" {
+			a.Pending = ""
 			return nil
 		}
-		return a.SpaceMode(key)
+		var cmd []Effect
+		switch p := a.Pending; p {
+		case "space v":
+			a.Pending = ""
+			cmd = a.ReviewKey(key)
+		case "space w":
+			a.Pending = ""
+			cmd = a.windowKey(key)
+		default:
+			cmd = a.SpaceMode(key)
+		}
+		// Space w and Space v wait for one more key, which follows the same way.
+		a.changesSpace = a.Pending == "space w" || a.Pending == "space v"
+		return cmd
 	}
 	if a.Card != nil {
 		if cmd, handled := a.handleCardKey(in); handled {
