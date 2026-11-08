@@ -77,8 +77,8 @@ func (a *Core) ChangesListShown() bool {
 	return a.Gd.On && !a.changesInGUIFor(a.Gd.Base)
 }
 
-// ChangesListInGUI reports whether the GUI shows the CHANGES list now: the diff
-// mode against HEAD, with the GUI listing it (SetChangesInGUI).
+// ChangesListInGUI reports whether the GUI shows the CHANGES list now: in diff
+// mode, with the GUI listing the changes of its base (HEAD or the PR).
 func (a *Core) ChangesListInGUI() bool {
 	return a.Gd.On && a.changesInGUIFor(a.Gd.Base)
 }
