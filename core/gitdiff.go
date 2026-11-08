@@ -1466,7 +1466,7 @@ func (a *Core) focusChangesList() []Effect {
 	if !a.Gd.On {
 		return a.ToggleGitDiff()
 	}
-	if !a.ChangesListShown() {
+	if a.ChangesListInGUI() {
 		// The list is the GUI's: ask it for the focus. When it cannot (a kisui from
 		// before the request), there is no list of ours to move to.
 		if a.guiChanges != nil {

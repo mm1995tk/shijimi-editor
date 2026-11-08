@@ -65,6 +65,12 @@ func (a *Core) ChangesListShown() bool {
 	return a.Gd.On && !(a.changesInGUI && a.Gd.Base == BaseHead)
 }
 
+// ChangesListInGUI reports whether the GUI shows the CHANGES list now: the diff
+// mode against HEAD, with the GUI listing it (SetChangesInGUI).
+func (a *Core) ChangesListInGUI() bool {
+	return a.Gd.On && a.changesInGUI && a.Gd.Base == BaseHead
+}
+
 // SetTreeHidden takes the file tree out of the sidebar, or puts it back. It is
 // for a shj whose tree is somewhere else (the GUI sidebar, for the shj in the
 // primary terminal of a workspace). The sidebar then holds only the CHANGES

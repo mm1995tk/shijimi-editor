@@ -72,12 +72,16 @@ func (a *Core) ctlChangesKey(line string) (CtlResponse, []Effect) {
 	case "s", "r", "R", ":":
 		k = Key{Code: rune(line[0]), Text: line}
 	case "space":
-		k = Key{Code: ' ', Text: " "}
 	default:
 		return CtlResponse{Error: msg.T("ctl.unknowncmd").Add("changes-key " + line)}, nil
 	}
-	if !a.Gd.On || a.ChangesListShown() {
+	if !a.ChangesListInGUI() {
 		return CtlResponse{Error: msg.T("ctl.nochangeslist")}, nil
+	}
+	a.changesSpace = false
+	if line == "space" {
+		a.changesSpace = true
+		return CtlResponse{OK: true}, nil
 	}
 	return CtlResponse{OK: true}, a.handleChangesKey(k)
 }

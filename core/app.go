@@ -41,6 +41,8 @@ type Core struct {
 	guiExplorer func() error
 	// guiChanges asks the GUI to focus its CHANGES list (SetGUIChanges); nil outside a GUI workspace.
 	guiChanges func() error
+	// changesSpace: the next key follows a Space pressed in the GUI CHANGES list (changes-key).
+	changesSpace bool
 
 	Root           string
 	GitTop         string
@@ -1080,6 +1082,14 @@ func (a *Core) HandleKey(in Key) []Effect {
 		}
 		a.port.ResizeKey(key)
 		return nil
+	}
+	if a.changesSpace {
+		// The Space the GUI pressed in its CHANGES list: this key follows it, whatever has the focus here.
+		a.changesSpace = false
+		if key == "esc" {
+			return nil
+		}
+		return a.SpaceMode(key)
 	}
 	if a.Card != nil {
 		if cmd, handled := a.handleCardKey(in); handled {

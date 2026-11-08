@@ -109,8 +109,14 @@ func TestCtlChangesKeyActsOnlyWhenTheGUIShowsTheList(t *testing.T) {
 		t.Error("refused when the shj shows the list itself")
 	}
 	a.SetChangesInGUI(true)
-	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "space"}); !r.OK || a.Pending != " " {
-		t.Errorf("space: %+v pending=%q", r, a.Pending)
+	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "space"}); !r.OK || !a.changesSpace {
+		t.Errorf("space: %+v", r)
+	}
+	// The next key is the Space's, with the keys of any editor.
+	a.Helix = false
+	a.HandleKey(Key{Code: 'w', Text: "w"})
+	if a.changesSpace || a.Pending != "space w" {
+		t.Errorf("after w: changesSpace=%v pending=%q", a.changesSpace, a.Pending)
 	}
 	a.Pending = ""
 	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "r"}); !r.OK {
