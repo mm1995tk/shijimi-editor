@@ -54,10 +54,36 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 			a.port.CommandEnded(code)
 			resp = CtlResponse{OK: true}
 		}
+	case "changes-key":
+		resp, cmd = a.ctlChangesKey(m.Req.Line)
 	default:
 		resp = CtlResponse{Error: msg.T("ctl.unknowncmd").Add(m.Req.Cmd)}
 	}
 	return append([]Effect{ReplyCtl{To: m.Reply, Resp: resp}}, cmd...)
+}
+
+// ctlChangesKey handles a key the GUI pressed in its CHANGES list that only
+// the shj can act on (s, r, R, Space and ":"): it is handled as if it was
+// pressed with the focus on our own list. It is refused unless the GUI shows
+// the list (the diff mode against HEAD, with the GUI's CHANGES).
+func (a *Core) ctlChangesKey(line string) (CtlResponse, []Effect) {
+	var k Key
+	switch line {
+	case "s", "r", "R", ":":
+		k = Key{Code: rune(line[0]), Text: line}
+	case "space":
+	default:
+		return CtlResponse{Error: msg.T("ctl.unknowncmd").Add("changes-key " + line)}, nil
+	}
+	if !a.ChangesListInGUI() {
+		return CtlResponse{Error: msg.T("ctl.nochangeslist")}, nil
+	}
+	a.changesSpace = false
+	if line == "space" {
+		a.changesSpace = true
+		return CtlResponse{OK: true}, nil
+	}
+	return CtlResponse{OK: true}, a.handleChangesKey(k)
 }
 
 // ReviewToRoot turns a repository-relative review path into one relative to

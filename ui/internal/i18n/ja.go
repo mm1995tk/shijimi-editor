@@ -193,6 +193,7 @@ var ja = map[string]string{
 	"ctl.needhuman":            " は人の入力待ちになるため実行できません",
 	"ctl.noagent":              " はエージェントからは実行できません",
 	"ctl.nosocket":             "%s が設定されておらず、起動中の shijimi も見つかりません。shijimi のターミナルパネル内で実行してください",
+	"ctl.nochangeslist":        "GUI は CHANGES の一覧を出していません",
 	"ctl.unknowncmd":           "不明なコマンド: ",
 	"ctl.unknownsub":           "不明なサブコマンド: ",
 	"ctl.unsaved1":             "未保存の変更があるため :",

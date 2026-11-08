@@ -193,6 +193,7 @@ var en = map[string]string{
 	"ctl.needhuman":            " cannot be run because it waits for human input",
 	"ctl.noagent":              " cannot be run from the agent",
 	"ctl.nosocket":             "%s is not set and no running shijimi was found. Run this inside shijimi's terminal panel",
+	"ctl.nochangeslist":        "The GUI is not showing the CHANGES list",
 	"ctl.unknowncmd":           "Unknown command: ",
 	"ctl.unknownsub":           "Unknown subcommand: ",
 	"ctl.unsaved1":             "Cannot run :",

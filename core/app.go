@@ -39,6 +39,10 @@ type Core struct {
 	changesInGUI bool   // the GUI shows the CHANGES of the diff mode against HEAD (SetChangesInGUI)
 	// guiExplorer asks the GUI to focus its file explorer (SetGUIExplorer); nil outside a GUI workspace.
 	guiExplorer func() error
+	// guiChanges asks the GUI to focus its CHANGES list (SetGUIChanges); nil outside a GUI workspace.
+	guiChanges func() error
+	// changesSpace: the next key follows a Space pressed in the GUI CHANGES list (changes-key).
+	changesSpace bool
 
 	Root           string
 	GitTop         string
@@ -1078,6 +1082,28 @@ func (a *Core) HandleKey(in Key) []Effect {
 		}
 		a.port.ResizeKey(key)
 		return nil
+	}
+	if a.changesSpace {
+		// The Space the GUI pressed in its CHANGES list: this key follows it, whatever has the focus here.
+		a.changesSpace = false
+		if key == "esc" {
+			a.Pending = ""
+			return nil
+		}
+		var cmd []Effect
+		switch p := a.Pending; p {
+		case "space v":
+			a.Pending = ""
+			cmd = a.ReviewKey(key)
+		case "space w":
+			a.Pending = ""
+			cmd = a.windowKey(key)
+		default:
+			cmd = a.SpaceMode(key)
+		}
+		// Space w and Space v wait for one more key, which follows the same way.
+		a.changesSpace = a.Pending == "space w" || a.Pending == "space v"
+		return cmd
 	}
 	if a.Card != nil {
 		if cmd, handled := a.handleCardKey(in); handled {

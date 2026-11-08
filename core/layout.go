@@ -65,6 +65,12 @@ func (a *Core) ChangesListShown() bool {
 	return a.Gd.On && !(a.changesInGUI && a.Gd.Base == BaseHead)
 }
 
+// ChangesListInGUI reports whether the GUI shows the CHANGES list now: the diff
+// mode against HEAD, with the GUI listing it (SetChangesInGUI).
+func (a *Core) ChangesListInGUI() bool {
+	return a.Gd.On && a.changesInGUI && a.Gd.Base == BaseHead
+}
+
 // SetTreeHidden takes the file tree out of the sidebar, or puts it back. It is
 // for a shj whose tree is somewhere else (the GUI sidebar, for the shj in the
 // primary terminal of a workspace). The sidebar then holds only the CHANGES
@@ -81,6 +87,12 @@ func (a *Core) SetTreeHidden(on bool) {
 // (a kisui that does not know the request); the keys then go where they would
 // without it. Pass nil outside a GUI workspace.
 func (a *Core) SetGUIExplorer(f func() error) { a.guiExplorer = f }
+
+// SetGUIChanges sets how Space E (and the "Diff: Go to the changes list"
+// command) asks the GUI to focus the CHANGES list it shows (SetChangesInGUI).
+// f returns an error when the GUI cannot (a kisui that does not know the
+// request); nothing moves then. Pass nil outside a GUI workspace.
+func (a *Core) SetGUIChanges(f func() error) { a.guiChanges = f }
 
 // TreeHidden reports whether the file tree is left out of the sidebar.
 func (a *Core) TreeHidden() bool { return a.treeHidden }
