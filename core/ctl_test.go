@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/mm1995tk/shijimi-editor/core/ctl"
+	"github.com/mm1995tk/shijimi-editor/core/internal/diff"
 )
 
 func ctlCall(a *App, r ctl.Request) ctl.Response {
@@ -156,5 +157,53 @@ func TestSpaceEAsksTheGUIChanges(t *testing.T) {
 	a.SpaceMode("E")
 	if calls != 2 || a.Focus != FocusChanges {
 		t.Errorf("PR: calls=%d focus=%v", calls, a.Focus)
+	}
+}
+
+func TestChangesOfThePRGoToTheGUIOnlyWhenItAnswersChangesPR(t *testing.T) {
+	a := newApp(t.TempDir(), "")
+	a.Gd.On, a.Gd.Base = true, BasePR
+	a.SetChangesInGUI(true)
+	if !a.ChangesListShown() || a.ChangesListInGUI() {
+		t.Error("a kisui without changesPR: the shj shows the PR list itself")
+	}
+	if d, _ := a.ChangesReport(); d != nil {
+		t.Errorf("reported to a kisui without changesPR: %+v", d)
+	}
+	a.SetChangesPRInGUI(true)
+	if a.ChangesListShown() || !a.ChangesListInGUI() {
+		t.Error("changesPR: the GUI has the PR list")
+	}
+	d, _ := a.ChangesReport()
+	if d == nil || d.Base != ctl.BasePR {
+		t.Fatalf("PR report: %+v", d)
+	}
+	a.Gd.Base = BaseHead
+	if d, _ := a.ChangesReport(); d == nil || d.Base != "" {
+		t.Errorf("HEAD report: %+v", d)
+	}
+}
+
+func TestCtlDiffKeepsThePRMode(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("1\n"), 0o644)
+	a := newApp(dir, "")
+	a.SetChangesInGUI(true)
+	a.SetChangesPRInGUI(true)
+	a.Gd.On, a.Gd.Base = true, BasePR
+	// A file of the list opens with the PR mode kept.
+	in := filepath.Join(a.GitTopDir(), "a.txt")
+	a.Gd.ByAbs = map[string]*diff.File{in: {NewPath: "a.txt", Status: "modified"}}
+	if r := ctlCall(a, ctl.Request{Cmd: "diff", Path: in}); !r.OK || !a.Gd.On || a.Gd.Base != BasePR {
+		t.Fatalf("from the list: %+v on=%v base=%q", r, a.Gd.On, a.Gd.Base)
+	}
+	// shj diff (no path) is a diff against HEAD.
+	a.Gd.ByAbs = nil
+	if r := ctlCall(a, ctl.Request{Cmd: "diff"}); !r.OK || a.Gd.Base != BaseHead {
+		t.Fatalf("shj diff: %+v base=%q", r, a.Gd.Base)
+	}
+	a.Gd.On, a.Gd.Base = true, BasePR
+	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "space"}); !r.OK {
+		t.Errorf("changes-key space in PR mode: %+v", r)
 	}
 }
