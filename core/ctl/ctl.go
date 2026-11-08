@@ -17,11 +17,10 @@ const EnvSocket = "SHIJIMI_SOCKET"
 
 // EnvGUIPrimary is set by "kisui serve" in every terminal of a GUI
 // workspace, and its value is that terminal's id (so a split terminal that is
-// later promoted to the primary can announce too; serve checks that the
-// terminal is the primary when it is announced, and refuses otherwise). A TUI
-// shj that finds it announces itself on the primary socket (see PrimaryHello),
-// then removes it from its own environment so that nothing it starts can claim
-// the primary.
+// later promoted to the primary can announce too; serve checks that the terminal
+// is the primary when it is announced). A TUI shj that finds it
+// announces itself on the primary socket (see PrimaryHello), then removes it
+// from its own environment so that nothing it starts can claim the primary.
 const EnvGUIPrimary = "SHIJIMI_GUI_PRIMARY"
 
 // EnvGUIWorkspace is set by "kisui serve" in every terminal of a GUI workspace;
