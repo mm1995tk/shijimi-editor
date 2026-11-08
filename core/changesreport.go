@@ -13,13 +13,13 @@ import (
 const maxDiffFiles = 5000
 
 // ChangesReport is the CHANGES list for the GUI that shows it in its sidebar
-// (SetChangesInGUI): non-nil while the diff mode against HEAD is on, nil
+// (SetChangesInGUI): non-nil while the diff mode is on and the GUI lists its base (HEAD, or the PR with SetChangesPRInGUI), nil
 // otherwise (nothing to tell, or the shj shows the list itself). loading is
 // true while the list is being read after the diff mode was opened; there is
 // nothing to tell yet. At most maxDiffFiles files are told; the rest is cut.
 func (a *Core) ChangesReport() (d *ctl.PrimaryDiff, loading bool) {
 	g := &a.Gd
-	if !a.changesInGUI || !g.On || g.Base != BaseHead {
+	if !g.On || !a.changesInGUIFor(g.Base) {
 		return nil, false
 	}
 	if g.Loading {
@@ -34,6 +34,9 @@ func (a *Core) ChangesReport() (d *ctl.PrimaryDiff, loading bool) {
 			Added:   f.Added,
 			Deleted: f.Deleted,
 		})
+	}
+	if g.Base == BasePR {
+		d.Base = ctl.BasePR
 	}
 	if t := a.CurText(); t != nil && a.DiffFile(t) != nil {
 		d.Selected = t.Buf.Path

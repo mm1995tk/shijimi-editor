@@ -90,7 +90,7 @@ func announce(path string, h ctl.PrimaryHello) (func(), bool, func(ctl.PrimaryFi
 		}
 	}
 	var once sync.Once
-	return func() { once.Do(func() { close(done); c.Close() }) }, true, report, &Pane{path: path, termID: h.TermID, pid: h.PID, Changes: r.Changes}, nil
+	return func() { once.Do(func() { close(done); c.Close() }) }, true, report, &Pane{path: path, termID: h.TermID, pid: h.PID, Changes: r.Changes, ChangesPR: r.ChangesPR}, nil
 }
 
 // VersionError says "kisui serve" refused the announcement because this shj's
@@ -112,6 +112,10 @@ type Pane struct {
 	// Changes is whether the server shows the CHANGES of the diff mode in the
 	// GUI sidebar (ctl.PrimaryReply.Changes).
 	Changes bool
+
+	// ChangesPR is whether it also shows those of the diff mode against a pull
+	// request (ctl.PrimaryReply.ChangesPR).
+	ChangesPR bool
 }
 
 // Do sends req (Op and the fields it needs) and returns the reply. The shj's

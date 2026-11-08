@@ -37,6 +37,8 @@ type Core struct {
 	layout       Layout // the regions the UI last said it shows (SetLayout)
 	treeHidden   bool   // the file tree is not in the sidebar (SetTreeHidden)
 	changesInGUI bool   // the GUI shows the CHANGES of the diff mode against HEAD (SetChangesInGUI)
+	// changesPRInGUI: the GUI shows those against a pull request too (SetChangesPRInGUI).
+	changesPRInGUI bool
 	// guiExplorer asks the GUI to focus its file explorer (SetGUIExplorer); nil outside a GUI workspace.
 	guiExplorer func() error
 	// guiChanges asks the GUI to focus its CHANGES list (SetGUIChanges); nil outside a GUI workspace.

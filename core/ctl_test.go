@@ -158,3 +158,46 @@ func TestSpaceEAsksTheGUIChanges(t *testing.T) {
 		t.Errorf("PR: calls=%d focus=%v", calls, a.Focus)
 	}
 }
+
+func TestChangesOfThePRGoToTheGUIOnlyWhenItAnswersChangesPR(t *testing.T) {
+	a := newApp(t.TempDir(), "")
+	a.Gd.On, a.Gd.Base = true, BasePR
+	a.SetChangesInGUI(true)
+	if !a.ChangesListShown() || a.ChangesListInGUI() {
+		t.Error("a kisui without changesPR: the shj shows the PR list itself")
+	}
+	if d, _ := a.ChangesReport(); d != nil {
+		t.Errorf("reported to a kisui without changesPR: %+v", d)
+	}
+	a.SetChangesPRInGUI(true)
+	if a.ChangesListShown() || !a.ChangesListInGUI() {
+		t.Error("changesPR: the GUI has the PR list")
+	}
+	d, _ := a.ChangesReport()
+	if d == nil || d.Base != ctl.BasePR {
+		t.Fatalf("PR report: %+v", d)
+	}
+	a.Gd.Base = BaseHead
+	if d, _ := a.ChangesReport(); d == nil || d.Base != "" {
+		t.Errorf("HEAD report: %+v", d)
+	}
+}
+
+func TestCtlDiffKeepsThePRMode(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "a.txt")
+	os.WriteFile(f, []byte("1\n"), 0o644)
+	a := newApp(dir, "")
+	a.SetChangesInGUI(true)
+	a.SetChangesPRInGUI(true)
+	a.Gd.On, a.Gd.Base = true, BasePR
+	if r := ctlCall(a, ctl.Request{Cmd: "diff", Path: f}); !r.OK {
+		t.Fatalf("diff: %+v", r)
+	}
+	if !a.Gd.On || a.Gd.Base != BasePR {
+		t.Errorf("left the PR mode: on=%v base=%q", a.Gd.On, a.Gd.Base)
+	}
+	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "space"}); !r.OK {
+		t.Errorf("changes-key space in PR mode: %+v", r)
+	}
+}

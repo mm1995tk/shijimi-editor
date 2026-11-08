@@ -16,10 +16,13 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 	var resp CtlResponse
 	switch m.Req.Cmd {
 	case "diff":
-		cmd = a.diffWithHead()
+		if !(a.ChangesListInGUI() && a.Gd.Base == BasePR) {
+			// The GUI lists the changes against the PR: stay in that mode (a diff against HEAD would replace it).
+			cmd = a.diffWithHead()
+		}
 		resp = CtlResponse{OK: true}
 		if m.Req.Path != "" {
-			if f := a.Gd.ByAbs[m.Req.Path]; a.Gd.On && a.Gd.Base == BaseHead && !a.Gd.Loading && f != nil {
+			if f := a.Gd.ByAbs[m.Req.Path]; a.ChangesListInGUI() && !a.Gd.Loading && f != nil {
 				// A file of the list (the GUI sidebar shows it): open it as the list does,
 				// also when it is deleted (nothing to open then).
 				cmd = Batch(cmd, a.OpenChange(f))

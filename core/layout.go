@@ -56,19 +56,31 @@ func (a *Core) SideVisible() bool {
 // HEAD in its own sidebar (the shj in the primary terminal of a GUI workspace
 // whose kisui replied "changes"). The shj then draws no list of its own for
 // that diff mode and tells the GUI the list instead (ChangesReport). The diff
-// mode against a pull request keeps the shj's own list.
+// mode against a pull request keeps the shj's own list unless the GUI also
+// shows that one (SetChangesPRInGUI).
 func (a *Core) SetChangesInGUI(on bool) { a.changesInGUI = on }
 
+// SetChangesPRInGUI says the GUI also shows the CHANGES list of the diff mode
+// against a pull request (the kisui replied "changesPR"). It has an effect only
+// together with SetChangesInGUI.
+func (a *Core) SetChangesPRInGUI(on bool) { a.changesPRInGUI = on }
+
+// changesInGUIFor reports whether the GUI lists the changes of the diff mode
+// against base.
+func (a *Core) changesInGUIFor(base string) bool {
+	return a.changesInGUI && (base == BaseHead || (base == BasePR && a.changesPRInGUI))
+}
+
 // ChangesListShown reports whether the shj draws the CHANGES list itself: in
-// diff mode, unless the GUI shows the list of the diff mode against HEAD.
+// diff mode, unless the GUI shows the list of its base (HEAD or the PR).
 func (a *Core) ChangesListShown() bool {
-	return a.Gd.On && !(a.changesInGUI && a.Gd.Base == BaseHead)
+	return a.Gd.On && !a.changesInGUIFor(a.Gd.Base)
 }
 
 // ChangesListInGUI reports whether the GUI shows the CHANGES list now: the diff
 // mode against HEAD, with the GUI listing it (SetChangesInGUI).
 func (a *Core) ChangesListInGUI() bool {
-	return a.Gd.On && a.changesInGUI && a.Gd.Base == BaseHead
+	return a.Gd.On && a.changesInGUIFor(a.Gd.Base)
 }
 
 // SetTreeHidden takes the file tree out of the sidebar, or puts it back. It is

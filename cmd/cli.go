@@ -99,6 +99,7 @@ func Main() {
 				app.SetGUIChanges(pane.FocusChanges)
 				// A kisui that says so shows the CHANGES of the diff mode in its sidebar.
 				app.SetChangesInGUI(pane.Changes)
+				app.SetChangesPRInGUI(pane.Changes && pane.ChangesPR)
 			}
 			prev := closeSock
 			closeSock = func() { endPrimary(); prev() }
