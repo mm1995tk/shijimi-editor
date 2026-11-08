@@ -16,18 +16,20 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 	var resp CtlResponse
 	switch m.Req.Cmd {
 	case "diff":
-		if !(a.ChangesListInGUI() && a.Gd.Base == BasePR) {
-			// The GUI lists the changes against the PR: stay in that mode (a diff against HEAD would replace it).
-			cmd = a.diffWithHead()
-		}
 		resp = CtlResponse{OK: true}
-		if m.Req.Path != "" {
-			if f := a.Gd.ByAbs[m.Req.Path]; a.ChangesListInGUI() && !a.Gd.Loading && f != nil {
-				// A file of the list (the GUI sidebar shows it): open it as the list does,
-				// also when it is deleted (nothing to open then).
-				cmd = Batch(cmd, a.OpenChange(f))
-				break
+		f := a.Gd.ByAbs[m.Req.Path]
+		if m.Req.Path != "" && a.ChangesListInGUI() && !a.Gd.Loading && f != nil {
+			// A file of the list (the GUI sidebar shows it): open it as the list does,
+			// also when it is deleted (nothing to open then). The mode stays, the PR
+			// one too; any other request (shj diff) is a diff against HEAD.
+			if a.Gd.Base == BaseHead {
+				cmd = a.diffWithHead() // refreshes, as before
 			}
+			cmd = Batch(cmd, a.OpenChange(f))
+			break
+		}
+		cmd = a.diffWithHead()
+		if m.Req.Path != "" {
 			if !a.OpenFile(m.Req.Path) {
 				resp = CtlResponse{Error: msg.T("ctl.cantopen").Add(m.Req.Path)}
 				break
@@ -68,7 +70,7 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 // ctlChangesKey handles a key the GUI pressed in its CHANGES list that only
 // the shj can act on (s, r, R, Space and ":"): it is handled as if it was
 // pressed with the focus on our own list. It is refused unless the GUI shows
-// the list (the diff mode against HEAD, with the GUI's CHANGES).
+// the list (the diff mode, with the GUI listing the changes of its base).
 func (a *Core) ctlChangesKey(line string) (CtlResponse, []Effect) {
 	var k Key
 	switch line {
