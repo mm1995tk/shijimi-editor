@@ -98,3 +98,44 @@ func TestCtlOpenOpensTheFileAndFocusesTheEditor(t *testing.T) {
 		t.Error("a relative path must be refused")
 	}
 }
+
+func TestCtlChangesKeyActsOnlyWhenTheGUIShowsTheList(t *testing.T) {
+	a := newApp(t.TempDir(), "")
+	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "s"}); r.OK {
+		t.Error("refused outside diff mode")
+	}
+	a.Gd.On, a.Gd.Base = true, BaseHead
+	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "s"}); r.OK {
+		t.Error("refused when the shj shows the list itself")
+	}
+	a.SetChangesInGUI(true)
+	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "space"}); !r.OK || a.Pending != " " {
+		t.Errorf("space: %+v pending=%q", r, a.Pending)
+	}
+	a.Pending = ""
+	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "r"}); !r.OK {
+		t.Errorf("r: %+v", r)
+	}
+	if r := ctlCall(a, ctl.Request{Cmd: "changes-key", Line: "j"}); r.OK {
+		t.Error("a key the GUI handles itself must be refused")
+	}
+}
+
+func TestSpaceEAsksTheGUIChanges(t *testing.T) {
+	a := newApp(t.TempDir(), "")
+	calls := 0
+	a.SetGUIChanges(func() error { calls++; return nil })
+	a.Gd.On, a.Gd.Base = true, BaseHead
+	a.SetChangesInGUI(true)
+	a.SpaceMode("E")
+	a.focusChangesList()
+	if calls != 2 || a.Focus == FocusChanges {
+		t.Errorf("calls=%d focus=%v", calls, a.Focus)
+	}
+	// The diff mode against a pull request keeps the shj's own list.
+	a.Gd.Base = BasePR
+	a.SpaceMode("E")
+	if calls != 2 || a.Focus != FocusChanges {
+		t.Errorf("PR: calls=%d focus=%v", calls, a.Focus)
+	}
+}

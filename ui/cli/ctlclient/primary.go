@@ -138,6 +138,13 @@ func (p *Pane) Do(req ctl.PaneRequest) (ctl.PaneReply, error) {
 	return r, nil
 }
 
+// FocusChanges asks the GUI to move the keys to the CHANGES list of its sidebar
+// (Space E). It fails when the server does not know the request.
+func (p *Pane) FocusChanges() error {
+	_, err := p.Do(ctl.PaneRequest{Op: "changes"})
+	return err
+}
+
 // FocusExplorer asks the GUI to move the keys to its file explorer (Space e).
 // It fails when the server does not know the request (a kisui from before it).
 func (p *Pane) FocusExplorer() error {

@@ -39,6 +39,8 @@ type Core struct {
 	changesInGUI bool   // the GUI shows the CHANGES of the diff mode against HEAD (SetChangesInGUI)
 	// guiExplorer asks the GUI to focus its file explorer (SetGUIExplorer); nil outside a GUI workspace.
 	guiExplorer func() error
+	// guiChanges asks the GUI to focus its CHANGES list (SetGUIChanges); nil outside a GUI workspace.
+	guiChanges func() error
 
 	Root           string
 	GitTop         string

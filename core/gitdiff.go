@@ -1466,6 +1466,14 @@ func (a *Core) focusChangesList() []Effect {
 	if !a.Gd.On {
 		return a.ToggleGitDiff()
 	}
+	if !a.ChangesListShown() {
+		// The list is the GUI's: ask it for the focus. When it cannot (a kisui from
+		// before the request), there is no list of ours to move to.
+		if a.guiChanges != nil {
+			_ = a.guiChanges()
+		}
+		return nil
+	}
 	a.SetSide(true)
 	return a.SetFocus(FocusChanges)
 }

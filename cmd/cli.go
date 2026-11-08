@@ -96,6 +96,7 @@ func Main() {
 				app.SetFileReporter(reportFile)
 				app.SetGUIPane(pane.Do)
 				app.SetGUIExplorer(pane.FocusExplorer)
+				app.SetGUIChanges(pane.FocusChanges)
 				// A kisui that says so shows the CHANGES of the diff mode in its sidebar.
 				app.SetChangesInGUI(pane.Changes)
 			}

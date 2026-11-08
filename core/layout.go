@@ -82,6 +82,12 @@ func (a *Core) SetTreeHidden(on bool) {
 // without it. Pass nil outside a GUI workspace.
 func (a *Core) SetGUIExplorer(f func() error) { a.guiExplorer = f }
 
+// SetGUIChanges sets how Space E (and the "Diff: Go to the changes list"
+// command) asks the GUI to focus the CHANGES list it shows (SetChangesInGUI).
+// f returns an error when the GUI cannot (a kisui that does not know the
+// request); nothing moves then. Pass nil outside a GUI workspace.
+func (a *Core) SetGUIChanges(f func() error) { a.guiChanges = f }
+
 // TreeHidden reports whether the file tree is left out of the sidebar.
 func (a *Core) TreeHidden() bool { return a.treeHidden }
 
