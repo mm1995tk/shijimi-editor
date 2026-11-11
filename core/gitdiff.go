@@ -828,7 +828,7 @@ func (a *Core) showFirstChange(t *Tab) {
 	b := t.Buf
 	b.Anchor = nil
 	b.Cur = b.ClampPos(buffer.Pos{Row: row})
-	b.ScrollRow = min(dv.scrollFor(first-3), dv.maxScroll(diffRows(a.EditRows())))
+	b.ScrollRow = min(dv.scrollFor(first-3), a.maxScrollRow(t, a.EditRows()))
 	a.Follow = true
 }
 
@@ -1328,7 +1328,7 @@ func (a *Core) DiffBarClick(t *Tab, dv *DiffView, g DiffGeom, y int) {
 		return
 	}
 	lo, _ := BarRange(y-g.Top, g.H, len(dv.Rows))
-	t.Buf.ScrollRow = min(dv.scrollFor(max(0, lo-g.H/2)), dv.maxScroll(g.H))
+	t.Buf.ScrollRow = min(dv.scrollFor(max(0, lo-g.H/2)), a.maxScrollRow(t, g.H+1)) // g.H is the editor without its heading
 }
 
 // ---- the diff Panes ----
