@@ -27,15 +27,17 @@ func (a *Core) ChangesReport() (d *ctl.PrimaryDiff, loading bool) {
 	}
 	top := a.GitTopDir()
 	d = &ctl.PrimaryDiff{Files: make([]ctl.DiffFile, 0, min(len(g.Files), maxDiffFiles))}
+	pr := g.Base == BasePR
 	for _, f := range g.Files[:min(len(g.Files), maxDiffFiles)] {
 		d.Files = append(d.Files, ctl.DiffFile{
 			Path:    filepath.Join(top, f.Path()),
 			Status:  f.Status,
 			Added:   f.Added,
 			Deleted: f.Deleted,
+			Viewed:  pr && g.Rv.Viewed[f.Path()],
 		})
 	}
-	if g.Base == BasePR {
+	if pr {
 		d.Base = ctl.BasePR
 	}
 	if t := a.CurText(); t != nil && a.DiffFile(t) != nil {

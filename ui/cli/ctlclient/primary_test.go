@@ -234,8 +234,8 @@ func TestAnnouncePrimaryChangesAndDiff(t *testing.T) {
 		t.Fatalf("primary=%v pane=%+v", primary, pane)
 	}
 	want := ctl.PrimaryFile{File: "/w/a.go", Diff: &ctl.PrimaryDiff{
-		Files:    []ctl.DiffFile{{Path: "/w/a.go", Status: "modified", Added: 2, Deleted: 1}},
-		Selected: "/w/a.go",
+		Files:    []ctl.DiffFile{{Path: "/w/a.go", Status: "modified", Added: 2, Deleted: 1, Viewed: true}},
+		Selected: "/w/a.go", Base: ctl.BasePR,
 	}}
 	report(want)
 	select {
