@@ -81,7 +81,7 @@ In the editor that runs in the primary terminal of a kisui-terminal workspace (t
 - An editor in any other terminal of kisui-terminal (a split terminal) is not the primary: it keeps the built-in terminal panel. `"auto"` chooses kisui-terminal in the primary even when `kisui serve` was started inside tmux; set `[terminal]` `multiplexer = "none"` to keep the terminal panel there too.
 - In the primary, `[terminal]` `multiplexer` other than `"none"` (for example `"herdr"` left over from using shijimi-editor in another terminal) is read as `"auto"`: kisui-terminal is used. When the primary keeps the terminal panel because of `"none"` or `[experimental]` `multiplexer = false`, the status bar says so.
 
-### Videos in kisui-terminal
+### Videos, images and PDFs in kisui-terminal
 
 A terminal cannot play a video, but kisui-terminal can. In the editor that runs in the primary terminal of a kisui-terminal workspace, opening a video file (pressing it in kisui-terminal's file tree, `:open <file>`, the command palette and so on) does not read it as text. kisui-terminal opens a video pane beside the terminals and plays it there. This works for a file on another machine too: the video travels over the same ssh connection as kisui-terminal.
 
@@ -90,7 +90,8 @@ A terminal cannot play a video, but kisui-terminal can. In the editor that runs 
 - The video is fetched in full before it plays, so a video of more than 512 MiB is not opened (the pane says so).
 - Keys, while the keys are in the pane: Space or `k` plays and pauses, `←` and `→` seek 5 seconds, `j` and `l` 10 seconds, `m` mutes. kisui-terminal's own keys (`Ctrl+Shift+arrows`, `Ctrl+Shift+M`, `Cmd+W` on a Mac) work as in the terminals.
 - Close the pane with the × in its title, or with `Cmd+W` on a Mac. It also closes when the editor in the primary terminal quits.
-- Images are still shown inside the editor, not in a pane. The editor in any other terminal of kisui-terminal (a split terminal) is not the primary and does not use video panes.
+- Images and PDFs take the same road and open in a pane too (every way of opening a file does, as with a video: the file tree, `:open`, the command palette and so on). The image extensions are `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp` and `.avif`; the PDF extension is `.pdf`. A workspace has one pane of each kind: opening another file of the same kind replaces it. The size limits and the keys inside a pane are kisui-terminal's business. When a pane cannot be opened (a file over the limit, for example), the status line says why. `.tif` and `.tiff` images are still shown inside the editor.
+- The editor outside kisui-terminal, or in any other terminal of it (a split terminal), is not the primary and uses no panes: images are shown inside the editor as before, and a PDF is opened like any other file.
 
 ## Environment variables
 

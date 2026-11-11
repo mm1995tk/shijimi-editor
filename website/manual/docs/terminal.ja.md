@@ -81,7 +81,7 @@ kisui-terminal のワークスペースのプライマリターミナルで動�
 - kisui-terminal のほかのターミナル（分割したターミナル）で動く shijimi-editor はプライマリではないので、今までどおりターミナルパネルを使います。`"auto"` は、`kisui serve` を tmux の中で起動していても、プライマリでは kisui-terminal を選びます。そこでもターミナルパネルを使いたいときは `[terminal]` の `multiplexer = "none"` にします。
 - プライマリでは、`[terminal]` の `multiplexer` が `"none"` 以外なら（ほかのターミナルで使うために `"herdr"` などと書いてあっても）`"auto"` と同じに読み、kisui-terminal を使います。`"none"` や `[experimental]` の `multiplexer = false` のためにターミナルパネルのままのときは、状態行にそう出ます。
 
-### kisui-terminal の動画
+### kisui-terminal の動画・画像・PDF
 
 ターミナルの中では動画を見られませんが、kisui-terminal なら再生できます。kisui-terminal のワークスペースのプライマリターミナルで動く shijimi-editor で動画のファイルを開く（kisui-terminal のファイルツリーで押す、`:open <ファイル>`、コマンドパレットなど）と、テキストとして読まず、kisui-terminal がターミナルの隣に動画の欄を開いて再生します。ほかのマシンにあるファイルも同じで、動画は kisui-terminal と同じ ssh の接続で届きます。
 
@@ -90,7 +90,8 @@ kisui-terminal のワークスペースのプライマリターミナルで動�
 - 動画は全部取ってから再生するので、512 MiB を超える動画は開きません（欄にそう出ます）。
 - 欄にキーが向いているときのキー：空白か `k` で再生と停止、`←`・`→` で 5 秒、`j`・`l` で 10 秒の移動、`m` で消音。kisui-terminal のキー（`Ctrl+Shift+矢印`、`Ctrl+Shift+M`、Mac の `Cmd+W`）は、ターミナルの欄と同じように働きます。
 - 欄は、見出しの × か、Mac の `Cmd+W` で閉じます。プライマリターミナルの shijimi-editor を終えたときも閉じます。
-- 画像は今までどおりエディタの中に出し、欄では開きません。kisui-terminal のほかのターミナル（分割したターミナル）で動く shijimi-editor はプライマリではないので、動画の欄は使いません。
+- 画像と PDF も同じ道で、欄に開きます（動画と同じに、ファイルツリー・`:open`・コマンドパレットなど、ファイルを開く道は全部そうです）。画像の拡張子は `.png`・`.jpg`・`.jpeg`・`.gif`・`.bmp`・`.webp`・`.avif`、PDF は `.pdf` です。欄は種類ごとにワークスペースに 1 つで、同じ種類の別のファイルを開くと入れ替わります。大きさの上限と、欄の中の操作は kisui-terminal が決めます。上限を超えるときなど、欄を開けなかったときは状態行に理由が出ます。`.tif`・`.tiff` の画像は今までどおりエディタの中に出します。
+- kisui-terminal の外や、ほかのターミナル（分割したターミナル）で動く shijimi-editor はプライマリではないので、欄は使わず、画像は今までどおりエディタの中に、PDF はほかのファイルと同じに開きます。
 
 ## 環境変数
 
