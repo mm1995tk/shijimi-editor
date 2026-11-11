@@ -151,3 +151,24 @@ func TestRestPos(t *testing.T) {
 		t.Errorf("explorer: rest x = %d, outside the sidebar (%d)", x, l.sideW)
 	}
 }
+
+// The CHANGES list rests the cursor on its selected row, below the tree.
+func TestRestPosInChanges(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	l := a.layout()
+	a.SetFocus(core.FocusChanges)
+	rows := a.ChangesOf(l.bodyH - a.ExplorerH()).Rows
+	sel := -1
+	for i, r := range rows {
+		if r.Selected {
+			sel = i
+		}
+	}
+	if sel < 0 {
+		t.Skip("no selected row in the list")
+	}
+	x, y, ok := a.restPos(l)
+	if !ok || y != l.top+a.ExplorerH()+1+sel || x != sideRowX(rows[sel].Depth, l) {
+		t.Errorf("changes: rest = (%d,%d,%v), want row %d", x, y, ok, sel)
+	}
+}
