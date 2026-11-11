@@ -388,13 +388,15 @@ func (a *Core) OpenFile(path string) bool {
 			a.reveal(abs)
 			return false
 		}
-		if v, isV := a.port.(PaneOpener); isV && MediaKind(abs) != "" {
-			if ok, err := v.OpenMedia(MediaKind(abs), abs); ok {
-				if err != nil {
-					a.Fail(err)
-					return false
+		if kind := MediaKind(abs); kind != "" {
+			if v, isV := a.port.(PaneOpener); isV {
+				if ok, err := v.OpenMedia(kind, abs); ok {
+					if err != nil {
+						a.Fail(err)
+						return false
+					}
+					return true
 				}
-				return true
 			}
 		}
 		if isImage(abs) {
