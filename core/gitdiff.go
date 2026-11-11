@@ -828,7 +828,7 @@ func (a *Core) showFirstChange(t *Tab) {
 	b := t.Buf
 	b.Anchor = nil
 	b.Cur = b.ClampPos(buffer.Pos{Row: row})
-	b.ScrollRow = dv.scrollFor(first - 3)
+	b.ScrollRow = min(dv.scrollFor(first-3), dv.maxScroll(diffRows(a.EditRows())))
 	a.Follow = true
 }
 
@@ -1232,6 +1232,15 @@ func (dv *DiffView) scrollFor(r int) int {
 	return max(0, len(dv.NewIdx)-1)
 }
 
+// maxScroll is the last buffer scroll of a view h display rows high: the
+// first one that has the last display row on screen, so the view stops when
+// that row is on the bottom row. The scroll moves by buffer lines, so when
+// deleted rows lie where the bottom row would be it stops a few rows lower
+// instead, never at one that hides the last line from the cursor.
+func (dv *DiffView) maxScroll(h int) int {
+	return dv.scrollFor(max(0, len(dv.Rows)-max(1, h)))
+}
+
 // ensureDiffVisible scrolls so the cursor is on screen, counting the rows
 // that exist only on the base side.
 func (a *Core) ensureDiffVisible(t *Tab, dv *DiffView, w, h int) {
@@ -1319,7 +1328,7 @@ func (a *Core) DiffBarClick(t *Tab, dv *DiffView, g DiffGeom, y int) {
 		return
 	}
 	lo, _ := BarRange(y-g.Top, g.H, len(dv.Rows))
-	t.Buf.ScrollRow = dv.scrollFor(max(0, lo-g.H/2))
+	t.Buf.ScrollRow = min(dv.scrollFor(max(0, lo-g.H/2)), dv.maxScroll(g.H))
 }
 
 // ---- the diff Panes ----
