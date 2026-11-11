@@ -8,7 +8,7 @@ kisui-terminal（`kisui`）と、欄の中で動く shj は、版がずれるこ
 
 | 向き | 内容 | 持ち主 | 版 |
 | --- | --- | --- | --- |
-| shj → kisui | プライマリの欄で名乗る `PrimaryHello` / `PrimaryReply`、開いているファイルと差分モードの変更の一覧（`diff`）を知らせる `PrimaryFile`（`PrimaryReply` の `changes` で、kisui が一覧を出せると shj に知らせる。kisui-terminal#19。PR との差分モードの一覧は `changesPR` と `PrimaryDiff.base: "pr"`。kisui-terminal#46）、欄を開く `PaneRequest` / `PaneReply`（`op: "explorer"` で GUI のファイルエクスプローラに、`op: "changes"` でサイドバーの CHANGES にフォーカスを頼む。kisui-terminal#14・#45）、環境変数 `SHIJIMI_GUI_PRIMARY` / `SHIJIMI_GUI_WORKSPACE`、ソケット `serve-primary.rpc` | kisui-terminal | あり（下） |
+| shj → kisui | プライマリの欄で名乗る `PrimaryHello` / `PrimaryReply`、開いているファイルと差分モードの変更の一覧（`diff`）を知らせる `PrimaryFile`（`PrimaryReply` の `changes` で、kisui が一覧を出せると shj に知らせる。kisui-terminal#19。PR との差分モードの一覧は `changesPR` と `PrimaryDiff.base: "pr"`。kisui-terminal#46。その各ファイルの viewed の状態は `DiffFile.viewed`。kisui-terminal#78）、欄を開く `PaneRequest` / `PaneReply`（`op: "explorer"` で GUI のファイルエクスプローラに、`op: "changes"` でサイドバーの CHANGES にフォーカスを頼む。kisui-terminal#14・#45）、環境変数 `SHIJIMI_GUI_PRIMARY` / `SHIJIMI_GUI_WORKSPACE`、ソケット `serve-primary.rpc` | kisui-terminal | あり（下） |
 | kisui → shj | shj の操作用のソケット（`GUILinkPath` のリンク先）に送る命令（サイドバーの CHANGES の s・r・R・Space・: は新しい命令 `{cmd: "changes-key", line}`。kisui-terminal#45） | shijimi-editor | なし |
 
 型と定数は `core/ctl/ctl.go`（kisui の側は kisui-terminal の `internal/ctl/ctl.go`）。詳しい動きは [gui-protocol.md](gui-protocol.md) の「プライマリの shj」。

@@ -178,8 +178,14 @@ func TestChangesOfThePRGoToTheGUIOnlyWhenItAnswersChangesPR(t *testing.T) {
 	if d == nil || d.Base != ctl.BasePR {
 		t.Fatalf("PR report: %+v", d)
 	}
+	a.Gd.Files = []*diff.File{{NewPath: "a.txt"}, {NewPath: "b.txt"}}
+	a.Gd.Rv.Viewed = map[string]bool{"a.txt": true}
+	d, _ = a.ChangesReport()
+	if len(d.Files) != 2 || !d.Files[0].Viewed || d.Files[1].Viewed {
+		t.Errorf("PR report viewed: %+v", d.Files)
+	}
 	a.Gd.Base = BaseHead
-	if d, _ := a.ChangesReport(); d == nil || d.Base != "" {
+	if d, _ := a.ChangesReport(); d == nil || d.Base != "" || d.Files[0].Viewed {
 		t.Errorf("HEAD report: %+v", d)
 	}
 }
