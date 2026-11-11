@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/mm1995tk/shijimi-editor/core/internal/buffer"
 )
 
 // fitq.go is the part of fitting a frame (App.fit, app_draw.go) that changes
@@ -13,11 +15,11 @@ import (
 
 // FitCursor scrolls t, the current text tab, to the cursor if something asked
 // to follow it (FollowCursor), and keeps the scroll inside the file. editW and
-// editH are the cells of its text; dvH is the rows of its diff.
-func (a *Core) FitCursor(t *Tab, editW, editH, dvH int) {
+// editH are the cells of its text.
+func (a *Core) FitCursor(t *Tab, editW, editH int) {
 	if a.Follow {
 		if dv := a.DiffFor(t); dv != nil {
-			a.ensureDiffVisible(t, dv, editW, dvH)
+			a.ensureDiffVisible(t, dv, editW, diffRows(editH))
 		} else if !a.FullPreview(t) { // the hidden editor is 0 wide: following it would scroll to the cursor column
 			EnsureCursorVisible(t.Buf, editW, editH)
 		}
@@ -26,14 +28,33 @@ func (a *Core) FitCursor(t *Tab, editW, editH, dvH int) {
 	t.Buf.ScrollRow = Clamp(t.Buf.ScrollRow, 0, a.maxScrollRow(t, editH))
 }
 
-// maxScrollRow is the last ScrollRow of t, a text tab whose editor is h rows
-// high: MaxScrollRow of its lines, or, in the diff view, the last line, since
-// that view has rows of its own (the deleted lines) and scrolls by them.
-func (a *Core) maxScrollRow(t *Tab, h int) int {
-	if a.DiffFor(t) != nil {
-		h = 1
+// diffRows is the rows of text the diff view shows in an editor editH rows
+// high: its heading takes one.
+func diffRows(editH int) int { return max(0, editH-1) }
+
+// maxScrollRow is the last ScrollRow of t, a text tab whose editor is editH
+// rows high. It is the one place that says how far a text tab may scroll, and
+// every way of scrolling (the wheel, the cursor, half a page, a held key, the
+// first change, the change bar) is clamped by it.
+//
+// The scroll is the buffer's row at the top, but the diff view counts in its
+// own rows (the deleted lines are rows of it), so there the last scroll is the
+// one that puts the last display row on the bottom row: see
+// DiffView.maxScroll.
+func (a *Core) maxScrollRow(t *Tab, editH int) int {
+	if dv := a.DiffFor(t); dv != nil {
+		return dv.maxScroll(diffRows(editH))
 	}
-	return MaxScrollRow(len(t.Buf.Lines), h)
+	return MaxScrollRow(len(t.Buf.Lines), editH)
+}
+
+// maxScrollRowOf is maxScrollRow for the buffer b of the current tab, with
+// the editor's height the core was given.
+func (a *Core) maxScrollRowOf(b *buffer.Buffer) int {
+	if t := a.CurText(); t != nil && t.Buf == b {
+		return a.maxScrollRow(t, a.EditRows())
+	}
+	return MaxScrollRow(len(b.Lines), a.EditRows())
 }
 
 // MaxScrollRow is the last first row of a view h rows high over n lines: the

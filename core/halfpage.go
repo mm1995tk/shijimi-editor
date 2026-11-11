@@ -43,7 +43,7 @@ func (a *Core) halfPage(b *buffer.Buffer, dir int, ext bool, msg Key) []Effect {
 			a.scrollKeepCursor(b, dir*a.PageSize()/2, ext)
 		} else {
 			b.MoveLines(dir*a.PageSize()/2, ext)
-			b.ScrollRow = max(0, b.Cur.Row-a.EditRows()/2)
+			b.ScrollRow = Clamp(b.Cur.Row-a.EditRows()/2, 0, a.maxScrollRowOf(b))
 		}
 		return nil
 	}
@@ -75,7 +75,7 @@ func (a *Core) holdScrollTick(seq int) []Effect {
 		a.stopHoldScroll()
 		return nil
 	}
-	h.Buf.ScrollRow = Clamp(h.Buf.ScrollRow+h.dir, 0, max(0, len(h.Buf.Lines)-1))
+	h.Buf.ScrollRow = Clamp(h.Buf.ScrollRow+h.dir, 0, a.maxScrollRowOf(h.Buf))
 	a.Follow = true
 	return []Effect{StartTimer{After: holdScrollFrame, Fire: HoldScrollTick{seq}}}
 }
@@ -110,14 +110,14 @@ func (a *Core) scrollKeepCursor(b *buffer.Buffer, n int, ext bool) bool {
 		return false
 	}
 	old := b.ScrollRow
-	b.ScrollRow = Clamp(old+n, 0, max(0, len(b.Lines)-h))
+	b.ScrollRow = Clamp(old+n, 0, a.maxScrollRowOf(b))
 	moved := b.ScrollRow != old
 	margin := min(3, (h-1)/2)
 	lo, hi := b.ScrollRow+margin, b.ScrollRow+h-1-margin
 	if b.ScrollRow == 0 {
 		lo = 0 // the top of the file has no line above to keep in view
 	}
-	if b.ScrollRow == max(0, len(b.Lines)-h) {
+	if b.ScrollRow == a.maxScrollRowOf(b) {
 		hi = len(b.Lines) - 1 // nor does the bottom have a line below
 	}
 	row := Clamp(b.Cur.Row, lo, max(lo, hi))

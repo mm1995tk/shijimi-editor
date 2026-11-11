@@ -324,7 +324,7 @@ func (a *App) fit() {
 		}
 	}
 	if t := a.CurText(); t != nil {
-		a.FitCursor(t, a.editW(t, l), l.editH, a.dvGeom(l).H)
+		a.FitCursor(t, a.editW(t, l), l.editH)
 	}
 	a.FitPalette()
 	a.FitContext(a.h)

@@ -311,7 +311,7 @@ func TestOpenChangePutsCursorOnFirstChange(t *testing.T) {
 	dir := t.TempDir()
 	gitIn(t, dir, "init", "-q")
 	var lines []string
-	for i := range 40 {
+	for i := range 80 {
 		lines = append(lines, fmt.Sprint(i))
 	}
 	write := func(name string, ls []string) {
