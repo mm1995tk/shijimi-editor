@@ -557,3 +557,38 @@ func TestPlainEditorScrollBar(t *testing.T) {
 		t.Errorf("a click outside the bar scrolled to %d", tb.Buf.ScrollRow)
 	}
 }
+
+func TestPlainEditorScrollBarClickByMouse(t *testing.T) {
+	for _, preview := range []bool{false, true} {
+		dir := t.TempDir()
+		file := filepath.Join(dir, "x.md")
+		if err := os.WriteFile(file, []byte(strings.Repeat("line\n", 99)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		a := mustNew(dir, file)
+		a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+		tb := a.CurText()
+		if preview {
+			tb.Preview = core.PreviewSplit
+		}
+		a.pushSizes()
+		l := a.layout()
+		barX := l.rightX + a.editW(tb, l)
+		y := l.editY + l.editH - 1
+		press := func(x int) {
+			a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft}))
+			a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+		}
+
+		tb.Buf.ScrollRow = 0
+		press(barX - 1) // the text beside the bar moves the cursor
+		if tb.Buf.ScrollRow != 0 || tb.Buf.Cur.Row == 0 {
+			t.Errorf("preview %v: a click beside the bar: ScrollRow %d, cursor row %d", preview, tb.Buf.ScrollRow, tb.Buf.Cur.Row)
+		}
+		tb.Buf.SetCursor(0, 0, false)
+		press(barX) // the bar scrolls and leaves the cursor
+		if tb.Buf.ScrollRow == 0 || tb.Buf.Cur.Row != 0 {
+			t.Errorf("preview %v: a click on the bar: ScrollRow %d, cursor row %d", preview, tb.Buf.ScrollRow, tb.Buf.Cur.Row)
+		}
+	}
+}
