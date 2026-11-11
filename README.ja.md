@@ -46,7 +46,7 @@ npx shijimi-editor-nightly              # 入れずにその場で起動
 
 ### kisui-terminal
 
-[kisui-terminal](https://github.com/mm1995tk/kisui-terminal) は、shijimi-editor と強く連携する別のアプリです。窓を欄に分け、欄にターミナル（その中で `shj`）・動画・ブラウザ・ファイルツリーを置きます。リポジトリも版もリリースも別で、組み合わせを確かめた版の `shj` を同梱しています（欄の中ではその `shj` が先に動きます。自分で入れた `shj` の版には左右されません）。入れ方は kisui-terminal の README に、kisui-terminal の中での `shj` の動きは[マニュアル](https://mm1995tk.github.io/shijimi-editor/manual/ja/terminal/)にあります。
+[kisui-terminal](https://github.com/mm1995tk/kisui-terminal) は、shijimi-editor と強く連携する別のアプリです。窓を欄に分け、欄にターミナル（その中で `shj`）・動画・画像・PDF・ブラウザ・ファイルツリーを置きます。リポジトリも版もリリースも別で、組み合わせを確かめた版の `shj` を同梱しています（欄の中ではその `shj` が先に動きます。自分で入れた `shj` の版には左右されません）。入れ方は kisui-terminal の README に、kisui-terminal の中での `shj` の動きは[マニュアル](https://mm1995tk.github.io/shijimi-editor/manual/ja/terminal/)にあります。
 
 ## 使い方
 

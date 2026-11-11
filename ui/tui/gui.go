@@ -77,20 +77,21 @@ func (g *guiBackend) close(id string) { _, _ = g.do(ctl.PaneRequest{Op: "close",
 
 func (*guiBackend) shellEnv(sh, exe string) []string { return muxShellIntegration(sh, exe) }
 
-func (g *guiBackend) openVideo(path string) error {
-	_, err := g.do(ctl.PaneRequest{Op: "open", Kind: "video", Path: path})
+func (g *guiBackend) openMedia(kind, path string) error {
+	_, err := g.do(ctl.PaneRequest{Op: "open", Kind: kind, Path: path})
 	return err
 }
 
-// OpenVideo is core.VideoOpener's: the shj of the primary terminal of a GUI
-// workspace asks the GUI to play the video in a pane beside the terminals,
-// because a terminal cannot. Any other shj has no GUI to ask (ok is false) and
+// OpenMedia is core.PaneOpener's: the shj of the primary terminal of a GUI
+// workspace asks the GUI to show a video, an image or a PDF in a pane beside
+// the terminals (a terminal cannot play a video or show a PDF, and the GUI
+// shows an image better). Any other shj has no GUI to ask (ok is false) and
 // opens the file as it did before.
-func (a *App) OpenVideo(path string) (bool, error) {
+func (a *App) OpenMedia(kind, path string) (bool, error) {
 	if a.mux.gui == nil {
 		return false, nil
 	}
-	return true, a.mux.gui.openVideo(path)
+	return true, a.mux.gui.openMedia(kind, path)
 }
 
 func (g *guiBackend) openBrowser(url string) error {

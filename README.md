@@ -48,7 +48,7 @@ To compare with the base of a pull request you need [gh](https://cli.github.com/
 
 ### kisui-terminal
 
-[kisui-terminal](https://github.com/mm1995tk/kisui-terminal) is a separate app that works closely with shijimi-editor: it splits a window into panes and runs terminals (with `shj` inside), videos, browser pages and a file tree in them. It has its own repository, version and releases, and ships with the `shj` it was tested with (inside its panes that `shj` runs first, whatever version you installed yourself). How to install it is in its README; how `shj` behaves inside it is in the [manual](https://mm1995tk.github.io/shijimi-editor/manual/terminal/).
+[kisui-terminal](https://github.com/mm1995tk/kisui-terminal) is a separate app that works closely with shijimi-editor: it splits a window into panes and runs terminals (with `shj` inside), videos, images, PDFs, browser pages and a file tree in them. It has its own repository, version and releases, and ships with the `shj` it was tested with (inside its panes that `shj` runs first, whatever version you installed yourself). How to install it is in its README; how `shj` behaves inside it is in the [manual](https://mm1995tk.github.io/shijimi-editor/manual/terminal/).
 
 ## Usage
 

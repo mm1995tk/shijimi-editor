@@ -388,19 +388,19 @@ func (a *Core) OpenFile(path string) bool {
 			a.reveal(abs)
 			return false
 		}
-		if isImage(abs) {
-			a.addTab(&Tab{Kind: TabImage, Img: NewImageView(abs)})
-			a.reveal(abs)
-			return true
-		}
-		if v, isV := a.port.(VideoOpener); isV && IsVideo(abs) {
-			if ok, err := v.OpenVideo(abs); ok {
+		if v, isV := a.port.(PaneOpener); isV && MediaKind(abs) != "" {
+			if ok, err := v.OpenMedia(MediaKind(abs), abs); ok {
 				if err != nil {
 					a.Fail(err)
 					return false
 				}
 				return true
 			}
+		}
+		if isImage(abs) {
+			a.addTab(&Tab{Kind: TabImage, Img: NewImageView(abs)})
+			a.reveal(abs)
+			return true
 		}
 		if st.Size() > 10<<20 {
 			a.Fail(msg.Err("app.toolarge", a.Rel(abs)))
