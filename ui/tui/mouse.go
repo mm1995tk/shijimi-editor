@@ -257,8 +257,11 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 					a.ShowCard(th, t.Buf.Path, x, y, false)
 					return nil
 				}
-			} else if t.Preview != core.PreviewOff && msg.Col >= a.editW(t, l) {
+			} else if t.Preview != core.PreviewOff && msg.Col >= a.editAreaW(t, l) {
 				return nil // the preview pane is read-only
+			} else if ew := a.editW(t, l); ew > 0 && msg.Col == ew { // the scroll bar
+				a.TextBarClick(t, l.editH, msg.Row-(l.editY-l.top))
+				return nil
 			}
 			a.CloseCompletion()
 			a.mouseToCursor(l, msg.Row, msg.Col, false)

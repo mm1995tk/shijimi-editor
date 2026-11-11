@@ -179,15 +179,20 @@ func drawChanges(l core.ChangesList, w, h int, focused, lit bool) []string {
 	return out
 }
 
-// changeBar draws the bar of a diff Pane h cells high: a mark per change,
-// and a lighter background over the rows on screen.
-func changeBar(d *screen.DiffInfo, h int) []string {
-	kinds := core.BarKinds(d.Rows, h, d.Hunks)
+// changeBar draws the bar of a diff Pane h cells high.
+func changeBar(d *screen.DiffInfo, h int) []string { return scrollBar(d.Rows, d.Top, h, d.Hunks) }
+
+// scrollBar draws a bar h cells high over total rows of which the h from top
+// are on screen: a lighter background over the rows on screen and a mark per
+// change in hunks (none for a plain file). The diff view and the plain editor
+// draw their bar with it.
+func scrollBar(total, top, h int, hunks []screen.Hunk) []string {
+	kinds := core.BarKinds(total, h, hunks)
 	out := make([]string, h)
 	for i, k := range kinds {
-		lo, hi := core.BarRange(i, h, d.Rows)
+		lo, hi := core.BarRange(i, h, total)
 		bg := cEditorBg
-		if hi > d.Top && lo < d.Top+h {
+		if hi > top && lo < top+h {
 			bg = cBarView
 		}
 		switch k {

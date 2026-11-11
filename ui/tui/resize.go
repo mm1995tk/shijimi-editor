@@ -181,7 +181,7 @@ func (a *App) moveBorder(l layout, target core.ResizeTarget, d int) {
 		}
 	case core.ResizePreview:
 		if avail := l.rightW - 1; avail > 0 {
-			a.previewPct = core.Clamp(pctToward(a.editW(a.CurText(), l)+d, avail, d), 10, 90)
+			a.previewPct = core.Clamp(pctToward(a.editAreaW(a.CurText(), l)+d, avail, d), 10, 90)
 			a.FollowCursor()
 		}
 	case core.ResizeExplorer:
@@ -237,7 +237,7 @@ func (a *App) resizeHit(l layout, x, y int) core.ResizeTarget {
 			return core.ResizeDiff
 		}
 	case core.ResizePreview:
-		if y >= l.editY && y < l.editY+l.editH && x == l.rightX+a.editW(t, l) {
+		if y >= l.editY && y < l.editY+l.editH && x == l.rightX+a.editAreaW(t, l) {
 			return core.ResizePreview
 		}
 	}

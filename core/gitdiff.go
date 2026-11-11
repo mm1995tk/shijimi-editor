@@ -1327,8 +1327,24 @@ func (a *Core) DiffBarClick(t *Tab, dv *DiffView, g DiffGeom, y int) {
 	if y < g.Top || y >= g.Top+g.H {
 		return
 	}
-	lo, _ := BarRange(y-g.Top, g.H, len(dv.Rows))
-	t.Buf.ScrollRow = min(dv.scrollFor(max(0, lo-g.H/2)), a.maxScrollRow(t, g.H+1)) // g.H is the editor without its heading
+	t.Buf.ScrollRow = min(dv.scrollFor(BarTarget(y-g.Top, g.H, len(dv.Rows))), a.maxScrollRow(t, g.H+1)) // g.H is the editor without its heading
+}
+
+// BarTarget is the first row to show when cell i of a bar h cells high, over
+// n rows, is clicked: the one that puts the rows the cell stands for in the
+// middle of the view. The diff view and the plain editor share it.
+func BarTarget(i, h, n int) int {
+	lo, _ := BarRange(i, h, n)
+	return max(0, lo-h/2)
+}
+
+// TextBarClick scrolls the plain editor of t, h rows high, to the part of the
+// file that the scroll bar cell i stands for.
+func (a *Core) TextBarClick(t *Tab, h, i int) {
+	if i < 0 || i >= h {
+		return
+	}
+	t.Buf.ScrollRow = min(BarTarget(i, h, len(t.Buf.Lines)), a.maxScrollRow(t, h))
 }
 
 // ---- the diff Panes ----

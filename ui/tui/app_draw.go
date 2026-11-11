@@ -32,9 +32,19 @@ var modeStyles map[core.EditMode]lipgloss.Style
 
 func (a *App) renderStatus() string { return drawStatus(a.StatusOf(), a.ConfirmOverlay(), a.w) }
 
-// editW is the width of the text editor, narrower while the Markdown preview
-// is open and zero while the preview fills the area.
+// editW is the width of the text of the editor: the editor area without the
+// scroll bar in its last column (the diff view has its change bar there too).
+// Zero while the Markdown preview fills the area.
 func (a *App) editW(t *core.Tab, l layout) int {
+	if a.DiffFile(t) != nil {
+		return a.dvGeom(l).RightW
+	}
+	return max(0, a.editAreaW(t, l)-1)
+}
+
+// editAreaW is the width of the editor with its scroll bar, narrower while the
+// Markdown preview is open and zero while the preview fills the area.
+func (a *App) editAreaW(t *core.Tab, l layout) int {
 	if a.DiffFile(t) != nil {
 		return a.dvGeom(l).RightW
 	}
@@ -57,7 +67,7 @@ func (a *App) previewW(t *core.Tab, l layout) int {
 	if t.Preview == core.PreviewFull {
 		return l.rightW
 	}
-	return l.rightW - a.editW(t, l) - 1
+	return l.rightW - a.editAreaW(t, l) - 1
 }
 
 func (a *App) renderText(t *core.Tab, l layout, focused bool) []string {
@@ -69,6 +79,12 @@ func (a *App) renderText(t *core.Tab, l layout, focused bool) []string {
 	}
 	ew := a.editW(t, l)
 	edit := renderEditor(t, ew, l.editH, a.EditorOpts(t, focused))
+	if ew < a.editAreaW(t, l) { // the scroll bar in the last column
+		bar := scrollBar(len(t.Buf.Lines), t.Buf.ScrollRow, l.editH, nil)
+		for i := range edit {
+			edit[i] += bar[i]
+		}
+	}
 	if t.Preview == core.PreviewOff {
 		return edit
 	}
