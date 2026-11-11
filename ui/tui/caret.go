@@ -43,14 +43,14 @@ func (a *App) restPos(l layout) (x, y int, ok bool) {
 		for i, r := range explorerRows(a.Explorer, a.ExplorerH(), "") {
 			if r.selected {
 				// The first row of the sidebar is its title.
-				return min(2*r.depth+3, max(0, l.sideW-1)), l.top + 1 + i, true
+				return sideRowX(r.depth, l), l.top + 1 + i, true
 			}
 		}
 	case a.FocusIs(core.FocusChanges) && a.SideVisible() && a.ChangesListShown():
 		off := a.ExplorerH()
 		for i, r := range a.ChangesOf(l.bodyH - off).Rows {
 			if r.Selected {
-				return min(2*r.Depth+3, max(0, l.sideW-1)), l.top + off + 1 + i, true
+				return sideRowX(r.Depth, l), l.top + off + 1 + i, true
 			}
 		}
 	}
@@ -98,4 +98,11 @@ func (a *App) caretPos(l layout) (x, y int, ok bool) {
 		return x, y, a.cursorShown(t, l, x, y)
 	}
 	return 0, 0, false
+}
+
+// sideRowX is the column of the name in a row of the sidebar that is depth
+// levels down: a blank cell, two cells for each level, and two for the mark
+// (chevron or status) before the name. It is clamped to the sidebar.
+func sideRowX(depth int, l layout) int {
+	return min(2*depth+3, max(0, l.sideW-1))
 }
