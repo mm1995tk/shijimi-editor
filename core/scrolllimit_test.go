@@ -143,7 +143,7 @@ func TestScrollStopsWithLastRowOnBottom(t *testing.T) {
 
 // A route that goes only to one view is a leak waiting to happen: the plain
 // view must have every route the diff view has, except those of the diff view
-// itself (the first change, the change bar).
+// itself (the first change).
 func TestScrollRoutesCoverBothViews(t *testing.T) {
 	for _, r := range scrollRoutes {
 		if r.only == "plain" {
