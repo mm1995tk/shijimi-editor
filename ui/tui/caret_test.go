@@ -116,3 +116,59 @@ func TestInputCaretScrolledRepeats(t *testing.T) {
 		}
 	}
 }
+
+// With nothing to type into, the hidden cursor rests where the user looks, so
+// that the input mode mark of macOS does not show up in the bottom right.
+func TestRestPos(t *testing.T) {
+	a := newTestApp(t, "x\n")
+	l := a.layout()
+
+	// The first screen: no file open.
+	a.CloseTab(true)
+	a.Focus = core.FocusEditor
+	if _, _, ok := a.caretPos(l); ok {
+		t.Fatal("no file: want no caret")
+	}
+	x, y, ok := a.restPos(l)
+	if !ok || x != l.fullX+l.fullW/2 || y != l.editY+l.editH/2 {
+		t.Errorf("no file: rest = (%d,%d,%v), want the middle of the editor area", x, y, ok)
+	}
+	if c := a.caretCursor(l); c == nil || c.Position.X != x || c.Position.Y != y {
+		t.Errorf("no file: cursor = %v, want (%d,%d)", c, x, y)
+	}
+
+	// The tree: the selected row.
+	a.Focus = core.FocusExplorer
+	a.Explorer.Sel = min(1, len(a.Explorer.Flat)-1)
+	x, y, ok = a.restPos(l)
+	if !ok {
+		t.Fatal("explorer: no rest position")
+	}
+	if want := l.top + 1 + a.Explorer.Sel - a.Explorer.Scroll; y != want {
+		t.Errorf("explorer: rest y = %d, want %d", y, want)
+	}
+	if x >= l.sideW {
+		t.Errorf("explorer: rest x = %d, outside the sidebar (%d)", x, l.sideW)
+	}
+}
+
+// The CHANGES list rests the cursor on its selected row, below the tree.
+func TestRestPosInChanges(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	l := a.layout()
+	a.SetFocus(core.FocusChanges)
+	rows := a.ChangesOf(l.bodyH - a.ExplorerH()).Rows
+	sel := -1
+	for i, r := range rows {
+		if r.Selected {
+			sel = i
+		}
+	}
+	if sel < 0 {
+		t.Skip("no selected row in the list")
+	}
+	x, y, ok := a.restPos(l)
+	if !ok || y != l.top+a.ExplorerH()+1+sel || x != sideRowX(rows[sel].Depth, l) {
+		t.Errorf("changes: rest = (%d,%d,%v), want row %d", x, y, ok, sel)
+	}
+}
