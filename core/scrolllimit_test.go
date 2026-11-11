@@ -114,9 +114,13 @@ var scrollRoutes = []struct {
 		a.showFirstChange(tb)
 		a.FitCursor(tb, a.TextCols(), a.EditRows())
 	}},
-	{"change bar", "diff", func(t *testing.T, a *App, tb *Tab) {
-		g := DiffGeom{Top: 2, H: diffRows(a.EditRows())}
-		a.DiffBarClick(tb, a.DiffFor(tb), g, g.Top+g.H-1)
+	{"scroll bar", "", func(t *testing.T, a *App, tb *Tab) {
+		if dv := a.DiffFor(tb); dv != nil {
+			g := DiffGeom{Top: 2, H: diffRows(a.EditRows())}
+			a.DiffBarClick(tb, dv, g, g.Top+g.H-1)
+			return
+		}
+		a.TextBarClick(tb, a.EditRows(), a.EditRows()-1)
 	}},
 }
 

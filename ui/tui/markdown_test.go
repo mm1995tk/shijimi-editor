@@ -100,7 +100,7 @@ func TestTogglePreviewCyclesToFullWidth(t *testing.T) {
 	want := []struct {
 		mode  core.PreviewMode
 		editW int
-	}{{core.PreviewSplit, 40}, {core.PreviewFull, 0}, {core.PreviewOff, 81}}
+	}{{core.PreviewSplit, 39}, {core.PreviewFull, 0}, {core.PreviewOff, 80}}
 	for _, w := range want {
 		a.TogglePreview()
 		if tb.Preview != w.mode || a.editW(tb, l) != w.editW {

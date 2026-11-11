@@ -503,3 +503,57 @@ func TestDrawingLeavesDiffView(t *testing.T) {
 		t.Error("drawing replaced the diff view")
 	}
 }
+
+func TestPlainEditorScrollBar(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "x.txt")
+	if err := os.WriteFile(file, []byte(strings.Repeat("line\n", 99)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := mustNew(dir, file)
+	tb := a.CurText()
+	l := layout{rightW: 40, editH: 10}
+
+	if ew := a.editW(tb, l); ew != 39 {
+		t.Fatalf("editW = %d, want 39 (the last column is the bar)", ew)
+	}
+	for _, s := range a.renderText(tb, l, true) {
+		if ansi.StringWidth(s) != l.rightW {
+			t.Fatalf("width %d, want %d", ansi.StringWidth(s), l.rightW)
+		}
+	}
+
+	// the rows on screen are lit, and only those
+	tb.Buf.ScrollRow = 50
+	bar := scrollBar(len(tb.Buf.Lines), tb.Buf.ScrollRow, l.editH, nil)
+	lit := 0
+	for i, c := range bar {
+		lo, hi := core.BarRange(i, l.editH, len(tb.Buf.Lines))
+		want := hi > 50 && lo < 60
+		if got := c == bgfg(cBarView, cEditorFg).Render(" "); got != want {
+			t.Errorf("cell %d lit = %v, want %v", i, got, want)
+		}
+		if want {
+			lit++
+		}
+	}
+	if lit == 0 {
+		t.Fatal("no cell is lit")
+	}
+
+	// a click jumps there, and the last cell stops at the end of the file
+	a.TextBarClick(tb, l.editH, 5)
+	if want := core.BarTarget(5, l.editH, len(tb.Buf.Lines)); tb.Buf.ScrollRow != want {
+		t.Errorf("click at the middle: ScrollRow = %d, want %d", tb.Buf.ScrollRow, want)
+	}
+	a.TextBarClick(tb, l.editH, l.editH-1)
+	if max := core.MaxScrollRow(len(tb.Buf.Lines), l.editH); tb.Buf.ScrollRow > max || tb.Buf.ScrollRow < max-l.editH {
+		t.Errorf("click at the end: ScrollRow = %d, want near %d", tb.Buf.ScrollRow, max)
+	}
+	before := tb.Buf.ScrollRow
+	a.TextBarClick(tb, l.editH, -1)
+	a.TextBarClick(tb, l.editH, l.editH)
+	if tb.Buf.ScrollRow != before {
+		t.Errorf("a click outside the bar scrolled to %d", tb.Buf.ScrollRow)
+	}
+}
