@@ -135,3 +135,31 @@ func TestWheelLockKeepsAxisAgainstBundle(t *testing.T) {
 		t.Fatal("vertical must keep passing")
 	}
 }
+
+// Shift turns the vertical wheel sideways over the editor text. Pressing Shift
+// in the middle of a vertical gesture moves the lock to horizontal once the
+// Shift+vertical events have lasted wheelSwitchAfter.
+func TestWheelLockSwitchesWithShift(t *testing.T) {
+	clock := time.Unix(1000, 0)
+	w := &wheelLock{now: func() time.Time { return clock }}
+	const step = 10 * time.Millisecond
+	ev := func(b core.MouseButton, shift bool) bool {
+		clock = clock.Add(step)
+		return w.allow(core.Mouse{Action: core.MousePress, Button: b}, shift)
+	}
+
+	ev(core.MouseWheelDown, false)
+	ev(core.MouseWheelDown, false)
+	if ev(core.MouseWheelDown, true) {
+		t.Fatal("Shift+vertical right after plain vertical is dropped at first")
+	}
+	for range wheelSwitchAfter / step {
+		ev(core.MouseWheelDown, true)
+	}
+	if !ev(core.MouseWheelDown, true) {
+		t.Fatal("Shift+vertical must become the horizontal lock once it has lasted")
+	}
+	if !ev(core.MouseWheelRight, false) {
+		t.Fatal("horizontal passes after the switch")
+	}
+}
