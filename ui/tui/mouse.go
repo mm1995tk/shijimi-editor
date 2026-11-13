@@ -79,9 +79,6 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 		}
 		return nil
 	}
-	if !a.wheelAxis.allow(msg) {
-		return nil
-	}
 	l := a.layout()
 	// A press or the wheel over the other pane first moves the focus there.
 	if msg.Region == core.RegionOther && msg.Action == core.MousePress && (msg.Button == core.MouseLeft || msg.Button == core.MouseWheelUp || msg.Button == core.MouseWheelDown) {
@@ -108,6 +105,9 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 	// or a selection is being dragged, motion is the drag whatever it says.
 	if msg.Action == core.MouseMotion && msg.Button == core.MouseNone && a.resizing == core.ResizeNone && !a.IsDragging() && !a.term.sel.dragging {
 		return a.passiveMotion(l, msg)
+	}
+	if !a.wheelAxis.allow(msg, msg.Shift && a.inEditorText(l, msg)) {
+		return nil
 	}
 	x, y := a.screenCell(l, msg)
 	wheel := 0

@@ -11,7 +11,7 @@ func TestWheelLock(t *testing.T) {
 	clock := time.Unix(1000, 0)
 	w := &wheelLock{now: func() time.Time { return clock }}
 	ev := func(b core.MouseButton, shift bool) bool {
-		return w.allow(core.Mouse{Action: core.MousePress, Button: b, Shift: shift})
+		return w.allow(core.Mouse{Action: core.MousePress, Button: b}, shift)
 	}
 	step := func(d time.Duration) { clock = clock.Add(d) }
 
@@ -45,7 +45,7 @@ func TestWheelLock(t *testing.T) {
 	if !ev(core.MouseWheelRight, false) {
 		t.Fatal("Shift+vertical and horizontal are the same axis")
 	}
-	if !w.allow(core.Mouse{Action: core.MouseMotion, Button: core.MouseNone}) || !w.allow(core.Mouse{Action: core.MousePress, Button: core.MouseLeft}) {
+	if !w.allow(core.Mouse{Action: core.MouseMotion, Button: core.MouseNone}, false) || !w.allow(core.Mouse{Action: core.MousePress, Button: core.MouseLeft}, false) {
 		t.Fatal("non-wheel events always pass")
 	}
 }

@@ -23,16 +23,17 @@ type wheelLock struct {
 }
 
 // allow reports whether the event may go on. Anything that is not a wheel
-// press is always allowed. Shift turns the vertical wheel sideways (see
-// HandleMouse), so it counts as the horizontal axis.
-func (w *wheelLock) allow(msg core.Mouse) bool {
+// press is always allowed. Shift turns the vertical wheel sideways only over
+// the editor text (see HandleMouse); shiftSideways says that is the case, and
+// then it counts as the horizontal axis.
+func (w *wheelLock) allow(msg core.Mouse, shiftSideways bool) bool {
 	if msg.Action != core.MousePress {
 		return true
 	}
 	var horizontal bool
 	switch msg.Button {
 	case core.MouseWheelUp, core.MouseWheelDown:
-		horizontal = msg.Shift
+		horizontal = shiftSideways
 	case core.MouseWheelLeft, core.MouseWheelRight:
 		horizontal = true
 	default:
