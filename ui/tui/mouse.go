@@ -106,7 +106,8 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 	if msg.Action == core.MouseMotion && msg.Button == core.MouseNone && a.resizing == core.ResizeNone && !a.IsDragging() && !a.term.sel.dragging {
 		return a.passiveMotion(l, msg)
 	}
-	if !a.wheelAxis.allow(msg, msg.Shift && a.inEditorText(l, msg)) {
+	shiftSideways := msg.Shift && a.inEditorText(l, msg) // Shift turns the vertical wheel sideways, over the text only
+	if !a.wheelAxis.allow(msg, shiftSideways) {
 		return nil
 	}
 	x, y := a.screenCell(l, msg)
@@ -154,8 +155,8 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 	}
 	// Past the branches that keep the popup open: the pointer's hover is over.
 	a.PointerMoved()
-	if msg.Action == core.MousePress && hwheel == 0 && wheel != 0 && msg.Shift && a.inEditorText(l, msg) {
-		hwheel = wheel / 3 * core.HscrollWheel // Shift turns the vertical wheel sideways, over the text only
+	if msg.Action == core.MousePress && hwheel == 0 && wheel != 0 && shiftSideways {
+		hwheel = wheel / 3 * core.HscrollWheel
 	}
 	if hwheel != 0 && msg.Action == core.MousePress {
 		if a.inEditorText(l, msg) {
