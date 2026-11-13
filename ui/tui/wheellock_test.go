@@ -49,3 +49,59 @@ func TestWheelLock(t *testing.T) {
 		t.Fatal("non-wheel events always pass")
 	}
 }
+
+func TestWheelLockSwitchesAxis(t *testing.T) {
+	clock := time.Unix(1000, 0)
+	w := &wheelLock{now: func() time.Time { return clock }}
+	ev := func(b core.MouseButton) bool {
+		clock = clock.Add(10 * time.Millisecond) // never a pause
+		return w.allow(core.Mouse{Action: core.MousePress, Button: b}, false)
+	}
+
+	ev(core.MouseWheelRight)
+	ev(core.MouseWheelRight)
+	// A run of vertical events with no pause: dropped until wheelSwitch, then it passes.
+	for i := 1; i < wheelSwitch; i++ {
+		if ev(core.MouseWheelDown) {
+			t.Fatalf("vertical event %d of the run must still be dropped", i)
+		}
+	}
+	if !ev(core.MouseWheelDown) {
+		t.Fatal("the lock must move to vertical after wheelSwitch events in a row")
+	}
+	if !ev(core.MouseWheelUp) {
+		t.Fatal("vertical must keep passing after the switch")
+	}
+	if ev(core.MouseWheelLeft) {
+		t.Fatal("a single horizontal event in a vertical gesture is dropped")
+	}
+	// And back, the other way round.
+	for i := 1; i < wheelSwitch; i++ {
+		ev(core.MouseWheelLeft)
+	}
+	if !ev(core.MouseWheelLeft) {
+		t.Fatal("the lock must move back to horizontal")
+	}
+}
+
+func TestWheelLockKeepsAxisAgainstStrays(t *testing.T) {
+	clock := time.Unix(1000, 0)
+	w := &wheelLock{now: func() time.Time { return clock }}
+	ev := func(b core.MouseButton) bool {
+		clock = clock.Add(10 * time.Millisecond)
+		return w.allow(core.Mouse{Action: core.MousePress, Button: b}, false)
+	}
+
+	ev(core.MouseWheelDown)
+	// Horizontal events in short runs between vertical ones never switch.
+	for i := 0; i < 20; i++ {
+		for j := 0; j < wheelSwitch-1; j++ {
+			if ev(core.MouseWheelRight) {
+				t.Fatal("stray horizontal events must be dropped")
+			}
+		}
+		if !ev(core.MouseWheelDown) {
+			t.Fatal("vertical must keep passing")
+		}
+	}
+}
