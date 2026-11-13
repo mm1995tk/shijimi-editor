@@ -94,8 +94,8 @@ func TestWheelLockKeepsAxisAgainstStrays(t *testing.T) {
 
 	ev(core.MouseWheelDown)
 	// Horizontal events in short runs between vertical ones never switch.
-	for i := 0; i < 20; i++ {
-		for j := 0; j < wheelSwitch-1; j++ {
+	for range 20 {
+		for range wheelSwitch - 1 {
 			if ev(core.MouseWheelRight) {
 				t.Fatal("stray horizontal events must be dropped")
 			}
