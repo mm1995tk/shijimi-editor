@@ -136,6 +136,30 @@ func TestWheelLockKeepsAxisAgainstBundle(t *testing.T) {
 	}
 }
 
+// bubbletea hands the buttons of a bundle over one at a time, so each gets its
+// own time, a little apart. They still count as one moment.
+func TestWheelLockBundleSpreadSlightly(t *testing.T) {
+	clock := time.Unix(1000, 0)
+	w := &wheelLock{now: func() time.Time { return clock }}
+	ev := func(b core.MouseButton, gap time.Duration) bool {
+		clock = clock.Add(gap)
+		return w.allow(core.Mouse{Action: core.MousePress, Button: b}, false)
+	}
+
+	ev(core.MouseWheelDown, 0)
+	for range 12 {
+		if ev(core.MouseWheelRight, 100*time.Microsecond) {
+			t.Fatal("a bundle spread over a millisecond must be dropped")
+		}
+	}
+	if ev(core.MouseWheelRight, 60*time.Millisecond) {
+		t.Fatal("a bundle and one event 60ms later are two moments, not a turn")
+	}
+	if !ev(core.MouseWheelRight, 60*time.Millisecond) {
+		t.Fatal("a third moment after 50ms must switch")
+	}
+}
+
 // Shift turns the vertical wheel sideways over the editor text. Pressing Shift
 // in the middle of a vertical gesture moves the lock to horizontal once the
 // Shift+vertical events have lasted wheelSwitchAfter.

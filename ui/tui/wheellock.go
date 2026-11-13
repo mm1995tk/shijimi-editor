@@ -20,11 +20,16 @@ const wheelIdle = 150 * time.Millisecond
 //     trackpad event into a bundle of buttons that arrive at the same moment, so
 //     a count alone would let a fast flick make a long run in no time.
 //   - wheelSwitchCount: the run has this many events that came at different
-//     times (buttons of one moment count once). A time alone would let two slow
+//     moments. Buttons within wheelSameMoment of the one that began a moment
+//     count with it (the terminal sends a bundle at once, but each button gets
+//     its own time when it is read, a little apart). A time alone would let two slow
 //     events, 50ms or more apart, switch the lock in a slow or ending swipe.
 const (
 	wheelSwitchAfter = 50 * time.Millisecond
 	wheelSwitchCount = 3
+	// wheelSameMoment is shorter than the gap between trackpad events (10 to
+	// 20ms) and longer than reading a bundle of buttons takes.
+	wheelSameMoment = 5 * time.Millisecond
 )
 
 // wheelLock keeps one gesture of the wheel on one axis. A terminal reports the
@@ -39,8 +44,8 @@ type wheelLock struct {
 	last       time.Time
 	horizontal bool
 	otherSince time.Time        // when the run of other-axis events began; zero if none
-	otherLast  time.Time        // time of the latest event of the run
-	otherCount int              // events of the run that came at different times
+	otherLast  time.Time        // time of the event that began the latest moment
+	otherCount int              // moments of the run
 	now        func() time.Time // time.Now unless a test sets it
 }
 
@@ -77,7 +82,7 @@ func (w *wheelLock) allow(msg core.Mouse, shiftSideways bool) bool {
 	if w.otherSince.IsZero() {
 		w.otherSince = t
 	}
-	if !t.Equal(w.otherLast) {
+	if t.Sub(w.otherLast) >= wheelSameMoment {
 		w.otherLast = t
 		w.otherCount++
 	}
