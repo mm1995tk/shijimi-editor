@@ -37,6 +37,7 @@ type App struct {
 	agentWPref  int         // panel width picked by the user (0 = automatic)
 	capture     core.Region // the region a held pointer button is captured by (see locate)
 	lastClick   click       // the previous left press (see clicks in inputtea.go)
+	wheelAxis   wheelLock   // the axis the current wheel gesture is locked to (see wheellock.go)
 	askReleases bool        // key releases were asked for in the last View
 	quitting    bool        // tea.Quit was returned (see exit)
 	later       []tea.Cmd   // work the core asked for through the Port, started by the next effectCmd
