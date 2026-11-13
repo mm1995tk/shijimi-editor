@@ -1,15 +1,15 @@
  EXPLORER: 001      │ a.txt                                                                  コピー
-    a.txt          │   1  package main
-                    │   2
-                    │   3  import "fmt"
-                    │   4
-                    │   5  func main() {
-                    │   6  │   fmt.Println("hello")
-                    │   ╭─────────────────────────────────────────────────────────────────[コピー]─╮
-                    │   │ func Println(a ...any) (n int, err error)                                │
-                    │   │                                                                          │
-                    │  1│ ──────────────────────────────────────────────────────────────────────── │
-                    │  1│                                                                          │
+    a.txt          │  1 package main
+                    │  2
+                    │  3 import "fmt"
+                    │  4
+                    │  5 func main() {
+                    │  6 │   fmt.Println("hello")
+                    │  7╭─────────────────────────────────────────────────────────────────[コピー]─╮
+                    │  8│ func Println(a ...any) (n int, err error)                                │
+                    │  9│                                                                          │
+                    │ 10│ ──────────────────────────────────────────────────────────────────────── │
+                    │ 11│                                                                          │
                     │   │ Println formats using the default formats for its operands and writes to │
                     │   │ standard output. See fmt for details.                                    │
                     │   ╰─ y コピー ───────────────────────────────────────────────────────────────╯
