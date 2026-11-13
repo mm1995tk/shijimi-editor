@@ -56,7 +56,6 @@ func (w *wheelLock) allow(msg core.Mouse, shiftSideways bool) bool {
 	t := now()
 	if w.last.IsZero() || t.Sub(w.last) >= wheelIdle {
 		w.horizontal = horizontal // a new gesture
-		w.other = 0
 	}
 	w.last = t
 	if w.horizontal == horizontal {
