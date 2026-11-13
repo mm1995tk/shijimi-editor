@@ -163,3 +163,37 @@ func TestWheelLockSwitchesWithShift(t *testing.T) {
 		t.Fatal("horizontal passes after the switch")
 	}
 }
+
+// Slow events, 50 to 149ms apart: two of the other axis are not a turn, but a
+// slow swipe that really turns is followed.
+func TestWheelLockSlowEvents(t *testing.T) {
+	clock := time.Unix(1000, 0)
+	w := &wheelLock{now: func() time.Time { return clock }}
+	ev := func(b core.MouseButton, gap time.Duration) bool {
+		clock = clock.Add(gap)
+		return w.allow(core.Mouse{Action: core.MousePress, Button: b}, false)
+	}
+
+	ev(core.MouseWheelDown, 0)
+	if ev(core.MouseWheelRight, 100*time.Millisecond) || ev(core.MouseWheelRight, 100*time.Millisecond) {
+		t.Fatal("two slow horizontal events must not switch")
+	}
+	if !ev(core.MouseWheelDown, 60*time.Millisecond) {
+		t.Fatal("vertical must keep passing")
+	}
+	if ev(core.MouseWheelRight, 60*time.Millisecond) || ev(core.MouseWheelRight, 100*time.Millisecond) {
+		t.Fatal("two slow horizontal events must not switch, again")
+	}
+
+	// A slow turn: horizontal every 100ms goes on until it switches.
+	switched := false
+	for range wheelSwitchCount {
+		switched = ev(core.MouseWheelRight, 100*time.Millisecond)
+	}
+	if !switched {
+		t.Fatal("a slow, lasting horizontal run must switch eventually")
+	}
+	if !ev(core.MouseWheelLeft, 100*time.Millisecond) {
+		t.Fatal("horizontal passes after the switch")
+	}
+}
