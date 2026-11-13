@@ -22,7 +22,11 @@ func TestWheelLock(t *testing.T) {
 	if ev(core.MouseWheelRight, false) {
 		t.Fatal("horizontal event during a vertical gesture must be dropped")
 	}
-	step(100 * time.Millisecond) // 120ms since the dropped one: dropped events keep the gesture
+	step(40 * time.Millisecond)
+	if !ev(core.MouseWheelDown, false) {
+		t.Fatal("vertical event must pass")
+	}
+	step(100 * time.Millisecond) // no pause: dropped events keep the gesture
 	if ev(core.MouseWheelLeft, false) {
 		t.Fatal("still the vertical gesture")
 	}
@@ -53,21 +57,25 @@ func TestWheelLock(t *testing.T) {
 func TestWheelLockSwitchesAxis(t *testing.T) {
 	clock := time.Unix(1000, 0)
 	w := &wheelLock{now: func() time.Time { return clock }}
+	const step = 10 * time.Millisecond // never a pause
 	ev := func(b core.MouseButton) bool {
-		clock = clock.Add(10 * time.Millisecond) // never a pause
+		clock = clock.Add(step)
 		return w.allow(core.Mouse{Action: core.MousePress, Button: b}, false)
 	}
 
 	ev(core.MouseWheelRight)
 	ev(core.MouseWheelRight)
-	// A run of vertical events with no pause: dropped until wheelSwitch, then it passes.
-	for i := 1; i < wheelSwitch; i++ {
+	// A run of vertical events with no pause: dropped until it has lasted wheelSwitchAfter.
+	if ev(core.MouseWheelDown) {
+		t.Fatal("the first vertical event of the run must be dropped")
+	}
+	for i := time.Duration(1); i*step < wheelSwitchAfter; i++ {
 		if ev(core.MouseWheelDown) {
 			t.Fatalf("vertical event %d of the run must still be dropped", i)
 		}
 	}
 	if !ev(core.MouseWheelDown) {
-		t.Fatal("the lock must move to vertical after wheelSwitch events in a row")
+		t.Fatal("the lock must move to vertical once the run has lasted wheelSwitchAfter")
 	}
 	if !ev(core.MouseWheelUp) {
 		t.Fatal("vertical must keep passing after the switch")
@@ -76,7 +84,7 @@ func TestWheelLockSwitchesAxis(t *testing.T) {
 		t.Fatal("a single horizontal event in a vertical gesture is dropped")
 	}
 	// And back, the other way round.
-	for i := 1; i < wheelSwitch; i++ {
+	for range wheelSwitchAfter / step {
 		ev(core.MouseWheelLeft)
 	}
 	if !ev(core.MouseWheelLeft) {
@@ -95,7 +103,7 @@ func TestWheelLockKeepsAxisAgainstStrays(t *testing.T) {
 	ev(core.MouseWheelDown)
 	// Horizontal events in short runs between vertical ones never switch.
 	for range 20 {
-		for range wheelSwitch - 1 {
+		for range 4 {
 			if ev(core.MouseWheelRight) {
 				t.Fatal("stray horizontal events must be dropped")
 			}
@@ -103,5 +111,27 @@ func TestWheelLockKeepsAxisAgainstStrays(t *testing.T) {
 		if !ev(core.MouseWheelDown) {
 			t.Fatal("vertical must keep passing")
 		}
+	}
+}
+
+// A terminal may turn one trackpad event into many buttons that arrive at the
+// same moment. However long such a bundle is, it is not a run that lasts.
+func TestWheelLockKeepsAxisAgainstBundle(t *testing.T) {
+	clock := time.Unix(1000, 0)
+	w := &wheelLock{now: func() time.Time { return clock }}
+	ev := func(b core.MouseButton) bool {
+		return w.allow(core.Mouse{Action: core.MousePress, Button: b}, false)
+	}
+
+	ev(core.MouseWheelDown)
+	clock = clock.Add(10 * time.Millisecond)
+	for range 12 {
+		if ev(core.MouseWheelRight) {
+			t.Fatal("a bundle of horizontal buttons at one moment must be dropped")
+		}
+	}
+	clock = clock.Add(10 * time.Millisecond)
+	if !ev(core.MouseWheelDown) {
+		t.Fatal("vertical must keep passing")
 	}
 }
