@@ -293,7 +293,11 @@ func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
 	}
 	r := b.ScrollRow + core.Clamp(body, 0, max(0, l.editH-1))
 	vis := max(0, col-core.GutterWidth(b)) + b.ScrollCol
-	b.SetCursor(r, vis, extend)
+	if extend {
+		b.SetCursorDrag(r, vis)
+	} else {
+		b.StartDrag(r, vis)
+	}
 	a.FollowCursor()
 }
 

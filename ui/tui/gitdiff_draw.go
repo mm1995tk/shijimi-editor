@@ -79,7 +79,11 @@ func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, c
 		return
 	}
 	vis := max(0, col-gLeft-core.GutterWidth(b)) + b.ScrollCol
-	b.SetCursor(newRow, vis, extend)
+	if extend {
+		b.SetCursorDrag(newRow, vis)
+	} else {
+		b.StartDrag(newRow, vis)
+	}
 	a.FollowCursor()
 }
 

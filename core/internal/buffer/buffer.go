@@ -63,6 +63,9 @@ type Buffer struct {
 	// selection as "whole lines" only while neither end has moved.
 	lineSel *lineSelection
 
+	// drag is where the current mouse drag started; see SetCursorDrag.
+	drag *dragOrigin
+
 	ScrollRow, ScrollCol int
 
 	wantVis int // remembered screen column for vertical movement
@@ -893,6 +896,69 @@ func (b *Buffer) SetCursor(row, vis int, extend bool) {
 	b.Cur.Row = clampInt(row, 0, len(b.Lines)-1)
 	b.Cur.Col = ColFromVisual(b.Lines[b.Cur.Row], vis)
 	b.syncWant()
+}
+
+// StartDrag places the cursor at a row and screen column for a mouse press and
+// remembers the character under the pointer, the one the drag that may follow
+// starts on. The cursor goes where SetCursor puts it.
+func (b *Buffer) StartDrag(row, vis int) {
+	b.SetCursor(row, vis, false)
+	s := Pos{Row: b.Cur.Row}
+	line := b.Lines[s.Row]
+	col, ok := charAtVisual(line, vis)
+	s.Col = col
+	e := s
+	if ok {
+		e.Col++
+	}
+	b.drag = &dragOrigin{start: s, end: e}
+}
+
+// SetCursorDrag extends the selection to the pointer at a row and screen
+// column while the mouse button is held, so that the character the drag
+// started on (see StartDrag) and the character under the pointer are both
+// selected, whichever way the drag goes: dragging forward the cursor goes after
+// the character under the pointer, dragging backward the anchor goes after the
+// character the drag started on. A pointer past the end of the line stays at
+// the end.
+func (b *Buffer) SetCursorDrag(row, vis int) {
+	d := dragOrigin{start: b.Cur, end: b.Cur}
+	if b.drag != nil {
+		d = *b.drag
+	}
+	b.SetCursor(row, vis, true)
+	b.Anchor = &Pos{Row: d.start.Row, Col: d.start.Col}
+	if col, ok := charAtVisual(b.Lines[b.Cur.Row], vis); ok {
+		if p := (Pos{Row: b.Cur.Row, Col: col}); !p.Less(d.start) {
+			b.Cur.Col = col + 1
+		} else {
+			b.Cur.Col = col
+			a := d.end
+			b.Anchor = &a
+		}
+		b.syncWant()
+	} else if b.Cur.Less(d.start) {
+		a := d.end
+		b.Anchor = &a
+	}
+}
+
+// dragOrigin is where a mouse drag started: the position before the character
+// the click landed on, and the position after it.
+type dragOrigin struct{ start, end Pos }
+
+// charAtVisual returns the index of the character that covers screen column
+// vis; ok is false when vis is at or past the end of the line.
+func charAtVisual(line []rune, vis int) (col int, ok bool) {
+	v := 0
+	for i, r := range line {
+		w := RuneWidth(r, v)
+		if v+w > vis {
+			return i, true
+		}
+		v += w
+	}
+	return len(line), false
 }
 
 // GotoLine moves the cursor to a 1-based line number.

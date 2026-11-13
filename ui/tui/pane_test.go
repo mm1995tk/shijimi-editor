@@ -41,3 +41,41 @@ func TestMouseClickOnWideLine(t *testing.T) {
 		t.Errorf("cursor = %+v, want col 1", got)
 	}
 }
+
+func TestMouseDragIncludesCharUnderPointer(t *testing.T) {
+	a := newTestApp(t, "abcdef\nxy世zw\n")
+	l := a.layout()
+	b := a.CurText().Buf
+	gw := core.GutterWidth(b)
+	row := l.editY - l.top
+	click := func(r, c int) { a.mouseToCursor(l, row+r, gw+c, false) }
+	drag := func(r, c int) { a.mouseToCursor(l, row+r, gw+c, true) }
+	sel := func() string { return b.SelectedText() }
+
+	// rightward: the character under the pointer is selected
+	click(0, 1)
+	drag(0, 3)
+	if got := sel(); got != "bcd" {
+		t.Errorf("right drag = %q, want bcd", got)
+	}
+	// leftward: the character the drag started on is selected too
+	click(0, 3)
+	drag(0, 1)
+	if got := sel(); got != "bcd" {
+		t.Errorf("left drag = %q, want bcd", got)
+	}
+	// downward onto a wide character, on either of its two cells
+	for _, c := range []int{2, 3} {
+		click(0, 1)
+		drag(1, c)
+		if got := sel(); got != "bcdef\nxy世" {
+			t.Errorf("drag onto wide char at cell %d = %q", c, got)
+		}
+	}
+	// past the end of the line stays at the end
+	click(0, 4)
+	drag(0, 20)
+	if got := sel(); got != "ef" {
+		t.Errorf("drag past end = %q, want ef", got)
+	}
+}
