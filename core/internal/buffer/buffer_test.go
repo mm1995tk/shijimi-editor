@@ -417,7 +417,7 @@ func TestSetCursorDrag(t *testing.T) {
 	cases := []struct {
 		name       string
 		text       string
-		down       Pos // the click
+		down       Pos
 		row, vis   int // the pointer
 		want       string
 		wantCursor Pos
@@ -435,7 +435,7 @@ func TestSetCursorDrag(t *testing.T) {
 	}
 	for _, c := range cases {
 		b := fromText(c.text)
-		b.SetCursor(c.down.Row, VisualCol(b.Lines[c.down.Row], c.down.Col), false)
+		b.StartDrag(c.down.Row, VisualCol(b.Lines[c.down.Row], c.down.Col))
 		b.SetCursorDrag(c.row, c.vis)
 		if got := b.SelectedText(); got != c.want {
 			t.Errorf("%s: selected %q, want %q", c.name, got, c.want)
@@ -446,7 +446,7 @@ func TestSetCursorDrag(t *testing.T) {
 	}
 	// the cursor can go forward, back, and forward again in one drag
 	b := fromText("abcdef")
-	b.SetCursor(0, 3, false)
+	b.StartDrag(0, 3)
 	for _, s := range []struct {
 		vis  int
 		want string
@@ -454,6 +454,24 @@ func TestSetCursorDrag(t *testing.T) {
 		b.SetCursorDrag(0, s.vis)
 		if got := b.SelectedText(); got != s.want {
 			t.Errorf("drag to %d: %q, want %q", s.vis, got, s.want)
+		}
+	}
+}
+
+// A press on the second half of a tab puts the cursor after the tab, but the
+// drag still starts on the tab.
+func TestSetCursorDragFromTab(t *testing.T) {
+	// "a\tb": the tab covers the screen columns 1 to 3
+	for _, c := range []struct {
+		name string
+		vis  int // where the pointer goes
+		want string
+	}{{"left", 0, "a\t"}, {"right", 4, "\tb"}, {"same cell", 3, "\t"}} {
+		b := fromText("a\tb")
+		b.StartDrag(0, 3)
+		b.SetCursorDrag(0, c.vis)
+		if got := b.SelectedText(); got != c.want {
+			t.Errorf("%s: selected %q, want %q", c.name, got, c.want)
 		}
 	}
 }

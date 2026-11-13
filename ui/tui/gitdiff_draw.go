@@ -82,7 +82,7 @@ func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, c
 	if extend {
 		b.SetCursorDrag(newRow, vis)
 	} else {
-		b.SetCursor(newRow, vis, false)
+		b.StartDrag(newRow, vis)
 	}
 	a.FollowCursor()
 }

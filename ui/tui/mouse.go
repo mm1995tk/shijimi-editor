@@ -296,7 +296,7 @@ func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
 	if extend {
 		b.SetCursorDrag(r, vis)
 	} else {
-		b.SetCursor(r, vis, false)
+		b.StartDrag(r, vis)
 	}
 	a.FollowCursor()
 }

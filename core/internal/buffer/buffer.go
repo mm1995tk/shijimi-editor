@@ -898,26 +898,34 @@ func (b *Buffer) SetCursor(row, vis int, extend bool) {
 	b.syncWant()
 }
 
+// StartDrag places the cursor at a row and screen column for a mouse press and
+// remembers the character under the pointer, the one the drag that may follow
+// starts on. The cursor goes where SetCursor puts it.
+func (b *Buffer) StartDrag(row, vis int) {
+	b.SetCursor(row, vis, false)
+	s := Pos{Row: b.Cur.Row}
+	line := b.Lines[s.Row]
+	col, ok := charAtVisual(line, vis)
+	s.Col = col
+	e := s
+	if ok {
+		e.Col++
+	}
+	b.drag = &dragOrigin{start: s, end: e}
+}
+
 // SetCursorDrag extends the selection to the pointer at a row and screen
 // column while the mouse button is held, so that the character the drag
-// started on and the character under the pointer are both selected, whichever
-// way the drag goes: dragging forward the cursor goes after the character under
-// the pointer, dragging backward the anchor moves to after the character the
-// drag started on. A pointer past the end of the line stays at the end.
+// started on (see StartDrag) and the character under the pointer are both
+// selected, whichever way the drag goes: dragging forward the cursor goes after
+// the character under the pointer, dragging backward the anchor goes after the
+// character the drag started on. A pointer past the end of the line stays at
+// the end.
 func (b *Buffer) SetCursorDrag(row, vis int) {
-	if b.Anchor == nil {
-		// the first motion after a click: the click left the cursor before the
-		// character it landed on
-		s := b.Cur
-		b.drag = &dragOrigin{start: s, end: s}
-		if line := b.Lines[s.Row]; s.Col < len(line) {
-			b.drag.end.Col++
-		}
-	} else if b.drag == nil || (*b.Anchor != b.drag.start && *b.Anchor != b.drag.end) {
-		// a selection that was not started by a click (Shift+click, say)
-		b.drag = &dragOrigin{start: *b.Anchor, end: *b.Anchor}
+	d := dragOrigin{start: b.Cur, end: b.Cur}
+	if b.drag != nil {
+		d = *b.drag
 	}
-	d := *b.drag
 	b.SetCursor(row, vis, true)
 	b.Anchor = &Pos{Row: d.start.Row, Col: d.start.Col}
 	if col, ok := charAtVisual(b.Lines[b.Cur.Row], vis); ok {
