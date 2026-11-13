@@ -412,3 +412,48 @@ func TestApplyEditsInsertBeforeReplaceAtSameStart(t *testing.T) {
 		t.Fatalf("text = %q\nwant %q", got, want)
 	}
 }
+
+func TestSetCursorDrag(t *testing.T) {
+	cases := []struct {
+		name       string
+		text       string
+		down       Pos // the click
+		row, vis   int // the pointer
+		want       string
+		wantCursor Pos
+	}{
+		{"forward", "abcdef", Pos{0, 1}, 0, 3, "bcd", Pos{0, 4}},
+		{"backward", "abcdef", Pos{0, 3}, 0, 1, "bcd", Pos{0, 1}},
+		{"same cell", "abcdef", Pos{0, 2}, 0, 2, "c", Pos{0, 3}},
+		{"past end", "abcdef", Pos{0, 4}, 0, 20, "ef", Pos{0, 6}},
+		{"down onto wide, left cell", "abcdef\nxy世zw", Pos{0, 1}, 1, 2, "bcdef\nxy世", Pos{1, 3}},
+		{"down onto wide, right cell", "abcdef\nxy世zw", Pos{0, 1}, 1, 3, "bcdef\nxy世", Pos{1, 3}},
+		{"backward onto wide", "ab\nxy世zw", Pos{1, 3}, 1, 3, "世z", Pos{1, 2}},
+		{"up onto wide", "xy世zw\nabc", Pos{1, 1}, 0, 3, "世zw\nab", Pos{0, 2}},
+		{"forward onto tab", "a\tb", Pos{0, 0}, 0, 3, "a\t", Pos{0, 2}},
+		{"backward from tab", "a\tb", Pos{0, 1}, 0, 0, "a\t", Pos{0, 0}},
+	}
+	for _, c := range cases {
+		b := fromText(c.text)
+		b.SetCursor(c.down.Row, VisualCol(b.Lines[c.down.Row], c.down.Col), false)
+		b.SetCursorDrag(c.row, c.vis)
+		if got := b.SelectedText(); got != c.want {
+			t.Errorf("%s: selected %q, want %q", c.name, got, c.want)
+		}
+		if b.Cur != c.wantCursor {
+			t.Errorf("%s: cursor %+v, want %+v", c.name, b.Cur, c.wantCursor)
+		}
+	}
+	// the cursor can go forward, back, and forward again in one drag
+	b := fromText("abcdef")
+	b.SetCursor(0, 3, false)
+	for _, s := range []struct {
+		vis  int
+		want string
+	}{{5, "def"}, {1, "bcd"}, {3, "d"}, {4, "de"}} {
+		b.SetCursorDrag(0, s.vis)
+		if got := b.SelectedText(); got != s.want {
+			t.Errorf("drag to %d: %q, want %q", s.vis, got, s.want)
+		}
+	}
+}

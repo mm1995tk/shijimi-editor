@@ -58,11 +58,11 @@ func TestMouseDragIncludesCharUnderPointer(t *testing.T) {
 	if got := sel(); got != "bcd" {
 		t.Errorf("right drag = %q, want bcd", got)
 	}
-	// leftward: unchanged, the character the drag started on is selected
+	// leftward: the character the drag started on is selected too
 	click(0, 3)
 	drag(0, 1)
-	if got := sel(); got != "bc" {
-		t.Errorf("left drag = %q, want bc", got)
+	if got := sel(); got != "bcd" {
+		t.Errorf("left drag = %q, want bcd", got)
 	}
 	// downward onto a wide character, on either of its two cells
 	for _, c := range []int{2, 3} {
