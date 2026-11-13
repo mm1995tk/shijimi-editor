@@ -895,6 +895,33 @@ func (b *Buffer) SetCursor(row, vis int, extend bool) {
 	b.syncWant()
 }
 
+// SetCursorDrag extends the selection to the pointer at a row and screen
+// column while the mouse button is held. Dragging forward (to or past the
+// place the selection started) it puts the cursor after the character under
+// the pointer, so that character is selected; dragging backward it puts the
+// cursor before it, as SetCursor does, so the character the drag started on
+// stays selected. A pointer past the end of the line stays at the end.
+func (b *Buffer) SetCursorDrag(row, vis int) {
+	b.SetCursor(row, vis, true)
+	line := b.Lines[b.Cur.Row]
+	i, v := 0, 0
+	for i < len(line) {
+		w := RuneWidth(line[i], v)
+		if v+w > vis {
+			break
+		}
+		v += w
+		i++
+	}
+	if i >= len(line) {
+		return
+	}
+	if p := (Pos{Row: b.Cur.Row, Col: i}); b.Anchor != nil && !p.Less(*b.Anchor) {
+		b.Cur.Col = i + 1
+		b.syncWant()
+	}
+}
+
 // GotoLine moves the cursor to a 1-based line number.
 func (b *Buffer) GotoLine(n int) {
 	b.extra = nil
