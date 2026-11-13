@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/alecthomas/chroma/v2"
+	"github.com/alecthomas/chroma/v2/lexers"
 )
 
 func newGoApp(t *testing.T, src string) (*App, *Tab) {
@@ -27,6 +30,29 @@ func TestAlignColors(t *testing.T) {
 	for i := range want {
 		if len(got[i]) != len(want[i]) || len(got[i]) > 0 && got[i][0] != want[i][0] {
 			t.Fatalf("line %d = %v, want %v", i, got[i], want[i])
+		}
+	}
+}
+
+// chroma's Go lexer gives every "//x" comment the preprocessor color; only
+// directives keep it (#634).
+func TestLexColorsGoComment(t *testing.T) {
+	style := chroma.MustNewStyle("test", chroma.StyleEntries{
+		chroma.Comment:        "#111111",
+		chroma.CommentPreproc: "#222222",
+	})
+	pre := style.Get(chroma.CommentPreproc).Colour.String()
+	com := style.Get(chroma.CommentSingle).Colour.String()
+	lines := []string{
+		"//RecordMain は x", "// RecordMain は x", "//go:build linux",
+		"//go:generate stringer", "//line a.go:1", "//export Foo", "//http://x",
+		"//nolint", "//nolint // why", "//nolintx",
+	}
+	want := []string{com, com, pre, pre, pre, pre, com, pre, pre, com}
+	got := LexColors(lexers.Get("go"), style, lines)
+	for i := range lines {
+		if got[i][0] != want[i] {
+			t.Errorf("%q: color %q, want %q", lines[i], got[i][0], want[i])
 		}
 	}
 }
