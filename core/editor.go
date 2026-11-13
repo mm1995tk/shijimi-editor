@@ -81,8 +81,9 @@ func (t *Tab) Path() string {
 	return ""
 }
 
-// GutterWidthFor is the width of the line numbers column for a file of total lines.
-func GutterWidthFor(total int) int { return len(fmt.Sprint(total)) + 4 }
+// GutterWidthFor is the width of the line numbers column for a file of total
+// lines: a mark cell (diagnostic or diff sign), the number, and one space.
+func GutterWidthFor(total int) int { return len(fmt.Sprint(total)) + 2 }
 
 // GutterWidth is the width of the line number gutter for b.
 func GutterWidth(b *buffer.Buffer) int { return GutterWidthFor(len(b.Lines)) }

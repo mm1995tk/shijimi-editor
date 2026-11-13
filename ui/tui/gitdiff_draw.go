@@ -295,7 +295,7 @@ func drawOldLine(p screen.Pane, pl screen.Line, w int) string {
 	if isDeletedLine(pl) {
 		bg, sc, sign = cDelBg, cDelSign, "-"
 	}
-	gutter := bgfg(bg, sc).Render(sign) + bgfg(bg, cLineNo).Render(fmt.Sprintf("%*d  ", gw-3, pl.No+1))
+	gutter := bgfg(bg, sc).Render(sign) + bgfg(bg, cLineNo).Render(fmt.Sprintf("%*d ", gw-2, pl.No+1))
 	return gutter + drawSpans(pl.Spans, bg, pl.Words, cDelWordBg, w-gw, p.Viewport.Left)
 }
 

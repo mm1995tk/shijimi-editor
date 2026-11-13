@@ -118,7 +118,7 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 	} else {
 		sb.WriteString(bgfg(lineBg, cLineNo).Render(" "))
 	}
-	sb.WriteString(numSt.Render(fmt.Sprintf("%*d  ", gw-3, n)))
+	sb.WriteString(numSt.Render(fmt.Sprintf("%*d ", gw-2, n)))
 
 	// the text of the line and the color of each rune ("" = none)
 	var line []rune
