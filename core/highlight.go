@@ -157,6 +157,7 @@ func LexColors(lexer chroma.Lexer, style *chroma.Style, lines []string) [][]stri
 	if err != nil {
 		return nil
 	}
+	isGo := lexer.Config() != nil && lexer.Config().Name == "Go"
 	cache := map[chroma.TokenType]string{}
 	color := func(tt chroma.TokenType) string {
 		c, ok := cache[tt]
@@ -174,7 +175,11 @@ func LexColors(lexer chroma.Lexer, style *chroma.Style, lines []string) [][]stri
 	}
 	row, col := 0, 0
 	for tok := it(); tok != chroma.EOF; tok = it() {
-		c := color(tok.Type)
+		tt := tok.Type
+		if isGo && tt == chroma.CommentPreproc && !goDirective(tok.Value) {
+			tt = chroma.CommentSingle
+		}
+		c := color(tt)
 		if !strings.ContainsRune(tok.Value, '\n') && c == "" {
 			col += len([]rune(tok.Value))
 			continue
@@ -226,4 +231,24 @@ func (a *Core) LexTabs() []Effect {
 		}
 	}
 	return Batch(cmds...)
+}
+
+// goDirective reports whether a Go line comment that has no space after "//"
+// is a directive: "//go:build", "//nolint:x" (a lower-case word, ":" and a
+// word character), "//line ", "//export " or "//extern ". chroma's Go lexer
+// marks every such comment as a preprocessor line, so a plain "//Note" would
+// get the directive color; LexColors keeps that color only for these forms.
+func goDirective(s string) bool {
+	for _, p := range []string{"//line ", "//export ", "//extern "} {
+		if strings.HasPrefix(s, p) {
+			return true
+		}
+	}
+	s = strings.TrimPrefix(s, "//")
+	word := func(b byte) bool { return b >= 'a' && b <= 'z' || b >= '0' && b <= '9' }
+	i := 0
+	for i < len(s) && word(s[i]) {
+		i++
+	}
+	return i > 0 && i+1 < len(s) && s[i] == ':' && word(s[i+1])
 }
