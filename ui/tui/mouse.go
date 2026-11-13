@@ -79,6 +79,9 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 		}
 		return nil
 	}
+	if !a.wheelAxis.allow(msg) {
+		return nil
+	}
 	l := a.layout()
 	// A press or the wheel over the other pane first moves the focus there.
 	if msg.Region == core.RegionOther && msg.Action == core.MousePress && (msg.Button == core.MouseLeft || msg.Button == core.MouseWheelUp || msg.Button == core.MouseWheelDown) {
