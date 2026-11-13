@@ -1,12 +1,12 @@
 package core
 
 import (
-	"github.com/alecthomas/chroma/v2"
-	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/alecthomas/chroma/v2/styles"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/alecthomas/chroma/v2"
+	"github.com/alecthomas/chroma/v2/lexers"
 )
 
 func newGoApp(t *testing.T, src string) (*App, *Tab) {
@@ -37,12 +37,12 @@ func TestAlignColors(t *testing.T) {
 // chroma's Go lexer gives every "//x" comment the preprocessor color; only
 // directives keep it (#634).
 func TestLexColorsGoComment(t *testing.T) {
-	style := styles.Get("github-dark")
+	style := chroma.MustNewStyle("test", chroma.StyleEntries{
+		chroma.Comment:        "#111111",
+		chroma.CommentPreproc: "#222222",
+	})
 	pre := style.Get(chroma.CommentPreproc).Colour.String()
 	com := style.Get(chroma.CommentSingle).Colour.String()
-	if pre == com {
-		t.Skip("style does not distinguish the two")
-	}
 	lines := []string{
 		"//RecordMain は x", "// RecordMain は x", "//go:build linux",
 		"//go:generate stringer", "//line a.go:1", "//export Foo", "//http://x",
