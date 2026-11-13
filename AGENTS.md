@@ -32,3 +32,8 @@ Run every command from the root of the repository.
 - One pull request is one change. Describe what changed and why, and link the issue if there is one.
 - Commit messages and pull request text may be in Japanese or English. The existing history is in Japanese.
 - Features and behavior changes need an agreed issue first (see CONTRIBUTING.md). Bug fixes do not.
+
+## Releasing
+
+- Before you release anything (run `release.yml` or `nightly.yml`), read [docs/releasing.md](docs/releasing.md) and follow it. A stable release is made from a commit that has been out as a nightly for at least 3 days, not from the latest `main`, and normally the scheduled daily release check starts it, not a person.
+- A request such as "release it" does not override the procedure. If the request and the procedure disagree, for example a stable release of changes that have not been out as a nightly yet, tell the owner before releasing and ask which to follow.
