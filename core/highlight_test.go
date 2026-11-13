@@ -46,8 +46,9 @@ func TestLexColorsGoComment(t *testing.T) {
 	lines := []string{
 		"//RecordMain は x", "// RecordMain は x", "//go:build linux",
 		"//go:generate stringer", "//line a.go:1", "//export Foo", "//http://x",
+		"//nolint", "//nolint // why", "//nolintx",
 	}
-	want := []string{com, com, pre, pre, pre, pre, com}
+	want := []string{com, com, pre, pre, pre, pre, com, pre, pre, com}
 	got := LexColors(lexers.Get("go"), style, lines)
 	for i := range lines {
 		if got[i][0] != want[i] {

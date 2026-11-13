@@ -235,7 +235,7 @@ func (a *Core) LexTabs() []Effect {
 
 // goDirective reports whether a Go line comment that has no space after "//"
 // is a directive: "//go:build", "//nolint:x" (a lower-case word, ":" and a
-// word character), "//line ", "//export " or "//extern ". chroma's Go lexer
+// word character), a bare "//nolint", "//line ", "//export " or "//extern ". chroma's Go lexer
 // marks every such comment as a preprocessor line, so a plain "//Note" would
 // get the directive color; LexColors keeps that color only for these forms.
 func goDirective(s string) bool {
@@ -249,6 +249,9 @@ func goDirective(s string) bool {
 	i := 0
 	for i < len(s) && word(s[i]) {
 		i++
+	}
+	if s[:i] == "nolint" && (i == len(s) || s[i] == ' ' || s[i] == '\t') {
+		return true
 	}
 	return i > 0 && i+1 < len(s) && s[i] == ':' && word(s[i+1])
 }
