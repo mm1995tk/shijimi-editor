@@ -9,17 +9,23 @@ import (
 // wheelIdle is how long the wheel must be quiet for a gesture to be over.
 const wheelIdle = 150 * time.Millisecond
 
-// wheelSwitchAfter is how long events of the other axis must come with none of
-// the locked axis between them before the lock moves to that axis. A swipe a
-// little off the straight mixes the other axis in as single events or short
-// runs, so a short run is not a change of direction; a trackpad moved the other
-// way sends an unbroken run that lasts. It is a time, not a count, because a
-// terminal may turn one trackpad event into a bundle of buttons that arrive at
-// the same moment: a fast flick would then make a long run in no time. Trackpad
-// events come every 10 to 20ms. Without this, a swipe that turns from
-// horizontal to vertical without a pause never reaches wheelIdle and stays
-// locked.
-const wheelSwitchAfter = 50 * time.Millisecond
+// The lock moves to the other axis when events of that axis come with none of
+// the locked axis between them, and both of these hold. A swipe a little off
+// the straight mixes the other axis in as single events or short runs, so a
+// short run is not a change of direction; a trackpad moved the other way sends
+// an unbroken run that lasts. Without this, a swipe that turns from horizontal
+// to vertical without a pause never reaches wheelIdle and stays locked.
+//
+//   - wheelSwitchAfter: the run has lasted this long. A terminal may turn one
+//     trackpad event into a bundle of buttons that arrive at the same moment, so
+//     a count alone would let a fast flick make a long run in no time.
+//   - wheelSwitchCount: the run has this many events that came at different
+//     times (buttons of one moment count once). A time alone would let two slow
+//     events, 50ms or more apart, switch the lock in a slow or ending swipe.
+const (
+	wheelSwitchAfter = 50 * time.Millisecond
+	wheelSwitchCount = 3
+)
 
 // wheelLock keeps one gesture of the wheel on one axis. A terminal reports the
 // wheel as buttons with no amount, and a trackpad swiped a little off the
@@ -28,11 +34,13 @@ const wheelSwitchAfter = 50 * time.Millisecond
 // the other axis are dropped. The gesture ends when no wheel event has come
 // for wheelIdle. Dropped events count as events, so a diagonal swipe does not
 // end the gesture in the middle. The lock moves to the other axis early when
-// events of that axis have come for wheelSwitchAfter without one of the locked axis.
+// events of that axis have come long enough and often enough (see wheelSwitchAfter).
 type wheelLock struct {
 	last       time.Time
 	horizontal bool
 	otherSince time.Time        // when the run of other-axis events began; zero if none
+	otherLast  time.Time        // time of the latest event of the run
+	otherCount int              // events of the run that came at different times
 	now        func() time.Time // time.Now unless a test sets it
 }
 
@@ -63,15 +71,19 @@ func (w *wheelLock) allow(msg core.Mouse, shiftSideways bool) bool {
 	}
 	w.last = t
 	if w.horizontal == horizontal {
-		w.otherSince = time.Time{}
+		w.otherSince, w.otherLast, w.otherCount = time.Time{}, time.Time{}, 0
 		return true
 	}
 	if w.otherSince.IsZero() {
 		w.otherSince = t
 	}
-	if t.Sub(w.otherSince) >= wheelSwitchAfter {
+	if !t.Equal(w.otherLast) {
+		w.otherLast = t
+		w.otherCount++
+	}
+	if w.otherCount >= wheelSwitchCount && t.Sub(w.otherSince) >= wheelSwitchAfter {
 		w.horizontal = horizontal // the swipe has turned
-		w.otherSince = time.Time{}
+		w.otherSince, w.otherLast, w.otherCount = time.Time{}, time.Time{}, 0
 		return true
 	}
 	return false
