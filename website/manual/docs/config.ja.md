@@ -61,7 +61,7 @@
 この版が読まない項目は、間違いではありません。shijimi-editor は無視して起動します。新しい版用に書いた項目があっても古い版が起動するので、1 つのファイルを版の違う shijimi-editor で使えます。Helix にあっても shijimi-editor が読まない項目（`languages.toml` の `comment-token` など）も同じです。このマニュアルに載っている項目だけを読みます。
 
 - `shj` は、起動したときと `:config-reload` のあとに、無視した最初の項目（ファイルの場所と行つき）をステータス行に出します。
-- kisui-terminal の設定（`[server]`・`[gui]`）は、これらのファイルからは読みません。kisui-terminal は自分の設定ファイルを持っています（kisui-terminal の README）。ファイルに残っているこれらの項目は、ほかの項目と同じく無視します。
+- kisui-terminal の設定（`[server]`・`[gui]`。`[[gui.machines]]` など）は、これらのファイルからは読みません。kisui-terminal は自分の設定ファイル `~/.config/kisui-terminal/config.toml`（nightly 版は `~/.config/kisui-terminal-nightly/config.toml`）を持っています。そちらへ移してください（kisui-terminal の README）。ここに残っているこれらの項目は、ほかの項目と同じく無視し、`shj` は最初の 1 つをステータス行に出します。
 
 ```
 /home/me/.config/shijimi-editor/config.toml:4: editor.bogus: 知らない項目なので無視しました（新しい版の shijimi-editor 用かもしれません。この版は読みません）

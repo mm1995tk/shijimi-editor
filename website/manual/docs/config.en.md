@@ -61,7 +61,7 @@ While it is running, `:config-reload` with a mistake in a file does not stop the
 A key that this version does not read is not a mistake. shijimi-editor ignores it and starts. This lets one file be used by versions of different ages (a file written for a newer version still starts an older one), and it includes keys that Helix has but shijimi-editor does not read, such as `comment-token` in `languages.toml`. Only the keys in this manual are read.
 
 - `shj` shows the first ignored key (with the file and line) in the status line when it starts, and after `:config-reload`.
-- kisui-terminal's settings (`[server]`, `[gui]`) are not read from these files: kisui-terminal has its own (see its README). Keys of those tables left in a file are ignored like any other key.
+- kisui-terminal's settings (`[server]`, `[gui]`, such as `[[gui.machines]]`) are not read from these files. kisui-terminal has its own file, `~/.config/kisui-terminal/config.toml` (`~/.config/kisui-terminal-nightly/config.toml` for the nightly build); move them there (see its README). Keys of those tables left in a file here are ignored like any other key, and `shj` shows the first one in the status line.
 
 ```
 /home/me/.config/shijimi-editor/config.toml:4: editor.bogus: unknown key, ignored (it may be for a newer shijimi-editor; this version does not read it)

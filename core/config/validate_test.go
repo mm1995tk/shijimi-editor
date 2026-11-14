@@ -238,3 +238,28 @@ func TestLanguageNameIsRequired(t *testing.T) {
 		}
 	}
 }
+
+// kisui-terminal reads its own settings file now. [server] and [gui] left in
+// shijimi-editor's config.toml are keys this version does not read: a warning,
+// not a mistake, so the file still starts the editor.
+func TestKisuiTerminalKeysAreUnknownKeys(t *testing.T) {
+	root, _, write := setup(t)
+	path := write("config.toml", "keymap = \"vscode\"\n\n[server]\nidle_stop_days = 3\n\n[[gui.machines]]\nssh = \"dev\"\n")
+	c, err := Load(root, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Editor.Keymap != "vscode" {
+		t.Fatalf("keymap = %q", c.Editor.Keymap)
+	}
+	got := map[string]int{}
+	for _, w := range c.Warnings {
+		if !w.Warning || w.File != path {
+			t.Fatalf("warning = %+v", w)
+		}
+		got[w.Key] = w.Line
+	}
+	if _, ok := got["gui"]; !ok || got["server"] != 3 || len(got) != 2 {
+		t.Fatalf("warnings = %+v", c.Warnings)
+	}
+}
