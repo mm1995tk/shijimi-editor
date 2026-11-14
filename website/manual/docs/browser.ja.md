@@ -6,7 +6,7 @@ shijimi-editor には、ブラウザも、URL を開くコマンドも入って�
 
 - ターミナルでは、ターミナル自身の方法で開きます。URL のクリックで開けます（iTerm2・WezTerm・Ghostty・kitty など。キーで選んで開ける物もあります）。
 - kisui-terminal では、画面の URL をクリック（`Cmd`/`Ctrl` + クリック）すると、手元のマシンの既定のブラウザで開きます。リモート（ssh）のマシンのターミナルに出た `localhost` の URL は、kisui-terminal が ssh の上でポートを中継し（`kisui relay`）、その先で開きます。kisui-terminal のマニュアルを見てください。
-- [差分モード](review.md)の `Space v o` は、PR を外部ブラウザで開きます（Linux は `xdg-open`、macOS は `open`）。kisui-terminal のワークスペースのプライマリターミナルでは、kisui-terminal が手元のマシンのブラウザで開きます。SSH 先、または開けなかったときは、URL をコピーします。
+- [差分モード](review.md)の `Space v o` は、PR を外部ブラウザで開きます。kisui-terminal のワークスペースのプライマリターミナルでは、SSH 先でも、kisui-terminal が手元のマシンのブラウザで開きます。それ以外では、Linux は `xdg-open`、macOS は `open` で開き、SSH 先では開かずに URL をコピーします。開けなかったときもコピーします。
 
 ## ポート転送
 

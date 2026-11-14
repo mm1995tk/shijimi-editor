@@ -6,7 +6,7 @@ shijimi-editor has no built-in browser and no command that opens a URL. Open web
 
 - In a terminal, use the terminal's own way: click the URL (iTerm2, WezTerm, Ghostty, kitty and others open it with a click or a key).
 - In kisui-terminal, click a URL on the screen (`Cmd`/`Ctrl` + click). It opens in the default browser of your own machine. For a `localhost` URL shown in a terminal on a remote (ssh) machine, kisui-terminal relays the port over ssh (`kisui relay`) and opens the page through it. See the manual of kisui-terminal.
-- `Space v o` in [diff mode](review.md) opens the pull request in an external browser (`xdg-open` on Linux, `open` on macOS). In the primary terminal of a kisui-terminal workspace, kisui-terminal opens it in the browser of your own machine. Over SSH, or if it cannot be opened, the URL is copied instead.
+- `Space v o` in [diff mode](review.md) opens the pull request in an external browser. In the primary terminal of a kisui-terminal workspace, kisui-terminal opens it in the browser of your own machine, even over SSH. Otherwise it uses `xdg-open` on Linux and `open` on macOS, and over SSH it does not open it but copies the URL. It also copies the URL if it cannot be opened.
 
 ## Port forwarding
 
