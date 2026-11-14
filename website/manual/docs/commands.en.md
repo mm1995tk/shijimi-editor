@@ -62,7 +62,6 @@ In VS Code mode, you can do the same from the command palette (`F1`).
 | `:browser forward <target port> [listen port]` | — | Start port forwarding |
 | `:browser list` | — | List port forwards |
 | `:browser stop <listen port>` | — | Stop port forwarding |
-| `:open-url [URL]` | `:browse` | Open in an external browser (in a browser pane in the primary of kisui-terminal). Without an argument, the URL under the cursor |
 
 ## Agent
 

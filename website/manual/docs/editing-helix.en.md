@@ -128,7 +128,6 @@ Press `Space`, then one of the following keys.
 | `Space m` | Toggle the Markdown preview (side by side → full width → closed) |
 | `Space a` | Send the current context to the agent |
 | `Space i` | Move to / close the suggestions panel |
-| `Space o` | Open the URL under the cursor in an external browser |
 | `Space y` / `Space p` | Copy to / paste from the system clipboard |
 | `Space ?` | Command palette |
 

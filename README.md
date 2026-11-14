@@ -244,7 +244,6 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 | `Space w` | Window (split) menu: `v` split the editor in two side by side, `h` `l` `w` move the focus, `q` `o` close the split |
 | `Space e` | Go to the file tree |
 | `Space k` | Hover. While it is shown, scroll with `Ctrl+D` / `Ctrl+U` (`PgDn` / `PgUp`, wheel); copy the Markdown source with `y` or by clicking `[Copy]` at the top right of the frame |
-| `Space o` | Open the URL under the cursor in the external browser (Linux: `xdg-open` / macOS: `open`) |
 | `Space r` | Rename |
 | `Space .` | Code actions (apply a diagnostic hint) |
 | `Space s` / `Space S` | Symbol list (in the file / in the whole project) |
@@ -263,7 +262,7 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 
 ### `:` commands
 
-`:w` `:w <path>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <path>` `:n <path>` `:bc` `:bc!` `:fmt` `:reload` `:<line number>` `:sh <command>` `:grep [-x exclude-glob] [-i include-glob] <text>` `:replace [-x exclude-glob] [-i include-glob] <text> => <replacement>` `:pr [number]` `:gitdiff [on|off|split|unified]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]` `:open-url [URL]` (without an argument, the URL under the cursor)
+`:w` `:w <path>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <path>` `:n <path>` `:bc` `:bc!` `:fmt` `:reload` `:<line number>` `:sh <command>` `:grep [-x exclude-glob] [-i include-glob] <text>` `:replace [-x exclude-glob] [-i include-glob] <text> => <replacement>` `:pr [number]` `:gitdiff [on|off|split|unified]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]`
 
 ### Global
 

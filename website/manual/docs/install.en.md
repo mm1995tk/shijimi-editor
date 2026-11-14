@@ -35,7 +35,7 @@ shijimi alone is enough for editing. The following features need other commands.
 | mermaid diagrams | [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) (`mmdc`) |
 | Writing the configuration in Nix | `nix` |
 | Copying to and pasting from the system clipboard (`Space y` / `Space p`) | `wl-copy` and `wl-paste` on Wayland, `xclip` or `xsel` on X11, `pbcopy` and `pbpaste` on macOS (included with macOS). If none is available, only shijimi's internal clipboard is used |
-| Opening the URL under the cursor in an external browser (`Space o`) | `xdg-open` on Linux, `open` on macOS (included with macOS) |
+| Opening the pull request in an external browser (`Space v o`) | `xdg-open` on Linux, `open` on macOS (included with macOS) |
 | Icons in the file tree | A terminal configured with a Nerd Font |
 
 ## Starting

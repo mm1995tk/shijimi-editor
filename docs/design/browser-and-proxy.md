@@ -2,7 +2,7 @@
 
 Issue #15 の検討結果。方式を決め、実装は個別の Issue に分ける。
 
-> **内蔵ブラウザ（ブラウザタブ）は #116 で外した。** GUI にはブラウザの欄を足した（#556。末尾の「GUI のブラウザの欄」）。TUI に残っているのはポート転送（`:browser forward`）と外部ブラウザ連携（`:open-url`）だけ。理由は末尾の「内蔵ブラウザを外した理由」。この文書の他の部分は、当時の検討の記録として残す。
+> **内蔵ブラウザ（ブラウザタブ）は #116 で外した。** GUI に足したブラウザの欄（#556）も、kisui-terminal の #96 で外した（末尾の「GUI の外部ブラウザ」）。TUI に残っているのはポート転送（`:browser forward`）と、PR を外部ブラウザで開く操作（`Space v o`）だけ。URL を開く `:open-url` は #646 で外した。理由は末尾の「内蔵ブラウザを外した理由」。この文書の他の部分は、当時の検討の記録として残す。
 
 ## 結論
 
@@ -50,7 +50,7 @@ Kitty graphics protocol による高解像度表示と動画の再生は、Chrom
 
 ## Issue の分割
 
-1. #33 外部ブラウザで URL を開く（`:open-url`、`xdg-open` / `open`）
+1. #33 外部ブラウザで URL を開く（`:open-url`、`xdg-open` / `open`。#646 で外した）
 2. #34 ヘッドレス Chromium による「Web ページ → 画像」レンダラ（#14 と共有）
 3. #36 エディタ内のブラウザビュー（URL 入力、再読み込み、スクロール）
 4. #37 ポート転送プロキシ（`:browser forward`）と一覧表示
@@ -80,16 +80,18 @@ Chromium を shijimi と同じマシン（多くは SSH 先の VM）で動かし
 
 根本から直すには、ブラウザを手元のマシンで動かし、手元に中継プログラムを置いて端末への出力に画像を混ぜる必要がある（terminal-browser の `--ssh` と同じ形）。費用に見合わないため、ブラウザ機能を外し、ポート転送と手元のブラウザで見る形に戻した。
 
-## GUI のブラウザの欄（#556）
+## GUI の外部ブラウザ（kisui-terminal の #96。内蔵ブラウザの欄 #556 は外した）
 
-GUI は手元のマシンで動くので、手元でページを開ける。#116 で外した理由（リモートの Chromium の画面を送る重さ）は当てはまらない。GUI の欄の種類として足し、ターミナルの隣でページを見られるようにした。欄の持ち方と通信は gui-protocol.md の「ターミナルでない欄」。
+GUI には #556 で、ページをターミナルの隣に出す「ブラウザの欄」（Tauri の子の webview）を足したが、kisui-terminal の #96 で外した。理由は次の通り。
 
-- **開く**：GUI のプライマリの shj で `:open-url <URL>`（`Space o` も同じ）を実行すると、`App.OpenURL` が既定のブラウザを呼ばず、`ctl.PaneRequest` の `{op: "open", kind: "browser", url}` を送る。新しいコマンドは作らない（`:open-url` の宛先が変わるだけ）。GUI のプライマリでない shj は今まで通り外部ブラウザ。
-- **ページは別の webview**：外のサイトの多くは `X-Frame-Options`・`frame-ancestors` で `iframe` に出せない。欄の本文は空の箱にして、その位置と大きさに Tauri の子の webview（`Window::add_child`。tauri の `unstable` feature）を重ねる（`ui/gui/app/src-tauri/src/browser.rs`）。位置は画面（`BrowserView.tsx`）がフレームごとに見て、変わったときだけ `browser_bounds` で知らせる。webview は HTML より上に出るので、欄を出していないとき・窓のカード（`dialog[open]`）が出ているときは隠す。
-- **外のページに Tauri の API を渡さない**：子の webview は `WebviewUrl::External` で作る。tauri は、`remote` を持つ capability が無い限り、外の URL からの IPC を（プラグインも自前の命令も）断る（`webview/mod.rs` の `!is_local`）。`capabilities/default.json` に `remote` を書かない（`browser.rs` のテストが確かめる）。そのうえで、欄の命令は呼んだ webview が `main` かを確かめる。子の webview の遷移は http・https・about だけを許し、新しい窓（`target=_blank`）は開かずに同じ欄で開く。開く URL は http・https だけで、ユーザー名とパスワードを含むものは断る（kisui serve と殻の両方で確かめる）。`tauri.conf.json` の `csp: null` は変えない（この CSP はアプリ自身のページのもので、外のページには掛からない）。
-- **リモートのマシンの `localhost`**：ワークスペースのマシンが ssh の先のとき、host が `localhost`・`127.0.0.1`・`[::1]`・`0.0.0.0` の URL は、GUI がその欄のために `ssh -N -L 127.0.0.1:<空きポート>:localhost:<ポート> <ホスト>` を張り（`ExitOnForwardFailure=yes`。質問は GUI の窓に出る askpass）、`http://127.0.0.1:<空きポート>/…` で開く。URL 欄には遷移のたびに `localhost:<ポート>` に戻した形を出す。転送は欄ごとに 1 本で、欄を閉じるか、GUI が終わるときに止める。ほかの host は、手元から直接開く。kisui serve のポートや HTTP を中継しない（ページを取るのは手元の webview）。
-- **欄**：ターミナルと同じ升目の 1 つで、タブにはしない。ブラウザの欄はワークスペースに 1 つ（開き直すと入れ替わる）。見出しに戻る・進む・再読み込み（`history.back()`・`history.forward()`・`location.reload()` を殻が実行する）・アドレス欄・閉じる。アドレス欄はスキームの無い入力を補う（自分のマシンなら http、ほかは https）。
-- **キー**：欄を前に出したとき、キーは子の webview ではなく欄の枠に向ける。子の webview にキーがあると GUI のショートカットが効かず、戻れなくなるため。ページを押すとページにキーが移る。
-- **パスキー（WebAuthn）は欄では使えない**：Linux の WebKitGTK は WebAuthn を持たず、macOS の WKWebView は任意のサイトに使わせるのにブラウザ用の entitlement が要る。Issue のオーナーのコメント「1Password のパスキーを使えること」は、ユーザーが「パスキーは諦めて外部ブラウザにしよう」と決めた（2026-11-06）ので、欄に「外部ブラウザで開き直す」ボタン（↗。殻の `browser_external`）を置いて逃がす。開くのは子の webview のいまの URL を `xdg-open`（macOS は `open`）に渡すだけで、リモートの localhost 系は転送越しの URL のまま手元から開く。
-- **絶対 URL の localhost**：リモートの欄で、ページの中のリンクやリダイレクトが絶対 URL の `http://localhost:…` を指すと転送を通らない（対処は別の Issue）。
-- **しないこと**：ターミナルの中のリンクを押したときにこの欄で開く（今のターミナルは URL のリンクを開く道を持たない。別の Issue）。ワークスペースを切り替えても開いたままにする（欄は表示中のワークスペースのものだけを描く。戻ると最初の URL から開き直す）。履歴・ブックマーク・複数のタブ。
+- 見づらく、操作感が良くない。
+- パスキー（WebAuthn）が使えない（macOS の WKWebView・Linux の WebKitGTK の制約）。
+- Netflix など DRM の動画が再生できない。
+
+ページは手元の外部ブラウザ（OS 既定のブラウザ）で開く。その後 #646 で、shj から URL を開く `:open-url`（別名 `:browse`）と `Space o` も外した。ターミナルの URL のクリックで開けるのと、普通のターミナルにも URL を開く手段があるのと、ssh の先で shj を使うと `xdg-open` が ssh の先のマシンで動いて手元のブラウザは開かないため、shj が URL を開く必要は小さい。
+
+- **shj に残る入口は PR を開く操作だけ**：`Space v o`（`openPRURL`）が `port.OpenURL` を呼ぶ。GUI のプライマリの shj は `ctl.PaneRequest` の `{op: "open", kind: "browser", url}` を送り、kisui serve が GUI に通知して、GUI が手元の外部ブラウザで開く（ペインは作らず、返事に `id` は無い）。GUI のプライマリでない shj は `xdg-open` / `open`（ssh の先では開かず、URL をコピーする）。language server の `window/showDocument` が http・https の URL を指したときも `port.OpenURL` を通る。
+- **ターミナルの URL**：クリック（`cmd + click`・`cmd + shift + click`。macOS 以外は ctrl）は kisui-terminal の中で済み、手元の外部ブラウザで開く。
+- **リモートのマシンの `localhost`**：ワークスペースのマシンが ssh の先のとき、`localhost` 系の URL は kisui-terminal が `kisui relay` で ssh の上に中継し、手元のポートの URL で開く（ポート転送の `ssh -L` は使わない）。取り決めは kisui-terminal の `docs/design/relay.md`。
+
+ポート転送（`:browser forward`）はこの変更に関係なく残る。

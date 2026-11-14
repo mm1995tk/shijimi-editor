@@ -35,7 +35,7 @@ shijimi 本体だけで編集はできます。次の機能は、別のコマン
 | mermaid の図 | [mermaid-cli](https://github.com/mermaid-js/mermaid-cli)（`mmdc`） |
 | 設定を Nix で書く | `nix` |
 | システムのクリップボードへのコピーと貼り付け（`Space y` / `Space p`） | Wayland は `wl-copy` と `wl-paste`、X11 は `xclip` か `xsel`、macOS は `pbcopy` と `pbpaste`（macOS には最初から入っている）。無いときは shijimi の中のクリップボードだけを使う |
-| カーソル位置の URL を外部ブラウザで開く（`Space o`） | Linux は `xdg-open`、macOS は `open`（macOS には最初から入っている） |
+| PR を外部ブラウザで開く（`Space v o`） | Linux は `xdg-open`、macOS は `open`（macOS には最初から入っている） |
 | ファイルツリーのアイコン | Nerd Font を設定したターミナル |
 
 ## 起動

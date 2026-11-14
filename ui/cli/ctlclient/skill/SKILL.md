@@ -26,7 +26,7 @@ GUI のワークスペースのターミナル（環境変数 `SHIJIMI_GUI_WORKS
 - 差分: `:pr <番号>`（プルリクエストの base と比べる差分モードにする）
 - LSP: `:fmt`、`:signature`、`:lsp-restart`
 - 設定: `:theme <名前>`、`:keymap [helix|vscode]`、`:config-reload`
-- そのほか: `:browser forward|list|stop`、`:open-url <URL>`
+- そのほか: `:browser forward|list|stop`
 
 ## exec で使えないもの
 

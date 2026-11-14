@@ -19,7 +19,6 @@ var spaceItems = []SpaceItem{
 	{"f", "space.openfile", false},
 	{"b", "space.buffers", false},
 	{"k", "space.hover", true},
-	{"o", "space.openurl", false},
 	{"r", "space.rename", true},
 	{".", "lspui.codeactions", true},
 	{"s", "space.symbols", true},
