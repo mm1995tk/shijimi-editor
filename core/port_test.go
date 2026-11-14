@@ -17,7 +17,7 @@ func TestPortGetsClipboardAndURL(t *testing.T) {
 	if f.clip != "hello" || a.Clipboard != "hello" {
 		t.Fatalf("clip %q, register %q", f.clip, a.Clipboard)
 	}
-	if effs := a.ExecCommand("open-url https://a.example"); len(effs) != 0 {
+	if effs := a.openURL("https://a.example"); len(effs) != 0 {
 		t.Fatalf("effects %#v", effs)
 	}
 	if len(f.urls) != 1 || f.urls[0] != "https://a.example" || a.MsgErr {
@@ -64,7 +64,7 @@ func runOf(t *testing.T, effs []Effect) Event {
 }
 
 // The pull request's URL is copied when it could not be opened; a plain
-// :open-url that fails afterwards is an error.
+// URL opened some other way (a language server asks for it) that fails afterwards is an error.
 func TestOpenPRURLCopiesOnFail(t *testing.T) {
 	const url = "https://github.com/o/r/pull/7"
 	for name, err := range map[string]error{"remote": ErrRemoteSession, "other": errors.New("boom")} {
@@ -83,7 +83,7 @@ func TestOpenPRURLCopiesOnFail(t *testing.T) {
 	a := newTestApp(t, "x\n")
 	a.Gd.Pr = &PrInfo{URL: url}
 	a.openPRURL()
-	a.ExecCommand("open-url " + url)
+	a.openURL(url)
 	a.Update(OpenURLResult{URL: url, Err: errors.New("boom")})
 	if a.Clipboard != "" || !a.MsgErr {
 		t.Fatalf("plain open copied: clip %q err %v", a.Clipboard, a.MsgErr)

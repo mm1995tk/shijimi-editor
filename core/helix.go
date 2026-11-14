@@ -323,8 +323,6 @@ func (a *Core) SpaceMode(key string) []Effect {
 		return a.BufferPicker()
 	case "k":
 		return a.hover()
-	case "o":
-		return a.openURL("")
 	case "r":
 		return a.rename()
 	case ".":

@@ -95,7 +95,6 @@ func defaultCommands() []Command {
 		{msg.T("cmd.treenewfolder"), msg.S("A"), func(a *Core) []Effect { return a.newFolder() }},
 		{msg.T("cmd.treerename"), msg.S("r"), func(a *Core) []Effect { return a.renameFile() }},
 		{msg.T("cmd.treedelete"), msg.S("d"), func(a *Core) []Effect { return a.deleteFile() }},
-		{msg.T("cmd.openurl"), msg.S("Space o / :open-url"), func(a *Core) []Effect { return a.openURL("") }},
 		{msg.T("cmd.browserlist"), msg.S(":browser list"), func(a *Core) []Effect { return a.ExecCommand("browser list") }},
 		{msg.T("cmd.theme"), msg.T("cmd.theme.key"), func(a *Core) []Effect { return a.themePicker() }},
 		{msg.T("cmd.keymap"), msg.S(":keymap"), func(a *Core) []Effect { return a.ExecCommand("keymap") }},
@@ -367,8 +366,6 @@ func (a *Core) ExecCommand(line string) []Effect {
 		} else {
 			a.InfoText(msg.T("cmd.keymap.vscode"))
 		}
-	case "open-url", "browse":
-		return a.openURL(arg)
 	case "tree", "explorer":
 		a.SetSide(true)
 		return a.SetFocus(FocusExplorer)

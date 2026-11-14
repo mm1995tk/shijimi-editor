@@ -27,10 +27,10 @@ func (a *App) WriteClipboard(s string) {
 }
 
 // OpenURL opens url and tells the core how it went (core.OpenURLResult). In the
-// primary terminal of a GUI workspace it asks the GUI for a browser pane beside
-// the terminals (the page may be on this machine, which only the GUI can reach
-// from the user's screen). Elsewhere it uses the opener of this machine, and over
-// SSH it does not try: the browser would not appear on the user's screen.
+// primary terminal of a GUI workspace it asks the GUI, which opens the URL in the
+// browser of the machine it runs on (the editor may run on another machine, over
+// SSH, where a browser opened here would not appear on the user's screen).
+// Elsewhere it uses the opener of this machine, and over SSH it does not try.
 func (a *App) OpenURL(url string) {
 	if g := a.mux.gui; g != nil {
 		a.later = append(a.later, func() tea.Msg {

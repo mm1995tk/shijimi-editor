@@ -226,7 +226,7 @@ func TestGUIOpenMedia(t *testing.T) {
 	}
 }
 
-// :open-url in the primary shj asks the GUI for a browser pane, even over SSH; the other shj uses the opener.
+// Opening a URL (the pull request's, for one) in the primary shj asks the GUI, even over SSH; the other shj uses the opener.
 func TestGUIOpenURL(t *testing.T) {
 	a := newTestApp(t, "hello")
 	oldSSH := core.IsRemoteSession
@@ -242,12 +242,14 @@ func TestGUIOpenURL(t *testing.T) {
 	core.OpenExternal = func(string) error { t.Fatal("the opener must not run in the GUI"); return nil }
 	defer func() { core.OpenExternal = old }()
 
-	runCmd(a, a.effectCmd(a.ExecCommand("open-url http://localhost:3000/x")...))
+	a.OpenURL("http://localhost:3000/x")
+	runLater(a)
 	if len(got) != 1 || got[0].Op != "open" || got[0].Kind != "browser" || got[0].URL != "http://localhost:3000/x" || a.MsgErr {
 		t.Fatalf("request: %+v err %v %q", got, a.MsgErr, a.Msg)
 	}
 	fail = errors.New("too many panes")
-	runCmd(a, a.effectCmd(a.ExecCommand("open-url https://example.com")...))
+	a.OpenURL("https://example.com")
+	runLater(a)
 	if !a.MsgErr {
 		t.Fatalf("a refusal is an error on the status line: %q", a.Msg)
 	}
