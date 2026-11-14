@@ -4,14 +4,10 @@
 package config
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -135,18 +131,16 @@ type Config struct {
 	values map[string]Value
 }
 
-// nixEvalTimeout bounds one `nix eval`.
-const nixEvalTimeout = 15 * time.Second
-
 // Load merges built-in defaults, the user's `~/.config/shijimi-editor/`
 // (`~/.config/shijimi-editor-nightly/` for a nightly build, see Options and userDir), and
 // the project's `.shijimi-editor/` directory (later ones win). Helix's own config
-// directories are not read. In each directory
-// `config.nix` / `languages.nix` are evaluated with `nix eval --json` and
-// applied after the TOML file of the same name.
+// directories are not read. In each directory `config.local.toml` is applied
+// after `config.toml`, and `languages.local.toml` after `languages.toml`: the
+// local files hold what one person changes on one machine (the home-manager
+// module writes a read-only `config.toml`, and a project's files are shared
+// through git), and they are merged the same way the directories are.
 //
-// A mistake in a file (TOML syntax, a value of the wrong type, a Nix file that
-// does not evaluate) is an *Error that lists every mistake with its file, line
+// A mistake in a file (TOML syntax, a value of the wrong type) is an *Error that lists every mistake with its file, line
 // and reason. A key that is not read is not a mistake: it is ignored and listed
 // in Config.Warnings, so that a file written for a newer version loads. The Config returned with it is
 // still usable for what it needs before it reports (the UI language), but the
@@ -171,17 +165,16 @@ func Load(root string, o Options) (*Config, error) {
 		path string
 		user bool
 	}
-	// the files of a directory, in the order they are applied: a Nix file after the TOML of the same name
+	// the files of a directory, in the order they are applied: a .local.toml after the .toml of the same name
 	files := []struct {
 		name   string
 		schema map[string]field
-		read   func(path string, schema map[string]field, user bool) (map[string]any, []Problem, bool)
 		config bool // config.*, otherwise languages.*
 	}{
-		{"config.toml", schema, readTOML, true},
-		{"config.nix", schema, readNix, true},
-		{"languages.toml", languagesSchema, readTOML, false},
-		{"languages.nix", languagesSchema, readNix, false},
+		{"config.toml", schema, true},
+		{"config.local.toml", schema, true},
+		{"languages.toml", languagesSchema, false},
+		{"languages.local.toml", languagesSchema, false},
 	}
 	var dirs []configDir
 	if d, ok := userConfigDir(); ok {
@@ -191,7 +184,7 @@ func Load(root string, o Options) (*Config, error) {
 	for _, dir := range dirs {
 		for _, f := range files {
 			path := filepath.Join(dir.path, f.name)
-			raw, ps, ok := f.read(path, f.schema, dir.user)
+			raw, ps, ok := readTOML(path, f.schema, dir.user)
 			probs = append(probs, ps...)
 			if !ok {
 				continue
@@ -218,7 +211,7 @@ func Load(root string, o Options) (*Config, error) {
 	return c, nil
 }
 
-// mergeConfigRaw applies a decoded config.toml / config.nix. user is whether
+// mergeConfigRaw applies a decoded config.toml or config.local.toml. user is whether
 // it is from the user's own directory.
 func (c *Config) mergeConfigRaw(raw map[string]any, user bool) {
 	c.mergeEditorRaw(raw)
@@ -265,22 +258,6 @@ func readTOML(path string, schema map[string]field, user bool) (raw map[string]a
 	return raw, validate(raw, schema, path, string(data), user), true
 }
 
-// readNix evaluates a Nix file and checks the result. found is false when the
-// file does not exist or does not evaluate.
-func readNix(path string, schema map[string]field, user bool) (raw map[string]any, probs []Problem, found bool) {
-	raw, exists, err := evalNix(path)
-	if !exists {
-		return nil, nil, false
-	}
-	if errors.Is(err, errNixTop) {
-		return nil, []Problem{{File: path, code: "config.err.nixtop"}}, false
-	}
-	if err != nil {
-		return nil, []Problem{{File: path, code: "config.err.nix", args: []any{err.Error()}}}, false
-	}
-	return raw, validate(raw, schema, path, "", user), true
-}
-
 // UserDir returns the user's own configuration directory, such as
 // ~/.config/shijimi-editor, for messages that tell where to write a setting.
 func UserDir(o Options) (string, bool) {
@@ -319,68 +296,6 @@ func userConfigDir() (string, bool) {
 		return "", false
 	}
 	return filepath.Join(home, ".config"), true
-}
-
-// evalNix evaluates a Nix file to JSON and returns it in the shape the TOML
-// decoder produces, so both formats share one merge path. exists is false when
-// there is no such file; err is why a file that exists could not be
-// evaluated (nix is not installed, evaluation fails, the result is not an
-// attribute set).
-// errNixTop is the result of a Nix file that is not an attribute set.
-var errNixTop = errors.New("not an attribute set")
-
-func evalNix(path string) (raw map[string]any, exists bool, err error) {
-	if _, err := os.Stat(path); err != nil {
-		return nil, false, nil
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), nixEvalTimeout)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, "nix", "--extra-experimental-features", "nix-command",
-		"eval", "--json", "--file", path).Output()
-	if err != nil {
-		if ee, ok := errors.AsType[*exec.ExitError](err); ok {
-			return nil, true, errors.New(lastLines(string(ee.Stderr)))
-		}
-		if ctx.Err() != nil {
-			return nil, true, fmt.Errorf("nix eval did not finish in %s", nixEvalTimeout)
-		}
-		return nil, true, err
-	}
-	if err := json.Unmarshal(out, &raw); err != nil || raw == nil {
-		return nil, true, errNixTop
-	}
-	for k, v := range raw {
-		raw[k] = normalizeJSON(v)
-	}
-	return raw, true, nil
-}
-
-// lastLines is the end of a nix error message, where the reason is.
-func lastLines(s string) string {
-	lines := strings.Split(strings.TrimSpace(s), "\n")
-	if len(lines) > 3 {
-		lines = lines[len(lines)-3:]
-	}
-	return strings.TrimSpace(strings.Join(lines, " "))
-}
-
-// normalizeJSON turns integral JSON numbers into int64, as the TOML decoder does.
-func normalizeJSON(v any) any {
-	switch v := v.(type) {
-	case map[string]any:
-		for k, x := range v {
-			v[k] = normalizeJSON(x)
-		}
-	case []any:
-		for i, x := range v {
-			v[i] = normalizeJSON(x)
-		}
-	case float64:
-		if v == float64(int64(v)) {
-			return int64(v)
-		}
-	}
-	return v
 }
 
 func (c *Config) mergeBrowserRaw(raw map[string]any) {

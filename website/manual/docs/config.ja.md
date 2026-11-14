@@ -7,8 +7,8 @@
 次の順に読み込みます。後のものが優先されます。
 
 1. 組み込みの既定値
-2. `~/.config/shijimi-editor/languages.toml`、`~/.config/shijimi-editor/config.toml`
-3. プロジェクトの `.shijimi-editor/languages.toml`、`.shijimi-editor/config.toml`
+2. `~/.config/shijimi-editor/` の `config.toml`、その次に `config.local.toml`。`languages.toml`、その次に `languages.local.toml`
+3. プロジェクトの `.shijimi-editor/` の `config.toml`、その次に `config.local.toml`。`languages.toml`、その次に `languages.local.toml`
 
 `~/.config` は、`$XDG_CONFIG_HOME` があればその場所です。macOS も含めて、OS を問わずこの場所から読みます（`~/Library/Application Support` からは読みません）。
 
@@ -16,11 +16,30 @@
 - `config.toml` にはそれ以外を書きます（このページ）。
 - 実行中に `:config-reload` を実行すると、読み直します。
 - 間違いのあるファイルがあると、shijimi-editor は起動しません。知らない項目は警告だけです（[ファイルに間違いがあるとき](#ファイルに間違いがあるとき)）。
-- `[agent]` はユーザー自身の `config.toml`（`~/.config/shijimi-editor/config.toml`、または下の nightly 版のディレクトリ）からだけ読みます（[AI エージェント連携](agent.md)）。
+- `[agent]` はユーザー自身の `config.toml` と `config.local.toml`（`~/.config/shijimi-editor/`、または下の nightly 版のディレクトリ）からだけ読みます（[AI エージェント連携](agent.md)）。
+- `config.nix`・`languages.nix` は読みません。設定は TOML で書いてください（home-manager では `settings` と `languages` に書きます。[Nix と home-manager](nix.md)）。
+
+## 手元だけのファイル
+
+`config.local.toml`・`languages.local.toml` は、自分の手元だけで変えるものを書くファイルです。同じフォルダの `config.toml`・`languages.toml` より優先されます。
+
+- home-manager が書き出す `config.toml`・`languages.toml` は読み取り専用です。そのマシンだけで変えたいものは `~/.config/shijimi-editor/config.local.toml` に書きます。
+- プロジェクトの `.shijimi-editor/config.toml` は git で共有します。そのプロジェクトでの自分だけの設定は `.shijimi-editor/config.local.toml` に書き、手元だけのファイルをプロジェクトの `.gitignore` に入れてください。
+
+```gitignore
+.shijimi-editor/*.local.toml
+```
+
+どのファイルも、それより前に読んだものの上に重ねます。`.local` のファイルも、次のフォルダも、重ね方は同じです。
+
+- 表（`[editor]`・`[search]`・`[keys.normal]` など）は項目ごとに重ねます。書かなかった項目は前の値のままです。ただし `environment`（`[agent]` と言語サーバーのもの）は丸ごと置き換えます。
+- それ以外の値は、配列（`search.exclude`・`args`・`file-types` など）も含めて丸ごと置き換えます。
+- `languages.toml` では、同じ名前の `[language-server.<名前>]` と、同じ `name` の `[[language]]` を項目ごとに重ねます。言語サーバーの `config` は表ごとに重ねます。
+- ユーザー自身のフォルダからだけ読むもの（`[agent]`・`[keys]`）は、`~/.config/shijimi-editor/config.local.toml` からも読みます。プロジェクトの `.shijimi-editor/config.local.toml` に書くと間違いです。
 
 ## ファイルに間違いがあるとき
 
-どれか 1 つのファイルに間違いがあると、`shj` も `kisui serve` も起動しません。間違い全部について、ファイルの場所・行・理由を出して、0 以外で終わります。
+どれか 1 つのファイルに間違いがあると、`shj` は起動しません。間違い全部について、ファイルの場所・行・理由を出して、0 以外で終わります。
 
 ```
 /home/me/.config/shijimi-editor/config.toml:3: editor.file-icons: true か false で書いてください（今は 文字列 です）
@@ -29,21 +48,20 @@
 
 次のものが間違いです。
 
-- TOML の書き方の間違い。評価できない Nix のファイル（`config.nix` / `languages.nix`）。Nix には行が無いので、行の代わりに項目の名前を出します。
-- 型の違い（数を書くところに文字を書いた、など）と、使えない値（`ui-language`、`[terminal]` の `multiplexer`、負の `idle_stop_days`、0 以下の `timeout`、フォルダでない `start_dir`）。値が決まっている項目では、新しい版で足された値も、この版では使えないので止まります（メッセージに「値が正しくないか、この版の shijimi-editor では使えない値です」と出ます）。
-- プロジェクトの `.shijimi-editor/config.toml` に書いた `[agent]`・`[server]`・`[gui]`・`[keys]`。これらはユーザー自身のフォルダからだけ読みます。
+- TOML の書き方の間違い。
+- 型の違い（数を書くところに文字を書いた、など）と、使えない値（`ui-language`、`[terminal]` の `multiplexer`、0 以下の `timeout`）。値が決まっている項目では、新しい版で足された値も、この版では使えないので止まります（メッセージに「値が正しくないか、この版の shijimi-editor では使えない値です」と出ます）。
+- プロジェクトの `.shijimi-editor/config.toml`・`config.local.toml` に書いた `[agent]`・`[keys]`。これらはユーザー自身のフォルダからだけ読みます。
 
 以前のバージョンは、これらの間違いを黙って無視していました。更新したあと、今まで起動できたファイルで起動しなくなることがあります。出たメッセージの場所を直してください。
 
-起動中の `:config-reload` で間違いが見つかっても、エディタは止まりません。今の設定のまま、最初の間違いをステータス行に出します。ユーザー自身のファイルの間違いは `kisui serve` 自体を止め、`kisui attach` がその理由を kisui-terminal の接続エラーとして渡します。
+起動中の `:config-reload` で間違いが見つかっても、エディタは止まりません。今の設定のまま、最初の間違いをステータス行に出します。
 
 ## 知らない項目は無視します
 
 この版が読まない項目は、間違いではありません。shijimi-editor は無視して起動します。新しい版用に書いた項目があっても古い版が起動するので、1 つのファイルを版の違う shijimi-editor で使えます。Helix にあっても shijimi-editor が読まない項目（`languages.toml` の `comment-token` など）も同じです。このマニュアルに載っている項目だけを読みます。
 
 - `shj` は、起動したときと `:config-reload` のあとに、無視した最初の項目（ファイルの場所と行つき）をステータス行に出します。
-- `kisui serve` は、無視した項目を全部、標準エラーに出してログにも書き、そのまま動きます。
-- `[gui]` の中の知らない項目も同じです。
+- kisui-terminal の設定（`[server]`・`[gui]`）は、これらのファイルからは読みません。kisui-terminal は自分の設定ファイルを持っています（kisui-terminal の README）。ファイルに残っているこれらの項目は、ほかの項目と同じく無視します。
 
 ```
 /home/me/.config/shijimi-editor/config.toml:4: editor.bogus: 知らない項目なので無視しました（新しい版の shijimi-editor 用かもしれません。この版は読みません）
@@ -109,27 +127,7 @@ multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "gui
 [agent]
 command = "claude-agent-acp"
 args = []
-
-[server]
-idle_stop_days = 7        # 0 = never stop
-start_dir = "~/work"      # 新しいワークスペースのシェルを始めるフォルダ（既定 ~）
 ```
-
-## kisui-terminal のマシン
-
-kisui-terminal（`shj` ではなく）は、kisui-terminal を動かしているマシンの config.toml の `[[gui.machines]]` を読み、サイドバーの「ローカル」のあとに出します。使うマシンが決まっている人が、kisui-terminal を入れ直したり別の Mac に入れたりするたびにマシンを足し直さなくて済むようにするものです。
-
-```toml
-[[gui.machines]]
-ssh = "dev-vm"   # ssh の行き先（必須。~/.ssh/config のホスト名など）
-name = "dev"     # サイドバーに出す名前（省くと ssh の行き先）
-```
-
-- kisui-terminal は起動したときにファイルを読みます。nightly 版の kisui-terminal は、`shj-nightly` と同じく `shijimi-editor-nightly/` を読みます（このページの「nightly 版」）。読むのは `config.toml` だけで、`config.nix` は読みません。
-- ここに書いたマシンは、kisui-terminal から外せず、名前も変えられません（右クリックのメニューは押せず、理由が出ます）。変えるには、ファイルを直して kisui-terminal を起動し直します。kisui-terminal で足したマシンは、今までどおり kisui-terminal の中に保存します。
-- kisui-terminal で足したマシンの ssh の行き先がファイルのものと同じなら、ファイルのほうを出します。kisui-terminal で足したマシンの名前がファイルのマシンと同じあいだは、そのマシンは出しません。
-- ファイルに間違い（TOML の書き方、型の違い、使えない ssh の行き先、同じ ssh の行き先や名前が 2 つ、空の `name` や「ローカル」）があると、kisui-terminal は起動しません。ファイルの場所・行・理由だけの画面を出して、ほかは何もしません。直してから kisui-terminal を起動し直してください。`shj` は `[gui]` のあるファイルでも起動します。
-- home-manager では `settings` に書きます（[Nix と home-manager](nix.md)）。
 
 ## 項目
 
@@ -151,8 +149,6 @@ name = "dev"     # サイドバーに出す名前（省くと ssh の行き先�
 | `[keys.normal]` `[keys.insert]` `[keys.select]` | Helix モードのキーの差し替え（`~/.config/shijimi-editor/` だけ） | [編集（Helix モード）](editing-helix.md#キーの差し替え) |
 | `browser.listen-host` | ポート転送の待ち受けアドレス | [外部ブラウザとポート転送](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | 提案パネルが使う ACP エージェント | [AI エージェント連携](agent.md) |
-| `server.start_dir` | 新しいワークスペースのプライマリターミナルが始まるフォルダ（絶対パス、または `~` で始まるパス）。既定は `~`。無いフォルダは設定の間違い。プロジェクトの中なら、ワークスペースのフォルダがそのまま決まる | — |
-| `server.idle_stop_days` | kisui-terminal がつながらないまま `kisui serve` が動き続ける日数。過ぎると自分で止まる（既定 7、0 で止まらない）。動いているシェルも終わる。ワークスペースの一覧（それぞれのフォルダ。フォルダ未定のものも）は `serve.log` の隣の `workspaces.json` に保存され、次の `kisui serve` が作り直す。プライマリターミナルはそのフォルダ（フォルダが無い・未定なら `start_dir`）で新しいシェルを始める。分割したターミナルは戻らない | — |
 
 ## テーマ
 

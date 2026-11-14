@@ -77,3 +77,21 @@ func TestMessageIsInOneLanguage(t *testing.T) {
 		t.Fatalf("message = %q", got)
 	}
 }
+
+// shj does not know the keys of kisui-terminal ([server], [gui]) any more:
+// kisui-terminal does not read shj's files. They are keys nobody reads, a
+// warning and not a stop.
+func TestKisuiKeysAreWarnings(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	dir, _ := config.UserDir(opts())
+	os.MkdirAll(dir, 0o755)
+	for _, c := range []string{"[server]\nidle_stop_days = 3\n", "[[gui.machines]]\nssh = \"dev-vm\"\n"} {
+		os.WriteFile(filepath.Join(dir, "config.toml"), []byte(c), 0o644)
+		cfg, err := config.Load(root, opts())
+		if err != nil || len(cfg.Warnings) != 1 {
+			t.Errorf("%q: err = %v, warnings = %v", c, err, cfg.Warnings)
+		}
+	}
+}

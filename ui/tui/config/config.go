@@ -88,7 +88,7 @@ func Of(c *config.Config) *Settings {
 	return s
 }
 
-// Merge reads the TUI's keys of a decoded config.toml / config.nix.
+// Merge reads the TUI's keys of a decoded config.toml or config.local.toml.
 func (s *Settings) Merge(raw map[string]any, user bool) {
 	if ex, ok := raw["experimental"].(map[string]any); ok {
 		// "herdr" is the old name of "multiplexer"; the new one wins when both are set.

@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -203,36 +202,6 @@ func TestProjectFileIsChecked(t *testing.T) {
 	os.WriteFile(p, []byte("[editor]\nwatch-files = 1\n"), 0o644)
 	ps := problems(t, root)
 	if len(ps) != 1 || ps[0].File != p || ps[0].Line != 2 {
-		t.Fatalf("problems = %+v", ps)
-	}
-}
-
-func TestNixMistakes(t *testing.T) {
-	if _, err := exec.LookPath("nix"); err != nil {
-		t.Skip("nix not available")
-	}
-	root, _, write := setup(t)
-	path := write("config.nix", `{ editor.watch-files = "yes"; nope = 1; }`)
-	ps := problems(t, root)
-	if len(ps) != 1 || ps[0].File != path || ps[0].Line != 0 {
-		t.Fatalf("problems = %+v", ps)
-	}
-	write("config.nix", `{ editor = ; }`)
-	ps = problems(t, root)
-	if len(ps) != 1 || ps[0].File != path || !strings.Contains(ps[0].Error(), path) {
-		t.Fatalf("problems = %+v", ps)
-	}
-	write("config.nix", `[ 1 ]`)
-	if ps = problems(t, root); len(ps) != 1 {
-		t.Fatalf("problems = %+v", ps)
-	}
-}
-
-func TestNixWithoutNixIsAnError(t *testing.T) {
-	root, _, write := setup(t)
-	write("config.nix", `{ }`)
-	t.Setenv("PATH", t.TempDir())
-	if ps := problems(t, root); len(ps) != 1 {
 		t.Fatalf("problems = %+v", ps)
 	}
 }

@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -150,51 +149,101 @@ func TestOnSwitchIsNotRequired(t *testing.T) {
 	}
 }
 
-func TestNixConfig(t *testing.T) {
-	if _, err := exec.LookPath("nix"); err != nil {
-		t.Skip("nix not available")
+// In the home directory and in the project, config.local.toml wins over
+// config.toml and languages.local.toml over languages.toml of the same
+// directory; a table is merged key by key and an array is replaced.
+func TestLocalFilesWin(t *testing.T) {
+	for _, where := range []string{"home", "project"} {
+		t.Run(where, func(t *testing.T) {
+			root := t.TempDir()
+			xdg := t.TempDir()
+			t.Setenv("XDG_CONFIG_HOME", xdg)
+			t.Setenv("HOME", t.TempDir())
+			dir := filepath.Join(root, ".shijimi-editor")
+			if where == "home" {
+				dir = filepath.Join(xdg, "shijimi-editor")
+			}
+			os.MkdirAll(dir, 0o755)
+			write := func(name, text string) {
+				if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			write("config.toml", "keymap = \"vscode\"\n[editor]\nwatch-files = false\nline-number = \"relative\"\n[search]\nexclude = [\"a\", \"b\"]\n")
+			write("config.local.toml", "[editor]\nwatch-files = true\n[search]\nexclude = [\"c\"]\n")
+			write("languages.toml", "[language-server.my-ls]\ncommand = \"one\"\nargs = [\"x\"]\n\n[[language]]\nname = \"go\"\nlanguage-servers = [\"my-ls\"]\n")
+			write("languages.local.toml", "[language-server.my-ls]\ncommand = \"two\"\n")
+			c := load(root)
+			if c.Editor.Keymap != "vscode" || !c.Editor.WatchFiles || c.Editor.LineNumber != "relative" {
+				t.Fatalf("editor = %+v", c.Editor)
+			}
+			if len(c.Search.Exclude) != 1 || c.Search.Exclude[0] != "c" {
+				t.Fatalf("search = %+v", c.Search)
+			}
+			s := c.Servers["my-ls"]
+			if s == nil || s.Command != "two" || len(s.Args) != 1 || s.Args[0] != "x" {
+				t.Fatalf("server = %+v", s)
+			}
+			if l := c.Languages["go"]; len(l.Servers) != 1 || l.Servers[0] != "my-ls" {
+				t.Fatalf("go = %+v", l)
+			}
+		})
 	}
+}
+
+// The project's config.toml wins over the home directory's config.local.toml:
+// the order of the directories comes first.
+func TestProjectWinsOverHomeLocal(t *testing.T) {
 	root := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
 	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(filepath.Join(xdg, "shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(xdg, "shijimi-editor", "config.local.toml"), []byte("keymap = \"vscode\"\n"), 0o644)
 	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
-	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.nix"), []byte(`{
-  keymap = "vscode";
-  search.exclude = [ "*.lock" ];
-  editor = {
-    watch-files = false;
-    auto-save.after-delay = { enable = true; timeout = 250; };
-  };
-}`), 0o644)
-	os.WriteFile(filepath.Join(root, ".shijimi-editor", "languages.nix"), []byte(`{
-  language-server.my-gopls = {
-    command = "gopls";
-    args = [ "serve" ];
-    config.gofumpt = true;
-    environment.GOFLAGS = "-tags=integration";
-  };
-  language = [
-    { name = "go"; language-servers = [ "my-gopls" ]; indent = { tab-width = 4; unit = "\t"; }; }
-    { name = "mylang"; file-types = [ "ml2" { glob = "*.special"; } ]; language-servers = [ { name = "my-gopls"; } ]; }
-  ];
-}`), 0o644)
-	c := load(root)
-	if c.Editor.Keymap != "vscode" || c.Editor.WatchFiles || c.Editor.AutoSaveDelay != 250*time.Millisecond {
-		t.Fatalf("editor = %+v", c.Editor)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.toml"), []byte("keymap = \"helix\"\n"), 0o644)
+	if c := load(root); c.Editor.Keymap != "helix" {
+		t.Fatalf("keymap = %q", c.Editor.Keymap)
 	}
-	if len(c.Search.Exclude) != 1 || c.Search.Exclude[0] != "*.lock" {
-		t.Fatalf("search = %+v", c.Search)
+}
+
+// [agent] and [keys] are read from the home directory's config.local.toml, and
+// are a mistake in the project's, as in config.toml.
+func TestLocalUserOnlyKeys(t *testing.T) {
+	root := t.TempDir()
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("HOME", t.TempDir())
+	os.MkdirAll(filepath.Join(xdg, "shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(xdg, "shijimi-editor", "config.local.toml"), []byte("[agent]\ncommand = \"mine\"\n"), 0o644)
+	if c := load(root); c.Agent.Command != "mine" {
+		t.Fatalf("agent = %+v", c.Agent)
 	}
-	l := c.LanguageFor(filepath.Join(root, "main.go"))
-	if l == nil || len(l.Servers) != 1 || l.Servers[0] != "my-gopls" || l.IndentUnit != "\t" || len(l.Roots) == 0 {
-		t.Fatalf("go = %+v", l)
+	os.MkdirAll(filepath.Join(root, ".shijimi-editor"), 0o755)
+	os.WriteFile(filepath.Join(root, ".shijimi-editor", "config.local.toml"), []byte("[agent]\ncommand = \"evil\"\n"), 0o644)
+	c, err := Load(root, Options{})
+	if err == nil || c.Agent.Command != "mine" {
+		t.Fatalf("a project's [agent] in config.local.toml: err = %v, agent = %+v", err, c.Agent)
 	}
-	s := c.Servers["my-gopls"]
-	if s == nil || s.Args[0] != "serve" || s.Env["GOFLAGS"] != "-tags=integration" || s.Config.(map[string]any)["gofumpt"] != true {
-		t.Fatalf("server = %+v", s)
+}
+
+// config.nix and languages.nix are not read, even when they are broken.
+func TestNixFilesAreNotRead(t *testing.T) {
+	root := t.TempDir()
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	t.Setenv("HOME", t.TempDir())
+	for _, d := range []string{filepath.Join(xdg, "shijimi-editor"), filepath.Join(root, ".shijimi-editor")} {
+		os.MkdirAll(d, 0o755)
+		os.WriteFile(filepath.Join(d, "config.nix"), []byte(`{ keymap = "vscode"; editor = ; }`), 0o644)
+		os.WriteFile(filepath.Join(d, "languages.nix"), []byte(`{ language = [ { name = "mylang"; file-types = [ "ml2" ]; } ]; }`), 0o644)
 	}
-	if l := c.LanguageFor("x.special"); l == nil || l.Name != "mylang" {
-		t.Fatalf("glob = %+v", l)
+	c, err := Load(root, Options{})
+	if err != nil || len(c.Warnings) != 0 || len(c.Sources) != 0 {
+		t.Fatalf("err = %v, warnings = %v, sources = %v", err, c.Warnings, c.Sources)
+	}
+	if c.Editor.Keymap != "helix" || c.LanguageFor("a.ml2") != nil {
+		t.Fatalf("a Nix file was read: %+v", c.Editor)
 	}
 }
 

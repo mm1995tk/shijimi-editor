@@ -7,8 +7,8 @@ Configuration files are written in TOML. `languages.toml` is compatible with Hel
 They are loaded in the following order. Later ones take precedence.
 
 1. Built-in defaults
-2. `~/.config/shijimi-editor/languages.toml`, `~/.config/shijimi-editor/config.toml`
-3. The project's `.shijimi-editor/languages.toml`, `.shijimi-editor/config.toml`
+2. In `~/.config/shijimi-editor/`: `config.toml`, then `config.local.toml`; `languages.toml`, then `languages.local.toml`
+3. In the project's `.shijimi-editor/`: `config.toml`, then `config.local.toml`; `languages.toml`, then `languages.local.toml`
 
 `~/.config` means `$XDG_CONFIG_HOME` when it is set. It is read from there on every OS, macOS included (not from `~/Library/Application Support`).
 
@@ -16,11 +16,30 @@ They are loaded in the following order. Later ones take precedence.
 - Write everything else in `config.toml` (this page).
 - Run `:config-reload` while running to reload them.
 - If a file has a mistake, shijimi-editor does not start. Keys it does not know are only a warning ([If a file has a mistake](#if-a-file-has-a-mistake)).
-- `[agent]` is read only from the user's own `config.toml` (`~/.config/shijimi-editor/config.toml`, or the nightly build's directory below) ([AI agent integration](agent.md)).
+- `[agent]` is read only from the user's own `config.toml` and `config.local.toml` (in `~/.config/shijimi-editor/`, or the nightly build's directory below) ([AI agent integration](agent.md)).
+- `config.nix` and `languages.nix` are not read. Write the settings in TOML (with home-manager, in `settings` and `languages`; [Nix and home-manager](nix.md)).
+
+## Local files
+
+`config.local.toml` and `languages.local.toml` are for what you change on your own machine only. They win over `config.toml` and `languages.toml` of the same folder:
+
+- The `config.toml` and `languages.toml` that home-manager writes are read-only. Write what you want to change on one machine in `~/.config/shijimi-editor/config.local.toml`.
+- A project's `.shijimi-editor/config.toml` is shared through git. Write your own settings for the project in `.shijimi-editor/config.local.toml`, and add the local files to the project's `.gitignore`:
+
+```gitignore
+.shijimi-editor/*.local.toml
+```
+
+Each file is laid over what was read before it, in the same way for a `.local` file and for the next folder:
+
+- A table (`[editor]`, `[search]`, `[keys.normal]`, ...) is merged key by key: a key you do not write keeps its value. `environment` (of `[agent]` and of a language server) is the exception: it is replaced as a whole.
+- Any other value, an array included (`search.exclude`, `args`, `file-types`, ...), is replaced as a whole.
+- In `languages.toml`, a `[language-server.<name>]` and a `[[language]]` with the same `name` are merged key by key; a server's `config` is merged table by table.
+- What is read only from the user's own folder (`[agent]`, `[keys]`) is also read from `~/.config/shijimi-editor/config.local.toml`, and is a mistake in the project's `.shijimi-editor/config.local.toml`.
 
 ## If a file has a mistake
 
-If any file has a mistake, `shj` and `kisui serve` do not start. They print the file, the line and the reason for every mistake, and exit with a non-zero status:
+If any file has a mistake, `shj` does not start. It prints the file, the line and the reason for every mistake, and exits with a non-zero status:
 
 ```
 /home/me/.config/shijimi-editor/config.toml:3: editor.file-icons: must be true or false, but it is a string
@@ -29,21 +48,20 @@ If any file has a mistake, `shj` and `kisui serve` do not start. They print the 
 
 These are mistakes:
 
-- TOML syntax errors, and Nix files (`config.nix` / `languages.nix`) that do not evaluate (Nix has no lines, so the setting is shown instead).
-- Values of the wrong type, such as a string where a number goes, and values that are not allowed (`ui-language`, `[terminal]` `multiplexer`, a negative `idle_stop_days`, `timeout` of 0 or less, a `start_dir` that is not a folder). A setting that has a fixed list of values also stops on a value that a newer version added, because this version cannot use it: the message says "is not valid, or this version of shijimi-editor cannot use it".
-- `[agent]`, `[server]`, `[gui]` and `[keys]` in a project's `.shijimi-editor/config.toml`, because they are read only from the user's own directory.
+- TOML syntax errors.
+- Values of the wrong type, such as a string where a number goes, and values that are not allowed (`ui-language`, `[terminal]` `multiplexer`, `timeout` of 0 or less). A setting that has a fixed list of values also stops on a value that a newer version added, because this version cannot use it: the message says "is not valid, or this version of shijimi-editor cannot use it".
+- `[agent]` and `[keys]` in a project's `.shijimi-editor/config.toml` or `config.local.toml`, because they are read only from the user's own directory.
 
 Older versions ignored these mistakes in silence. After an update, a file that used to start the editor may stop it; fix what the message points at.
 
-While it is running, `:config-reload` with a mistake in a file does not stop the editor. It keeps the current settings and shows the first mistake in the status line. A mistake in the user's own files stops `kisui serve` itself, and `kisui attach` passes the reason to kisui-terminal as the connection error.
+While it is running, `:config-reload` with a mistake in a file does not stop the editor. It keeps the current settings and shows the first mistake in the status line.
 
 ## Unknown keys are ignored
 
 A key that this version does not read is not a mistake. shijimi-editor ignores it and starts. This lets one file be used by versions of different ages (a file written for a newer version still starts an older one), and it includes keys that Helix has but shijimi-editor does not read, such as `comment-token` in `languages.toml`. Only the keys in this manual are read.
 
 - `shj` shows the first ignored key (with the file and line) in the status line when it starts, and after `:config-reload`.
-- `kisui serve` prints every ignored key to the standard error and writes it to its log, then goes on.
-- The same goes for unknown keys inside `[gui]`.
+- kisui-terminal's settings (`[server]`, `[gui]`) are not read from these files: kisui-terminal has its own (see its README). Keys of those tables left in a file are ignored like any other key.
 
 ```
 /home/me/.config/shijimi-editor/config.toml:4: editor.bogus: unknown key, ignored (it may be for a newer shijimi-editor; this version does not read it)
@@ -109,27 +127,7 @@ multiplexer = "auto"      # "auto" / "herdr" / "tmux" / "zellij" / "cmux" / "gui
 [agent]
 command = "claude-agent-acp"
 args = []
-
-[server]
-idle_stop_days = 7        # 0 = never stop
-start_dir = "~/work"      # where a new workspace's shell starts (default ~)
 ```
-
-## Machines in kisui-terminal
-
-kisui-terminal (not `shj`) reads `[[gui.machines]]` in the config.toml on the machine where kisui-terminal runs, and shows each machine in the sidebar after "Local". Use it when you always use the same machines, so you do not have to add them again after reinstalling kisui-terminal or on another Mac.
-
-```toml
-[[gui.machines]]
-ssh = "dev-vm"   # where to ssh to (required; a host from ~/.ssh/config, for example)
-name = "dev"     # the name in the sidebar (optional; without it, the ssh target)
-```
-
-- kisui-terminal reads the file when it starts. The nightly kisui-terminal reads `shijimi-editor-nightly/` the same way as `shj-nightly` ("Nightly build" on this page). Only `config.toml` is read; a `config.nix` is not.
-- Machines written here cannot be removed or renamed in kisui-terminal (the right-click menu is disabled and says so). To change them, edit the file and start kisui-terminal again. Machines added in kisui-terminal are saved inside kisui-terminal as before.
-- If a machine added in kisui-terminal has the same ssh target as one in the file, the one in the file is shown. A machine added in kisui-terminal is not shown while its name is the same as a machine in the file.
-- If the file has a mistake (TOML syntax, a value of the wrong type, an ssh target that cannot be used, the same ssh target or name twice, `name` empty or "Local"), kisui-terminal does not start. It shows the file, line and reason on a plain screen and does nothing else. Fix the file and start kisui-terminal again. `shj` starts with a file that has `[gui]`.
-- With home-manager, write it in `settings` ([Nix and home-manager](nix.md)).
 
 ## Options
 
@@ -151,8 +149,6 @@ name = "dev"     # the name in the sidebar (optional; without it, the ssh target
 | `[keys.normal]` `[keys.insert]` `[keys.select]` | Remap keys in Helix mode (only in `~/.config/shijimi-editor/`) | [Editing (Helix mode)](editing-helix.md#remapping-keys) |
 | `browser.listen-host` | Listen address for port forwarding | [External browser and port forwarding](browser.md) |
 | `agent.command` / `agent.args` / `agent.environment` | The ACP agent used by the suggestions panel | [AI agent integration](agent.md) |
-| `server.start_dir` | The folder where the primary terminal of a new workspace starts (an absolute path, or one that starts with `~`). Default `~`. A folder that does not exist is a mistake in the configuration. If it is inside a project, the workspace's folder is decided at once | — |
-| `server.idle_stop_days` | Days `kisui serve` stays up with no kisui-terminal connected before it stops itself (default 7, 0 = never). Running shells end with it. The list of workspaces (their folders, and the ones with no folder yet) is saved in `workspaces.json` next to `serve.log`, and the next `kisui serve` makes them again, each with a new primary shell in its folder (in `start_dir` if the folder is gone or not decided). Split terminals do not come back | — |
 
 ## Themes
 

@@ -25,13 +25,12 @@ func Default() *Settings {
 	return &Settings{UILanguage: i18n.Default}
 }
 
-// Section is what the UI registers in config.Options.Sections. It also
-// declares the keys of kisui-terminal (kisui.go), which reads the same file.
+// Section is what the UI registers in config.Options.Sections.
 var Section = config.Section{
 	Name: Name,
-	Schema: withKisui(map[string]config.Field{
+	Schema: map[string]config.Field{
 		"ui-language": config.String.Check(checkUILanguage),
-	}),
+	},
 	New: func() config.Value { return Default() },
 }
 
@@ -48,7 +47,7 @@ func Of(c *config.Config) *Settings {
 	return s
 }
 
-// Merge reads the shared keys of a decoded config.toml / config.nix.
+// Merge reads the shared keys of a decoded config.toml or config.local.toml.
 func (s *Settings) Merge(raw map[string]any, user bool) {
 	if v, ok := raw["ui-language"].(string); ok && i18n.Valid(v) {
 		s.UILanguage = v

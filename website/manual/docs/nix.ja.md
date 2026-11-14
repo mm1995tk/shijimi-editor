@@ -1,30 +1,12 @@
 # Nix と home-manager
 
-## 設定を Nix で書く
-
-`config.toml` / `languages.toml` と同じディレクトリに `config.nix` / `languages.nix` を置くと、Nix で設定を書けます。
-
-- `nix eval --json --file` で評価し、TOML と同じ構造として読みます。
-- 同じディレクトリでは、TOML を読んだあとに Nix を適用します。
-- `nix` が無いとき、または評価に失敗したときは、そのファイルを無視します。
-
-```nix
-# ~/.config/shijimi-editor/languages.nix
-{
-  language-server.nil.command = "nil";
-  language = [
-    { name = "nix"; language-servers = [ "nil" ]; }
-  ];
-}
-```
-
 ## home-manager
 
 flake の `homeManagerModules.default` を読み込みます。
 
 - `settings` は `~/.config/shijimi-editor/config.toml` に書き出します。
 - `languages` は `~/.config/shijimi-editor/languages.toml` に書き出します。
-- kisui-terminal の既定のマシンも `settings` に書けます（`settings.gui.machines = [ { ssh = "dev-vm"; name = "dev"; } ];`。[設定ファイル](config.md)の「kisui-terminal のマシン」）。
+- これらのファイルは読み取り専用です。home-manager の設定を変えずに、そのマシンだけで設定を変えるには、同じフォルダの `config.local.toml` か `languages.local.toml` に書きます。home-manager が書き出したファイルより優先されます（[設定ファイル](config.md)）。
 - `package = inputs.shijimi.packages.${pkgs.system}.shj-nightly` にすると nightly 版が入ります（[インストール](install.md)）。このとき、上の 2 つのファイルは `~/.config/shijimi-editor-nightly/` に書き出します。
 
 ```nix

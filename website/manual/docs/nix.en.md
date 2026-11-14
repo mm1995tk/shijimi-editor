@@ -1,30 +1,12 @@
 # Nix and home-manager
 
-## Writing the configuration in Nix
-
-If you put `config.nix` / `languages.nix` in the same directory as `config.toml` / `languages.toml`, you can write the configuration in Nix.
-
-- It is evaluated with `nix eval --json --file` and read as the same structure as TOML.
-- In the same directory, the Nix file is applied after the TOML file is read.
-- If `nix` is not available, or evaluation fails, that file is ignored.
-
-```nix
-# ~/.config/shijimi-editor/languages.nix
-{
-  language-server.nil.command = "nil";
-  language = [
-    { name = "nix"; language-servers = [ "nil" ]; }
-  ];
-}
-```
-
 ## home-manager
 
 Import the flake's `homeManagerModules.default`.
 
 - `settings` is written to `~/.config/shijimi-editor/config.toml`.
 - `languages` is written to `~/.config/shijimi-editor/languages.toml`.
-- kisui-terminal's default machines can also go in `settings` (`settings.gui.machines = [ { ssh = "dev-vm"; name = "dev"; } ];`; "Machines in kisui-terminal" in [Configuration files](config.md)).
+- These files are read-only. To change a setting on one machine without changing the home-manager configuration, write it in `config.local.toml` or `languages.local.toml` in the same folder; they win over the files home-manager writes ([Configuration files](config.md)).
 - With `package = inputs.shijimi.packages.${pkgs.system}.shj-nightly` you get the nightly build ([Installation](install.md)). The two files above are then written to `~/.config/shijimi-editor-nightly/` instead.
 
 ```nix
