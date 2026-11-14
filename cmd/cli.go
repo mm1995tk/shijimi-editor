@@ -5,7 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"sync"
+	"syscall"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -107,11 +111,31 @@ func Main() {
 	}
 	// Whatever happened above, nothing started from here is a primary.
 	os.Unsetenv(ctl.EnvGUIPrimary)
+	var cleanOnce sync.Once
+	cleanup := func() {
+		cleanOnce.Do(func() {
+			_ = caretOut.ShowCursor()
+			app.Close()
+			closeSock()
+			closeIDE()
+		})
+	}
+	// bubbletea quits on SIGINT and SIGTERM by itself, but not on SIGHUP (a closed
+	// terminal or pane), and Go ends a process that gets it without running the
+	// clean-up: the lock file of the IDE integration would stay. Quit the program
+	// so that the clean-up below runs; if it does not return in time, clean up and
+	// end here.
+	hup := make(chan os.Signal, 1)
+	signal.Notify(hup, syscall.SIGHUP)
+	go func() {
+		<-hup
+		p.Quit()
+		time.Sleep(3 * time.Second)
+		cleanup()
+		os.Exit(1)
+	}()
 	_, err := p.Run()
-	_ = caretOut.ShowCursor()
-	app.Close()
-	closeSock()
-	closeIDE()
+	cleanup()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
