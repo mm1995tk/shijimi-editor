@@ -138,7 +138,8 @@ func quitOnHangup(p *tea.Program, cleanup func(), grace time.Duration) {
 	signal.Notify(hup, syscall.SIGHUP)
 	go func() {
 		<-hup
-		p.Quit()
+		// Send blocks while the event loop is stuck, so it must not hold up the timeout.
+		go p.Quit()
 		time.Sleep(grace)
 		p.Kill()
 		cleanup()
