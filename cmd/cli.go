@@ -5,7 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"sync"
+	"syscall"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -107,15 +111,40 @@ func Main() {
 	}
 	// Whatever happened above, nothing started from here is a primary.
 	os.Unsetenv(ctl.EnvGUIPrimary)
+	cleanup := sync.OnceFunc(func() {
+		_ = caretOut.ShowCursor()
+		app.Close()
+		closeSock()
+		closeIDE()
+	})
+	quitOnHangup(p, cleanup, 3*time.Second)
 	_, err := p.Run()
-	_ = caretOut.ShowCursor()
-	app.Close()
-	closeSock()
-	closeIDE()
+	cleanup()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// quitOnHangup quits p when the process gets SIGHUP (a closed terminal or pane).
+// bubbletea quits on SIGINT and SIGTERM by itself, but not on SIGHUP, and Go
+// ends a process that gets it without running the clean-up: the lock file of
+// the IDE integration would stay. Quitting lets the clean-up after p.Run run.
+// If p.Run does not return within grace, p is killed (which restores the
+// terminal and stops its event loop), and cleanup runs and the process ends
+// with 0, as it does when p.Run returns in time.
+func quitOnHangup(p *tea.Program, cleanup func(), grace time.Duration) {
+	hup := make(chan os.Signal, 1)
+	signal.Notify(hup, syscall.SIGHUP)
+	go func() {
+		<-hup
+		// Send blocks while the event loop is stuck, so it must not hold up the timeout.
+		go p.Quit()
+		time.Sleep(grace)
+		p.Kill()
+		cleanup()
+		os.Exit(0)
+	}()
 }
 
 // setLangFromConfig sets the UI language from dir's settings, for the commands
