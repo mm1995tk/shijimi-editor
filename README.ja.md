@@ -65,8 +65,10 @@ shj main.go    # ファイルだけを編集する（単体編集モード。$ED
 次の順に読み込み、後のものが優先されます（`languages.toml` は Helix と同じ書き方です。Helix から移る人は、`languages.toml` を `~/.config/shijimi-editor/` にコピーして、shijimi-editor が読まない項目を消してください）。設定ファイルに間違い（書き方の間違い・型の違い）があると、shijimi-editor は起動せず、ファイルの場所・行・理由を出します。知らない項目は無視して、警告を出します。
 
 1. 組み込みの既定値（gopls / rust-analyzer / typescript-language-server など）
-2. `~/.config/shijimi-editor/languages.toml`、`~/.config/shijimi-editor/config.toml`
-3. プロジェクトの `.shijimi-editor/languages.toml`、`.shijimi-editor/config.toml`
+2. `~/.config/shijimi-editor/languages.toml`、`languages.local.toml`、`config.toml`、`config.local.toml`
+3. プロジェクトの `.shijimi-editor/languages.toml`、`languages.local.toml`、`config.toml`、`config.local.toml`
+
+同じフォルダでは、`config.local.toml` が `config.toml` より、`languages.local.toml` が `languages.toml` より優先されます。`.local` のファイルは、自分の手元だけで変えるものを書く場所です。home-manager が書き出す `config.toml` は読み取り専用で、プロジェクトの `.shijimi-editor/config.toml` は git で共有するためです。プロジェクトでは `.shijimi-editor/*.local.toml` を `.gitignore` に入れてください。
 
 `~/.config` は、`$XDG_CONFIG_HOME` があればその場所です。macOS も含めて、OS を問わずこの場所から読みます（`~/Library/Application Support` からは読みません）。
 
@@ -148,20 +150,6 @@ render = true
 [editor.auto-save.after-delay]
 enable = true
 timeout = 1000            # ミリ秒
-```
-
-### Nix で書く
-
-各ディレクトリの `config.toml` / `languages.toml` と同じ場所に `config.nix` / `languages.nix` を置くと、`nix eval --json --file` で評価して TOML と同じ構造として読みます（同じディレクトリでは TOML のあとに適用）。`nix` が無い、または評価に失敗したファイルは無視します。
-
-```nix
-# ~/.config/shijimi-editor/languages.nix
-{
-  language-server.nil.command = "nil";
-  language = [
-    { name = "nix"; language-servers = [ "nil" ]; }
-  ];
-}
 ```
 
 ### home-manager

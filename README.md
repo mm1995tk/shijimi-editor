@@ -67,8 +67,10 @@ Given a file, shj starts in single-file mode. It does not start the file tree, L
 Files are read in the following order, and later ones win (`languages.toml` uses Helix's format. If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/` and remove the keys shijimi-editor does not read). If a file has a mistake (a syntax error, a value of the wrong type), shijimi-editor does not start and prints the file, line and reason. Keys it does not read are ignored with a warning.
 
 1. Built-in defaults (gopls / rust-analyzer / typescript-language-server and others)
-2. `~/.config/shijimi-editor/languages.toml`, `~/.config/shijimi-editor/config.toml`
-3. The project's `.shijimi-editor/languages.toml`, `.shijimi-editor/config.toml`
+2. `~/.config/shijimi-editor/languages.toml`, `languages.local.toml`, `config.toml`, `config.local.toml`
+3. The project's `.shijimi-editor/languages.toml`, `languages.local.toml`, `config.toml`, `config.local.toml`
+
+In each folder, `config.local.toml` wins over `config.toml`, and `languages.local.toml` over `languages.toml`. The `.local` files are for what you change on your own machine only: the `config.toml` that home-manager writes is read-only, and a project's `.shijimi-editor/config.toml` is shared through git. In a project, add `.shijimi-editor/*.local.toml` to `.gitignore`.
 
 `~/.config` means `$XDG_CONFIG_HOME` when it is set. It is read from there on every OS, macOS included (not from `~/Library/Application Support`).
 
@@ -150,20 +152,6 @@ render = true
 [editor.auto-save.after-delay]
 enable = true
 timeout = 1000            # milliseconds
-```
-
-### Writing settings in Nix
-
-If you put `config.nix` / `languages.nix` next to the `config.toml` / `languages.toml` of a directory, it is evaluated with `nix eval --json --file` and read as the same structure as TOML (in the same directory it is applied after the TOML file). A file is ignored if `nix` is missing or the evaluation fails.
-
-```nix
-# ~/.config/shijimi-editor/languages.nix
-{
-  language-server.nil.command = "nil";
-  language = [
-    { name = "nix"; language-servers = [ "nil" ]; }
-  ];
-}
 ```
 
 ### home-manager

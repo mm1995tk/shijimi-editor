@@ -19,7 +19,7 @@ type Section struct {
 
 // Value is what a section reads from a file.
 type Value interface {
-	// Merge applies a decoded config.toml / config.nix. user is whether it is
+	// Merge applies a decoded config.toml or config.local.toml. user is whether it is
 	// from the user's own directory. The schema has been checked already.
 	Merge(raw map[string]any, user bool)
 }
@@ -101,14 +101,5 @@ func (f Field) Check(fn func(v any) (code string, args []any)) Field {
 	return f
 }
 
-// NonNegative is a Check that accepts an integer that is 0 or more.
-func NonNegative(v any) (string, []any) { return checkNonNegative(v) }
-
 // StringList is the strings of a decoded array, without the empty ones.
 func StringList(v any) []string { return stringList(v) }
-
-// Tables is an array of tables ([[name]]) with the keys of sub. Each table
-// must have the keys in required.
-func Tables(required []string, sub map[string]Field) Field {
-	return field{kind: kTables, required: required, sub: sub}
-}

@@ -14,7 +14,7 @@ import (
 // it has selected by then (which it takes from the settings that did read).
 type Problem struct {
 	File string // path of the file
-	Line int    // line in File; 0 when unknown (Nix has no lines)
+	Line int    // line in File; 0 when unknown
 	Key  string // the setting, such as "editor.auto-save.after-delay.timeout"; empty for the file as a whole
 	// code is an i18n key; args are its format arguments.
 	code string
@@ -132,7 +132,7 @@ var (
 
 func table(sub map[string]field) field { return field{kind: kTable, sub: sub} }
 
-// configSchema is every setting of config.toml / config.nix.
+// configSchema is every setting of config.toml and config.local.toml.
 var configSchema = map[string]field{
 	"keymap": fString,
 	"theme":  fString,
@@ -173,7 +173,7 @@ var configSchema = map[string]field{
 	}},
 }
 
-// languagesSchema is every setting of languages.toml / languages.nix.
+// languagesSchema is every setting of languages.toml and languages.local.toml.
 var languagesSchema = map[string]field{
 	"language-server": {kind: kTableOf, sub: map[string]field{
 		"command":     fString,
@@ -215,13 +215,6 @@ func checkOnSwitch(v any) (string, []any) {
 	return "", nil
 }
 
-func checkNonNegative(v any) (string, []any) {
-	if n, _ := v.(int64); n < 0 {
-		return "config.err.nonneg", nil
-	}
-	return "", nil
-}
-
 func checkPositive(v any) (string, []any) {
 	if n, _ := v.(int64); n <= 0 {
 		return "config.err.positive", nil
@@ -233,12 +226,12 @@ func checkPositive(v any) (string, []any) {
 type validator struct {
 	file  string
 	user  bool
-	lines *lineIndex // nil for a file without lines (Nix)
+	lines *lineIndex // nil for an empty file
 	out   []Problem
 }
 
 // validate checks raw (the decoded file) against schema and returns what is
-// wrong with it. text is the source when it is TOML (for the lines), "" for Nix.
+// wrong with it. text is the source (for the lines).
 func validate(raw map[string]any, schema map[string]field, file, text string, user bool) []Problem {
 	v := &validator{file: file, user: user}
 	if text != "" {
