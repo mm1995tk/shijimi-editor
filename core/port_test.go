@@ -138,3 +138,15 @@ func TestTerminalInPane(t *testing.T) {
 		t.Fatalf("pasted %v panel %v", f.termPasted, f.term)
 	}
 }
+
+// A URL that is not exactly one http or https URL is not handed to the opener.
+func TestOpenURLRejectsBadURL(t *testing.T) {
+	for _, bad := range []string{"ftp://x", "foo https://x", "--version https://x", "https://x https://y"} {
+		a := newTestApp(t, "x\n")
+		f := a.port.(*testFront)
+		a.openURL(bad)
+		if len(f.urls) != 0 || !a.MsgErr {
+			t.Fatalf("%q must be rejected: urls %v err %v", bad, f.urls, a.MsgErr)
+		}
+	}
+}
