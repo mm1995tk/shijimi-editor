@@ -1571,7 +1571,7 @@ func (a *Core) DiffBarClick(t *Tab, dv *DiffView, g DiffGeom, y int) {
 
 // BarTarget is the first row to show when cell i of a bar h cells high, over
 // n rows, is clicked: the one that puts the rows the cell stands for in the
-// middle of the view. The diff view and the plain editor share it.
+// middle of the view. The diff view, plain editor and Markdown preview share it.
 func BarTarget(i, h, n int) int {
 	lo, _ := BarRange(i, h, n)
 	return max(0, lo-h/2)

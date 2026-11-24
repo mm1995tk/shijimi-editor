@@ -252,8 +252,8 @@ func changeBar(d *screen.DiffInfo, h int, dim bool) []string {
 
 // scrollBar draws a bar h cells high over total rows of which the h from top
 // are on screen: a lighter background over the rows on screen and a mark per
-// change in hunks (none for a plain file). The diff view and the plain editor
-// draw their bar with it.
+// change in hunks (none for a plain file or Markdown preview). All three
+// views draw their bar with it.
 func scrollBar(total, top, h int, hunks []screen.Hunk) []string {
 	kinds := core.BarKinds(total, h, hunks)
 	out := make([]string, h)

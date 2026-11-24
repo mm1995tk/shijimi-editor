@@ -456,6 +456,16 @@ func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
 	return p
 }
 
+// PreviewBarClick scrolls t's Markdown preview, w text columns by h rows,
+// to the rendered rows represented by bar cell i, leaving the editor cursor.
+func (a *Core) PreviewBarClick(t *Tab, w, h, i int) {
+	if i < 0 || i >= h {
+		return
+	}
+	p := a.BuildPreviewPane(t, w, h)
+	t.PrevTop = min(BarTarget(i, h, p.Viewport.Total), max(0, p.Viewport.Total-h))
+}
+
 // wantedMermaid returns the mermaid blocks on screen: in the current tab's
 // preview, and in an open review comment or comment editor.
 func (a *Core) wantedMermaid() []string {

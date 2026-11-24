@@ -270,7 +270,10 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 					return nil
 				}
 			} else if t.Preview != core.PreviewOff && msg.Col >= a.editAreaW(t, l) {
-				return nil // the preview pane is read-only
+				if msg.Col == l.rightW-1 && a.previewAreaW(t, l) > 0 {
+					a.PreviewBarClick(t, a.previewW(t, l), l.editH, msg.Row-(l.editY-l.top))
+				}
+				return nil // the preview text is read-only
 			} else if ew := a.editW(t, l); ew > 0 && msg.Col == ew { // the scroll bar
 				a.TextBarClick(t, l.editH, msg.Row-(l.editY-l.top))
 				return nil

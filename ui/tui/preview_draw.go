@@ -13,14 +13,28 @@ import (
 
 // previewLines draws the Markdown preview of t in an area w x h.
 func (a *App) previewLines(t *core.Tab, w, h int) []string {
-	return a.drawPreview(a.BuildPreviewPane(t, w, h), w, h)
+	if w <= 0 || h <= 0 {
+		return make([]string, max(0, h))
+	}
+	return a.drawPreview(a.BuildPreviewPane(t, w-1, h), w, h)
 }
 
 // drawPreview draws the Pane of a Markdown preview as h lines of w cells.
 func (a *App) drawPreview(p screen.Pane, w, h int) []string {
-	out := a.drawMdRows(p.Lines, p.Preview.Top, p.Preview.Images, w)
+	if w <= 0 || h <= 0 {
+		return make([]string, max(0, h))
+	}
+	textW := w - 1
+	var out []string
+	if textW > 0 {
+		out = a.drawMdRows(p.Lines, p.Preview.Top, p.Preview.Images, textW)
+	}
 	for len(out) < h {
-		out = append(out, stEmpty.Render(strings.Repeat(" ", w)))
+		out = append(out, stEmpty.Render(strings.Repeat(" ", textW)))
+	}
+	bar := scrollBar(p.Viewport.Total, p.Viewport.Top, h, nil)
+	for i := range out {
+		out[i] = ansi.Truncate(out[i], textW, "") + bar[i]
 	}
 	return out
 }
