@@ -78,8 +78,7 @@ func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, c
 	// on text: a row that has a line on this side, right of the gutter
 	onText := row >= gTop && row < gTop+g.H && col >= gLeft+core.GutterWidth(b)
 	if onText {
-		i := dv.Start(b.ScrollRow) + row - gTop
-		onText = i < len(dv.Rows) && dv.Rows[i].New >= 0
+		onText = dv.HasNew(dv.Start(b.ScrollRow) + row - gTop)
 	}
 	col = core.Clamp(col, gLeft, gLeft+g.RightW-1)
 	if row < gTop {

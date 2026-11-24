@@ -67,6 +67,9 @@ func (dv *DiffView) NearestOld(r int) int {
 }
 
 // HasOld reports whether display row r has a line on the base side.
+// HasNew reports whether display row r has a line on the working tree side.
+func (dv *DiffView) HasNew(r int) bool { return r >= 0 && r < len(dv.Rows) && dv.Rows[r].New >= 0 }
+
 func (dv *DiffView) HasOld(r int) bool { return r >= 0 && r < len(dv.Rows) && dv.Rows[r].old >= 0 }
 
 // SetDiffSide moves the cursor to the left side (left) or the right side of
