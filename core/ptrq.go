@@ -184,3 +184,18 @@ func (a *Core) HoverCellWord() (buffer.Pos, WordSpan, bool) {
 	s, e := buffer.WordRange(t.Buf.Lines[pos.Row], pos.Col)
 	return pos, NewWordSpan(pos.Row, s, e), true
 }
+
+// SelectWordAtPointer is the second press of a double click in the editor,
+// right after the press put the cursor under the pointer: it selects the word
+// there (`miw`). In a diff it works on the side that has the cursor.
+func (a *Core) SelectWordAtPointer() {
+	t := a.CurText()
+	if t == nil {
+		return
+	}
+	b := t.Buf
+	if lt := a.DiffLeft(t); lt != nil {
+		b = lt.Buf
+	}
+	b.SelectWordAtCursor()
+}

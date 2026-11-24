@@ -57,3 +57,23 @@ func TestSelectTextObject(t *testing.T) {
 		}
 	}
 }
+
+func TestSelectWordAtCursorDragFollowsTheWord(t *testing.T) {
+	b := New()
+	b.Insert("foo.bar baz")
+	b.StartDrag(0, 5) // on "bar"
+	if !b.SelectWordAtCursor() {
+		t.Fatal("no word at the cursor")
+	}
+	if got := b.SelectedText(); got != "bar" {
+		t.Fatalf("selected %q, want bar", got)
+	}
+	b.SetCursorDrag(0, 10) // drag to "z" of "baz": the word stays selected
+	if got := b.SelectedText(); got != "bar baz" {
+		t.Errorf("after the drag selected %q, want %q", got, "bar baz")
+	}
+	b.StartDrag(0, 20) // past the end of the line: no word
+	if b.SelectWordAtCursor() {
+		t.Error("selected a word past the end of the line")
+	}
+}

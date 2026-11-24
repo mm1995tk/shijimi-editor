@@ -984,6 +984,19 @@ func (b *Buffer) StartDrag(row, vis int) {
 	b.drag = &dragOrigin{start: s, end: e}
 }
 
+// SelectWordAtCursor selects the word under the cursor, the range `miw`
+// selects, for a double click. It is for use right after StartDrag. It reports
+// false, leaving the selection as it is, when the cursor is not on a character
+// (past the end of the line). A drag that follows (SetCursorDrag) goes on from
+// the word, not from the one character.
+func (b *Buffer) SelectWordAtCursor() bool {
+	if !b.SelectTextObject('w', false) {
+		return false
+	}
+	b.drag = &dragOrigin{start: *b.Anchor, end: b.Cur}
+	return true
+}
+
 // SetCursorDrag extends the selection to the pointer at a row and screen
 // column while the mouse button is held, so that the character the drag
 // started on (see StartDrag) and the character under the pointer are both

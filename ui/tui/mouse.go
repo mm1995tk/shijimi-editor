@@ -264,6 +264,9 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 					}
 					a.CloseCompletion()
 					a.mouseToCursor(l, msg.Row, msg.Col, false)
+					if double {
+						a.SelectWordAtPointer()
+					}
 					a.SetDragging(true)
 					return a.SetFocus(core.FocusEditor)
 				}
@@ -280,6 +283,9 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 			}
 			a.CloseCompletion()
 			a.mouseToCursor(l, msg.Row, msg.Col, false)
+			if double {
+				a.SelectWordAtPointer()
+			}
 			a.SetDragging(true)
 			return a.SetFocus(core.FocusEditor)
 		}

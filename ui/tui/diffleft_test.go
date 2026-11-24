@@ -209,3 +209,45 @@ func TestLeftSideSpaceYAndP(t *testing.T) {
 		t.Error("Space p changed the file from the left side")
 	}
 }
+
+// A double click selects the word in the side it is on, the left one
+// included, and leaves the other side alone.
+func TestDoubleClickSelectsWordOnBothSides(t *testing.T) {
+	a := leftDiffApp(t)
+	l := a.layout()
+	g := a.dvGeom(l)
+	dv := a.DiffFor(a.CurText())
+	right := a.CurText()
+	press := func(x, y, clicks int) {
+		a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft, Clicks: clicks}))
+		a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+	}
+	// the base line "b", which the working tree deleted
+	y := g.Top + dv.OldIdx[1] - dv.Start(right.Buf.ScrollRow)
+	x := l.rightX + core.GutterWidthFor(len(dv.OldIdx))
+	press(x, y, 1)
+	lt := a.DiffLeft(a.CurText())
+	if lt == nil {
+		t.Fatal("clicking the left side did not put the cursor there")
+	}
+	if got := lt.Buf.SelectedText(); got != "" {
+		t.Fatalf("a single click selected %q", got)
+	}
+	press(x, y, 2)
+	if got := lt.Buf.SelectedText(); got != "b" {
+		t.Errorf("a double click on the left selected %q, want %q", got, "b")
+	}
+	if got := right.Buf.SelectedText(); got != "" {
+		t.Errorf("the right side selected %q", got)
+	}
+	// the right side: the line "c"
+	y = g.Top + dv.NewIdx[1] - dv.Start(right.Buf.ScrollRow)
+	press(g.RightX+core.GutterWidth(right.Buf), y, 1)
+	press(g.RightX+core.GutterWidth(right.Buf), y, 2)
+	if a.DiffLeft(a.CurText()) != nil {
+		t.Fatal("clicking the right side left the cursor on the left")
+	}
+	if got := right.Buf.SelectedText(); got != "c" {
+		t.Errorf("a double click on the right selected %q, want %q", got, "c")
+	}
+}
