@@ -169,3 +169,22 @@ func TestHeadSideRefusesSaveAs(t *testing.T) {
 		t.Errorf("msg = %q", tt(a.Msg))
 	}
 }
+
+// A replacement in the whole project changes the file, also while its HEAD
+// view is shown in its place; the HEAD view stays as HEAD has it.
+func TestReplaceWhileHeadSideShown(t *testing.T) {
+	a, file := sidesApp(t)
+	a.CycleSides()
+	loadSides(a)
+	h := a.Cur()
+	hit := &SearchHit{Path: file, Row: 0, Line: "local", Spans: [][2]int{{0, 5}}, Repls: []string{"LOCAL"}}
+	if !a.replaceHits([]*SearchHit{hit}) {
+		t.Fatal("replaceHits failed")
+	}
+	if got := string(a.curTab().Buf.Lines[0]); got != "LOCAL" {
+		t.Errorf("the file's line = %q", got)
+	}
+	if got := string(h.Buf.Lines[0]); got != "linea" || h.Buf.Refused {
+		t.Errorf("the HEAD view: %q refused=%v", got, h.Buf.Refused)
+	}
+}

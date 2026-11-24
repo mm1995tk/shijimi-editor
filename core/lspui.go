@@ -470,7 +470,10 @@ func (a *Core) applyWorkspaceEdit(we lsp.WorkspaceEdit) {
 		if !a.OpenFile(path) {
 			continue
 		}
-		t := a.Cur()
+		t := a.curTab() // the file, not the HEAD view diff mode may show in its place
+		if t == nil || t.Kind != TabText {
+			continue
+		}
 		t.Buf.ApplyEdits(toEdits(t.Buf, edits))
 		files++
 		n += len(edits)
