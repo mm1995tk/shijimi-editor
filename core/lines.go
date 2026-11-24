@@ -76,7 +76,7 @@ func (a *Core) StatusOf() screen.Status {
 			s.Suggestions = msg.T("app.suggestions", n)
 		}
 	}
-	if t := a.Cur(); t != nil && t.Kind == TabText {
+	if t := a.sideTab(); t != nil && t.Kind == TabText {
 		b := t.Buf
 		s.Cursor = ToScreenPos(b.Cur)
 		s.Indent = msg.T("app.spaces", len(b.IndentUnit()))

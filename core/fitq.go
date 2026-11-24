@@ -19,7 +19,12 @@ import (
 func (a *Core) FitCursor(t *Tab, editW, editH int) {
 	if a.Follow {
 		if dv := a.DiffFor(t); dv != nil {
-			a.ensureDiffVisible(t, dv, editW, diffRows(editH))
+			if l := a.DiffLeft(t); l != nil {
+				a.ensureLeftVisible(t, dv, l, diffRows(editH))
+			} else {
+				dv.sub = 0
+				a.ensureDiffVisible(t, dv, editW, diffRows(editH))
+			}
 		} else if !a.FullPreview(t) { // the hidden editor is 0 wide: following it would scroll to the cursor column
 			EnsureCursorVisible(t.Buf, editW, editH)
 		}

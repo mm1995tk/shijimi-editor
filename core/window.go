@@ -73,6 +73,9 @@ func (a *Core) SplitOpen() []Effect {
 
 // FocusPane moves the focus to the pane on side (0 = left, 1 = right).
 func (a *Core) FocusPane(side int) []Effect {
+	if a.Gd.On && !a.single { // diff mode has the two sides in place of the panes
+		return a.FocusDiffSide(side == 0)
+	}
 	if !a.SplitWanted() {
 		if a.Split {
 			a.InfoText(msg.T("win.nodiff"))
@@ -89,7 +92,12 @@ func (a *Core) FocusPane(side int) []Effect {
 }
 
 // focusOtherPane moves the focus to the other pane.
-func (a *Core) focusOtherPane() []Effect { return a.FocusPane(1 - a.Pane) }
+func (a *Core) focusOtherPane() []Effect {
+	if a.Gd.On && !a.single {
+		return a.FocusDiffSide(!a.Gd.Left)
+	}
+	return a.FocusPane(1 - a.Pane)
+}
 
 // swapPanes makes the other pane's file the focused one's, and the reverse.
 // The pane keeps its own "last file".
@@ -164,6 +172,7 @@ func (a *Core) NormalizeSplit() {
 
 // windowKey runs Space w <key> (Helix's window menu).
 func (a *Core) windowKey(key string) []Effect {
+	a.onLeft = false // acts on the file, not on the left side of diff mode
 	if a.single {
 		return nil
 	}

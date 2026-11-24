@@ -62,6 +62,7 @@ type gitDiff struct {
 	rev     string  // revision of the left side
 	Pr      *PrInfo // the pull request whose base is compared with (BasePR)
 	Split   bool
+	Left    bool         // the cursor is on the left side (see diffleft.go)
 	Files   []*diff.File // in the order of the CHANGES tree
 	Rows    []changeRow
 	ByAbs   map[string]*diff.File
@@ -688,6 +689,7 @@ func (a *Core) showSides(base, right string, pr *PrInfo) []Effect {
 func (a *Core) closeDiff() []Effect {
 	a.Gd.PrSeq++
 	a.Gd.On = false
+	a.Gd.Left = false
 	a.Card = nil
 	if a.Focus == FocusChanges {
 		a.Focus = a.explorerFocus()
@@ -953,6 +955,7 @@ func (a *Core) showPRList(m prListMsg) []Effect {
 // ToggleSplit switches the diff view between side by side and unified.
 func (a *Core) ToggleSplit() {
 	a.Gd.Split = !a.Gd.Split
+	a.Gd.Left = false // the unified diff has no left side
 	a.Follow = true
 }
 
@@ -1005,6 +1008,7 @@ func (a *Core) OpenChange(f *diff.File) []Effect {
 		return nil
 	}
 	n := len(a.Tabs)
+	a.Gd.Left = false
 	if !a.OpenFile(abs) {
 		return nil
 	}
@@ -1231,6 +1235,7 @@ type DiffView struct {
 	valid   bool
 	Rows    []dispRow
 	NewIdx  []int  // display row of every buffer line
+	OldIdx  []int  // display row of every base line (none for a new file)
 	Changed []bool // buffer lines that are part of a change
 
 	// changed parts of the lines paired up in a hunk, by line index
@@ -1238,12 +1243,20 @@ type DiffView struct {
 	inline             map[[2]string]inlinePair // reused across builds
 
 	Hunks []screen.Hunk // runs of rows of one kind of change, for the change bar
+
+	// Left is the base as a read-only tab, the one the keys act on while the
+	// cursor is on the left side. It is made when that side first takes the
+	// cursor (diffleft.go).
+	Left *Tab
+	// the view starts sub rows below the display row of buffer line subRow,
+	// to reach base rows that lie between two buffer lines (diffleft.go)
+	sub, subRow int
 }
 
 // DiffFile returns the changed file shown by tab t in diff mode, or nil
 // when t is shown as a plain editor.
 func (a *Core) DiffFile(t *Tab) *diff.File {
-	if !a.Gd.On || t == nil || t.Kind != TabText || t.Buf.Path == "" {
+	if !a.Gd.On || t == nil || t.Kind != TabText || t.Buf.Path == "" || t.leftOf != nil {
 		return nil
 	}
 	f := a.Gd.ByAbs[t.Buf.Path]
@@ -1278,6 +1291,9 @@ func (a *Core) DiffFor(t *Tab) *DiffView {
 	dv := t.Dv
 	if !a.diffBuilt(dv, t) {
 		dv.build(t, a.Gd.Split)
+	}
+	if a.Gd.Left && dv.Left == nil && a.Gd.Split && !dv.Single {
+		dv.Left = newLeftTab(dv, t)
 	}
 	return dv
 }
@@ -1342,6 +1358,7 @@ func (dv *DiffView) build(t *Tab, split bool) {
 	defer func() { dv.Hunks = hunksOf(dv.Rows) }()
 	dv.Rows = dv.Rows[:0]
 	dv.NewIdx = make([]int, len(lines))
+	dv.OldIdx = make([]int, len(dv.old))
 	dv.Changed = make([]bool, len(lines))
 	dv.oldSpans, dv.newSpans = map[int][]diff.Span{}, map[int][]diff.Span{}
 	prevInline := dv.inline
@@ -1351,6 +1368,9 @@ func (dv *DiffView) build(t *Tab, split bool) {
 	ctx := func(n int) {
 		for ; n > 0; n-- {
 			dv.NewIdx[ni] = len(dv.Rows)
+			if oi < len(dv.OldIdx) {
+				dv.OldIdx[oi] = len(dv.Rows)
+			}
 			dv.Rows = append(dv.Rows, dispRow{old: oi, New: ni})
 			oi++
 			ni++
@@ -1378,6 +1398,9 @@ func (dv *DiffView) build(t *Tab, split bool) {
 			if n >= 0 {
 				dv.NewIdx[n] = len(dv.Rows)
 				dv.Changed[n] = true
+			}
+			if o >= 0 {
+				dv.OldIdx[o] = len(dv.Rows)
 			}
 			dv.Rows = append(dv.Rows, dispRow{old: o, New: n, changed: true, hunk: kind})
 		}
@@ -1427,10 +1450,14 @@ func (dv *DiffView) build(t *Tab, split bool) {
 
 // Start is the display row at the top of the view for the buffer's scroll.
 func (dv *DiffView) Start(scrollRow int) int {
-	if scrollRow <= 0 || len(dv.NewIdx) == 0 {
-		return 0
+	base := 0
+	if scrollRow > 0 && len(dv.NewIdx) > 0 {
+		base = dv.NewIdx[min(scrollRow, len(dv.NewIdx)-1)]
 	}
-	return dv.NewIdx[min(scrollRow, len(dv.NewIdx)-1)]
+	if dv.sub > 0 && scrollRow == dv.subRow {
+		base += dv.sub
+	}
+	return min(base, max(0, len(dv.Rows)-1))
 }
 
 // scrollFor is the buffer scroll that puts display row r at the top, or
@@ -1590,6 +1617,10 @@ func (a *Core) BuildDiffPanes(t *Tab, dv *DiffView, g DiffGeom, o PaneOpts) []sc
 			Title:    screen.Title{Text: dv.path, ReadOnly: true},
 			Viewport: screen.Viewport{Rows: g.H, Cols: max(0, g.LeftW-GutterWidthFor(len(dv.old))), Left: b.ScrollCol, Total: len(dv.old)},
 			Diff:     info(screen.SideOld),
+		}
+		if lt := dv.Left; lt != nil { // the cursor and selection of the left side
+			lp := textPaneHead(lt, g.LeftW, g.H, a.EditorOpts(lt, false).PaneOpts)
+			left.CurLine, left.Cursors, left.Selections = lp.CurLine, lp.Cursors, lp.Selections
 		}
 	}
 

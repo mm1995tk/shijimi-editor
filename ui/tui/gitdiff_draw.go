@@ -25,7 +25,18 @@ func (a *App) dvGeom(l layout) core.DiffGeom {
 }
 
 // cursorScreen returns the screen position of the cursor cell.
-func (a *App) cursorScreen(t *core.Tab, l layout) (x, y int) { return a.posScreen(t, l, t.Buf.Cur) }
+func (a *App) cursorScreen(t *core.Tab, l layout) (x, y int) {
+	if lt := a.DiffLeft(t); lt != nil {
+		if dv := a.DiffOf(t); dv != nil && len(dv.OldIdx) > 0 {
+			g := a.dvGeom(l)
+			lb := lt.Buf
+			x = l.rightX + core.GutterWidthFor(len(dv.OldIdx)) + core.VisualCol(lb.Lines[lb.Cur.Row], lb.Cur.Col) - t.Buf.ScrollCol
+			y = g.Top + dv.OldIdx[min(lb.Cur.Row, len(dv.OldIdx)-1)] - dv.Start(t.Buf.ScrollRow)
+			return x, y
+		}
+	}
+	return a.posScreen(t, l, t.Buf.Cur)
+}
 
 // posScreen is the screen cell of the character at p in t's buffer.
 func (a *App) posScreen(t *core.Tab, l layout, p core.Pos) (x, y int) {
@@ -51,12 +62,16 @@ func (a *App) renderDiffText(t *core.Tab, dv *core.DiffView, l layout, focused b
 	hint := diffHint(dv)
 	out := make([]string, 0, l.editH)
 	out = append(out, drawDiffHeader(panes[len(panes)-1].Title, hint, l.rightW, panes[len(panes)-1].Dim))
-	return append(out, drawDiff(panes, g, opts, a.separator(l, core.ResizeDiff))...)
+	return append(out, drawDiff(panes, g, opts, a.DiffLeft(t) != nil, a.separator(l, core.ResizeDiff))...)
 }
 
 // diffMouseToCursor moves the cursor to the buffer line under (x, y) in a
 // diff view. Rows that exist only on the base side snap to the next line.
 func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, col int, extend bool) {
+	if lt := a.DiffLeft(t); lt != nil {
+		a.leftMouseToCursor(t, lt, dv, l, row, col, extend)
+		return
+	}
 	g := a.dvGeom(l)
 	b := t.Buf
 	// g is in screen cells; row and col count from the pane's corner.
@@ -83,6 +98,30 @@ func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, c
 		b.SetCursorDrag(newRow, vis)
 	} else {
 		b.StartDrag(newRow, vis)
+	}
+	a.FollowCursor()
+}
+
+// leftMouseToCursor is diffMouseToCursor with the cursor on the left side lt:
+// the base line under (row, col), the rows that exist only on the right side
+// snapping to the next base line.
+func (a *App) leftMouseToCursor(t, lt *core.Tab, dv *core.DiffView, l layout, row, col int, extend bool) {
+	g := a.dvGeom(l)
+	b := lt.Buf
+	gTop := g.Top - l.top
+	col = core.Clamp(col, 0, max(0, g.LeftW-1))
+	if row < gTop {
+		b.MoveLines(-1, extend)
+	} else if row >= gTop+g.H {
+		b.MoveLines(1, extend)
+	}
+	idx := core.Clamp(dv.Start(t.Buf.ScrollRow)+core.Clamp(row-gTop, 0, max(0, g.H-1)), 0, len(dv.Rows)-1)
+	oldRow := dv.NearestOld(idx)
+	vis := max(0, col-core.GutterWidthFor(len(dv.OldIdx))) + t.Buf.ScrollCol
+	if extend {
+		b.SetCursorDrag(oldRow, vis)
+	} else {
+		b.StartDrag(oldRow, vis)
 	}
 	a.FollowCursor()
 }
@@ -278,11 +317,18 @@ func drawDiffHeader(title screen.Title, hint string, w int, dim bool) string {
 
 // drawDiff draws the rows of the Panes of a diff (the last one is the current
 // side and has the change bar) as g.H lines, with sep between two panes.
-func drawDiff(panes []screen.Pane, g core.DiffGeom, o core.EditorOpts, sep string) []string {
+func drawDiff(panes []screen.Pane, g core.DiffGeom, o core.EditorOpts, leftFocus bool, sep string) []string {
 	cur := panes[len(panes)-1]
 	two := len(panes) == 2
 	bar := changeBar(cur.Diff, g.H, cur.Dim)
-	ld := newLineDrawer(cur, g.RightW, o)
+	ro, lo := o, o // the cursor is on one side only
+	ro.Focused, lo.Focused = o.Focused && !leftFocus, o.Focused && leftFocus
+	ld := newLineDrawer(cur, g.RightW, ro)
+	var lld lineDrawer
+	if two {
+		ld.fadeCur, lld = leftFocus, newLineDrawer(panes[0], g.LeftW, lo)
+		lld.fadeCur = !leftFocus
+	}
 	width := g.RightW
 	if two {
 		width += g.LeftW + 1
@@ -301,7 +347,12 @@ func drawDiff(panes []screen.Pane, g core.DiffGeom, o core.EditorOpts, sep strin
 			line = ld.draw(pl)
 		}
 		if two {
-			line = drawOldLine(panes[0], panes[0].Lines[i], g.LeftW) + sep + line
+			ol := panes[0].Lines[i]
+			if ol.Blank {
+				line = drawOldLine(panes[0], ol, g.LeftW) + sep + line
+			} else {
+				line = lld.draw(ol) + sep + line
+			}
 		}
 		out = append(out, line+bar[i])
 	}

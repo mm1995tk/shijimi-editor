@@ -64,6 +64,8 @@ var en = map[string]string{
 	"gd.bar.readonly":          "  The right side (HEAD) is read-only  Click the top row:split/unified  Click the right bar:jump there",
 	"gd.nobranchprhead":        "This branch has no pull request, so only HEAD ← working tree can be compared",
 	"gd.readonly":              "The right side is HEAD and cannot be edited. Space x (x in CHANGES) switches to the working tree",
+	"gd.readonlyleft":          "The left side (before the change) cannot be edited. Move to the right side with Ctrl+2 (Space w l)",
+	"gd.noleft":                "The left side is only in the side-by-side diff of a file that is in the base (s switches the layout)",
 	"gd.readonlyside":          " (read-only)",
 	"gd.drift.ahead":           "HEAD does not match %s (%d commit(s) ahead, not pushed). The HEAD side is gray. Pushing brings it back",
 	"gd.drift.behind":          "HEAD does not match %s (%d commit(s) behind). The HEAD side is gray. Pulling brings it back",

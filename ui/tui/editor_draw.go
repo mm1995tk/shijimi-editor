@@ -60,6 +60,7 @@ type lineDrawer struct {
 	scrollCol int
 	q         []rune
 	hasSel    bool
+	fadeCur   bool // the side of a diff that does not have the cursor: its cursor line is not lit
 }
 
 func newLineDrawer(p screen.Pane, w int, o core.EditorOpts) lineDrawer {
@@ -75,7 +76,7 @@ func newLineDrawer(p screen.Pane, w int, o core.EditorOpts) lineDrawer {
 func (ld lineDrawer) draw(pl screen.Line) string {
 	p, o, gw, textW, scrollCol, q, hasSel := ld.p, ld.o, ld.gw, ld.textW, ld.scrollCol, ld.q, ld.hasSel
 	row := pl.No
-	isCur := row == p.CurLine
+	isCur := row == p.CurLine && !ld.fadeCur
 	lineBg := cEditorBg
 	if isCur && !hasSel {
 		lineBg = cCurLine
@@ -86,6 +87,11 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 		lineBg = cAddBg
 		if pl.Dim {
 			lineBg = cSideBg // HEAD has drifted from its remote: gray, not green
+		}
+	} else if p.Kind == screen.KindDiff && isDeletedLine(pl) { // the base side of a diff
+		lineBg = cDelBg
+		if pl.Dim {
+			lineBg = cSideBg
 		}
 	}
 	numSt := stLineNo
@@ -114,7 +120,9 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 			diagMark = core.StyleColor(m.Style)
 		}
 	}
-	if mark != "" {
+	if isDeletedLine(pl) {
+		sb.WriteString(bgfg(lineBg, cDelSign).Render("-"))
+	} else if mark != "" {
 		sb.WriteString(bgfg(lineBg, mark).Render("●"))
 	} else if diagMark != "" {
 		sb.WriteString(bgfg(lineBg, diagMark).Render("●"))
@@ -208,6 +216,9 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 			if col >= m.Start && col < m.End {
 				if pl.Dim {
 					return lineBg
+				}
+				if isDeletedLine(pl) {
+					return cDelWordBg
 				}
 				return cAddWordBg
 			}

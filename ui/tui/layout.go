@@ -110,6 +110,9 @@ func (a *App) cursorShown(t *core.Tab, l layout, x, y int) bool {
 	left, w, top, h := l.rightX, a.editW(t, l), l.editY, l.editH
 	if dv := a.DiffOf(t); dv != nil {
 		g := a.dvGeom(l)
+		if a.DiffLeft(t) != nil { // the cursor is on the base side
+			return x >= l.rightX+core.GutterWidthFor(len(dv.OldIdx)) && x < l.rightX+g.LeftW && x < a.w && y >= g.Top && y < g.Top+g.H
+		}
 		left, top, h = g.RightX, g.Top, g.H
 	}
 	return x >= left+core.GutterWidth(t.Buf) && x < left+w && x < a.w && y >= top && y < top+h

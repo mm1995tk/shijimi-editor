@@ -39,6 +39,10 @@ type Tab struct {
 	head    *Tab
 	headRev string
 
+	// set on the read-only tab that holds the base of the diff of the tab it
+	// names (DiffView.Left, diffleft.go)
+	leftOf *Tab
+
 	// Markdown preview beside the buffer
 	Preview   PreviewMode
 	prevCache *MdDoc

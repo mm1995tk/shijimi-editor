@@ -43,6 +43,7 @@ type Pane struct {
 // 並びで持つ（相手側にだけ行がある表示行は Line.Blank）。統合表示で消えた行は Marks に MarkDeleted を
 // 持ち、No は変更前のファイルの行番号になる。変更後の行は、変更の一部なら MarkAdded か MarkModified
 // を持つ。表示行は変更前と後の両方の行を数えるので、バッファの行番号とは数えが違う。
+// 差分モードのカーソルは左右のどちらか片方にあり、変更前の側（SideOld）に移せる（読み取り専用）。そのとき SideOld の Pane が CurLine・Cursors・Selections を持ち、CurLine は変更前のファイルの行番号になる。
 type DiffInfo struct {
 	Side  DiffSide `json:"side"`
 	Top   int      `json:"top"`   // Lines[0] の表示行

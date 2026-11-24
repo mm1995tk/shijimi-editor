@@ -267,7 +267,7 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 | `Ctrl+S` | Save |
 | `Ctrl+W` | Close the current file (remove it from the list of open files) |
 | `Ctrl+Tab` | Go back and forth between the last file and this one. It needs a terminal that supports the kitty keyboard protocol; elsewhere use `ga` in Helix mode, or `Space b` |
-| `Ctrl+\` | Split the editor into two panes side by side / close the split (`Ctrl+1` / `Ctrl+2` move the focus). In Helix mode: `Space w v`, `Space w h` `l` `w`, `Space w q` `o`; also `:vsplit` and `:only`. Each pane has its own title line, and `Space b`, `ga` / `Ctrl+Tab`, `Ctrl+O` / `Ctrl+I` act on the focused pane. At most two panes, side by side; the same file is not shown in both. Not available in diff mode (one pane then) |
+| `Ctrl+\` | Split the editor into two panes side by side / close the split (`Ctrl+1` / `Ctrl+2` move the focus). In Helix mode: `Space w v`, `Space w h` `l` `w`, `Space w q` `o`; also `:vsplit` and `:only`. Each pane has its own title line, and `Space b`, `ga` / `Ctrl+Tab`, `Ctrl+O` / `Ctrl+I` act on the focused pane. At most two panes, side by side; the same file is not shown in both. Not available in diff mode (one pane then; there, `Ctrl+1` / `Ctrl+2` and `Space w h` `l` `w` move the cursor between the left and right sides of the diff) |
 | `Ctrl+Q` | Quit |
 
 ### File tree
@@ -297,6 +297,7 @@ The PR base is `git merge-base <PR base> HEAD`. The key you open diff mode with 
 - The sidebar is split 7:3 vertically, and **CHANGES** (a tree of the changed files) appears in the lower 3. A folder with a single child is collapsed like `internal/config`. `Tab` moves between it and the file tree.
 - A file without changes opens in the normal editor. A changed file opens as the whole file in **Split** (the left side on the left, the right side on the right). A new file (including an untracked one) opens in a single editor. Lines are not colored, the bar on the right edge turns all green, and the `+N` / `-N` in the file name row at the top remain.
 - When the right side is the working tree, it can be edited and saved as usual. The diff updates right away when you edit. When the right side is `HEAD`, it shows the file as `HEAD` has it and cannot be edited (the file name row says `HEAD · read-only`); you can still move, select, search and copy.
+- The left side (before the change) can hold the cursor too: move to it with `Ctrl+1` (`Space w h`) or a click, select with the same keys and the mouse as on the right, and copy (`y` in Helix mode, `Ctrl+C` in VS Code mode). It cannot be edited. `Ctrl+2` (`Space w l`) or a click goes back to the right side, and `Space w w` switches. The left side exists in Split only, and not for a new file
 - You can also switch to **Unified** (`s`, `:gitdiff unified` / `split`, or a click on the file name row).
 - The bar on the right edge of the diff shows where the changes are by color (green: added, red: deleted, blue: modified). The range now shown is brighter, and clicking scrolls to that position.
 - In a line where only a part changed, the changed part is highlighted in a darker color.

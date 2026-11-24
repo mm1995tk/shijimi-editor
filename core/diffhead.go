@@ -88,6 +88,10 @@ func (a *Core) heads() []*Tab {
 
 // tellRefused says so when the shown tab refused an edit (it is read-only).
 func (a *Core) tellRefused() {
+	if t := a.CurText(); t != nil && t.Dv != nil && t.Dv.Left != nil && t.Dv.Left.Buf.Refused {
+		t.Dv.Left.Buf.Refused = false
+		a.Fail(msg.Err("gd.readonlyleft"))
+	}
 	for _, h := range a.heads() {
 		if h.Buf.Refused {
 			h.Buf.Refused = false

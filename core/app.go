@@ -72,6 +72,7 @@ type Core struct {
 	Active         int
 	Branch         string
 	Gd             gitDiff
+	onLeft         bool      // while a key acts on the left side of diff mode, Cur is its tab (diffleft.go)
 	Confirm        *YesNo    // a y/n question on the status line
 	Card           *PrCard   // a review thread shown like a hover
 	Composer       *composer // the editor for a review comment
@@ -311,7 +312,13 @@ func (a *Core) Close() {
 // Cur is the tab shown in the focused pane, or nil when there is none: the
 // tab, or its HEAD view while diff mode shows HEAD on the right (curTab is
 // the tab itself).
-func (a *Core) Cur() *Tab { return a.shownTab(a.curTab()) }
+func (a *Core) Cur() *Tab {
+	t := a.shownTab(a.curTab())
+	if a.onLeft && t != nil && t.Dv != nil && t.Dv.Left != nil {
+		return t.Dv.Left // a key acts on the left side of diff mode (diffleft.go)
+	}
+	return t
+}
 
 // CurText is the current tab when it holds text, or nil.
 func (a *Core) CurText() *Tab {
@@ -1298,6 +1305,14 @@ func (a *Core) HandleKey(in Key) []Effect {
 		}
 		return nil
 	}
+	if l := a.DiffLeft(t); l != nil {
+		return a.keyOnLeft(t, l, in)
+	}
+	return a.dispatchEditorKey(in)
+}
+
+// dispatchEditorKey hands a key to the editor: the find bar, or the keys of the mode.
+func (a *Core) dispatchEditorKey(in Key) []Effect {
 	if a.FindOpen {
 		return a.handleFindKey(in)
 	}

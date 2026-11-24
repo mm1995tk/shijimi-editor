@@ -77,6 +77,16 @@ Switch with any of these:
 
 You can edit in Unified too. Deleted lines are interleaved as read-only lines.
 
+### The left side
+
+In Split, the left side (before the change) can hold the cursor too, so you can select text there and copy it (to bring back a deleted line, for example).
+
+- Move to it with `Ctrl+1` (`Space w h`) or a click. Back to the right side with `Ctrl+2` (`Space w l`) or a click on it. `Space w w` switches
+- Move, select (keys and mouse drag) and copy (`y` in Helix mode, `Ctrl+C` in VS Code mode) as on the right side. Search works there too
+- It cannot be edited. A key that would change it shows "cannot be edited" in the status line
+- The cursor is on one side at a time: the cursor and the current line are shown on that side only, and the status line shows its position
+- There is no left side in Unified or for a new file
+
 ### Change-position bar
 
 One column at the right edge of the diff shows where the changes are in the whole file.
