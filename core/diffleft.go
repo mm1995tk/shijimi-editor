@@ -66,6 +66,9 @@ func (dv *DiffView) NearestOld(r int) int {
 	return 0
 }
 
+// HasOld reports whether display row r has a line on the base side.
+func (dv *DiffView) HasOld(r int) bool { return r >= 0 && r < len(dv.Rows) && dv.Rows[r].old >= 0 }
+
 // SetDiffSide moves the cursor to the left side (left) or the right side of
 // the diff of the current file, and reports whether it can: there is a left
 // side only in the side by side diff of a file that is in the base.

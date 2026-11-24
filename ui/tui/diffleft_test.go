@@ -251,3 +251,73 @@ func TestDoubleClickSelectsWordOnBothSides(t *testing.T) {
 		t.Errorf("a double click on the right selected %q, want %q", got, "c")
 	}
 }
+
+// A double click selects nothing where there is no text under the pointer: in
+// the gutter, and on a display row that has no line on the side clicked. The
+// other line that the cursor snaps to must not be selected.
+func TestDoubleClickOnNoTextSelectsNothing(t *testing.T) {
+	a := leftDiffApp(t)
+	l := a.layout()
+	g := a.dvGeom(l)
+	right := a.CurText()
+	dv := a.DiffFor(right)
+	row := func(i int) int { return g.Top + i - dv.Start(right.Buf.ScrollRow) }
+	double := func(x, y int) {
+		for _, c := range []int{1, 2} {
+			a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft, Clicks: c}))
+			a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+		}
+	}
+	selected := func() string {
+		s := right.Buf.SelectedText()
+		if lt := a.DiffLeft(a.CurText()); lt != nil {
+			s += lt.Buf.SelectedText()
+		}
+		return s
+	}
+	leftX := l.rightX + core.GutterWidthFor(len(dv.OldIdx))
+	rightX := g.RightX + core.GutterWidth(right.Buf)
+	var noOld, noNew = -1, -1
+	for i, r := range dv.Rows {
+		if r.New < 0 && noNew < 0 {
+			noNew = i
+		}
+		if !dv.HasOld(i) && noOld < 0 {
+			noOld = i
+		}
+	}
+	if noNew < 0 || noOld < 0 {
+		t.Fatalf("the fixture has no one-sided rows: %d %d", noNew, noOld)
+	}
+	double(l.rightX, row(dv.NewIdx[1])) // the gutter of the left side
+	if got := selected(); got != "" {
+		t.Errorf("the left gutter selected %q", got)
+	}
+	double(g.RightX, row(dv.NewIdx[1])) // the gutter of the right side
+	if got := selected(); got != "" {
+		t.Errorf("the right gutter selected %q", got)
+	}
+	double(leftX, row(noOld)) // left side, no base line there
+	if got := selected(); got != "" {
+		t.Errorf("an empty row of the left side selected %q", got)
+	}
+	double(rightX, row(noNew)) // right side, a deleted line
+	if got := selected(); got != "" {
+		t.Errorf("an empty row of the right side selected %q", got)
+	}
+	// unified: a deleted line is not on the right side
+	a.Gd.Split = false
+	dv = a.DiffFor(right)
+	g = a.dvGeom(l)
+	noNew = -1
+	for i, r := range dv.Rows {
+		if r.New < 0 {
+			noNew = i
+			break
+		}
+	}
+	double(g.RightX+core.GutterWidth(right.Buf), g.Top+noNew-dv.Start(right.Buf.ScrollRow))
+	if got := selected(); got != "" {
+		t.Errorf("a deleted line in the unified diff selected %q", got)
+	}
+}

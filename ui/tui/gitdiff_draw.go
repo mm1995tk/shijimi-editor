@@ -67,15 +67,20 @@ func (a *App) renderDiffText(t *core.Tab, dv *core.DiffView, l layout, focused b
 
 // diffMouseToCursor moves the cursor to the buffer line under (x, y) in a
 // diff view. Rows that exist only on the base side snap to the next line.
-func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, col int, extend bool) {
+func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, col int, extend bool) bool {
 	if lt := a.DiffLeft(t); lt != nil {
-		a.leftMouseToCursor(t, lt, dv, l, row, col, extend)
-		return
+		return a.leftMouseToCursor(t, lt, dv, l, row, col, extend)
 	}
 	g := a.dvGeom(l)
 	b := t.Buf
 	// g is in screen cells; row and col count from the pane's corner.
 	gTop, gLeft := g.Top-l.top, g.RightX-l.rightX
+	// on text: a row that has a line on this side, right of the gutter
+	onText := row >= gTop && row < gTop+g.H && col >= gLeft+core.GutterWidth(b)
+	if onText {
+		i := dv.Start(b.ScrollRow) + row - gTop
+		onText = i < len(dv.Rows) && dv.Rows[i].New >= 0
+	}
 	col = core.Clamp(col, gLeft, gLeft+g.RightW-1)
 	if row < gTop {
 		b.MoveLines(-1, extend)
@@ -91,7 +96,7 @@ func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, c
 		newRow = dv.Rows[i].New
 	}
 	if newRow < 0 {
-		return
+		return false
 	}
 	vis := max(0, col-gLeft-core.GutterWidth(b)) + b.ScrollCol
 	if extend {
@@ -100,15 +105,20 @@ func (a *App) diffMouseToCursor(t *core.Tab, dv *core.DiffView, l layout, row, c
 		b.StartDrag(newRow, vis)
 	}
 	a.FollowCursor()
+	return onText
 }
 
 // leftMouseToCursor is diffMouseToCursor with the cursor on the left side lt:
 // the base line under (row, col), the rows that exist only on the right side
 // snapping to the next base line.
-func (a *App) leftMouseToCursor(t, lt *core.Tab, dv *core.DiffView, l layout, row, col int, extend bool) {
+func (a *App) leftMouseToCursor(t, lt *core.Tab, dv *core.DiffView, l layout, row, col int, extend bool) bool {
 	g := a.dvGeom(l)
 	b := lt.Buf
 	gTop := g.Top - l.top
+	onText := row >= gTop && row < gTop+g.H && col >= core.GutterWidthFor(len(dv.OldIdx)) && col < g.LeftW
+	if onText {
+		onText = dv.HasOld(dv.Start(t.Buf.ScrollRow) + row - gTop)
+	}
 	col = core.Clamp(col, 0, max(0, g.LeftW-1))
 	if row < gTop {
 		b.MoveLines(-1, extend)
@@ -124,6 +134,7 @@ func (a *App) leftMouseToCursor(t, lt *core.Tab, dv *core.DiffView, l layout, ro
 		b.StartDrag(oldRow, vis)
 	}
 	a.FollowCursor()
+	return onText
 }
 
 // changesTitle is the title of the list of changes: the number of changed
