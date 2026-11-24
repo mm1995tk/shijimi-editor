@@ -391,7 +391,7 @@ func TestComposerOverlay(t *testing.T) {
 func TestCheckoutPRStashes(t *testing.T) {
 	a, _ := gitDiffApp(t)
 	pr := &core.PrInfo{Number: 9, HeadRefName: "other", BaseRefName: "main"}
-	msg := cmdOf(a, a.CheckoutPR(pr, true))().(core.PrCheckedOutMsg)
+	msg := cmdOf(a, a.CheckoutPR(pr, true, core.RightWork))().(core.PrCheckedOutMsg)
 	if msg.Err == nil {
 		t.Skip("gh pr checkout worked here; nothing to check")
 	}

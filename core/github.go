@@ -45,8 +45,9 @@ type prSummary struct {
 }
 
 type prListMsg struct {
-	prs []prSummary
-	err error
+	prs   []prSummary
+	right string // the right side to open the pull request picked with
+	err   error
 }
 
 func run(dir string, stdin []byte, name string, args ...string) ([]byte, error) {
@@ -68,7 +69,7 @@ func run(dir string, stdin []byte, name string, args ...string) ([]byte, error) 
 	return out, nil
 }
 
-func listPRs(root string) []Effect {
+func listPRs(root, right string) []Effect {
 	return async(func() Event {
 		out, err := run(root, nil, "gh", "pr", "list", "--limit", "100", "--json", "number,title,headRefName,isDraft,author")
 		if err != nil {
@@ -76,7 +77,7 @@ func listPRs(root string) []Effect {
 		}
 		var prs []prSummary
 		err = json.Unmarshal(out, &prs)
-		return prListMsg{prs: prs, err: err}
+		return prListMsg{prs: prs, right: right, err: err}
 	})
 }
 

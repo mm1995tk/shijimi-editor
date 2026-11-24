@@ -188,3 +188,21 @@ func TestReplaceWhileHeadSideShown(t *testing.T) {
 		t.Errorf("the HEAD view: %q refused=%v", got, h.Buf.Refused)
 	}
 }
+
+// The pull request looked up opens with the right side its lookup asked for
+// (":gitdiff pr-head": HEAD), carried in the answer.
+func TestPRFoundOpensWithItsRightSide(t *testing.T) {
+	a, _ := gitDiffApp(t)
+	gitIn(t, a.Root, "checkout", "-q", "-b", "feature")
+	a.refreshBranch()
+	a.gitDiffCommand("pr-head")
+	pr := &PrInfo{Number: 7, BaseRefName: "HEAD", HeadRefName: "feature"}
+	a.HandlePRFound(PrFoundMsg{Seq: a.Gd.PrSeq, Num: 7, Right: RightHead, Pr: pr})
+	if a.Sides() != (Sides{BasePR, RightHead}) {
+		t.Errorf("sides = %v", a.Sides())
+	}
+	a.HandlePRFound(PrFoundMsg{Seq: a.Gd.PrSeq, Num: 7, Pr: pr})
+	if a.Sides() != (Sides{BasePR, RightWork}) {
+		t.Errorf("no Right: sides = %v", a.Sides())
+	}
+}

@@ -59,7 +59,6 @@ type gitDiff struct {
 	Base    string  // the left side: BaseHead or BasePR
 	Right   string  // the right side: RightWork (also when empty) or RightHead
 	head    string  // the commit HEAD was when the list was read (RightHead shows it)
-	prRight string  // the right side to open the pull request being looked up with
 	rev     string  // revision of the left side
 	Pr      *PrInfo // the pull request whose base is compared with (BasePR)
 	Split   bool
@@ -100,10 +99,13 @@ type ChangesLoadedMsg struct {
 // PrFoundMsg reports the pull request looked up to compare with. num is the
 // number asked for, 0 for the current branch's. refresh is set for r, which
 // reloads the pull request shown without switching branches.
+// Right is the right side to open it with (RightWork, also when empty, or
+// RightHead).
 type PrFoundMsg struct {
 	Seq     int
 	Num     int
 	Refresh bool
+	Right   string
 	Pr      *PrInfo
 	err     error
 }
@@ -113,7 +115,8 @@ type branchPRsMsg struct {
 	seq   int
 	prs   []prSummary
 	err   error
-	quiet bool // the branch having none is only told
+	right string // the right side to open the pull request with
+	quiet bool   // the branch having none is only told
 }
 
 // ---- loading ----
@@ -623,11 +626,10 @@ func (a *Core) closeDiff() []Effect {
 func (a *Core) branchPR(right string, quiet bool) []Effect {
 	a.InfoText(msg.T("gd.findingpr"))
 	a.Gd.PrSeq++
-	a.Gd.prRight = right
 	root, seq, branch := a.Root, a.Gd.PrSeq, a.Branch
 	return async(func() Event {
 		prs, err := branchPRs(root, branch)
-		return branchPRsMsg{seq: seq, prs: prs, err: err, quiet: quiet}
+		return branchPRsMsg{seq: seq, prs: prs, err: err, right: right, quiet: quiet}
 	})
 }
 
@@ -640,31 +642,32 @@ func (a *Core) handleBranchPRs(m branchPRsMsg) []Effect {
 		a.Fail(m.err)
 		return nil
 	case len(m.prs) == 1:
-		return a.findPR(m.prs[0].Number)
+		return a.findPR(m.prs[0].Number, m.right)
 	case len(m.prs) > 1:
-		return a.showPRList(prListMsg{prs: m.prs})
+		return a.showPRList(prListMsg{prs: m.prs, right: m.right})
 	}
 	if m.quiet {
 		a.InfoText(msg.T("gd.nobranchprhead"))
 		return nil
 	}
 	a.InfoText(msg.T("gd.nobranchpr"))
-	return listPRs(a.Root)
+	return listPRs(a.Root, m.right)
 }
 
-// findPR looks up pull request num to compare with its base.
-func (a *Core) findPR(num int) []Effect { return a.lookupPR(num, false) }
+// findPR looks up pull request num to compare right (RightWork or RightHead)
+// with its base.
+func (a *Core) findPR(num int, right string) []Effect { return a.lookupPR(num, false, right) }
 
 // refreshPR looks up the pull request shown again (r).
-func (a *Core) refreshPR() []Effect { return a.lookupPR(a.Gd.Pr.Number, true) }
+func (a *Core) refreshPR() []Effect { return a.lookupPR(a.Gd.Pr.Number, true, a.Gd.RightSide()) }
 
-func (a *Core) lookupPR(num int, refresh bool) []Effect {
+func (a *Core) lookupPR(num int, refresh bool, right string) []Effect {
 	a.InfoText(msg.T("gd.findingpr"))
 	a.Gd.PrSeq++
 	root, seq := a.Root, a.Gd.PrSeq
 	return async(func() Event {
 		pr, err := viewPR(root, num)
-		return PrFoundMsg{Seq: seq, Num: num, Refresh: refresh, Pr: pr, err: err}
+		return PrFoundMsg{Seq: seq, Num: num, Refresh: refresh, Right: right, Pr: pr, err: err}
 	})
 }
 
@@ -684,14 +687,14 @@ func (a *Core) HandlePRFound(m PrFoundMsg) []Effect {
 	pr := m.Pr
 	proceed := func() []Effect {
 		if !m.Refresh && pr.HeadRefName != a.Branch {
-			return a.switchToPR(pr)
+			return a.switchToPR(pr, m.Right)
 		}
 		if g := a.Gd; m.Refresh && g.On && g.Base == BasePR && g.Pr != nil && g.Pr.Number == pr.Number {
 			// r on the pull request already shown: keep the list on screen
 			g.Pr = pr
 			return Batch(a.ReloadChanges(), a.loadReview())
 		}
-		return a.openPR(pr)
+		return a.openPR(pr, m.Right)
 	}
 	if rv := a.Gd.Rv; len(rv.Pending) > 0 && rv.num != pr.Number {
 		a.Confirm = &YesNo{
@@ -704,15 +707,15 @@ func (a *Core) HandlePRFound(m PrFoundMsg) []Effect {
 	return proceed()
 }
 
-// openPR compares the side the lookup asked for (prRight) with the base of
-// pr, whose branch is checked out, and loads its review.
-func (a *Core) openPR(pr *PrInfo) []Effect {
-	return Batch(a.showSides(BasePR, normRight(a.Gd.prRight), pr), a.loadReview())
+// openPR compares right (RightWork or RightHead) with the base of pr, whose
+// branch is checked out, and loads its review.
+func (a *Core) openPR(pr *PrInfo, right string) []Effect {
+	return Batch(a.showSides(BasePR, normRight(right), pr), a.loadReview())
 }
 
 // switchToPR checks out the branch of pr with `gh pr checkout`, first asking
 // to stash uncommitted changes, then opens it.
-func (a *Core) switchToPR(pr *PrInfo) []Effect {
+func (a *Core) switchToPR(pr *PrInfo, right string) []Effect {
 	if n := a.dirtyCount(); n > 0 {
 		a.Fail(msg.Err("gd.saveswitch", n, pr.Number))
 		return nil
@@ -723,11 +726,11 @@ func (a *Core) switchToPR(pr *PrInfo) []Effect {
 		return nil
 	}
 	if strings.TrimSpace(string(out)) == "" {
-		return a.CheckoutPR(pr, false)
+		return a.CheckoutPR(pr, false, right)
 	}
 	a.Confirm = &YesNo{
 		Prompt: msg.T("gd.askstash"),
-		yes:    func() []Effect { return a.CheckoutPR(pr, true) },
+		yes:    func() []Effect { return a.CheckoutPR(pr, true, right) },
 		no:     func() []Effect { a.Info("gd.cancelswitch", pr.Number); return nil },
 	}
 	return nil
@@ -735,14 +738,15 @@ func (a *Core) switchToPR(pr *PrInfo) []Effect {
 
 // PrCheckedOutMsg reports the end of switching to a pull request's branch.
 type PrCheckedOutMsg struct {
-	seq int
-	pr  *PrInfo
-	Err error
+	seq   int
+	pr    *PrInfo
+	right string
+	Err   error
 }
 
 // CheckoutPR checks out the branch of pr, stashing the changes first when stash
-// is set.
-func (a *Core) CheckoutPR(pr *PrInfo, stash bool) []Effect {
+// is set, to open it with right as the right side.
+func (a *Core) CheckoutPR(pr *PrInfo, stash bool, right string) []Effect {
 	a.Info("gd.checkout", pr.Number)
 	a.Gd.PrSeq++
 	root, seq := a.Root, a.Gd.PrSeq
@@ -755,7 +759,7 @@ func (a *Core) CheckoutPR(pr *PrInfo, stash bool) []Effect {
 		if stash {
 			in := a.text(msg.T("gd.stashmsg", pr.Number))
 			if _, err := run(root, nil, "git", "stash", "push", "-u", "-m", in); err != nil {
-				return PrCheckedOutMsg{seq: seq, pr: pr, Err: err}
+				return PrCheckedOutMsg{seq: seq, pr: pr, right: right, Err: err}
 			}
 		}
 		_, err := run(root, nil, "gh", "pr", "checkout", fmt.Sprint(pr.Number))
@@ -770,7 +774,7 @@ func (a *Core) CheckoutPR(pr *PrInfo, stash bool) []Effect {
 				err = msg.Err("gd.stashed", err, pr.Number)
 			}
 		}
-		return PrCheckedOutMsg{seq: seq, pr: pr, Err: err}
+		return PrCheckedOutMsg{seq: seq, pr: pr, right: right, Err: err}
 	})
 }
 
@@ -784,7 +788,7 @@ func (a *Core) HandlePRCheckedOut(m PrCheckedOutMsg) []Effect {
 		a.Fail(m.Err)
 		return nil
 	}
-	cmd := a.openPR(m.pr)
+	cmd := a.openPR(m.pr, m.right)
 	a.Info("gd.switched", m.pr.Number, a.Branch)
 	return cmd
 }
@@ -843,9 +847,8 @@ func (a *Core) handlePRPulled(m prPulledMsg) []Effect {
 
 // prPicker lists the repository's pull requests to compare with.
 func (a *Core) prPicker() []Effect {
-	a.Gd.prRight = RightWork
 	a.InfoText(msg.T("gd.fetchingprs"))
-	return listPRs(a.Root)
+	return listPRs(a.Root, RightWork)
 }
 
 func (a *Core) showPRList(m prListMsg) []Effect {
@@ -866,7 +869,7 @@ func (a *Core) showPRList(m prListMsg) []Effect {
 		}
 		items[i] = PaletteItem{Label: msg.S(fmt.Sprintf("#%d %s%s", p.Number, p.Title, draft)), Detail: msg.S("@" + p.Author.Login + "  " + p.HeadRefName)}
 	}
-	return a.Pal.Pick(msg.T("gd.prs"), items, func(i int) []Effect { return a.findPR(m.prs[i].Number) })
+	return a.Pal.Pick(msg.T("gd.prs"), items, func(i int) []Effect { return a.findPR(m.prs[i].Number, m.right) })
 }
 
 // ToggleSplit switches the diff view between side by side and unified.

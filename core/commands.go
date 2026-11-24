@@ -295,8 +295,7 @@ func (a *Core) ExecCommand(line string) []Effect {
 		return a.gitDiffCommand(arg)
 	case "pr":
 		if n, err := strconv.Atoi(strings.TrimPrefix(arg, "#")); err == nil {
-			a.Gd.prRight = RightWork
-			return a.findPR(n)
+			return a.findPR(n, RightWork)
 		}
 		return a.prPicker()
 	case "grep", "rg":
