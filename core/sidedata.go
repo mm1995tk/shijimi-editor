@@ -47,7 +47,9 @@ func (a *Core) ChangesOf(h int) ChangesList {
 	pr := a.PrShown()
 	vis := g.vis()
 	l := ChangesList{Files: len(g.Files), PR: pr, Top: g.scroll, Total: len(vis), Loading: g.Loading, Err: g.err}
-	if g.Base == BasePR {
+	if g.Base == BasePR && g.RightSide() == RightHead {
+		l.Base = "PR←HEAD"
+	} else if g.Base == BasePR {
 		l.Base = "PR"
 	} else {
 		l.Base = "DIFF"

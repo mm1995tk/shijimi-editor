@@ -173,8 +173,8 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 		rows[i] = sb.String()
 	}
 	if a.DiffMode() {
-		branch, pr := a.CompareBase()
-		rows = append([]string{drawCompareBar(branch, pr, a.w)}, rows...)
+		branch, pr, right := a.CompareBase()
+		rows = append([]string{drawCompareBar(branch, pr, right, a.w)}, rows...)
 		rows = append(rows, drawDiffHelp(tr(a.DiffHelp()), a.w))
 	}
 

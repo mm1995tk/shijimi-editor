@@ -124,6 +124,7 @@ Press `Space`, then one of the following keys.
 | `Space t` | Toggle the terminal |
 | `Space g` | Open / close diff mode (compared with the base of the pull request) |
 | `Space G` | Open / close diff mode (compared with `HEAD`) |
+| `Space x` | In diff mode, switch what is compared (PR base ← working tree → PR base ← `HEAD` → `HEAD` ← working tree) |
 | `Space v` | Review menu (when the comparison is with the base of a pull request. [Diff mode](review.md)) |
 | `Space m` | Toggle the Markdown preview (side by side → full width → closed) |
 | `Space a` | Send the current context to the agent |

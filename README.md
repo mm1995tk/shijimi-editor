@@ -15,7 +15,7 @@ The UI is in English by default. To switch it to Japanese, set `ui-language = "j
 - **File tree** (shows Git status as M / U / A)
 - **LSP**: diagnostics, completion, hover, signature help, go to definition, references, rename, code actions, symbol list, formatting
 - **LSP configuration** is written in a `languages.toml` that is compatible with Helix's (`.shijimi-editor/languages.toml` or `~/.config/shijimi-editor/languages.toml`). If you are coming from Helix, copy your `languages.toml` to `~/.config/shijimi-editor/`
-- **Diff mode** (`Space G` / `Ctrl+G` compares with `HEAD`; `Space g` / `:pr` compares with the base of a pull request): switches the whole editor to diff mode. Changed files are listed in a tree (CHANGES), and a changed file opens as the **whole file** in a split (or unified) diff. The right side is editable. The bar on the right edge shows where the changes are, and the parts that changed inside a line are highlighted (see below)
+- **Diff mode** (`Space G` / `Ctrl+G` compares the working tree with `HEAD`; `Space g` / `:pr` compares it with the base of a pull request; `Space x` switches what is compared, among PR base ← working tree, PR base ← `HEAD` and `HEAD` ← working tree): switches the whole editor to diff mode. Changed files are listed in a tree (CHANGES), and a changed file opens as the **whole file** in a split (or unified) diff. The right side is editable when it is the working tree. The bar on the right edge shows where the changes are, and the parts that changed inside a line are highlighted (see below)
 - **Image preview** (PNG / JPEG / GIF / BMP / WebP / TIFF)
 - **Markdown preview** (`Space m` / `:preview`): renders headings, lists, code and tables, and shows them beside the buffer you are editing. Press it again to show only the preview at full width. Mermaid code blocks are shown as diagrams, and an image written alone on a line is shown as an image (see below)
 - **Send the current context to an agent** (`Space a` / `Alt+A` / command palette): formats the selection (or the cursor line) as `path:line-line`, the text, and the diagnostics on those lines, and after you check it in a preview, pastes it into the terminal panel (it does not press Enter)
@@ -240,6 +240,7 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 | `Space g` | Open / close diff mode (compared with the base of the pull request) |
 | `Space m` | Toggle the Markdown preview (side by side → full width → closed) |
 | `Space G` | Open / close diff mode (compared with `HEAD`) |
+| `Space x` | In diff mode, switch what is compared (PR base ← working tree → PR base ← `HEAD` → `HEAD` ← working tree) |
 | `Space v` | Review menu (when comparing with the base of a pull request) |
 | `Space y` `Space p` | Copy to / paste from the system clipboard |
 | `Space ?` | Command palette |
@@ -250,7 +251,7 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 
 ### `:` commands
 
-`:w` `:w <path>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <path>` `:n <path>` `:bc` `:bc!` `:fmt` `:reload` `:<line number>` `:sh <command>` `:grep [-x exclude-glob] [-i include-glob] <text>` `:replace [-x exclude-glob] [-i include-glob] <text> => <replacement>` `:pr [number]` `:gitdiff [on|off|split|unified]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]`
+`:w` `:w <path>` `:wa` `:q` `:q!` `:wq` `:wqa` `:o <path>` `:n <path>` `:bc` `:bc!` `:fmt` `:reload` `:<line number>` `:sh <command>` `:grep [-x exclude-glob] [-i include-glob] <text>` `:replace [-x exclude-glob] [-i include-glob] <text> => <replacement>` `:pr [number]` `:gitdiff [on|off|head|pr|pr-head|cycle|split|unified]` `:preview` `:lsp-restart` `:config-reload` `:browser forward|list|stop` `:keymap [helix|vscode]`
 
 ### Global
 
@@ -275,27 +276,38 @@ When you press `Space`, a popup at the bottom right of the editor area lists the
 
 ### Diff mode
 
-How you open it decides what you compare with (the base). Pressing the same key while it is open closes it, and pressing a different key switches the base.
+Diff mode compares two sides: the left (before) is `HEAD` or the base of the pull request, and the right (after) is the working tree or `HEAD`. These three pairs are available, all on the same screen:
 
-| Key | Base |
+| Pair (left ← right) | What it shows |
 | --- | --- |
-| `Space G` / `Ctrl+G` / `:gitdiff` | `HEAD` (includes untracked files) |
-| `Space g` / `:pr [number]` | The base of the pull request (`git merge-base <PR base> HEAD`). Opens the PR of the current branch. For a PR on another branch, run `gh pr checkout` first (needs `gh`) |
+| PR base ← working tree | What the pull request becomes once everything here is pushed (includes untracked files) |
+| PR base ← `HEAD` | The pull request as a reviewer sees it now (when everything is pushed) |
+| `HEAD` ← working tree | The changes not committed yet (includes untracked files) |
 
-- From the top, the screen is the header (the base and what it is compared with), the sidebar and the diff, the help line (the keys you can use now), and the status line.
+The PR base is `git merge-base <PR base> HEAD`. The key you open diff mode with decides the first pair, and `Space x` (`x` in CHANGES, `:gitdiff cycle`) switches to the next pair in the order of the table. Pressing the key you opened it with closes it, and pressing the other key switches to its pair.
+
+| Key | First pair |
+| --- | --- |
+| `Space G` / `Ctrl+G` / `:gitdiff` | `HEAD` ← working tree |
+| `Space g` / `:pr [number]` | PR base ← working tree. Opens the PR of the current branch. For a PR on another branch, run `gh pr checkout` first (needs `gh`) |
+
+- When the current branch has no pull request, only `HEAD` ← working tree is available: `Space x` says so and stays.
+- `:gitdiff head`, `:gitdiff pr` and `:gitdiff pr-head` open a pair directly (`HEAD` ← working tree, PR base ← working tree, PR base ← `HEAD`).
+- From the top, the screen is the header (the two sides compared, such as `main (PR base) ← HEAD`), the sidebar and the diff, the help line (the keys you can use now), and the status line.
 - The sidebar is split 7:3 vertically, and **CHANGES** (a tree of the changed files) appears in the lower 3. A folder with a single child is collapsed like `internal/config`. `Tab` moves between it and the file tree.
-- A file without changes opens in the normal editor. A changed file opens as the whole file in **Split** (the base on the left, the current file on the right). A new file (including an untracked one) opens in a single editor. Lines are not colored, the bar on the right edge turns all green, and the `+N` / `-N` in the file name row at the top remain.
-- The right side (the current file) can be edited and saved as usual. The diff updates right away when you edit.
+- A file without changes opens in the normal editor. A changed file opens as the whole file in **Split** (the left side on the left, the right side on the right). A new file (including an untracked one) opens in a single editor. Lines are not colored, the bar on the right edge turns all green, and the `+N` / `-N` in the file name row at the top remain.
+- When the right side is the working tree, it can be edited and saved as usual. The diff updates right away when you edit. When the right side is `HEAD`, it shows the file as `HEAD` has it and cannot be edited (the file name row says `HEAD · read-only`); you can still move, select, search and copy.
 - You can also switch to **Unified** (`s`, `:gitdiff unified` / `split`, or a click on the file name row).
 - The bar on the right edge of the diff shows where the changes are by color (green: added, red: deleted, blue: modified). The range now shown is brighter, and clicking scrolls to that position.
 - In a line where only a part changed, the changed part is highlighted in a darker color.
-- While comparing with the base of a pull request, you can review with `Space v` (comments on lines, ranges and files, replies, resolving, applying suggestions, viewed, submitting an approval and so on, and copying or opening the PR URL with `Space v y` / `Space v o`). You can comment only on files whose working tree content is the same as the PR's latest commit. See "Diff mode" in the manual for details.
+- While comparing with the base of a pull request, you can review with `Space v` (comments on lines, ranges and files, replies, resolving, applying suggestions, viewed, submitting an approval and so on, and copying or opening the PR URL with `Space v y` / `Space v o`). You can comment only on files whose right side is the same as the PR's latest commit. See "Diff mode" in the manual for details.
 
 | Key (with CHANGES focused) | Action |
 | --- | --- |
 | `j/k` | Move |
 | `Enter` / `l` | Open the file |
 | `s` | Toggle split / unified |
+| `x` | Switch what is compared |
 | `r` | Refresh the list |
 | `Tab` | Go to the file tree |
 | `Esc` | Go to the editor |

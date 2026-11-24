@@ -34,6 +34,11 @@ type Tab struct {
 	Img *ImageView
 	Dv  *DiffView // set while the tab is shown as a diff (diff mode)
 
+	// the file as the commit headRev has it, read-only, shown in place of the
+	// tab while diff mode shows HEAD on the right (diffhead.go)
+	head    *Tab
+	headRev string
+
 	// Markdown preview beside the buffer
 	Preview   PreviewMode
 	prevCache *MdDoc

@@ -422,8 +422,8 @@ func (a *Core) replaceHits(hits []*SearchHit) bool {
 			failed = append(failed, a.Rel(p))
 			continue
 		}
-		t := a.CurText()
-		if t == nil {
+		t := a.curTab() // the file, not the HEAD view diff mode may show in its place
+		if t == nil || t.Kind != TabText {
 			continue
 		}
 		edits, n, st := HitEdits(byPath[p], t.Buf.Lines)

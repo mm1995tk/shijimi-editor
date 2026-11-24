@@ -312,7 +312,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 func (a *Core) SpaceMode(key string) []Effect {
 	if a.single {
 		switch key {
-		case "f", "b", "d", "D", "e", "E", "g", "G", "v", "w", "i", "?", "/", "t", "a", "s":
+		case "f", "b", "d", "D", "e", "E", "g", "G", "x", "v", "w", "i", "?", "/", "t", "a", "s":
 			return nil
 		}
 	}
@@ -352,6 +352,8 @@ func (a *Core) SpaceMode(key string) []Effect {
 		return a.OpenDiff(BasePR)
 	case "G":
 		return a.OpenDiff(BaseHead)
+	case "x":
+		return a.CycleSides()
 	case "v":
 		return a.openReviewMenu()
 	case "w":

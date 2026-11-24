@@ -405,7 +405,7 @@ func TestInlineBudgetBoundsOneBuild(t *testing.T) {
 
 func TestStalePRLookupIsDropped(t *testing.T) {
 	a, _ := gitDiffApp(t)
-	cmd := a.findPR(0)
+	cmd := a.findPR(0, RightWork)
 	if cmd == nil {
 		t.Fatal("no lookup")
 	}

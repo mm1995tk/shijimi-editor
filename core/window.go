@@ -47,7 +47,7 @@ func (a *Core) SplitOpen() []Effect {
 		a.InfoText(msg.T("win.narrow"))
 		return nil
 	}
-	cur := a.Cur()
+	cur := a.curTab()
 	if cur == nil {
 		a.InfoText(msg.T("win.nofile"))
 		return nil
@@ -61,7 +61,7 @@ func (a *Core) SplitOpen() []Effect {
 	a.Other, a.otherPrev = cur, nil
 	a.PrevTab = nil
 	a.Active = a.tabIndex(prev)
-	a.seenTab = a.Cur()
+	a.seenTab = a.curTab()
 	a.Follow = true
 	a.Mode = ModeNormal
 	a.Comp = nil
@@ -94,11 +94,11 @@ func (a *Core) focusOtherPane() []Effect { return a.FocusPane(1 - a.Pane) }
 // swapPanes makes the other pane's file the focused one's, and the reverse.
 // The pane keeps its own "last file".
 func (a *Core) swapPanes() {
-	cur := a.Cur()
+	cur := a.curTab()
 	a.Active = a.tabIndex(a.Other)
 	a.Other = cur
 	a.PrevTab, a.otherPrev = a.otherPrev, a.PrevTab
-	a.seenTab = a.Cur()
+	a.seenTab = a.curTab()
 	a.Follow = true
 	a.Mode = ModeNormal
 	a.Comp = nil
@@ -125,7 +125,7 @@ func (a *Core) showInPane(i int) {
 		return
 	}
 	if a.Split && a.Tabs[i] == a.Other {
-		a.Other = a.Cur()
+		a.Other = a.curTab()
 		a.otherPrev, a.PrevTab = a.PrevTab, a.otherPrev
 	}
 	a.Active = i
@@ -145,7 +145,7 @@ func (a *Core) NormalizeSplit() {
 	if a.tabIndex(a.Other) < 0 {
 		a.Other = nil
 	}
-	if cur := a.Cur(); cur != nil && cur == a.Other {
+	if cur := a.curTab(); cur != nil && cur == a.Other {
 		a.Other = a.seenTab
 		if a.tabIndex(a.Other) < 0 || a.Other == cur {
 			a.Other = nil
@@ -154,7 +154,7 @@ func (a *Core) NormalizeSplit() {
 		a.PrevTab, a.otherPrev = a.otherPrev, a.PrevTab
 		a.seenTab = cur
 	}
-	if a.Cur() == nil && a.Other == nil {
+	if a.curTab() == nil && a.Other == nil {
 		a.Split, a.Pane = false, 0
 	}
 	if a.Other != nil {

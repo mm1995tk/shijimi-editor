@@ -29,6 +29,7 @@ var spaceItems = []SpaceItem{
 	{"m", "space.preview", false},
 	{"g", "space.diffpr", false},
 	{"G", "space.diffhead", false},
+	{"x", "space.diffcycle", false},
 	{"v", "space.review", false},
 	{"w", "space.window", false},
 	{"y", "space.copy", true},
@@ -58,7 +59,10 @@ func (a *Core) SpaceMenuItems() []SpaceItem {
 		if it.Key == "E" && !a.ChangesListShown() {
 			continue
 		}
-		if full && !strings.Contains("fbkodDeEmgGvwy?/tai", it.Key) {
+		if it.Key == "x" && !a.Gd.On {
+			continue
+		}
+		if full && !strings.Contains("fbkodDeEmgGxvwy?/tai", it.Key) {
 			continue
 		}
 		out = append(out, it)

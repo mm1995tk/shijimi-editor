@@ -236,6 +236,10 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 	name := " " + title.Text
 	stats := fmt.Sprintf("  +%d", title.Added)
 	dels := fmt.Sprintf(" -%d", title.Deleted)
+	tag := ""
+	if title.ReadOnly { // the right side is HEAD
+		tag = i18n.T("gd.readonlytag")
+	}
 	noteFg := core.CurTheme.Renamed
 	if title.NoteWarn {
 		noteFg = core.CurTheme.DiagWarn
@@ -243,9 +247,10 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 	hw := diffHintWidth(hint)
 	bw := titleCopyWidth(&title, w-hw) // the button at the right end
 	w -= bw
-	nw := max(0, min(ansi.StringWidth(name), w-hw-ansi.StringWidth(stats+dels)))
+	nw := max(0, min(ansi.StringWidth(name), w-hw-ansi.StringWidth(stats+dels+tag)))
 	head := bgfg(cTabBarBg, core.CurTheme.Strong).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
 		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +
+		bgfg(cTabBarBg, core.CurTheme.Dim).Render(tag) +
 		bgfg(cTabBarBg, noteFg).Render(tr(title.Note))
 	return fitStyled(head, max(0, w-hw), bgfg(cTabBarBg, core.CurTheme.Strong)) +
 		bgfg(cTabBarBg, core.CurTheme.Dim).Render(core.Fit(" "+hint, hw)) +
@@ -300,18 +305,22 @@ func drawOldLine(p screen.Pane, pl screen.Line, w int) string {
 }
 
 // drawCompareBar draws the line above everything in diff mode: what is
-// compared with what. pr is the pull request whose base is compared with, nil
-// for HEAD; branch is the one checked out.
-func drawCompareBar(branch string, pr *core.PrInfo, w int) string {
+// compared with what, the left side <- the right side. pr is the pull request
+// whose base is the left side, nil for HEAD; branch is the one checked out;
+// right is the right side (core.RightWork or core.RightHead).
+func drawCompareBar(branch string, pr *core.PrInfo, right string, w int) string {
 	bg := cTabBarBg
 	dim := bgfg(bg, core.CurTheme.Dim)
 	text := bgfg(bg, cEditorFg)
 	strong := bgfg(bg, core.CurTheme.Strong).Bold(true)
 	var sb strings.Builder
 	sb.WriteString(text.Render(" "))
-	tree := i18n.T("gd.worktree")
+	rightSide := text.Render(i18n.T("gd.worktree"))
 	if branch != "" {
-		tree = fmt.Sprintf(i18n.T("gd.worktreebranch"), branch)
+		rightSide = text.Render(fmt.Sprintf(i18n.T("gd.worktreebranch"), branch))
+	}
+	if right == core.RightHead {
+		rightSide = strong.Render("HEAD") + dim.Render(i18n.T("gd.readonlyside"))
 	}
 	if pr != nil {
 		sb.WriteString(bgfg(core.CurTheme.Renamed, core.CurTheme.CursorFg).Bold(true).Render(fmt.Sprintf(" PR #%d ", pr.Number)))
@@ -332,13 +341,14 @@ func drawCompareBar(branch string, pr *core.PrInfo, w int) string {
 		}
 		sb.WriteString(dim.Render(i18n.T("gd.comparing")))
 		sb.WriteString(strong.Render(pr.BaseRefName))
-		sb.WriteString(text.Render(i18n.T("gd.prbase") + tree))
+		sb.WriteString(text.Render(i18n.T("gd.prbase")))
 	} else {
 		sb.WriteString(bgfg(cAccent, core.CurTheme.AccentFg).Bold(true).Render(" DIFF "))
 		sb.WriteString(dim.Render(i18n.T("gd.comparing")))
 		sb.WriteString(strong.Render("HEAD"))
-		sb.WriteString(text.Render(" ↔ " + tree))
+		sb.WriteString(text.Render(" ← "))
 	}
+	sb.WriteString(rightSide)
 	return fitStyled(sb.String(), w, text)
 }
 

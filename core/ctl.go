@@ -68,13 +68,13 @@ func (a *Core) handleCtl(m CtlRequest) []Effect {
 }
 
 // ctlChangesKey handles a key the GUI pressed in its CHANGES list that only
-// the shj can act on (s, r, R, Space and ":"): it is handled as if it was
+// the shj can act on (s, r, R, x, Space and ":"): it is handled as if it was
 // pressed with the focus on our own list. It is refused unless the GUI shows
 // the list (the diff mode, with the GUI listing the changes of its base).
 func (a *Core) ctlChangesKey(line string) (CtlResponse, []Effect) {
 	var k Key
 	switch line {
-	case "s", "r", "R", ":":
+	case "s", "r", "R", "x", ":":
 		k = Key{Code: rune(line[0]), Text: line}
 	case "space":
 	default:
@@ -143,7 +143,7 @@ func (a *Core) ctlExec(line string) (CtlResponse, []Effect) {
 	}
 	switch name {
 	case "reload", "rl", "bc", "bclose", "buffer-close":
-		if t := a.CurText(); t != nil && t.dirty() {
+		if t := a.curTab(); t != nil && t.dirty() {
 			return CtlResponse{Error: msg.Cat(msg.T("ctl.unsaved1"), name, msg.T("ctl.unsaved2"))}, nil
 		}
 	}

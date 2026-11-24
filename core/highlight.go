@@ -230,6 +230,9 @@ func (a *Core) LexTabs() []Effect {
 			cmds = append(cmds, t.Hl.LexCmd(t.Buf))
 		}
 	}
+	for _, h := range a.heads() {
+		cmds = append(cmds, h.Hl.LexCmd(h.Buf))
+	}
 	return Batch(cmds...)
 }
 

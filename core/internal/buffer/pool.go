@@ -66,6 +66,9 @@ func (p *Pool) Len() int {
 // file tree), and the Pool follows: the file is then found under its new
 // name, not the old one.
 func (b *Buffer) SetPath(path string) {
+	if b.refuse() {
+		return
+	}
 	d := b.Doc
 	if d.pool != nil {
 		d.pool.mu.Lock()
