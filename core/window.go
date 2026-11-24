@@ -172,7 +172,7 @@ func (a *Core) NormalizeSplit() {
 
 // windowKey runs Space w <key> (Helix's window menu).
 func (a *Core) windowKey(key string) []Effect {
-	a.onLeft = false
+	a.onLeft = false // acts on the file, not on the left side of diff mode
 	if a.single {
 		return nil
 	}
