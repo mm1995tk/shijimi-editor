@@ -22,7 +22,7 @@ func TestRenderDiffTextShowsWholeFile(t *testing.T) {
 	for _, split := range []bool{true, false} {
 		a.Gd.Split = split
 		view := ansi.Strip(a.render())
-		for _, s := range []string{"a.txt", "比較元 HEAD", "DIFF", "CHANGES", "new.txt"} {
+		for _, s := range []string{"a.txt", "比較 HEAD ← 作業ツリー", "DIFF", "CHANGES", "new.txt"} {
 			if !strings.Contains(view, s) {
 				t.Errorf("split=%v: view lacks %q", split, s)
 			}
@@ -162,7 +162,7 @@ func TestOpenDiffSwitchesAndCloses(t *testing.T) {
 		t.Fatalf("base=%s pr=%v", a.Gd.Base, a.Gd.Pr)
 	}
 	view := ansi.Strip(a.render())
-	for _, s := range []string{"PR #12", "差分モードを 1 つにする", "OPEN", "@someone", "比較元 main（PR の base）↔ 作業ツリー", "Space G:HEAD と比べる  Space g:閉じる"} {
+	for _, s := range []string{"PR #12", "差分モードを 1 つにする", "OPEN", "@someone", "比較 main（PR の base）← 作業ツリー", "Space G:HEAD と比べる  Space g:閉じる"} {
 		if !strings.Contains(view, s) {
 			t.Errorf("view lacks %q", s)
 		}
@@ -589,6 +589,27 @@ func TestPlainEditorScrollBarClickByMouse(t *testing.T) {
 		press(barX) // the bar scrolls and leaves the cursor
 		if tb.Buf.ScrollRow == 0 || tb.Buf.Cur.Row != 0 {
 			t.Errorf("preview %v: a click on the bar: ScrollRow %d, cursor row %d", preview, tb.Buf.ScrollRow, tb.Buf.Cur.Row)
+		}
+	}
+}
+
+// The header names both sides: the pull request's base <- the working tree,
+// then <- HEAD (read-only) after Space x, with the help line to match.
+func TestCompareBarNamesBothSides(t *testing.T) {
+	a, _ := prApp(t)
+	view := ansi.Strip(a.render())
+	if !strings.Contains(view, "比較 main（PR の base）← 作業ツリー（feature）") {
+		t.Errorf("PR <- work: header lacks the sides\n%s", view)
+	}
+	a.CycleSides()
+	a.Apply(func() []core.Effect {
+		a.ApplyChanges(core.LoadSides(a.Gd.Gen, a.Root, a.Gd.Base, a.Gd.Right, a.Gd.Pr).(core.ChangesLoadedMsg))
+		return nil
+	})
+	view = ansi.Strip(a.render())
+	for _, s := range []string{"比較 main（PR の base）← HEAD（読み取り専用）", "a.txt  +1 -1  HEAD・読み取り専用", "Space x:比べるものの切り替え", "CHANGES (2)", "PR←HEAD"} {
+		if !strings.Contains(view, s) {
+			t.Errorf("PR <- HEAD: view lacks %q\n%s", s, view)
 		}
 	}
 }

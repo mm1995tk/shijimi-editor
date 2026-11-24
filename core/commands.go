@@ -32,10 +32,10 @@ func defaultCommands() []Command {
 		{msg.T("cmd.closetab"), msg.S("Ctrl+W / :bc"), func(a *Core) []Effect { return a.CloseTab(false) }},
 		{msg.T("cmd.closeall"), msg.S(":bca"), func(a *Core) []Effect { return a.CloseTabs(nil, false) }},
 		{msg.T("cmd.closeothers"), msg.S(":bco"), func(a *Core) []Effect {
-			if a.Cur() == nil {
+			if a.curTab() == nil {
 				return nil
 			}
-			return a.CloseTabs(a.Cur(), false)
+			return a.CloseTabs(a.curTab(), false)
 		}},
 		{msg.T("cmd.buffers"), msg.S("Space b"), func(a *Core) []Effect { return a.BufferPicker() }},
 		{msg.T("cmd.sidebar"), msg.S("Ctrl+B"), func(a *Core) []Effect { a.ToggleSide(); return nil }},
@@ -76,9 +76,11 @@ func defaultCommands() []Command {
 		{msg.T("cmd.format"), msg.S(":fmt"), func(a *Core) []Effect { return a.Format(false) }},
 		{msg.T("cmd.diagnostics"), msg.S("Space d"), func(a *Core) []Effect { return a.diagnosticPicker() }},
 		{msg.T("cmd.lsprestart"), msg.S(":lsp-restart"), func(a *Core) []Effect { return a.ExecCommand("lsp-restart") }},
-		{msg.T("cmd.diffhead"), msg.S("Ctrl+G / Space G / :gitdiff"), func(a *Core) []Effect { return a.OpenDiff(BaseHead) }},
-		{msg.T("cmd.diffpr"), msg.S("Space g"), func(a *Core) []Effect { return a.OpenDiff(BasePR) }},
+		{msg.T("cmd.diffhead"), msg.S("Ctrl+G / Space G / :gitdiff head"), func(a *Core) []Effect { return a.OpenDiff(BaseHead) }},
+		{msg.T("cmd.diffpr"), msg.S("Space g / :gitdiff pr"), func(a *Core) []Effect { return a.OpenDiff(BasePR) }},
 		{msg.T("cmd.diffprpick"), msg.T("cmd.diffprpick.key"), func(a *Core) []Effect { return a.prPicker() }},
+		{msg.T("cmd.diffcycle"), msg.S("Space x / :gitdiff cycle"), func(a *Core) []Effect { return a.CycleSides() }},
+		{msg.T("cmd.diffprhead"), msg.S(":gitdiff pr-head"), func(a *Core) []Effect { return a.gitDiffCommand("pr-head") }},
 		{msg.T("cmd.diffsplit"), msg.S(":gitdiff split|unified"), func(a *Core) []Effect { a.ToggleSplit(); return nil }},
 		{msg.T("cmd.diffchanges"), msg.S(""), func(a *Core) []Effect { return a.focusChangesList() }},
 		{msg.T("cmd.rvcomment"), msg.S("Space v c"), func(a *Core) []Effect { return a.ReviewCommand("c") }},
@@ -243,10 +245,10 @@ func (a *Core) ExecCommand(line string) []Effect {
 	case "bca", "bclose-all", "buffer-close-all", "bca!", "bclose-all!", "buffer-close-all!":
 		return a.CloseTabs(nil, strings.HasSuffix(name, "!"))
 	case "bco", "bclose-others", "buffer-close-others", "bco!", "bclose-others!", "buffer-close-others!":
-		if a.Cur() == nil {
+		if a.curTab() == nil {
 			return nil
 		}
-		return a.CloseTabs(a.Cur(), strings.HasSuffix(name, "!"))
+		return a.CloseTabs(a.curTab(), strings.HasSuffix(name, "!"))
 	case "fmt", "format":
 		return a.Format(false)
 	case "signature", "sig":
@@ -262,7 +264,7 @@ func (a *Core) ExecCommand(line string) []Effect {
 	case "copy-abs":
 		a.copyPath(a.activePath(), true)
 	case "reload", "rl":
-		if t := a.CurText(); t != nil && t.Buf.Path != "" {
+		if t := a.curTab(); t != nil && t.Kind == TabText && t.Buf.Path != "" {
 			if err := t.reload(); err != nil {
 				a.Fail(err)
 			} else {
@@ -293,6 +295,7 @@ func (a *Core) ExecCommand(line string) []Effect {
 		return a.gitDiffCommand(arg)
 	case "pr":
 		if n, err := strconv.Atoi(strings.TrimPrefix(arg, "#")); err == nil {
+			a.Gd.prRight = RightWork
 			return a.findPR(n)
 		}
 		return a.prPicker()

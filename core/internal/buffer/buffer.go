@@ -86,6 +86,12 @@ type Doc struct {
 	Lines [][]rune
 	Dirty bool
 
+	// ReadOnly refuses every edit (and saving and reloading): the Doc holds
+	// text that is not the file's, such as the file as a commit has it.
+	// Refused records that an edit was refused, for the editor to tell.
+	ReadOnly bool
+	Refused  bool
+
 	// Version increments on every content change (used by highlight caches).
 	Version int
 
@@ -106,6 +112,22 @@ type Doc struct {
 func New() *Buffer {
 	d := &Doc{Lines: [][]rune{{}}}
 	return d.NewView()
+}
+
+// NewReadOnly returns a read-only buffer holding text, named path (for its
+// name and its syntax) but not bound to the file: it is never saved or
+// reloaded.
+func NewReadOnly(path, text string) *Buffer {
+	d := &Doc{Path: path, Lines: splitLines([]rune(strings.ReplaceAll(text, "\r\n", "\n"))), ReadOnly: true}
+	return d.NewView()
+}
+
+// refuse reports whether the buffer is read-only, noting the refused edit.
+func (b *Buffer) refuse() bool {
+	if b.ReadOnly {
+		b.Refused = true
+	}
+	return b.ReadOnly
 }
 
 // NewView is a new view of d, with its cursor at the start and its own scroll
@@ -207,6 +229,9 @@ func statStamp(path string) diskStamp {
 // DiskChanged reports whether the file was modified on disk since it was last
 // read or written by this buffer. A file that no longer exists is not reported.
 func (b *Buffer) DiskChanged() bool {
+	if b.ReadOnly {
+		return false
+	}
 	if b.Path == "" {
 		return false
 	}
@@ -289,6 +314,9 @@ func (b *Buffer) Encoded() string {
 
 // Save writes the buffer to its path.
 func (b *Buffer) Save() error {
+	if b.ReadOnly {
+		return msg.Err("buffer.readonly")
+	}
 	if b.Path == "" {
 		return msg.Err("buffer.noname")
 	}
@@ -342,6 +370,9 @@ func (b *Buffer) begin(kind editKind) {
 
 // Undo reverts the last edit group.
 func (b *Buffer) Undo() bool {
+	if b.refuse() {
+		return false
+	}
 	if len(b.undo) == 0 {
 		return false
 	}
@@ -354,6 +385,9 @@ func (b *Buffer) Undo() bool {
 
 // Redo re-applies the last undone edit group.
 func (b *Buffer) Redo() bool {
+	if b.refuse() {
+		return false
+	}
 	if len(b.redo) == 0 {
 		return false
 	}
@@ -447,6 +481,9 @@ func (b *Buffer) startSelect(extend bool) {
 
 // Insert inserts text at the cursor, replacing any selection.
 func (b *Buffer) Insert(text string) {
+	if b.refuse() {
+		return
+	}
 	kind := editTyping
 	if strings.ContainsRune(text, '\n') {
 		kind = editOther
@@ -473,6 +510,9 @@ func isCloser(r rune) bool {
 // closing one and leaves the cursor between them (or wraps the selection);
 // a closing bracket right before the cursor is stepped over.
 func (b *Buffer) TypeRune(r rune) {
+	if b.refuse() {
+		return
+	}
 	if closer, ok := bracketPairs[r]; ok {
 		if s, e, sel := b.Selection(); sel {
 			text := b.textRange(s, e)
@@ -506,6 +546,9 @@ func (b *Buffer) TypeRune(r rune) {
 
 // InsertBlock inserts text (e.g. a paste) as its own undo step.
 func (b *Buffer) InsertBlock(text string) {
+	if b.refuse() {
+		return
+	}
 	b.insertWith(editOther, text)
 }
 
@@ -557,6 +600,9 @@ const (
 
 // Newline inserts a line break, copying the current line's indentation.
 func (b *Buffer) Newline() {
+	if b.refuse() {
+		return
+	}
 	line := b.Lines[b.Cur.Row]
 	indent := leadingSpace(line)
 	if len(indent) > b.Cur.Col {
@@ -593,6 +639,9 @@ func (b *Buffer) IndentUnit() string {
 // Indent inserts indentation; with a multi-line selection it indents every
 // selected line.
 func (b *Buffer) Indent() {
+	if b.refuse() {
+		return
+	}
 	s, e, ok := b.Selection()
 	if !ok || s.Row == e.Row {
 		unit := b.IndentUnit()
@@ -618,6 +667,9 @@ func (b *Buffer) Indent() {
 
 // Outdent removes one level of indentation from the current or selected lines.
 func (b *Buffer) Outdent() {
+	if b.refuse() {
+		return
+	}
 	s, e, ok := b.Selection()
 	if !ok {
 		s, e = b.Cur, b.Cur
@@ -645,6 +697,9 @@ func (b *Buffer) Outdent() {
 
 // Backspace deletes the selection or the rune before the cursor.
 func (b *Buffer) Backspace() {
+	if b.refuse() {
+		return
+	}
 	if _, _, ok := b.Selection(); ok {
 		b.begin(editOther)
 		b.deleteSelection()
@@ -673,6 +728,9 @@ func (b *Buffer) Backspace() {
 
 // Delete deletes the selection or the rune after the cursor.
 func (b *Buffer) Delete() {
+	if b.refuse() {
+		return
+	}
 	if _, _, ok := b.Selection(); ok {
 		b.begin(editOther)
 		b.deleteSelection()
@@ -692,6 +750,9 @@ func (b *Buffer) Delete() {
 
 // DeleteSelection removes the selected text, if any.
 func (b *Buffer) DeleteSelection() {
+	if b.refuse() {
+		return
+	}
 	if _, _, ok := b.Selection(); ok {
 		b.begin(editOther)
 		b.deleteSelection()
@@ -700,6 +761,9 @@ func (b *Buffer) DeleteSelection() {
 
 // CutLine removes the current line and returns it (with trailing newline).
 func (b *Buffer) CutLine() string {
+	if b.refuse() {
+		return ""
+	}
 	b.begin(editOther)
 	r := b.Cur.Row
 	text := string(b.Lines[r]) + "\n"
@@ -715,6 +779,9 @@ func (b *Buffer) CutLine() string {
 
 // MoveLine swaps the current line with the one above (dir=-1) or below (dir=1).
 func (b *Buffer) MoveLine(dir int) {
+	if b.refuse() {
+		return
+	}
 	r := b.Cur.Row
 	t := r + dir
 	if t < 0 || t >= len(b.Lines) {
@@ -729,6 +796,9 @@ func (b *Buffer) MoveLine(dir int) {
 // ToggleComment adds or removes a line comment prefix on the current or
 // selected lines.
 func (b *Buffer) ToggleComment(prefix string) {
+	if b.refuse() {
+		return
+	}
 	if prefix == "" {
 		return
 	}
@@ -1200,6 +1270,9 @@ type Edit struct {
 
 // ApplyEdits applies non-overlapping edits as one undo step.
 func (b *Buffer) ApplyEdits(edits []Edit) {
+	if b.refuse() {
+		return
+	}
 	if len(edits) == 0 {
 		return
 	}
@@ -1348,6 +1421,9 @@ func (b *Buffer) SelectionOrChar() (Pos, Pos) {
 
 // DeleteRange deletes [s, e) as one undo step and returns the removed text.
 func (b *Buffer) DeleteRange(s, e Pos) string {
+	if b.refuse() {
+		return ""
+	}
 	if !s.Less(e) {
 		return ""
 	}
@@ -1362,6 +1438,9 @@ func (b *Buffer) TextRange(s, e Pos) string { return b.textRange(s, e) }
 
 // InsertAt inserts text at p as one undo step, leaving the cursor after it.
 func (b *Buffer) InsertAt(p Pos, text string) {
+	if b.refuse() {
+		return
+	}
 	b.Anchor = nil
 	b.Cur = b.ClampPos(p)
 	b.InsertBlock(text)
@@ -1372,6 +1451,9 @@ func (b *Buffer) InsertAt(p Pos, text string) {
 // level deeper inside a bracket: below a line that ends with an opener, and
 // above a line that starts with a closer.
 func (b *Buffer) OpenLine(below bool) {
+	if b.refuse() {
+		return
+	}
 	row := b.Cur.Row
 	line := b.Lines[row]
 	indent := string(leadingSpace(line))
@@ -1396,6 +1478,9 @@ func (b *Buffer) OpenLine(below bool) {
 // ReplaceChars replaces every character of the selection (or the one under
 // the cursor) with r.
 func (b *Buffer) ReplaceChars(r rune) {
+	if b.refuse() {
+		return
+	}
 	s, e := b.SelectionOrChar()
 	if !s.Less(e) {
 		return
@@ -1511,6 +1596,9 @@ func (b *Buffer) MatchBracket(extend bool) {
 
 // JoinLines joins the current line (or selected lines) with the next.
 func (b *Buffer) JoinLines() {
+	if b.refuse() {
+		return
+	}
 	s, e, ok := b.Selection()
 	if !ok {
 		s, e = b.Cur, b.Cur
@@ -1545,6 +1633,9 @@ func (b *Buffer) SetIndentUnit(unit string) {
 
 // Reload re-reads the file from disk, discarding changes.
 func (b *Buffer) Reload() error {
+	if b.ReadOnly {
+		return nil
+	}
 	nb, err := Open(b.Path)
 	if err != nil {
 		return err

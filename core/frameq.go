@@ -11,7 +11,7 @@ func (a *Core) FocusIn(f Focus) bool { return a.Focus == f && !a.overlayOpen() }
 
 // OtherTab is the file of the pane that is not focused while the editor is
 // split (nil = empty or not split).
-func (a *Core) OtherTab() *Tab { return a.Other }
+func (a *Core) OtherTab() *Tab { return a.shownTab(a.Other) }
 
 // FocusedFirst reports whether the focused pane is the first (left) one.
 func (a *Core) FocusedFirst() bool { return a.Pane == 0 }

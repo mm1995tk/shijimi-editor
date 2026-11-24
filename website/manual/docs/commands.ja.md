@@ -52,7 +52,7 @@ VS Code モードでは、コマンドパレット（`F1`）から同じ操作�
 
 | コマンド | 動作 |
 | --- | --- |
-| `:gitdiff [on\|off\|split\|unified]` (`:gd` `:review`) | 差分モード（比較元 `HEAD`）の切替、分割 / 統合の切替 |
+| `:gitdiff [on\|off\|head\|pr\|pr-head\|cycle\|split\|unified]` (`:gd` `:review`) | 差分モード（`HEAD` ← 作業ツリー）の切替。`head`（`on`）・`pr`・`pr-head` は `HEAD` ← 作業ツリー、PR の base ← 作業ツリー、PR の base ← `HEAD` を開く。`cycle` は比べるものの切り替え（`Space x`）。`split` / `unified` は分割 / 統合の切替 |
 | `:pr [番号]` | 差分モードでプルリクエストの base と比べる。番号を省略すると一覧から選ぶ |
 
 ## ブラウザ

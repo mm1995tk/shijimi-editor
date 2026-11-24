@@ -1,4 +1,4 @@
-  DIFF    比較元 HEAD ↔ 作業ツリー（main）
+  DIFF    比較 HEAD ← 作業ツリー（main）
  EXPLORER: 001      │ a.txt                                                                  コピー
     a.txt         M│ a.txt  +1 -1                                             [分割 ⇄ 統合] コピー
     new.txt       U│ 1 a                                  │ 1 a
@@ -26,5 +26,5 @@
                     │
                     │
                     │
- Space G:閉じる  Space g:PR の base と比べる  右側は編集・保存できます  上の行のクリック:分割/統合 …
+ Space G:閉じる  Space g:PR の base と比べる  Space x:比べるものの切り替え  右側は編集・保存できま…
  NOR  ⎇ main                                                    1:1   スペース: 4   plaintext   dev

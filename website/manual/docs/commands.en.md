@@ -52,7 +52,7 @@ In VS Code mode, you can do the same from the command palette (`F1`).
 
 | Command | Action |
 | --- | --- |
-| `:gitdiff [on\|off\|split\|unified]` (`:gd` `:review`) | Toggle diff mode (base `HEAD`), toggle split / unified |
+| `:gitdiff [on\|off\|head\|pr\|pr-head\|cycle\|split\|unified]` (`:gd` `:review`) | Toggle diff mode (`HEAD` ← working tree). `head` (`on`), `pr` and `pr-head` open `HEAD` ← working tree, PR base ← working tree and PR base ← `HEAD`; `cycle` switches what is compared (`Space x`); `split` / `unified` toggle the view |
 | `:pr [number]` | Compare with the base of a pull request in diff mode. Without a number, choose from a list |
 
 ## Browser

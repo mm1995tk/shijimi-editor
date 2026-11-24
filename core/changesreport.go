@@ -39,6 +39,9 @@ func (a *Core) ChangesReport() (d *ctl.PrimaryDiff, loading bool) {
 	}
 	if pr {
 		d.Base = ctl.BasePR
+		if g.RightSide() == RightHead {
+			d.Right = ctl.RightHead
+		}
 	}
 	if t := a.CurText(); t != nil && a.DiffFile(t) != nil {
 		d.Selected = t.Buf.Path

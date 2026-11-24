@@ -16,26 +16,51 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
 
-// Diff mode: the whole editor switches to showing changes against a base,
-// HEAD (Space G) or the base of a pull request (Space g). A header line names
-// the base, the sidebar gains a CHANGES tree below the file tree, a changed
-// file opens as a full-file diff whose right side is the live (editable)
-// buffer, and a help line lists the keys.
+// Diff mode: the whole editor switches to showing changes between two sides.
+// The left (before) is HEAD or the base of a pull request, the right (after)
+// is the working tree or HEAD; the pairs are in sideCycle, and Space x (x in
+// CHANGES) goes round them. Space G opens HEAD <- working tree, Space g the
+// pull request's base <- working tree. A header line names the two sides, the
+// sidebar gains a CHANGES tree below the file tree, a changed file opens as a
+// full-file diff whose right side is the live (editable) buffer, or the file
+// as HEAD has it (read-only, diffhead.go) when the right side is HEAD, and a help
+// line lists the keys.
 
 // emptyTree is the object id of git's empty tree, used as the base of a
 // repository without commits.
 const emptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
+// The left side of diff mode (gitDiff.Base).
 const (
 	BaseHead = "HEAD"
 	BasePR   = "PR"
 )
 
+// The right side of diff mode (gitDiff.Right).
+const (
+	RightWork = "WORK" // the working tree: the files, editable
+	RightHead = "HEAD" // the commit HEAD, read-only
+)
+
+// Sides is a pair of sides diff mode compares: Left (Base*) <- Right (Right*).
+type Sides struct{ Left, Right string }
+
+// sideCycle is the pairs Space x goes round, in order. Both sides HEAD is no
+// pair; the pairs with the pull request's base need a pull request.
+var sideCycle = []Sides{
+	{BasePR, RightWork},   // what the pull request becomes once everything here is pushed
+	{BasePR, RightHead},   // the pull request as a reviewer sees it (when pushed)
+	{BaseHead, RightWork}, // the changes not committed yet
+}
+
 // gitDiff is the state of diff mode.
 type gitDiff struct {
 	On      bool
-	Base    string  // BaseHead or BasePR
-	rev     string  // revision the working tree is compared with
+	Base    string  // the left side: BaseHead or BasePR
+	Right   string  // the right side: RightWork (also when empty) or RightHead
+	head    string  // the commit HEAD was when the list was read (RightHead shows it)
+	prRight string  // the right side to open the pull request being looked up with
+	rev     string  // revision of the left side
 	Pr      *PrInfo // the pull request whose base is compared with (BasePR)
 	Split   bool
 	Files   []*diff.File // in the order of the CHANGES tree
@@ -62,6 +87,8 @@ type gitDiff struct {
 type ChangesLoadedMsg struct {
 	gen      int
 	base     string
+	right    string
+	head     string
 	rev      string
 	pr       *PrInfo
 	files    []*diff.File
@@ -83,9 +110,10 @@ type PrFoundMsg struct {
 
 // branchPRsMsg reports the open pull requests of the current branch.
 type branchPRsMsg struct {
-	seq int
-	prs []prSummary
-	err error
+	seq   int
+	prs   []prSummary
+	err   error
+	quiet bool // the branch having none is only told
 }
 
 // ---- loading ----
@@ -131,22 +159,36 @@ func (a *Core) GitTopDir() string {
 	return a.Root
 }
 
-// ReloadChanges recomputes the CHANGES list for the current base. The list
+// ReloadChanges recomputes the CHANGES list for the current sides. The list
 // on screen stays as it is until the result arrives; only ShowDiff marks it
 // as loading.
 func (a *Core) ReloadChanges() []Effect {
 	a.Gd.Gen++
-	gen, root, base, pr := a.Gd.Gen, a.Root, a.Gd.Base, a.Gd.Pr
-	return async(func() Event { return LoadChanges(gen, root, base, pr) })
+	gen, root, base, right, pr := a.Gd.Gen, a.Root, a.Gd.Base, a.Gd.Right, a.Gd.Pr
+	return async(func() Event { return LoadSides(gen, root, base, right, pr) })
 }
 
-// LoadChanges lists the files changed against base (or the pull request pr),
-// for the diff mode of generation gen.
+// LoadChanges lists the files of the working tree changed against base (or
+// the pull request pr), for the diff mode of generation gen.
 func LoadChanges(gen int, root, base string, pr *PrInfo) Event {
-	m := ChangesLoadedMsg{gen: gen, base: base}
+	return LoadSides(gen, root, base, RightWork, pr)
+}
+
+// LoadSides lists the files changed from base (or the base of the pull
+// request pr) to right (the working tree, or HEAD), for the diff mode of
+// generation gen. Files git does not track are changes of the working tree
+// only.
+func LoadSides(gen int, root, base, right string, pr *PrInfo) Event {
+	m := ChangesLoadedMsg{gen: gen, base: base, right: right}
 	m.rev = emptyTree
 	if out, err := run(root, nil, "git", "rev-parse", "--verify", "-q", "HEAD"); err == nil {
 		m.rev = strings.TrimSpace(string(out))
+	}
+	m.head = m.rev
+	head := right == RightHead
+	if head && base != BasePR {
+		m.err = msg.Err("gd.nopr") // HEAD <- HEAD is no pair
+		return m
 	}
 	if base == BasePR {
 		if pr == nil {
@@ -164,7 +206,11 @@ func LoadChanges(gen int, root, base string, pr *PrInfo) Event {
 		}
 		m.pr, m.rev = pr, strings.TrimSpace(string(mb))
 	}
-	out, err := run(root, nil, "git", "diff", m.rev, "--no-color", "--no-ext-diff", "-M")
+	args := []string{"diff", m.rev}
+	if head {
+		args = append(args, m.head)
+	}
+	out, err := run(root, nil, "git", append(args, "--no-color", "--no-ext-diff", "-M")...)
 	if err != nil {
 		m.err = err
 		return m
@@ -172,8 +218,13 @@ func LoadChanges(gen int, root, base string, pr *PrInfo) Event {
 	files := diff.Parse(string(out))
 	topDir, _ := gitTop(root)
 	if base == BasePR {
+		// the files whose right side differs from the pull request's head commit
 		m.stale = map[string]bool{}
-		if names, err := run(root, nil, "git", "diff", "--name-only", "--no-renames", "-z", pr.HeadRefOid); err == nil {
+		args := []string{"diff", "--name-only", "--no-renames", "-z", pr.HeadRefOid}
+		if head {
+			args = append(args, m.head)
+		}
+		if names, err := run(root, nil, "git", args...); err == nil {
 			for p := range strings.SplitSeq(string(names), "\x00") {
 				if p != "" {
 					m.stale[p] = true
@@ -183,15 +234,17 @@ func LoadChanges(gen int, root, base string, pr *PrInfo) Event {
 			m.staleAll = true // the head commit is not here (yet)
 		}
 	}
-	if untracked, err := run(root, nil, "git", "ls-files", "--others", "--exclude-standard", "--full-name", "-z", ":/"); err == nil {
-		for p := range strings.SplitSeq(string(untracked), "\x00") {
-			if p == "" {
-				continue
-			}
-			if f := untrackedFile(filepath.Join(topDir, p), p); f != nil {
-				files = append(files, f)
-				if m.stale != nil {
-					m.stale[p] = true
+	if !head {
+		if untracked, err := run(root, nil, "git", "ls-files", "--others", "--exclude-standard", "--full-name", "-z", ":/"); err == nil {
+			for p := range strings.SplitSeq(string(untracked), "\x00") {
+				if p == "" {
+					continue
+				}
+				if f := untrackedFile(filepath.Join(topDir, p), p); f != nil {
+					files = append(files, f)
+					if m.stale != nil {
+						m.stale[p] = true
+					}
 				}
 			}
 		}
@@ -210,15 +263,15 @@ func (a *Core) ApplyChanges(m ChangesLoadedMsg) {
 	if m.err != nil {
 		a.Gd.err = msg.Of(m.err)
 		if m.base == BasePR {
-			// fall back to HEAD so the mode stays usable
-			a.Gd.Base, a.Gd.Pr = BaseHead, nil
+			// fall back to HEAD <- working tree so the mode stays usable
+			a.Gd.Base, a.Gd.Right, a.Gd.Pr = BaseHead, RightWork, nil
 			a.Fail(m.err)
 			a.Gd.err = msg.Msg{}
 		}
 		return
 	}
 	a.Gd.err = msg.Msg{}
-	a.Gd.rev = m.rev
+	a.Gd.rev, a.Gd.head = m.rev, m.head
 	if m.pr != nil {
 		a.Gd.Pr = m.pr
 	}
@@ -447,7 +500,9 @@ func (g *gitDiff) keepSelVisible(h int) {
 // ---- mode switch ----
 
 // OpenDiff handles Space G (base HEAD) and Space g (base PR): it opens diff
-// mode, closes it when it already compares with base, or switches the base.
+// mode, HEAD <- working tree or the pull request's base <- working tree. It
+// closes the mode when its left side already is base, and otherwise switches
+// to that pair.
 func (a *Core) OpenDiff(base string) []Effect {
 	if a.single {
 		return nil
@@ -456,9 +511,51 @@ func (a *Core) OpenDiff(base string) []Effect {
 		return a.closeDiff()
 	}
 	if base == BasePR {
-		return a.branchPR()
+		return a.branchPR(RightWork, false)
 	}
 	return a.ShowDiff(BaseHead, nil)
+}
+
+// RightSide is the right side of diff mode: RightWork or RightHead.
+func (g *gitDiff) RightSide() string { return normRight(g.Right) }
+
+// normRight is r as a right side: RightHead, or RightWork for anything else.
+func normRight(r string) string {
+	if r == RightHead {
+		return RightHead
+	}
+	return RightWork
+}
+
+// Sides is the pair diff mode compares now.
+func (a *Core) Sides() Sides { return Sides{a.Gd.Base, a.Gd.RightSide()} }
+
+// CycleSides is Space x (x in CHANGES): diff mode moves on to the next pair
+// of sideCycle. From HEAD <- working tree it looks up the branch's pull
+// request first, and stays where it is when the branch has none.
+func (a *Core) CycleSides() []Effect {
+	if a.single || !a.Gd.On {
+		return nil
+	}
+	i := slices.Index(sideCycle, a.Sides())
+	return a.openSides(sideCycle[(i+1)%len(sideCycle)], true)
+}
+
+// openSides opens diff mode with the pair s. A pair with the pull request's
+// base keeps the pull request shown; otherwise it looks up the branch's, and
+// when the branch has none it says so when quiet, or lists every open pull
+// request to pick from.
+func (a *Core) openSides(s Sides, quiet bool) []Effect {
+	if a.single {
+		return nil
+	}
+	if s.Left != BasePR {
+		return a.ShowDiff(BaseHead, nil)
+	}
+	if g := a.Gd; g.On && g.Base == BasePR && g.Pr != nil {
+		return a.showSides(BasePR, s.Right, g.Pr) // the review stays loaded
+	}
+	return a.branchPR(s.Right, quiet)
 }
 
 // diffWithHead opens diff mode against HEAD, or refreshes it when it is
@@ -478,8 +575,15 @@ func (a *Core) ToggleGitDiff() []Effect {
 	return a.ShowDiff(BaseHead, nil)
 }
 
-// ShowDiff opens the diff mode against base (or the pull request pr).
+// ShowDiff opens the diff mode of the working tree against base (or the pull
+// request pr).
 func (a *Core) ShowDiff(base string, pr *PrInfo) []Effect {
+	return a.showSides(base, RightWork, pr)
+}
+
+// showSides opens the diff mode of right (RightWork or RightHead) against
+// base (or the pull request pr).
+func (a *Core) showSides(base, right string, pr *PrInfo) []Effect {
 	a.Gd.PrSeq++
 	a.Gd.On = true
 	a.Card = nil
@@ -488,7 +592,7 @@ func (a *Core) ShowDiff(base string, pr *PrInfo) []Effect {
 		// Comparing with HEAD keeps it for coming back.
 		a.Gd.Rv = prReview{num: pr.Number}
 	}
-	a.Gd.Base, a.Gd.Pr = base, pr
+	a.Gd.Base, a.Gd.Right, a.Gd.Pr = base, right, pr
 	a.Gd.stale, a.Gd.staleAll = nil, false
 	if a.Focus == FocusChanges && !a.ChangesListShown() {
 		a.Focus = FocusEditor // the list went to the GUI
@@ -512,16 +616,18 @@ func (a *Core) closeDiff() []Effect {
 	return nil
 }
 
-// branchPR opens the current branch's pull request: the only one at once,
-// a list of them when there are several, or the list of every open pull
-// request when there is none.
-func (a *Core) branchPR() []Effect {
+// branchPR opens the current branch's pull request with right as the right
+// side: the only one at once, a list of them when there are several, or,
+// when there is none, the list of every open pull request (quiet: only a
+// word that there is none).
+func (a *Core) branchPR(right string, quiet bool) []Effect {
 	a.InfoText(msg.T("gd.findingpr"))
 	a.Gd.PrSeq++
+	a.Gd.prRight = right
 	root, seq, branch := a.Root, a.Gd.PrSeq, a.Branch
 	return async(func() Event {
 		prs, err := branchPRs(root, branch)
-		return branchPRsMsg{seq: seq, prs: prs, err: err}
+		return branchPRsMsg{seq: seq, prs: prs, err: err, quiet: quiet}
 	})
 }
 
@@ -537,6 +643,10 @@ func (a *Core) handleBranchPRs(m branchPRsMsg) []Effect {
 		return a.findPR(m.prs[0].Number)
 	case len(m.prs) > 1:
 		return a.showPRList(prListMsg{prs: m.prs})
+	}
+	if m.quiet {
+		a.InfoText(msg.T("gd.nobranchprhead"))
+		return nil
 	}
 	a.InfoText(msg.T("gd.nobranchpr"))
 	return listPRs(a.Root)
@@ -594,10 +704,10 @@ func (a *Core) HandlePRFound(m PrFoundMsg) []Effect {
 	return proceed()
 }
 
-// openPR compares with the base of pr, whose branch is checked out, and
-// loads its review.
+// openPR compares the side the lookup asked for (prRight) with the base of
+// pr, whose branch is checked out, and loads its review.
 func (a *Core) openPR(pr *PrInfo) []Effect {
-	return Batch(a.ShowDiff(BasePR, pr), a.loadReview())
+	return Batch(a.showSides(BasePR, normRight(a.Gd.prRight), pr), a.loadReview())
 }
 
 // switchToPR checks out the branch of pr with `gh pr checkout`, first asking
@@ -733,6 +843,7 @@ func (a *Core) handlePRPulled(m prPulledMsg) []Effect {
 
 // prPicker lists the repository's pull requests to compare with.
 func (a *Core) prPicker() []Effect {
+	a.Gd.prRight = RightWork
 	a.InfoText(msg.T("gd.fetchingprs"))
 	return listPRs(a.Root)
 }
@@ -764,15 +875,29 @@ func (a *Core) ToggleSplit() {
 	a.Follow = true
 }
 
-// gitDiffCommand handles ":gitdiff [on|off|split|unified]".
+// gitDiffCommand handles ":gitdiff [on|off|head|pr|pr-head|cycle|split|unified]".
+// head (on), pr and pr-head open the pair they name (HEAD <- working tree,
+// the pull request's base <- working tree, the pull request's base <- HEAD),
+// or reload it when it is already shown; cycle is Space x.
 func (a *Core) gitDiffCommand(arg string) []Effect {
 	f := strings.Fields(arg)
 	if len(f) == 0 {
 		return a.OpenDiff(BaseHead)
 	}
 	switch f[0] {
-	case "on":
+	case "on", "head":
 		return a.diffWithHead()
+	case "pr", "pr-head":
+		s := Sides{BasePR, RightWork}
+		if f[0] == "pr-head" {
+			s.Right = RightHead
+		}
+		if a.Gd.On && a.Sides() == s {
+			return a.ReloadChanges()
+		}
+		return a.openSides(s, true)
+	case "cycle":
+		return a.CycleSides()
 	case "off":
 		if a.Gd.On {
 			return a.closeDiff()
@@ -880,6 +1005,8 @@ func (a *Core) handleChangesKey(msg Key) []Effect {
 		}
 	case "s":
 		a.ToggleSplit()
+	case "x":
+		return a.CycleSides()
 	case "r", "R":
 		if g.Base == BasePR && g.Pr != nil {
 			return a.ReloadPR()
@@ -948,13 +1075,14 @@ func (a *Core) FitChanges(body int) {
 
 // ---- header and help lines ----
 
-// CompareBase is the branch checked out and the pull request that diff mode
-// compares with (nil when it compares with HEAD).
-func (a *Core) CompareBase() (branch string, pr *PrInfo) {
+// CompareBase is the branch checked out, the pull request whose base is the
+// left side of diff mode (nil when the left side is HEAD) and the right side
+// (RightWork or RightHead).
+func (a *Core) CompareBase() (branch string, pr *PrInfo, right string) {
 	if a.Gd.Base == BasePR {
 		pr = a.Gd.Pr
 	}
-	return a.Branch, pr
+	return a.Branch, pr, a.Gd.RightSide()
 }
 
 // DiffHelp lists the keys usable in diff mode right now.
@@ -972,6 +1100,9 @@ func (a *Core) DiffHelp() msg.Msg {
 	}
 	if a.Focus == FocusChanges {
 		return bases.Add(msg.T("gd.bar.list"))
+	}
+	if a.Gd.RightSide() == RightHead {
+		return bases.Add(msg.T("gd.bar.readonly"))
 	}
 	return bases.Add(msg.T("gd.bar.editable"))
 }
@@ -1363,7 +1494,7 @@ func (a *Core) BuildDiffPanes(t *Tab, dv *DiffView, g DiffGeom, o PaneOpts) []sc
 
 	right := textPaneHead(t, g.RightW, g.H, o)
 	right.Kind = screen.KindDiff
-	right.Title = screen.Title{Text: a.Rel(b.Path), Copy: b.Path != ""}
+	right.Title = screen.Title{Text: a.Rel(b.Path), Copy: b.Path != "", ReadOnly: b.ReadOnly}
 	if f := a.DiffFile(t); f != nil {
 		right.Title.Added, right.Title.Deleted = f.Added, f.Deleted
 	}

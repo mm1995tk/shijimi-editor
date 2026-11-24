@@ -1,16 +1,28 @@
 # Diff mode
 
 Diff mode switches the whole editor into a view for reviewing changes.
-How you open it decides what you compare against (the comparison base).
+Diff mode compares two sides. The left (before) is `HEAD` or the base of a pull request, and the right (after) is the working tree or `HEAD`.
+These three pairs are available, all on the same screen:
 
-| Key | Comparison base | Requires |
+| Pair (left ← right) | What it shows |
+| --- | --- |
+| PR base ← working tree | What the pull request becomes once everything here is pushed |
+| PR base ← `HEAD` | The pull request as a reviewer sees it now (when everything is pushed) |
+| `HEAD` ← working tree | The changes not committed yet |
+
+How you open it decides the first pair.
+
+| Key | First pair | Requires |
 | --- | --- | --- |
-| `Space G`, `Ctrl+G`, `:gitdiff` | `HEAD` | `git` |
-| `Space g`, `:pr`, `:pr <number>` | The base of a pull request | `git`, `gh` (after `gh auth login`) |
+| `Space G`, `Ctrl+G`, `:gitdiff` | `HEAD` ← working tree | `git` |
+| `Space g`, `:pr`, `:pr <number>` | PR base ← working tree | `git`, `gh` (after `gh auth login`) |
 
-- Pressing the same key while diff mode is open closes it.
-- Pressing the other key switches the comparison base.
-- With either base, you can edit and save the right side (the working tree file) in place.
+- `Space x` (`x` in CHANGES, `:gitdiff cycle`, or "Diff: Switch what is compared" in `F1` with the VS Code keymap) switches to the next pair in the order of the table above.
+- When the current branch has no pull request, only `HEAD` ← working tree is available. `Space x` says "This branch has no pull request" and stays.
+- `:gitdiff head`, `:gitdiff pr` and `:gitdiff pr-head` open a pair directly (`HEAD` ← working tree, PR base ← working tree, PR base ← `HEAD`). When it is already open, they reload the list.
+- Pressing the key you opened it with (the key of the pair with the same left side) while diff mode is open closes it. Pressing the other key switches to its first pair.
+- When the right side is the working tree, you can edit and save the right side (the working tree file) in place.
+- When the right side is `HEAD`, it shows the file as `HEAD` has it and cannot be edited. The file name row says `HEAD · read-only`, and typing shows "cannot be edited" in the status line. You can still move, select, search and copy.
 
 ## Screen
 
@@ -18,16 +30,17 @@ From top to bottom:
 
 | Area | Content |
 | --- | --- |
-| Header | The base and the target. For a pull request, it also shows `PR #number`, the title, the state and the author |
+| Header | The two sides compared (left ← right, such as `main (PR base) ← HEAD (read-only)`). For a pull request, it also shows `PR #number`, the title, the state and the author |
 | Left sidebar | The file tree in the upper 70%, CHANGES (the list of changed files) in the lower 30% |
 | Center | The diff. A change-position bar runs along the right edge |
 | Help line | The keys available now |
 | Status line | The mode and messages |
 
 - Files with no changes open in the normal editor.
-- Files with changes open as a whole-file **Split** (the base on the left, the current file on the right).
-- A new file (including untracked files when the base is `HEAD`) opens in a single editor, whether the base is `HEAD` or a PR base. Lines are not colored. The bar on the right edge is all green, and the file name row above shows `+N` / `-N`. When the base is `HEAD`, once you commit the file it is displayed like the other changed files.
+- Files with changes open as a whole-file **Split** (the left side on the left, the right side on the right).
+- A new file (including untracked files when the right side is the working tree) opens in a single editor, whatever the pair. Lines are not colored. The bar on the right edge is all green, and the file name row above shows `+N` / `-N`. When the base is `HEAD`, once you commit the file it is displayed like the other changed files.
 - When the base is a PR base, PR comments also appear on the correct lines of a new file opened in a single editor. You can add comments and replies too.
+- Files only in the working tree (files git does not track) appear only when the right side is the working tree.
 - The diff updates immediately when you edit.
 - CHANGES updates when you save, when an external change is detected, and every few seconds.
 
@@ -45,7 +58,7 @@ A file row shows a status letter, the file name, the number of added lines `+N` 
 | `D` | Deleted |
 | `R` | Renamed |
 
-The right end of the heading shows the current base. `DIFF` is `HEAD`, and `PR` is the base of a pull request.
+The right end of the heading shows the current pair. `DIFF` is `HEAD` ← working tree, `PR` is PR base ← working tree, and `PR←HEAD` is PR base ← `HEAD`.
 
 When you open a file from CHANGES, the cursor is placed on the first changed line of the file.
 For a change that only removes lines, it is placed on the line after it.
@@ -89,12 +102,13 @@ The left (base) uses the deletion color, and the right (current file) uses the a
 
 ## Comparison base
 
-| Base | Content |
+| Pair | Content |
 | --- | --- |
-| `HEAD` | Compares `HEAD` with the working tree. Includes untracked files |
-| The base of a pull request | Compares `git merge-base <PR base> HEAD` with the working tree |
+| `HEAD` ← working tree | Compares `HEAD` with the working tree. Includes untracked files |
+| PR base ← working tree | Compares `git merge-base <PR base> HEAD` with the working tree. Includes untracked files |
+| PR base ← `HEAD` | Compares `git merge-base <PR base> HEAD` with `HEAD`. Uncommitted changes and untracked files do not appear |
 
-Comparing with the base of a pull request gives the diff shown on GitHub's PR page plus your uncommitted changes.
+PR base ← working tree gives the diff shown on GitHub's PR page plus your uncommitted changes. PR base ← `HEAD` is the diff shown on GitHub's PR page, once everything is pushed.
 Even if you merge the base branch, the diff shows only your own changes.
 
 The pull request opened with `Space g` is chosen as follows:
@@ -154,6 +168,7 @@ The right side is an editor, so review operations are gathered in this menu to a
 GitHub comments attach to line numbers of the PR's latest commit.
 If you edit or commit locally, the working tree's line numbers drift from them.
 So you can comment only on **files whose working tree content is the same as the PR's latest commit**. The same applies to applying suggestions.
+When the right side is `HEAD` (PR base ← `HEAD`), the content of `HEAD` is compared instead of the working tree.
 
 Files whose content differs are displayed as follows:
 
@@ -227,6 +242,7 @@ The body of a comment, reply or review is written in an input box. Below the inp
 | `l` | Open the file. On a folder row, open it |
 | `s` | Toggle split / unified |
 | `r` | Refresh the list (for a pull request, it may pull as in the table above) |
+| `x` | Switch what is compared (same as `Space x`) |
 | `Space G` / `Space g` | Switch the comparison base, or close |
 | `Space v` | Review menu |
 | `Tab` | To the file tree |

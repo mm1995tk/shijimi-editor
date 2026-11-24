@@ -308,13 +308,10 @@ func (a *Core) Close() {
 
 // ---- helpers ----
 
-// Cur is the tab shown in the focused pane, or nil when there is none.
-func (a *Core) Cur() *Tab {
-	if a.Active < 0 || a.Active >= len(a.Tabs) {
-		return nil
-	}
-	return a.Tabs[a.Active]
-}
+// Cur is the tab shown in the focused pane, or nil when there is none: the
+// tab, or its HEAD view while diff mode shows HEAD on the right (curTab is
+// the tab itself).
+func (a *Core) Cur() *Tab { return a.shownTab(a.curTab()) }
 
 // CurText is the current tab when it holds text, or nil.
 func (a *Core) CurText() *Tab {
@@ -648,7 +645,7 @@ func (a *Core) deleteFile() []Effect {
 // CloseTab closes the current tab; force closes it without asking about unsaved
 // changes.
 func (a *Core) CloseTab(force bool) []Effect {
-	t := a.Cur()
+	t := a.curTab()
 	if t == nil {
 		return nil
 	}
@@ -702,7 +699,7 @@ func (a *Core) CloseTabs(keep *Tab, force bool) []Effect {
 	}
 	a.Split, a.Pane, a.Other, a.otherPrev, a.PrevTab = false, 0, nil, nil, nil
 	a.Active = max(a.tabIndex(keep), 0)
-	a.seenTab = a.Cur()
+	a.seenTab = a.curTab()
 	a.confirmClose = false
 	a.Comp = nil
 	a.Mode = ModeNormal
@@ -741,7 +738,7 @@ func (a *Core) SwitchLast() {
 // TrackLast remembers the file that was current before the active one changed.
 // A file that was closed in the meantime is not remembered.
 func (a *Core) TrackLast() {
-	cur := a.Cur()
+	cur := a.curTab()
 	if cur != a.seenTab {
 		if a.seenTab != nil && slices.Contains(a.Tabs, a.seenTab) {
 			a.PrevTab = a.seenTab
@@ -950,6 +947,8 @@ func (a *Core) round(effs []Effect) []Effect {
 	a.KeepTransients()
 	a.NormalizeSplit()
 	a.TrackLast()
+	a.syncHeads()
+	a.tellRefused()
 	a.SyncLSP()
 	a.NotifySelection()
 	return Batch(effs, a.ScheduleAutoSave(), a.SyncPreview(), a.LexTabs(), a.SemanticTabs())
