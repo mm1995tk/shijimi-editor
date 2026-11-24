@@ -293,3 +293,13 @@ type Cmdline struct {
 	Cursor int     `json:"cursor"`        // rune の位置
 	Hint   msg.Msg `json:"hint,omitzero"` // 検索バーの右の案内
 }
+
+// HasMark は行が種類 k の印を持つかを返す。
+func (l Line) HasMark(k MarkKind) bool {
+	for _, m := range l.Marks {
+		if m.Kind == k {
+			return true
+		}
+	}
+	return false
+}

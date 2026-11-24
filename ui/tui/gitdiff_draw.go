@@ -398,14 +398,7 @@ func changedLine(pl screen.Line) bool {
 	return false
 }
 
-func isDeletedLine(pl screen.Line) bool {
-	for _, m := range pl.Marks {
-		if m.Kind == screen.MarkDeleted {
-			return true
-		}
-	}
-	return false
-}
+func isDeletedLine(pl screen.Line) bool { return pl.HasMark(screen.MarkDeleted) }
 
 // drawSpans draws spans on bg, w cells wide. The runes inside words get
 // wordBg instead. The first skip cells of the line are left out (a sideways

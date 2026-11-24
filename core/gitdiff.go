@@ -1631,7 +1631,7 @@ func (a *Core) BuildDiffPanes(t *Tab, dv *DiffView, g DiffGeom, o PaneOpts) []sc
 	right.Dim, left.Dim = dr, dl && two
 	for i := range right.Lines {
 		if ln := &right.Lines[i]; !ln.Blank {
-			ln.Dim = dr || (dl && !two && hasMark(*ln, screen.MarkDeleted))
+			ln.Dim = dr || (dl && !two && ln.HasMark(screen.MarkDeleted))
 		}
 	}
 	if two {
@@ -1724,14 +1724,4 @@ func (a *Core) focusChangesList() []Effect {
 	}
 	a.SetSide(true)
 	return a.SetFocus(FocusChanges)
-}
-
-// hasMark reports whether the line has a mark of kind k.
-func hasMark(ln screen.Line, k screen.MarkKind) bool {
-	for _, m := range ln.Marks {
-		if m.Kind == k {
-			return true
-		}
-	}
-	return false
 }
