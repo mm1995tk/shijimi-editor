@@ -27,7 +27,7 @@ func (a *App) layout() layout {
 	l.statusY = a.h - 1
 	l.bodyH = a.BodyH()
 	if a.DiffMode() {
-		l.top = 1
+		l.top = 1 + a.DiffBandRows() // the compare bar, and the band under it while HEAD has drifted
 	}
 	if a.SideVisible() {
 		l.sideW = a.sideWidth()

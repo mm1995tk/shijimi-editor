@@ -84,6 +84,9 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 	// line stays green when the cursor is on it
 	if p.Kind == screen.KindDiff && changedLine(pl) {
 		lineBg = cAddBg
+		if pl.Dim {
+			lineBg = cSideBg // HEAD has drifted from its remote: gray, not green
+		}
 	}
 	numSt := stLineNo
 	if isCur {
@@ -203,6 +206,9 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 		}
 		for _, m := range pl.Words {
 			if col >= m.Start && col < m.End {
+				if pl.Dim {
+					return lineBg
+				}
 				return cAddWordBg
 			}
 		}
@@ -221,6 +227,9 @@ func (ld lineDrawer) draw(pl screen.Line) string {
 		fg := cEditorFg
 		if col < len(lc) && lc[col] != "" {
 			fg = lc[col]
+		}
+		if pl.Dim {
+			fg = core.CurTheme.Dim
 		}
 		k := cellStyle{fg: fg, bg: cellBg(col)}
 		if hd != nil && col < len(line) { // a row no diagnostic starts on is not underlined (only Cont ones touch it)

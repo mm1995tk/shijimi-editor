@@ -32,6 +32,7 @@ type Pane struct {
 	Caption    msg.Msg      `json:"caption,omitzero"`     // Kind が KindImage のとき、画像の説明の行（形式・大きさ・容量。読めなかったときはその理由）
 	Diff       *DiffInfo    `json:"diff,omitempty"`       // Kind が KindDiff のとき
 	Preview    *PreviewInfo `json:"preview,omitempty"`    // Kind が KindPreview のとき
+	Dim        bool         `json:"dim,omitempty"`        // Kind が KindDiff のとき、HEAD が remote とずれていて、この Pane が HEAD 側。Pane 全体（見出しと変更の帯も）を灰色に落として描く
 }
 
 // DiffInfo は差分の Pane (Kind が KindDiff) の追加の項目。
@@ -144,6 +145,7 @@ type Line struct {
 	Words  []Cols       `json:"words,omitempty"`  // 差分で、行の中の変わった部分（rune の位置）
 	Indent int          `json:"indent,omitempty"` // ガイドが及ぶ幅（桁）。空行は前後の行の深いほうから決まる。ガイドを引かないときは 0
 	Band   Style        `json:"band,omitempty"`   // 行の背景の色（ホバーのコードブロック）。空は標準
+	Dim    bool         `json:"dim,omitempty"`    // 差分で、HEAD が remote とずれているときの HEAD 側の行。文字も差分の色も灰色に落として描く
 	Rule   bool         `json:"rule,omitempty"`   // 水平線（ホバー）。幅いっぱいに引く。Spans は空
 }
 
@@ -290,4 +292,14 @@ type Cmdline struct {
 	Text   string  `json:"text"`
 	Cursor int     `json:"cursor"`        // rune の位置
 	Hint   msg.Msg `json:"hint,omitzero"` // 検索バーの右の案内
+}
+
+// HasMark は行が種類 k の印を持つかを返す。
+func (l Line) HasMark(k MarkKind) bool {
+	for _, m := range l.Marks {
+		if m.Kind == k {
+			return true
+		}
+	}
+	return false
 }
