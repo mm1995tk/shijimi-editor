@@ -151,3 +151,21 @@ func TestChangesReportRight(t *testing.T) {
 		t.Errorf("PR <- HEAD: %+v", d)
 	}
 }
+
+// ":w <path>" on the HEAD view is refused: no file is made, and the view
+// stays the HEAD of its file, with its diff.
+func TestHeadSideRefusesSaveAs(t *testing.T) {
+	a, file := sidesApp(t)
+	a.CycleSides()
+	loadSides(a)
+	a.ExecCommand("w other.txt")
+	if _, err := os.Stat(filepath.Join(a.Root, "other.txt")); err == nil {
+		t.Error("other.txt was written")
+	}
+	if h := a.Cur(); !h.ReadOnlyShown() || h.Buf.Path != file || a.DiffFile(h) == nil {
+		t.Errorf("HEAD view after :w: path=%q diff=%v", h.Buf.Path, a.DiffFile(h) != nil)
+	}
+	if !a.MsgErr || !strings.Contains(tt(a.Msg), "buffer.readonly") {
+		t.Errorf("msg = %q", tt(a.Msg))
+	}
+}

@@ -502,6 +502,10 @@ func (a *Core) saveAs() []Effect {
 	if t == nil {
 		return nil
 	}
+	if t.Buf.ReadOnly {
+		a.Fail(msg.Err("buffer.readonly"))
+		return nil
+	}
 	initial := a.Explorer.targetDir() + string(filepath.Separator)
 	if t.Buf.Path != "" {
 		initial = t.Buf.Path
@@ -512,6 +516,11 @@ func (a *Core) saveAs() []Effect {
 }
 
 func (a *Core) saveTo(t *Tab, v string) []Effect {
+	if t.Buf.ReadOnly {
+		// the HEAD view of diff mode: it is no file, and naming it one would end the view
+		a.Fail(msg.Err("buffer.readonly"))
+		return nil
+	}
 	v = strings.TrimSpace(v)
 	if v == "" {
 		return nil
