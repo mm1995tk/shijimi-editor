@@ -229,6 +229,7 @@ func (a *Core) ReviewCommand(key string) []Effect {
 
 // ReviewKey runs the command of Space v <key>.
 func (a *Core) ReviewKey(key string) []Effect {
+	a.onLeft = false
 	if !a.PrShown() {
 		return nil
 	}

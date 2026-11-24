@@ -310,6 +310,7 @@ func (a *Core) helixPending(p, key string, msg Key) []Effect {
 
 // SpaceMode handles "Space <key>" commands (Helix's space menu).
 func (a *Core) SpaceMode(key string) []Effect {
+	a.onLeft = false // the leader acts on the file, not on the left side of diff mode
 	if a.single {
 		switch key {
 		case "f", "b", "d", "D", "e", "E", "g", "G", "x", "v", "w", "i", "?", "/", "t", "a", "s":

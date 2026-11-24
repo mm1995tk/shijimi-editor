@@ -255,8 +255,19 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 					return nil
 				}
 				if msg.Col < g.RightX-l.rightX {
-					return nil // the base side is read-only
+					if msg.Col >= g.LeftW { // the line between the sides
+						return nil
+					}
+					// the base side: the cursor moves there and selects, and it cannot change
+					if !a.SetDiffSide(true) {
+						return nil
+					}
+					a.CloseCompletion()
+					a.mouseToCursor(l, msg.Row, msg.Col, false)
+					a.SetDragging(true)
+					return a.SetFocus(core.FocusEditor)
 				}
+				a.SetDiffSide(false)
 				if th := a.markerAt(l, x, y); th != nil {
 					a.ShowCard(th, t.Buf.Path, x, y, false)
 					return nil

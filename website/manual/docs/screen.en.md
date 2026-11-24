@@ -87,7 +87,7 @@ You can split the editor into two panes side by side, to read two files together
 | Helix mode | VS Code mode | Action |
 | --- | --- | --- |
 | `Space w v` | `Ctrl+\` | Split. The current file stays on the left, and the right pane, which takes the focus, shows the last file (`ga`). If there is none, the file picker opens |
-| `Space w h` / `Space w l` / `Space w w` | `Ctrl+1` / `Ctrl+2` | Move the focus to the left pane / the right pane / the other pane (also: click or scroll in a pane) |
+| `Space w h` / `Space w l` / `Space w w` | `Ctrl+1` / `Ctrl+2` | Move the focus to the left pane / the right pane / the other pane (also: click or scroll in a pane). In diff mode they move the cursor to the left / right side of the diff |
 | `Space w q` / `Space w o` | `Ctrl+\` | Close the split. `q` keeps the other pane's file and `o` (and `Ctrl+\`) keeps the focused pane's file. The closed file stays in the list of open files |
 
 `:vsplit` (`:vs`) and `:only` do the same from the command line, and the command palette has them too. (`Ctrl+W` is "close the file", so the Helix `Ctrl+W` window keys are under `Space w` instead.)

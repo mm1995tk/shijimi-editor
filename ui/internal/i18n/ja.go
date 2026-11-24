@@ -64,6 +64,8 @@ var ja = map[string]string{
 	"gd.bar.readonly":          "  右側（HEAD）は読み取り専用です  上の行のクリック:分割/統合  右端のバーのクリック:その位置へ",
 	"gd.nobranchprhead":        "このブランチにはプルリクエストが無いので、比べられるのは HEAD ← 作業ツリーだけです",
 	"gd.readonly":              "右側は HEAD なので編集できません。Space x（CHANGES では x）で作業ツリーに切り替えられます",
+	"gd.readonlyleft":          "左側（変更前）は編集できません。右側へは Ctrl+2（Space w l）で移れます",
+	"gd.noleft":                "左側があるのは、ベースにあるファイルを左右に並べた差分だけです（s で並べ方を切り替えられます）",
 	"gd.readonlyside":          "（読み取り専用）",
 	"gd.drift.ahead":           "HEAD が %s と一致していません（%d commit 先・未 push）。HEAD の側を灰色にしています。push すると元に戻ります",
 	"gd.drift.behind":          "HEAD が %s と一致していません（%d commit 遅れ）。HEAD の側を灰色にしています。pull すると元に戻ります",
