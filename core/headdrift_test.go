@@ -115,7 +115,7 @@ func TestHeadDriftAgainstThePullRequestHead(t *testing.T) {
 	a.Gd.Right = RightHead
 	commitMore(t, a, "c1.txt")
 	loadSides(a)
-	if _, r, n := driftNote(a); !r || n != "gd.drift.ahead(PR #7, 1)" {
+	if _, r, n := driftNote(a); !r || n != "gd.drift.pr(PR #7, 1, 0)" {
 		t.Errorf("%v %q", r, n)
 	}
 }

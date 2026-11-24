@@ -68,6 +68,7 @@ var ja = map[string]string{
 	"gd.drift.ahead":           "HEAD が %s と一致していません（%d commit 先・未 push）。HEAD の側を灰色にしています。push すると元に戻ります",
 	"gd.drift.behind":          "HEAD が %s と一致していません（%d commit 遅れ）。HEAD の側を灰色にしています。pull すると元に戻ります",
 	"gd.drift.diverged":        "HEAD が %s と一致していません（%d commit 先・%d commit 遅れ：分かれています）。HEAD の側を灰色にしています。そろえると元に戻ります",
+	"gd.drift.pr":              "HEAD が %s と一致していません（%d commit 先・%d commit 遅れ）。HEAD の側を灰色にしています。PR のブランチを checkout すると元に戻ります",
 	"gd.readonlytag":           "  HEAD・読み取り専用",
 	"space.diffcycle":          "比べるものを切り替え",
 	"title.copy":               " コピー ",

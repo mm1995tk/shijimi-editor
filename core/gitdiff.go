@@ -89,6 +89,7 @@ type gitDiff struct {
 // this repository last saw it.
 type HeadDrift struct {
 	Ref  string // the remote, as the band names it ("origin/feature", "PR #7")
+	PR   bool   // Ref is a pull request's head, which only checking out its branch brings HEAD to
 	Sync PrSync // Known is false without a remote (no upstream): not drifted
 }
 
@@ -101,6 +102,8 @@ func (d HeadDrift) text() msg.Msg {
 	switch {
 	case !d.Drifted():
 		return msg.Msg{}
+	case d.PR:
+		return msg.T("gd.drift.pr", d.Ref, d.Sync.Ahead, d.Sync.Behind)
 	case d.Sync.Ahead > 0 && d.Sync.Behind > 0:
 		return msg.T("gd.drift.diverged", d.Ref, d.Sync.Ahead, d.Sync.Behind)
 	case d.Sync.Behind > 0:
@@ -118,7 +121,7 @@ func headDriftOf(root string, pr *PrInfo) HeadDrift {
 	if pr != nil {
 		cur, _ := run(root, nil, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		if strings.TrimSpace(string(cur)) != pr.HeadRefName {
-			return HeadDrift{Ref: fmt.Sprintf("PR #%d", pr.Number), Sync: SyncWith(root, pr.HeadRefOid)}
+			return HeadDrift{Ref: fmt.Sprintf("PR #%d", pr.Number), PR: true, Sync: SyncWith(root, pr.HeadRefOid)}
 		}
 	}
 	out, err := run(root, nil, "git", "rev-parse", "--abbrev-ref", "@{upstream}")
