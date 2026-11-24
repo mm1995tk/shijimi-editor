@@ -262,10 +262,7 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 					if !a.SetDiffSide(true) {
 						return nil
 					}
-					a.CloseCompletion()
-					a.mouseToCursor(l, msg.Row, msg.Col, false)
-					a.SetDragging(true)
-					return a.SetFocus(core.FocusEditor)
+					return a.pressInEditor(l, msg, double)
 				}
 				a.SetDiffSide(false)
 				if th := a.markerAt(l, x, y); th != nil {
@@ -278,23 +275,35 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 				a.TextBarClick(t, l.editH, msg.Row-(l.editY-l.top))
 				return nil
 			}
-			a.CloseCompletion()
-			a.mouseToCursor(l, msg.Row, msg.Col, false)
-			a.SetDragging(true)
-			return a.SetFocus(core.FocusEditor)
+			return a.pressInEditor(l, msg, double)
 		}
 	}
 	return nil
 }
 
-func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
+// pressInEditor is a left press on the text of the editor: the cursor goes
+// under the pointer and a drag may follow. The second press of a double click
+// also selects the word there, if the pointer is on text.
+func (a *App) pressInEditor(l layout, msg core.Mouse, double bool) []core.Effect {
+	a.CloseCompletion()
+	if onText := a.mouseToCursor(l, msg.Row, msg.Col, false); onText && double {
+		a.SelectWordAtPointer()
+	}
+	a.SetDragging(true)
+	return a.SetFocus(core.FocusEditor)
+}
+
+// mouseToCursor moves the cursor to the cell (row, col) of the pane, or
+// extends the selection to it. It reports whether the pointer is on text: a
+// character cell of a line that is on the side it moved the cursor in, not the
+// gutter, the space past the last line, or a row that has no line on that side.
+func (a *App) mouseToCursor(l layout, row, col int, extend bool) bool {
 	t := a.CurText()
 	if t == nil {
-		return
+		return false
 	}
 	if dv := a.DiffFor(t); dv != nil {
-		a.diffMouseToCursor(t, dv, l, row, col, extend)
-		return
+		return a.diffMouseToCursor(t, dv, l, row, col, extend)
 	}
 	// row and col count from the pane's corner; the text starts below the title
 	// (and the find bar).
@@ -307,6 +316,7 @@ func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
 		b.MoveLines(1, extend)
 	}
 	r := b.ScrollRow + core.Clamp(body, 0, max(0, l.editH-1))
+	onText := body >= 0 && body < l.editH && r < len(b.Lines) && col >= core.GutterWidth(b)
 	vis := max(0, col-core.GutterWidth(b)) + b.ScrollCol
 	if extend {
 		b.SetCursorDrag(r, vis)
@@ -314,6 +324,7 @@ func (a *App) mouseToCursor(l layout, row, col int, extend bool) {
 		b.StartDrag(r, vis)
 	}
 	a.FollowCursor()
+	return onText
 }
 
 // passiveMotion handles pointer movement with no button held. It never moves

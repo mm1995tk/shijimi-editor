@@ -209,3 +209,115 @@ func TestLeftSideSpaceYAndP(t *testing.T) {
 		t.Error("Space p changed the file from the left side")
 	}
 }
+
+// A double click selects the word in the side it is on, the left one
+// included, and leaves the other side alone.
+func TestDoubleClickSelectsWordOnBothSides(t *testing.T) {
+	a := leftDiffApp(t)
+	l := a.layout()
+	g := a.dvGeom(l)
+	dv := a.DiffFor(a.CurText())
+	right := a.CurText()
+	press := func(x, y, clicks int) {
+		a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft, Clicks: clicks}))
+		a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+	}
+	// the base line "b", which the working tree deleted
+	y := g.Top + dv.OldIdx[1] - dv.Start(right.Buf.ScrollRow)
+	x := l.rightX + core.GutterWidthFor(len(dv.OldIdx))
+	press(x, y, 1)
+	lt := a.DiffLeft(a.CurText())
+	if lt == nil {
+		t.Fatal("clicking the left side did not put the cursor there")
+	}
+	if got := lt.Buf.SelectedText(); got != "" {
+		t.Fatalf("a single click selected %q", got)
+	}
+	press(x, y, 2)
+	if got := lt.Buf.SelectedText(); got != "b" {
+		t.Errorf("a double click on the left selected %q, want %q", got, "b")
+	}
+	if got := right.Buf.SelectedText(); got != "" {
+		t.Errorf("the right side selected %q", got)
+	}
+	// the right side: the line "c"
+	y = g.Top + dv.NewIdx[1] - dv.Start(right.Buf.ScrollRow)
+	press(g.RightX+core.GutterWidth(right.Buf), y, 1)
+	press(g.RightX+core.GutterWidth(right.Buf), y, 2)
+	if a.DiffLeft(a.CurText()) != nil {
+		t.Fatal("clicking the right side left the cursor on the left")
+	}
+	if got := right.Buf.SelectedText(); got != "c" {
+		t.Errorf("a double click on the right selected %q, want %q", got, "c")
+	}
+}
+
+// A double click selects nothing where there is no text under the pointer: in
+// the gutter, and on a display row that has no line on the side clicked. The
+// other line that the cursor snaps to must not be selected.
+func TestDoubleClickOnNoTextSelectsNothing(t *testing.T) {
+	a := leftDiffApp(t)
+	l := a.layout()
+	g := a.dvGeom(l)
+	right := a.CurText()
+	dv := a.DiffFor(right)
+	row := func(i int) int { return g.Top + i - dv.Start(right.Buf.ScrollRow) }
+	double := func(x, y int) {
+		for _, c := range []int{1, 2} {
+			a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MousePress, Button: core.MouseLeft, Clicks: c}))
+			a.HandleMouse(a.locate(x, y, core.Mouse{Action: core.MouseRelease, Button: core.MouseLeft}))
+		}
+	}
+	selected := func() string {
+		s := right.Buf.SelectedText()
+		if lt := a.DiffLeft(a.CurText()); lt != nil {
+			s += lt.Buf.SelectedText()
+		}
+		return s
+	}
+	leftX := l.rightX + core.GutterWidthFor(len(dv.OldIdx))
+	rightX := g.RightX + core.GutterWidth(right.Buf)
+	var noOld, noNew = -1, -1
+	for i, r := range dv.Rows {
+		if r.New < 0 && noNew < 0 {
+			noNew = i
+		}
+		if !dv.HasOld(i) && noOld < 0 {
+			noOld = i
+		}
+	}
+	if noNew < 0 || noOld < 0 {
+		t.Fatalf("the fixture has no one-sided rows: %d %d", noNew, noOld)
+	}
+	double(l.rightX, row(dv.NewIdx[1])) // the gutter of the left side
+	if got := selected(); got != "" {
+		t.Errorf("the left gutter selected %q", got)
+	}
+	double(g.RightX, row(dv.NewIdx[1])) // the gutter of the right side
+	if got := selected(); got != "" {
+		t.Errorf("the right gutter selected %q", got)
+	}
+	double(leftX, row(noOld)) // left side, no base line there
+	if got := selected(); got != "" {
+		t.Errorf("an empty row of the left side selected %q", got)
+	}
+	double(rightX, row(noNew)) // right side, a deleted line
+	if got := selected(); got != "" {
+		t.Errorf("an empty row of the right side selected %q", got)
+	}
+	// unified: a deleted line is not on the right side
+	a.Gd.Split = false
+	dv = a.DiffFor(right)
+	g = a.dvGeom(l)
+	noNew = -1
+	for i, r := range dv.Rows {
+		if r.New < 0 {
+			noNew = i
+			break
+		}
+	}
+	double(g.RightX+core.GutterWidth(right.Buf), g.Top+noNew-dv.Start(right.Buf.ScrollRow))
+	if got := selected(); got != "" {
+		t.Errorf("a deleted line in the unified diff selected %q", got)
+	}
+}

@@ -139,3 +139,43 @@ func TestScreenCellInvertsLocate(t *testing.T) {
 		}
 	}
 }
+
+// A double click in the editor selects the word under the pointer, the range
+// of `miw`; a single click selects nothing.
+func TestDoubleClickSelectsWord(t *testing.T) {
+	a := newTestApp(t, "foo.bar baz\n")
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	l := a.layout()
+	x, y := l.rightX+core.GutterWidth(a.CurText().Buf)+5, l.editY // on "bar"
+	click := func() {
+		a.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+		a.Update(tea.MouseReleaseMsg{X: x, Y: y, Button: tea.MouseLeft})
+	}
+	click()
+	if got := a.CurText().Buf.SelectedText(); got != "" {
+		t.Fatalf("a single click selected %q", got)
+	}
+	click()
+	if got := a.CurText().Buf.SelectedText(); got != "bar" {
+		t.Errorf("a double click selected %q, want %q", got, "bar")
+	}
+}
+
+// In the gutter, and below the last line, a double click selects nothing.
+func TestDoubleClickOutsideTextSelectsNothing(t *testing.T) {
+	a := newTestApp(t, "foo bar\n")
+	a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	l := a.layout()
+	for _, c := range []struct{ x, y int }{
+		{l.rightX, l.editY}, // the gutter
+		{l.rightX + core.GutterWidth(a.CurText().Buf) + 1, l.editY + 5}, // below the last line
+	} {
+		for range 2 {
+			a.Update(tea.MouseClickMsg{X: c.x, Y: c.y, Button: tea.MouseLeft})
+			a.Update(tea.MouseReleaseMsg{X: c.x, Y: c.y, Button: tea.MouseLeft})
+		}
+		if got := a.CurText().Buf.SelectedText(); got != "" {
+			t.Errorf("(%d,%d) selected %q", c.x, c.y, got)
+		}
+	}
+}
