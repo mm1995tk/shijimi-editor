@@ -79,7 +79,78 @@ type gitDiff struct {
 	// the pull request's head commit; staleAll when that commit is missing
 	stale    map[string]bool
 	staleAll bool
+	drift    HeadDrift // HEAD against its remote; read only while a side is HEAD
 	Rv       prReview
+}
+
+// HeadDrift is how the local HEAD stands against its remote: the branch's
+// upstream or, for a pull request whose branch is not the one checked out,
+// the pull request's head commit. Nothing is fetched; it is the remote as
+// this repository last saw it.
+type HeadDrift struct {
+	Ref  string // the remote, as the band names it ("origin/feature", "PR #7")
+	Sync PrSync // Known is false without a remote (no upstream): not drifted
+}
+
+// Drifted reports whether HEAD and the remote are on different commits (HEAD
+// ahead, behind or both).
+func (d HeadDrift) Drifted() bool { return d.Sync.Known && (d.Sync.Ahead > 0 || d.Sync.Behind > 0) }
+
+// text is the reason the band gives, or the zero Msg when HEAD agrees.
+func (d HeadDrift) text() msg.Msg {
+	switch {
+	case !d.Drifted():
+		return msg.Msg{}
+	case d.Sync.Ahead > 0 && d.Sync.Behind > 0:
+		return msg.T("gd.drift.diverged", d.Ref, d.Sync.Ahead, d.Sync.Behind)
+	case d.Sync.Behind > 0:
+		return msg.T("gd.drift.behind", d.Ref, d.Sync.Behind)
+	}
+	return msg.T("gd.drift.ahead", d.Ref, d.Sync.Ahead)
+}
+
+// headDriftOf finds how HEAD stands against its remote. Without a pull
+// request the remote is the upstream of the branch checked out; with one it
+// is that too while the pull request's branch is the one checked out (so a
+// push shows at once), and otherwise the pull request's head commit. A branch
+// without an upstream has no remote to differ from.
+func headDriftOf(root string, pr *PrInfo) HeadDrift {
+	if pr != nil {
+		cur, _ := run(root, nil, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		if strings.TrimSpace(string(cur)) != pr.HeadRefName {
+			return HeadDrift{Ref: fmt.Sprintf("PR #%d", pr.Number), Sync: SyncWith(root, pr.HeadRefOid)}
+		}
+	}
+	out, err := run(root, nil, "git", "rev-parse", "--abbrev-ref", "@{upstream}")
+	if err != nil {
+		return HeadDrift{}
+	}
+	ref := strings.TrimSpace(string(out))
+	return HeadDrift{Ref: ref, Sync: SyncWith(root, ref)}
+}
+
+// DriftSides tells which sides of diff mode are HEAD while HEAD has drifted
+// from its remote (left: the pair's left side, right: its right side) and
+// the reason. Neither is set when neither side is HEAD ("PR's base <-
+// working tree"), whatever the drift.
+func (a *Core) DriftSides() (left, right bool, note msg.Msg) {
+	if !a.Gd.On || !a.Gd.drift.Drifted() {
+		return false, false, msg.Msg{}
+	}
+	left, right = a.Gd.Base == BaseHead, a.Gd.RightSide() == RightHead
+	if !left && !right {
+		return false, false, msg.Msg{}
+	}
+	return left, right, a.Gd.drift.text()
+}
+
+// DiffBandRows is the rows the band over diff mode takes: 1 while a side that
+// is HEAD has drifted from its remote, otherwise 0.
+func (a *Core) DiffBandRows() int {
+	if _, _, note := a.DriftSides(); !note.IsZero() {
+		return 1
+	}
+	return 0
 }
 
 // ChangesLoadedMsg carries the changed files LoadChanges found.
@@ -93,6 +164,7 @@ type ChangesLoadedMsg struct {
 	files    []*diff.File
 	stale    map[string]bool
 	staleAll bool
+	drift    HeadDrift
 	err      error
 }
 
@@ -252,6 +324,9 @@ func LoadSides(gen int, root, base, right string, pr *PrInfo) Event {
 			}
 		}
 	}
+	if base == BaseHead || head {
+		m.drift = headDriftOf(root, m.pr)
+	}
 	m.files = files
 	return m
 }
@@ -278,7 +353,7 @@ func (a *Core) ApplyChanges(m ChangesLoadedMsg) {
 	if m.pr != nil {
 		a.Gd.Pr = m.pr
 	}
-	a.Gd.stale, a.Gd.staleAll = m.stale, m.staleAll
+	a.Gd.stale, a.Gd.staleAll, a.Gd.drift = m.stale, m.staleAll, m.drift
 	sel, selDir := "", a.Gd.selDir
 	if f := a.Gd.File(); f != nil {
 		sel = f.Path()
@@ -596,7 +671,7 @@ func (a *Core) showSides(base, right string, pr *PrInfo) []Effect {
 		a.Gd.Rv = prReview{num: pr.Number}
 	}
 	a.Gd.Base, a.Gd.Right, a.Gd.Pr = base, right, pr
-	a.Gd.stale, a.Gd.staleAll = nil, false
+	a.Gd.stale, a.Gd.staleAll, a.Gd.drift = nil, false, HeadDrift{}
 	if a.Focus == FocusChanges && !a.ChangesListShown() {
 		a.Focus = FocusEditor // the list went to the GUI
 	}
@@ -1036,7 +1111,7 @@ func (a *Core) handleChangesKey(msg Key) []Effect {
 // status lines.
 func (a *Core) BodyH() int {
 	if a.Gd.On {
-		return max(0, a.ScreenH()-3)
+		return max(0, a.ScreenH()-3-a.DiffBandRows())
 	}
 	return max(0, a.ScreenH()-1)
 }
@@ -1548,7 +1623,18 @@ func (a *Core) BuildDiffPanes(t *Tab, dv *DiffView, g DiffGeom, o PaneOpts) []sc
 			}
 		}
 	}
+	// HEAD has drifted from its remote: the lines that come from HEAD are drawn gray
+	dl, dr, _ := a.DriftSides()
+	right.Dim, left.Dim = dr, dl && two
+	for i := range right.Lines {
+		if ln := &right.Lines[i]; !ln.Blank {
+			ln.Dim = dr || (dl && !two && hasMark(*ln, screen.MarkDeleted))
+		}
+	}
 	if two {
+		for i := range left.Lines {
+			left.Lines[i].Dim = dl && !left.Lines[i].Blank
+		}
 		return []screen.Pane{left, right}
 	}
 	return []screen.Pane{right}
@@ -1635,4 +1721,14 @@ func (a *Core) focusChangesList() []Effect {
 	}
 	a.SetSide(true)
 	return a.SetFocus(FocusChanges)
+}
+
+// hasMark reports whether the line has a mark of kind k.
+func hasMark(ln screen.Line, k screen.MarkKind) bool {
+	for _, m := range ln.Marks {
+		if m.Kind == k {
+			return true
+		}
+	}
+	return false
 }

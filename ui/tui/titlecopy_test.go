@@ -113,7 +113,7 @@ func TestDiffHeaderNarrowKeepsWidth(t *testing.T) {
 	hw := diffHintWidth(hint)
 	title := a.BuildDiffPanes(a.CurText(), dv, a.dvGeom(a.layout()), core.PaneOpts{})[1].Title
 	for w := hw; w < hw+titleCopyMin+ansi.StringWidth(i18n.T("title.copy")); w++ {
-		if got := ansi.StringWidth(drawDiffHeader(title, hint, w)); got != w {
+		if got := ansi.StringWidth(drawDiffHeader(title, hint, w, false)); got != w {
 			t.Fatalf("w=%d: header is %d wide", w, got)
 		}
 	}

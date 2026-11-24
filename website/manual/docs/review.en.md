@@ -23,6 +23,7 @@ How you open it decides the first pair.
 - Pressing the key you opened it with (the key of the pair with the same left side) while diff mode is open closes it. Pressing the other key switches to its first pair.
 - When the right side is the working tree, you can edit and save the right side (the working tree file) in place.
 - When the right side is `HEAD`, it shows the file as `HEAD` has it and cannot be edited. The file name row says `HEAD · read-only`, and typing shows "cannot be edited" in the status line. You can still move, select, search and copy.
+- When `HEAD` is one of the two sides and is not the same commit as its remote (the upstream of the branch, or the head of the pull request when its branch is not the one checked out), whether ahead, behind or diverged, the whole pane of the `HEAD` side turns gray, and a band under the header says why (for example "HEAD does not match origin/feature (2 commits ahead, not pushed)"). It goes back to normal when you push or pull. Without `HEAD` on either side (PR base ← working tree), or on a branch without an upstream, nothing changes. Nothing is fetched: it is compared with the remote as this repository last saw it.
 
 ## Screen
 

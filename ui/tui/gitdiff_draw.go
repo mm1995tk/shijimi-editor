@@ -50,7 +50,7 @@ func (a *App) renderDiffText(t *core.Tab, dv *core.DiffView, l layout, focused b
 
 	hint := diffHint(dv)
 	out := make([]string, 0, l.editH)
-	out = append(out, drawDiffHeader(panes[len(panes)-1].Title, hint, l.rightW))
+	out = append(out, drawDiffHeader(panes[len(panes)-1].Title, hint, l.rightW, panes[len(panes)-1].Dim))
 	return append(out, drawDiff(panes, g, opts, a.separator(l, core.ResizeDiff))...)
 }
 
@@ -184,7 +184,22 @@ func drawChanges(l core.ChangesList, w, h int, focused, lit bool) []string {
 }
 
 // changeBar draws the bar of a diff Pane h cells high.
-func changeBar(d *screen.DiffInfo, h int) []string { return scrollBar(d.Rows, d.Top, h, d.Hunks) }
+func changeBar(d *screen.DiffInfo, h int, dim bool) []string {
+	out := scrollBar(d.Rows, d.Top, h, d.Hunks)
+	if dim { // HEAD has drifted from its remote: the marks lose their colors
+		for i, k := range core.BarKinds(d.Rows, h, d.Hunks) {
+			if k == screen.MarkAdded || k == screen.MarkDeleted || k == screen.MarkModified {
+				lo, hi := core.BarRange(i, h, d.Rows)
+				bg := cEditorBg
+				if hi > d.Top && lo < d.Top+h {
+					bg = cBarView
+				}
+				out[i] = bgfg(bg, core.CurTheme.Dim).Render("▐")
+			}
+		}
+	}
+	return out
+}
 
 // scrollBar draws a bar h cells high over total rows of which the h from top
 // are on screen: a lighter background over the rows on screen and a mark per
@@ -232,7 +247,7 @@ func diffHint(dv *core.DiffView) string {
 
 // drawDiffHeader draws the header row of a diff: the file name with what was
 // added and deleted, the review note and the hint, w cells wide.
-func drawDiffHeader(title screen.Title, hint string, w int) string {
+func drawDiffHeader(title screen.Title, hint string, w int, dim bool) string {
 	name := " " + title.Text
 	stats := fmt.Sprintf("  +%d", title.Added)
 	dels := fmt.Sprintf(" -%d", title.Deleted)
@@ -244,12 +259,16 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 	if title.NoteWarn {
 		noteFg = core.CurTheme.DiagWarn
 	}
+	addFg, delFg, nameFg := cAddSign, cDelSign, core.CurTheme.Strong
+	if dim { // HEAD has drifted from its remote: gray, with no color of its own
+		addFg, delFg, nameFg = core.CurTheme.Dim, core.CurTheme.Dim, core.CurTheme.Dim
+	}
 	hw := diffHintWidth(hint)
 	bw := titleCopyWidth(&title, w-hw) // the button at the right end
 	w -= bw
 	nw := max(0, min(ansi.StringWidth(name), w-hw-ansi.StringWidth(stats+dels+tag)))
-	head := bgfg(cTabBarBg, core.CurTheme.Strong).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
-		bgfg(cTabBarBg, cAddSign).Render(stats) + bgfg(cTabBarBg, cDelSign).Render(dels) +
+	head := bgfg(cTabBarBg, nameFg).Bold(true).Render(ansi.Truncate(name, nw, "…")) +
+		bgfg(cTabBarBg, addFg).Render(stats) + bgfg(cTabBarBg, delFg).Render(dels) +
 		bgfg(cTabBarBg, core.CurTheme.Dim).Render(tag) +
 		bgfg(cTabBarBg, noteFg).Render(tr(title.Note))
 	return fitStyled(head, max(0, w-hw), bgfg(cTabBarBg, core.CurTheme.Strong)) +
@@ -262,7 +281,7 @@ func drawDiffHeader(title screen.Title, hint string, w int) string {
 func drawDiff(panes []screen.Pane, g core.DiffGeom, o core.EditorOpts, sep string) []string {
 	cur := panes[len(panes)-1]
 	two := len(panes) == 2
-	bar := changeBar(cur.Diff, g.H)
+	bar := changeBar(cur.Diff, g.H, cur.Dim)
 	ld := newLineDrawer(cur, g.RightW, o)
 	width := g.RightW
 	if two {
@@ -300,8 +319,19 @@ func drawOldLine(p screen.Pane, pl screen.Line, w int) string {
 	if isDeletedLine(pl) {
 		bg, sc, sign = cDelBg, cDelSign, "-"
 	}
+	spans, words, wordBg := pl.Spans, pl.Words, cDelWordBg
+	if pl.Dim { // HEAD has drifted from its remote: gray text and gray rows
+		if isDeletedLine(pl) {
+			bg = cSideBg
+		}
+		sc, words, wordBg = core.CurTheme.Dim, nil, bg
+		spans = make([]screen.Span, len(pl.Spans))
+		for i, sp := range pl.Spans {
+			spans[i] = screen.Span{Text: sp.Text, Style: screen.StyleDim}
+		}
+	}
 	gutter := bgfg(bg, sc).Render(sign) + bgfg(bg, cLineNo).Render(fmt.Sprintf("%*d ", gw-2, pl.No+1))
-	return gutter + drawSpans(pl.Spans, bg, pl.Words, cDelWordBg, w-gw, p.Viewport.Left)
+	return gutter + drawSpans(spans, bg, words, wordBg, w-gw, p.Viewport.Left)
 }
 
 // drawCompareBar draws the line above everything in diff mode: what is
@@ -454,4 +484,11 @@ func drawSpans(spans []screen.Span, bg string, words []screen.Cols, wordBg strin
 // drawn by drawSpans). The runes inside spans get markBg instead.
 func highlightText(text string, lex chroma.Lexer, bg string, spans []core.DiffSpan, markBg string, w, skip int) string {
 	return drawSpans(core.LexSpans(text, lex), bg, core.ColsOf(spans), markBg, w, skip)
+}
+
+// drawDriftBand draws the band under the compare bar that says why a side that
+// is HEAD is gray: HEAD has drifted from its remote.
+func drawDriftBand(text string, w int) string {
+	st := bgfg(core.CurTheme.DiagWarn, cEditorBg).Bold(true)
+	return st.Render(core.Fit(" ⚠ "+text, w))
 }

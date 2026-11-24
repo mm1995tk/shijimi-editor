@@ -174,6 +174,9 @@ func (a *App) renderFrame() (string, *tea.Cursor) {
 	}
 	if a.DiffMode() {
 		branch, pr, right := a.CompareBase()
+		if _, _, note := a.DriftSides(); !note.IsZero() {
+			rows = append([]string{drawDriftBand(tr(note), a.w)}, rows...)
+		}
 		rows = append([]string{drawCompareBar(branch, pr, right, a.w)}, rows...)
 		rows = append(rows, drawDiffHelp(tr(a.DiffHelp()), a.w))
 	}
