@@ -138,7 +138,7 @@ jobs:
           ref: v${{ needs.release.outputs.next }}
           persist-credentials: false
       # go と node は devShell のもの（手元と同じ）
-      - uses: cachix/install-nix-action@v31.11.3
+      - uses: cachix/install-nix-action@v31.11.4
       - name: パッケージを作る
         env:
           NEXT: ${{ needs.release.outputs.next }}
