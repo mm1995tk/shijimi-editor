@@ -363,12 +363,16 @@ func (a *Core) SpaceMode(key string) []Effect {
 	case "i":
 		return a.toggleAgentPanel()
 	case "y":
-		if t := a.Cur(); t != nil && t.Kind == TabText {
+		if t := a.sideTab(); t != nil && t.Kind == TabText {
 			s, e := t.Buf.SelectionOrChar()
 			a.CopyText(t.Buf.TextRange(s, e))
 			a.InfoText(msg.T("helix.copied"))
 		}
 	case "p", "P":
+		if a.DiffLeft(a.Cur()) != nil { // the left side cannot be changed
+			a.Fail(msg.Err("gd.readonlyleft"))
+			return nil
+		}
 		if t := a.Cur(); t != nil && t.Kind == TabText {
 			if s, ok := ReadSystemClipboard(); ok {
 				a.paste(t.Buf, s, key == "p")

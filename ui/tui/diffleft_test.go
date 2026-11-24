@@ -195,3 +195,17 @@ func TestLeftSideInVSCodeMode(t *testing.T) {
 		t.Error("Ctrl+2 kept the cursor on the left side")
 	}
 }
+
+func TestLeftSideSpaceYAndP(t *testing.T) {
+	a := leftDiffApp(t)
+	keys(a, "space", "w", "h")
+	keys(a, "j", "x", "space", "y")
+	if a.Clipboard != "b\n" {
+		t.Errorf("Space y copied %q, want the left selection", a.Clipboard)
+	}
+	before := string(fileText(a))
+	keys(a, "space", "p")
+	if string(fileText(a)) != before || a.CurText().Buf.Dirty {
+		t.Error("Space p changed the file from the left side")
+	}
+}
