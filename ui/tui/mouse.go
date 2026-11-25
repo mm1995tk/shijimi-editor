@@ -172,8 +172,9 @@ func (a *App) HandleMouse(msg core.Mouse) []core.Effect {
 			a.WheelSide(msg.Row, l.bodyH, wheel)
 		case msg.Region == core.RegionTerminal:
 			a.term.wheel(msg, msg.Col, msg.Row, wheel)
-		case msg.Region == core.RegionEditor && a.overPreview(l, msg):
-			a.WheelPreview(wheel)
+		case msg.Region == core.RegionEditor && (a.overPreview(l, msg) || a.FullPreview(a.CurText())):
+			p := a.BuildPreviewPane(a.CurText(), a.previewW(a.CurText(), l), l.editH)
+			a.WheelPreview(core.Clamp(wheel, -p.Viewport.Rows, p.Viewport.Rows))
 		default:
 			a.WheelEditor(wheel)
 		}

@@ -262,3 +262,45 @@ func TestPreviewBottomMarginInBothLayouts(t *testing.T) {
 		})
 	}
 }
+
+func TestPreviewWheelReadsEveryRowInShortViewport(t *testing.T) {
+	for _, mode := range []core.PreviewMode{core.PreviewSplit, core.PreviewFull} {
+		for _, height := range []int{11, 12} {
+			t.Run(fmt.Sprintf("mode_%d/height_%d", mode, height), func(t *testing.T) {
+				a := newTestApp(t, "```text\n"+strings.Repeat("body\n", 12)+"```")
+				tb := a.CurText()
+				tb.Buf.Path = filepath.Join(t.TempDir(), "a.md")
+				tb.Preview = mode
+				tb.Buf.Cur.Row = 0
+				a.showTerm = true
+				a.Update(tea.WindowSizeMsg{Width: 100, Height: height})
+				a.fit()
+				l := a.layout()
+				pw := a.previewW(tb, l)
+				p := a.BuildPreviewPane(tb, pw, l.editH)
+				if p.Viewport.Rows != height-10 {
+					t.Fatalf("fixture has %d text rows, want %d", p.Viewport.Rows, height-10)
+				}
+				for _, button := range []core.MouseButton{core.MouseWheelDown, core.MouseWheelUp} {
+					seen := make([]bool, p.Viewport.Total)
+					for range p.Viewport.Total {
+						for _, line := range p.Lines {
+							seen[line.No] = true
+						}
+						before := p.Viewport.Top
+						a.HandleMouse(a.locate(l.rightX+l.rightW-1, l.editY, core.Mouse{Action: core.MousePress, Button: button}))
+						p = a.BuildPreviewPane(tb, pw, l.editH)
+						if delta := p.Viewport.Top - before; delta < -p.Viewport.Rows || delta > p.Viewport.Rows {
+							t.Fatalf("wheel %v moved %d rows with only %d visible", button, delta, p.Viewport.Rows)
+						}
+					}
+					for row, visible := range seen {
+						if !visible {
+							t.Fatalf("wheel %v skipped document row %d", button, row)
+						}
+					}
+				}
+			})
+		}
+	}
+}
