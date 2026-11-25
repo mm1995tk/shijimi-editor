@@ -50,10 +50,10 @@ type Tab struct {
 	prevVer   int
 	prevGen   int
 	// where the preview is scrolled to (a row of the rendered document), and
-	// the cursor row it was made for: a cursor that moved takes the preview
+	// the cursor position it was made for: a cursor that moved takes the preview
 	// along, the wheel moves it alone.
-	PrevTop    int
-	prevCurRow int
+	PrevTop int
+	prevCur buffer.Pos
 
 	// mermaid fences and image sources found at scanVer (scanned reports
 	// whether that is valid)

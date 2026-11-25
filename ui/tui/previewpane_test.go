@@ -27,7 +27,7 @@ func previewApp(t *testing.T, dir, src string) *App {
 
 func TestBuildPreviewPane(t *testing.T) {
 	a := previewApp(t, t.TempDir(), "# 見出し\n\n段落に **太字** と `code`。\n\n- 項目\n\n```go\nfunc main() {}\n```\n")
-	p := a.BuildPreviewPane(a.Tabs[0], 30, 5)
+	p := a.BuildPreviewPane(a.Tabs[0], 30, 7)
 	if p.Kind != screen.KindPreview || p.Viewport.Cols != 30 || p.Viewport.Rows != 5 || len(p.Lines) != 5 {
 		t.Fatalf("pane = %+v", p)
 	}
@@ -64,7 +64,7 @@ func TestBuildPreviewPane(t *testing.T) {
 	// the lines are the visible ones: the cursor at the end scrolls the pane
 	tb := a.Tabs[0]
 	tb.Buf.Cur.Row = len(tb.Buf.Lines) - 1
-	p = a.BuildPreviewPane(tb, 30, 5)
+	p = a.BuildPreviewPane(tb, 30, 7)
 	if p.Preview.Top != p.Preview.Rows-5 || p.Lines[0].No != p.Preview.Top || len(p.Lines) != 5 {
 		t.Fatalf("scrolled pane: top %d rows %d first %d", p.Preview.Top, p.Preview.Rows, p.Lines[0].No)
 	}
@@ -186,7 +186,7 @@ func TestWheelScrollsPreviewNotCursor(t *testing.T) {
 	a.BuildPreviewPane(tb, 30, 5)
 	a.WheelPreview(-3)
 	p = a.BuildPreviewPane(tb, 30, 5)
-	if p.Preview.Top != p.Preview.Rows-5-3 {
+	if p.Preview.Top != p.Preview.Rows-3-3 {
 		t.Fatalf("scrolling back from the end: top %d of %d", p.Preview.Top, p.Preview.Rows)
 	}
 	tb.Buf.Cur.Row = 20 // the cursor moved: the preview follows it
@@ -212,5 +212,40 @@ func TestWheelOverSplitPreview(t *testing.T) {
 	wheel(l.rightX + a.editW(tb, l) - 1)
 	if tb.PrevTop != top || tb.Buf.ScrollRow == 0 {
 		t.Fatalf("over the text: top %d scroll %d", tb.PrevTop, tb.Buf.ScrollRow)
+	}
+}
+
+func TestPreviewFollowsDocumentEndWithinOneSourceLine(t *testing.T) {
+	a := newTestApp(t, strings.Repeat("x", 153))
+	a.Helix = false
+	a.ShowSide(false)
+	a.SetFocus(core.FocusEditor)
+	tb := a.CurText()
+	tb.Buf.Path = filepath.Join(t.TempDir(), "a.md")
+	tb.Preview = core.PreviewSplit
+	a.Update(tea.WindowSizeMsg{Width: 78, Height: 8})
+	a.fit()
+	l := a.layout()
+	pw := a.previewW(tb, l)
+	p := a.BuildPreviewPane(tb, pw, l.editH)
+	if pw != 38 || l.editH != 6 || p.Viewport.Total != 5 || p.Viewport.Rows != 4 || p.Viewport.Top != 0 {
+		t.Fatalf("fixture: width %d, height %d, viewport %+v", pw, l.editH, p.Viewport)
+	}
+	a.Update(core.Key{Code: core.KeyEnd, Mod: core.ModCtrl})
+	p = a.BuildPreviewPane(tb, pw, l.editH)
+	if tb.Buf.Cur.Row != 0 || tb.Buf.Cur.Col != 153 || p.Viewport.Top != 1 || p.Lines[len(p.Lines)-1].No != 4 {
+		t.Fatalf("document end: cursor %+v, viewport %+v", tb.Buf.Cur, p.Viewport)
+	}
+	a.HandleMouse(a.locate(l.rightX+l.rightW-1, l.editY, core.Mouse{Action: core.MousePress, Button: core.MouseWheelUp}))
+	for range 3 {
+		if p = a.BuildPreviewPane(tb, pw, l.editH); p.Viewport.Top != 0 {
+			t.Fatalf("stationary cursor replaced wheel position: %+v", p.Viewport)
+		}
+	}
+	a.Update(core.Key{Code: core.KeyHome, Mod: core.ModCtrl})
+	a.BuildPreviewPane(tb, pw, l.editH)
+	a.Update(core.Key{Code: core.KeyEnd, Mod: core.ModCtrl})
+	if p = a.BuildPreviewPane(tb, pw, l.editH); p.Viewport.Top != 1 {
+		t.Fatalf("document end after moving again: %+v", p.Viewport)
 	}
 }

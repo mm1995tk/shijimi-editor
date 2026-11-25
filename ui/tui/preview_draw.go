@@ -32,7 +32,10 @@ func (a *App) drawPreview(p screen.Pane, w, h int) []string {
 	for len(out) < h {
 		out = append(out, stEmpty.Render(strings.Repeat(" ", textW)))
 	}
-	bar := scrollBar(p.Viewport.Total, p.Viewport.Top, h, nil)
+	bar := scrollBar(p.Viewport.Total, p.Viewport.Top, min(h, p.Viewport.Rows), nil)
+	for len(bar) < h {
+		bar = append(bar, stEmpty.Render(" "))
+	}
 	for i := range out {
 		row := ansi.Truncate(out[i], textW, "")
 		if n := textW - ansi.StringWidth(row); n > 0 {
