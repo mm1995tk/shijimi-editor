@@ -15,6 +15,8 @@ The preview follows your edits and scrolls to match the cursor position.
 Run it again to show only the preview at full width. A third time closes it.
 At full width, scroll with `j` / `k` or the mouse wheel.
 
+The scroll bar at the right edge shows the visible part of the document in both preview layouts. Click the bar to scroll there without moving the editor cursor.
+
 ## mermaid
 
 mermaid code blocks are shown as diagrams.

@@ -5,7 +5,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/charmbracelet/x/ansi"
-	"github.com/rivo/uniseg"
 
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
@@ -61,8 +60,7 @@ func (s AgentSel) ordered() (AgentPos, AgentPos) {
 func snapCols(plain string, c0, c1 int) (int, int) {
 	x := 0
 	s0, s1 := c0, c1
-	for g := uniseg.NewGraphemes(plain); g.Next(); { // by grapheme cluster, as the row is drawn
-		w := ansi.StringWidth(g.Str())
+	for _, w := range displayGraphemes(plain) {
 		if x < c0 && x+w > c0 {
 			s0 = x
 		}
@@ -110,10 +108,9 @@ func MarkRow(row string, w, s0, s1 int) string {
 func CutCols(plain string, c0, c1 int) string {
 	var sb strings.Builder
 	x := 0
-	for g := uniseg.NewGraphemes(plain); g.Next(); { // by grapheme cluster, as the row is drawn
-		w := ansi.StringWidth(g.Str())
+	for ch, w := range displayGraphemes(plain) {
 		if x < c1 && x+w > c0 {
-			sb.WriteString(g.Str())
+			sb.WriteString(ch)
 		}
 		x += w
 	}

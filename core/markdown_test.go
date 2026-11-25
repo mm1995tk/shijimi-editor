@@ -4,8 +4,11 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"slices"
 	"strings"
 	"testing"
+
+	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
 
 const mdSample = "# 見出し\n\n段落に **太字** と `code` と [リンク](http://x)。\n\n- 項目1\n- 項目2\n  - 入れ子\n\n1. 一\n2. 二\n\n```go\nfunc main() {}\n```\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n```mermaid\ngraph TD; A-->B\n```\n"
@@ -64,4 +67,41 @@ func writePNG(t *testing.T, path string, w, h int) {
 	}
 	png.Encode(f, image.NewRGBA(image.Rect(0, 0, w, h)))
 	f.Close()
+}
+
+func TestMdWrapGraphemeWidth(t *testing.T) {
+	for _, tc := range []struct {
+		text  string
+		width int
+		want  []string
+	}{
+		{"xxx❤️", 4, []string{"xxx", "❤️"}},
+		{"xxx👩‍💻", 4, []string{"xxx", "👩‍💻"}},
+		{"xxx🇯🇵", 4, []string{"xxx", "🇯🇵"}},
+		{"xxxé", 4, []string{"xxxé"}},
+		{"a ❤️x❤️", 4, []string{"a", "❤️x", "❤️"}},
+		{"❤️", 1, []string{"❤️"}},
+	} {
+		lines := RenderMarkdown(tc.text, tc.width, MdOpts{}).Lines
+		if len(lines) != len(tc.want) {
+			t.Fatalf("%q at width %d: %d lines, want %d", tc.text, tc.width, len(lines), len(tc.want))
+		}
+		for i, line := range lines {
+			var text strings.Builder
+			for _, sp := range line.Spans {
+				text.WriteString(sp.Text)
+			}
+			if got := text.String(); got != tc.want[i] {
+				t.Errorf("%q at width %d: line %d = %q, want %q", tc.text, tc.width, i, got, tc.want[i])
+			}
+		}
+	}
+}
+
+func TestMarkdownGraphemeAcrossStyles(t *testing.T) {
+	lines := RenderMarkdown("xx**❤**️z", 3, MdOpts{}).Lines
+	want := []screen.Span{{Text: "❤️", Bold: true}, {Text: "z"}}
+	if len(lines) != 2 || !slices.Equal(lines[1].Spans, want) {
+		t.Fatalf("wrapped styled grapheme: %+v", lines)
+	}
 }

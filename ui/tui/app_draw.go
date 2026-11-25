@@ -57,10 +57,10 @@ func (a *App) editAreaW(t *core.Tab, l layout) int {
 	return l.rightW
 }
 
-// previewW is the width of t's Markdown preview in layout l: all of the area
-// for a full preview, what the editor leaves beside it otherwise, and 0 when
-// none is shown (off, or the diff view in its place).
-func (a *App) previewW(t *core.Tab, l layout) int {
+// previewAreaW is the width of t's Markdown preview including its scroll bar:
+// all of the area for a full preview, what the editor leaves beside it
+// otherwise, and 0 when none is shown (off, or the diff view in its place).
+func (a *App) previewAreaW(t *core.Tab, l layout) int {
 	if t.Preview == core.PreviewOff || a.DiffFile(t) != nil {
 		return 0
 	}
@@ -70,12 +70,18 @@ func (a *App) previewW(t *core.Tab, l layout) int {
 	return l.rightW - a.editAreaW(t, l) - 1
 }
 
+// previewW is the width available for Markdown text and images, without the
+// scroll bar in the last column.
+func (a *App) previewW(t *core.Tab, l layout) int {
+	return max(0, a.previewAreaW(t, l)-1)
+}
+
 func (a *App) renderText(t *core.Tab, l layout, focused bool) []string {
 	if dv := a.DiffOf(t); dv != nil {
 		return a.renderDiffText(t, dv, l, focused)
 	}
 	if t.Preview == core.PreviewFull {
-		return a.previewLines(t, a.previewW(t, l), l.editH)
+		return a.previewLines(t, a.previewAreaW(t, l), l.editH)
 	}
 	ew := a.editW(t, l)
 	edit := renderEditor(t, ew, l.editH, a.EditorOpts(t, focused))
@@ -88,7 +94,7 @@ func (a *App) renderText(t *core.Tab, l layout, focused bool) []string {
 	if t.Preview == core.PreviewOff {
 		return edit
 	}
-	prev := a.previewLines(t, a.previewW(t, l), l.editH)
+	prev := a.previewLines(t, a.previewAreaW(t, l), l.editH)
 	sep := a.separator(l, core.ResizePreview)
 	for i := range edit {
 		edit[i] += sep + prev[i]

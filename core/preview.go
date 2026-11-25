@@ -322,7 +322,7 @@ func (a *Core) mdImageLines(mdPath string) func(alt, src string, w int) *MdMedia
 			return nil
 		}
 		label := func() []screen.Line {
-			return []screen.Line{MdRow(fitSpans(mdSpans(inlineCells("🖼 "+alt, mdStyle{fg: screen.StyleMdImage})), w)...)}
+			return []screen.Line{MdRow(fitSpans(inlineSpans("🖼 "+alt, screen.Span{Style: screen.StyleMdImage}), w)...)}
 		}
 		return jobLines(a.text, a.MdImages[path], BlobFile+path, w, msg.T("preview.loadingimage"), src+": ", label)
 	}
@@ -454,6 +454,16 @@ func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
 		}
 	}
 	return p
+}
+
+// PreviewBarClick scrolls t's Markdown preview, w text columns by h rows,
+// to the rendered rows represented by bar cell i, leaving the editor cursor.
+func (a *Core) PreviewBarClick(t *Tab, w, h, i int) {
+	if i < 0 || i >= h {
+		return
+	}
+	p := a.BuildPreviewPane(t, w, h)
+	t.PrevTop = min(BarTarget(i, h, p.Viewport.Total), max(0, p.Viewport.Total-h))
 }
 
 // wantedMermaid returns the mermaid blocks on screen: in the current tab's

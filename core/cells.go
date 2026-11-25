@@ -1,12 +1,27 @@
 package core
 
 import (
+	"iter"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 )
 
 // cells.go is the helpers that fit text to a number of terminal cells.
+
+// displayGraphemes yields the grapheme clusters and widths used by ansi.StringWidth
+// for plain terminal text.
+func displayGraphemes(plain string) iter.Seq2[string, int] {
+	return func(yield func(string, int) bool) {
+		for s := plain; len(s) > 0; {
+			ch, width := ansi.FirstGraphemeCluster(s, ansi.GraphemeWidth)
+			if !yield(ch, width) {
+				return
+			}
+			s = s[len(ch):]
+		}
+	}
+}
 
 // Fit truncates or pads s (which may contain ANSI codes) to exactly w cells.
 func Fit(s string, w int) string {

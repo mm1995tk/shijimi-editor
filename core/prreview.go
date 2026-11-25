@@ -569,7 +569,7 @@ func (a *Core) cardDoc(c *PrCard, w int) MdDoc {
 		if i == 0 {
 			head = append(head, screen.Span{Text: " · " + a.text(threadWhere(t)) + a.text(threadState(t)), Style: screen.StyleDim})
 		}
-		doc.Lines = append(doc.Lines, MdRow(cutSpans(head, 0, w)...))
+		doc.Lines = append(doc.Lines, MdRow(mdGraphemes(head).prefix(w).spans()...))
 		body := RenderMarkdown(cm.Body, w, MdOpts{Mermaid: a.MermaidLines})
 		for _, im := range body.Images {
 			im.Row += len(doc.Lines)
