@@ -8,7 +8,6 @@ import (
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/mattn/go-runewidth"
 	"github.com/rivo/uniseg"
 
 	"github.com/mm1995tk/shijimi-editor/core/screen"
@@ -151,12 +150,17 @@ func mdWrapSep(cells []mdCell, w int) ([][]mdCell, []bool) {
 		seps = append(seps, space)
 		cur, curW = nil, 0
 	}
-	for _, c := range cells {
-		cw := runewidth.RuneWidth(c.r)
+	offset := 0
+	for g := uniseg.NewGraphemes(plainText(cells)); g.Next(); {
+		n := len(g.Runes())
+		cluster := cells[offset : offset+n]
+		offset += n
+		c := cluster[0]
+		cw := ansi.StringWidth(g.Str())
 		if c.r == ' ' && curW == 0 && len(lines) > 0 {
 			continue
 		}
-		if curW+cw > w {
+		if curW+cw > w && len(cur) > 0 {
 			brk := -1
 			for i := len(cur) - 1; i > 0; i-- {
 				if cur[i].r == ' ' {
@@ -173,15 +177,12 @@ func mdWrapSep(cells []mdCell, w int) ([][]mdCell, []bool) {
 				cur = cur[:brk]
 				flush(true)
 				cur = rest
-				curW = 0
-				for _, r := range rest {
-					curW += runewidth.RuneWidth(r.r)
-				}
+				curW = cellsWidth(rest)
 			} else {
 				flush(false)
 			}
 		}
-		cur = append(cur, c)
+		cur = append(cur, cluster...)
 		curW += cw
 	}
 	if len(cur) > 0 || len(lines) == 0 {
@@ -191,11 +192,7 @@ func mdWrapSep(cells []mdCell, w int) ([][]mdCell, []bool) {
 }
 
 func cellsWidth(cs []mdCell) int {
-	n := 0
-	for _, c := range cs {
-		n += runewidth.RuneWidth(c.r)
-	}
-	return n
+	return ansi.StringWidth(plainText(cs))
 }
 
 // mdSpans turns styled runes into spans, one per run of the same style.
@@ -681,9 +678,9 @@ func mdTable(rows [][]string, aligns []string, w int) []screen.Line {
 				if li < len(wrapped[ci]) {
 					cs = wrapped[ci][li]
 				}
-				// a wide rune can still overflow a 1-column cell
-				for cellsWidth(cs) > widths[ci] && len(cs) > 0 {
-					cs = cs[:len(cs)-1]
+				// A grapheme wider than the column is left blank.
+				if cellsWidth(cs) > widths[ci] {
+					cs = nil
 				}
 				padN := widths[ci] - cellsWidth(cs)
 				left := 0

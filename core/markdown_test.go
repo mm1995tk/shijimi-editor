@@ -65,3 +65,28 @@ func writePNG(t *testing.T, path string, w, h int) {
 	png.Encode(f, image.NewRGBA(image.Rect(0, 0, w, h)))
 	f.Close()
 }
+
+func TestMdWrapGraphemeWidth(t *testing.T) {
+	for _, tc := range []struct {
+		text  string
+		width int
+		want  []string
+	}{
+		{"xxx❤️", 4, []string{"xxx", "❤️"}},
+		{"xxx👩‍💻", 4, []string{"xxx", "👩‍💻"}},
+		{"xxx🇯🇵", 4, []string{"xxx", "🇯🇵"}},
+		{"xxxé", 4, []string{"xxxé"}},
+		{"a ❤️x❤️", 4, []string{"a", "❤️x", "❤️"}},
+		{"❤️", 1, []string{"❤️"}},
+	} {
+		lines := mdWrap(inlineCells(tc.text, mdStyle{}), tc.width)
+		if len(lines) != len(tc.want) {
+			t.Fatalf("%q at width %d: %d lines, want %d", tc.text, tc.width, len(lines), len(tc.want))
+		}
+		for i, line := range lines {
+			if got := plainText(line); got != tc.want[i] {
+				t.Errorf("%q at width %d: line %d = %q, want %q", tc.text, tc.width, i, got, tc.want[i])
+			}
+		}
+	}
+}

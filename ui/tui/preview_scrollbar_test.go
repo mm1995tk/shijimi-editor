@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/mm1995tk/shijimi-editor/core"
+	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
 
 func TestPreviewScrollBarByMouse(t *testing.T) {
@@ -149,5 +150,54 @@ func TestPreviewScrollBarSmallArea(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestPreviewScrollBarGraphemeAtRightEdge(t *testing.T) {
+	for _, mode := range []core.PreviewMode{core.PreviewSplit, core.PreviewFull} {
+		for _, emoji := range []string{"❤️", "👩‍💻", "🇯🇵", "é"} {
+			t.Run(fmt.Sprintf("%d/%s", mode, emoji), func(t *testing.T) {
+				a := newTestApp(t, "")
+				tb := a.CurText()
+				tb.Buf.Path = filepath.Join(t.TempDir(), "a.md")
+				tb.Preview = mode
+				a.Update(tea.WindowSizeMsg{Width: 80, Height: 12})
+				a.fit()
+				l := a.layout()
+				pw := a.previewW(tb, l)
+				prefix := strings.Repeat("x", pw-1)
+				tb.Buf.Insert(prefix + emoji)
+				p := a.BuildPreviewPane(tb, pw, l.editH)
+				rows := a.drawPreview(p, pw+1, l.editH)
+				bar := scrollBar(p.Viewport.Total, p.Viewport.Top, l.editH, nil)
+				var text strings.Builder
+				for i, row := range rows {
+					if ansi.StringWidth(row) != pw+1 || !strings.HasSuffix(row, bar[i]) {
+						t.Fatalf("row %d: width %d, want %d", i, ansi.StringWidth(row), pw+1)
+					}
+					text.WriteString(strings.TrimRight(ansi.Strip(strings.TrimSuffix(row, bar[i])), " "))
+				}
+				if text.String() != prefix+emoji {
+					t.Fatalf("wrapped text = %q, want %q", text.String(), prefix+emoji)
+				}
+				if ansi.StringWidth(emoji) > 1 && p.Viewport.Total != 2 {
+					t.Fatalf("wrapped rows = %d, want 2", p.Viewport.Total)
+				}
+			})
+		}
+	}
+}
+
+func TestPreviewScrollBarPadsTruncatedGrapheme(t *testing.T) {
+	a := previewApp(t, t.TempDir(), "")
+	p := screen.Pane{
+		Lines:    []screen.Line{core.MdRow(core.PlainSpan("x❤️"))},
+		Preview:  &screen.PreviewInfo{},
+		Viewport: screen.Viewport{Total: 1},
+	}
+	rows := a.drawPreview(p, 3, 1)
+	bar := scrollBar(1, 0, 1, nil)[0]
+	if want := "x " + ansi.Strip(bar); ansi.Strip(rows[0]) != want {
+		t.Fatalf("clipped preview = %q, want %q", ansi.Strip(rows[0]), want)
 	}
 }
