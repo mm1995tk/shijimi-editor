@@ -214,3 +214,38 @@ func TestWheelOverSplitPreview(t *testing.T) {
 		t.Fatalf("over the text: top %d scroll %d", tb.PrevTop, tb.Buf.ScrollRow)
 	}
 }
+
+func TestPreviewFollowsDocumentEndWithinOneSourceLine(t *testing.T) {
+	a := newTestApp(t, strings.Repeat("x", 153))
+	a.Helix = false
+	a.ShowSide(false)
+	a.SetFocus(core.FocusEditor)
+	tb := a.CurText()
+	tb.Buf.Path = filepath.Join(t.TempDir(), "a.md")
+	tb.Preview = core.PreviewSplit
+	a.Update(tea.WindowSizeMsg{Width: 78, Height: 8})
+	a.fit()
+	l := a.layout()
+	pw := a.previewW(tb, l)
+	p := a.BuildPreviewPane(tb, pw, l.editH)
+	if pw != 38 || l.editH != 6 || p.Viewport.Total != 5 || p.Viewport.Rows != 4 || p.Viewport.Top != 0 {
+		t.Fatalf("fixture: width %d, height %d, viewport %+v", pw, l.editH, p.Viewport)
+	}
+	a.Update(core.Key{Code: core.KeyEnd, Mod: core.ModCtrl})
+	p = a.BuildPreviewPane(tb, pw, l.editH)
+	if tb.Buf.Cur.Row != 0 || tb.Buf.Cur.Col != 153 || p.Viewport.Top != 1 || p.Lines[len(p.Lines)-1].No != 4 {
+		t.Fatalf("document end: cursor %+v, viewport %+v", tb.Buf.Cur, p.Viewport)
+	}
+	a.HandleMouse(a.locate(l.rightX+l.rightW-1, l.editY, core.Mouse{Action: core.MousePress, Button: core.MouseWheelUp}))
+	for range 3 {
+		if p = a.BuildPreviewPane(tb, pw, l.editH); p.Viewport.Top != 0 {
+			t.Fatalf("stationary cursor replaced wheel position: %+v", p.Viewport)
+		}
+	}
+	a.Update(core.Key{Code: core.KeyHome, Mod: core.ModCtrl})
+	a.BuildPreviewPane(tb, pw, l.editH)
+	a.Update(core.Key{Code: core.KeyEnd, Mod: core.ModCtrl})
+	if p = a.BuildPreviewPane(tb, pw, l.editH); p.Viewport.Top != 1 {
+		t.Fatalf("document end after moving again: %+v", p.Viewport)
+	}
+}

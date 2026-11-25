@@ -430,15 +430,18 @@ func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
 	rows := min(h, max(1, h-2))
 	top := 0
 	if span := len(all) - rows; span > 0 {
-		if t.Buf.Cur.Row != t.prevCurRow {
-			n := max(1, len(t.Buf.Lines)-1)
-			top = t.Buf.Cur.Row * span / n
+		if t.Buf.Cur != t.prevCur {
+			if len(t.Buf.Lines) == 1 {
+				top = t.Buf.Cur.Col * span / max(1, len(t.Buf.Lines[0]))
+			} else {
+				top = t.Buf.Cur.Row * span / (len(t.Buf.Lines) - 1)
+			}
 		} else {
 			top = t.PrevTop
 		}
 		top = Clamp(top, 0, span)
 	}
-	t.PrevTop, t.prevCurRow = top, t.Buf.Cur.Row
+	t.PrevTop, t.prevCur = top, t.Buf.Cur
 	end := min(len(all), top+rows)
 	p := screen.Pane{
 		ID:       t.Path() + "#preview",
