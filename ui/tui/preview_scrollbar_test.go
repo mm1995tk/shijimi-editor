@@ -15,6 +15,11 @@ import (
 	"github.com/mm1995tk/shijimi-editor/core/screen"
 )
 
+func previewTestBar(p screen.Pane, h int) []string {
+	bar := scrollBar(p.Viewport.Total, p.Viewport.Top, p.Viewport.Rows, nil)
+	return append(bar, slices.Repeat([]string{stEmpty.Render(" ")}, h-p.Viewport.Rows)...)
+}
+
 func TestPreviewScrollBarByMouse(t *testing.T) {
 	for _, mode := range []core.PreviewMode{core.PreviewSplit, core.PreviewFull} {
 		t.Run(fmt.Sprint(mode), func(t *testing.T) {
@@ -40,7 +45,7 @@ func TestPreviewScrollBarByMouse(t *testing.T) {
 					t.Helper()
 					a.fit()
 					p := a.BuildPreviewPane(tb, pw, l.editH)
-					bar := scrollBar(p.Viewport.Total, p.Viewport.Top, l.editH, nil)
+					bar := previewTestBar(p, l.editH)
 					rows := a.renderText(tb, l, true)
 					for i, row := range rows {
 						if ansi.StringWidth(row) != l.rightW || !strings.HasSuffix(row, bar[i]) {
@@ -67,9 +72,9 @@ func TestPreviewScrollBarByMouse(t *testing.T) {
 				if tb.PrevTop != 30 || slices.Equal(before, after) {
 					t.Fatalf("wheel did not move preview and scrollbar: top %d", tb.PrevTop)
 				}
-				for _, i := range []int{l.editH / 2, l.editH - 1, 0} {
+				for _, i := range []int{p.Viewport.Rows / 2, p.Viewport.Rows - 1, 0} {
 					mouse(barX, l.editY+i, core.MouseLeft)
-					want := min(core.BarTarget(i, l.editH, p.Viewport.Total), p.Viewport.Total-l.editH)
+					want := min(core.BarTarget(i, p.Viewport.Rows, p.Viewport.Total), p.Viewport.Total-p.Viewport.Rows)
 					if tb.PrevTop != want {
 						t.Fatalf("bar cell %d: top %d, want %d", i, tb.PrevTop, want)
 					}
@@ -80,6 +85,9 @@ func TestPreviewScrollBarByMouse(t *testing.T) {
 				mouse(barX-1, l.editY+2, core.MouseLeft)
 				mouse(barX, l.editY-1, core.MouseLeft)
 				mouse(barX, l.editY+l.editH, core.MouseLeft)
+				for i := p.Viewport.Rows; i < l.editH; i++ {
+					mouse(barX, l.editY+i, core.MouseLeft)
+				}
 				if tb.PrevTop != top {
 					t.Fatal("click beside or outside the bar scrolled the preview")
 				}
@@ -125,7 +133,7 @@ func TestPreviewScrollBarImages(t *testing.T) {
 				if got := sent[iv.Id]; got.cols != cols || got.rows != imageRows {
 					t.Fatalf("image sent at %+v, want %dx%d cells", got, cols, imageRows)
 				}
-				bar := scrollBar(p.Viewport.Total, p.Viewport.Top, l.editH, nil)
+				bar := previewTestBar(p, l.editH)
 				for i, row := range rows {
 					if ansi.StringWidth(row) != l.rightW || !strings.HasSuffix(row, bar[i]) {
 						t.Fatalf("image overlaps bar at row %d (width %d)", i, ansi.StringWidth(row))
@@ -139,7 +147,7 @@ func TestPreviewScrollBarImages(t *testing.T) {
 func TestPreviewScrollBarSmallArea(t *testing.T) {
 	a := previewApp(t, t.TempDir(), "# text\n\n> quoted\n")
 	for _, w := range []int{0, 1, 2, 20} {
-		for _, h := range []int{0, 1, 20} {
+		for _, h := range []int{0, 1, 2, 3, 4, 20} {
 			rows := a.previewLines(a.Tabs[0], w, h)
 			if len(rows) != h {
 				t.Fatalf("area %dx%d: %d rows", w, h, len(rows))
@@ -169,7 +177,7 @@ func TestPreviewScrollBarGraphemeAtRightEdge(t *testing.T) {
 				tb.Buf.Insert(prefix + emoji)
 				p := a.BuildPreviewPane(tb, pw, l.editH)
 				rows := a.drawPreview(p, pw+1, l.editH)
-				bar := scrollBar(p.Viewport.Total, p.Viewport.Top, l.editH, nil)
+				bar := previewTestBar(p, l.editH)
 				var text strings.Builder
 				for i, row := range rows {
 					if ansi.StringWidth(row) != pw+1 || !strings.HasSuffix(row, bar[i]) {
@@ -193,7 +201,7 @@ func TestPreviewScrollBarPadsTruncatedGrapheme(t *testing.T) {
 	p := screen.Pane{
 		Lines:    []screen.Line{core.MdRow(core.PlainSpan("x❤️"))},
 		Preview:  &screen.PreviewInfo{},
-		Viewport: screen.Viewport{Total: 1},
+		Viewport: screen.Viewport{Total: 1, Rows: 1},
 	}
 	rows := a.drawPreview(p, 3, 1)
 	bar := scrollBar(1, 0, 1, nil)[0]
@@ -206,12 +214,51 @@ func TestPreviewScrollBarWrapsTabAtRightEdge(t *testing.T) {
 	const width = 60
 	prefix := strings.Repeat("x", width-3)
 	a := previewApp(t, t.TempDir(), prefix+"\tZ")
-	rows := a.previewLines(a.Tabs[0], width+1, 2)
+	rows := a.previewLines(a.Tabs[0], width+1, 4)
 	bar := scrollBar(2, 0, 2, nil)
 	for i, want := range []string{prefix, "Z"} {
 		row := ansi.Strip(strings.TrimSuffix(rows[i], bar[i]))
 		if ansi.StringWidth(row) != width || strings.TrimRight(row, " ") != want {
 			t.Errorf("row %d before the scrollbar = %q, want %q padded to %d columns", i, row, want, width)
 		}
+	}
+}
+
+func TestPreviewBottomMarginInBothLayouts(t *testing.T) {
+	for _, mode := range []core.PreviewMode{core.PreviewSplit, core.PreviewFull} {
+		t.Run(fmt.Sprint(mode), func(t *testing.T) {
+			a := newTestApp(t, "```text\n"+strings.Repeat("body\n", 50)+"```")
+			tb := a.CurText()
+			tb.Buf.Path = filepath.Join(t.TempDir(), "a.md")
+			tb.Preview = mode
+			tb.Buf.Cur.Row = 0
+			for _, size := range [][2]int{{100, 30}, {76, 12}, {120, 8}, {100, 30}} {
+				a.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+				a.fit()
+				l := a.layout()
+				pw := a.previewW(tb, l)
+				for _, end := range []bool{false, true} {
+					if end {
+						a.WheelPreview(10000)
+					} else {
+						a.WheelPreview(-10000)
+					}
+					p := a.BuildPreviewPane(tb, pw, l.editH)
+					rows := a.renderText(tb, l, true)
+					if len(rows) != l.editH || p.Viewport.Rows != l.editH-2 {
+						t.Fatalf("%v: height %d, text rows %d, drawn rows %d", size, l.editH, p.Viewport.Rows, len(rows))
+					}
+					for i := l.editH - 2; i < l.editH; i++ {
+						margin := ansi.Strip(ansi.Cut(rows[i], l.rightW-pw-1, l.rightW))
+						if margin != strings.Repeat(" ", pw+1) {
+							t.Fatalf("%v, end %v: margin row %d = %q", size, end, i, margin)
+						}
+					}
+					if end && (p.Preview.Top != p.Preview.Rows-p.Viewport.Rows || p.Lines[len(p.Lines)-1].No != p.Preview.Rows-1) {
+						t.Fatalf("%v: document end missing: %+v", size, p.Viewport)
+					}
+				}
+			}
+		})
 	}
 }

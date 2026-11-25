@@ -17,6 +17,8 @@ At full width, scroll with `j` / `k` or the mouse wheel.
 
 The scroll bar at the right edge shows the visible part of the document in both preview layouts. Click the bar to scroll there without moving the editor cursor.
 
+Both preview layouts leave two empty rows below the text, including at the end of the document. On very short screens, this margin shrinks to keep at least one text row visible. The scroll bar covers only the text area.
+
 ## mermaid
 
 mermaid code blocks are shown as diagrams.

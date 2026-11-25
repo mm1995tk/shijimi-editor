@@ -415,7 +415,9 @@ func (a *Core) FitPreview(t *Tab, w int) {
 // around the editor cursor is visible after the cursor moved, and where the
 // wheel left it otherwise (WheelPreview). It only keeps that place in the tab
 // (PrevTop): it reads the document FitPreview cached for width w, or renders
-// one for this call alone when the cache is not for it.
+// one for this call alone when the cache is not for it. Two bottom rows stay
+// empty, shrinking that margin when needed to keep at least one text row.
+// Viewport.Rows is the text height, shared by scrolling and the scroll bar.
 func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
 	var doc MdDoc
 	if a.previewFresh(t, w) {
@@ -424,8 +426,10 @@ func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
 		doc = a.renderPreview(t, w)
 	}
 	all := doc.Lines
+	h = max(0, h)
+	rows := min(h, max(1, h-2))
 	top := 0
-	if span := len(all) - h; span > 0 {
+	if span := len(all) - rows; span > 0 {
 		if t.Buf.Cur.Row != t.prevCurRow {
 			n := max(1, len(t.Buf.Lines)-1)
 			top = t.Buf.Cur.Row * span / n
@@ -435,12 +439,12 @@ func (a *Core) BuildPreviewPane(t *Tab, w, h int) screen.Pane {
 		top = Clamp(top, 0, span)
 	}
 	t.PrevTop, t.prevCurRow = top, t.Buf.Cur.Row
-	end := min(len(all), top+max(0, h))
+	end := min(len(all), top+rows)
 	p := screen.Pane{
 		ID:       t.Path() + "#preview",
 		Kind:     screen.KindPreview,
 		Title:    screen.Title{Text: t.Title(), Dirty: t.dirty()},
-		Viewport: screen.Viewport{Top: top, Rows: h, Cols: w, Total: len(all)},
+		Viewport: screen.Viewport{Top: top, Rows: rows, Cols: w, Total: len(all)},
 		CurLine:  t.Buf.Cur.Row,
 		Preview:  &screen.PreviewInfo{Top: top, Rows: len(all), Images: []screen.PreviewImage{}},
 	}
@@ -463,7 +467,11 @@ func (a *Core) PreviewBarClick(t *Tab, w, h, i int) {
 		return
 	}
 	p := a.BuildPreviewPane(t, w, h)
-	t.PrevTop = min(BarTarget(i, h, p.Viewport.Total), max(0, p.Viewport.Total-h))
+	rows := p.Viewport.Rows
+	if i >= rows {
+		return
+	}
+	t.PrevTop = min(BarTarget(i, rows, p.Viewport.Total), max(0, p.Viewport.Total-rows))
 }
 
 // wantedMermaid returns the mermaid blocks on screen: in the current tab's

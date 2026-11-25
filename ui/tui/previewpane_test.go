@@ -27,7 +27,7 @@ func previewApp(t *testing.T, dir, src string) *App {
 
 func TestBuildPreviewPane(t *testing.T) {
 	a := previewApp(t, t.TempDir(), "# 見出し\n\n段落に **太字** と `code`。\n\n- 項目\n\n```go\nfunc main() {}\n```\n")
-	p := a.BuildPreviewPane(a.Tabs[0], 30, 5)
+	p := a.BuildPreviewPane(a.Tabs[0], 30, 7)
 	if p.Kind != screen.KindPreview || p.Viewport.Cols != 30 || p.Viewport.Rows != 5 || len(p.Lines) != 5 {
 		t.Fatalf("pane = %+v", p)
 	}
@@ -64,7 +64,7 @@ func TestBuildPreviewPane(t *testing.T) {
 	// the lines are the visible ones: the cursor at the end scrolls the pane
 	tb := a.Tabs[0]
 	tb.Buf.Cur.Row = len(tb.Buf.Lines) - 1
-	p = a.BuildPreviewPane(tb, 30, 5)
+	p = a.BuildPreviewPane(tb, 30, 7)
 	if p.Preview.Top != p.Preview.Rows-5 || p.Lines[0].No != p.Preview.Top || len(p.Lines) != 5 {
 		t.Fatalf("scrolled pane: top %d rows %d first %d", p.Preview.Top, p.Preview.Rows, p.Lines[0].No)
 	}
@@ -186,7 +186,7 @@ func TestWheelScrollsPreviewNotCursor(t *testing.T) {
 	a.BuildPreviewPane(tb, 30, 5)
 	a.WheelPreview(-3)
 	p = a.BuildPreviewPane(tb, 30, 5)
-	if p.Preview.Top != p.Preview.Rows-5-3 {
+	if p.Preview.Top != p.Preview.Rows-3-3 {
 		t.Fatalf("scrolling back from the end: top %d of %d", p.Preview.Top, p.Preview.Rows)
 	}
 	tb.Buf.Cur.Row = 20 // the cursor moved: the preview follows it
