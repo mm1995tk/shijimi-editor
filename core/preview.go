@@ -322,7 +322,7 @@ func (a *Core) mdImageLines(mdPath string) func(alt, src string, w int) *MdMedia
 			return nil
 		}
 		label := func() []screen.Line {
-			return []screen.Line{MdRow(fitSpans(mdSpans(inlineCells("🖼 "+alt, mdStyle{fg: screen.StyleMdImage})), w)...)}
+			return []screen.Line{MdRow(fitSpans(inlineSpans("🖼 "+alt, screen.Span{Style: screen.StyleMdImage}), w)...)}
 		}
 		return jobLines(a.text, a.MdImages[path], BlobFile+path, w, msg.T("preview.loadingimage"), src+": ", label)
 	}

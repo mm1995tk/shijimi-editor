@@ -141,7 +141,7 @@ func TestAgentSelectionDropsQuoteBars(t *testing.T) {
 }
 
 func TestAgentSelectionKeepsSpacesOfWrappedCode(t *testing.T) {
-	code := "x := 1" + strings.Repeat(" ", 37) + "// note\twith\ta tab and 日本語 that goes on and on past the edge"
+	code := "x := 1" + strings.Repeat(" ", 37) + "// note\twith\ta tab and 日本語 👩‍💻 é क्ष that goes on and on past the edge"
 	a, _ := agentSelApp(t, core.LogEntry{Kind: core.LogAgent, Text: msg.S("```go\n" + code + "\n```")})
 	rows, w := a.Ag.View.Rows, a.Ag.View.W
 	if len(rows) < 5 {

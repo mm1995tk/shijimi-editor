@@ -201,3 +201,17 @@ func TestPreviewScrollBarPadsTruncatedGrapheme(t *testing.T) {
 		t.Fatalf("clipped preview = %q, want %q", ansi.Strip(rows[0]), want)
 	}
 }
+
+func TestPreviewScrollBarWrapsTabAtRightEdge(t *testing.T) {
+	const width = 60
+	prefix := strings.Repeat("x", width-3)
+	a := previewApp(t, t.TempDir(), prefix+"\tZ")
+	rows := a.previewLines(a.Tabs[0], width+1, 2)
+	bar := scrollBar(2, 0, 2, nil)
+	for i, want := range []string{prefix, "Z"} {
+		row := ansi.Strip(strings.TrimSuffix(rows[i], bar[i]))
+		if ansi.StringWidth(row) != width || strings.TrimRight(row, " ") != want {
+			t.Errorf("row %d before the scrollbar = %q, want %q padded to %d columns", i, row, want, width)
+		}
+	}
+}

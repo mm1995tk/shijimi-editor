@@ -410,6 +410,7 @@ func TestCodeBlockWrapsLongLines(t *testing.T) {
 		{"abcdéfgh", 7},  // the combining mark stays with its letter
 		{"a\tb\tc", 3},    // a tab is cut like four spaces
 		{"aaaa日本語", 4},
+		{"aक्ष\t🇯🇵éZ", 5},
 	} {
 		exact := map[int][2]int{}
 		conts := map[int]bool{}
@@ -441,5 +442,24 @@ func TestCodeBlockWrapsLongLines(t *testing.T) {
 	testMd("```\nshort\n```\n", 20, core.MdOpts{Exact: func(int, int, int) { called = true }})
 	if called {
 		t.Fatal("a line that fits reported as cut")
+	}
+}
+
+func TestMarkdownTableTabWidth(t *testing.T) {
+	const src = "| name | v |\n|---|---|\n| A\t日 | é |\n"
+	for _, tc := range []struct {
+		width int
+		rows  []string
+	}{
+		{22, []string{"│ A    日 │ é │"}},
+		{12, []string{"│ A    │ é │", "│ 日   │   │"}},
+	} {
+		rows := testMd(src, tc.width, core.MdOpts{})
+		for i, want := range tc.rows {
+			got := ansi.Strip(rows[3+i])
+			if ansi.StringWidth(got) != tc.width || strings.TrimRight(got, " ") != want {
+				t.Errorf("width %d, table row %d = %q, want %q padded to %d columns", tc.width, i, got, want, tc.width)
+			}
+		}
 	}
 }

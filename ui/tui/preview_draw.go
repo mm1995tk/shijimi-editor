@@ -93,7 +93,6 @@ var mdSpanStyles = map[mdSpanKey]lipgloss.Style{}
 // the editor background.
 func drawMdLine(l screen.Line, w int) string {
 	var sb strings.Builder
-	used := 0
 	for _, sp := range l.Spans {
 		if sp.Text == "" {
 			continue
@@ -111,10 +110,9 @@ func drawMdLine(l screen.Line, w int) string {
 			mdSpanStyles[k] = st
 		}
 		sb.WriteString(st.Render(sp.Text))
-		used += ansi.StringWidth(sp.Text)
 	}
-	if used < w {
-		sb.WriteString(stEmpty.Render(strings.Repeat(" ", w-used)))
+	if pad := w - ansi.StringWidth(sb.String()); pad > 0 {
+		sb.WriteString(stEmpty.Render(strings.Repeat(" ", pad)))
 	}
 	return sb.String()
 }
