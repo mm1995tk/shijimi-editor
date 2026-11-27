@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7.0.1
-      - uses: cachix/install-nix-action@v31.11.4
+      - uses: cachix/install-nix-action@v31.11.5
       - uses: nix-community/cache-nix-action@v7.0.2
         with:
           primary-key: nix-check-${{ runner.os }}-${{ hashFiles('flake.lock', '**/*.nix', 'gomod2nix.toml') }}

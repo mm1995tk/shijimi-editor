@@ -86,7 +86,7 @@ jobs:
         with:
           persist-credentials: false
       # go と node は devShell のもの（手元と同じ）
-      - uses: cachix/install-nix-action@v31.11.4
+      - uses: cachix/install-nix-action@v31.11.5
       - name: パッケージを作る
         env:
           VERSION: ${{ needs.check.outputs.version }}
